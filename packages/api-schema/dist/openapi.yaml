@@ -1,0 +1,101 @@
+openapi: 3.0.0
+info:
+  title: (title)
+  version: 0.0.0
+tags: []
+paths:
+  /public/events/map:
+    get:
+      operationId: PublicAPI_getMapPins
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+          explode: false
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+          explode: false
+        - name: radiusInKm
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 10
+          explode: false
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MapEventPin'
+components:
+  schemas:
+    Event:
+      type: object
+      required:
+        - id
+        - title
+        - clubName
+        - date
+        - ticketPrice
+        - latitude
+        - longitude
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        clubName:
+          type: string
+        date:
+          type: string
+          format: date-time
+        ticketPrice:
+          type: number
+          format: double
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+    MapEventPin:
+      type: object
+      required:
+        - id
+        - title
+        - clubName
+        - date
+        - latitude
+        - longitude
+        - remainingEventsCount
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        clubName:
+          type: string
+        date:
+          type: string
+          format: date-time
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        remainingEventsCount:
+          type: integer
+          format: int32

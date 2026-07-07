@@ -1,0 +1,13 @@
+{
+  "name": "pulse-platform",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "codegen": "pnpm --filter @packages/api-schema exec tsp compile . && pnpm --filter @packages/api-client build"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
