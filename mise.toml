@@ -1,0 +1,10 @@
+[tools]
+node = "24"
+go = "1.26"
+task = "3.50"
+pnpm = "11.10.0"
+awscli = "2"
+
+[env]
+# Putem injecta variabile de mediu globale necesare pentru tool-uri dacă e cazul
+NODE_ENV = "development"

@@ -1,0 +1,105 @@
+version: "3"
+
+dotenv: [".env"]
+
+vars:
+  GO_APP_DIR: "api"
+  NEXT_APP_DIR: "apps/pulse-app"
+  BUILD_DIR: "dist"
+
+tasks:
+  setup:
+    desc: "Instalează toate dependențele de monorepo"
+    cmds:
+      - pnpm install
+      - cd {{.GO_APP_DIR}} && go mod download
+
+  codegen:
+    desc: "Compilează contractul TypeSpec și generează interfețele TypeScript"
+    cmds:
+      - pnpm --filter @packages/api-schema exec tsp compile .
+      - pnpm --filter @packages/api-client build
+
+  dev:backend:
+    desc: "Pornește backend-ul în Go pentru rulare locală"
+    dir: "{{.GO_APP_DIR}}"
+    cmds:
+      - go run cmd/local/main.go
+
+  dev:frontend:
+    desc: "Pornește aplicația Next.js"
+    dir: "{{.NEXT_APP_DIR}}"
+    cmds:
+      - pnpm dev
+
+  dev:
+    desc: "Pornește întreaga platformă în mod paralel (Frontend + Backend)"
+    deps: [codegen]
+    cmds:
+      - task: dev:backend
+      - task: dev:frontend
+
+  build:backend:local:
+    desc: "Compilează binarul de Go pentru rulare locală"
+    dir: "{{.GO_APP_DIR}}"
+    cmds:
+      - mkdir -p {{.BUILD_DIR}}
+      - go build -o {{.BUILD_DIR}}/pulse-api cmd/local/main.go
+
+  build:backend:lambda:
+    desc: "Compilează și împachetează binarul de Go pentru AWS Lambda (Linux ARM64)"
+    dir: "{{.GO_APP_DIR}}"
+    env:
+      GOOS: linux
+      GOARCH: arm64
+      CGO_ENABLED: "0"
+    cmds:
+      - go env
+      - go build -ldflags="-s -w" -o {{.BUILD_DIR}}/bootstrap cmd/lambda/main.go
+      - '{{if eq OS "windows"}}powershell -Command "Compress-Archive -Path {{.BUILD_DIR}}/bootstrap -DestinationPath {{.BUILD_DIR}}/bootstrap.zip -Force"{{else}}zip -j {{.BUILD_DIR}}/bootstrap.zip {{.BUILD_DIR}}/bootstrap{{/if}}'
+
+  build:frontend:
+    desc: "Compilează aplicația Next.js pentru producție"
+    dir: "{{.NEXT_APP_DIR}}"
+    cmds:
+      - pnpm build
+
+  build:all:
+    desc: "Compilează absolut tot proiectul pentru producție"
+    deps: [codegen, db:up]
+    cmds:
+      - task: build:backend:lambda
+      - task: build:frontend
+
+  db:up:
+    desc: "Pornește containerul de PostgreSQL în fundal"
+    cmds:
+      - docker compose up -d
+
+  db:down:
+    desc: "Oprește containerul de PostgreSQL și păstrează datele"
+    cmds:
+      - docker compose down
+
+  db:clean:
+    desc: "Oprește baza de date și șterge complet volumul de date"
+    cmds:
+      - docker compose down -v
+
+  db:migration:create:
+    desc: "Creează o nouă migrare SQL (ex: task db:migration:create NAME=create_users_table)"
+    dir: "{{.GO_APP_DIR}}"
+    cmds:
+      - go run github.com/pressly/goose/v3/cmd/goose@v3.20.0 -dir internal/database/migrations create {{.NAME}} sql
+
+  db:migrate:
+    desc: "Rulează toate migrările pendinte pe baza de date locală"
+    dir: "{{.GO_APP_DIR}}"
+    cmds:
+      - go run github.com/pressly/goose/v3/cmd/goose@v3.20.0 -dir internal/database/migrations postgres "host=localhost user={{.DB_USER}} password={{.DB_PASSWORD}} dbname={{.DB_NAME}} sslmode=disable" up
+
+  db:rollback:
+    desc: "Face rollback la ultima migrare aplicată"
+    dir: "{{.GO_APP_DIR}}"
+    cmds:
+      - go run github.com/pressly/goose/v3/cmd/goose@v3.20.0 -dir internal/database/migrations postgres "host=localhost user={{.DB_USER}} password={{.DB_PASSWORD}} dbname={{.DB_NAME}} sslmode=disable" down
