@@ -87,9 +87,14 @@ tasks:
       - docker compose down -v
 
   db:setup:
-    desc: "Configurează automat userul, baza de date locală și rulează migrările"
+    desc: "Configurează automat userul și baza de date folosind init.sql, apoi rulează migrările"
     cmds:
-      - powershell -Command "$pgPath = Get-ChildItem -Path 'C:\Program Files\PostgreSQL' -Directory | Select-Object -First 1 -ExpandProperty FullName; & \"$pgPath\bin\psql.exe\" -U postgres -f init_db.sql"
+      - cmd: powershell -ExecutionPolicy Bypass -File ./setup_db.ps1
+        platforms: [windows]
+
+      - cmd: psql -U postgres -f init.sql
+        platforms: [darwin]
+
       - task: db:migrate
 
   db:migration:create:
