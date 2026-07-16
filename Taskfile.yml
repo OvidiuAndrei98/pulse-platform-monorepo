@@ -86,6 +86,12 @@ tasks:
     cmds:
       - docker compose down -v
 
+  db:setup:
+    desc: "Configurează automat userul, baza de date locală și rulează migrările"
+    cmds:
+      - powershell -Command "$pgPath = Get-ChildItem -Path 'C:\Program Files\PostgreSQL' -Directory | Select-Object -First 1 -ExpandProperty FullName; & \"$pgPath\bin\psql.exe\" -U postgres -f init_db.sql"
+      - task: db:migrate
+
   db:migration:create:
     desc: "Creează o nouă migrare SQL (ex: task db:migration:create NAME=create_users_table)"
     dir: "{{.GO_APP_DIR}}"
