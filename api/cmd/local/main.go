@@ -2,18 +2,35 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
-	"pulse-api/internal/router"
+	"os"
+	app "pulse-api/cmd"
+	"time"
 )
 
 func main() {
-	port := ":8080"
-	appRouter := router.SetupRouter()
-
-	fmt.Printf("🚀 [PULSE API] Serverul local rulează pe http://localhost%s\n", port)
-	fmt.Printf("📍 Testează harta la: http://localhost%s/public/events/map\n", port)
-	
-	if err := http.ListenAndServe(port, appRouter); err != nil {
-		fmt.Printf("❌ Eroare la pornirea serverului: %v\n", err)
+	coreApp, err := app.InitApplication()
+	if err != nil {
+		log.Fatalf("Eroare la inițializarea bazei de date: %v", err)
 	}
+	defer coreApp.Pool.Close()
+
+	// Citim routerul comun
+	router := coreApp.SetupRouter()
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	server := &http.Server{
+		Addr:         ":" + port,
+		Handler:      router,
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  15 * time.Second,
+	}
+
+	fmt.Printf("[LOCAL] Serverul rulează pe http://localhost:%s/api/v1\n", port)
+	log.Fatal(server.ListenAndServe())
 }

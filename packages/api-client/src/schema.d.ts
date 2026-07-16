@@ -4,15 +4,173 @@
  */
 
 export interface paths {
-    "/public/events/map": {
+    "/auth/login": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["PublicAPI_getMapPins"];
+        get?: never;
         put?: never;
+        /** Autentificare utilizator */
+        post: operations["AuthOperations_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Înregistrare utilizator nou */
+        post: operations["AuthOperations_register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Listă completă de evenimente */
+        get: operations["EventOperations_listEvents"];
+        put?: never;
+        /** Creare eveniment nou (doar Organizatori/Admini) */
+        post: operations["EventOperations_createEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Obține evenimentele active pentru Live Map dintr-o zonă geografică */
+        get: operations["EventOperations_getMapEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detalii eveniment după ID */
+        get: operations["EventOperations_getEvent"];
+        put?: never;
+        post?: never;
+        /** Ștergere eveniment */
+        delete: operations["EventOperations_deleteEvent"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{id}/check-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check-in la un eveniment live */
+        post: operations["EventOperations_checkIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adaugă un comentariu */
+        post: operations["EventOperations_addComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/friends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista de prieteni acceptați */
+        get: operations["FriendOperations_listFriends"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/friends/request/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Acceptă sau refuză o cerere de prietenie */
+        put: operations["FriendOperations_respondToRequest"];
+        /** Trimite cerere de prietenie */
+        post: operations["FriendOperations_sendRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Obține profilul utilizatorului curent */
+        get: operations["UserOperations_getMe"];
+        /** Actualizează profilul curent */
+        put: operations["UserOperations_updateMe"];
         post?: never;
         delete?: never;
         options?: never;
@@ -24,31 +182,68 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Comment: {
+            id: string;
+            eventId: string;
+            userId: string;
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CreateEventPayload: {
+            title: string;
+            description?: string;
+            category: string;
+            bannerUrl?: string;
+            locationName: string;
+            /** Format: decimal */
+            latitude: number;
+            /** Format: decimal */
+            longitude: number;
+            /** Format: date-time */
+            startTime: string;
+            /** Format: date-time */
+            endTime: string;
+        };
         Event: {
             id: string;
+            organizerId: string;
             title: string;
-            clubName: string;
-            /** Format: date-time */
-            date: string;
-            /** Format: double */
-            ticketPrice: number;
-            /** Format: double */
+            description?: string;
+            category: string;
+            bannerUrl?: string;
+            locationName: string;
+            /** Format: decimal */
             latitude: number;
-            /** Format: double */
+            /** Format: decimal */
             longitude: number;
+            /** Format: date-time */
+            startTime: string;
+            /** Format: date-time */
+            endTime: string;
+            isLive: boolean;
+            /** Format: date-time */
+            createdAt: string;
         };
-        MapEventPin: {
+        User: {
             id: string;
-            title: string;
-            clubName: string;
+            username: string;
+            email: string;
+            /** @enum {string} */
+            role: "user" | "organizer" | "admin";
+            avatarUrl?: string;
+            bio?: string;
             /** Format: date-time */
-            date: string;
-            /** Format: double */
-            latitude: number;
-            /** Format: double */
-            longitude: number;
-            /** Format: int32 */
-            remainingEventsCount: number;
+            createdAt: string;
+        };
+        UserLoginPayload: {
+            email: string;
+            passwordHash: string;
+        };
+        UserRegisterPayload: {
+            username: string;
+            email: string;
+            passwordHash: string;
         };
     };
     responses: never;
@@ -59,12 +254,61 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    PublicAPI_getMapPins: {
+    AuthOperations_login: {
         parameters: {
-            query: {
-                lat: number;
-                lng: number;
-                radiusInKm?: number;
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserLoginPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        token: string;
+                    };
+                };
+            };
+        };
+    };
+    AuthOperations_register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserRegisterPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded and a new resource has been created as a result. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
+    EventOperations_listEvents: {
+        parameters: {
+            query?: {
+                category?: string;
+                page?: number;
             };
             header?: never;
             path?: never;
@@ -78,7 +322,268 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MapEventPin"][];
+                    "application/json": components["schemas"]["Event"][];
+                };
+            };
+        };
+    };
+    EventOperations_createEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEventPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded and a new resource has been created as a result. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
+    EventOperations_getMapEvents: {
+        parameters: {
+            query: {
+                latMin: number;
+                latMax: number;
+                lonMin: number;
+                lonMax: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"][];
+                };
+            };
+        };
+    };
+    EventOperations_getEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
+    EventOperations_deleteEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    EventOperations_checkIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        success: boolean;
+                    };
+                };
+            };
+        };
+    };
+    EventOperations_addComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    content: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comment"];
+                };
+            };
+        };
+    };
+    FriendOperations_listFriends: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"][];
+                };
+            };
+        };
+    };
+    FriendOperations_respondToRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    status: "accepted" | "declined";
+                };
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FriendOperations_sendRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded and a new resource has been created as a result. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserOperations_getMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
+    UserOperations_updateMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    username?: string;
+                    email?: string;
+                    /** @enum {string} */
+                    role?: "user" | "organizer" | "admin";
+                    avatarUrl?: string;
+                    bio?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
                 };
             };
         };

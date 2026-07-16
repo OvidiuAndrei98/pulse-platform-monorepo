@@ -97,6 +97,22 @@ tasks:
 
       - task: db:migrate
 
+      - task: db:populate
+
+  db:populate:
+    desc: "Populează baza de date locală cu date demo (utilizatori, petreceri, check-ins)"
+    cmds:
+      - cmd: powershell -ExecutionPolicy Bypass -File ./populate_db.ps1
+        platforms: [windows]
+
+      - cmd: psql -U postgres -d pulse_db -f populate_db.sql
+        platforms: [darwin]
+
+  db:generate:
+    desc: "Generează codul Go din query-urile SQL folosind sqlc"
+    cmds:
+      - sqlc generate
+
   db:migration:create:
     desc: "Creează o nouă migrare SQL (ex: task db:migration:create NAME=create_users_table)"
     dir: "{{.GO_APP_DIR}}"

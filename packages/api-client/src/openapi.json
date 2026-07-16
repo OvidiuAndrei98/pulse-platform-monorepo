@@ -6,38 +6,93 @@
   },
   "tags": [],
   "paths": {
-    "/public/events/map": {
+    "/auth/login": {
+      "post": {
+        "operationId": "AuthOperations_login",
+        "summary": "Autentificare utilizator",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "token"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserLoginPayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "operationId": "AuthOperations_register",
+        "summary": "Înregistrare utilizator nou",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "The request has succeeded and a new resource has been created as a result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRegisterPayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events": {
       "get": {
-        "operationId": "PublicAPI_getMapPins",
+        "operationId": "EventOperations_listEvents",
+        "summary": "Listă completă de evenimente",
         "parameters": [
           {
-            "name": "lat",
+            "name": "category",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "number",
-              "format": "double"
+              "type": "string"
             },
             "explode": false
           },
           {
-            "name": "lng",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "number",
-              "format": "double"
-            },
-            "explode": false
-          },
-          {
-            "name": "radiusInKm",
+            "name": "page",
             "in": "query",
             "required": false,
             "schema": {
               "type": "integer",
-              "format": "int32",
-              "default": 10
+              "format": "int32"
             },
             "explode": false
           }
@@ -50,7 +105,378 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/MapEventPin"
+                    "$ref": "#/components/schemas/Event"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "EventOperations_createEvent",
+        "summary": "Creare eveniment nou (doar Organizatori/Admini)",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "The request has succeeded and a new resource has been created as a result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventPayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/map": {
+      "get": {
+        "operationId": "EventOperations_getMapEvents",
+        "summary": "Obține evenimentele active pentru Live Map dintr-o zonă geografică",
+        "parameters": [
+          {
+            "name": "latMin",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "decimal"
+            },
+            "explode": false
+          },
+          {
+            "name": "latMax",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "decimal"
+            },
+            "explode": false
+          },
+          {
+            "name": "lonMin",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "decimal"
+            },
+            "explode": false
+          },
+          {
+            "name": "lonMax",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "decimal"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Event"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}": {
+      "get": {
+        "operationId": "EventOperations_getEvent",
+        "summary": "Detalii eveniment după ID",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "EventOperations_deleteEvent",
+        "summary": "Ștergere eveniment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      }
+    },
+    "/events/{id}/check-in": {
+      "post": {
+        "operationId": "EventOperations_checkIn",
+        "summary": "Check-in la un eveniment live",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}/comments": {
+      "post": {
+        "operationId": "EventOperations_addComment",
+        "summary": "Adaugă un comentariu",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "content"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friends": {
+      "get": {
+        "operationId": "FriendOperations_listFriends",
+        "summary": "Lista de prieteni acceptați",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friends/request/{userId}": {
+      "post": {
+        "operationId": "FriendOperations_sendRequest",
+        "summary": "Trimite cerere de prietenie",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The request has succeeded and a new resource has been created as a result."
+          }
+        }
+      },
+      "put": {
+        "operationId": "FriendOperations_respondToRequest",
+        "summary": "Acceptă sau refuză o cerere de prietenie",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded."
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "accepted",
+                      "declined"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me": {
+      "get": {
+        "operationId": "UserOperations_getMe",
+        "summary": "Obține profilul utilizatorului curent",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "UserOperations_updateMe",
+        "summary": "Actualizează profilul curent",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "user",
+                      "organizer",
+                      "admin"
+                    ]
+                  },
+                  "avatarUrl": {
+                    "type": "string"
+                  },
+                  "bio": {
+                    "type": "string"
                   }
                 }
               }
@@ -62,84 +488,221 @@
   },
   "components": {
     "schemas": {
+      "Comment": {
+        "type": "object",
+        "required": [
+          "id",
+          "eventId",
+          "userId",
+          "content",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateEventPayload": {
+        "type": "object",
+        "required": [
+          "title",
+          "category",
+          "locationName",
+          "latitude",
+          "longitude",
+          "startTime",
+          "endTime"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "bannerUrl": {
+            "type": "string"
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "Event": {
         "type": "object",
         "required": [
           "id",
+          "organizerId",
           "title",
-          "clubName",
-          "date",
-          "ticketPrice",
+          "category",
+          "locationName",
           "latitude",
-          "longitude"
+          "longitude",
+          "startTime",
+          "endTime",
+          "isLive",
+          "createdAt"
         ],
         "properties": {
           "id": {
             "type": "string"
           },
+          "organizerId": {
+            "type": "string"
+          },
           "title": {
             "type": "string"
           },
-          "clubName": {
+          "description": {
             "type": "string"
           },
-          "date": {
-            "type": "string",
-            "format": "date-time"
+          "category": {
+            "type": "string"
           },
-          "ticketPrice": {
-            "type": "number",
-            "format": "double"
+          "bannerUrl": {
+            "type": "string"
+          },
+          "locationName": {
+            "type": "string"
           },
           "latitude": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
           },
           "longitude": {
             "type": "number",
-            "format": "double"
+            "format": "decimal"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isLive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
-      "MapEventPin": {
+      "User": {
         "type": "object",
         "required": [
           "id",
-          "title",
-          "clubName",
-          "date",
-          "latitude",
-          "longitude",
-          "remainingEventsCount"
+          "username",
+          "email",
+          "role",
+          "createdAt"
         ],
         "properties": {
           "id": {
             "type": "string"
           },
-          "title": {
+          "username": {
             "type": "string"
           },
-          "clubName": {
+          "email": {
             "type": "string"
           },
-          "date": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "organizer",
+              "admin"
+            ]
+          },
+          "avatarUrl": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "createdAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "UserLoginPayload": {
+        "type": "object",
+        "required": [
+          "email",
+          "passwordHash"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
           },
-          "latitude": {
-            "type": "number",
-            "format": "double"
+          "passwordHash": {
+            "type": "string"
+          }
+        }
+      },
+      "UserRegisterPayload": {
+        "type": "object",
+        "required": [
+          "username",
+          "email",
+          "passwordHash"
+        ],
+        "properties": {
+          "username": {
+            "type": "string"
           },
-          "longitude": {
-            "type": "number",
-            "format": "double"
+          "email": {
+            "type": "string"
           },
-          "remainingEventsCount": {
-            "type": "integer",
-            "format": "int32"
+          "passwordHash": {
+            "type": "string"
           }
         }
       }
     }
-  }
+  },
+  "servers": [
+    {
+      "url": "https://api.pulse-app.local/v1",
+      "description": "Local development server",
+      "variables": {}
+    }
+  ]
 }

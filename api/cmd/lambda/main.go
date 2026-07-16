@@ -2,31 +2,47 @@ package main
 
 import (
 	"context"
-	"pulse-api/internal/router"
+	"log"
+	app "pulse-api/cmd"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	chiproxy "github.com/awslabs/aws-lambda-go-api-proxy/chi"
-	"github.com/go-chi/chi/v5"
 )
 
-var chiLambda *chiproxy.ChiLambda
+// Păstrăm referința la nivel global în fișier pentru a profita de "Global Context" în Lambda.
+// Conexiunea la baza de date rămâne activă între execuții succesive (Warm Starts).
+var coreApp *app.Application
 
 func init() {
-	// Se execută o singură dată când AWS încarcă Lambda în memorie (Warm Up)
-	// Aici inițializăm routerul nostru comun din pachetul internal
-	appRouter := router.SetupRouter()
-	chiLambda = chiproxy.New(appRouter.(*chi.Mux))
+	var err error
+	coreApp, err = app.InitApplication()
+	if err != nil {
+		log.Fatalf("Eroare la inițializarea bazei de date în faza de init Lambda: %v", err)
+	}
 }
 
-func Handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// Adaptorul preia request-ul brut de la AWS API Gateway,
-	// îl transformă într-un request HTTP normal, îl trece prin routerul nostru de Go,
-	// și trimite răspunsul înapoi către AWS.
-	return chiLambda.ProxyWithContext(ctx, req)
+// Handler procesează direct cererea venită de la un AWS API Gateway (v2 / HTTP API)
+func Handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	log.Printf("Request primit pe ruta: %s %s", request.RequestContext.HTTP.Method, request.RequestContext.HTTP.Path)
+
+	// Exemplu de rutare primit direct din proprietățile evenimentului AWS
+	switch request.RequestContext.HTTP.Path {
+	case "/health":
+		return events.APIGatewayV2HTTPResponse{
+			StatusCode: 200,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+			Body:       `{"status": "ok", "mode": "aws-lambda"}`,
+		}, nil
+
+	default:
+		return events.APIGatewayV2HTTPResponse{
+			StatusCode: 404,
+			Body:       `{"message": "Ruta nu a fost găsită în Lambda"}`,
+		}, nil
+	}
 }
 
 func main() {
-	// Îi spune runtime-ului de AWS Lambda să folosească funcția noastră de Handler
+	// Pornim runtime-ul nativ AWS Lambda
 	lambda.Start(Handler)
 }
