@@ -666,13 +666,13 @@
         "type": "object",
         "required": [
           "email",
-          "passwordHash"
+          "password"
         ],
         "properties": {
           "email": {
             "type": "string"
           },
-          "passwordHash": {
+          "password": {
             "type": "string"
           }
         }
@@ -682,7 +682,7 @@
         "required": [
           "username",
           "email",
-          "passwordHash"
+          "password"
         ],
         "properties": {
           "username": {
@@ -691,7 +691,7 @@
           "email": {
             "type": "string"
           },
-          "passwordHash": {
+          "password": {
             "type": "string"
           }
         }

@@ -3,9 +3,17 @@ package app
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
-	db "pulse-api/db/generated"
 	"time"
+
+	db "pulse-api/db/generated"
+	"pulse-api/internal/auth"
+	"pulse-api/internal/email"
+	"pulse-api/internal/events"
+	"pulse-api/internal/interactions"
+	"pulse-api/internal/router"
+	"pulse-api/internal/users"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -17,7 +25,6 @@ type Application struct {
 
 // InitApplication configurează pool-ul de conexiuni, refolosit și local și în Lambda
 func InitApplication() (*Application, error) {
-
 	dbHost := os.Getenv("DB_HOST")
 	if dbHost == "" {
 		dbHost = "localhost"
@@ -58,7 +65,6 @@ func InitApplication() (*Application, error) {
 		return nil, err
 	}
 
-	// Setări sigure atât pentru instanțe persistente, cât și pentru ciclul de viață Lambda
 	config.MaxConns = 15
 	config.MinConns = 2
 	config.MaxConnIdleTime = 15 * time.Minute
@@ -77,4 +83,57 @@ func InitApplication() (*Application, error) {
 		Queries: db.New(pool),
 		Pool:    pool,
 	}, nil
+}
+
+func (app *Application) BuildRouter() http.Handler {
+
+	mailerService := email.NewMailer(
+		os.Getenv("SMTP_HOST"),
+		os.Getenv("SMTP_PORT"),
+		os.Getenv("SMTP_FROM"),
+		os.Getenv("SMTP_PASSWORD"),
+	)
+
+	// 1. Instanțiem modulele din internal cu dependențele necesare
+	authHandler := auth.NewHandler(app.Queries, mailerService)
+	eventsHandler := events.NewHandler(app.Queries)
+	interactionsHandler := interactions.NewHandler(app.Queries)
+	usersHandler := users.NewHandler(app.Queries)
+	authMiddleware := auth.AuthMiddleware
+
+	// 2. Mapăm funcțiile în noua structură de configurare din router
+	cfg := router.HandlersConfig{
+		// Auth
+		AuthMiddleware: authMiddleware,
+		Register:       authHandler.HandleRegister,
+		Activate:       authHandler.HandleActivate,
+		Login:          authHandler.Login,
+
+		// Users
+		GetMe:      usersHandler.HandleGetMe,
+		CreateUser: usersHandler.HandleCreateUser,
+		GetUser:    usersHandler.HandleGetUser,
+
+		// Events
+		CreateEvent:         eventsHandler.HandleCreateEvent,
+		ListEvents:          eventsHandler.HandleListEvents,
+		GetEventByID:        eventsHandler.HandleGetEventByID,
+		GetLiveEventsInArea: eventsHandler.HandleGetLiveEventsInArea,
+		DeleteEvent:         eventsHandler.HandleDeleteEvent,
+
+		// Interactions / Checkins
+		CreateCheckIn: interactionsHandler.HandleCreateCheckIn,
+		DeleteCheckIn: interactionsHandler.HandleDeleteCheckIn,
+
+		// Comments
+		AddComment: interactionsHandler.HandleAddComment,
+
+		// Friends
+		GetFriends:             interactionsHandler.HandleGetFriends,
+		SendFriendRequest:      interactionsHandler.HandleSendFriendRequest,
+		RespondToFriendRequest: interactionsHandler.HandleRespondToFriendRequest,
+	}
+
+	// 3. Generăm routerul decuplat din internal/router folosind SetupRouter
+	return router.SetupRouter(cfg)
 }

@@ -54,13 +54,24 @@ type Friendships struct {
 	Status   pgtype.Text `json:"status"`
 }
 
+type UserTokens struct {
+	ID        pgtype.UUID        `json:"id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	TokenHash string             `json:"token_hash"`
+	Type      string             `json:"type"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type Users struct {
 	ID           pgtype.UUID        `json:"id"`
 	Username     string             `json:"username"`
 	Email        string             `json:"email"`
-	PasswordHash string             `json:"password_hash"`
+	PasswordHash pgtype.Text        `json:"password_hash"`
 	AvatarUrl    pgtype.Text        `json:"avatar_url"`
 	Role         pgtype.Text        `json:"role"`
 	Bio          pgtype.Text        `json:"bio"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	IsActive     pgtype.Bool        `json:"is_active"`
+	GoogleID     pgtype.Text        `json:"google_id"`
 }

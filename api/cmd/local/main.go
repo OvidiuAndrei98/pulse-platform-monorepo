@@ -17,7 +17,7 @@ func main() {
 	defer coreApp.Pool.Close()
 
 	// Citim routerul comun
-	router := coreApp.SetupRouter()
+	router := coreApp.BuildRouter()
 
 	port := os.Getenv("PORT")
 	if port == "" {

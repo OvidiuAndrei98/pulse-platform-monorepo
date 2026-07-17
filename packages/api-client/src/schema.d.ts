@@ -238,12 +238,12 @@ export interface components {
         };
         UserLoginPayload: {
             email: string;
-            passwordHash: string;
+            password: string;
         };
         UserRegisterPayload: {
             username: string;
             email: string;
-            passwordHash: string;
+            password: string;
         };
     };
     responses: never;

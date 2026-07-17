@@ -49,12 +49,12 @@ model Comment {
 model UserRegisterPayload {
   username: string;
   email: string;
-  passwordHash: string;
+  password: string;
 }
 
 model UserLoginPayload {
   email: string;
-  passwordHash: string;
+  password: string;
 }
 
 model CreateEventPayload {

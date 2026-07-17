@@ -14,17 +14,24 @@ type Querier interface {
 	AddComment(ctx context.Context, arg AddCommentParams) (Comments, error)
 	CreateCheckIn(ctx context.Context, arg CreateCheckInParams) (CheckIns, error)
 	CreateEvent(ctx context.Context, arg CreateEventParams) (Events, error)
-	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	CreateUser(ctx context.Context, arg CreateUserParams) (Users, error)
 	DeleteCheckIn(ctx context.Context, arg DeleteCheckInParams) error
 	DeleteEvent(ctx context.Context, id pgtype.UUID) error
+	DeleteUserToken(ctx context.Context, arg DeleteUserTokenParams) error
 	GetEventByID(ctx context.Context, id pgtype.UUID) (GetEventByIDRow, error)
 	GetFriends(ctx context.Context, userID pgtype.UUID) ([]GetFriendsRow, error)
 	GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAreaParams) ([]GetLiveEventsInAreaRow, error)
 	GetUserByEmail(ctx context.Context, email string) (Users, error)
+	GetUserByGoogleID(ctx context.Context, googleID pgtype.Text) (Users, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (Users, error)
+	GetUserTokenByHash(ctx context.Context, arg GetUserTokenByHashParams) (UserTokens, error)
+	InsertUserToken(ctx context.Context, arg InsertUserTokenParams) (UserTokens, error)
 	ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error)
 	RespondToFriendRequest(ctx context.Context, arg RespondToFriendRequestParams) error
 	SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error
+	UpdateUserActivated(ctx context.Context, id pgtype.UUID) error
+	UpdateUserActivation(ctx context.Context, arg UpdateUserActivationParams) error
+	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (UpdateUserProfileRow, error)
 }
 

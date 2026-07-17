@@ -1,17 +1,13 @@
 version: "3.8"
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: pulse-postgres
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: pulse_mailpit
     ports:
-      - "${DB_PORT}:5432"
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
 
 volumes:
   postgres_data:

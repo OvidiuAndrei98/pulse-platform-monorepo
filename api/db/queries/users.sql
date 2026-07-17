@@ -1,17 +1,22 @@
+-- name: CreateUser :one
+INSERT INTO users (username, email, password_hash, avatar_url, role, bio, is_active, google_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING *;
+
 -- name: GetUserByID :one
-SELECT id, username, email, password_hash, avatar_url, role, bio, created_at 
-FROM users 
-WHERE id = $1 LIMIT 1;
+SELECT * FROM users WHERE id = $1 LIMIT 1;
 
 -- name: GetUserByEmail :one
-SELECT id, username, email, password_hash, avatar_url, role, bio, created_at 
-FROM users 
-WHERE email = $1 LIMIT 1;
+SELECT * FROM users WHERE email = $1 LIMIT 1;
 
--- name: CreateUser :one
-INSERT INTO users (username, email, password_hash, role)
-VALUES ($1, $2, $3, COALESCE($4, 'user'))
-RETURNING id, username, email, role, avatar_url, bio, created_at;
+-- name: GetUserByGoogleID :one
+SELECT * FROM users WHERE google_id = $1 LIMIT 1;
+
+-- name: UpdateUserActivation :exec
+UPDATE users SET is_active = $1 WHERE id = $2;
+
+-- name: UpdateUserPassword :exec
+UPDATE users SET password_hash = $1 WHERE id = $2;
 
 -- name: UpdateUserProfile :one
 UPDATE users
@@ -20,3 +25,8 @@ SET
     bio = COALESCE($3, bio)
 WHERE id = $1
 RETURNING id, username, email, role, avatar_url, bio, created_at;
+
+-- name: UpdateUserActivated :exec
+UPDATE users
+SET is_active = true
+WHERE id = $1;
