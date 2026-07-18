@@ -14,6 +14,7 @@ import (
 	"pulse-api/internal/interactions"
 	"pulse-api/internal/organizer"
 	"pulse-api/internal/router"
+	"pulse-api/internal/tickets"
 	"pulse-api/internal/users"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -104,6 +105,7 @@ func (app *Application) BuildRouter() http.Handler {
 	requireOrganizer := auth.RequireRole("organizer", "admin")
 	requireAdmin := auth.RequireRole("admin")
 	organizerHandler := organizer.NewHandler(app.Queries)
+	ticketingHandler := tickets.NewHandler(app.Queries, app.Pool)
 
 	// 2. Mapăm funcțiile în noua structură de configurare din router
 	cfg := router.HandlersConfig{
@@ -118,10 +120,11 @@ func (app *Application) BuildRouter() http.Handler {
 		Login:    authHandler.Login,
 
 		// Users
-		GetMe:      usersHandler.HandleGetMe,
-		UpdateMe:   usersHandler.HandleUpdateMe,
-		CreateUser: usersHandler.HandleCreateUser,
-		GetUser:    usersHandler.HandleGetUser,
+		GetMe:          usersHandler.HandleGetMe,
+		UpdateMe:       usersHandler.HandleUpdateMe,
+		CreateUser:     usersHandler.HandleCreateUser,
+		GetUser:        usersHandler.HandleGetUser,
+		GetUserTickets: ticketingHandler.HandleGetUserTickets,
 
 		// Events
 		CreateEvent:         eventsHandler.HandleCreateEvent,
@@ -149,6 +152,12 @@ func (app *Application) BuildRouter() http.Handler {
 		// Organizer
 		GetOrganizerProfile:    organizerHandler.HandleGetOrganizerProfile,
 		CreateOrganizerProfile: organizerHandler.HandleCreateOrganizerProfile,
+
+		// Tickets
+		GetEventTicketTypes: ticketingHandler.HandleGetTicketTypesForEvent,
+		CreateTicketType:    ticketingHandler.HandleCreateTicketType,
+		PurchaseTickets:     ticketingHandler.HandlePurchaseTickets,
+		ValidateTicket:      ticketingHandler.HandleValidateTicket,
 	}
 
 	// 3. Generăm routerul decuplat din internal/router folosind SetupRouter

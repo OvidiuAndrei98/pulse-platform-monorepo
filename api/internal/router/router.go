@@ -22,10 +22,11 @@ type HandlersConfig struct {
 	Login    http.HandlerFunc
 
 	// Users
-	GetMe      http.HandlerFunc
-	UpdateMe   http.HandlerFunc
-	CreateUser http.HandlerFunc
-	GetUser    http.HandlerFunc
+	GetMe          http.HandlerFunc
+	UpdateMe       http.HandlerFunc
+	CreateUser     http.HandlerFunc
+	GetUser        http.HandlerFunc
+	GetUserTickets http.HandlerFunc
 
 	// Events
 	CreateEvent         http.HandlerFunc
@@ -53,6 +54,12 @@ type HandlersConfig struct {
 	// Organizer
 	GetOrganizerProfile    http.HandlerFunc
 	CreateOrganizerProfile http.HandlerFunc
+
+	// Tickets
+	GetEventTicketTypes http.HandlerFunc
+	CreateTicketType    http.HandlerFunc
+	PurchaseTickets     http.HandlerFunc
+	ValidateTicket      http.HandlerFunc
 }
 
 func SetupRouter(cfg HandlersConfig) http.Handler {
@@ -94,6 +101,8 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			r.Get("/map", cfg.GetLiveEventsInArea)
 			r.Get("/{id}", cfg.GetEventWithStats)
 			r.Get("/{id}/comments", cfg.GetComments)
+			r.Get("/{id}/ticket-types", cfg.GetEventTicketTypes)
+			r.Post("/{id}/tickets/purchase", cfg.PurchaseTickets)
 		})
 
 		// --- RUTE PROTEJATE: Utilizatori autentificați ---
@@ -104,9 +113,10 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 
 			// --- USERS ---
 			r.Route("/users", func(r chi.Router) {
+				r.Post("/", cfg.CreateUser)
 				r.Get("/me", cfg.GetMe)
 				r.Put("/me", cfg.UpdateMe)
-				r.Post("/", cfg.CreateUser)
+				r.Get("/me/tickets", cfg.GetUserTickets)
 				r.Get("/{id}", cfg.GetUser)
 			})
 
@@ -127,14 +137,18 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				if cfg.OrganizerMiddleware != nil {
 					r.Use(cfg.OrganizerMiddleware)
 				}
-				r.Post("/events", cfg.CreateEvent)
-				if cfg.DeleteEvent != nil {
-					r.Delete("/events/{id}", cfg.DeleteEvent)
-				}
 
 				// --- ORGANIZER DASHBOARD ---
-				r.Post("/dashboard/events/{id}", cfg.EditEvent)
-				r.Get("/dashboard/events/{id}", cfg.GetEventByID)
+				r.Route("/dashboard/events", func(r chi.Router) {
+					r.Post("/", cfg.CreateEvent)
+					if cfg.DeleteEvent != nil {
+						r.Delete("/{id}", cfg.DeleteEvent)
+					}
+					r.Post("/{id}", cfg.EditEvent)
+					r.Get("/{id}", cfg.GetEventByID)
+					r.Post("/{id}/ticket-types", cfg.CreateTicketType)
+					r.Post("/{id}/tickets/validate", cfg.ValidateTicket)
+				})
 
 				// --- ORGANIZER PROFILE ---
 				r.Post("/dashboard/organizer/profile", cfg.CreateOrganizerProfile)

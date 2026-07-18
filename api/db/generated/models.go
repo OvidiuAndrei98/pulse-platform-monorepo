@@ -11,6 +11,50 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type OrderStatus string
+
+const (
+	OrderStatusPending   OrderStatus = "pending"
+	OrderStatusCompleted OrderStatus = "completed"
+	OrderStatusFailed    OrderStatus = "failed"
+	OrderStatusRefunded  OrderStatus = "refunded"
+)
+
+func (e *OrderStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = OrderStatus(s)
+	case string:
+		*e = OrderStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for OrderStatus: %T", src)
+	}
+	return nil
+}
+
+type NullOrderStatus struct {
+	OrderStatus OrderStatus `json:"order_status"`
+	Valid       bool        `json:"valid"` // Valid is true if OrderStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullOrderStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.OrderStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.OrderStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullOrderStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.OrderStatus), nil
+}
+
 type VerificationStatusType string
 
 const (
@@ -101,6 +145,17 @@ type Friendships struct {
 	Status   pgtype.Text `json:"status"`
 }
 
+type Orders struct {
+	ID                    pgtype.UUID        `json:"id"`
+	UserID                pgtype.UUID        `json:"user_id"`
+	EventID               pgtype.UUID        `json:"event_id"`
+	Email                 string             `json:"email"`
+	StripePaymentIntentID pgtype.Text        `json:"stripe_payment_intent_id"`
+	Status                OrderStatus        `json:"status"`
+	TotalAmount           int32              `json:"total_amount"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+}
+
 type OrganizerProfiles struct {
 	ID                 pgtype.UUID            `json:"id"`
 	UserID             pgtype.UUID            `json:"user_id"`
@@ -112,6 +167,30 @@ type OrganizerProfiles struct {
 	CreatedAt          pgtype.Timestamptz     `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz     `json:"updated_at"`
 	VerificationStatus VerificationStatusType `json:"verification_status"`
+}
+
+type TicketTypes struct {
+	ID          pgtype.UUID        `json:"id"`
+	EventID     pgtype.UUID        `json:"event_id"`
+	Name        string             `json:"name"`
+	PriceRon    int32              `json:"price_ron"`
+	Capacity    int32              `json:"capacity"`
+	TicketsSold int32              `json:"tickets_sold"`
+	StartSales  pgtype.Timestamptz `json:"start_sales"`
+	EndSales    pgtype.Timestamptz `json:"end_sales"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+type Tickets struct {
+	ID             pgtype.UUID        `json:"id"`
+	OrderID        pgtype.UUID        `json:"order_id"`
+	TicketTypeID   pgtype.UUID        `json:"ticket_type_id"`
+	UserID         pgtype.UUID        `json:"user_id"`
+	ValidationHash string             `json:"validation_hash"`
+	IsValidated    bool               `json:"is_validated"`
+	ValidatedAt    pgtype.Timestamptz `json:"validated_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
 type UserTokens struct {

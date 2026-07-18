@@ -240,3 +240,76 @@ func MapOrganizerProfile(p db.OrganizerProfiles) OrganizerProfileResponse {
 		VerificationStatus: string(p.VerificationStatus),
 	}
 }
+
+// --- ORDER ---
+
+type OrderStatus string
+
+const (
+	OrderStatusPending   OrderStatus = "pending"
+	OrderStatusCompleted OrderStatus = "completed"
+	OrderStatusCanceled  OrderStatus = "canceled"
+	OrderStatusRefunded  OrderStatus = "refunded"
+)
+
+type OrderResponse struct {
+	ID                    pgtype.UUID        `json:"id"`
+	UserID                pgtype.UUID        `json:"user_id"`
+	EventID               pgtype.UUID        `json:"event_id"`
+	Email                 string             `json:"email"`
+	StripePaymentIntentID pgtype.Text        `json:"stripe_payment_intent_id"`
+	Status                OrderStatus        `json:"status"`
+	TotalAmount           int32              `json:"total_amount"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+}
+
+func MapOrder(order db.Orders) OrderResponse {
+	return OrderResponse{
+		ID:                    order.ID,
+		UserID:                order.UserID,
+		EventID:               order.EventID,
+		Email:                 order.Email,
+		StripePaymentIntentID: order.StripePaymentIntentID,
+		Status:                OrderStatus(order.Status),
+		TotalAmount:           order.TotalAmount,
+		CreatedAt:             order.CreatedAt,
+	}
+}
+
+// --- TICKET ---
+
+type TicketTypesResponse struct {
+	ID          pgtype.UUID        `json:"id"`
+	EventID     pgtype.UUID        `json:"event_id"`
+	Name        string             `json:"name"`
+	PriceRon    int32              `json:"price_ron"`
+	Capacity    int32              `json:"capacity"`
+	TicketsSold int32              `json:"tickets_sold"`
+	StartSales  pgtype.Timestamptz `json:"start_sales"`
+	EndSales    pgtype.Timestamptz `json:"end_sales"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+type TicketValidationResponse struct {
+	Status      string             `json:"status"`
+	TicketID    pgtype.UUID        `json:"ticketId"`
+	TicketType  string             `json:"ticketType"`
+	EventTitle  string             `json:"eventTitle"`
+	ValidatedAt pgtype.Timestamptz `json:"validatedAt"`
+}
+
+func MapTicketTypesList(ticketTypes db.TicketTypes) TicketTypesResponse {
+	return TicketTypesResponse{
+		ID:          ticketTypes.ID,
+		EventID:     ticketTypes.EventID,
+		Name:        ticketTypes.Name,
+		PriceRon:    ticketTypes.PriceRon,
+		Capacity:    ticketTypes.Capacity,
+		TicketsSold: ticketTypes.TicketsSold,
+		StartSales:  ticketTypes.StartSales,
+		EndSales:    ticketTypes.EndSales,
+		CreatedAt:   ticketTypes.CreatedAt,
+		UpdatedAt:   ticketTypes.UpdatedAt,
+	}
+}

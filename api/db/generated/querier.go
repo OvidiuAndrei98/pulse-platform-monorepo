@@ -14,7 +14,10 @@ type Querier interface {
 	AddComment(ctx context.Context, arg AddCommentParams) (Comments, error)
 	CreateCheckIn(ctx context.Context, arg CreateCheckInParams) (CheckIns, error)
 	CreateEvent(ctx context.Context, arg CreateEventParams) (Events, error)
+	CreateOrder(ctx context.Context, arg CreateOrderParams) (Orders, error)
 	CreateOrganizerProfile(ctx context.Context, arg CreateOrganizerProfileParams) (OrganizerProfiles, error)
+	CreateTicket(ctx context.Context, arg CreateTicketParams) (Tickets, error)
+	CreateTicketType(ctx context.Context, arg CreateTicketTypeParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (Users, error)
 	DeleteCheckIn(ctx context.Context, arg DeleteCheckInParams) error
 	DeleteEvent(ctx context.Context, id pgtype.UUID) error
@@ -29,18 +32,25 @@ type Querier interface {
 	GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAreaParams) ([]GetLiveEventsInAreaRow, error)
 	GetOrganizerByCUI(ctx context.Context, cui string) (OrganizerProfiles, error)
 	GetOrganizerProfile(ctx context.Context, userID pgtype.UUID) (OrganizerProfiles, error)
+	GetTicketByHash(ctx context.Context, validationHash string) (GetTicketByHashRow, error)
+	GetTicketTypeForUpdate(ctx context.Context, id pgtype.UUID) (TicketTypes, error)
+	GetTicketTypesForEvent(ctx context.Context, eventID pgtype.UUID) ([]TicketTypes, error)
 	GetUserByEmail(ctx context.Context, email string) (Users, error)
 	GetUserByGoogleID(ctx context.Context, googleID pgtype.Text) (Users, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (Users, error)
+	GetUserTickets(ctx context.Context, userID pgtype.UUID) ([]GetUserTicketsRow, error)
 	GetUserTokenByHash(ctx context.Context, arg GetUserTokenByHashParams) (UserTokens, error)
+	IncrementTicketsSold(ctx context.Context, arg IncrementTicketsSoldParams) error
 	InsertUserToken(ctx context.Context, arg InsertUserTokenParams) (UserTokens, error)
 	ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error)
 	RespondToFriendRequest(ctx context.Context, arg RespondToFriendRequestParams) error
 	SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error
+	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error
 	UpdateUserActivated(ctx context.Context, id pgtype.UUID) error
 	UpdateUserActivation(ctx context.Context, arg UpdateUserActivationParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (UpdateUserProfileRow, error)
+	ValidateTicket(ctx context.Context, id pgtype.UUID) error
 }
 
 var _ Querier = (*Queries)(nil)
