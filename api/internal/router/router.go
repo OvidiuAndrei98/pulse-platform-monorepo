@@ -11,8 +11,10 @@ import (
 
 // HandlersConfig colectează toate funcțiile HTTP și middleware-urile necesare.
 type HandlersConfig struct {
-	// Auth Middleware
-	AuthMiddleware func(http.Handler) http.Handler
+	// Middleware-uri de autentificare și autorizare
+	AuthMiddleware      func(http.Handler) http.Handler
+	OrganizerMiddleware func(http.Handler) http.Handler // RequireRole("organizer", "admin")
+	AdminMiddleware     func(http.Handler) http.Handler // RequireRole("admin")
 
 	// Auth
 	Register http.HandlerFunc
@@ -21,6 +23,7 @@ type HandlersConfig struct {
 
 	// Users
 	GetMe      http.HandlerFunc
+	UpdateMe   http.HandlerFunc
 	CreateUser http.HandlerFunc
 	GetUser    http.HandlerFunc
 
@@ -28,20 +31,28 @@ type HandlersConfig struct {
 	CreateEvent         http.HandlerFunc
 	ListEvents          http.HandlerFunc
 	GetEventByID        http.HandlerFunc
+	GetEventWithStats   http.HandlerFunc
 	GetLiveEventsInArea http.HandlerFunc
 	DeleteEvent         http.HandlerFunc
+	EditEvent           http.HandlerFunc
 
 	// Interactions / Checkins
 	CreateCheckIn http.HandlerFunc
 	DeleteCheckIn http.HandlerFunc
 
 	// Comments
-	AddComment http.HandlerFunc
+	AddComment  http.HandlerFunc
+	GetComments http.HandlerFunc
 
 	// Friends
 	GetFriends             http.HandlerFunc
 	SendFriendRequest      http.HandlerFunc
 	RespondToFriendRequest http.HandlerFunc
+	GetFriendRequests      http.HandlerFunc
+
+	// Organizer
+	GetOrganizerProfile    http.HandlerFunc
+	CreateOrganizerProfile http.HandlerFunc
 }
 
 func SetupRouter(cfg HandlersConfig) http.Handler {
@@ -68,7 +79,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 
 	r.Route("/api/v1", func(r chi.Router) {
 
-		// --- AUTH (Rute Publice) ---
+		// --- AUTH (Public) ---
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/login", cfg.Login)
 			r.Post("/register", cfg.Register)
@@ -77,7 +88,15 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			}
 		})
 
-		// --- RUTE PROTEJATE ---
+		// --- EVENTS: Citire publică (nu necesită autentificare) ---
+		r.Route("/events", func(r chi.Router) {
+			r.Get("/", cfg.ListEvents)
+			r.Get("/map", cfg.GetLiveEventsInArea)
+			r.Get("/{id}", cfg.GetEventWithStats)
+			r.Get("/{id}/comments", cfg.GetComments)
+		})
+
+		// --- RUTE PROTEJATE: Utilizatori autentificați ---
 		r.Group(func(r chi.Router) {
 			if cfg.AuthMiddleware != nil {
 				r.Use(cfg.AuthMiddleware)
@@ -86,35 +105,48 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			// --- USERS ---
 			r.Route("/users", func(r chi.Router) {
 				r.Get("/me", cfg.GetMe)
+				r.Put("/me", cfg.UpdateMe)
 				r.Post("/", cfg.CreateUser)
 				r.Get("/{id}", cfg.GetUser)
 			})
 
-			// --- EVENTS ---
-			r.Route("/events", func(r chi.Router) {
-				r.Post("/", cfg.CreateEvent)
-				r.Get("/", cfg.ListEvents)
-				r.Get("/{id}", cfg.GetEventByID)
-				r.Get("/live", cfg.GetLiveEventsInArea)
-				if cfg.DeleteEvent != nil {
-					r.Delete("/{id}", cfg.DeleteEvent)
-				}
-			})
+			// --- INTERACȚIUNI EVENIMENTE (orice utilizator autentificat) ---
+			r.Post("/events/{id}/check-in", cfg.CreateCheckIn)
+			r.Post("/events/{id}/comments", cfg.AddComment)
 
-			// --- INTERACTIONS ---
-			r.Route("/checkins", func(r chi.Router) {
-				r.Post("/", cfg.CreateCheckIn)
-				r.Delete("/", cfg.DeleteCheckIn)
-			})
-
-			r.Route("/comments", func(r chi.Router) {
-				r.Post("/", cfg.AddComment)
-			})
-
+			// --- FRIENDS ---
 			r.Route("/friends", func(r chi.Router) {
-				r.Get("/{userId}", cfg.GetFriends)
-				r.Post("/request", cfg.SendFriendRequest)
-				r.Put("/respond", cfg.RespondToFriendRequest)
+				r.Get("/", cfg.GetFriends)
+				r.Post("/request/{userId}", cfg.SendFriendRequest)
+				r.Put("/request/{userId}", cfg.RespondToFriendRequest)
+				r.Get("/requests", cfg.GetFriendRequests)
+			})
+
+			// --- ORGANIZER+ ONLY: Creare/ștergere evenimente ---
+			r.Group(func(r chi.Router) {
+				if cfg.OrganizerMiddleware != nil {
+					r.Use(cfg.OrganizerMiddleware)
+				}
+				r.Post("/events", cfg.CreateEvent)
+				if cfg.DeleteEvent != nil {
+					r.Delete("/events/{id}", cfg.DeleteEvent)
+				}
+
+				// --- ORGANIZER DASHBOARD ---
+				r.Post("/dashboard/events/{id}", cfg.EditEvent)
+				r.Get("/dashboard/events/{id}", cfg.GetEventByID)
+
+				// --- ORGANIZER PROFILE ---
+				r.Post("/dashboard/organizer/profile", cfg.CreateOrganizerProfile)
+				r.Get("/dashboard/organizer/profile/{id}", cfg.GetOrganizerProfile)
+
+			})
+
+			// --- ADMIN ONLY (Sprint 4: raportări, carantină) ---
+			r.Group(func(r chi.Router) {
+				if cfg.AdminMiddleware != nil {
+					r.Use(cfg.AdminMiddleware)
+				}
 			})
 		})
 	})

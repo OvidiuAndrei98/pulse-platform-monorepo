@@ -1,5 +1,8 @@
-import { ReadableSchema, ApiClient } from "@packages/api-client/src/Client";
-import { useEffect, useState } from "react";
+import {
+  ReadableSchema,
+  WritableSchema,
+  ApiClient,
+} from "@packages/api-client/src/Client";
 
 type UserFields = ReadableSchema<"User">;
 
@@ -21,6 +24,48 @@ export class User {
    */
   get properties(): Readonly<UserFields> {
     return this._properties;
+  }
+
+  async getOrganizerProfile(): Promise<
+    ReadableSchema<"OrganizerProfile"> | undefined
+  > {
+    try {
+      const profile = await ApiClient.instance.get(
+        "/dashboard/organizer/profile/{id}",
+        {
+          params: {
+            path: { id: this._properties.id },
+          },
+        },
+      );
+      return profile;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateOrganizerProfile(
+    cui: string,
+    companyName: string,
+  ): Promise<ReadableSchema<"OrganizerProfile">> {
+    try {
+      const updatedProfile = await ApiClient.instance.post(
+        "/dashboard/organizer/profile",
+        {
+          body: {
+            cui,
+            companyName,
+          },
+        },
+      );
+      return updatedProfile;
+    } catch (error) {
+      console.error(
+        "Eroare la actualizarea profilului organizatorului:",
+        error,
+      );
+      throw error;
+    }
   }
 
   // // --- Management Caching & Promise-uri pentru Proiecte ---

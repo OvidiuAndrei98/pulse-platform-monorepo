@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
 
@@ -11,10 +12,16 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Redirect to /me if already authenticated
+  // Redirect based on role after login or if already authenticated
   useEffect(() => {
     if (!loading && user) {
-      router.replace("/me");
+      if (user.role === "admin") {
+        router.replace("/admin");
+      } else if (user.role === "organizer") {
+        router.replace("/organizer/dashboard");
+      } else {
+        router.replace("/me");
+      }
     }
   }, [loading, user, router]);
 
@@ -30,7 +37,13 @@ export default function LoginPage() {
           Sign in to Pulse
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8">
-          Enter your credentials to continue.
+          Nu ai cont?{" "}
+          <Link
+            href="/register"
+            className="font-medium text-zinc-900 dark:text-zinc-50 underline underline-offset-4"
+          >
+            Înregistrează-te
+          </Link>
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">

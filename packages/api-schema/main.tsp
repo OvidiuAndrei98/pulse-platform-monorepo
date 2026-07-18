@@ -27,6 +27,7 @@ model Event {
   description?: string;
   category: string;
   bannerUrl?: string;
+  googlePlaceId: string;
   locationName: string;
   latitude: decimal;
   longitude: decimal;
@@ -34,6 +35,32 @@ model Event {
   endTime: utcDateTime;
   isLive: boolean;
   createdAt: utcDateTime;
+}
+
+model EventWithStats {
+  id: string;
+  organizerId: string;
+  title: string;
+  description?: string;
+  category: string;
+  bannerUrl?: string;
+  googlePlaceId: string;
+  locationName: string;
+  latitude: decimal;
+  longitude: decimal;
+  startTime: utcDateTime;
+  endTime: utcDateTime;
+  isLive: boolean;
+  createdAt: utcDateTime;
+  checkInCount: int32;
+  commentCount: int32;
+}
+
+model CheckIn {
+  id: string;
+  eventId: string;
+  userId: string;
+  checkInTime: utcDateTime;
 }
 
 model Comment {
@@ -44,12 +71,24 @@ model Comment {
   createdAt: utcDateTime;
 }
 
+model OrganizerProfile {
+  id: string;
+  userId: string;
+  companyName: string;
+  cui: string;
+  isVerified: boolean;
+  verificationStatus: "pending" | "approved" | "rejected";
+  caenCode?: string;
+  createdAt: utcDateTime;
+}
+
 // --- REQUEST BODY PAYLOADS ---
 
 model UserRegisterPayload {
   username: string;
   email: string;
   password: string;
+  requestOrganizerRole?: boolean;
 }
 
 model UserLoginPayload {
@@ -62,12 +101,19 @@ model CreateEventPayload {
   description?: string;
   category: string;
   bannerUrl?: string;
+  googlePlaceId: string;
   locationName: string;
   latitude: decimal;
   longitude: decimal;
   startTime: utcDateTime;
   endTime: utcDateTime;
 }
+
+model SubmitOrganizerProfilePayload {
+  cui: string;
+  companyName: string;
+}
+
 
 // --- ENDPOINTS / RUTE ---
 
@@ -118,7 +164,7 @@ interface EventOperations {
 
   @summary("Detalii eveniment după ID")
   @get @route("/{id}")
-  getEvent(@path id: string): Event;
+  getEventWithStats(@path id: string): EventWithStats;
 
   @summary("Ștergere eveniment")
   @delete @route("/{id}")
@@ -131,6 +177,10 @@ interface EventOperations {
   @summary("Adaugă un comentariu")
   @post @route("/{id}/comments")
   addComment(@path id: string, @body content: { content: string }): Comment;
+
+  @summary("Obține comentariile unui eveniment")
+  @get @route("/{id}/comments")
+  getComments(@path id: string): Comment[];
 }
 
 @route("/friends")
@@ -145,4 +195,31 @@ interface FriendOperations {
   @summary("Acceptă sau refuză o cerere de prietenie")
   @put @route("/request/{userId}")
   respondToRequest(@path userId: string, @body action: { status: "accepted" | "declined" }): { @statusCode statusCode: 200 };
+
+  @summary("Obține cererile de prietenie primite")
+  @get @route("/requests")
+  getFriendRequests(): User[];
+}
+
+@route("/dashboard")
+interface DashboardOperations {
+  @post
+  @route("/organizer/profile")
+  @summary("Trimite datele pentru un profil nou sau existent de organizator (Validare ANAF)")
+  submitProfile(@body payload: SubmitOrganizerProfilePayload): OrganizerProfile;
+  
+  @get
+  @route("/organizer/profile/{id}")
+  @summary("Preia profilul unui organizator după ID-ul său")
+  getProfile(@path id: string): OrganizerProfile;
+
+  @post
+  @route("/events/{id}")
+  @summary("Editează un eveniment existent (doar Organizatori/Admini)")
+  editEvent(@path id: string, @body event: CreateEventPayload): Event;
+
+  @get
+  @route("/events/{id}")
+  @summary("Obține detalii despre un eveniment")
+  getEvent(@path id: string): EventWithStats;
 }

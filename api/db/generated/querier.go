@@ -14,13 +14,21 @@ type Querier interface {
 	AddComment(ctx context.Context, arg AddCommentParams) (Comments, error)
 	CreateCheckIn(ctx context.Context, arg CreateCheckInParams) (CheckIns, error)
 	CreateEvent(ctx context.Context, arg CreateEventParams) (Events, error)
+	CreateOrganizerProfile(ctx context.Context, arg CreateOrganizerProfileParams) (OrganizerProfiles, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (Users, error)
 	DeleteCheckIn(ctx context.Context, arg DeleteCheckInParams) error
 	DeleteEvent(ctx context.Context, id pgtype.UUID) error
 	DeleteUserToken(ctx context.Context, arg DeleteUserTokenParams) error
+	EditEvent(ctx context.Context, arg EditEventParams) (Events, error)
+	GetCommentsForEvent(ctx context.Context, arg GetCommentsForEventParams) ([]GetCommentsForEventRow, error)
 	GetEventByID(ctx context.Context, id pgtype.UUID) (GetEventByIDRow, error)
+	GetEventWithStats(ctx context.Context, arg GetEventWithStatsParams) (GetEventWithStatsRow, error)
+	GetFriendRequests(ctx context.Context, friendID pgtype.UUID) ([]GetFriendRequestsRow, error)
 	GetFriends(ctx context.Context, userID pgtype.UUID) ([]GetFriendsRow, error)
+	GetFriendsGoingToEvent(ctx context.Context, arg GetFriendsGoingToEventParams) ([]GetFriendsGoingToEventRow, error)
 	GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAreaParams) ([]GetLiveEventsInAreaRow, error)
+	GetOrganizerByCUI(ctx context.Context, cui string) (OrganizerProfiles, error)
+	GetOrganizerProfile(ctx context.Context, userID pgtype.UUID) (OrganizerProfiles, error)
 	GetUserByEmail(ctx context.Context, email string) (Users, error)
 	GetUserByGoogleID(ctx context.Context, googleID pgtype.Text) (Users, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (Users, error)

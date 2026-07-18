@@ -5,8 +5,54 @@
 package db
 
 import (
+	"database/sql/driver"
+	"fmt"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type VerificationStatusType string
+
+const (
+	VerificationStatusTypePending  VerificationStatusType = "pending"
+	VerificationStatusTypeApproved VerificationStatusType = "approved"
+	VerificationStatusTypeRejected VerificationStatusType = "rejected"
+)
+
+func (e *VerificationStatusType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = VerificationStatusType(s)
+	case string:
+		*e = VerificationStatusType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for VerificationStatusType: %T", src)
+	}
+	return nil
+}
+
+type NullVerificationStatusType struct {
+	VerificationStatusType VerificationStatusType `json:"verification_status_type"`
+	Valid                  bool                   `json:"valid"` // Valid is true if VerificationStatusType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullVerificationStatusType) Scan(value interface{}) error {
+	if value == nil {
+		ns.VerificationStatusType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.VerificationStatusType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullVerificationStatusType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.VerificationStatusType), nil
+}
 
 type CheckIns struct {
 	ID        pgtype.UUID        `json:"id"`
@@ -46,12 +92,26 @@ type Events struct {
 	EndTime         pgtype.Timestamptz `json:"end_time"`
 	IsLive          pgtype.Bool        `json:"is_live"`
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	GooglePlaceID   string             `json:"google_place_id"`
 }
 
 type Friendships struct {
 	UserID   pgtype.UUID `json:"user_id"`
 	FriendID pgtype.UUID `json:"friend_id"`
 	Status   pgtype.Text `json:"status"`
+}
+
+type OrganizerProfiles struct {
+	ID                 pgtype.UUID            `json:"id"`
+	UserID             pgtype.UUID            `json:"user_id"`
+	Cui                string                 `json:"cui"`
+	CompanyName        string                 `json:"company_name"`
+	FiscalAddress      string                 `json:"fiscal_address"`
+	IsVerified         pgtype.Bool            `json:"is_verified"`
+	VerifiedAt         pgtype.Timestamptz     `json:"verified_at"`
+	CreatedAt          pgtype.Timestamptz     `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz     `json:"updated_at"`
+	VerificationStatus VerificationStatusType `json:"verification_status"`
 }
 
 type UserTokens struct {

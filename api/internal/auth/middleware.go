@@ -12,10 +12,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Definim tipul neexportat și constanta la nivel de pachet
 type contextKey string
 
-const UserIDKey contextKey = "userID"
+const (
+	UserIDKey contextKey = "userID"
+	RoleKey   contextKey = "userRole"
+)
 
 // AuthMiddleware validează token-ul JWT din header-ul Authorization
 func AuthMiddleware(next http.Handler) http.Handler {
@@ -60,17 +62,51 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Folosim constanta pentru a salva în siguranță ID-ul în context
+		role, _ := claims["role"].(string)
+		if role == "" {
+			role = "user" // fallback pentru token-uri emise înainte de role
+		}
+
 		ctx := context.WithValue(r.Context(), UserIDKey, userIDStr)
+		ctx = context.WithValue(ctx, RoleKey, role)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-// GetUserIDFromContext este utilitarul pe care îl vei folosi în endpoint-urile protejate
 func GetUserIDFromContext(ctx context.Context) (string, error) {
 	userID, ok := ctx.Value(UserIDKey).(string)
 	if !ok {
 		return "", fmt.Errorf("user ID lipseste din context")
 	}
 	return userID, nil
+}
+
+// GetRoleFromContext extrage rolul utilizatorului din contextul cererii.
+func GetRoleFromContext(ctx context.Context) (string, error) {
+	role, ok := ctx.Value(RoleKey).(string)
+	if !ok || role == "" {
+		return "", fmt.Errorf("role lipseste din context")
+	}
+	return role, nil
+}
+
+// RequireRole returnează middleware care permite accesul doar rolurilor specificate.
+// Trebuie folosit DUPĂ AuthMiddleware.
+func RequireRole(roles ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			role, err := GetRoleFromContext(r.Context())
+			if err != nil {
+				router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat")
+				return
+			}
+			for _, allowed := range roles {
+				if role == allowed {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			router.RespondWithError(w, http.StatusForbidden, "Acces interzis - rol insuficient")
+		})
+	}
 }

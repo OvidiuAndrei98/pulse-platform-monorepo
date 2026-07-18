@@ -12,6 +12,7 @@ import (
 	"pulse-api/internal/email"
 	"pulse-api/internal/events"
 	"pulse-api/internal/interactions"
+	"pulse-api/internal/organizer"
 	"pulse-api/internal/router"
 	"pulse-api/internal/users"
 
@@ -100,17 +101,25 @@ func (app *Application) BuildRouter() http.Handler {
 	interactionsHandler := interactions.NewHandler(app.Queries)
 	usersHandler := users.NewHandler(app.Queries)
 	authMiddleware := auth.AuthMiddleware
+	requireOrganizer := auth.RequireRole("organizer", "admin")
+	requireAdmin := auth.RequireRole("admin")
+	organizerHandler := organizer.NewHandler(app.Queries)
 
 	// 2. Mapăm funcțiile în noua structură de configurare din router
 	cfg := router.HandlersConfig{
+		// Middleware-uri
+		AuthMiddleware:      authMiddleware,
+		OrganizerMiddleware: requireOrganizer,
+		AdminMiddleware:     requireAdmin,
+
 		// Auth
-		AuthMiddleware: authMiddleware,
-		Register:       authHandler.HandleRegister,
-		Activate:       authHandler.HandleActivate,
-		Login:          authHandler.Login,
+		Register: authHandler.HandleRegister,
+		Activate: authHandler.HandleActivate,
+		Login:    authHandler.Login,
 
 		// Users
 		GetMe:      usersHandler.HandleGetMe,
+		UpdateMe:   usersHandler.HandleUpdateMe,
 		CreateUser: usersHandler.HandleCreateUser,
 		GetUser:    usersHandler.HandleGetUser,
 
@@ -120,18 +129,26 @@ func (app *Application) BuildRouter() http.Handler {
 		GetEventByID:        eventsHandler.HandleGetEventByID,
 		GetLiveEventsInArea: eventsHandler.HandleGetLiveEventsInArea,
 		DeleteEvent:         eventsHandler.HandleDeleteEvent,
+		EditEvent:           eventsHandler.HandleEditEvent,
+		GetEventWithStats:   eventsHandler.HandleGetEventWithStats,
 
 		// Interactions / Checkins
 		CreateCheckIn: interactionsHandler.HandleCreateCheckIn,
 		DeleteCheckIn: interactionsHandler.HandleDeleteCheckIn,
 
 		// Comments
-		AddComment: interactionsHandler.HandleAddComment,
+		AddComment:  interactionsHandler.HandleAddComment,
+		GetComments: interactionsHandler.HandleGetEventComments,
 
 		// Friends
 		GetFriends:             interactionsHandler.HandleGetFriends,
 		SendFriendRequest:      interactionsHandler.HandleSendFriendRequest,
 		RespondToFriendRequest: interactionsHandler.HandleRespondToFriendRequest,
+		GetFriendRequests:      interactionsHandler.HandleGetFriendRequests,
+
+		// Organizer
+		GetOrganizerProfile:    organizerHandler.HandleGetOrganizerProfile,
+		CreateOrganizerProfile: organizerHandler.HandleCreateOrganizerProfile,
 	}
 
 	// 3. Generăm routerul decuplat din internal/router folosind SetupRouter

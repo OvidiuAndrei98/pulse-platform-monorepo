@@ -11,12 +11,21 @@ import React, {
 } from "react";
 import { usePathname, useRouter } from "next/navigation"; // 1. Am adăugat router-ul
 import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
+import { User } from "./DataProvider";
 
 interface DataProviderContextProps {
-  user: ReadableSchema<"User"> | null;
+  user: User | null;
   loading: boolean;
   error: Error | null;
+  isOrganizer: boolean;
+  isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (
+    username: string,
+    email: string,
+    password: string,
+    requestOrganizerRole: boolean,
+  ) => Promise<void>;
   logout: () => void;
   getToken: () => string | null;
   reloadSession: () => Promise<void>;
@@ -26,8 +35,6 @@ const DataProviderContext = createContext<DataProviderContextProps | undefined>(
   undefined,
 );
 
-type User = ReadableSchema<"User">;
-
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,7 +43,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const isProtectedRoute = pathname?.startsWith("/user/");
+  const isProtectedRoute =
+    pathname?.startsWith("/me") ||
+    pathname?.startsWith("/dashboard") ||
+    pathname?.startsWith("/admin");
 
   const getStoredToken = (): string | null => {
     if (typeof window !== "undefined") {
@@ -64,7 +74,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const userData = await ApiClient.instance.get("/users/me");
-      setUser(userData);
+      const userInstance = new User(userData);
+      setUser(userInstance);
     } catch (err) {
       setError(
         err instanceof Error
@@ -112,9 +123,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
 
         await initializeSession();
-
-        // Opțional: Dupa login, dacă vrei să-l duci automat în dashboard
-        router.push("/user/dashboard");
       } catch (err) {
         setError(err instanceof Error ? err : new Error("Login failed"));
         setLoading(false);
@@ -138,17 +146,46 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return getStoredToken();
   }, []);
 
+  const register = useCallback(
+    async (
+      username: string,
+      email: string,
+      password: string,
+      requestOrganizerRole: boolean,
+    ): Promise<void> => {
+      await ApiClient.instance.post("/auth/register", {
+        body: { username, email, password, requestOrganizerRole },
+      });
+      // Înregistrarea nu returnează token — userul trebuie să activeze contul prin email.
+    },
+    [],
+  );
+
   const value = useMemo(
     () => ({
+      user,
+      loading,
+      error,
+      isOrganizer:
+        user?.properties.role === "organizer" ||
+        user?.properties.role === "admin",
+      isAdmin: user?.properties.role === "admin",
+      login,
+      logout,
+      getToken,
+      register,
+      reloadSession: initializeSession,
+    }),
+    [
       user,
       loading,
       error,
       login,
       logout,
       getToken,
-      reloadSession: initializeSession,
-    }),
-    [user, loading, error, login, logout, getToken, initializeSession],
+      register,
+      initializeSession,
+    ],
   );
 
   // 5. PROTECȚIE ECRAN (FOARTE IMPORTANT)

@@ -20,9 +20,12 @@ UPDATE users SET password_hash = $1 WHERE id = $2;
 
 -- name: UpdateUserProfile :one
 UPDATE users
-SET 
-    avatar_url = COALESCE($2, avatar_url),
-    bio = COALESCE($3, bio)
+SET
+    username   = COALESCE(NULLIF($2, ''), username),
+    email      = COALESCE(NULLIF($3, ''), email),
+    role       = COALESCE(NULLIF($4, ''), role),
+    avatar_url = COALESCE(NULLIF($5, ''), avatar_url),
+    bio        = COALESCE($6, bio)
 WHERE id = $1
 RETURNING id, username, email, role, avatar_url, bio, created_at;
 

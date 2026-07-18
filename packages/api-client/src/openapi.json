@@ -72,6 +72,127 @@
         }
       }
     },
+    "/dashboard/events/{id}": {
+      "post": {
+        "operationId": "DashboardOperations_editEvent",
+        "summary": "Editează un eveniment existent (doar Organizatori/Admini)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventPayload"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "DashboardOperations_getEvent",
+        "summary": "Obține detalii despre un eveniment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventWithStats"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/organizer/profile": {
+      "post": {
+        "operationId": "DashboardOperations_submitProfile",
+        "summary": "Trimite datele pentru un profil nou sau existent de organizator (Validare ANAF)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizerProfile"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitOrganizerProfilePayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/organizer/profile/{id}": {
+      "get": {
+        "operationId": "DashboardOperations_getProfile",
+        "summary": "Preia profilul unui organizator după ID-ul său",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizerProfile"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events": {
       "get": {
         "operationId": "EventOperations_listEvents",
@@ -206,7 +327,7 @@
     },
     "/events/{id}": {
       "get": {
-        "operationId": "EventOperations_getEvent",
+        "operationId": "EventOperations_getEventWithStats",
         "summary": "Detalii eveniment după ID",
         "parameters": [
           {
@@ -224,7 +345,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Event"
+                  "$ref": "#/components/schemas/EventWithStats"
                 }
               }
             }
@@ -331,6 +452,35 @@
             }
           }
         }
+      },
+      "get": {
+        "operationId": "EventOperations_getComments",
+        "summary": "Obține comentariile unui eveniment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Comment"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/friends": {
@@ -417,6 +567,28 @@
         }
       }
     },
+    "/friends/requests": {
+      "get": {
+        "operationId": "FriendOperations_getFriendRequests",
+        "summary": "Obține cererile de prietenie primite",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/users/me": {
       "get": {
         "operationId": "UserOperations_getMe",
@@ -488,6 +660,30 @@
   },
   "components": {
     "schemas": {
+      "CheckIn": {
+        "type": "object",
+        "required": [
+          "id",
+          "eventId",
+          "userId",
+          "checkInTime"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "checkInTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "Comment": {
         "type": "object",
         "required": [
@@ -521,6 +717,7 @@
         "required": [
           "title",
           "category",
+          "googlePlaceId",
           "locationName",
           "latitude",
           "longitude",
@@ -538,6 +735,9 @@
             "type": "string"
           },
           "bannerUrl": {
+            "type": "string"
+          },
+          "googlePlaceId": {
             "type": "string"
           },
           "locationName": {
@@ -568,6 +768,7 @@
           "organizerId",
           "title",
           "category",
+          "googlePlaceId",
           "locationName",
           "latitude",
           "longitude",
@@ -595,6 +796,9 @@
           "bannerUrl": {
             "type": "string"
           },
+          "googlePlaceId": {
+            "type": "string"
+          },
           "locationName": {
             "type": "string"
           },
@@ -620,6 +824,141 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "EventWithStats": {
+        "type": "object",
+        "required": [
+          "id",
+          "organizerId",
+          "title",
+          "category",
+          "googlePlaceId",
+          "locationName",
+          "latitude",
+          "longitude",
+          "startTime",
+          "endTime",
+          "isLive",
+          "createdAt",
+          "checkInCount",
+          "commentCount"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "organizerId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "bannerUrl": {
+            "type": "string"
+          },
+          "googlePlaceId": {
+            "type": "string"
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isLive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "checkInCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "commentCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "OrganizerProfile": {
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "companyName",
+          "cui",
+          "isVerified",
+          "verificationStatus",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "companyName": {
+            "type": "string"
+          },
+          "cui": {
+            "type": "string"
+          },
+          "isVerified": {
+            "type": "boolean"
+          },
+          "verificationStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "caenCode": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SubmitOrganizerProfilePayload": {
+        "type": "object",
+        "required": [
+          "cui",
+          "companyName"
+        ],
+        "properties": {
+          "cui": {
+            "type": "string"
+          },
+          "companyName": {
+            "type": "string"
           }
         }
       },
@@ -693,6 +1032,9 @@
           },
           "password": {
             "type": "string"
+          },
+          "requestOrganizerRole": {
+            "type": "boolean"
           }
         }
       }

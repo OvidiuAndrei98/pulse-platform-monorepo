@@ -1,0 +1,76 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+
+export interface PlaceResult {
+  placeId: string;
+  name: string;
+  lat: number;
+  lng: number;
+}
+
+interface PlacesAutocompleteProps {
+  onSelect: (place: PlaceResult) => void;
+  ready: boolean;
+  placeholder?: string;
+  className?: string;
+}
+
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    google: any;
+  }
+}
+
+export function PlacesAutocomplete({
+  onSelect,
+  ready,
+  placeholder = "Caută locația evenimentului...",
+  className,
+}: PlacesAutocompleteProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const autocompleteRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!ready || !inputRef.current || !window.google?.maps?.places) return;
+
+    autocompleteRef.current = new window.google.maps.places.Autocomplete(
+      inputRef.current,
+      {
+        types: ["establishment"],
+        fields: ["place_id", "name", "geometry"],
+      },
+    );
+
+    const listener = autocompleteRef.current.addListener(
+      "place_changed",
+      () => {
+        const place = autocompleteRef.current.getPlace();
+        if (!place?.place_id || !place?.geometry?.location) return;
+
+        onSelect({
+          placeId: place.place_id,
+          name: place.name ?? "",
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng(),
+        });
+      },
+    );
+
+    return () => {
+      window.google?.maps?.event?.removeListener(listener);
+    };
+  }, [ready, onSelect]);
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      placeholder={placeholder}
+      className={className}
+      autoComplete="off"
+    />
+  );
+}

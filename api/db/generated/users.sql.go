@@ -162,17 +162,23 @@ func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPassword
 
 const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users
-SET 
-    avatar_url = COALESCE($2, avatar_url),
-    bio = COALESCE($3, bio)
+SET
+    username   = COALESCE(NULLIF($2, ''), username),
+    email      = COALESCE(NULLIF($3, ''), email),
+    role       = COALESCE(NULLIF($4, ''), role),
+    avatar_url = COALESCE(NULLIF($5, ''), avatar_url),
+    bio        = COALESCE($6, bio)
 WHERE id = $1
 RETURNING id, username, email, role, avatar_url, bio, created_at
 `
 
 type UpdateUserProfileParams struct {
-	ID        pgtype.UUID `json:"id"`
-	AvatarUrl pgtype.Text `json:"avatar_url"`
-	Bio       pgtype.Text `json:"bio"`
+	ID      pgtype.UUID `json:"id"`
+	Column2 interface{} `json:"column_2"`
+	Column3 interface{} `json:"column_3"`
+	Column4 interface{} `json:"column_4"`
+	Column5 interface{} `json:"column_5"`
+	Bio     pgtype.Text `json:"bio"`
 }
 
 type UpdateUserProfileRow struct {
@@ -186,7 +192,14 @@ type UpdateUserProfileRow struct {
 }
 
 func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (UpdateUserProfileRow, error) {
-	row := q.db.QueryRow(ctx, updateUserProfile, arg.ID, arg.AvatarUrl, arg.Bio)
+	row := q.db.QueryRow(ctx, updateUserProfile,
+		arg.ID,
+		arg.Column2,
+		arg.Column3,
+		arg.Column4,
+		arg.Column5,
+		arg.Bio,
+	)
 	var i UpdateUserProfileRow
 	err := row.Scan(
 		&i.ID,

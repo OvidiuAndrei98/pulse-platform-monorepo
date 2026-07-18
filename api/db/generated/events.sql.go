@@ -12,22 +12,23 @@ import (
 )
 
 const createEvent = `-- name: CreateEvent :one
-INSERT INTO events (organizer_id, title, description, category, banner_url, location_name, latitude, longitude, start_time, end_time)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, latitude, longitude, start_time, end_time, is_live, created_at
+INSERT INTO events (organizer_id, title, description, category, banner_url, google_place_id, location_name, latitude, longitude, start_time, end_time)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id
 `
 
 type CreateEventParams struct {
-	OrganizerID  pgtype.UUID        `json:"organizer_id"`
-	Title        string             `json:"title"`
-	Description  pgtype.Text        `json:"description"`
-	Category     string             `json:"category"`
-	BannerUrl    pgtype.Text        `json:"banner_url"`
-	LocationName string             `json:"location_name"`
-	Latitude     float64            `json:"latitude"`
-	Longitude    float64            `json:"longitude"`
-	StartTime    pgtype.Timestamptz `json:"start_time"`
-	EndTime      pgtype.Timestamptz `json:"end_time"`
+	OrganizerID   pgtype.UUID        `json:"organizer_id"`
+	Title         string             `json:"title"`
+	Description   pgtype.Text        `json:"description"`
+	Category      string             `json:"category"`
+	BannerUrl     pgtype.Text        `json:"banner_url"`
+	GooglePlaceID string             `json:"google_place_id"`
+	LocationName  string             `json:"location_name"`
+	Latitude      float64            `json:"latitude"`
+	Longitude     float64            `json:"longitude"`
+	StartTime     pgtype.Timestamptz `json:"start_time"`
+	EndTime       pgtype.Timestamptz `json:"end_time"`
 }
 
 func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Events, error) {
@@ -37,6 +38,7 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 		arg.Description,
 		arg.Category,
 		arg.BannerUrl,
+		arg.GooglePlaceID,
 		arg.LocationName,
 		arg.Latitude,
 		arg.Longitude,
@@ -59,6 +61,7 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 		&i.EndTime,
 		&i.IsLive,
 		&i.CreatedAt,
+		&i.GooglePlaceID,
 	)
 	return i, err
 }
@@ -70,6 +73,120 @@ DELETE FROM events WHERE id = $1
 func (q *Queries) DeleteEvent(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deleteEvent, id)
 	return err
+}
+
+const editEvent = `-- name: EditEvent :one
+UPDATE events
+SET title = $2,
+    description = $3,
+    category = $4,
+    banner_url = $5,
+    google_place_id = $6,
+    location_name = $7,
+    latitude = $8,
+    longitude = $9,
+    start_time = $10,
+    end_time = $11
+WHERE id = $1
+RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id
+`
+
+type EditEventParams struct {
+	ID            pgtype.UUID        `json:"id"`
+	Title         string             `json:"title"`
+	Description   pgtype.Text        `json:"description"`
+	Category      string             `json:"category"`
+	BannerUrl     pgtype.Text        `json:"banner_url"`
+	GooglePlaceID string             `json:"google_place_id"`
+	LocationName  string             `json:"location_name"`
+	Latitude      float64            `json:"latitude"`
+	Longitude     float64            `json:"longitude"`
+	StartTime     pgtype.Timestamptz `json:"start_time"`
+	EndTime       pgtype.Timestamptz `json:"end_time"`
+}
+
+func (q *Queries) EditEvent(ctx context.Context, arg EditEventParams) (Events, error) {
+	row := q.db.QueryRow(ctx, editEvent,
+		arg.ID,
+		arg.Title,
+		arg.Description,
+		arg.Category,
+		arg.BannerUrl,
+		arg.GooglePlaceID,
+		arg.LocationName,
+		arg.Latitude,
+		arg.Longitude,
+		arg.StartTime,
+		arg.EndTime,
+	)
+	var i Events
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizerID,
+		&i.Title,
+		&i.Description,
+		&i.Category,
+		&i.BannerUrl,
+		&i.LocationAddress,
+		&i.LocationName,
+		&i.Latitude,
+		&i.Longitude,
+		&i.StartTime,
+		&i.EndTime,
+		&i.IsLive,
+		&i.CreatedAt,
+		&i.GooglePlaceID,
+	)
+	return i, err
+}
+
+const getCommentsForEvent = `-- name: GetCommentsForEvent :many
+SELECT c.id, c.content, c.created_at, u.username, u.avatar_url
+FROM comments c
+JOIN users u ON c.user_id = u.id
+WHERE c.event_id = $1
+ORDER BY c.created_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type GetCommentsForEventParams struct {
+	EventID pgtype.UUID `json:"event_id"`
+	Limit   int32       `json:"limit"`
+	Offset  int32       `json:"offset"`
+}
+
+type GetCommentsForEventRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	Content   string             `json:"content"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	Username  string             `json:"username"`
+	AvatarUrl pgtype.Text        `json:"avatar_url"`
+}
+
+func (q *Queries) GetCommentsForEvent(ctx context.Context, arg GetCommentsForEventParams) ([]GetCommentsForEventRow, error) {
+	rows, err := q.db.Query(ctx, getCommentsForEvent, arg.EventID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetCommentsForEventRow
+	for rows.Next() {
+		var i GetCommentsForEventRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Content,
+			&i.CreatedAt,
+			&i.Username,
+			&i.AvatarUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getEventByID = `-- name: GetEventByID :one
@@ -113,6 +230,113 @@ func (q *Queries) GetEventByID(ctx context.Context, id pgtype.UUID) (GetEventByI
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getEventWithStats = `-- name: GetEventWithStats :one
+SELECT 
+    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id,
+    (SELECT COUNT(*) FROM check_ins WHERE event_id = e.id) AS check_ins_count,
+    EXISTS(
+        SELECT 1 
+        FROM check_ins 
+        WHERE check_ins.event_id = e.id 
+          AND check_ins.user_id = $1
+    ) AS user_has_checked_in
+FROM events e
+WHERE e.id = $2
+`
+
+type GetEventWithStatsParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	ID     pgtype.UUID `json:"id"`
+}
+
+type GetEventWithStatsRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	OrganizerID      pgtype.UUID        `json:"organizer_id"`
+	Title            string             `json:"title"`
+	Description      pgtype.Text        `json:"description"`
+	Category         string             `json:"category"`
+	BannerUrl        pgtype.Text        `json:"banner_url"`
+	LocationAddress  pgtype.Text        `json:"location_address"`
+	LocationName     string             `json:"location_name"`
+	Latitude         float64            `json:"latitude"`
+	Longitude        float64            `json:"longitude"`
+	StartTime        pgtype.Timestamptz `json:"start_time"`
+	EndTime          pgtype.Timestamptz `json:"end_time"`
+	IsLive           pgtype.Bool        `json:"is_live"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	GooglePlaceID    string             `json:"google_place_id"`
+	CheckInsCount    int64              `json:"check_ins_count"`
+	UserHasCheckedIn bool               `json:"user_has_checked_in"`
+}
+
+func (q *Queries) GetEventWithStats(ctx context.Context, arg GetEventWithStatsParams) (GetEventWithStatsRow, error) {
+	row := q.db.QueryRow(ctx, getEventWithStats, arg.UserID, arg.ID)
+	var i GetEventWithStatsRow
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizerID,
+		&i.Title,
+		&i.Description,
+		&i.Category,
+		&i.BannerUrl,
+		&i.LocationAddress,
+		&i.LocationName,
+		&i.Latitude,
+		&i.Longitude,
+		&i.StartTime,
+		&i.EndTime,
+		&i.IsLive,
+		&i.CreatedAt,
+		&i.GooglePlaceID,
+		&i.CheckInsCount,
+		&i.UserHasCheckedIn,
+	)
+	return i, err
+}
+
+const getFriendsGoingToEvent = `-- name: GetFriendsGoingToEvent :many
+SELECT u.id, u.username, u.avatar_url
+FROM check_ins c
+JOIN users u ON c.user_id = u.id
+WHERE c.event_id = $1 
+  AND c.user_id IN (
+      SELECT f.friend_id FROM friendships f WHERE f.user_id = $2 AND f.status = 'accepted'
+      UNION
+      SELECT f.user_id FROM friendships f WHERE f.friend_id = $2 AND f.status = 'accepted'
+  )
+`
+
+type GetFriendsGoingToEventParams struct {
+	EventID pgtype.UUID `json:"event_id"`
+	UserID  pgtype.UUID `json:"user_id"`
+}
+
+type GetFriendsGoingToEventRow struct {
+	ID        pgtype.UUID `json:"id"`
+	Username  string      `json:"username"`
+	AvatarUrl pgtype.Text `json:"avatar_url"`
+}
+
+func (q *Queries) GetFriendsGoingToEvent(ctx context.Context, arg GetFriendsGoingToEventParams) ([]GetFriendsGoingToEventRow, error) {
+	rows, err := q.db.Query(ctx, getFriendsGoingToEvent, arg.EventID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFriendsGoingToEventRow
+	for rows.Next() {
+		var i GetFriendsGoingToEventRow
+		if err := rows.Scan(&i.ID, &i.Username, &i.AvatarUrl); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getLiveEventsInArea = `-- name: GetLiveEventsInArea :many

@@ -32,7 +32,7 @@ export default function MePage() {
 
   if (!user) return null;
 
-  const initials = user.username
+  const initials = user.properties.username
     .split(" ")
     .map((w) => w[0])
     .join("")
@@ -59,10 +59,10 @@ export default function MePage() {
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 flex flex-col gap-6">
           {/* Avatar + name */}
           <div className="flex items-center gap-4">
-            {user.avatarUrl ? (
+            {user.properties.avatarUrl ? (
               <img
-                src={user.avatarUrl}
-                alt={user.username}
+                src={user.properties.avatarUrl}
+                alt={user.properties.username}
                 className="h-14 w-14 rounded-full object-cover"
               />
             ) : (
@@ -72,10 +72,10 @@ export default function MePage() {
             )}
             <div>
               <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                {user.username}
+                {user.properties.username}
               </p>
               <span className="inline-flex items-center rounded-full bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:text-zinc-300 capitalize">
-                {user.role}
+                {user.properties.role}
               </span>
             </div>
           </div>
@@ -85,25 +85,28 @@ export default function MePage() {
             <div className="flex justify-between text-sm">
               <dt className="text-zinc-500">Email</dt>
               <dd className="text-zinc-900 dark:text-zinc-100 font-medium">
-                {user.email}
+                {user.properties.email}
               </dd>
             </div>
-            {user.bio && (
+            {user.properties.bio && (
               <div className="flex justify-between text-sm">
                 <dt className="text-zinc-500">Bio</dt>
                 <dd className="text-zinc-900 dark:text-zinc-100 font-medium text-right max-w-xs">
-                  {user.bio}
+                  {user.properties.bio}
                 </dd>
               </div>
             )}
             <div className="flex justify-between text-sm">
               <dt className="text-zinc-500">Member since</dt>
               <dd className="text-zinc-900 dark:text-zinc-100 font-medium">
-                {new Date(user.createdAt).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
+                {new Date(user.properties.createdAt).toLocaleDateString(
+                  "en-GB",
+                  {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  },
+                )}
               </dd>
             </div>
           </dl>

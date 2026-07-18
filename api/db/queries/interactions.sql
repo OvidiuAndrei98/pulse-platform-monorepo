@@ -24,6 +24,12 @@ INSERT INTO friendships (user_id, friend_id, status)
 VALUES ($1, $2, 'pending')
 ON CONFLICT (user_id, friend_id) DO NOTHING;
 
+-- name: GetFriendRequests :many
+SELECT u.id, u.username, u.email, u.role, u.avatar_url, u.bio, u.created_at
+FROM friendships f
+JOIN users u ON (f.user_id = u.id AND f.friend_id = $1)
+WHERE f.status = 'pending';
+
 -- name: RespondToFriendRequest :exec
 UPDATE friendships
 SET status = $3

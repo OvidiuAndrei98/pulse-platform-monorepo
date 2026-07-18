@@ -38,6 +38,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Obține detalii despre un eveniment */
+        get: operations["DashboardOperations_getEvent"];
+        put?: never;
+        /** Editează un eveniment existent (doar Organizatori/Admini) */
+        post: operations["DashboardOperations_editEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/organizer/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trimite datele pentru un profil nou sau existent de organizator (Validare ANAF) */
+        post: operations["DashboardOperations_submitProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/organizer/profile/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preia profilul unui organizator după ID-ul său */
+        get: operations["DashboardOperations_getProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events": {
         parameters: {
             query?: never;
@@ -81,7 +133,7 @@ export interface paths {
             cookie?: never;
         };
         /** Detalii eveniment după ID */
-        get: operations["EventOperations_getEvent"];
+        get: operations["EventOperations_getEventWithStats"];
         put?: never;
         post?: never;
         /** Ștergere eveniment */
@@ -115,7 +167,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Obține comentariile unui eveniment */
+        get: operations["EventOperations_getComments"];
         put?: never;
         /** Adaugă un comentariu */
         post: operations["EventOperations_addComment"];
@@ -160,6 +213,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/friends/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Obține cererile de prietenie primite */
+        get: operations["FriendOperations_getFriendRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/me": {
         parameters: {
             query?: never;
@@ -182,6 +252,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CheckIn: {
+            id: string;
+            eventId: string;
+            userId: string;
+            /** Format: date-time */
+            checkInTime: string;
+        };
         Comment: {
             id: string;
             eventId: string;
@@ -195,6 +272,7 @@ export interface components {
             description?: string;
             category: string;
             bannerUrl?: string;
+            googlePlaceId: string;
             locationName: string;
             /** Format: decimal */
             latitude: number;
@@ -212,6 +290,7 @@ export interface components {
             description?: string;
             category: string;
             bannerUrl?: string;
+            googlePlaceId: string;
             locationName: string;
             /** Format: decimal */
             latitude: number;
@@ -224,6 +303,47 @@ export interface components {
             isLive: boolean;
             /** Format: date-time */
             createdAt: string;
+        };
+        EventWithStats: {
+            id: string;
+            organizerId: string;
+            title: string;
+            description?: string;
+            category: string;
+            bannerUrl?: string;
+            googlePlaceId: string;
+            locationName: string;
+            /** Format: decimal */
+            latitude: number;
+            /** Format: decimal */
+            longitude: number;
+            /** Format: date-time */
+            startTime: string;
+            /** Format: date-time */
+            endTime: string;
+            isLive: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: int32 */
+            checkInCount: number;
+            /** Format: int32 */
+            commentCount: number;
+        };
+        OrganizerProfile: {
+            id: string;
+            userId: string;
+            companyName: string;
+            cui: string;
+            isVerified: boolean;
+            /** @enum {string} */
+            verificationStatus: "pending" | "approved" | "rejected";
+            caenCode?: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        SubmitOrganizerProfilePayload: {
+            cui: string;
+            companyName: string;
         };
         User: {
             id: string;
@@ -244,6 +364,7 @@ export interface components {
             username: string;
             email: string;
             password: string;
+            requestOrganizerRole?: boolean;
         };
     };
     responses: never;
@@ -300,6 +421,100 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
+    DashboardOperations_getEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventWithStats"];
+                };
+            };
+        };
+    };
+    DashboardOperations_editEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEventPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
+    DashboardOperations_submitProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitOrganizerProfilePayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizerProfile"];
+                };
+            };
+        };
+    };
+    DashboardOperations_getProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizerProfile"];
                 };
             };
         };
@@ -376,7 +591,7 @@ export interface operations {
             };
         };
     };
-    EventOperations_getEvent: {
+    EventOperations_getEventWithStats: {
         parameters: {
             query?: never;
             header?: never;
@@ -393,7 +608,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Event"];
+                    "application/json": components["schemas"]["EventWithStats"];
                 };
             };
         };
@@ -438,6 +653,28 @@ export interface operations {
                     "application/json": {
                         success: boolean;
                     };
+                };
+            };
+        };
+    };
+    EventOperations_getComments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comment"][];
                 };
             };
         };
@@ -534,6 +771,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    FriendOperations_getFriendRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"][];
+                };
             };
         };
     };

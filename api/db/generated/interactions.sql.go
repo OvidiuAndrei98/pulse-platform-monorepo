@@ -75,6 +75,51 @@ func (q *Queries) DeleteCheckIn(ctx context.Context, arg DeleteCheckInParams) er
 	return err
 }
 
+const getFriendRequests = `-- name: GetFriendRequests :many
+SELECT u.id, u.username, u.email, u.role, u.avatar_url, u.bio, u.created_at
+FROM friendships f
+JOIN users u ON (f.user_id = u.id AND f.friend_id = $1)
+WHERE f.status = 'pending'
+`
+
+type GetFriendRequestsRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	Username  string             `json:"username"`
+	Email     string             `json:"email"`
+	Role      pgtype.Text        `json:"role"`
+	AvatarUrl pgtype.Text        `json:"avatar_url"`
+	Bio       pgtype.Text        `json:"bio"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) GetFriendRequests(ctx context.Context, friendID pgtype.UUID) ([]GetFriendRequestsRow, error) {
+	rows, err := q.db.Query(ctx, getFriendRequests, friendID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFriendRequestsRow
+	for rows.Next() {
+		var i GetFriendRequestsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.Email,
+			&i.Role,
+			&i.AvatarUrl,
+			&i.Bio,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getFriends = `-- name: GetFriends :many
 SELECT u.id, u.username, u.email, u.role, u.avatar_url, u.bio, u.created_at
 FROM friendships f

@@ -18,10 +18,11 @@ import (
 
 // RegisterRequest definește structura corpului pentru înregistrare
 type RegisterRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Bio      string `json:"bio,omitempty"`
+	Username             string `json:"username"`
+	Email                string `json:"email"`
+	Password             string `json:"password"`
+	Bio                  string `json:"bio,omitempty"`
+	RequestOrganizerRole bool   `json:"requestOrganizerRole,omitempty"`
 }
 
 type EmailSender interface {
@@ -72,18 +73,18 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	role := "user"
+	if req.RequestOrganizerRole {
+		role = "organizer"
+	}
+
 	ctx := r.Context()
 	user, err := h.Queries.CreateUser(r.Context(), db.CreateUserParams{
-		Username: req.Username,
-		Email:    req.Email,
-		PasswordHash: pgtype.Text{
-			String: hashedPassword,
-			Valid:  true,
-		},
-		IsActive: pgtype.Bool{
-			Bool:  false,
-			Valid: true,
-		},
+		Username:     req.Username,
+		Email:        req.Email,
+		PasswordHash: pgtype.Text{String: hashedPassword, Valid: true},
+		Role:         pgtype.Text{String: role, Valid: true},
+		IsActive:     pgtype.Bool{Bool: false, Valid: true},
 	})
 	if err != nil {
 
@@ -203,9 +204,10 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// 4. GENERARE JWT TOKEN
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": user.ID.String(), // UUID-ul utilizatorului convertit în string
-		"exp": time.Now().Add(24 * time.Hour).Unix(),
-		"iat": time.Now().Unix(),
+		"sub":  user.ID.String(),
+		"role": user.Role.String,
+		"exp":  time.Now().Add(24 * time.Hour).Unix(),
+		"iat":  time.Now().Unix(),
 	})
 
 	jwtSecret := []byte(os.Getenv("JWT_SECRET"))

@@ -6,22 +6,19 @@ import (
 
 	db "pulse-api/db/generated"
 	"pulse-api/internal/auth"
+	"pulse-api/internal/dto"
 	"pulse-api/internal/router"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// Handler colectează dependențele specifice domeniului de utilizatori
 type Handler struct {
 	Queries *db.Queries
 }
 
-// NewHandler instanțiază un nou handler pentru utilizatori
 func NewHandler(queries *db.Queries) *Handler {
-	return &Handler{
-		Queries: queries,
-	}
+	return &Handler{Queries: queries}
 }
 
 func (h *Handler) HandleGetMe(w http.ResponseWriter, r *http.Request) {
@@ -43,7 +40,50 @@ func (h *Handler) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	router.RespondWithJSON(w, http.StatusOK, user)
+	router.RespondWithJSON(w, http.StatusOK, dto.MapUser(user))
+}
+
+type UpdateMeRequest struct {
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	Role      string `json:"role"`
+	AvatarUrl string `json:"avatarUrl"`
+	Bio       string `json:"bio"`
+}
+
+func (h *Handler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
+	userIDStr, err := auth.GetUserIDFromContext(r.Context())
+	if err != nil {
+		router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat")
+		return
+	}
+
+	var uuid pgtype.UUID
+	if err := uuid.Scan(userIDStr); err != nil || !uuid.Valid {
+		router.RespondWithError(w, http.StatusBadRequest, "ID utilizator invalid în token")
+		return
+	}
+
+	var req UpdateMeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		router.RespondWithError(w, http.StatusBadRequest, "Request body invalid")
+		return
+	}
+
+	updated, err := h.Queries.UpdateUserProfile(r.Context(), db.UpdateUserProfileParams{
+		ID:      uuid,
+		Column2: req.Username,  // username
+		Column3: req.Email,     // email
+		Column4: req.Role,      // role
+		Column5: req.AvatarUrl, // avatar_url
+		Bio:     pgtype.Text{String: req.Bio, Valid: req.Bio != ""},
+	})
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la actualizarea profilului")
+		return
+	}
+
+	router.RespondWithJSON(w, http.StatusOK, dto.MapUpdateUserProfileRow(updated))
 }
 
 func (h *Handler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
@@ -53,18 +93,15 @@ func (h *Handler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Am eliminat verificarea redundantă `if params.Role == nil { params.Role = nil }`
-
 	user, err := h.Queries.CreateUser(r.Context(), params)
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Nu s-a putut crea utilizatorul: "+err.Error())
 		return
 	}
 
-	router.RespondWithJSON(w, http.StatusCreated, user)
+	router.RespondWithJSON(w, http.StatusCreated, dto.MapUser(user))
 }
 
-// HandleGetUser parsează UUID-ul din URL și interoghează baza de date
 func (h *Handler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 
@@ -81,5 +118,5 @@ func (h *Handler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	router.RespondWithJSON(w, http.StatusOK, user)
+	router.RespondWithJSON(w, http.StatusOK, dto.MapUser(user))
 }
