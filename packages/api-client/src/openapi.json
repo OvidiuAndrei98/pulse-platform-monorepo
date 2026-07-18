@@ -136,6 +136,131 @@
         }
       }
     },
+    "/dashboard/events/{id}/ticket-types": {
+      "post": {
+        "operationId": "DashboardOperations_createTicketType",
+        "summary": "Creare tip de bilet pentru un eveniment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The request has succeeded and a new resource has been created as a result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "success"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TicketType"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/events/{id}/tickets/validate": {
+      "post": {
+        "operationId": "DashboardOperations_validateTicket",
+        "summary": "Validare bilet la un eveniment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketValidationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ValidationHash": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "ValidationHash"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "/dashboard/organizer/profile": {
       "post": {
         "operationId": "DashboardOperations_submitProfile",
@@ -483,6 +608,37 @@
         }
       }
     },
+    "/events/{id}/ticket-types": {
+      "get": {
+        "operationId": "EventOperations_getTicketTypes",
+        "summary": "Obține tipurile de bilete pentru un eveniment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TicketType"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/friends": {
       "get": {
         "operationId": "FriendOperations_listFriends",
@@ -656,10 +812,43 @@
           }
         }
       }
+    },
+    "/users/me/tickets": {
+      "get": {
+        "operationId": "UserOperations_getUserTickets",
+        "summary": "Obține biletele utilizatorului curent",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Ticket"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "ApiError": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
       "CheckIn": {
         "type": "object",
         "required": [
@@ -756,6 +945,37 @@
             "format": "date-time"
           },
           "endTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateTicketTypePayload": {
+        "type": "object",
+        "required": [
+          "name",
+          "priceRon",
+          "capacity",
+          "startSales",
+          "endSales"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "priceRon": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startSales": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endSales": {
             "type": "string",
             "format": "date-time"
           }
@@ -959,6 +1179,146 @@
           },
           "companyName": {
             "type": "string"
+          }
+        }
+      },
+      "Ticket": {
+        "type": "object",
+        "required": [
+          "id",
+          "eventId",
+          "name",
+          "priceRon",
+          "capacity",
+          "ticketsSold",
+          "startSales",
+          "endSales",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priceRon": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ticketsSold": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startSales": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endSales": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TicketType": {
+        "type": "object",
+        "required": [
+          "id",
+          "eventId",
+          "name",
+          "priceRon",
+          "capacity",
+          "ticketsSold",
+          "startSales",
+          "endSales",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priceRon": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ticketsSold": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startSales": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endSales": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TicketValidationResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "ticketId",
+          "ticketType",
+          "eventTitle",
+          "validatedAt"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "valid",
+              "already_validated"
+            ]
+          },
+          "ticketId": {
+            "type": "string"
+          },
+          "ticketType": {
+            "type": "string"
+          },
+          "eventTitle": {
+            "type": "string"
+          },
+          "validatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

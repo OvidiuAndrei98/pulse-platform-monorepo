@@ -56,6 +56,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/events/{id}/ticket-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creare tip de bilet pentru un eveniment */
+        post: operations["DashboardOperations_createTicketType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/events/{id}/tickets/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validare bilet la un eveniment */
+        post: operations["DashboardOperations_validateTicket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/organizer/profile": {
         parameters: {
             query?: never;
@@ -178,6 +212,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{id}/ticket-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Obține tipurile de bilete pentru un eveniment */
+        get: operations["EventOperations_getTicketTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/friends": {
         parameters: {
             query?: never;
@@ -248,10 +299,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Obține biletele utilizatorului curent */
+        get: operations["UserOperations_getUserTickets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ApiError: {
+            message: string;
+        };
         CheckIn: {
             id: string;
             eventId: string;
@@ -282,6 +353,17 @@ export interface components {
             startTime: string;
             /** Format: date-time */
             endTime: string;
+        };
+        CreateTicketTypePayload: {
+            name: string;
+            /** Format: int32 */
+            priceRon: number;
+            /** Format: int32 */
+            capacity: number;
+            /** Format: date-time */
+            startSales: string;
+            /** Format: date-time */
+            endSales: string;
         };
         Event: {
             id: string;
@@ -344,6 +426,53 @@ export interface components {
         SubmitOrganizerProfilePayload: {
             cui: string;
             companyName: string;
+        };
+        Ticket: {
+            id: string;
+            eventId: string;
+            name: string;
+            /** Format: int32 */
+            priceRon: number;
+            /** Format: int32 */
+            capacity: number;
+            /** Format: int32 */
+            ticketsSold: number;
+            /** Format: date-time */
+            startSales: string;
+            /** Format: date-time */
+            endSales: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        TicketType: {
+            id: string;
+            eventId: string;
+            name: string;
+            /** Format: int32 */
+            priceRon: number;
+            /** Format: int32 */
+            capacity: number;
+            /** Format: int32 */
+            ticketsSold: number;
+            /** Format: date-time */
+            startSales: string;
+            /** Format: date-time */
+            endSales: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        TicketValidationResponse: {
+            /** @enum {string} */
+            status: "valid" | "already_validated";
+            ticketId: string;
+            ticketType: string;
+            eventTitle: string;
+            /** Format: date-time */
+            validatedAt: string;
         };
         User: {
             id: string;
@@ -469,6 +598,90 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Event"];
+                };
+            };
+        };
+    };
+    DashboardOperations_createTicketType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TicketType"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded and a new resource has been created as a result. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        status: "success";
+                    };
+                };
+            };
+        };
+    };
+    DashboardOperations_validateTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    ValidationHash: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketValidationResponse"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
         };
@@ -707,6 +920,28 @@ export interface operations {
             };
         };
     };
+    EventOperations_getTicketTypes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketType"][];
+                };
+            };
+        };
+    };
     FriendOperations_listFriends: {
         parameters: {
             query?: never;
@@ -841,6 +1076,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
+    UserOperations_getUserTickets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ticket"][];
                 };
             };
         };
