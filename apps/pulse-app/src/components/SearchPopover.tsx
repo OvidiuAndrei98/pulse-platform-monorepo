@@ -1,0 +1,229 @@
+"use client";
+
+import { AnimatePresence, motion } from "framer-motion";
+import { Search, X, Calendar, User, ArrowUpRight } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { allEvents, organizers } from "@/core/events";
+
+export function SearchPopover() {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Închidere la tasta Escape
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  // Focus automat pe input când se deschide popover-ul
+  useEffect(() => {
+    if (!open) return;
+    const timer = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(timer);
+  }, [open]);
+
+  // Închidere la click în afara componentei
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent | TouchEvent) => {
+      if (!wrapperRef.current) return;
+      if (!wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("touchstart", onClick);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("touchstart", onClick);
+    };
+  }, [open]);
+
+  const q = query.trim().toLowerCase();
+
+  // Filtrare evenimente
+  const matchedEvents = useMemo(() => {
+    if (!q) return allEvents.slice(0, 4);
+    return allEvents.filter(
+      (e) =>
+        e.title.toLowerCase().includes(q) ||
+        e.location.toLowerCase().includes(q) ||
+        e.category.toLowerCase().includes(q) ||
+        e.organizer.toLowerCase().includes(q),
+    );
+  }, [q]);
+
+  // Filtrare organizatori
+  const matchedOrganizers = useMemo(() => {
+    if (!q) return organizers.slice(0, 3);
+    return organizers.filter((o) => o.name.toLowerCase().includes(q));
+  }, [q]);
+
+  return (
+    <div ref={wrapperRef} className="relative z-30 h-11 w-full">
+      <AnimatePresence>
+        {!open && (
+          <motion.button
+            key="search-btn"
+            layoutId="search-morph"
+            type="button"
+            aria-label="Search events"
+            onClick={() => setOpen(true)}
+            className="absolute inset-x-0 top-0 flex h-11 items-center gap-2 overflow-hidden rounded-full border border-border bg-surface/70 px-4 text-left text-foreground"
+            style={{
+              backdropFilter: "blur(14px) saturate(160%)",
+            }}
+            transition={{ type: "spring", stiffness: 260, damping: 28 }}
+          >
+            <motion.span layout className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                Search events, places...
+              </span>
+            </motion.span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            key="search-panel"
+            layoutId="search-morph"
+            className="absolute left-0 right-0 top-0 z-50 overflow-hidden rounded-3xl border border-white/20 text-foreground"
+            style={{
+              backgroundColor: "rgba(20,22,20,0.45)",
+              backdropFilter: "blur(24px) saturate(160%)",
+            }}
+            transition={{ type: "spring", stiffness: 260, damping: 28 }}
+          >
+            {/* Efect subtil de sticlă (sheen) */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 40%)",
+              }}
+            />
+
+            <div className="relative">
+              <motion.div layout className="flex items-center gap-2 px-4 pt-4">
+                <Search className="h-4 w-4 text-primary" />
+
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search events, places..."
+                  className="h-10 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                />
+                <button
+                  type="button"
+                  aria-label="Close search"
+                  onClick={() => setOpen(false)}
+                  className="grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/5 transition-colors hover:bg-white/10"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </motion.div>
+
+              {/* Contorizăm înălțimea independent pentru a opri trepidațiile (dansul) listei la filtrare */}
+              <div className="max-h-[60vh] overflow-y-auto px-2 pb-3 pt-3">
+                <Section title="Events" count={matchedEvents.length}>
+                  {matchedEvents.map((e) => (
+                    <ResultRow
+                      key={e.id}
+                      icon={Calendar}
+                      title={e.title}
+                      meta={`${e.category} · ${e.location}`}
+                      onClick={() => setOpen(false)}
+                    />
+                  ))}
+                  {matchedEvents.length === 0 && (
+                    <p className="px-3 py-2 text-xs text-muted-foreground">
+                      No events found.
+                    </p>
+                  )}
+                </Section>
+
+                <Section title="Organizers" count={matchedOrganizers.length}>
+                  {matchedOrganizers.map((o) => (
+                    <ResultRow
+                      key={o.id}
+                      icon={User}
+                      title={o.name}
+                      meta={`${o.events} events`}
+                      onClick={() => setOpen(false)}
+                    />
+                  ))}
+                  {matchedOrganizers.length === 0 && (
+                    <p className="px-3 py-2 text-xs text-muted-foreground">
+                      No organizers found.
+                    </p>
+                  )}
+                </Section>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  count,
+  children,
+}: {
+  title: string;
+  count: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mt-2">
+      <div className="flex items-center justify-between px-3 py-2">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {title}
+        </span>
+        <span className="text-[11px] text-muted-foreground">{count}</span>
+      </div>
+      <div className="space-y-1">{children}</div>
+    </div>
+  );
+}
+
+function ResultRow({
+  icon: Icon,
+  title,
+  meta,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  meta: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition hover:bg-white/5 active:scale-[0.99]"
+    >
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10">
+        <Icon className="h-4 w-4 text-primary" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{title}</p>
+        <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
+      </div>
+      <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </button>
+  );
+}

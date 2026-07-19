@@ -142,6 +142,7 @@ export function FiltersSheet() {
                       </button>
                     </div>
 
+                    {/* Container scrollabil cu scrollbar minimalist iOS-style */}
                     <motion.div
                       initial="hidden"
                       animate="show"
@@ -154,7 +155,14 @@ export function FiltersSheet() {
                           },
                         },
                       }}
-                      className="flex-1 space-y-6 overflow-y-auto px-6 pb-4 pt-5"
+                      className="flex-1 space-y-6 overflow-y-auto px-6 pb-4 pt-5 select-none
+                                 [&::-webkit-scrollbar]:w-1.5 
+                                 [&::-webkit-scrollbar-track]:bg-transparent 
+                                 [&::-webkit-scrollbar-thumb]:rounded-full 
+                                 [&::-webkit-scrollbar-thumb]:bg-white/10 
+                                 hover:[&::-webkit-scrollbar-thumb]:bg-white/20
+                                 [scrollbar-width:thin] 
+                                 [scrollbar-color:rgba(255,255,255,0.1)_transparent]"
                     >
                       <Section title="When">
                         <div className="flex flex-wrap gap-2">

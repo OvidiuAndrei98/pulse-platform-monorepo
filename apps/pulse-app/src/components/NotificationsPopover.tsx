@@ -78,10 +78,7 @@ export function NotificationsPopover() {
 
   return (
     // Păstrăm containerul relativ pentru a ancora popover-ul exact pe buton
-    <div
-      ref={wrapperRef}
-      className="relative inline-flex items-center justify-center"
-    >
+    <div ref={wrapperRef} className="inline-flex items-center justify-center">
       <AnimatePresence mode="popLayout">
         {!open && (
           <motion.button
@@ -93,9 +90,6 @@ export function NotificationsPopover() {
             className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-full border border-white/15 text-foreground"
             style={{
               backgroundColor: "rgba(255,255,255,0.06)",
-              backdropFilter: "blur(14px) saturate(160%)",
-              boxShadow:
-                "inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(255,255,255,0.05), 0 6px 20px rgba(0,0,0,0.35)",
             }}
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
           >
@@ -104,7 +98,7 @@ export function NotificationsPopover() {
               className="relative grid place-items-center"
             >
               <Bell className="h-4 w-4" strokeWidth={2.2} />
-              <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_rgba(163,255,64,0.9)]" />
+              <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-primary" />
             </motion.span>
           </motion.button>
         )}
