@@ -5,6 +5,7 @@ import {
 } from "@packages/api-client/src/Client";
 
 type UserFields = ReadableSchema<"User">;
+export type UserData = ReadableSchema<"User">;
 
 export class User {
   /**

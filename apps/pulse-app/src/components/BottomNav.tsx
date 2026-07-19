@@ -8,25 +8,27 @@ import {
   useTransform,
   animate,
 } from "motion/react";
-import { Home, Map, MessageCircle, User } from "lucide-react";
-import { useNavigation } from "@/context/NavigationContext";
+import { Home, Map, User } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 type NavItem = {
   icon: typeof Home;
+  index?: number;
+  url?: string;
   label: string;
 };
 
 const items: NavItem[] = [
-  { icon: Home, label: "Home" },
-  { icon: Map, label: "Map" },
-  { icon: MessageCircle, label: "Messages" },
-  { icon: User, label: "Profile" },
+  { icon: Home, label: "Home", index: 0, url: "/" },
+  { icon: Map, label: "Map", index: 1, url: "/events" },
+  { icon: User, label: "Profile", index: 2, url: "/users/me" },
 ];
 
 export function BottomNav() {
-  const { page, setPage } = useNavigation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [slotWidth, setSlotWidth] = useState(0);
+  const [page, setPage] = useState(0);
+  const router = useRouter();
 
   const x = useMotionValue(0);
 
@@ -76,6 +78,8 @@ export function BottomNav() {
       damping: 26,
       mass: 0.6,
     });
+
+    router.push(items[page].url || "/");
 
     return () => controls.stop();
   }, [page, slotWidth, dragging, x]);

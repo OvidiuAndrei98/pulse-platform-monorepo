@@ -1,24 +1,24 @@
-"use client";
+import { Metadata } from "next";
+import { OrganizerSidebar } from "./components/DashboardSidebar";
+import { OrganizerHeader } from "./components/DashboardSliderMenu";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useDataProvider } from "@/core/DataProviderContext";
+export const metadata: Metadata = {
+  title: "Organizer — Eventify",
+  description: "Manage your events, tickets and organizer profile.",
+};
 
-export default function OrganizerDashboardLayout({
+export default function OrganizerLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading, isOrganizer } = useDataProvider();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && (!user || !isOrganizer)) {
-      router.replace(user ? "/me" : "/login");
-    }
-  }, [loading, user, isOrganizer, router]);
-
-  if (loading || !user || !isOrganizer) return null;
-
-  return <>{children}</>;
+  return (
+    <div className="min-h-screen bg-background">
+      <OrganizerSidebar />
+      <div className="md:pl-60">
+        <OrganizerHeader />
+        {children}
+      </div>
+    </div>
+  );
 }
