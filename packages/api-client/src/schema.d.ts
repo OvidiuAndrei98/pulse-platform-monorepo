@@ -38,6 +38,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Obține lista de evenimente ale organizatorului curent (cu statistici agregate complete) */
+        get: operations["DashboardOperations_getOrganizerEvents"];
+        put?: never;
+        /** Creare eveniment nou (doar Organizatori/Admini) */
+        post: operations["DashboardOperations_createEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/events/{id}": {
         parameters: {
             query?: never;
@@ -45,12 +63,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Obține detalii despre un eveniment */
-        get: operations["DashboardOperations_getEvent"];
+        /** Obține detaliile administrative complete ale unui singur eveniment din dashboard (GetEventWithStats) */
+        get: operations["DashboardOperations_getEventWithStats"];
         put?: never;
         /** Editează un eveniment existent (doar Organizatori/Admini) */
         post: operations["DashboardOperations_editEvent"];
-        delete?: never;
+        /** Șterge un eveniment (doar Organizatori/Admini) */
+        delete: operations["DashboardOperations_deleteEvent"];
         options?: never;
         head?: never;
         patch?: never;
@@ -131,26 +150,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Listă completă de evenimente */
+        /** Listă completă de evenimente publice (suportă filtrare după categorie, isLive, geolocație pentru hartă și ID specific) */
         get: operations["EventOperations_listEvents"];
-        put?: never;
-        /** Creare eveniment nou (doar Organizatori/Admini) */
-        post: operations["EventOperations_createEvent"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/events/map": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Obține evenimentele active pentru Live Map dintr-o zonă geografică */
-        get: operations["EventOperations_getMapEvents"];
         put?: never;
         post?: never;
         delete?: never;
@@ -166,8 +167,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Detalii eveniment după ID */
-        get: operations["EventOperations_getEventWithStats"];
+        /** Detalii eveniment public după ID (folosește în spate clauza unificată ListEvents din DB) */
+        get: operations["EventOperations_getEventByID"];
         put?: never;
         post?: never;
         /** Ștergere eveniment */
@@ -212,15 +213,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/events/{id}/ticket-types": {
+    "/events/{id}/friends": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Obține tipurile de bilete pentru un eveniment */
-        get: operations["EventOperations_getTicketTypes"];
+        /** Obține lista de prieteni acceptați care merg la acest eveniment */
+        get: operations["EventOperations_getFriendsGoingToEvent"];
         put?: never;
         post?: never;
         delete?: never;
@@ -332,11 +333,11 @@ export interface components {
         };
         Comment: {
             id: string;
-            eventId: string;
-            userId: string;
             content: string;
             /** Format: date-time */
             createdAt: string;
+            username: string;
+            avatarUrl?: string;
         };
         CreateEventPayload: {
             title: string;
@@ -353,6 +354,9 @@ export interface components {
             startTime: string;
             /** Format: date-time */
             endTime: string;
+            /** @enum {string} */
+            status: "draft" | "published";
+            ticketTypes?: components["schemas"]["CreateTicketTypePayload"][];
         };
         CreateTicketTypePayload: {
             name: string;
@@ -364,15 +368,17 @@ export interface components {
             startSales: string;
             /** Format: date-time */
             endSales: string;
+            description?: string;
+            eventId?: string;
         };
-        Event: {
+        EventResponse: {
             id: string;
             organizerId: string;
             title: string;
             description?: string;
             category: string;
+            status: string;
             bannerUrl?: string;
-            googlePlaceId: string;
             locationName: string;
             /** Format: decimal */
             latitude: number;
@@ -385,31 +391,17 @@ export interface components {
             isLive: boolean;
             /** Format: date-time */
             createdAt: string;
+            ticketTypes: components["schemas"]["TicketTypeResponse"][];
+            stats: components["schemas"]["EventStatsResponse"];
         };
-        EventWithStats: {
-            id: string;
-            organizerId: string;
-            title: string;
-            description?: string;
-            category: string;
-            bannerUrl?: string;
-            googlePlaceId: string;
-            locationName: string;
-            /** Format: decimal */
-            latitude: number;
-            /** Format: decimal */
-            longitude: number;
-            /** Format: date-time */
-            startTime: string;
-            /** Format: date-time */
-            endTime: string;
-            isLive: boolean;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: int32 */
-            checkInCount: number;
-            /** Format: int32 */
-            commentCount: number;
+        EventStatsResponse: {
+            /** Format: int64 */
+            totalCheckIns: number;
+            userHasCheckedIn?: boolean;
+            /** Format: int64 */
+            totalTicketsSold?: number;
+            /** Format: int64 */
+            totalRevenueRon?: number;
         };
         OrganizerProfile: {
             id: string;
@@ -446,24 +438,20 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
-        TicketType: {
+        TicketTypeResponse: {
             id: string;
-            eventId: string;
             name: string;
             /** Format: int32 */
             priceRon: number;
             /** Format: int32 */
             capacity: number;
-            /** Format: int32 */
-            ticketsSold: number;
             /** Format: date-time */
             startSales: string;
             /** Format: date-time */
             endSales: string;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
+            description?: string;
+            /** Format: int32 */
+            ticketsSold?: number;
         };
         TicketValidationResponse: {
             /** @enum {string} */
@@ -473,6 +461,40 @@ export interface components {
             eventTitle: string;
             /** Format: date-time */
             validatedAt: string;
+        };
+        UpdateEventPayload: {
+            id: string;
+            title: string;
+            description?: string;
+            category: string;
+            bannerUrl?: string;
+            googlePlaceId: string;
+            locationName: string;
+            /** Format: decimal */
+            latitude: number;
+            /** Format: decimal */
+            longitude: number;
+            /** Format: date-time */
+            startTime: string;
+            /** Format: date-time */
+            endTime: string;
+            /** @enum {string} */
+            status: "draft" | "published";
+            ticketTypes?: components["schemas"]["UpdateTicketTypePayload"][];
+        };
+        UpdateTicketTypePayload: {
+            id: string;
+            name: string;
+            /** Format: int32 */
+            priceRon: number;
+            /** Format: int32 */
+            capacity: number;
+            /** Format: date-time */
+            startSales: string;
+            /** Format: date-time */
+            endSales: string;
+            description?: string;
+            eventId: string;
         };
         User: {
             id: string;
@@ -488,6 +510,11 @@ export interface components {
         UserLoginPayload: {
             email: string;
             password: string;
+        };
+        UserMinResponse: {
+            id: string;
+            username: string;
+            avatarUrl?: string;
         };
         UserRegisterPayload: {
             username: string;
@@ -554,7 +581,51 @@ export interface operations {
             };
         };
     };
-    DashboardOperations_getEvent: {
+    DashboardOperations_getOrganizerEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventResponse"][];
+                };
+            };
+        };
+    };
+    DashboardOperations_createEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEventPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded and a new resource has been created as a result. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventResponse"];
+                };
+            };
+        };
+    };
+    DashboardOperations_getEventWithStats: {
         parameters: {
             query?: never;
             header?: never;
@@ -571,7 +642,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EventWithStats"];
+                    "application/json": components["schemas"]["EventResponse"];
                 };
             };
         };
@@ -597,8 +668,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Event"];
+                    "application/json": components["schemas"]["EventResponse"];
                 };
+            };
+        };
+    };
+    DashboardOperations_deleteEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -613,7 +704,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TicketType"];
+                "application/json": components["schemas"]["CreateTicketTypePayload"];
             };
         };
         responses: {
@@ -736,6 +827,11 @@ export interface operations {
         parameters: {
             query?: {
                 category?: string;
+                isLive?: boolean;
+                latMin?: number;
+                latMax?: number;
+                lonMin?: number;
+                lonMax?: number;
                 page?: number;
             };
             header?: never;
@@ -750,61 +846,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Event"][];
+                    "application/json": components["schemas"]["EventResponse"][];
                 };
             };
         };
     };
-    EventOperations_createEvent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateEventPayload"];
-            };
-        };
-        responses: {
-            /** @description The request has succeeded and a new resource has been created as a result. */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Event"];
-                };
-            };
-        };
-    };
-    EventOperations_getMapEvents: {
-        parameters: {
-            query: {
-                latMin: number;
-                latMax: number;
-                lonMin: number;
-                lonMax: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The request has succeeded. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Event"][];
-                };
-            };
-        };
-    };
-    EventOperations_getEventWithStats: {
+    EventOperations_getEventByID: {
         parameters: {
             query?: never;
             header?: never;
@@ -821,7 +868,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EventWithStats"];
+                    "application/json": components["schemas"]["EventResponse"];
                 };
             };
         };
@@ -872,7 +919,9 @@ export interface operations {
     };
     EventOperations_getComments: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+            };
             header?: never;
             path: {
                 id: string;
@@ -920,7 +969,7 @@ export interface operations {
             };
         };
     };
-    EventOperations_getTicketTypes: {
+    EventOperations_getFriendsGoingToEvent: {
         parameters: {
             query?: never;
             header?: never;
@@ -937,7 +986,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TicketType"][];
+                    "application/json": components["schemas"]["UserMinResponse"][];
                 };
             };
         };

@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Search, X, Calendar, User, ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { allEvents, organizers } from "@/core/events";
+import { allEvents, organizers } from "@/core/mappers";
 
 export function SearchPopover() {
   const [open, setOpen] = useState(false);

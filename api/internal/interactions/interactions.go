@@ -6,7 +6,6 @@ import (
 
 	db "pulse-api/db/generated"
 	"pulse-api/internal/auth"
-	"pulse-api/internal/dto"
 	"pulse-api/internal/router"
 
 	"github.com/go-chi/chi/v5"
@@ -127,7 +126,7 @@ func (h *Handler) HandleAddComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	router.RespondWithJSON(w, http.StatusOK, dto.MapComment(comment))
+	router.RespondWithJSON(w, http.StatusOK, MapComment(comment))
 }
 
 type getEventCommentsRequest struct {

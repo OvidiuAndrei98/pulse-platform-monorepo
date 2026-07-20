@@ -84,23 +84,25 @@ func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Tic
 }
 
 const createTicketType = `-- name: CreateTicketType :exec
-INSERT INTO ticket_types (event_id, name, price_ron, capacity, start_sales, end_sales)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO ticket_types (event_id, name, description, price_ron, capacity, start_sales, end_sales)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 `
 
 type CreateTicketTypeParams struct {
-	EventID    pgtype.UUID        `json:"event_id"`
-	Name       string             `json:"name"`
-	PriceRon   int32              `json:"price_ron"`
-	Capacity   int32              `json:"capacity"`
-	StartSales pgtype.Timestamptz `json:"start_sales"`
-	EndSales   pgtype.Timestamptz `json:"end_sales"`
+	EventID     pgtype.UUID        `json:"event_id"`
+	Name        string             `json:"name"`
+	Description pgtype.Text        `json:"description"`
+	PriceRon    int32              `json:"price_ron"`
+	Capacity    int32              `json:"capacity"`
+	StartSales  pgtype.Timestamptz `json:"start_sales"`
+	EndSales    pgtype.Timestamptz `json:"end_sales"`
 }
 
 func (q *Queries) CreateTicketType(ctx context.Context, arg CreateTicketTypeParams) error {
 	_, err := q.db.Exec(ctx, createTicketType,
 		arg.EventID,
 		arg.Name,
+		arg.Description,
 		arg.PriceRon,
 		arg.Capacity,
 		arg.StartSales,
@@ -149,7 +151,7 @@ func (q *Queries) GetTicketByHash(ctx context.Context, validationHash string) (G
 }
 
 const getTicketTypeForUpdate = `-- name: GetTicketTypeForUpdate :one
-SELECT id, event_id, name, price_ron, capacity, tickets_sold, start_sales, end_sales, created_at, updated_at FROM ticket_types 
+SELECT id, event_id, name, price_ron, capacity, tickets_sold, start_sales, end_sales, created_at, updated_at, description FROM ticket_types 
 WHERE id = $1 
 FOR UPDATE
 `
@@ -168,12 +170,13 @@ func (q *Queries) GetTicketTypeForUpdate(ctx context.Context, id pgtype.UUID) (T
 		&i.EndSales,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Description,
 	)
 	return i, err
 }
 
 const getTicketTypesForEvent = `-- name: GetTicketTypesForEvent :many
-SELECT id, event_id, name, price_ron, capacity, tickets_sold, start_sales, end_sales, created_at, updated_at FROM ticket_types 
+SELECT id, event_id, name, price_ron, capacity, tickets_sold, start_sales, end_sales, created_at, updated_at, description FROM ticket_types 
 WHERE event_id = $1 
 ORDER BY created_at ASC
 `
@@ -198,6 +201,7 @@ func (q *Queries) GetTicketTypesForEvent(ctx context.Context, eventID pgtype.UUI
 			&i.EndSales,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Description,
 		); err != nil {
 			return nil, err
 		}
@@ -294,6 +298,41 @@ type UpdateOrderStatusParams struct {
 
 func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error {
 	_, err := q.db.Exec(ctx, updateOrderStatus, arg.ID, arg.Status, arg.StripePaymentIntentID)
+	return err
+}
+
+const updateTicketType = `-- name: UpdateTicketType :exec
+UPDATE ticket_types
+SET 
+    name = $2,
+    price_ron = $3,
+    capacity = $4,
+    start_sales = $5,
+    end_sales = $6,
+    description = $7
+WHERE id = $1
+`
+
+type UpdateTicketTypeParams struct {
+	ID          pgtype.UUID        `json:"id"`
+	Name        string             `json:"name"`
+	PriceRon    int32              `json:"price_ron"`
+	Capacity    int32              `json:"capacity"`
+	StartSales  pgtype.Timestamptz `json:"start_sales"`
+	EndSales    pgtype.Timestamptz `json:"end_sales"`
+	Description pgtype.Text        `json:"description"`
+}
+
+func (q *Queries) UpdateTicketType(ctx context.Context, arg UpdateTicketTypeParams) error {
+	_, err := q.db.Exec(ctx, updateTicketType,
+		arg.ID,
+		arg.Name,
+		arg.PriceRon,
+		arg.Capacity,
+		arg.StartSales,
+		arg.EndSales,
+		arg.Description,
+	)
 	return err
 }
 

@@ -14,7 +14,7 @@ import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
 import { User } from "./DataProvider";
 
 interface DataProviderContextProps {
-  user: User | null;
+  user: User | undefined;
   loading: boolean;
   error: Error | null;
   isOrganizer: boolean;
@@ -36,7 +36,7 @@ const DataProviderContext = createContext<DataProviderContextProps | undefined>(
 );
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -67,23 +67,30 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     const token = getStoredToken();
     if (!token) {
-      setUser(null);
+      setUser(undefined);
       setLoading(false);
       return;
     }
 
     try {
       const userData = await ApiClient.instance.get("/users/me");
-      const userInstance = new User(userData);
-      setUser(userInstance);
+
+      setUser((currentUserInstance) => {
+        if (
+          currentUserInstance &&
+          currentUserInstance.properties.id === userData.id
+        ) {
+          return currentUserInstance;
+        }
+        return new User(userData);
+      });
     } catch (err) {
       setError(
         err instanceof Error
           ? err
           : new Error("Failed to resolve active user session"),
       );
-      setUser(null);
-      // Dacă token-ul a expirat sau e invalid, îl ștergem
+      setUser(undefined);
       if (typeof window !== "undefined") {
         localStorage.removeItem("pulse_token");
       }
@@ -135,7 +142,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") {
       localStorage.removeItem("pulse_token");
     }
-    setUser(null);
+    setUser(undefined);
     // Îl aruncăm afară dacă dă logout de pe o pagină protejată
     if (isProtectedRoute) {
       router.push("/login");

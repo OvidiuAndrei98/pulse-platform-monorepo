@@ -8,7 +8,6 @@ import (
 	db "pulse-api/db/generated"
 	"pulse-api/internal/anaf"
 	"pulse-api/internal/auth"
-	"pulse-api/internal/dto"
 	"pulse-api/internal/router"
 
 	"github.com/go-chi/chi/v5"
@@ -86,7 +85,7 @@ func (h *Handler) HandleCreateOrganizerProfile(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	router.RespondWithJSON(w, http.StatusCreated, dto.MapOrganizerProfile(profile))
+	router.RespondWithJSON(w, http.StatusCreated, MapOrganizerProfile(profile))
 }
 
 func (h *Handler) HandleGetOrganizerProfile(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +109,7 @@ func (h *Handler) HandleGetOrganizerProfile(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	router.RespondWithJSON(w, http.StatusOK, dto.MapOrganizerProfile(profile))
+	router.RespondWithJSON(w, http.StatusOK, MapOrganizerProfile(profile))
 }
 
 func (h *Handler) HandleGetOrganizerByCUI(w http.ResponseWriter, r *http.Request) {
@@ -122,5 +121,5 @@ func (h *Handler) HandleGetOrganizerByCUI(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	router.RespondWithJSON(w, http.StatusOK, dto.MapOrganizerProfile(profile))
+	router.RespondWithJSON(w, http.StatusOK, MapOrganizerProfile(profile))
 }

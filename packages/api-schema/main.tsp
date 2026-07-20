@@ -23,31 +23,47 @@ model User {
   createdAt: utcDateTime;
 }
 
-model Event {
+model UserMinResponse {
   id: string;
-  organizerId: string;
-  title: string;
-  description?: string;
-  category: string;
-  bannerUrl?: string;
-  googlePlaceId: string;
-  locationName: string;
-  latitude: decimal;
-  longitude: decimal;
-  startTime: utcDateTime;
-  endTime: utcDateTime;
-  isLive: boolean;
-  createdAt: utcDateTime;
+  username: string;
+  avatarUrl?: string;
 }
 
-model EventWithStats {
+// --- MODELELE UNIFICATE (ALINIATE CU GO / POSTGRESQL) ---
+
+model TicketTypeResponse {
+  id: string;
+  name: string;
+  priceRon: int32;
+  capacity: int32;
+  startSales: utcDateTime;
+  endSales: utcDateTime;
+  description?: string;
+
+  // Vizibil DOAR pentru organizator în dashboard (MapFromDBListEventsWithStats / MapFromDBGetEventWithStats)
+  ticketsSold?: int32;
+}
+
+model EventStatsResponse {
+  totalCheckIns: int64;
+
+  // Vizibil public când utilizatorul este autentificat (MapFromDBListEvents / MapFromDBGetEvent)
+  userHasCheckedIn?: boolean;
+
+  // Vizibile DOAR pentru organizator în dashboard
+  totalTicketsSold?: int64;
+
+  totalRevenueRon?: int64;
+}
+
+model EventResponse {
   id: string;
   organizerId: string;
   title: string;
   description?: string;
   category: string;
+  status: string;
   bannerUrl?: string;
-  googlePlaceId: string;
   locationName: string;
   latitude: decimal;
   longitude: decimal;
@@ -55,9 +71,14 @@ model EventWithStats {
   endTime: utcDateTime;
   isLive: boolean;
   createdAt: utcDateTime;
-  checkInCount: int32;
-  commentCount: int32;
+
+  // Răspunsul include întotdeauna colecțiile dedicate, controlate intern prin pointeri în Go
+  ticketTypes: TicketTypeResponse[];
+
+  stats: EventStatsResponse;
 }
+
+// --------------------------------------------------------
 
 model CheckIn {
   id: string;
@@ -68,10 +89,10 @@ model CheckIn {
 
 model Comment {
   id: string;
-  eventId: string;
-  userId: string;
   content: string;
   createdAt: utcDateTime;
+  username: string;
+  avatarUrl?: string;
 }
 
 model OrganizerProfile {
@@ -86,19 +107,6 @@ model OrganizerProfile {
 }
 
 model Ticket {
-  id: string;
-  eventId: string;
-  name: string;
-  priceRon: int32;
-  capacity: int32;
-  ticketsSold: int32;
-  startSales: utcDateTime;
-  endSales: utcDateTime;
-  createdAt: utcDateTime;
-  updatedAt: utcDateTime;
-}
-
-model TicketType {
   id: string;
   eventId: string;
   name: string;
@@ -136,6 +144,24 @@ model CreateEventPayload {
   longitude: decimal;
   startTime: utcDateTime;
   endTime: utcDateTime;
+  status: "draft" | "published";
+  ticketTypes?: CreateTicketTypePayload[];
+}
+
+model UpdateEventPayload {
+  id: string;
+  title: string;
+  description?: string;
+  category: string;
+  bannerUrl?: string;
+  googlePlaceId: string;
+  locationName: string;
+  latitude: decimal;
+  longitude: decimal;
+  startTime: utcDateTime;
+  endTime: utcDateTime;
+  status: "draft" | "published";
+  ticketTypes?: UpdateTicketTypePayload[];
 }
 
 model SubmitOrganizerProfilePayload {
@@ -149,6 +175,19 @@ model CreateTicketTypePayload {
   capacity: int32;
   startSales: utcDateTime;
   endSales: utcDateTime;
+  description?: string;
+  eventId?: string;
+}
+
+model UpdateTicketTypePayload {
+  id: string;
+  name: string;
+  priceRon: int32;
+  capacity: int32;
+  startSales: utcDateTime;
+  endSales: utcDateTime;
+  description?: string;
+  eventId: string;
 }
 
 // --- REQUESTS RESPONSE PAYLOADS ---
@@ -210,31 +249,22 @@ interface UserOperations {
 
 @route("/events")
 interface EventOperations {
-  @summary("Obține evenimentele active pentru Live Map dintr-o zonă geografică")
+  @summary("Listă completă de evenimente publice (suportă filtrare după categorie, isLive, geolocație pentru hartă și ID specific)")
   @get
-  @route("/map")
-  getMapEvents(
-    @query latMin: decimal,
-    @query latMax: decimal,
-    @query lonMin: decimal,
-    @query lonMax: decimal,
-  ): Event[];
+  listEvents(
+    @query category?: string,
+    @query isLive?: boolean,
+    @query latMin?: decimal,
+    @query latMax?: decimal,
+    @query lonMin?: decimal,
+    @query lonMax?: decimal,
+    @query page?: int32,
+  ): EventResponse[];
 
-  @summary("Listă completă de evenimente")
-  @get
-  listEvents(@query category?: string, @query page?: int32): Event[];
-
-  @summary("Creare eveniment nou (doar Organizatori/Admini)")
-  @post
-  createEvent(@body event: CreateEventPayload): {
-    @statusCode statusCode: 201;
-    @body created: Event;
-  };
-
-  @summary("Detalii eveniment după ID")
+  @summary("Detalii eveniment public după ID (folosește în spate clauza unificată ListEvents din DB)")
   @get
   @route("/{id}")
-  getEventWithStats(@path id: string): EventWithStats;
+  getEventByID(@path id: string): EventResponse;
 
   @summary("Ștergere eveniment")
   @delete
@@ -264,12 +294,12 @@ interface EventOperations {
   @summary("Obține comentariile unui eveniment")
   @get
   @route("/{id}/comments")
-  getComments(@path id: string): Comment[];
+  getComments(@path id: string, @query page?: int32): Comment[];
 
-  @summary("Obține tipurile de bilete pentru un eveniment")
+  @summary("Obține lista de prieteni acceptați care merg la acest eveniment")
   @get
-  @route("/{id}/ticket-types")
-  getTicketTypes(@path id: string): TicketType[];
+  @route("/{id}/friends")
+  getFriendsGoingToEvent(@path id: string): UserMinResponse[];
 }
 
 @route("/friends")
@@ -315,19 +345,43 @@ interface DashboardOperations {
   @summary("Preia profilul unui organizator după ID-ul său")
   getProfile(@path id: string): OrganizerProfile;
 
+  @summary("Creare eveniment nou (doar Organizatori/Admini)")
+  @post
+  @route("/events")
+  createEvent(@body event: CreateEventPayload): {
+    @statusCode statusCode: 201;
+    @body created: EventResponse;
+  };
+
+  @get
+  @route("/events")
+  @summary("Obține lista de evenimente ale organizatorului curent (cu statistici agregate complete)")
+  getOrganizerEvents(): EventResponse[];
+
   @post
   @route("/events/{id}")
   @summary("Editează un eveniment existent (doar Organizatori/Admini)")
-  editEvent(@path id: string, @body event: CreateEventPayload): Event;
+  editEvent(@path id: string, @body event: CreateEventPayload): EventResponse;
+
   @get
   @route("/events/{id}")
-  @summary("Obține detalii despre un eveniment")
-  getEvent(@path id: string): EventWithStats;
+  @summary("Obține detaliile administrative complete ale unui singur eveniment din dashboard (GetEventWithStats)")
+  getEventWithStats(@path id: string): EventResponse;
+
+  @delete
+  @route("/events/{id}")
+  @summary("Șterge un eveniment (doar Organizatori/Admini)")
+  deleteEvent(@path id: string): {
+    @statusCode statusCode: 204;
+  };
 
   @summary("Creare tip de bilet pentru un eveniment")
   @post
   @route("/events/{id}/ticket-types")
-  createTicketType(@path id: string, @body ticketType: TicketType): {
+  createTicketType(
+    @path id: string,
+    @body ticketType: CreateTicketTypePayload,
+  ): {
     @statusCode statusCode: 201;
     @body response: {
       status: "success";

@@ -12,9 +12,9 @@ import (
 )
 
 const createEvent = `-- name: CreateEvent :one
-INSERT INTO events (organizer_id, title, description, category, banner_url, google_place_id, location_name, latitude, longitude, start_time, end_time)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id
+INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, latitude, longitude, start_time, end_time)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status
 `
 
 type CreateEventParams struct {
@@ -22,6 +22,7 @@ type CreateEventParams struct {
 	Title         string             `json:"title"`
 	Description   pgtype.Text        `json:"description"`
 	Category      string             `json:"category"`
+	Status        string             `json:"status"`
 	BannerUrl     pgtype.Text        `json:"banner_url"`
 	GooglePlaceID string             `json:"google_place_id"`
 	LocationName  string             `json:"location_name"`
@@ -37,6 +38,7 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 		arg.Title,
 		arg.Description,
 		arg.Category,
+		arg.Status,
 		arg.BannerUrl,
 		arg.GooglePlaceID,
 		arg.LocationName,
@@ -62,6 +64,7 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 		&i.IsLive,
 		&i.CreatedAt,
 		&i.GooglePlaceID,
+		&i.Status,
 	)
 	return i, err
 }
@@ -80,15 +83,16 @@ UPDATE events
 SET title = $2,
     description = $3,
     category = $4,
-    banner_url = $5,
-    google_place_id = $6,
-    location_name = $7,
-    latitude = $8,
-    longitude = $9,
-    start_time = $10,
-    end_time = $11
+    status = $5,
+    banner_url = $6,
+    google_place_id = $7,
+    location_name = $8,
+    latitude = $9,
+    longitude = $10,
+    start_time = $11,
+    end_time = $12
 WHERE id = $1
-RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id
+RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status
 `
 
 type EditEventParams struct {
@@ -96,6 +100,7 @@ type EditEventParams struct {
 	Title         string             `json:"title"`
 	Description   pgtype.Text        `json:"description"`
 	Category      string             `json:"category"`
+	Status        string             `json:"status"`
 	BannerUrl     pgtype.Text        `json:"banner_url"`
 	GooglePlaceID string             `json:"google_place_id"`
 	LocationName  string             `json:"location_name"`
@@ -111,6 +116,7 @@ func (q *Queries) EditEvent(ctx context.Context, arg EditEventParams) (Events, e
 		arg.Title,
 		arg.Description,
 		arg.Category,
+		arg.Status,
 		arg.BannerUrl,
 		arg.GooglePlaceID,
 		arg.LocationName,
@@ -136,6 +142,7 @@ func (q *Queries) EditEvent(ctx context.Context, arg EditEventParams) (Events, e
 		&i.IsLive,
 		&i.CreatedAt,
 		&i.GooglePlaceID,
+		&i.Status,
 	)
 	return i, err
 }
@@ -190,29 +197,78 @@ func (q *Queries) GetCommentsForEvent(ctx context.Context, arg GetCommentsForEve
 }
 
 const getEventByID = `-- name: GetEventByID :one
-SELECT id, organizer_id, title, description, category, banner_url, location_name, latitude, longitude, start_time, end_time, is_live, created_at
-FROM events 
-WHERE id = $1 LIMIT 1
+
+SELECT 
+    e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
+    e.banner_url, e.location_name, e.latitude, e.longitude, e.start_time, 
+    e.end_time, e.is_live, e.created_at,
+    
+    -- Numărul total de check-ins (vizibil public)
+    (
+        SELECT COUNT(*) 
+        FROM check_ins 
+        WHERE event_id = e.id
+    )::bigint AS total_check_ins,
+    
+    -- Verifică dacă utilizatorul curent ($1) a făcut check-in
+    EXISTS(
+        SELECT 1 
+        FROM check_ins 
+        WHERE check_ins.event_id = e.id 
+          AND check_ins.user_id = $1
+    ) AS user_has_checked_in,
+    
+    -- Array JSON cu biletele (FĂRĂ câmpul sensibil tickets_sold)
+    COALESCE(
+        (
+            SELECT json_agg(
+                json_build_object(
+                    'id', tt.id,
+                    'name', tt.name,
+                    'price_ron', tt.price_ron,
+                    'capacity', tt.capacity,
+                    'start_sales', tt.start_sales,
+                    'end_sales', tt.end_sales,
+                    'description', tt.description
+                )
+            )
+            FROM ticket_types tt
+            WHERE tt.event_id = e.id
+        ), 
+        '[]'::json
+    ) AS ticket_types
+FROM events e
+WHERE e.id = $2 LIMIT 1
 `
 
-type GetEventByIDRow struct {
-	ID           pgtype.UUID        `json:"id"`
-	OrganizerID  pgtype.UUID        `json:"organizer_id"`
-	Title        string             `json:"title"`
-	Description  pgtype.Text        `json:"description"`
-	Category     string             `json:"category"`
-	BannerUrl    pgtype.Text        `json:"banner_url"`
-	LocationName string             `json:"location_name"`
-	Latitude     float64            `json:"latitude"`
-	Longitude    float64            `json:"longitude"`
-	StartTime    pgtype.Timestamptz `json:"start_time"`
-	EndTime      pgtype.Timestamptz `json:"end_time"`
-	IsLive       pgtype.Bool        `json:"is_live"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+type GetEventByIDParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	ID     pgtype.UUID `json:"id"`
 }
 
-func (q *Queries) GetEventByID(ctx context.Context, id pgtype.UUID) (GetEventByIDRow, error) {
-	row := q.db.QueryRow(ctx, getEventByID, id)
+type GetEventByIDRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	OrganizerID      pgtype.UUID        `json:"organizer_id"`
+	Title            string             `json:"title"`
+	Description      pgtype.Text        `json:"description"`
+	Category         string             `json:"category"`
+	Status           string             `json:"status"`
+	BannerUrl        pgtype.Text        `json:"banner_url"`
+	LocationName     string             `json:"location_name"`
+	Latitude         float64            `json:"latitude"`
+	Longitude        float64            `json:"longitude"`
+	StartTime        pgtype.Timestamptz `json:"start_time"`
+	EndTime          pgtype.Timestamptz `json:"end_time"`
+	IsLive           pgtype.Bool        `json:"is_live"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	TotalCheckIns    int64              `json:"total_check_ins"`
+	UserHasCheckedIn bool               `json:"user_has_checked_in"`
+	TicketTypes      interface{}        `json:"ticket_types"`
+}
+
+// RETURNING * va aduce status-ul modificat
+func (q *Queries) GetEventByID(ctx context.Context, arg GetEventByIDParams) (GetEventByIDRow, error) {
+	row := q.db.QueryRow(ctx, getEventByID, arg.UserID, arg.ID)
 	var i GetEventByIDRow
 	err := row.Scan(
 		&i.ID,
@@ -220,6 +276,7 @@ func (q *Queries) GetEventByID(ctx context.Context, id pgtype.UUID) (GetEventByI
 		&i.Title,
 		&i.Description,
 		&i.Category,
+		&i.Status,
 		&i.BannerUrl,
 		&i.LocationName,
 		&i.Latitude,
@@ -228,28 +285,64 @@ func (q *Queries) GetEventByID(ctx context.Context, id pgtype.UUID) (GetEventByI
 		&i.EndTime,
 		&i.IsLive,
 		&i.CreatedAt,
+		&i.TotalCheckIns,
+		&i.UserHasCheckedIn,
+		&i.TicketTypes,
 	)
 	return i, err
 }
 
 const getEventWithStats = `-- name: GetEventWithStats :one
 SELECT 
-    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id,
-    (SELECT COUNT(*) FROM check_ins WHERE event_id = e.id) AS check_ins_count,
-    EXISTS(
-        SELECT 1 
+    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status,
+    
+    (
+        SELECT COUNT(*) 
         FROM check_ins 
-        WHERE check_ins.event_id = e.id 
-          AND check_ins.user_id = $1
-    ) AS user_has_checked_in
-FROM events e
-WHERE e.id = $2
-`
+        WHERE event_id = e.id
+    )::bigint AS total_check_ins,
+    
+    COALESCE(
+        (
+            SELECT SUM(tt.tickets_sold) 
+            FROM ticket_types tt 
+            WHERE tt.event_id = e.id
+        ), 
+        0
+    )::bigint AS total_tickets_sold,
+    
+    COALESCE(
+        (
+            SELECT SUM(tt.tickets_sold * tt.price_ron) 
+            FROM ticket_types tt 
+            WHERE tt.event_id = e.id
+        ), 
+        0
+    )::bigint AS total_revenue_ron,
 
-type GetEventWithStatsParams struct {
-	UserID pgtype.UUID `json:"user_id"`
-	ID     pgtype.UUID `json:"id"`
-}
+    -- Include și tickets_sold în interiorul fiecărui tip de bilet
+    COALESCE(
+        (
+            SELECT json_agg(
+                json_build_object(
+                    'id', tt.id,
+                    'name', tt.name,
+                    'price_ron', tt.price_ron,
+                    'capacity', tt.capacity,
+                    'tickets_sold', tt.tickets_sold,
+                    'start_sales', tt.start_sales,
+                    'end_sales', tt.end_sales,
+                    'description', tt.description
+                )
+            )
+            FROM ticket_types tt
+            WHERE tt.event_id = e.id
+        ), 
+        '[]'::json
+    ) AS ticket_types
+FROM events e
+WHERE e.id = $1 LIMIT 1
+`
 
 type GetEventWithStatsRow struct {
 	ID               pgtype.UUID        `json:"id"`
@@ -267,12 +360,15 @@ type GetEventWithStatsRow struct {
 	IsLive           pgtype.Bool        `json:"is_live"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	GooglePlaceID    string             `json:"google_place_id"`
-	CheckInsCount    int64              `json:"check_ins_count"`
-	UserHasCheckedIn bool               `json:"user_has_checked_in"`
+	Status           string             `json:"status"`
+	TotalCheckIns    int64              `json:"total_check_ins"`
+	TotalTicketsSold int64              `json:"total_tickets_sold"`
+	TotalRevenueRon  int64              `json:"total_revenue_ron"`
+	TicketTypes      interface{}        `json:"ticket_types"`
 }
 
-func (q *Queries) GetEventWithStats(ctx context.Context, arg GetEventWithStatsParams) (GetEventWithStatsRow, error) {
-	row := q.db.QueryRow(ctx, getEventWithStats, arg.UserID, arg.ID)
+func (q *Queries) GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEventWithStatsRow, error) {
+	row := q.db.QueryRow(ctx, getEventWithStats, id)
 	var i GetEventWithStatsRow
 	err := row.Scan(
 		&i.ID,
@@ -290,8 +386,11 @@ func (q *Queries) GetEventWithStats(ctx context.Context, arg GetEventWithStatsPa
 		&i.IsLive,
 		&i.CreatedAt,
 		&i.GooglePlaceID,
-		&i.CheckInsCount,
-		&i.UserHasCheckedIn,
+		&i.Status,
+		&i.TotalCheckIns,
+		&i.TotalTicketsSold,
+		&i.TotalRevenueRon,
+		&i.TicketTypes,
 	)
 	return i, err
 }
@@ -340,7 +439,7 @@ func (q *Queries) GetFriendsGoingToEvent(ctx context.Context, arg GetFriendsGoin
 }
 
 const getLiveEventsInArea = `-- name: GetLiveEventsInArea :many
-SELECT id, organizer_id, title, description, category, banner_url, location_name, latitude, longitude, start_time, end_time, is_live, created_at
+SELECT id, organizer_id, title, description, category, status, banner_url, location_name, latitude, longitude, start_time, end_time, is_live, created_at
 FROM events 
 WHERE is_live = true 
   AND latitude BETWEEN $1 AND $2 
@@ -360,6 +459,7 @@ type GetLiveEventsInAreaRow struct {
 	Title        string             `json:"title"`
 	Description  pgtype.Text        `json:"description"`
 	Category     string             `json:"category"`
+	Status       string             `json:"status"`
 	BannerUrl    pgtype.Text        `json:"banner_url"`
 	LocationName string             `json:"location_name"`
 	Latitude     float64            `json:"latitude"`
@@ -390,6 +490,7 @@ func (q *Queries) GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAr
 			&i.Title,
 			&i.Description,
 			&i.Category,
+			&i.Status,
 			&i.BannerUrl,
 			&i.LocationName,
 			&i.Latitude,
@@ -410,37 +511,100 @@ func (q *Queries) GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAr
 }
 
 const listEvents = `-- name: ListEvents :many
-SELECT id, organizer_id, title, description, category, banner_url, location_name, latitude, longitude, start_time, end_time, is_live, created_at
-FROM events
-WHERE ($1::VARCHAR = '' OR category = $1)
-ORDER BY start_time DESC
-LIMIT $2 OFFSET $3
+SELECT 
+    e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
+    e.banner_url, e.location_name, e.latitude, e.longitude, e.start_time, 
+    e.end_time, e.is_live, e.created_at,
+    
+    (
+        SELECT COUNT(*) 
+        FROM check_ins 
+        WHERE event_id = e.id
+    )::bigint AS total_check_ins,
+    
+    EXISTS(
+        SELECT 1 
+        FROM check_ins 
+        WHERE check_ins.event_id = e.id 
+          AND check_ins.user_id = $1
+    ) AS user_has_checked_in,
+    
+    COALESCE(
+        (
+            SELECT json_agg(
+                json_build_object(
+                    'id', tt.id,
+                    'name', tt.name,
+                    'price_ron', tt.price_ron,
+                    'capacity', tt.capacity,
+                    'start_sales', tt.start_sales,
+                    'end_sales', tt.end_sales,
+                    'description', tt.description
+                )
+            )
+            FROM ticket_types tt
+            WHERE tt.event_id = e.id
+        ), 
+        '[]'::json
+    ) AS ticket_types
+FROM events e
+WHERE ($2::VARCHAR = '' OR e.category = $2)
+  AND ($3::BOOLEAN IS NULL OR e.is_live = $3)
+  -- Filtre geolocație cu nume clare
+  AND ($4::FLOAT IS NULL OR e.latitude BETWEEN $4 AND $5)
+  AND ($6::FLOAT IS NULL OR e.longitude BETWEEN $6 AND $7)
+  -- Filtru ID specific
+  AND ($8::UUID IS NULL OR e.id = $8)
+ORDER BY e.start_time DESC
+LIMIT $10 OFFSET $9
 `
 
 type ListEventsParams struct {
-	Column1 string `json:"column_1"`
-	Limit   int32  `json:"limit"`
-	Offset  int32  `json:"offset"`
+	UserID    pgtype.UUID   `json:"user_id"`
+	Category  string        `json:"category"`
+	IsLive    pgtype.Bool   `json:"is_live"`
+	LatMin    pgtype.Float8 `json:"lat_min"`
+	LatMax    pgtype.Float8 `json:"lat_max"`
+	LonMin    pgtype.Float8 `json:"lon_min"`
+	LonMax    pgtype.Float8 `json:"lon_max"`
+	EventID   pgtype.UUID   `json:"event_id"`
+	ReqOffset int32         `json:"req_offset"`
+	ReqLimit  int32         `json:"req_limit"`
 }
 
 type ListEventsRow struct {
-	ID           pgtype.UUID        `json:"id"`
-	OrganizerID  pgtype.UUID        `json:"organizer_id"`
-	Title        string             `json:"title"`
-	Description  pgtype.Text        `json:"description"`
-	Category     string             `json:"category"`
-	BannerUrl    pgtype.Text        `json:"banner_url"`
-	LocationName string             `json:"location_name"`
-	Latitude     float64            `json:"latitude"`
-	Longitude    float64            `json:"longitude"`
-	StartTime    pgtype.Timestamptz `json:"start_time"`
-	EndTime      pgtype.Timestamptz `json:"end_time"`
-	IsLive       pgtype.Bool        `json:"is_live"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	ID               pgtype.UUID        `json:"id"`
+	OrganizerID      pgtype.UUID        `json:"organizer_id"`
+	Title            string             `json:"title"`
+	Description      pgtype.Text        `json:"description"`
+	Category         string             `json:"category"`
+	Status           string             `json:"status"`
+	BannerUrl        pgtype.Text        `json:"banner_url"`
+	LocationName     string             `json:"location_name"`
+	Latitude         float64            `json:"latitude"`
+	Longitude        float64            `json:"longitude"`
+	StartTime        pgtype.Timestamptz `json:"start_time"`
+	EndTime          pgtype.Timestamptz `json:"end_time"`
+	IsLive           pgtype.Bool        `json:"is_live"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	TotalCheckIns    int64              `json:"total_check_ins"`
+	UserHasCheckedIn bool               `json:"user_has_checked_in"`
+	TicketTypes      interface{}        `json:"ticket_types"`
 }
 
 func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error) {
-	rows, err := q.db.Query(ctx, listEvents, arg.Column1, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listEvents,
+		arg.UserID,
+		arg.Category,
+		arg.IsLive,
+		arg.LatMin,
+		arg.LatMax,
+		arg.LonMin,
+		arg.LonMax,
+		arg.EventID,
+		arg.ReqOffset,
+		arg.ReqLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -454,6 +618,7 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 			&i.Title,
 			&i.Description,
 			&i.Category,
+			&i.Status,
 			&i.BannerUrl,
 			&i.LocationName,
 			&i.Latitude,
@@ -462,6 +627,105 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 			&i.EndTime,
 			&i.IsLive,
 			&i.CreatedAt,
+			&i.TotalCheckIns,
+			&i.UserHasCheckedIn,
+			&i.TicketTypes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEventsWithStats = `-- name: ListEventsWithStats :many
+SELECT 
+    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status,
+    (
+        SELECT COUNT(*)::bigint 
+        FROM check_ins 
+        WHERE event_id = e.id
+    ) AS total_check_ins,
+    COALESCE(SUM(tt.tickets_sold), 0)::bigint AS total_tickets_sold,
+    COALESCE(SUM(tt.tickets_sold * tt.price_ron), 0)::bigint AS total_revenue_ron,
+    COALESCE(
+        jsonb_agg(
+            jsonb_build_object(
+                'id', tt.id,
+                'name', tt.name,
+                'priceRon', tt.price_ron, 
+                'capacity', tt.capacity,
+                'ticketsSold', tt.tickets_sold,
+                'startSales', tt.start_sales,
+                'endSales', tt.end_sales,
+                'description', tt.description
+            )
+        ) FILTER (WHERE tt.id IS NOT NULL),
+        '[]'::jsonb
+    ) AS ticket_types
+FROM events e
+LEFT JOIN ticket_types tt ON tt.event_id = e.id
+WHERE e.organizer_id = $1
+GROUP BY e.id
+ORDER BY e.start_time DESC
+`
+
+type ListEventsWithStatsRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	OrganizerID      pgtype.UUID        `json:"organizer_id"`
+	Title            string             `json:"title"`
+	Description      pgtype.Text        `json:"description"`
+	Category         string             `json:"category"`
+	BannerUrl        pgtype.Text        `json:"banner_url"`
+	LocationAddress  pgtype.Text        `json:"location_address"`
+	LocationName     string             `json:"location_name"`
+	Latitude         float64            `json:"latitude"`
+	Longitude        float64            `json:"longitude"`
+	StartTime        pgtype.Timestamptz `json:"start_time"`
+	EndTime          pgtype.Timestamptz `json:"end_time"`
+	IsLive           pgtype.Bool        `json:"is_live"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	GooglePlaceID    string             `json:"google_place_id"`
+	Status           string             `json:"status"`
+	TotalCheckIns    int64              `json:"total_check_ins"`
+	TotalTicketsSold int64              `json:"total_tickets_sold"`
+	TotalRevenueRon  int64              `json:"total_revenue_ron"`
+	TicketTypes      interface{}        `json:"ticket_types"`
+}
+
+func (q *Queries) ListEventsWithStats(ctx context.Context, organizerID pgtype.UUID) ([]ListEventsWithStatsRow, error) {
+	rows, err := q.db.Query(ctx, listEventsWithStats, organizerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListEventsWithStatsRow
+	for rows.Next() {
+		var i ListEventsWithStatsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrganizerID,
+			&i.Title,
+			&i.Description,
+			&i.Category,
+			&i.BannerUrl,
+			&i.LocationAddress,
+			&i.LocationName,
+			&i.Latitude,
+			&i.Longitude,
+			&i.StartTime,
+			&i.EndTime,
+			&i.IsLive,
+			&i.CreatedAt,
+			&i.GooglePlaceID,
+			&i.Status,
+			&i.TotalCheckIns,
+			&i.TotalTicketsSold,
+			&i.TotalRevenueRon,
+			&i.TicketTypes,
 		); err != nil {
 			return nil, err
 		}

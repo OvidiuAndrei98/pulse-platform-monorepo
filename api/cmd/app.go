@@ -98,7 +98,7 @@ func (app *Application) BuildRouter() http.Handler {
 
 	// 1. Instanțiem modulele din internal cu dependențele necesare
 	authHandler := auth.NewHandler(app.Queries, mailerService)
-	eventsHandler := events.NewHandler(app.Queries)
+	eventsHandler := events.NewHandler(app.Queries, app.Pool)
 	interactionsHandler := interactions.NewHandler(app.Queries)
 	usersHandler := users.NewHandler(app.Queries)
 	authMiddleware := auth.AuthMiddleware
@@ -134,6 +134,7 @@ func (app *Application) BuildRouter() http.Handler {
 		DeleteEvent:         eventsHandler.HandleDeleteEvent,
 		EditEvent:           eventsHandler.HandleEditEvent,
 		GetEventWithStats:   eventsHandler.HandleGetEventWithStats,
+		ListEventsWithStats: eventsHandler.HandleListEventsWithStats,
 
 		// Interactions / Checkins
 		CreateCheckIn: interactionsHandler.HandleCreateCheckIn,

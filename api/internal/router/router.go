@@ -36,6 +36,7 @@ type HandlersConfig struct {
 	GetLiveEventsInArea http.HandlerFunc
 	DeleteEvent         http.HandlerFunc
 	EditEvent           http.HandlerFunc
+	ListEventsWithStats http.HandlerFunc
 
 	// Interactions / Checkins
 	CreateCheckIn http.HandlerFunc
@@ -140,12 +141,13 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 
 				// --- ORGANIZER DASHBOARD ---
 				r.Route("/dashboard/events", func(r chi.Router) {
+					r.Get("/", cfg.ListEventsWithStats)
 					r.Post("/", cfg.CreateEvent)
 					if cfg.DeleteEvent != nil {
 						r.Delete("/{id}", cfg.DeleteEvent)
 					}
 					r.Post("/{id}", cfg.EditEvent)
-					r.Get("/{id}", cfg.GetEventByID)
+					r.Get("/{id}", cfg.GetEventWithStats)
 					r.Post("/{id}/ticket-types", cfg.CreateTicketType)
 					r.Post("/{id}/tickets/validate", cfg.ValidateTicket)
 				})

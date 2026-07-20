@@ -24,8 +24,9 @@ type Querier interface {
 	DeleteUserToken(ctx context.Context, arg DeleteUserTokenParams) error
 	EditEvent(ctx context.Context, arg EditEventParams) (Events, error)
 	GetCommentsForEvent(ctx context.Context, arg GetCommentsForEventParams) ([]GetCommentsForEventRow, error)
-	GetEventByID(ctx context.Context, id pgtype.UUID) (GetEventByIDRow, error)
-	GetEventWithStats(ctx context.Context, arg GetEventWithStatsParams) (GetEventWithStatsRow, error)
+	// RETURNING * va aduce status-ul modificat
+	GetEventByID(ctx context.Context, arg GetEventByIDParams) (GetEventByIDRow, error)
+	GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEventWithStatsRow, error)
 	GetFriendRequests(ctx context.Context, friendID pgtype.UUID) ([]GetFriendRequestsRow, error)
 	GetFriends(ctx context.Context, userID pgtype.UUID) ([]GetFriendsRow, error)
 	GetFriendsGoingToEvent(ctx context.Context, arg GetFriendsGoingToEventParams) ([]GetFriendsGoingToEventRow, error)
@@ -43,9 +44,11 @@ type Querier interface {
 	IncrementTicketsSold(ctx context.Context, arg IncrementTicketsSoldParams) error
 	InsertUserToken(ctx context.Context, arg InsertUserTokenParams) (UserTokens, error)
 	ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error)
+	ListEventsWithStats(ctx context.Context, organizerID pgtype.UUID) ([]ListEventsWithStatsRow, error)
 	RespondToFriendRequest(ctx context.Context, arg RespondToFriendRequestParams) error
 	SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error
 	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error
+	UpdateTicketType(ctx context.Context, arg UpdateTicketTypeParams) error
 	UpdateUserActivated(ctx context.Context, id pgtype.UUID) error
 	UpdateUserActivation(ctx context.Context, arg UpdateUserActivationParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error

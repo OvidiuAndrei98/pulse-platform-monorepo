@@ -10,7 +10,6 @@ import (
 
 	db "pulse-api/db/generated"
 	"pulse-api/internal/auth"
-	"pulse-api/internal/dto"
 	"pulse-api/internal/router"
 
 	"github.com/go-chi/chi/v5"
@@ -156,7 +155,7 @@ func (h *Handler) HandlePurchaseTickets(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Pentru răspunsul JSON folosești maparea ta din pachetul DTO
-	router.RespondWithJSON(w, http.StatusCreated, dto.MapOrder(order))
+	router.RespondWithJSON(w, http.StatusCreated, MapOrder(order))
 }
 
 func (h *Handler) HandleGetTicketTypesForEvent(w http.ResponseWriter, r *http.Request) {
@@ -175,9 +174,9 @@ func (h *Handler) HandleGetTicketTypesForEvent(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	result := make([]dto.TicketTypesResponse, 0, len(types))
+	result := make([]TicketTypesResponse, 0, len(types))
 	for _, e := range types {
-		result = append(result, dto.MapTicketTypesList(e))
+		result = append(result, MapTicketTypesList(e))
 	}
 
 	router.RespondWithJSON(w, http.StatusOK, result)
@@ -240,13 +239,8 @@ func (h *Handler) HandleValidateTicket(w http.ResponseWriter, r *http.Request) {
 	// Check if the ticket has already been validated
 	if ticketRow.IsValidated {
 
-		res := dto.TicketValidationResponse{
-			Status:      "already_validated",
-			TicketID:    ticketRow.ID,
-			TicketType:  ticketRow.TicketTypeName,
-			EventTitle:  ticketRow.EventTitle,
-			ValidatedAt: ticketRow.ValidatedAt,
-		}
+		res := MapTicketValidationResponse(ticketRow)
+		res.Status = "already_validated"
 		router.RespondWithJSON(w, http.StatusOK, res)
 		return
 	}
@@ -262,24 +256,20 @@ func (h *Handler) HandleValidateTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := dto.TicketValidationResponse{
-		Status:      "valid",
-		TicketID:    ticketRow.ID,
-		TicketType:  ticketRow.TicketTypeName,
-		EventTitle:  ticketRow.EventTitle,
-		ValidatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-	}
+	res := MapTicketValidationResponse(ticketRow)
+	res.Status = "valid"
 
 	router.RespondWithJSON(w, http.StatusOK, res)
 }
 
-type CreateTicketTypeRequest struct {
-	EventID    pgtype.UUID        `json:"event_id"`
-	Name       string             `json:"name"`
-	PriceRon   int32              `json:"price_ron"`
-	Capacity   int32              `json:"capacity"`
-	StartSales pgtype.Timestamptz `json:"start_sales"`
-	EndSales   pgtype.Timestamptz `json:"end_sales"`
+type TicketTypeInput struct {
+	Name        string `json:"name"`
+	PriceRon    int32  `json:"priceRon"`
+	Capacity    int32  `json:"capacity"`
+	StartSales  string `json:"startSales"`
+	EndSales    string `json:"endSales"`
+	Description string `json:"description"`
+	EventID     string `json:"eventId"`
 }
 
 func (h *Handler) HandleCreateTicketType(w http.ResponseWriter, r *http.Request) {
@@ -296,19 +286,20 @@ func (h *Handler) HandleCreateTicketType(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var req CreateTicketTypeRequest
+	var req TicketTypeInput
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		router.RespondWithError(w, http.StatusBadRequest, "Date invalide")
 		return
 	}
 
 	err = h.Queries.CreateTicketType(ctx, db.CreateTicketTypeParams{
-		EventID:    req.EventID,
-		Name:       req.Name,
-		PriceRon:   req.PriceRon,
-		Capacity:   req.Capacity,
-		StartSales: req.StartSales,
-		EndSales:   req.EndSales,
+		EventID:     func() pgtype.UUID { var u pgtype.UUID; _ = u.Scan(req.EventID); return u }(),
+		Name:        req.Name,
+		PriceRon:    req.PriceRon,
+		Capacity:    req.Capacity,
+		StartSales:  func() pgtype.Timestamptz { var t pgtype.Timestamptz; _ = t.Scan(req.StartSales); return t }(),
+		EndSales:    func() pgtype.Timestamptz { var t pgtype.Timestamptz; _ = t.Scan(req.EndSales); return t }(),
+		Description: func() pgtype.Text { var t pgtype.Text; _ = t.Scan(req.Description); return t }(),
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la crearea tipului de bilet: "+err.Error())
@@ -326,4 +317,51 @@ func generateSecureValidationHash(email string, orderID pgtype.UUID, index int32
 	data := fmt.Sprintf("%s-%x-%d-%d", email, idBytes, index, time.Now().UnixNano())
 	hash := sha256.Sum256([]byte(data))
 	return hex.EncodeToString(hash[:])
+}
+
+func (h *Handler) HandleUpdateTicketType(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userIDStr, err := auth.GetUserIDFromContext(ctx)
+	if err != nil || userIDStr == "" {
+		router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat")
+		return
+	}
+
+	var userID pgtype.UUID
+	if err := userID.Scan(userIDStr); err != nil || !userID.Valid {
+		router.RespondWithError(w, http.StatusBadRequest, "ID-ul utilizatorului este invalid")
+		return
+	}
+
+	// 1. Preluăm ID-ul biletului din URL (ex: /tickets/{id})
+	ticketIDStr := chi.URLParam(r, "id")
+	var ticketID pgtype.UUID
+	if err := ticketID.Scan(ticketIDStr); err != nil || !ticketID.Valid {
+		router.RespondWithError(w, http.StatusBadRequest, "ID-ul biletului este invalid")
+		return
+	}
+
+	// 2. Decodificăm datele trimise în request
+	var req TicketTypeInput
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		router.RespondWithError(w, http.StatusBadRequest, "Date invalide: "+err.Error())
+		return
+	}
+
+	// 3. Apelăm query-ul de UPDATE generat de sqlc
+	err = h.Queries.UpdateTicketType(ctx, db.UpdateTicketTypeParams{
+		ID:          ticketID,
+		Name:        req.Name,
+		PriceRon:    req.PriceRon,
+		Capacity:    req.Capacity,
+		StartSales:  func() pgtype.Timestamptz { var t pgtype.Timestamptz; _ = t.Scan(req.StartSales); return t }(),
+		EndSales:    func() pgtype.Timestamptz { var t pgtype.Timestamptz; _ = t.Scan(req.EndSales); return t }(),
+		Description: func() pgtype.Text { var t pgtype.Text; _ = t.Scan(req.Description); return t }(),
+	})
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la actualizarea tipului de bilet: "+err.Error())
+		return
+	}
+
+	router.RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }

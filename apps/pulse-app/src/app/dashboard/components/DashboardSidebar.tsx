@@ -16,14 +16,14 @@ import { useEffect, useState } from "react";
 
 const items = [
   {
-    href: "/organizer",
+    href: "/dashboard",
     label: "Dashboard",
     icon: LayoutDashboard,
     exact: true,
   },
-  { href: "/organizer/profile", label: "Profil", icon: User },
-  { href: "/organizer/verify", label: "Verificare", icon: ShieldCheck },
-  { href: "/organizer/events", label: "Evenimente", icon: Calendar },
+  { href: "/dashboard/profile", label: "Profil", icon: User },
+  { href: "/dashboard/verify", label: "Verificare", icon: ShieldCheck },
+  { href: "/dashboard/events", label: "Evenimente", icon: Calendar },
 ] as const;
 
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
@@ -66,7 +66,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
         <div className="pt-3">
           <Link
-            href="/organizer/events/new"
+            href="/dashboard/events/new"
             onClick={onNavigate}
             className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/20"
           >

@@ -3,9 +3,15 @@ import {
   WritableSchema,
   ApiClient,
 } from "@packages/api-client/src/Client";
+import { useEffect, useState } from "react";
 
 type UserFields = ReadableSchema<"User">;
 export type UserData = ReadableSchema<"User">;
+export type CreateEventPayload = WritableSchema<"CreateEventPayload">;
+export type UpdateEventPayload = WritableSchema<"UpdateEventPayload">;
+export type TicketTier = ReadableSchema<"TicketTypeResponse">;
+export type CreateTicketTierPayload = WritableSchema<"CreateTicketTypePayload">;
+export type Event = ReadableSchema<"EventResponse">;
 
 export class User {
   /**
@@ -65,6 +71,216 @@ export class User {
         "Eroare la actualizarea profilului organizatorului:",
         error,
       );
+      throw error;
+    }
+  }
+
+  private _organizerEvents?: Event[];
+  private _organizerEventsPromise?: Promise<Event[]>;
+  private _organizerEventsError?: Error;
+
+  get organizerEventsPromise() {
+    return this._organizerEventsPromise;
+  }
+
+  get organizerEventsError(): Error | undefined {
+    return this._organizerEventsError;
+  }
+
+  get organizerEvents(): readonly Event[] {
+    if (
+      !this._organizerEvents &&
+      !this._organizerEventsError &&
+      !this._organizerEventsPromise
+    ) {
+      this._getOrganizerEvents();
+    }
+    return this._organizerEvents ?? [];
+  }
+
+  private async _getOrganizerEvents(): Promise<Event[]> {
+    if (this._organizerEventsPromise) {
+      return await this._organizerEventsPromise;
+    }
+
+    let resolve!: (events: Event[]) => void;
+    let reject!: (error: Error) => void;
+
+    this._organizerEventsPromise = new Promise((r1, r2) => {
+      resolve = r1;
+      reject = r2;
+    });
+
+    try {
+      const events = await ApiClient.instance.get("/dashboard/events");
+      this._organizerEvents = events;
+      this._organizerEventsPromise = undefined;
+      this._organizerEventsError = undefined;
+
+      resolve(events);
+      this._organizerEventsDidChange();
+      return events;
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(`Unknown error: ${e}`);
+      this._organizerEventsPromise = undefined;
+      this._organizerEventsError = err;
+
+      reject(err);
+      this._organizerEventsDidChange();
+      throw err;
+    }
+  }
+
+  private _organizerEventsObservers: ((
+    events: Event[],
+    loading: boolean,
+    error?: Error,
+  ) => void)[] = [];
+
+  private _organizerEventsDidChange() {
+    for (const observer of this._organizerEventsObservers) {
+      observer(
+        this._organizerEvents ?? [],
+        !!this._organizerEventsPromise,
+        this._organizerEventsError,
+      );
+    }
+  }
+
+  addOrganizerEventsObserver(
+    observer: (events: Event[], loading: boolean, error?: Error) => void,
+  ) {
+    this._organizerEventsObservers.push(observer);
+  }
+
+  removeOrganizerEventsObserver(
+    observer: (events: Event[], loading: boolean, error?: Error) => void,
+  ) {
+    const index = this._organizerEventsObservers.indexOf(observer);
+    if (index !== -1) {
+      this._organizerEventsObservers.splice(index, 1);
+    }
+  }
+
+  static useOrganizerEvents(user?: User): {
+    events: readonly Event[];
+    eventsLoading: boolean;
+    eventsError?: Error;
+  } {
+    const [events, setEvents] = useState<readonly Event[]>(
+      () => user?.organizerEvents ?? [],
+    );
+    const [eventsLoading, setEventsLoading] = useState(
+      () => !!user?.organizerEventsPromise,
+    );
+    const [eventsError, setEventsError] = useState(
+      () => user?.organizerEventsError,
+    );
+
+    const userId = user?.properties?.id;
+
+    useEffect(() => {
+      if (!user) return;
+
+      setEvents(user.organizerEvents);
+      setEventsLoading(!!user.organizerEventsPromise);
+      setEventsError(user.organizerEventsError);
+
+      const observer = (
+        updatedEvents: Event[],
+        loading: boolean,
+        error?: Error,
+      ) => {
+        setEvents(updatedEvents);
+        setEventsLoading(loading);
+        setEventsError(error);
+      };
+
+      user.addOrganizerEventsObserver(observer);
+
+      return () => {
+        user.removeOrganizerEventsObserver(observer);
+      };
+    }, [userId, user]);
+
+    return { events, eventsLoading, eventsError };
+  }
+
+  async handleCreateEvent(
+    eventData: WritableSchema<"CreateEventPayload">,
+  ): Promise<Event> {
+    try {
+      const newEvent = await ApiClient.instance.post("/dashboard/events", {
+        body: eventData,
+      });
+
+      await this._getOrganizerEvents();
+      return newEvent;
+    } catch (error) {
+      console.error("Failed to create event:", error);
+      throw error;
+    }
+  }
+
+  async handleUpdateEvent(
+    eventId: string,
+    eventData: WritableSchema<"UpdateEventPayload">,
+  ): Promise<Event> {
+    try {
+      const updatedEvent = await ApiClient.instance.post(
+        `/dashboard/events/{id}`,
+        {
+          body: eventData,
+          params: { path: { id: eventId } },
+        },
+      );
+      await this._getOrganizerEvents();
+      return updatedEvent;
+    } catch (error) {
+      console.error("Failed to update event:", error);
+      throw error;
+    }
+  }
+
+  async handleDeleteEvent(eventId: string): Promise<void> {
+    try {
+      await ApiClient.instance.delete(`/dashboard/events/{id}`, {
+        params: { path: { id: eventId } },
+      });
+      await this._getOrganizerEvents();
+    } catch (error) {
+      console.error("Failed to delete event:", error);
+      throw error;
+    }
+  }
+
+  async handleGetOrganizerEvent(eventId: string): Promise<Event> {
+    try {
+      const event = await ApiClient.instance.get(`/dashboard/events/{id}`, {
+        params: { path: { id: eventId } },
+      });
+      return event;
+    } catch (error) {
+      console.error("Failed to fetch organizer event:", error);
+      throw error;
+    }
+  }
+
+  async handleCreateTicketTier(
+    eventId: string,
+    ticketData: CreateTicketTierPayload,
+  ): Promise<TicketTier> {
+    try {
+      const newTicketTier = await ApiClient.instance.post(
+        `/dashboard/events/{id}/ticket-types`,
+        {
+          body: ticketData,
+          params: { path: { id: eventId } },
+        },
+      );
+      return newTicketTier;
+    } catch (error) {
+      console.error("Failed to create ticket tier:", error);
       throw error;
     }
   }

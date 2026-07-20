@@ -6,7 +6,6 @@ import (
 
 	db "pulse-api/db/generated"
 	"pulse-api/internal/auth"
-	"pulse-api/internal/dto"
 	"pulse-api/internal/router"
 
 	"github.com/go-chi/chi/v5"
@@ -40,7 +39,7 @@ func (h *Handler) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	router.RespondWithJSON(w, http.StatusOK, dto.MapUser(user))
+	router.RespondWithJSON(w, http.StatusOK, MapUser(user))
 }
 
 type UpdateMeRequest struct {
@@ -83,7 +82,7 @@ func (h *Handler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	router.RespondWithJSON(w, http.StatusOK, dto.MapUpdateUserProfileRow(updated))
+	router.RespondWithJSON(w, http.StatusOK, MapUpdateUserProfileRow(updated))
 }
 
 func (h *Handler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +98,7 @@ func (h *Handler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	router.RespondWithJSON(w, http.StatusCreated, dto.MapUser(user))
+	router.RespondWithJSON(w, http.StatusCreated, MapUser(user))
 }
 
 func (h *Handler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
@@ -118,5 +117,5 @@ func (h *Handler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	router.RespondWithJSON(w, http.StatusOK, dto.MapUser(user))
+	router.RespondWithJSON(w, http.StatusOK, MapUser(user))
 }

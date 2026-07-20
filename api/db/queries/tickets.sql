@@ -9,8 +9,8 @@ WHERE id = $1
 FOR UPDATE;
 
 -- name: CreateTicketType :exec
-INSERT INTO ticket_types (event_id, name, price_ron, capacity, start_sales, end_sales)
-VALUES ($1, $2, $3, $4, $5, $6);
+INSERT INTO ticket_types (event_id, name, description, price_ron, capacity, start_sales, end_sales)
+VALUES ($1, $2, $3, $4, $5, $6, $7);
 
 -- name: IncrementTicketsSold :exec
 UPDATE ticket_types
@@ -31,6 +31,17 @@ WHERE id = $1;
 INSERT INTO tickets (order_id, ticket_type_id, user_id, validation_hash)
 VALUES ($1, $2, $3, $4)
 RETURNING *;
+
+-- name: UpdateTicketType :exec
+UPDATE ticket_types
+SET 
+    name = $2,
+    price_ron = $3,
+    capacity = $4,
+    start_sales = $5,
+    end_sales = $6,
+    description = $7
+WHERE id = $1;
 
 -- name: GetTicketByHash :one
 SELECT t.*, tt.name as ticket_type_name, e.title as event_title

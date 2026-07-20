@@ -137,6 +137,7 @@ type Events struct {
 	IsLive          pgtype.Bool        `json:"is_live"`
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 	GooglePlaceID   string             `json:"google_place_id"`
+	Status          string             `json:"status"`
 }
 
 type Friendships struct {
@@ -180,6 +181,7 @@ type TicketTypes struct {
 	EndSales    pgtype.Timestamptz `json:"end_sales"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	Description pgtype.Text        `json:"description"`
 }
 
 type Tickets struct {

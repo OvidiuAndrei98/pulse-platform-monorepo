@@ -72,6 +72,55 @@
         }
       }
     },
+    "/dashboard/events": {
+      "post": {
+        "operationId": "DashboardOperations_createEvent",
+        "summary": "Creare eveniment nou (doar Organizatori/Admini)",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "The request has succeeded and a new resource has been created as a result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventPayload"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "DashboardOperations_getOrganizerEvents",
+        "summary": "Obține lista de evenimente ale organizatorului curent (cu statistici agregate complete)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/dashboard/events/{id}": {
       "post": {
         "operationId": "DashboardOperations_editEvent",
@@ -92,7 +141,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Event"
+                  "$ref": "#/components/schemas/EventResponse"
                 }
               }
             }
@@ -110,8 +159,8 @@
         }
       },
       "get": {
-        "operationId": "DashboardOperations_getEvent",
-        "summary": "Obține detalii despre un eveniment",
+        "operationId": "DashboardOperations_getEventWithStats",
+        "summary": "Obține detaliile administrative complete ale unui singur eveniment din dashboard (GetEventWithStats)",
         "parameters": [
           {
             "name": "id",
@@ -128,10 +177,29 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EventWithStats"
+                  "$ref": "#/components/schemas/EventResponse"
                 }
               }
             }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "DashboardOperations_deleteEvent",
+        "summary": "Șterge un eveniment (doar Organizatori/Admini)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
           }
         }
       }
@@ -178,7 +246,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TicketType"
+                "$ref": "#/components/schemas/CreateTicketTypePayload"
               }
             }
           }
@@ -321,7 +389,7 @@
     "/events": {
       "get": {
         "operationId": "EventOperations_listEvents",
-        "summary": "Listă completă de evenimente",
+        "summary": "Listă completă de evenimente publice (suportă filtrare după categorie, isLive, geolocație pentru hartă și ID specific)",
         "parameters": [
           {
             "name": "category",
@@ -329,6 +397,55 @@
             "required": false,
             "schema": {
               "type": "string"
+            },
+            "explode": false
+          },
+          {
+            "name": "isLive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "explode": false
+          },
+          {
+            "name": "latMin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "decimal"
+            },
+            "explode": false
+          },
+          {
+            "name": "latMax",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "decimal"
+            },
+            "explode": false
+          },
+          {
+            "name": "lonMin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "decimal"
+            },
+            "explode": false
+          },
+          {
+            "name": "lonMax",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "decimal"
             },
             "explode": false
           },
@@ -351,97 +468,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Event"
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "operationId": "EventOperations_createEvent",
-        "summary": "Creare eveniment nou (doar Organizatori/Admini)",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": "The request has succeeded and a new resource has been created as a result.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Event"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateEventPayload"
-              }
-            }
-          }
-        }
-      }
-    },
-    "/events/map": {
-      "get": {
-        "operationId": "EventOperations_getMapEvents",
-        "summary": "Obține evenimentele active pentru Live Map dintr-o zonă geografică",
-        "parameters": [
-          {
-            "name": "latMin",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "number",
-              "format": "decimal"
-            },
-            "explode": false
-          },
-          {
-            "name": "latMax",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "number",
-              "format": "decimal"
-            },
-            "explode": false
-          },
-          {
-            "name": "lonMin",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "number",
-              "format": "decimal"
-            },
-            "explode": false
-          },
-          {
-            "name": "lonMax",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "number",
-              "format": "decimal"
-            },
-            "explode": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The request has succeeded.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Event"
+                    "$ref": "#/components/schemas/EventResponse"
                   }
                 }
               }
@@ -452,8 +479,8 @@
     },
     "/events/{id}": {
       "get": {
-        "operationId": "EventOperations_getEventWithStats",
-        "summary": "Detalii eveniment după ID",
+        "operationId": "EventOperations_getEventByID",
+        "summary": "Detalii eveniment public după ID (folosește în spate clauza unificată ListEvents din DB)",
         "parameters": [
           {
             "name": "id",
@@ -470,7 +497,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EventWithStats"
+                  "$ref": "#/components/schemas/EventResponse"
                 }
               }
             }
@@ -589,6 +616,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "explode": false
           }
         ],
         "responses": {
@@ -608,10 +645,10 @@
         }
       }
     },
-    "/events/{id}/ticket-types": {
+    "/events/{id}/friends": {
       "get": {
-        "operationId": "EventOperations_getTicketTypes",
-        "summary": "Obține tipurile de bilete pentru un eveniment",
+        "operationId": "EventOperations_getFriendsGoingToEvent",
+        "summary": "Obține lista de prieteni acceptați care merg la acest eveniment",
         "parameters": [
           {
             "name": "id",
@@ -630,7 +667,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/TicketType"
+                    "$ref": "#/components/schemas/UserMinResponse"
                   }
                 }
               }
@@ -877,19 +914,12 @@
         "type": "object",
         "required": [
           "id",
-          "eventId",
-          "userId",
           "content",
-          "createdAt"
+          "createdAt",
+          "username"
         ],
         "properties": {
           "id": {
-            "type": "string"
-          },
-          "eventId": {
-            "type": "string"
-          },
-          "userId": {
             "type": "string"
           },
           "content": {
@@ -898,6 +928,12 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
           }
         }
       },
@@ -911,7 +947,8 @@
           "latitude",
           "longitude",
           "startTime",
-          "endTime"
+          "endTime",
+          "status"
         ],
         "properties": {
           "title": {
@@ -947,6 +984,19 @@
           "endTime": {
             "type": "string",
             "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ]
+          },
+          "ticketTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateTicketTypePayload"
+            }
           }
         }
       },
@@ -978,83 +1028,23 @@
           "endSales": {
             "type": "string",
             "format": "date-time"
-          }
-        }
-      },
-      "Event": {
-        "type": "object",
-        "required": [
-          "id",
-          "organizerId",
-          "title",
-          "category",
-          "googlePlaceId",
-          "locationName",
-          "latitude",
-          "longitude",
-          "startTime",
-          "endTime",
-          "isLive",
-          "createdAt"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "organizerId": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
           },
           "description": {
             "type": "string"
           },
-          "category": {
+          "eventId": {
             "type": "string"
-          },
-          "bannerUrl": {
-            "type": "string"
-          },
-          "googlePlaceId": {
-            "type": "string"
-          },
-          "locationName": {
-            "type": "string"
-          },
-          "latitude": {
-            "type": "number",
-            "format": "decimal"
-          },
-          "longitude": {
-            "type": "number",
-            "format": "decimal"
-          },
-          "startTime": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "endTime": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "isLive": {
-            "type": "boolean"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
           }
         }
       },
-      "EventWithStats": {
+      "EventResponse": {
         "type": "object",
         "required": [
           "id",
           "organizerId",
           "title",
           "category",
-          "googlePlaceId",
+          "status",
           "locationName",
           "latitude",
           "longitude",
@@ -1062,8 +1052,8 @@
           "endTime",
           "isLive",
           "createdAt",
-          "checkInCount",
-          "commentCount"
+          "ticketTypes",
+          "stats"
         ],
         "properties": {
           "id": {
@@ -1081,10 +1071,10 @@
           "category": {
             "type": "string"
           },
-          "bannerUrl": {
+          "status": {
             "type": "string"
           },
-          "googlePlaceId": {
+          "bannerUrl": {
             "type": "string"
           },
           "locationName": {
@@ -1113,13 +1103,37 @@
             "type": "string",
             "format": "date-time"
           },
-          "checkInCount": {
-            "type": "integer",
-            "format": "int32"
+          "ticketTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TicketTypeResponse"
+            }
           },
-          "commentCount": {
+          "stats": {
+            "$ref": "#/components/schemas/EventStatsResponse"
+          }
+        }
+      },
+      "EventStatsResponse": {
+        "type": "object",
+        "required": [
+          "totalCheckIns"
+        ],
+        "properties": {
+          "totalCheckIns": {
             "type": "integer",
-            "format": "int32"
+            "format": "int64"
+          },
+          "userHasCheckedIn": {
+            "type": "boolean"
+          },
+          "totalTicketsSold": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalRevenueRon": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -1236,25 +1250,18 @@
           }
         }
       },
-      "TicketType": {
+      "TicketTypeResponse": {
         "type": "object",
         "required": [
           "id",
-          "eventId",
           "name",
           "priceRon",
           "capacity",
-          "ticketsSold",
           "startSales",
-          "endSales",
-          "createdAt",
-          "updatedAt"
+          "endSales"
         ],
         "properties": {
           "id": {
-            "type": "string"
-          },
-          "eventId": {
             "type": "string"
           },
           "name": {
@@ -1268,10 +1275,6 @@
             "type": "integer",
             "format": "int32"
           },
-          "ticketsSold": {
-            "type": "integer",
-            "format": "int32"
-          },
           "startSales": {
             "type": "string",
             "format": "date-time"
@@ -1280,13 +1283,12 @@
             "type": "string",
             "format": "date-time"
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
+          "description": {
+            "type": "string"
           },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
+          "ticketsSold": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -1319,6 +1321,115 @@
           "validatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "UpdateEventPayload": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "category",
+          "googlePlaceId",
+          "locationName",
+          "latitude",
+          "longitude",
+          "startTime",
+          "endTime",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "bannerUrl": {
+            "type": "string"
+          },
+          "googlePlaceId": {
+            "type": "string"
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published"
+            ]
+          },
+          "ticketTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UpdateTicketTypePayload"
+            }
+          }
+        }
+      },
+      "UpdateTicketTypePayload": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "priceRon",
+          "capacity",
+          "startSales",
+          "endSales",
+          "eventId"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priceRon": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startSales": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endSales": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
           }
         }
       },
@@ -1372,6 +1483,24 @@
             "type": "string"
           },
           "password": {
+            "type": "string"
+          }
+        }
+      },
+      "UserMinResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "username"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatarUrl": {
             "type": "string"
           }
         }
