@@ -28,7 +28,7 @@ export function SelectedEventPopup({
     <Popup
       ref={popupRef}
       position={[event.latitude, event.longitude]}
-      offset={[0, -6]}
+      offset={[0, -27]}
       closeButton={false}
       closeOnClick={false}
       autoPan={false}
