@@ -130,6 +130,8 @@ type Events struct {
 	BannerUrl       pgtype.Text        `json:"banner_url"`
 	LocationAddress pgtype.Text        `json:"location_address"`
 	LocationName    string             `json:"location_name"`
+	City            string             `json:"city"`
+	Vibe            string             `json:"vibe"`
 	Latitude        float64            `json:"latitude"`
 	Longitude       float64            `json:"longitude"`
 	StartTime       pgtype.Timestamptz `json:"start_time"`

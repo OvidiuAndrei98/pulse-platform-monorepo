@@ -65,6 +65,8 @@ model EventResponse {
   status: string;
   bannerUrl?: string;
   locationName: string;
+  city: string;
+  vibe: string;
   latitude: decimal;
   longitude: decimal;
   startTime: utcDateTime;
@@ -140,6 +142,8 @@ model CreateEventPayload {
   bannerUrl?: string;
   googlePlaceId: string;
   locationName: string;
+  city: string;
+  vibe: string;
   latitude: decimal;
   longitude: decimal;
   startTime: utcDateTime;
@@ -156,6 +160,8 @@ model UpdateEventPayload {
   bannerUrl?: string;
   googlePlaceId: string;
   locationName: string;
+  city: string;
+  vibe: string;
   latitude: decimal;
   longitude: decimal;
   startTime: utcDateTime;
@@ -253,6 +259,8 @@ interface EventOperations {
   @get
   listEvents(
     @query category?: string,
+    @query city?: string,
+    @query vibe?: string,
     @query isLive?: boolean,
     @query latMin?: decimal,
     @query latMax?: decimal,

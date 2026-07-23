@@ -1,5 +1,5 @@
 -- name: GetLiveEventsInArea :many
-SELECT id, organizer_id, title, description, category, status, banner_url, location_name, latitude, longitude, start_time, end_time, is_live, created_at
+SELECT id, organizer_id, title, description, category, status, banner_url, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at
 FROM events 
 WHERE is_live = true 
   AND latitude BETWEEN $1 AND $2 
@@ -8,7 +8,7 @@ WHERE is_live = true
 -- name: ListEvents :many
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.location_name, e.latitude, e.longitude, e.start_time, 
+    e.banner_url, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     (
@@ -43,8 +43,9 @@ SELECT
         '[]'::json
     ) AS ticket_types
 FROM events e
-WHERE (sqlc.arg(category)::VARCHAR = '' OR e.category = sqlc.arg(category))
-  AND (sqlc.narg(is_live)::BOOLEAN IS NULL OR e.is_live = sqlc.narg(is_live))
+WHERE (sqlc.arg(category)::VARCHAR = '' OR sqlc.arg(category) IS NULL OR e.category = ANY(string_to_array(sqlc.arg(category)::VARCHAR, ',')))
+  AND (sqlc.arg(city)::VARCHAR = '' OR sqlc.arg(city) IS NULL OR e.city = sqlc.arg(city))
+  AND (sqlc.arg(vibe)::VARCHAR = '' OR sqlc.arg(vibe) IS NULL OR e.vibe = ANY(string_to_array(sqlc.arg(vibe)::VARCHAR, ',')))
   -- Filtre geolocație cu nume clare
   AND (sqlc.narg(lat_min)::FLOAT IS NULL OR e.latitude BETWEEN sqlc.narg(lat_min) AND sqlc.narg(lat_max))
   AND (sqlc.narg(lon_min)::FLOAT IS NULL OR e.longitude BETWEEN sqlc.narg(lon_min) AND sqlc.narg(lon_max))
@@ -85,8 +86,8 @@ GROUP BY e.id
 ORDER BY e.start_time DESC;
 
 -- name: CreateEvent :one
-INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, latitude, longitude, start_time, end_time)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, latitude, longitude, start_time, end_time)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 RETURNING *; 
 
 -- name: EditEvent :one
@@ -98,17 +99,19 @@ SET title = $2,
     banner_url = $6,
     google_place_id = $7,
     location_name = $8,
-    latitude = $9,
-    longitude = $10,
-    start_time = $11,
-    end_time = $12
+    city = $9,
+    vibe = $10,
+    latitude = $11,
+    longitude = $12,
+    start_time = $13,
+    end_time = $14
 WHERE id = $1
 RETURNING *; -- RETURNING * va aduce status-ul modificat
 
 -- name: GetEventByID :one
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.location_name, e.latitude, e.longitude, e.start_time, 
+    e.banner_url, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     -- Numărul total de check-ins (vizibil public)

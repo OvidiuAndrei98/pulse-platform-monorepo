@@ -57,6 +57,15 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.City == "" {
+		router.RespondWithError(w, http.StatusBadRequest, "City is required")
+		return
+	}
+	if req.Vibe == "" {
+		router.RespondWithError(w, http.StatusBadRequest, "Vibe is required")
+		return
+	}
+
 	if apiKey := os.Getenv("GOOGLE_MAPS_API_KEY"); apiKey != "" {
 		if err := validateGooglePlaceID(ctx, req.GooglePlaceId, apiKey); err != nil {
 			router.RespondWithError(w, http.StatusBadRequest, "Locația nu a putut fi verificată")
@@ -82,7 +91,10 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		Description:  pgtype.Text{String: req.Description, Valid: req.Description != ""},
 		Category:     req.Category,
 		BannerUrl:    pgtype.Text{String: req.BannerUrl, Valid: req.BannerUrl != ""},
+		GooglePlaceID: req.GooglePlaceId,
 		LocationName: req.LocationName,
+		City:         req.City,
+		Vibe:         req.Vibe,
 		Latitude:     req.Latitude,
 		Longitude:    req.Longitude,
 		StartTime:    pgtype.Timestamptz{Time: startTime, Valid: true},
@@ -137,6 +149,15 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.City == "" {
+		router.RespondWithError(w, http.StatusBadRequest, "City is required")
+		return
+	}
+	if req.Vibe == "" {
+		router.RespondWithError(w, http.StatusBadRequest, "Vibe is required")
+		return
+	}
+
 	startTime, err := time.Parse(time.RFC3339, req.StartTime)
 	if err != nil {
 		router.RespondWithError(w, http.StatusBadRequest, "Data startTime invalida")
@@ -157,6 +178,10 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback(r.Context())
 
 	qtx := h.Queries.WithTx(tx)
+	bannerURL := pgtype.Text{}
+	if req.BannerURL != nil && *req.BannerURL != "" {
+		bannerURL = pgtype.Text{String: *req.BannerURL, Valid: true}
+	}
 
 	// 4. Update Eveniment
 	event, err := qtx.EditEvent(r.Context(), db.EditEventParams{
@@ -171,6 +196,9 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		GooglePlaceID: req.GooglePlaceID,
 		Description:   pgtype.Text{String: req.Description, Valid: true},
 		Status:        req.Status,
+		BannerUrl:     bannerURL,
+		City:          req.City,
+		Vibe:          req.Vibe,
 		// Adaugă restul câmpurilor din EditEventParams generat de sqlc
 	})
 	if err != nil {
@@ -288,8 +316,9 @@ func validateGooglePlaceID(ctx context.Context, placeID, apiKey string) error {
 // HandleListEvents preia evenimentele publice (suportă filtrare categorie, live sau geolocație pentru hartă)
 func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 	category := r.URL.Query().Get("category")
+	city := r.URL.Query().Get("city")
+	vibe := r.URL.Query().Get("vibe")
 	pageStr := r.URL.Query().Get("page")
-	isLiveStr := r.URL.Query().Get("isLive")
 
 	// Preluare parametri hartă (dacă există)
 	latMinStr := r.URL.Query().Get("latMin")
@@ -306,6 +335,8 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 
 	params := db.ListEventsParams{
 		Category:  category,
+		City:      city,
+		Vibe:      vibe,
 		ReqLimit:  pageSize,
 		ReqOffset: page * pageSize,
 	}
@@ -316,11 +347,6 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 		_ = pgUserID.Scan(userIDStr)
 	}
 	params.UserID = pgUserID
-
-	// Filtru opțional IsLive
-	if isLive, err := strconv.ParseBool(isLiveStr); err == nil {
-		params.IsLive = pgtype.Bool{Bool: isLive, Valid: true}
-	}
 
 	// Filtru opțional Geolocație (Hartă)
 	if latMin, err := strconv.ParseFloat(latMinStr, 64); err == nil {
@@ -342,7 +368,9 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 
 	result := make([]EventResponse, 0, len(dbEvents))
 	for _, row := range dbEvents {
+		row.IsLive = pgtype.Bool{Bool: time.Now().After(row.StartTime.Time) && time.Now().Before(row.EndTime.Time), Valid: true}
 		result = append(result, MapFromDBListEvents(row))
+
 	}
 	router.RespondWithJSON(w, http.StatusOK, result)
 }
@@ -371,6 +399,8 @@ func (h *Handler) HandleGetEventByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	dbRow.IsLive = pgtype.Bool{Bool: time.Now().After(dbRow.StartTime.Time) && time.Now().Before(dbRow.EndTime.Time), Valid: true}
+
 	// Returnăm structura curată, cu bilete incluse și fără date financiare secrete
 	router.RespondWithJSON(w, http.StatusOK, MapFromDBGetEvent(dbRow))
 }
@@ -393,6 +423,7 @@ func (h *Handler) HandleListEventsWithStats(w http.ResponseWriter, r *http.Reque
 
 	result := make([]EventResponse, 0, len(dbRows))
 	for _, row := range dbRows {
+		row.IsLive = pgtype.Bool{Bool: time.Now().After(row.StartTime.Time) && time.Now().Before(row.EndTime.Time), Valid: true}
 		result = append(result, MapFromDBListEventsWithStats(row))
 	}
 	router.RespondWithJSON(w, http.StatusOK, result)
@@ -426,6 +457,8 @@ func (h *Handler) HandleGetEventWithStats(w http.ResponseWriter, r *http.Request
 		router.RespondWithError(w, http.StatusForbidden, "Nu aveți permisiunea de a vedea statisticile acestui eveniment")
 		return
 	}
+
+	dbRow.IsLive = pgtype.Bool{Bool: time.Now().After(dbRow.StartTime.Time) && time.Now().Before(dbRow.EndTime.Time), Valid: true}
 
 	// 5. Trimitem răspunsul complet (cu vânzări și încasări incluse)
 	router.RespondWithJSON(w, http.StatusOK, MapFromDBGetEventWithStats(dbRow))

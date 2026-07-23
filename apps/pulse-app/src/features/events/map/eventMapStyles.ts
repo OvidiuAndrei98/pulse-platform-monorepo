@@ -1,0 +1,17 @@
+export const eventMapStyles = `
+  .custom-leaflet-marker { background: transparent !important; border: none !important; }
+  .event-map-pin { position: relative; display: grid; place-items: center; }
+  .event-map-pin__shape { position: relative; z-index: 1; display: grid; height: 29px; width: 29px; place-items: center; transform: rotate(-45deg); border: 1px solid var(--primary, #a3e635); border-radius: 50% 50% 50% 4px; background: rgba(12, 24, 18, 0.96); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.42); }
+  .event-map-pin__icon { height: 13px; width: 13px; transform: rotate(45deg); color: var(--primary, #a3e635); }
+  .event-map-pin--selected .event-map-pin__shape { height: 33px; width: 33px; border-color: rgba(206, 255, 142, 0.95); background: var(--primary, #a3e635); box-shadow: 0 0 0 5px rgba(163, 230, 53, 0.16), 0 9px 20px rgba(0, 0, 0, 0.48); }
+  .event-map-pin--selected .event-map-pin__icon, .event-map-pin--live:not(.event-map-pin--selected) .event-map-pin__icon { color: #08130d; }
+  .event-map-pin--live:not(.event-map-pin--selected) .event-map-pin__shape { border-color: rgba(206, 255, 142, 0.95); background: var(--primary, #a3e635); box-shadow: 0 0 0 4px rgba(163, 230, 53, 0.1), 0 9px 20px rgba(0, 0, 0, 0.48); }
+  .event-map-pin__pulse { position: absolute; z-index: 0; height: 29px; width: 29px; border: 1px solid rgba(190, 242, 100, 0.85); border-radius: 999px; background: rgba(163, 230, 53, 0.14); animation: live-pin-pulse 2.4s ease-out infinite; }
+  @keyframes live-pin-pulse { 0% { transform: scale(0.9); opacity: 0.55; } 70%, 100% { transform: scale(1.8); opacity: 0; } }
+  .leaflet-control-attribution, .leaflet-bottom.leaflet-right { display: none !important; }
+  .leaflet-container { background: #030604 !important; }
+  .event-preview-popup.leaflet-popup { margin-bottom: 18px; }
+  .event-preview-popup .leaflet-popup-content-wrapper { overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 16px; background: oklch(0.16 0.02 150 / 94%); box-shadow: 0 18px 35px rgba(0, 0, 0, 0.4); }
+  .event-preview-popup .leaflet-popup-content { width: 280px !important; margin: 0; }
+  .event-preview-popup .leaflet-popup-tip { border-right-color: oklch(0.16 0.02 150 / 94%); border-bottom-color: oklch(0.16 0.02 150 / 94%); }
+`;

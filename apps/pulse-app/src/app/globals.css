@@ -106,3 +106,56 @@ body {
     -webkit-font-smoothing: antialiased;
   }
 }
+
+/* Google Places renders its suggestion list outside the React tree. */
+.pac-container {
+  z-index: 10001 !important;
+  margin-top: 8px;
+  overflow: hidden;
+  border: 1px solid oklch(0.32 0.02 150 / 75%);
+  border-radius: 14px;
+  background: oklch(0.18 0.02 150 / 98%);
+  box-shadow: 0 18px 38px rgb(0 0 0 / 45%);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+.pac-item {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  border-top: 1px solid rgb(255 255 255 / 6%);
+  color: var(--foreground);
+  line-height: 1.25;
+  padding: 10px 14px;
+  transition: background-color 150ms ease;
+}
+
+.pac-item:first-child {
+  border-top: 0;
+}
+
+.pac-item:hover,
+.pac-item-selected {
+  background: oklch(0.88 0.22 135 / 12%);
+}
+
+.pac-item-query,
+.pac-item span {
+  color: var(--foreground);
+  font-size: 13px;
+}
+
+.pac-item-query {
+  font-weight: 600;
+}
+
+.pac-matched {
+  color: oklch(0.88 0.22 135);
+}
+
+.pac-icon {
+  margin-right: 10px;
+  filter: brightness(0) saturate(100%) invert(84%) sepia(58%) saturate(530%)
+    hue-rotate(43deg) brightness(103%) contrast(101%);
+  opacity: 0.9;
+}

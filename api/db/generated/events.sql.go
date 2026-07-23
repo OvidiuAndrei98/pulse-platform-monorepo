@@ -12,9 +12,9 @@ import (
 )
 
 const createEvent = `-- name: CreateEvent :one
-INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, latitude, longitude, start_time, end_time)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status
+INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, latitude, longitude, start_time, end_time)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status
 `
 
 type CreateEventParams struct {
@@ -26,6 +26,8 @@ type CreateEventParams struct {
 	BannerUrl     pgtype.Text        `json:"banner_url"`
 	GooglePlaceID string             `json:"google_place_id"`
 	LocationName  string             `json:"location_name"`
+	City          string             `json:"city"`
+	Vibe          string             `json:"vibe"`
 	Latitude      float64            `json:"latitude"`
 	Longitude     float64            `json:"longitude"`
 	StartTime     pgtype.Timestamptz `json:"start_time"`
@@ -42,6 +44,8 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 		arg.BannerUrl,
 		arg.GooglePlaceID,
 		arg.LocationName,
+		arg.City,
+		arg.Vibe,
 		arg.Latitude,
 		arg.Longitude,
 		arg.StartTime,
@@ -57,6 +61,8 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 		&i.BannerUrl,
 		&i.LocationAddress,
 		&i.LocationName,
+		&i.City,
+		&i.Vibe,
 		&i.Latitude,
 		&i.Longitude,
 		&i.StartTime,
@@ -87,12 +93,14 @@ SET title = $2,
     banner_url = $6,
     google_place_id = $7,
     location_name = $8,
-    latitude = $9,
-    longitude = $10,
-    start_time = $11,
-    end_time = $12
+    city = $9,
+    vibe = $10,
+    latitude = $11,
+    longitude = $12,
+    start_time = $13,
+    end_time = $14
 WHERE id = $1
-RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status
+RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status
 `
 
 type EditEventParams struct {
@@ -104,6 +112,8 @@ type EditEventParams struct {
 	BannerUrl     pgtype.Text        `json:"banner_url"`
 	GooglePlaceID string             `json:"google_place_id"`
 	LocationName  string             `json:"location_name"`
+	City          string             `json:"city"`
+	Vibe          string             `json:"vibe"`
 	Latitude      float64            `json:"latitude"`
 	Longitude     float64            `json:"longitude"`
 	StartTime     pgtype.Timestamptz `json:"start_time"`
@@ -120,6 +130,8 @@ func (q *Queries) EditEvent(ctx context.Context, arg EditEventParams) (Events, e
 		arg.BannerUrl,
 		arg.GooglePlaceID,
 		arg.LocationName,
+		arg.City,
+		arg.Vibe,
 		arg.Latitude,
 		arg.Longitude,
 		arg.StartTime,
@@ -135,6 +147,8 @@ func (q *Queries) EditEvent(ctx context.Context, arg EditEventParams) (Events, e
 		&i.BannerUrl,
 		&i.LocationAddress,
 		&i.LocationName,
+		&i.City,
+		&i.Vibe,
 		&i.Latitude,
 		&i.Longitude,
 		&i.StartTime,
@@ -200,7 +214,7 @@ const getEventByID = `-- name: GetEventByID :one
 
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.location_name, e.latitude, e.longitude, e.start_time, 
+    e.banner_url, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     -- Numărul total de check-ins (vizibil public)
@@ -255,6 +269,8 @@ type GetEventByIDRow struct {
 	Status           string             `json:"status"`
 	BannerUrl        pgtype.Text        `json:"banner_url"`
 	LocationName     string             `json:"location_name"`
+	City             string             `json:"city"`
+	Vibe             string             `json:"vibe"`
 	Latitude         float64            `json:"latitude"`
 	Longitude        float64            `json:"longitude"`
 	StartTime        pgtype.Timestamptz `json:"start_time"`
@@ -279,6 +295,8 @@ func (q *Queries) GetEventByID(ctx context.Context, arg GetEventByIDParams) (Get
 		&i.Status,
 		&i.BannerUrl,
 		&i.LocationName,
+		&i.City,
+		&i.Vibe,
 		&i.Latitude,
 		&i.Longitude,
 		&i.StartTime,
@@ -294,7 +312,7 @@ func (q *Queries) GetEventByID(ctx context.Context, arg GetEventByIDParams) (Get
 
 const getEventWithStats = `-- name: GetEventWithStats :one
 SELECT 
-    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status,
+    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status,
     
     (
         SELECT COUNT(*) 
@@ -353,6 +371,8 @@ type GetEventWithStatsRow struct {
 	BannerUrl        pgtype.Text        `json:"banner_url"`
 	LocationAddress  pgtype.Text        `json:"location_address"`
 	LocationName     string             `json:"location_name"`
+	City             string             `json:"city"`
+	Vibe             string             `json:"vibe"`
 	Latitude         float64            `json:"latitude"`
 	Longitude        float64            `json:"longitude"`
 	StartTime        pgtype.Timestamptz `json:"start_time"`
@@ -379,6 +399,8 @@ func (q *Queries) GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEve
 		&i.BannerUrl,
 		&i.LocationAddress,
 		&i.LocationName,
+		&i.City,
+		&i.Vibe,
 		&i.Latitude,
 		&i.Longitude,
 		&i.StartTime,
@@ -439,7 +461,7 @@ func (q *Queries) GetFriendsGoingToEvent(ctx context.Context, arg GetFriendsGoin
 }
 
 const getLiveEventsInArea = `-- name: GetLiveEventsInArea :many
-SELECT id, organizer_id, title, description, category, status, banner_url, location_name, latitude, longitude, start_time, end_time, is_live, created_at
+SELECT id, organizer_id, title, description, category, status, banner_url, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at
 FROM events 
 WHERE is_live = true 
   AND latitude BETWEEN $1 AND $2 
@@ -462,6 +484,8 @@ type GetLiveEventsInAreaRow struct {
 	Status       string             `json:"status"`
 	BannerUrl    pgtype.Text        `json:"banner_url"`
 	LocationName string             `json:"location_name"`
+	City         string             `json:"city"`
+	Vibe         string             `json:"vibe"`
 	Latitude     float64            `json:"latitude"`
 	Longitude    float64            `json:"longitude"`
 	StartTime    pgtype.Timestamptz `json:"start_time"`
@@ -493,6 +517,8 @@ func (q *Queries) GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAr
 			&i.Status,
 			&i.BannerUrl,
 			&i.LocationName,
+			&i.City,
+			&i.Vibe,
 			&i.Latitude,
 			&i.Longitude,
 			&i.StartTime,
@@ -513,7 +539,7 @@ func (q *Queries) GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAr
 const listEvents = `-- name: ListEvents :many
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.location_name, e.latitude, e.longitude, e.start_time, 
+    e.banner_url, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     (
@@ -548,21 +574,23 @@ SELECT
         '[]'::json
     ) AS ticket_types
 FROM events e
-WHERE ($2::VARCHAR = '' OR e.category = $2)
-  AND ($3::BOOLEAN IS NULL OR e.is_live = $3)
+WHERE ($2::VARCHAR = '' OR $2 IS NULL OR e.category = ANY(string_to_array($2::VARCHAR, ',')))
+  AND ($3::VARCHAR = '' OR $3 IS NULL OR e.city = $3)
+  AND ($4::VARCHAR = '' OR $4 IS NULL OR e.vibe = ANY(string_to_array($4::VARCHAR, ',')))
   -- Filtre geolocație cu nume clare
-  AND ($4::FLOAT IS NULL OR e.latitude BETWEEN $4 AND $5)
-  AND ($6::FLOAT IS NULL OR e.longitude BETWEEN $6 AND $7)
+  AND ($5::FLOAT IS NULL OR e.latitude BETWEEN $5 AND $6)
+  AND ($7::FLOAT IS NULL OR e.longitude BETWEEN $7 AND $8)
   -- Filtru ID specific
-  AND ($8::UUID IS NULL OR e.id = $8)
+  AND ($9::UUID IS NULL OR e.id = $9)
 ORDER BY e.start_time DESC
-LIMIT $10 OFFSET $9
+LIMIT $11 OFFSET $10
 `
 
 type ListEventsParams struct {
 	UserID    pgtype.UUID   `json:"user_id"`
 	Category  string        `json:"category"`
-	IsLive    pgtype.Bool   `json:"is_live"`
+	City      string        `json:"city"`
+	Vibe      string        `json:"vibe"`
 	LatMin    pgtype.Float8 `json:"lat_min"`
 	LatMax    pgtype.Float8 `json:"lat_max"`
 	LonMin    pgtype.Float8 `json:"lon_min"`
@@ -581,6 +609,8 @@ type ListEventsRow struct {
 	Status           string             `json:"status"`
 	BannerUrl        pgtype.Text        `json:"banner_url"`
 	LocationName     string             `json:"location_name"`
+	City             string             `json:"city"`
+	Vibe             string             `json:"vibe"`
 	Latitude         float64            `json:"latitude"`
 	Longitude        float64            `json:"longitude"`
 	StartTime        pgtype.Timestamptz `json:"start_time"`
@@ -596,7 +626,8 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 	rows, err := q.db.Query(ctx, listEvents,
 		arg.UserID,
 		arg.Category,
-		arg.IsLive,
+		arg.City,
+		arg.Vibe,
 		arg.LatMin,
 		arg.LatMax,
 		arg.LonMin,
@@ -621,6 +652,8 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 			&i.Status,
 			&i.BannerUrl,
 			&i.LocationName,
+			&i.City,
+			&i.Vibe,
 			&i.Latitude,
 			&i.Longitude,
 			&i.StartTime,
@@ -643,7 +676,7 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 
 const listEventsWithStats = `-- name: ListEventsWithStats :many
 SELECT 
-    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status,
+    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status,
     (
         SELECT COUNT(*)::bigint 
         FROM check_ins 
@@ -682,6 +715,8 @@ type ListEventsWithStatsRow struct {
 	BannerUrl        pgtype.Text        `json:"banner_url"`
 	LocationAddress  pgtype.Text        `json:"location_address"`
 	LocationName     string             `json:"location_name"`
+	City             string             `json:"city"`
+	Vibe             string             `json:"vibe"`
 	Latitude         float64            `json:"latitude"`
 	Longitude        float64            `json:"longitude"`
 	StartTime        pgtype.Timestamptz `json:"start_time"`
@@ -714,6 +749,8 @@ func (q *Queries) ListEventsWithStats(ctx context.Context, organizerID pgtype.UU
 			&i.BannerUrl,
 			&i.LocationAddress,
 			&i.LocationName,
+			&i.City,
+			&i.Vibe,
 			&i.Latitude,
 			&i.Longitude,
 			&i.StartTime,

@@ -100,7 +100,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 		r.Route("/events", func(r chi.Router) {
 			r.Get("/", cfg.ListEvents)
 			r.Get("/map", cfg.GetLiveEventsInArea)
-			r.Get("/{id}", cfg.GetEventWithStats)
+			r.Get("/{id}", cfg.GetEventByID)
 			r.Get("/{id}/comments", cfg.GetComments)
 			r.Get("/{id}/ticket-types", cfg.GetEventTicketTypes)
 			r.Post("/{id}/tickets/purchase", cfg.PurchaseTickets)

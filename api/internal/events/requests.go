@@ -16,6 +16,8 @@ type CreateEventRequest struct {
 	BannerUrl     string            `json:"bannerUrl"`
 	GooglePlaceId string            `json:"googlePlaceId"`
 	LocationName  string            `json:"locationName"`
+	City          string            `json:"city"`
+	Vibe          string            `json:"vibe"`
 	Latitude      float64           `json:"latitude"`
 	Longitude     float64           `json:"longitude"`
 	StartTime     string            `json:"startTime"`
@@ -40,6 +42,8 @@ type EditEventRequest struct {
 	StartTime     string                `json:"startTime"`
 	EndTime       string                `json:"endTime"`
 	LocationName  string                `json:"locationName"`
+	City          string                `json:"city"`
+	Vibe          string                `json:"vibe"`
 	Latitude      float64               `json:"latitude"`
 	Longitude     float64               `json:"longitude"`
 	GooglePlaceID string                `json:"googlePlaceId"`

@@ -1,6 +1,5 @@
 "use client";
 
-// src/core/DataProviderContext.tsx
 import React, {
   createContext,
   useContext,
@@ -9,9 +8,21 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { usePathname, useRouter } from "next/navigation"; // 1. Am adăugat router-ul
-import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
+import { usePathname, useRouter } from "next/navigation";
+import { ApiClient } from "@packages/api-client/src/Client";
 import { User } from "./DataProvider";
+
+const getStoredToken = (): string | null => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("pulse_token");
+  }
+  return null;
+};
+
+ApiClient.configure({
+  apiRoot: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1",
+  getAccessToken: getStoredToken,
+});
 
 interface DataProviderContextProps {
   user: User | undefined;
@@ -48,22 +59,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     pathname?.startsWith("/dashboard") ||
     pathname?.startsWith("/admin");
 
-  const getStoredToken = (): string | null => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("pulse_token");
-    }
-    return null;
-  };
-
   const initializeSession = useCallback(async () => {
     setLoading(true);
     setError(null);
-
-    ApiClient.configure({
-      apiRoot:
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1",
-      getAccessToken: getStoredToken,
-    });
 
     const token = getStoredToken();
     if (!token) {
@@ -114,12 +112,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       setError(null);
 
-      ApiClient.configure({
-        apiRoot:
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1",
-        getAccessToken: getStoredToken,
-      });
-
       try {
         const response = await ApiClient.instance.post("/auth/login", {
           body: { email, password },
@@ -135,7 +127,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     },
-    [initializeSession, router],
+    [initializeSession],
   );
 
   const logout = useCallback(() => {
@@ -143,7 +135,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("pulse_token");
     }
     setUser(undefined);
-    // Îl aruncăm afară dacă dă logout de pe o pagină protejată
     if (isProtectedRoute) {
       router.push("/login");
     }
@@ -163,7 +154,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       await ApiClient.instance.post("/auth/register", {
         body: { username, email, password, requestOrganizerRole },
       });
-      // Înregistrarea nu returnează token — userul trebuie să activeze contul prin email.
     },
     [],
   );
@@ -195,19 +185,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     ],
   );
 
-  // 5. PROTECȚIE ECRAN (FOARTE IMPORTANT)
-  // Dacă suntem pe o pagină protejată și încă se verifică token-ul, blocăm randarea.
-  // Altfel, utilizatorul ar vedea fracțiuni de secundă pagina protejată până îl trimite router-ul la login.
   if (isProtectedRoute && loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
-        {/* Aici poți pune spinner-ul tău de loading */}
         <span>Se încarcă...</span>
       </div>
     );
   }
 
-  // Pentru homepage și restul paginilor, randăm normal (chiar dacă loading-ul e true, lăsăm UI-ul să meargă mai departe)
   return (
     <DataProviderContext.Provider value={value}>
       {children}

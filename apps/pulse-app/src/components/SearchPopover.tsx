@@ -1,11 +1,15 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Search, X, Calendar, User, ArrowUpRight } from "lucide-react";
+import { Search, X, Calendar, ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { allEvents, organizers } from "@/core/mappers";
+import { Event } from "@/core/DataProvider";
 
-export function SearchPopover() {
+interface SearchPopoverProps {
+  events?: Event[];
+}
+
+export function SearchPopover({ events }: SearchPopoverProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -47,21 +51,21 @@ export function SearchPopover() {
 
   // Filtrare evenimente
   const matchedEvents = useMemo(() => {
-    if (!q) return allEvents.slice(0, 4);
-    return allEvents.filter(
+    if (!q) return events?.slice(0, 4) ?? [];
+    return events?.filter(
       (e) =>
         e.title.toLowerCase().includes(q) ||
-        e.location.toLowerCase().includes(q) ||
+        e.locationName.toLowerCase().includes(q) ||
         e.category.toLowerCase().includes(q) ||
-        e.organizer.toLowerCase().includes(q),
+        e.id.toLowerCase().includes(q),
     );
-  }, [q]);
+  }, [q, events]);
 
   // Filtrare organizatori
-  const matchedOrganizers = useMemo(() => {
-    if (!q) return organizers.slice(0, 3);
-    return organizers.filter((o) => o.name.toLowerCase().includes(q));
-  }, [q]);
+  // const matchedOrganizers = useMemo(() => {
+  //   if (!q) return organizers.slice(0, 3);
+  //   return organizers.filter((o) => o.name.toLowerCase().includes(q));
+  // }, [q]);
 
   return (
     <div ref={wrapperRef} className="relative z-30 h-11 w-full">
@@ -135,23 +139,23 @@ export function SearchPopover() {
 
               {/* Contorizăm înălțimea independent pentru a opri trepidațiile (dansul) listei la filtrare */}
               <div className="max-h-[60vh] overflow-y-auto px-2 pb-3 pt-3">
-                <Section title="Events" count={matchedEvents.length}>
-                  {matchedEvents.map((e) => (
+                <Section title="Events" count={matchedEvents?.length ?? 0}>
+                  {matchedEvents?.map((e) => (
                     <ResultRow
                       key={e.id}
                       icon={Calendar}
                       title={e.title}
-                      meta={`${e.category} · ${e.location}`}
+                      meta={`${e.category} · ${e.locationName}`}
                       onClick={() => setOpen(false)}
                     />
                   ))}
-                  {matchedEvents.length === 0 && (
+                  {matchedEvents?.length === 0 && (
                     <p className="px-3 py-2 text-xs text-muted-foreground">
                       No events found.
                     </p>
                   )}
                 </Section>
-
+                {/* 
                 <Section title="Organizers" count={matchedOrganizers.length}>
                   {matchedOrganizers.map((o) => (
                     <ResultRow
@@ -167,7 +171,7 @@ export function SearchPopover() {
                       No organizers found.
                     </p>
                   )}
-                </Section>
+                </Section> */}
               </div>
             </div>
           </motion.div>

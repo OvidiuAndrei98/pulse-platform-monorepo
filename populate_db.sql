@@ -12,15 +12,15 @@ INSERT INTO users (id, username, email, password_hash, avatar_url, role, bio) VA
 
 -- === 2. EVENIMENTE ===
 -- Dacă tabela ta folosește organizer_id, se va insera corect aici.
-INSERT INTO events (id, organizer_id, title, description, category, banner_url, location_name, latitude, longitude, start_time, end_time, is_live) VALUES
+INSERT INTO events (id, organizer_id, title, description, category, banner_url, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live) VALUES
 -- Petrecere LIVE ACUM
-('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'Subterranean Beats', 'An underground journey into deep tech and minimal techno.', 'Techno', 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7', 'Club Guesthouse, București', 44.4268, 26.1025, NOW() - INTERVAL '2 hours', NOW() + INTERVAL '4 hours', true),
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'Subterranean Beats', 'An underground journey into deep tech and minimal techno.', 'Techno', 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7', 'Club Guesthouse, București', 'Bucuresti', 'Underground', 44.4268, 26.1025, NOW() - INTERVAL '2 hours', NOW() + INTERVAL '4 hours', true),
 
 -- Petrecere VIITOARE
-('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '11111111-1111-1111-1111-111111111111', 'Sunset Rooftop Session', 'Melodic house and sunset drinks on the best rooftop in town.', 'House', 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1', 'Linea / Closer to the Moon', 44.4325, 26.0998, NOW() + INTERVAL '12 hours', NOW() + INTERVAL '18 hours', false),
+('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '11111111-1111-1111-1111-111111111111', 'Sunset Rooftop Session', 'Melodic house and sunset drinks on the best rooftop in town.', 'House', 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1', 'Linea / Closer to the Moon', 'Bucuresti', 'Chill', 44.4325, 26.0998, NOW() + INTERVAL '12 hours', NOW() + INTERVAL '18 hours', false),
 
 -- Festival weekend-ul următor
-('cccccccc-cccc-cccc-cccc-cccccccccccc', '11111111-1111-1111-1111-111111111111', 'Summer Pulse Festival', 'Three days of music, art, and community by the lake.', 'Festival', 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745', 'Lacul Snagov', 44.7042, 26.1739, NOW() + INTERVAL '5 days', NOW() + INTERVAL '8 days', false);
+('cccccccc-cccc-cccc-cccc-cccccccccccc', '11111111-1111-1111-1111-111111111111', 'Summer Pulse Festival', 'Three days of music, art, and community by the lake.', 'Festival', 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745', 'Lacul Snagov', 'Bucuresti', 'Outdoor', 44.7042, 26.1739, NOW() + INTERVAL '5 days', NOW() + INTERVAL '8 days', false);
 
 -- === 3. INTERACȚIUNI ===
 -- Maria face check-in la Guesthouse (live)

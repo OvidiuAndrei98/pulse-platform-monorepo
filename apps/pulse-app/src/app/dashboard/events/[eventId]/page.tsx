@@ -75,7 +75,10 @@ export default function EditEventPage() {
 
         <EventForm
           onSubmit={(data) => handleSave(data)}
-          initialValues={event}
+          initialValues={{
+            ...event,
+            status: event.status === "published" ? "published" : "draft",
+          }}
           onDelete={handleDelete}
         />
       </div>

@@ -401,6 +401,24 @@
             "explode": false
           },
           {
+            "name": "city",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          },
+          {
+            "name": "vibe",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          },
+          {
             "name": "isLive",
             "in": "query",
             "required": false,
@@ -944,6 +962,8 @@
           "category",
           "googlePlaceId",
           "locationName",
+          "city",
+          "vibe",
           "latitude",
           "longitude",
           "startTime",
@@ -967,6 +987,12 @@
             "type": "string"
           },
           "locationName": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "vibe": {
             "type": "string"
           },
           "latitude": {
@@ -1046,6 +1072,8 @@
           "category",
           "status",
           "locationName",
+          "city",
+          "vibe",
           "latitude",
           "longitude",
           "startTime",
@@ -1078,6 +1106,12 @@
             "type": "string"
           },
           "locationName": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "vibe": {
             "type": "string"
           },
           "latitude": {
@@ -1332,6 +1366,8 @@
           "category",
           "googlePlaceId",
           "locationName",
+          "city",
+          "vibe",
           "latitude",
           "longitude",
           "startTime",
@@ -1358,6 +1394,12 @@
             "type": "string"
           },
           "locationName": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "vibe": {
             "type": "string"
           },
           "latitude": {

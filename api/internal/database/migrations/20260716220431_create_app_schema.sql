@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS events (
     
     -- Location for Live Map
     location_name VARCHAR(255) NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    vibe VARCHAR(50) NOT NULL,
     latitude DOUBLE PRECISION NOT NULL,
     longitude DOUBLE PRECISION NOT NULL,
     

@@ -35,6 +35,8 @@ type EventResponse struct {
 	Status       string               `json:"status"`
 	BannerUrl    string               `json:"bannerUrl,omitempty"`
 	LocationName string               `json:"locationName"`
+	City         string               `json:"city"`
+	Vibe         string               `json:"vibe"`
 	Latitude     float64              `json:"latitude"`
 	Longitude    float64              `json:"longitude"`
 	StartTime    time.Time            `json:"startTime"`
@@ -106,6 +108,8 @@ func MapFromDBListEvents(row db.ListEventsRow) EventResponse {
 		Status:       row.Status,
 		BannerUrl:    row.BannerUrl.String,
 		LocationName: row.LocationName,
+		City:         row.City,
+		Vibe:         row.Vibe,
 		Latitude:     row.Latitude,
 		Longitude:    row.Longitude,
 		StartTime:    row.StartTime.Time,
@@ -137,6 +141,8 @@ func MapFromDBListEventsWithStats(row db.ListEventsWithStatsRow) EventResponse {
 		Status:       row.Status,
 		BannerUrl:    row.BannerUrl.String,
 		LocationName: row.LocationName,
+		City:         row.City,
+		Vibe:         row.Vibe,
 		Latitude:     row.Latitude,
 		Longitude:    row.Longitude,
 		StartTime:    row.StartTime.Time,
@@ -167,6 +173,8 @@ func MapFromDBGetEvent(row db.GetEventByIDRow) EventResponse {
 		Status:       row.Status,
 		BannerUrl:    row.BannerUrl.String,
 		LocationName: row.LocationName,
+		City:         row.City,
+		Vibe:         row.Vibe,
 		Latitude:     row.Latitude,
 		Longitude:    row.Longitude,
 		StartTime:    row.StartTime.Time,
@@ -198,6 +206,8 @@ func MapFromDBGetEventWithStats(row db.GetEventWithStatsRow) EventResponse {
 		Status:       row.Status,
 		BannerUrl:    row.BannerUrl.String,
 		LocationName: row.LocationName,
+		City:         row.City,
+		Vibe:         row.Vibe,
 		Latitude:     row.Latitude,
 		Longitude:    row.Longitude,
 		StartTime:    row.StartTime.Time,

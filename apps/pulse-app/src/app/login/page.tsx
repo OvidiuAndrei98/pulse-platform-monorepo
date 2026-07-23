@@ -15,9 +15,9 @@ export default function LoginPage() {
   // Redirect based on role after login or if already authenticated
   useEffect(() => {
     if (!loading && user) {
-      if (user.role === "admin") {
+      if (user.properties.role === "admin") {
         router.replace("/admin");
-      } else if (user.role === "organizer") {
+      } else if (user.properties.role === "organizer") {
         router.replace("/organizer/dashboard");
       } else {
         router.replace("/me");

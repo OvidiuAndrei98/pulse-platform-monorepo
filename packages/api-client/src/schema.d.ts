@@ -346,6 +346,8 @@ export interface components {
             bannerUrl?: string;
             googlePlaceId: string;
             locationName: string;
+            city: string;
+            vibe: string;
             /** Format: decimal */
             latitude: number;
             /** Format: decimal */
@@ -380,6 +382,8 @@ export interface components {
             status: string;
             bannerUrl?: string;
             locationName: string;
+            city: string;
+            vibe: string;
             /** Format: decimal */
             latitude: number;
             /** Format: decimal */
@@ -470,6 +474,8 @@ export interface components {
             bannerUrl?: string;
             googlePlaceId: string;
             locationName: string;
+            city: string;
+            vibe: string;
             /** Format: decimal */
             latitude: number;
             /** Format: decimal */
@@ -827,6 +833,8 @@ export interface operations {
         parameters: {
             query?: {
                 category?: string;
+                city?: string;
+                vibe?: string;
                 isLive?: boolean;
                 latMin?: number;
                 latMax?: number;
