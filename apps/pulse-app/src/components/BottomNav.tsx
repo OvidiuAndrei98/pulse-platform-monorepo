@@ -177,7 +177,7 @@ export function BottomNav() {
                     className={
                       "h-5 w-5 transition-all duration-200 " +
                       (isActive
-                        ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]"
+                        ? "text-primary drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]"
                         : "text-zinc-400")
                     }
                   />

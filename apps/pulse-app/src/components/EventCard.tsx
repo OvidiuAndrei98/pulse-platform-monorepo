@@ -9,6 +9,7 @@ interface EventCardProps {
   event: Event;
   className?: string;
   onBookmark?: (eventId: string) => void;
+  live?: boolean;
 }
 
 function formatEventDate(dateString?: string): string {
@@ -30,6 +31,7 @@ export function EventCard({
   event,
   className = "",
   onBookmark,
+  live,
 }: EventCardProps) {
   const sampleAttendees = [
     "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
@@ -56,7 +58,7 @@ export function EventCard({
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
           <div className="absolute left-2.5 right-2.5 top-2.5 flex items-start justify-between">
-            {event.isLive ? (
+            {live ? (
               <div className="inline-flex h-6 items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/15 px-2.5 backdrop-blur-xl">
                 <span className="relative flex h-2 w-2 shrink-0">
                   <span className="absolute inset-0 animate-ping rounded-full bg-red-500 opacity-75" />

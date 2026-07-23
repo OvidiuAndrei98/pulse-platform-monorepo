@@ -17,34 +17,19 @@ export default function Home() {
   const upcomingEvents = events.filter((e) => !e.isLive);
 
   return (
-    /* 
-      bg-[#0b0c0e] oferă acel negru premium (soft-black, nu 100% pitch black)
-      care lasă sticla transparentă și lumina verde să respire superb.
-    */
     <div className="relative min-h-screen overflow-hidden bg-[#0b0c0e] text-foreground">
-      {/* -------------------------------------------------------------------------- */}
-      {/* BACKGROUND GLOW MESH - BLOBS VERZI                                       */}
-      {/* -------------------------------------------------------------------------- */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        {/* Blob 1: Stânga-Sus - Verde Emerald cu blur puternic */}
         <div className="absolute -left-28 -top-20 h-[380px] w-[380px] rounded-full bg-emerald-500/20 blur-[130px]" />
 
-        {/* Blob 2: Dreapta-Mijloc - Verde Neon discret */}
         <div className="absolute -right-24 top-[30%] h-[420px] w-[350px] rounded-full bg-green-500/15 blur-[140px]" />
 
-        {/* Blob 3: Stânga-Jos - Accent Verde Emerald */}
         <div className="absolute -bottom-10 -left-10 h-[320px] w-[320px] rounded-full bg-emerald-400/20 blur-[120px]" />
 
-        {/* Gradient Overlay pentru a omogeniza totul pe fundalul negru-soft */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0b0c0e]/40 to-[#0b0c0e]" />
       </div>
 
-      {/* -------------------------------------------------------------------------- */}
-      {/* CONȚINUTUL PAGINII                                                         */}
-      {/* -------------------------------------------------------------------------- */}
       <div className="relative z-10 pb-32">
-        <div className="mx-auto max-w-5xl px-5 pt-10">
-          {/* Top bar */}
+        <div className="mx-auto max-w-7xl px-5 pt-10">
           <div className="relative z-40 flex items-center justify-between">
             <div className="">
               <p className="text-xl font-semibold leading-tight md:text-2xl">
@@ -57,14 +42,10 @@ export default function Home() {
             <NotificationsPopover />
           </div>
 
-          {/* Compact greeting */}
-
-          {/* Search */}
           <div className="relative mt-6 h-11">
             <SearchPopover events={events as Event[]} />
           </div>
 
-          {/* Live Now */}
           <div className="mt-8 flex items-center justify-between">
             <h2 className="text-base font-semibold md:text-lg">Live Now</h2>
             <button
@@ -77,7 +58,7 @@ export default function Home() {
         </div>
 
         {/* Live Events Section */}
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-7xl">
           <div className="mt-4 flex gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory scroll-pl-5">
             {liveEvents.map((e) => (
               <EventCard key={e.id} event={e} live />
@@ -86,7 +67,7 @@ export default function Home() {
         </div>
 
         {/* Upcoming Events Section */}
-        <div className="mx-auto max-w-5xl px-5">
+        <div className="mx-auto max-w-7xl px-5">
           <div className="mt-8 flex items-center justify-between">
             <h2 className="text-base font-semibold md:text-lg">
               Upcoming Events
@@ -100,7 +81,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-7xl">
           <div className="mt-4 flex gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory scroll-pl-5">
             {upcomingEvents.map((e) => (
               <EventCard key={e.id} event={e} />
