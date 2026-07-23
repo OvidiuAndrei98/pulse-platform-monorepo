@@ -38,7 +38,9 @@ export function EventBrowseCard({
 
       <div className="absolute inset-x-0 bottom-0 p-5">
         <p className="text-xs font-medium text-primary">{event.category}</p>
-        <h3 className="mt-1 text-lg font-semibold leading-tight">{event.title}</h3>
+        <h3 className="mt-1 text-lg font-semibold leading-tight">
+          {event.title}
+        </h3>
         <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />

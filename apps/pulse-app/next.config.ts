@@ -9,6 +9,14 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/free-photo/**",
       },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "guerrillaradio.b-cdn.net",
+      },
     ],
   },
 };

@@ -32,12 +32,9 @@ export function BottomNav() {
 
   const x = useMotionValue(0);
 
-  // Capturăm viteza de mișcare a capsulei (atât din drag, cât și din animația spring)
+  // Factor de stretch orizontal (scaleX) bazat pe viteză
   const xVelocity = useVelocity(x);
-
-  // Mapăm viteza într-un factor de stretch orizontal (scaleX)
-  // Cu cât viteza e mai mare (pozitivă sau negativă), cu atât se extinde mai mult pe X ca un fluid (max +25%)
-  const scaleX = useTransform(xVelocity, [-2500, 0, 2500], [1.25, 1, 1.25]);
+  const scaleX = useTransform(xVelocity, [-2500, 0, 2500], [1.2, 1, 1.2]);
 
   const initializedRef = useRef(false);
   const draggingRef = useRef(false);
@@ -71,7 +68,6 @@ export function BottomNav() {
       return;
     }
 
-    // Un spring ceva mai elastic pentru a pune în valoare deformarea fluidă la destinație
     const controls = animate(x, page * slotWidth, {
       type: "spring",
       stiffness: 350,
@@ -82,17 +78,21 @@ export function BottomNav() {
     router.push(items[page].url || "/");
 
     return () => controls.stop();
-  }, [page, slotWidth, dragging, x]);
+  }, [page, slotWidth, dragging, x, router]);
 
   const activeIndex = dragging ? previewIndex : page;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-8 z-50 flex justify-center px-4">
-      {/* Container curat, rotund complet */}
-      <div className="pointer-events-auto w-[min(100%,390px)] rounded-full border border-neutral-800 bg-neutral-950 p-1.5 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.9)]">
+    <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
+      {/* 
+        Container de Sticlă - potrivire 1:1 cu fundalul cardurilor:
+        - bg-white/[0.05] + backdrop-blur-2xl
+        - border-white/10
+      */}
+      <div className="pointer-events-auto w-[min(100%,320px)] rounded-full border border-white/10 bg-white/[0.05] p-1.5 shadow-2xl backdrop-blur-2xl">
         <div
           ref={containerRef}
-          className="relative flex items-center justify-between h-14 select-none touch-none"
+          className="relative flex h-12 items-center justify-between select-none touch-none"
         >
           {/* Hit-box direct */}
           <div className="absolute inset-0 z-10 flex">
@@ -107,10 +107,10 @@ export function BottomNav() {
             ))}
           </div>
 
-          {/* Core Slider cu capabilitate de transformare fluidă */}
+          {/* Slider Fluid / Capsulă Activă din Sticlă */}
           {slotWidth > 0 && (
             <motion.div
-              className="absolute left-0 top-0 bottom-0 z-20 cursor-grab active:cursor-grabbing"
+              className="absolute bottom-0 left-0 top-0 z-20 cursor-grab active:cursor-grabbing"
               style={{
                 x,
                 width: slotWidth,
@@ -153,15 +153,15 @@ export function BottomNav() {
                 setPage(clamped);
               }}
             >
-              {/* Capsulă Liquid - scaleX reacționează instantaneu la inerție și viteză */}
+              {/* Capsula interioară - Efect de pastilă de sticlă iluminată */}
               <motion.div
-                className="w-full h-full rounded-full border border-neutral-700 bg-neutral-900 shadow-[0_4px_12px_rgba(0,0,0,0.5)] origin-center"
+                className="h-full w-full rounded-full border border-white/20 bg-white/10 shadow-lg backdrop-blur-md origin-center"
                 style={{ scaleX }}
               />
             </motion.div>
           )}
 
-          {/* Stratul fix de iconițe de 24px */}
+          {/* Stratul fix de Iconițe */}
           <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-between">
             {items.map((item, idx) => {
               const Icon = item.icon;
@@ -173,10 +173,12 @@ export function BottomNav() {
                   className="flex h-full flex-1 items-center justify-center"
                 >
                   <Icon
-                    strokeWidth={isActive ? 2.2 : 1.7}
+                    strokeWidth={isActive ? 2.3 : 1.7}
                     className={
-                      "h-6 w-6 transition-colors duration-200 " +
-                      (isActive ? "text-white" : "text-neutral-500")
+                      "h-5 w-5 transition-all duration-200 " +
+                      (isActive
+                        ? "text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]"
+                        : "text-zinc-400")
                     }
                   />
                 </div>

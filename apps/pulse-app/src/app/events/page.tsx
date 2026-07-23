@@ -26,7 +26,9 @@ export default function EventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
-  const selectedCityCenter = filters.city ? cityCenters[filters.city] ?? null : null;
+  const selectedCityCenter = filters.city
+    ? (cityCenters[filters.city] ?? null)
+    : null;
 
   const eventQuery = useMemo(
     () => ({
@@ -59,10 +61,16 @@ export default function EventsPage() {
   }, [eventQuery]);
 
   return (
-    <div className={`relative bg-background text-foreground ${view === "map" ? "h-dvh overflow-hidden overscroll-none pb-0" : "min-h-screen pb-40"}`}>
-      <div className={`relative mx-auto max-w-7xl px-5 pt-10 ${view === "map" ? "pointer-events-none fixed inset-x-0 top-0 z-30 lg:static lg:pointer-events-auto" : ""}`}>
+    <div
+      className={`relative  text-foreground ${view === "map" ? "h-dvh overflow-hidden overscroll-none pb-0" : "min-h-screen pb-40"}`}
+    >
+      <div
+        className={`relative mx-auto max-w-7xl px-5 pt-10 ${view === "map" ? "pointer-events-none fixed inset-x-0 top-0 z-30 lg:static lg:pointer-events-auto" : ""}`}
+      >
         <div className="relative z-20 flex flex-wrap items-start justify-between gap-3 sm:items-center">
-          <div className={`flex w-full items-center gap-2 sm:w-auto ${view === "map" ? "pointer-events-auto" : ""}`}>
+          <div
+            className={`flex w-full items-center gap-2 sm:w-auto ${view === "map" ? "pointer-events-auto" : ""}`}
+          >
             <EventViewToggle view={view} onChange={setView} />
             <FiltersSheet value={filters} onChange={setFilters} />
           </div>
@@ -72,13 +80,25 @@ export default function EventsPage() {
           <>
             <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {events.map((event) => (
-                <EventBrowseCard key={event.id} event={event} userLocation={userLocation} />
+                <EventBrowseCard
+                  key={event.id}
+                  event={event}
+                  userLocation={userLocation}
+                />
               ))}
             </div>
             {!eventsLoading && !events.length && (
               <div className="mt-12 text-center">
-                <p className="text-sm text-muted-foreground">No events match your filters.</p>
-                <button type="button" onClick={() => setFilters({ ...defaultEventFilters, distance: 50 })} className="mt-3 text-sm font-medium text-primary">
+                <p className="text-sm text-muted-foreground">
+                  No events match your filters.
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFilters({ ...defaultEventFilters, distance: 50 })
+                  }
+                  className="mt-3 text-sm font-medium text-primary"
+                >
                   Reset filters
                 </button>
               </div>

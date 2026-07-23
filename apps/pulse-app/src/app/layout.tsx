@@ -31,12 +31,30 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <DataProvider>
-          {children}
-          {modal}
-          <BottomNav />
-        </DataProvider>
+      <body className="relative min-h-screen overflow-x-hidden bg-[#0b0c0e] text-white">
+        {/* Background global */}
+        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+          {/* Blob 1 */}
+          <div className="absolute -left-28 -top-20 h-[380px] w-[380px] rounded-full bg-emerald-500/20 blur-[130px]" />
+
+          {/* Blob 2 */}
+          <div className="absolute -right-24 top-[30%] h-[420px] w-[350px] rounded-full bg-green-500/15 blur-[140px]" />
+
+          {/* Blob 3 */}
+          <div className="absolute -bottom-10 -left-10 h-[320px] w-[320px] rounded-full bg-emerald-400/20 blur-[120px]" />
+
+          {/* Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0b0c0e]/40 to-[#0b0c0e]" />
+        </div>
+
+        {/* Conținut */}
+        <div className="relative z-10">
+          <DataProvider>
+            {children}
+            {modal}
+            <BottomNav />
+          </DataProvider>
+        </div>
       </body>
     </html>
   );
