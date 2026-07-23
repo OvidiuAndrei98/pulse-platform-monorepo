@@ -3,8 +3,21 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useDataProvider } from "@/core/DataProviderContext";
+import {
+  Building2,
+  CheckCircle2,
+  Clock,
+  Plus,
+  BarChart3,
+  LogOut,
+  User as UserIcon,
+  AlertTriangle,
+  XCircle,
+  CalendarDays,
+  ArrowRight,
+  ShieldCheck,
+} from "lucide-react";
 
-// Mapare pe modelul tău din TypeSpec
 interface OrganizerProfile {
   id: string;
   userId: string;
@@ -19,7 +32,6 @@ interface OrganizerProfile {
 export default function OrganizerDashboard() {
   const { user, logout } = useDataProvider();
 
-  // State-uri pentru gestionarea profilului ANAF
   const [profile, setProfile] = useState<OrganizerProfile | undefined>(
     undefined,
   );
@@ -27,11 +39,9 @@ export default function OrganizerDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form fields
   const [cui, setCui] = useState("");
   const [companyName, setCompanyName] = useState("");
 
-  // 1. Încarcă starea profilului la inițializarea paginii
   useEffect(() => {
     async function fetchProfile() {
       try {
@@ -50,7 +60,6 @@ export default function OrganizerDashboard() {
     }
   }, [user]);
 
-  // 2. Trimite datele către backend (care va executa anaf.Lookup și salvarea în DB)
   const handleSubmitProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cui || !companyName) return;
@@ -59,12 +68,10 @@ export default function OrganizerDashboard() {
       setIsSubmitting(true);
       setError(null);
 
-      // POST /organizer/profile conform TypeSpec
       const updatedProfile = await user?.updateOrganizerProfile(
         cui,
         companyName,
       );
-
       setProfile(updatedProfile);
     } catch (err: any) {
       setError(
@@ -75,185 +82,333 @@ export default function OrganizerDashboard() {
     }
   };
 
+  const isApproved = profile?.verificationStatus === "approved";
+
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 px-4 py-12">
-      <div className="mx-auto max-w-4xl">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-10">
-          <div>
-            <p className="text-xs font-medium text-zinc-400 uppercase tracking-widest mb-1">
-              Organizator
-            </p>
-            <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-              Bună, {user?.properties.username} 👋
+    <div className="min-h-screen  text-zinc-100 px-4 py-10 antialiased selection:bg-white/20">
+      {/* Background Subtle Ambient Glows */}
+      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/[0.03] via-transparent to-transparent" />
+
+      <div className="relative mx-auto max-w-5xl space-y-8">
+        {/* HEADER SECTION */}
+        <header className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-white/10 bg-white/[0.02] p-6 backdrop-blur-2xl ring-1 ring-white/5">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 backdrop-blur-md">
+                <Building2 className="h-3 w-3 text-zinc-300" />
+                Panou Organizator
+              </span>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+              Salut, {user?.properties.username || "Organizator"} 👋
             </h1>
           </div>
-          <div className="flex items-center gap-4">
+
+          <div className="flex items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/5">
             <Link
               href="/me"
-              className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 text-xs font-semibold text-zinc-300 backdrop-blur-md transition hover:bg-white/10 hover:text-white active:scale-[0.98]"
             >
-              Profilul meu
+              <UserIcon className="h-3.5 w-3.5" />
+              Profil
             </Link>
+
             <button
+              type="button"
               onClick={logout}
-              className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 text-xs font-semibold text-zinc-400 backdrop-blur-md transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400 active:scale-[0.98]"
             >
-              Deconectare
+              <LogOut className="h-3.5 w-3.5" />
+              Ieșire
             </button>
           </div>
-        </div>
+        </header>
 
-        {/* Zona de Verificare ANAF / Status Profil */}
-        <div className="mb-10">
+        {/* ANAF VERIFICATION / PROFILE STATUS SECTION */}
+        <section>
           {isLoadingProfile ? (
-            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 animate-pulse text-sm text-zinc-500">
-              Se verifică starea înregistrării juridice...
+            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02] p-8 backdrop-blur-2xl ring-1 ring-white/5">
+              <div className="flex items-center gap-3 animate-pulse">
+                <div className="h-10 w-10 rounded-2xl bg-white/10" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-4 w-1/3 rounded-lg bg-white/10" />
+                  <div className="h-3 w-1/2 rounded-lg bg-white/5" />
+                </div>
+              </div>
             </div>
           ) : !profile ? (
-            /* Formular completare CUI dacă profilul nu există */
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-950/20 p-6">
-              <h2 className="text-base font-semibold text-amber-900 dark:text-amber-400 mb-2">
-                ⚠️ Verificare Legală Obligatorie (ANAF)
-              </h2>
-              <p className="text-sm text-amber-700 dark:text-amber-500 mb-6">
-                Pentru a putea publica evenimente și a încasa bani pe platformă,
-                trebuie să introduci datele firmei tale (PFA sau SRL). Acestea
-                vor fi validate automat în registrul ANAF.
-              </p>
+            /* Formular Verificare CUI / ANAF cu Amber Glow subtil */
+            <div className="group relative overflow-hidden rounded-3xl border border-amber-500/20 bg-amber-500/[0.02] p-6 sm:p-8 backdrop-blur-2xl ring-1 ring-amber-500/10 transition duration-500">
+              {/* Glow ambiental ambiental sub card */}
+              <div className="absolute -top-24 -left-24 h-48 w-48 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+
+              <div className="relative flex items-start gap-4">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-400">
+                  <AlertTriangle className="h-6 w-6" />
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-lg font-bold text-white tracking-wide">
+                    Verificare Legală Obligatorie (ANAF)
+                  </h2>
+                  <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed max-w-2xl">
+                    Pentru a putea publica evenimente și a încasa bilete pe
+                    platformă, introduceți datele firmei (PFA sau SRL). Acestea
+                    vor fi verificate automat cu registrul public ANAF.
+                  </p>
+                </div>
+              </div>
 
               <form
                 onSubmit={handleSubmitProfile}
-                className="space-y-4 max-w-md"
+                className="relative mt-6 space-y-4 max-w-xl"
               >
-                <div>
-                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 uppercase mb-1">
-                    CUI / CIF Companie
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: 12345678"
-                    value={cui}
-                    onChange={(e) => setCui(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-2.5 text-sm outline-none focus:border-zinc-900 dark:focus:border-zinc-100"
-                  />
-                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                      CUI / CIF Companie
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: 12345678"
+                      value={cui}
+                      onChange={(e) => setCui(e.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-zinc-600 outline-none backdrop-blur-md transition focus:border-white/30 focus:bg-white/[0.08]"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 uppercase mb-1">
-                    Nume Complet Companie (exact ca la RECOM)
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: PARTY SRL"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-2.5 text-sm outline-none focus:border-zinc-900 dark:focus:border-zinc-100"
-                  />
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                      Nume Companie (RECOM)
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: PARTY SRL"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-zinc-600 outline-none backdrop-blur-md transition focus:border-white/30 focus:bg-white/[0.08]"
+                    />
+                  </div>
                 </div>
 
                 {error && (
-                  <p className="text-xs font-medium text-red-600 dark:text-red-400">
+                  <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2 text-xs font-medium text-red-400">
                     {error}
-                  </p>
+                  </div>
                 )}
 
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="rounded-xl bg-zinc-900 dark:bg-zinc-50 px-4 py-2.5 text-sm font-medium text-white dark:text-zinc-900 hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className="inline-flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/10 px-6 text-xs font-semibold uppercase tracking-wider text-white backdrop-blur-md transition duration-200 hover:bg-white/20 active:scale-[0.98] disabled:opacity-50"
                 >
-                  {isSubmitting ? "Se validează la ANAF..." : "Verifică Firma"}
+                  {isSubmitting ? (
+                    <span className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 animate-spin" /> Se validează la
+                      ANAF...
+                    </span>
+                  ) : (
+                    "Verifică Firma"
+                  )}
                 </button>
               </form>
             </div>
           ) : (
-            /* Afișare status dacă profilul există */
+            /* Status Card cu Glow Difuz bazat pe stare */
             <div
-              className={`rounded-2xl border p-6 ${
-                profile.verificationStatus === "approved"
-                  ? "border-emerald-200 bg-emerald-50/30 dark:border-emerald-900/50 dark:bg-emerald-950/10"
+              className={`relative overflow-hidden rounded-3xl border p-6 sm:p-8 backdrop-blur-2xl transition-all duration-300 ${
+                isApproved
+                  ? "border-emerald-500/20 bg-emerald-500/[0.02] ring-1 ring-emerald-500/10"
                   : profile.verificationStatus === "pending"
-                    ? "border-blue-200 bg-blue-50/30 dark:border-blue-900/50 dark:bg-blue-950/10"
-                    : "border-red-200 bg-red-50/30 dark:border-red-900/50 dark:bg-red-950/10"
+                    ? "border-blue-500/20 bg-blue-500/[0.02] ring-1 ring-blue-500/10"
+                    : "border-red-500/20 bg-red-500/[0.02] ring-1 ring-red-500/10"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">
-                    {profile.companyName}
-                  </h3>
-                  <p className="text-xs text-zinc-500 mt-0.5">
-                    CUI: {profile.cui} • Status ANAF:{" "}
-                    <span className="font-medium">Activ</span>
-                  </p>
+              {/* Subtle Status Light Glow */}
+              <div
+                className={`absolute -top-20 -right-20 h-40 w-40 rounded-full blur-3xl pointer-events-none ${
+                  isApproved
+                    ? "bg-emerald-500/15"
+                    : profile.verificationStatus === "pending"
+                      ? "bg-blue-500/15"
+                      : "bg-red-500/15"
+                }`}
+              />
+
+              <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl border ${
+                      isApproved
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                        : profile.verificationStatus === "pending"
+                          ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
+                          : "border-red-500/30 bg-red-500/10 text-red-400"
+                    }`}
+                  >
+                    {isApproved && <ShieldCheck className="h-6 w-6" />}
+                    {profile.verificationStatus === "pending" && (
+                      <Clock className="h-6 w-6" />
+                    )}
+                    {profile.verificationStatus === "rejected" && (
+                      <XCircle className="h-6 w-6" />
+                    )}
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <h3 className="text-lg font-bold text-white tracking-wide">
+                      {profile.companyName}
+                    </h3>
+                    <p className="text-xs text-zinc-400 flex items-center gap-2">
+                      <span>
+                        CUI:{" "}
+                        <strong className="text-zinc-200">{profile.cui}</strong>
+                      </span>
+                      <span>•</span>
+                      <span>
+                        Registru ANAF:{" "}
+                        <span className="text-emerald-400 font-medium">
+                          Activ
+                        </span>
+                      </span>
+                    </p>
+                  </div>
                 </div>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    profile.verificationStatus === "approved"
-                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                      : profile.verificationStatus === "pending"
-                        ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
-                        : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
-                  }`}
-                >
-                  {profile.verificationStatus === "approved" &&
-                    "✓ Profil Verificat"}
-                  {profile.verificationStatus === "pending" &&
-                    "⏳ În curs de verificare"}
-                  {profile.verificationStatus === "rejected" && "✕ Respins"}
-                </span>
+
+                <div className="flex items-center">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider ${
+                      isApproved
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                        : profile.verificationStatus === "pending"
+                          ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
+                          : "border-red-500/30 bg-red-500/10 text-red-400"
+                    }`}
+                  >
+                    {isApproved && (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Profil
+                        Verificat
+                      </>
+                    )}
+                    {profile.verificationStatus === "pending" && (
+                      <>
+                        <Clock className="h-3.5 w-3.5 animate-pulse" /> În curs
+                        de verificare
+                      </>
+                    )}
+                    {profile.verificationStatus === "rejected" && (
+                      <>
+                        <XCircle className="h-3.5 w-3.5" /> Cerere Respinsă
+                      </>
+                    )}
+                  </span>
+                </div>
               </div>
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Quick actions (Blocate condiționat dacă nu e verificat profilul) */}
-        <div
-          className={`grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10 ${!profile || profile.verificationStatus !== "approved" ? "opacity-40 pointer-events-none select-none" : ""}`}
-        >
-          <Link
-            href="/organizer/dashboard/events/new"
-            className="rounded-2xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 p-6 flex flex-col gap-2 hover:border-zinc-500 dark:hover:border-zinc-500 hover:bg-white dark:hover:bg-zinc-900 transition-all"
-          >
-            <span className="text-3xl">＋</span>
-            <p className="font-semibold text-zinc-900 dark:text-zinc-50">
-              Eveniment nou
-            </p>
-            <p className="text-sm text-zinc-500">
-              Creează și publică un eveniment pe platformă
-            </p>
-          </Link>
-
-          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 flex flex-col gap-2 opacity-50 cursor-not-allowed">
-            <span className="text-3xl">📊</span>
-            <p className="font-semibold text-zinc-900 dark:text-zinc-50">
-              Statistici
-            </p>
-            <p className="text-sm text-zinc-500">Disponibil în curând</p>
-          </div>
-        </div>
-
-        {/* Events list placeholder */}
-        <div
-          className={`rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 ${!profile || profile.verificationStatus !== "approved" ? "opacity-40 pointer-events-none select-none" : ""}`}
-        >
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-            Evenimentele mele
+        {/* QUICK ACTIONS GRID */}
+        <section className="space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 pl-1">
+            Acțiuni Rapide
           </h2>
-          <p className="text-sm text-zinc-500">
-            Nu ai evenimente încă.{" "}
+
+          <div
+            className={`grid grid-cols-1 sm:grid-cols-2 gap-4 transition-all duration-300 ${
+              !isApproved
+                ? "opacity-40 pointer-events-none select-none grayscale"
+                : ""
+            }`}
+          >
+            {/* Action 1: Eveniment Nou - Hover Glow Effect */}
             <Link
               href="/organizer/dashboard/events/new"
-              className="text-zinc-900 dark:text-zinc-50 font-medium underline underline-offset-4"
+              className="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-2xl ring-1 ring-white/5 transition duration-300 hover:border-white/20 hover:bg-white/[0.06] active:scale-[0.99]"
             >
-              Creează primul tău eveniment
+              {/* Subtle hover light glow inside card */}
+              <div className="absolute -bottom-12 -right-12 h-32 w-32 rounded-full bg-white/5 blur-2xl transition duration-500 group-hover:bg-white/10" />
+
+              <div className="relative flex items-start justify-between">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-white/5 text-white transition duration-300 group-hover:scale-105 group-hover:bg-white/10">
+                  <Plus className="h-6 w-6" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-zinc-500 transition duration-300 group-hover:translate-x-1 group-hover:text-white" />
+              </div>
+
+              <div className="relative mt-6 space-y-1">
+                <h3 className="text-base font-bold text-white tracking-wide">
+                  Eveniment Nou
+                </h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Creează, configurează biletele și publică un eveniment nou pe
+                  hartă.
+                </p>
+              </div>
             </Link>
-            .
-          </p>
-        </div>
+
+            {/* Action 2: Statistici (Inactiv Placeholder) */}
+            <div className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/[0.01] p-6 backdrop-blur-2xl ring-1 ring-white/5 opacity-60">
+              <div className="flex items-start justify-between">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl border border-white/5 bg-white/5 text-zinc-500">
+                  <BarChart3 className="h-6 w-6" />
+                </div>
+                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                  În curând
+                </span>
+              </div>
+
+              <div className="mt-6 space-y-1">
+                <h3 className="text-base font-bold text-zinc-400 tracking-wide">
+                  Statistici & Vânzări
+                </h3>
+                <p className="text-xs text-zinc-500 leading-relaxed">
+                  Urmărește performanța evenimentelor și numărul de bilete
+                  vândute.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* EVENTS LIST SECTION */}
+        <section className="space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-400 pl-1">
+            Evenimentele Tale
+          </h2>
+
+          <div
+            className={`relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02] p-8 text-center backdrop-blur-2xl ring-1 ring-white/5 transition-all duration-300 ${
+              !isApproved
+                ? "opacity-40 pointer-events-none select-none grayscale"
+                : ""
+            }`}
+          >
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-white/5 text-zinc-400 mb-4">
+              <CalendarDays className="h-6 w-6" />
+            </div>
+
+            <h3 className="text-sm font-semibold text-white">
+              Nu ai creat niciun eveniment
+            </h3>
+            <p className="mt-1 text-xs text-zinc-400 max-w-sm mx-auto">
+              După ce profilul este verificat, poți adăuga primul tău eveniment
+              direct în aplicație.
+            </p>
+
+            {isApproved && (
+              <Link
+                href="/organizer/dashboard/events/new"
+                className="mt-5 inline-flex h-9 items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-4 text-xs font-semibold text-white backdrop-blur-md transition duration-200 hover:bg-white/20 active:scale-[0.98]"
+              >
+                <Plus className="h-4 w-4" />
+                Creează Eveniment
+              </Link>
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );

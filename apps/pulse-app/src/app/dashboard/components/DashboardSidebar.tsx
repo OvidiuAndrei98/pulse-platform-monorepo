@@ -35,49 +35,66 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   };
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="px-5 pt-8 pb-6">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-          Eventify
-        </p>
-        <h2 className="mt-1 text-lg font-semibold tracking-tight">Organizer</h2>
+    <div className="flex h-full flex-col justify-between">
+      {/* HEADER & NAV */}
+      <div>
+        <div className="px-5 pt-8 pb-6">
+          <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">
+            Eventify
+          </p>
+          <h2 className="mt-1 text-lg font-bold tracking-tight text-foreground">
+            Organizer
+          </h2>
+        </div>
+
+        {/* Navigation Items */}
+        <nav className="relative space-y-1 px-3">
+          {items.map((it) => {
+            const active = isActive(it.href, "exact" in it ? it.exact : false);
+            const Icon = it.icon;
+
+            return (
+              <Link
+                key={it.href}
+                href={it.href}
+                onClick={onNavigate}
+                className="relative flex h-11 items-center gap-3 rounded-xl px-3.5 text-xs font-semibold transition-colors duration-200 z-10"
+                style={{
+                  color: active ? "var(--primary)" : "var(--muted-foreground)",
+                }}
+              >
+                {/* Pastilă animată doar pe tab-ul activ */}
+                {active && (
+                  <motion.div
+                    layoutId="activeSidebarItem"
+                    className="absolute inset-0 rounded-xl bg-primary/15 border border-primary/20"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  />
+                )}
+
+                <Icon className="relative z-10 h-4 w-4 shrink-0" />
+                <span className="relative z-10">{it.label}</span>
+              </Link>
+            );
+          })}
+
+          {/* Quick Action - Event Nou */}
+          <div className="pt-3">
+            <Link
+              href="/dashboard/events/new"
+              onClick={onNavigate}
+              className="flex h-11 items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/10 px-3.5 text-xs font-bold text-primary transition hover:bg-primary/20 active:scale-[0.98]"
+            >
+              <Plus className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+              <span>Event nou</span>
+            </Link>
+          </div>
+        </nav>
       </div>
 
-      <nav className="flex-1 space-y-1 px-3">
-        {items.map((it) => {
-          const active = isActive(it.href, "exact" in it ? it.exact : false);
-          return (
-            <Link
-              key={it.href}
-              href={it.href}
-              onClick={onNavigate}
-              className={
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition " +
-                (active
-                  ? "bg-primary/15 text-primary"
-                  : "text-muted-foreground hover:bg-white/5 hover:text-foreground")
-              }
-            >
-              <it.icon className="h-4 w-4" />
-              {it.label}
-            </Link>
-          );
-        })}
-
-        <div className="pt-3">
-          <Link
-            href="/dashboard/events/new"
-            onClick={onNavigate}
-            className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/20"
-          >
-            <Plus className="h-4 w-4" />
-            Event nou
-          </Link>
-        </div>
-      </nav>
-
-      <div className="p-4 text-[10px] text-muted-foreground/70">
-        © {new Date().getFullYear()} Eventify
+      {/* FOOTER */}
+      <div className="p-4 text-[10px] font-medium text-muted-foreground/60">
+        © {new Date().getFullYear()} Eventify. All rights reserved.
       </div>
     </div>
   );
@@ -104,25 +121,26 @@ export function OrganizerSidebar() {
 
   return (
     <>
-      {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-white/10 bg-background/80 backdrop-blur-xl md:flex md:flex-col">
+      {/* DESKTOP SIDEBAR - Curat și transparent cu backdrop-blur */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-white/10 backdrop-blur-xl md:flex md:flex-col">
         <SidebarBody />
       </aside>
 
-      {/* Mobile menu button */}
+      {/* MOBILE MENU BUTTON */}
       <button
         type="button"
         aria-label="Deschide meniul"
         onClick={() => setOpen(true)}
-        className="fixed left-4 top-3 z-40 grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-background/70 text-foreground backdrop-blur-xl md:hidden"
+        className="fixed left-4 top-3.5 z-40 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-foreground backdrop-blur-xl transition hover:bg-white/10 active:scale-95 md:hidden"
       >
-        <Menu className="h-4 w-4" />
+        <Menu className="h-5 w-5" />
       </button>
 
-      {/* Mobile drawer */}
+      {/* MOBILE DRAWER */}
       <AnimatePresence>
         {open && (
           <div className="fixed inset-0 z-50 md:hidden">
+            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -131,6 +149,8 @@ export function OrganizerSidebar() {
               onClick={() => setOpen(false)}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
+
+            {/* Sliding Panel */}
             <motion.aside
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
@@ -143,16 +163,17 @@ export function OrganizerSidebar() {
                 if (info.offset.x < -60 || info.velocity.x < -300)
                   setOpen(false);
               }}
-              className="absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r border-white/10 bg-background shadow-2xl"
+              className="absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r border-white/10 bg-background/95 backdrop-blur-2xl shadow-2xl"
             >
               <button
                 type="button"
                 aria-label="Închide meniul"
                 onClick={() => setOpen(false)}
-                className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground"
+                className="absolute right-3.5 top-3.5 flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-muted-foreground transition hover:text-foreground active:scale-95 z-20"
               >
                 <X className="h-4 w-4" />
               </button>
+
               <SidebarBody onNavigate={() => setOpen(false)} />
             </motion.aside>
           </div>

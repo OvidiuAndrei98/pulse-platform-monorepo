@@ -37,7 +37,7 @@ export default function NewEventPage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-background pb-40 text-foreground antialiased">
+    <div className="relative min-h-screen  pb-40 text-foreground antialiased">
       <div className="mx-auto max-w-3xl px-5 pt-8">
         <Link
           href="/dashboard/events"

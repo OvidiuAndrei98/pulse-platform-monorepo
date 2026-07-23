@@ -4,16 +4,18 @@ import { Event } from "@/core/DataProvider";
 export function EventStatusBadge({
   event,
   compact = false,
+  className = "",
 }: {
   event: Event;
   compact?: boolean;
+  className?: string;
 }) {
   if (event.isLive) {
     return (
       <span
         className={`inline-flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/15 font-semibold uppercase tracking-wide text-red-400 backdrop-blur ${
           compact ? "px-2 py-1 text-[9px]" : "px-3 py-1.5 text-[11px]"
-        }`}
+        } ${className}`}
       >
         <span className="relative flex h-2 w-2">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
