@@ -18,3 +18,22 @@ SELECT * FROM organizer_profiles WHERE user_id = $1 LIMIT 1;
 
 -- name: GetOrganizerByCUI :one
 SELECT * FROM organizer_profiles WHERE cui = $1 LIMIT 1;
+
+-- name: SetOrganizerStripeAccount :one
+UPDATE organizer_profiles
+SET stripe_account_id = $2,
+    stripe_charges_enabled = $3,
+    stripe_payouts_enabled = $4,
+    stripe_details_submitted = $5,
+    updated_at = NOW()
+WHERE user_id = $1
+RETURNING *;
+
+-- name: UpdateOrganizerStripeAccountStatus :one
+UPDATE organizer_profiles
+SET stripe_charges_enabled = $2,
+    stripe_payouts_enabled = $3,
+    stripe_details_submitted = $4,
+    updated_at = NOW()
+WHERE stripe_account_id = $1
+RETURNING *;

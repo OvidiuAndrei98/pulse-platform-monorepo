@@ -143,6 +143,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/stripe/account-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creeaza sau reia onboarding-ul Stripe Connect pentru organizatorul curent */
+        post: operations["DashboardOperations_createStripeAccountLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/stripe/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Actualizeaza starea Stripe Connect a organizatorului curent */
+        get: operations["DashboardOperations_getStripeAccountStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events": {
         parameters: {
             query?: never;
@@ -452,8 +486,15 @@ export interface components {
             /** @enum {string} */
             verificationStatus: "pending" | "approved" | "rejected";
             caenCode?: string;
+            stripeAccountId?: string;
+            stripeChargesEnabled: boolean;
+            stripePayoutsEnabled: boolean;
+            stripeDetailsSubmitted: boolean;
             /** Format: date-time */
             createdAt: string;
+        };
+        StripeAccountLinkResponse: {
+            url: string;
         };
         SubmitOrganizerProfilePayload: {
             cui: string;
@@ -850,6 +891,46 @@ export interface operations {
             path: {
                 id: string;
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizerProfile"];
+                };
+            };
+        };
+    };
+    DashboardOperations_createStripeAccountLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StripeAccountLinkResponse"];
+                };
+            };
+        };
+    };
+    DashboardOperations_getStripeAccountStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;

@@ -81,6 +81,16 @@ export class User {
     }
   }
 
+  async createStripeAccountLink(): Promise<{ url: string }> {
+    return ApiClient.instance.post("/dashboard/stripe/account-link");
+  }
+
+  async refreshStripeAccountStatus(): Promise<
+    ReadableSchema<"OrganizerProfile">
+  > {
+    return ApiClient.instance.get("/dashboard/stripe/status");
+  }
+
   private _organizerEvents?: Event[];
   private _organizerEventsPromise?: Promise<Event[]>;
   private _organizerEventsError?: Error;

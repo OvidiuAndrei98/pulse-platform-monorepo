@@ -106,7 +106,15 @@ model OrganizerProfile {
   isVerified: boolean;
   verificationStatus: "pending" | "approved" | "rejected";
   caenCode?: string;
+  stripeAccountId?: string;
+  stripeChargesEnabled: boolean;
+  stripePayoutsEnabled: boolean;
+  stripeDetailsSubmitted: boolean;
   createdAt: utcDateTime;
+}
+
+model StripeAccountLinkResponse {
+  url: string;
 }
 
 model Ticket {
@@ -372,6 +380,16 @@ interface DashboardOperations {
   @route("/organizer/profile/{id}")
   @summary("Preia profilul unui organizator după ID-ul său")
   getProfile(@path id: string): OrganizerProfile;
+
+  @summary("Creeaza sau reia onboarding-ul Stripe Connect pentru organizatorul curent")
+  @post
+  @route("/stripe/account-link")
+  createStripeAccountLink(): StripeAccountLinkResponse;
+
+  @summary("Actualizeaza starea Stripe Connect a organizatorului curent")
+  @get
+  @route("/stripe/status")
+  getStripeAccountStatus(): OrganizerProfile;
 
   @summary("Creare eveniment nou (doar Organizatori/Admini)")
   @post

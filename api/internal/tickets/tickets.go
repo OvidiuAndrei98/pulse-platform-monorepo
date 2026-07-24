@@ -10,6 +10,8 @@ import (
 
 	db "pulse-api/db/generated"
 	"pulse-api/internal/auth"
+	"pulse-api/internal/common"
+	"pulse-api/internal/organizer"
 	"pulse-api/internal/router"
 
 	"github.com/go-chi/chi/v5"
@@ -292,8 +294,30 @@ func (h *Handler) HandleCreateTicketType(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	var eventID pgtype.UUID
+	if err := eventID.Scan(chi.URLParam(r, "id")); err != nil || !eventID.Valid {
+		router.RespondWithError(w, http.StatusBadRequest, "ID-ul evenimentului este invalid")
+		return
+	}
+
+	event, err := h.Queries.GetEventWithStats(ctx, eventID)
+	if err != nil {
+		router.RespondWithError(w, http.StatusNotFound, "Evenimentul nu a fost gasit")
+		return
+	}
+	if common.UUIDToString(event.OrganizerID) != userIDStr {
+		router.RespondWithError(w, http.StatusForbidden, "Nu ai permisiunea sa adaugi bilete acestui eveniment")
+		return
+	}
+
+	profile, err := h.Queries.GetOrganizerProfile(ctx, userID)
+	if err != nil || !organizer.CanSellTickets(profile) {
+		router.RespondWithError(w, http.StatusForbidden, "Configureaza Stripe inainte de a adauga bilete")
+		return
+	}
+
 	err = h.Queries.CreateTicketType(ctx, db.CreateTicketTypeParams{
-		EventID:     func() pgtype.UUID { var u pgtype.UUID; _ = u.Scan(req.EventID); return u }(),
+		EventID:     eventID,
 		Name:        req.Name,
 		PriceRon:    req.PriceRon,
 		Capacity:    req.Capacity,

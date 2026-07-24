@@ -1,13 +1,25 @@
 import { Plus, Ticket as TicketIcon, Trash2 } from "lucide-react";
 import { useFieldArray, UseFormReturn } from "react-hook-form";
+import { useEffect, useState } from "react";
 import { EventFormValues } from "@/app/dashboard/components/EventsForm";
+import { useDataProvider } from "@/core/DataProviderContext";
 import { eventInputClass, FormField, StepperInput } from "@/features/events/form/FormField";
 import { DateTimePicker } from "@/features/events/form/DateTimePicker";
 
 export function TicketTypesSection({ form }: { form: UseFormReturn<EventFormValues> }) {
+  const { user } = useDataProvider();
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "ticketTypes" });
   const ticketTypes = form.watch("ticketTypes");
   const { errors } = form.formState;
+  const [canAddTickets, setCanAddTickets] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+
+    user.getOrganizerProfile()
+      .then((profile) => setCanAddTickets(Boolean(profile?.stripeChargesEnabled && profile?.stripePayoutsEnabled)))
+      .catch(() => setCanAddTickets(false));
+  }, [user]);
 
   return (
     <section className="rounded-3xl border border-white/[0.06] bg-white/[0.02] p-5">
@@ -16,10 +28,11 @@ export function TicketTypesSection({ form }: { form: UseFormReturn<EventFormValu
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground/80"><TicketIcon className="h-4 w-4 text-primary" /> Tipuri de bilete</h2>
           <p className="mt-0.5 max-w-[500px] text-[11px] text-muted-foreground/50">Seteaza pretul, stocul si perioada de vanzare pentru fiecare tip.</p>
         </div>
-        <button type="button" onClick={() => append({ name: "", priceRon: 0, capacity: 50, description: "", startSales: "", endSales: "" })} className="inline-flex h-10 w-full shrink-0 items-center justify-center gap-1 rounded-full bg-primary/10 px-3 text-xs font-semibold text-primary transition hover:bg-primary/20 sm:h-auto sm:w-auto sm:py-1.5">
+        <button type="button" onClick={() => append({ name: "", priceRon: 0, capacity: 50, description: "", startSales: "", endSales: "" })} disabled={!canAddTickets} title={canAddTickets ? "Adauga tip de bilet" : "Configureaza Stripe pentru a adauga bilete"} className="inline-flex h-10 w-full shrink-0 items-center justify-center gap-1 rounded-full bg-primary/10 px-3 text-xs font-semibold text-primary transition hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-40 sm:h-auto sm:w-auto sm:py-1.5">
           <Plus className="h-3.5 w-3.5" /> Adauga tip
         </button>
       </div>
+      {!canAddTickets && <p className="mt-2 text-[11px] text-amber-400/80">Activeaza Stripe din dashboard pentru a adauga tipuri de bilete.</p>}
       {errors.ticketTypes?.message && <p className="mt-2 text-xs font-medium text-red-400">{errors.ticketTypes.message}</p>}
       <div className="mt-4 space-y-3">
         {fields.map((field, index) => (

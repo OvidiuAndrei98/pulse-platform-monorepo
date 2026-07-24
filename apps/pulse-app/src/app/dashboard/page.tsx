@@ -16,6 +16,8 @@ import {
   CalendarDays,
   ArrowRight,
   ShieldCheck,
+  CreditCard,
+  RefreshCw,
 } from "lucide-react";
 
 interface OrganizerProfile {
@@ -26,6 +28,10 @@ interface OrganizerProfile {
   isVerified: boolean;
   verificationStatus: "pending" | "approved" | "rejected";
   caenCode?: string;
+  stripeAccountId?: string;
+  stripeChargesEnabled?: boolean;
+  stripePayoutsEnabled?: boolean;
+  stripeDetailsSubmitted?: boolean;
   createdAt: string;
 }
 
@@ -37,6 +43,7 @@ export default function OrganizerDashboard() {
   );
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isStripeLoading, setIsStripeLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [cui, setCui] = useState("");
@@ -82,7 +89,50 @@ export default function OrganizerDashboard() {
     }
   };
 
+  const refreshStripeStatus = async () => {
+    if (!user) return;
+
+    setIsStripeLoading(true);
+    setError(null);
+    try {
+      setProfile(await user.refreshStripeAccountStatus());
+    } catch (err: any) {
+      setError(err?.message || "Starea platilor nu a putut fi actualizata.");
+    } finally {
+      setIsStripeLoading(false);
+    }
+  };
+
+  const startStripeOnboarding = async () => {
+    if (!user) return;
+
+    setIsStripeLoading(true);
+    setError(null);
+    try {
+      const { url } = await user.createStripeAccountLink();
+      window.location.assign(url);
+    } catch (err: any) {
+      setError(err?.message || "Configurarea Stripe nu a putut fi pornita.");
+      setIsStripeLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+
+    const stripeAction = new URLSearchParams(window.location.search).get("stripe");
+    if (!stripeAction) return;
+
+    window.history.replaceState({}, "", "/dashboard");
+    if (stripeAction === "refresh") {
+      void startStripeOnboarding();
+      return;
+    }
+    void refreshStripeStatus();
+  }, [user]);
+
   const isApproved = profile?.verificationStatus === "approved";
+  const stripeReady = Boolean(profile?.stripeChargesEnabled && profile?.stripePayoutsEnabled);
 
   return (
     <div className="min-h-screen  text-zinc-100 px-4 py-10 antialiased selection:bg-white/20">
@@ -306,6 +356,43 @@ export default function OrganizerDashboard() {
                   </span>
                 </div>
               </div>
+
+              {isApproved && (
+                <div className="relative mt-5 flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-2 text-xs text-zinc-400">
+                    <CreditCard className={`h-4 w-4 ${stripeReady ? "text-emerald-400" : "text-amber-400"}`} />
+                    <span>
+                      {stripeReady
+                        ? "Platile si transferurile catre organizator sunt active"
+                        : "Configureaza Stripe pentru a putea incasa bilete"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {profile?.stripeAccountId && !stripeReady && (
+                      <button
+                        type="button"
+                        onClick={refreshStripeStatus}
+                        disabled={isStripeLoading}
+                        aria-label="Actualizeaza starea Stripe"
+                        className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-zinc-300 transition hover:bg-white/10 disabled:opacity-50"
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${isStripeLoading ? "animate-spin" : ""}`} />
+                      </button>
+                    )}
+                    {!stripeReady && (
+                      <button
+                        type="button"
+                        onClick={startStripeOnboarding}
+                        disabled={isStripeLoading}
+                        className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3.5 text-xs font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50"
+                      >
+                        {isStripeLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
+                        {profile?.stripeAccountId ? "Continua Stripe" : "Conecteaza Stripe"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </section>

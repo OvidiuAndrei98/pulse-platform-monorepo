@@ -34,18 +34,22 @@ type HandlersConfig struct {
 	GetSavedEvents http.HandlerFunc
 
 	// Events
-	CreateEvent         http.HandlerFunc
-	ListEvents          http.HandlerFunc
-	GetEventByID        http.HandlerFunc
-	GetEventWithStats   http.HandlerFunc
-	GetLiveEventsInArea http.HandlerFunc
-	DeleteEvent         http.HandlerFunc
-	EditEvent           http.HandlerFunc
-	ListEventsWithStats http.HandlerFunc
-	UploadEventBanner   http.HandlerFunc
-	GetEventBanner      http.HandlerFunc
-	SaveEvent           http.HandlerFunc
-	RemoveSavedEvent    http.HandlerFunc
+	CreateEvent             http.HandlerFunc
+	ListEvents              http.HandlerFunc
+	GetEventByID            http.HandlerFunc
+	GetEventWithStats       http.HandlerFunc
+	GetLiveEventsInArea     http.HandlerFunc
+	DeleteEvent             http.HandlerFunc
+	EditEvent               http.HandlerFunc
+	ListEventsWithStats     http.HandlerFunc
+	UploadEventBanner       http.HandlerFunc
+	GetEventBanner          http.HandlerFunc
+	SaveEvent               http.HandlerFunc
+	RemoveSavedEvent        http.HandlerFunc
+	StripeWebhook           http.HandlerFunc
+	StripeConnectWebhook    http.HandlerFunc
+	CreateStripeAccountLink http.HandlerFunc
+	GetStripeAccountStatus  http.HandlerFunc
 
 	// Interactions / Checkins
 	CreateCheckIn http.HandlerFunc
@@ -110,6 +114,8 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/media/*", cfg.GetEventBanner)
+		r.Post("/stripe/webhook", cfg.StripeWebhook)
+		r.Post("/stripe/connect/webhook", cfg.StripeConnectWebhook)
 
 		// --- AUTH (Public) ---
 		r.Route("/auth", func(r chi.Router) {
@@ -183,6 +189,8 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				// --- ORGANIZER PROFILE ---
 				r.Post("/dashboard/organizer/profile", cfg.CreateOrganizerProfile)
 				r.Get("/dashboard/organizer/profile/{id}", cfg.GetOrganizerProfile)
+				r.Post("/dashboard/stripe/account-link", cfg.CreateStripeAccountLink)
+				r.Get("/dashboard/stripe/status", cfg.GetStripeAccountStatus)
 
 			})
 

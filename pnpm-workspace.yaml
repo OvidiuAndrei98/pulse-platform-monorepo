@@ -2,4 +2,5 @@ packages:
   - "apps/*"
   - "packages/*"
 allowBuilds:
+  '@stripe/cli': set this to true or false
   sharp: true

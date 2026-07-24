@@ -24,7 +24,7 @@ SET
     is_verified = EXCLUDED.is_verified, 
     verified_at = EXCLUDED.verified_at,
     verification_status = EXCLUDED.verification_status
-RETURNING id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status
+RETURNING id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted
 `
 
 type CreateOrganizerProfileParams struct {
@@ -59,12 +59,16 @@ func (q *Queries) CreateOrganizerProfile(ctx context.Context, arg CreateOrganize
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.VerificationStatus,
+		&i.StripeAccountID,
+		&i.StripeChargesEnabled,
+		&i.StripePayoutsEnabled,
+		&i.StripeDetailsSubmitted,
 	)
 	return i, err
 }
 
 const getOrganizerByCUI = `-- name: GetOrganizerByCUI :one
-SELECT id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status FROM organizer_profiles WHERE cui = $1 LIMIT 1
+SELECT id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted FROM organizer_profiles WHERE cui = $1 LIMIT 1
 `
 
 func (q *Queries) GetOrganizerByCUI(ctx context.Context, cui string) (OrganizerProfiles, error) {
@@ -81,12 +85,16 @@ func (q *Queries) GetOrganizerByCUI(ctx context.Context, cui string) (OrganizerP
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.VerificationStatus,
+		&i.StripeAccountID,
+		&i.StripeChargesEnabled,
+		&i.StripePayoutsEnabled,
+		&i.StripeDetailsSubmitted,
 	)
 	return i, err
 }
 
 const getOrganizerProfile = `-- name: GetOrganizerProfile :one
-SELECT id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status FROM organizer_profiles WHERE user_id = $1 LIMIT 1
+SELECT id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted FROM organizer_profiles WHERE user_id = $1 LIMIT 1
 `
 
 func (q *Queries) GetOrganizerProfile(ctx context.Context, userID pgtype.UUID) (OrganizerProfiles, error) {
@@ -103,6 +111,101 @@ func (q *Queries) GetOrganizerProfile(ctx context.Context, userID pgtype.UUID) (
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.VerificationStatus,
+		&i.StripeAccountID,
+		&i.StripeChargesEnabled,
+		&i.StripePayoutsEnabled,
+		&i.StripeDetailsSubmitted,
+	)
+	return i, err
+}
+
+const setOrganizerStripeAccount = `-- name: SetOrganizerStripeAccount :one
+UPDATE organizer_profiles
+SET stripe_account_id = $2,
+    stripe_charges_enabled = $3,
+    stripe_payouts_enabled = $4,
+    stripe_details_submitted = $5,
+    updated_at = NOW()
+WHERE user_id = $1
+RETURNING id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted
+`
+
+type SetOrganizerStripeAccountParams struct {
+	UserID                 pgtype.UUID `json:"user_id"`
+	StripeAccountID        pgtype.Text `json:"stripe_account_id"`
+	StripeChargesEnabled   bool        `json:"stripe_charges_enabled"`
+	StripePayoutsEnabled   bool        `json:"stripe_payouts_enabled"`
+	StripeDetailsSubmitted bool        `json:"stripe_details_submitted"`
+}
+
+func (q *Queries) SetOrganizerStripeAccount(ctx context.Context, arg SetOrganizerStripeAccountParams) (OrganizerProfiles, error) {
+	row := q.db.QueryRow(ctx, setOrganizerStripeAccount,
+		arg.UserID,
+		arg.StripeAccountID,
+		arg.StripeChargesEnabled,
+		arg.StripePayoutsEnabled,
+		arg.StripeDetailsSubmitted,
+	)
+	var i OrganizerProfiles
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Cui,
+		&i.CompanyName,
+		&i.FiscalAddress,
+		&i.IsVerified,
+		&i.VerifiedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.VerificationStatus,
+		&i.StripeAccountID,
+		&i.StripeChargesEnabled,
+		&i.StripePayoutsEnabled,
+		&i.StripeDetailsSubmitted,
+	)
+	return i, err
+}
+
+const updateOrganizerStripeAccountStatus = `-- name: UpdateOrganizerStripeAccountStatus :one
+UPDATE organizer_profiles
+SET stripe_charges_enabled = $2,
+    stripe_payouts_enabled = $3,
+    stripe_details_submitted = $4,
+    updated_at = NOW()
+WHERE stripe_account_id = $1
+RETURNING id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted
+`
+
+type UpdateOrganizerStripeAccountStatusParams struct {
+	StripeAccountID        pgtype.Text `json:"stripe_account_id"`
+	StripeChargesEnabled   bool        `json:"stripe_charges_enabled"`
+	StripePayoutsEnabled   bool        `json:"stripe_payouts_enabled"`
+	StripeDetailsSubmitted bool        `json:"stripe_details_submitted"`
+}
+
+func (q *Queries) UpdateOrganizerStripeAccountStatus(ctx context.Context, arg UpdateOrganizerStripeAccountStatusParams) (OrganizerProfiles, error) {
+	row := q.db.QueryRow(ctx, updateOrganizerStripeAccountStatus,
+		arg.StripeAccountID,
+		arg.StripeChargesEnabled,
+		arg.StripePayoutsEnabled,
+		arg.StripeDetailsSubmitted,
+	)
+	var i OrganizerProfiles
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Cui,
+		&i.CompanyName,
+		&i.FiscalAddress,
+		&i.IsVerified,
+		&i.VerifiedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.VerificationStatus,
+		&i.StripeAccountID,
+		&i.StripeChargesEnabled,
+		&i.StripePayoutsEnabled,
+		&i.StripeDetailsSubmitted,
 	)
 	return i, err
 }

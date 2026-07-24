@@ -50,7 +50,9 @@ type Querier interface {
 	RespondToFriendRequest(ctx context.Context, arg RespondToFriendRequestParams) error
 	SaveEvent(ctx context.Context, arg SaveEventParams) error
 	SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error
+	SetOrganizerStripeAccount(ctx context.Context, arg SetOrganizerStripeAccountParams) (OrganizerProfiles, error)
 	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error
+	UpdateOrganizerStripeAccountStatus(ctx context.Context, arg UpdateOrganizerStripeAccountStatusParams) (OrganizerProfiles, error)
 	UpdateTicketType(ctx context.Context, arg UpdateTicketTypeParams) error
 	UpdateUserActivated(ctx context.Context, id pgtype.UUID) error
 	UpdateUserActivation(ctx context.Context, arg UpdateUserActivationParams) error

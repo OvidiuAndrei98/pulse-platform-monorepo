@@ -13,6 +13,7 @@ import (
 	db "pulse-api/db/generated"
 	"pulse-api/internal/auth"
 	"pulse-api/internal/common"
+	"pulse-api/internal/organizer"
 	"pulse-api/internal/router"
 
 	"github.com/go-chi/chi/v5"
@@ -50,6 +51,16 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 	var req CreateEventRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		router.RespondWithError(w, http.StatusBadRequest, "Request body invalid: "+err.Error())
+		return
+	}
+
+	profile, err := h.Queries.GetOrganizerProfile(ctx, organizerUUID)
+	if err != nil || !organizer.IsVerified(profile) {
+		router.RespondWithError(w, http.StatusForbidden, "Firma organizatorului trebuie validata inainte de crearea unui eveniment")
+		return
+	}
+	if len(req.TicketTypes) > 0 && !organizer.CanSellTickets(profile) {
+		router.RespondWithError(w, http.StatusForbidden, "Configureaza Stripe inainte de a adauga bilete")
 		return
 	}
 
@@ -169,6 +180,26 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 	if common.UUIDToString(existingEvent.OrganizerID) != userID {
 		router.RespondWithError(w, http.StatusForbidden, "Nu ai permisiunea sa modifici acest eveniment")
 		return
+	}
+
+	var organizerUUID pgtype.UUID
+	if err := organizerUUID.Scan(userID); err != nil || !organizerUUID.Valid {
+		router.RespondWithError(w, http.StatusBadRequest, "ID organizator invalid")
+		return
+	}
+	profile, err := h.Queries.GetOrganizerProfile(r.Context(), organizerUUID)
+	if err != nil || !organizer.IsVerified(profile) {
+		router.RespondWithError(w, http.StatusForbidden, "Firma organizatorului trebuie validata inainte de modificarea unui eveniment")
+		return
+	}
+	for _, ticketType := range req.TicketTypes {
+		if ticketType.ID == nil || *ticketType.ID == "" {
+			if !organizer.CanSellTickets(profile) {
+				router.RespondWithError(w, http.StatusForbidden, "Configureaza Stripe inainte de a adauga bilete")
+				return
+			}
+			break
+		}
 	}
 	previousBannerURL := existingEvent.BannerUrl.String
 	if req.Vibe == "" {

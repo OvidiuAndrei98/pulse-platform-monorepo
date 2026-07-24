@@ -14,6 +14,7 @@ import (
 	"pulse-api/internal/events"
 	"pulse-api/internal/interactions"
 	"pulse-api/internal/organizer"
+	"pulse-api/internal/payments"
 	"pulse-api/internal/router"
 	"pulse-api/internal/tickets"
 	"pulse-api/internal/users"
@@ -118,6 +119,14 @@ func (app *Application) BuildRouter() http.Handler {
 	requireAdmin := auth.RequireRole("admin")
 	organizerHandler := organizer.NewHandler(app.Queries)
 	ticketingHandler := tickets.NewHandler(app.Queries, app.Pool)
+	stripeWebhookHandler := payments.NewWebhookHandler(os.Getenv("STRIPE_WEBHOOK_SECRET"))
+	stripeConnectWebhookHandler := payments.NewConnectWebhookHandler(app.Queries, os.Getenv("STRIPE_CONNECT_WEBHOOK_SECRET"))
+	stripeConnectHandler := payments.NewConnectHandler(
+		app.Queries,
+		os.Getenv("STRIPE_SECRET_KEY"),
+		os.Getenv("PUBLIC_APP_URL"),
+		os.Getenv("STRIPE_CONNECT_COUNTRY"),
+	)
 
 	// 2. Mapăm funcțiile în noua structură de configurare din router
 	cfg := router.HandlersConfig{
@@ -141,18 +150,22 @@ func (app *Application) BuildRouter() http.Handler {
 		GetSavedEvents: eventsHandler.HandleListSavedEvents,
 
 		// Events
-		CreateEvent:         eventsHandler.HandleCreateEvent,
-		ListEvents:          eventsHandler.HandleListEvents,
-		GetEventByID:        eventsHandler.HandleGetEventByID,
-		GetLiveEventsInArea: eventsHandler.HandleGetLiveEventsInArea,
-		DeleteEvent:         eventsHandler.HandleDeleteEvent,
-		EditEvent:           eventsHandler.HandleEditEvent,
-		GetEventWithStats:   eventsHandler.HandleGetEventWithStats,
-		ListEventsWithStats: eventsHandler.HandleListEventsWithStats,
-		UploadEventBanner:   eventsHandler.HandleUploadEventBanner,
-		GetEventBanner:      eventsHandler.HandleGetEventBanner,
-		SaveEvent:           eventsHandler.HandleSaveEvent,
-		RemoveSavedEvent:    eventsHandler.HandleRemoveSavedEvent,
+		CreateEvent:             eventsHandler.HandleCreateEvent,
+		ListEvents:              eventsHandler.HandleListEvents,
+		GetEventByID:            eventsHandler.HandleGetEventByID,
+		GetLiveEventsInArea:     eventsHandler.HandleGetLiveEventsInArea,
+		DeleteEvent:             eventsHandler.HandleDeleteEvent,
+		EditEvent:               eventsHandler.HandleEditEvent,
+		GetEventWithStats:       eventsHandler.HandleGetEventWithStats,
+		ListEventsWithStats:     eventsHandler.HandleListEventsWithStats,
+		UploadEventBanner:       eventsHandler.HandleUploadEventBanner,
+		GetEventBanner:          eventsHandler.HandleGetEventBanner,
+		SaveEvent:               eventsHandler.HandleSaveEvent,
+		RemoveSavedEvent:        eventsHandler.HandleRemoveSavedEvent,
+		StripeWebhook:           stripeWebhookHandler.HandleStripeWebhook,
+		StripeConnectWebhook:    stripeConnectWebhookHandler.HandleStripeConnectWebhook,
+		CreateStripeAccountLink: stripeConnectHandler.HandleCreateAccountLink,
+		GetStripeAccountStatus:  stripeConnectHandler.HandleGetAccountStatus,
 
 		// Interactions / Checkins
 		CreateCheckIn: interactionsHandler.HandleCreateCheckIn,
