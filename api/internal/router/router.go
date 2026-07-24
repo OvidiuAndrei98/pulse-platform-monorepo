@@ -15,9 +15,10 @@ import (
 // HandlersConfig colectează toate funcțiile HTTP și middleware-urile necesare.
 type HandlersConfig struct {
 	// Middleware-uri de autentificare și autorizare
-	AuthMiddleware      func(http.Handler) http.Handler
-	OrganizerMiddleware func(http.Handler) http.Handler // RequireRole("organizer", "admin")
-	AdminMiddleware     func(http.Handler) http.Handler // RequireRole("admin")
+	AuthMiddleware         func(http.Handler) http.Handler
+	OptionalAuthMiddleware func(http.Handler) http.Handler
+	OrganizerMiddleware    func(http.Handler) http.Handler // RequireRole("organizer", "admin")
+	AdminMiddleware        func(http.Handler) http.Handler // RequireRole("admin")
 
 	// Auth
 	Register http.HandlerFunc
@@ -83,6 +84,10 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 	}
 
 	r := chi.NewRouter()
+	optionalAuthMiddleware := cfg.OptionalAuthMiddleware
+	if optionalAuthMiddleware == nil {
+		optionalAuthMiddleware = func(next http.Handler) http.Handler { return next }
+	}
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -117,9 +122,9 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 
 		// --- EVENTS: Citire publică (nu necesită autentificare) ---
 		r.Route("/events", func(r chi.Router) {
-			r.Get("/", cfg.ListEvents)
-			r.Get("/map", cfg.GetLiveEventsInArea)
-			r.Get("/{id}", cfg.GetEventByID)
+			r.With(optionalAuthMiddleware).Get("/", cfg.ListEvents)
+			r.With(optionalAuthMiddleware).Get("/map", cfg.GetLiveEventsInArea)
+			r.With(optionalAuthMiddleware).Get("/{id}", cfg.GetEventByID)
 			r.Get("/{id}/comments", cfg.GetComments)
 			r.Get("/{id}/ticket-types", cfg.GetEventTicketTypes)
 			r.Post("/{id}/tickets/purchase", cfg.PurchaseTickets)

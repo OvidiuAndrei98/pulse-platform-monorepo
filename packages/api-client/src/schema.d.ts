@@ -428,7 +428,6 @@ export interface components {
             /** Format: date-time */
             endTime: string;
             isLive: boolean;
-            isFavorited?: boolean;
             /** Format: date-time */
             createdAt: string;
             ticketTypes: components["schemas"]["TicketTypeResponse"][];
@@ -438,6 +437,7 @@ export interface components {
             /** Format: int64 */
             totalCheckIns: number;
             userHasCheckedIn?: boolean;
+            isFavorited?: boolean;
             /** Format: int64 */
             totalTicketsSold?: number;
             /** Format: int64 */

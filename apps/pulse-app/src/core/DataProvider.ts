@@ -294,7 +294,9 @@ export class User {
     if (!this._events) return;
 
     this._events = this._events.map((event) =>
-      event.id === eventId ? { ...event, isFavorited: favorite } : event,
+      event.id === eventId
+        ? { ...event, stats: { ...event.stats, isFavorited: favorite } }
+        : event,
     );
     this.eventsObserversDidChange();
   }

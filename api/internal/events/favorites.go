@@ -87,6 +87,8 @@ func favoriteIDs(w http.ResponseWriter, r *http.Request) (pgtype.UUID, pgtype.UU
 }
 
 func MapFromDBSavedEvent(event db.Events) EventResponse {
+	isFavorited := true
+
 	return EventResponse{
 		ID:           common.UUIDToString(event.ID),
 		OrganizerID:  common.UUIDToString(event.OrganizerID),
@@ -103,9 +105,10 @@ func MapFromDBSavedEvent(event db.Events) EventResponse {
 		StartTime:    event.StartTime.Time,
 		EndTime:      event.EndTime.Time,
 		IsLive:       common.PgBoolToBool(event.IsLive),
-		IsFavorited:  true,
 		CreatedAt:    event.CreatedAt.Time,
 		TicketTypes:  []TicketTypeResponse{},
-		Stats:        EventStatsResponse{},
+		Stats: EventStatsResponse{
+			IsFavorited: &isFavorited,
+		},
 	}
 }

@@ -73,6 +73,17 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func OptionalAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		AuthMiddleware(next).ServeHTTP(w, r)
+	})
+}
+
 func GetUserIDFromContext(ctx context.Context) (string, error) {
 	userID, ok := ctx.Value(UserIDKey).(string)
 	if !ok {

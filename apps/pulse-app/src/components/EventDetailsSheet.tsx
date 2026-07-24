@@ -67,7 +67,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
     if (event) {
       setQty({});
       setPurchased(false);
-      setFavorited(Boolean(event.isFavorited));
+      setFavorited(Boolean(event.stats?.isFavorited));
       setShared(false);
     }
   }, [event?.id]);

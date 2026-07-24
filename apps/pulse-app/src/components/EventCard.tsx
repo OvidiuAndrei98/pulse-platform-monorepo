@@ -42,10 +42,10 @@ export function EventCard({
   live,
 }: EventCardProps) {
   const { user } = useDataProvider();
-  const [favorited, setFavorited] = useState(Boolean(event.isFavorited));
+  const [favorited, setFavorited] = useState(Boolean(event.stats?.isFavorited));
   const formattedDate = formatEventDate(event.startTime);
 
-  useEffect(() => setFavorited(Boolean(event.isFavorited)), [event.id, event.isFavorited]);
+  useEffect(() => setFavorited(Boolean(event.stats?.isFavorited)), [event.id, event.stats?.isFavorited]);
 
   const toggleFavorite = async () => {
     if (onBookmark) {

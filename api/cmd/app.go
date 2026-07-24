@@ -122,9 +122,10 @@ func (app *Application) BuildRouter() http.Handler {
 	// 2. Mapăm funcțiile în noua structură de configurare din router
 	cfg := router.HandlersConfig{
 		// Middleware-uri
-		AuthMiddleware:      authMiddleware,
-		OrganizerMiddleware: requireOrganizer,
-		AdminMiddleware:     requireAdmin,
+		AuthMiddleware:         authMiddleware,
+		OptionalAuthMiddleware: auth.OptionalAuthMiddleware,
+		OrganizerMiddleware:    requireOrganizer,
+		AdminMiddleware:        requireAdmin,
 
 		// Auth
 		Register: authHandler.HandleRegister,

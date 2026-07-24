@@ -49,6 +49,7 @@ model EventStatsResponse {
 
   // Vizibil public când utilizatorul este autentificat (MapFromDBListEvents / MapFromDBGetEvent)
   userHasCheckedIn?: boolean;
+  isFavorited?: boolean;
 
   // Vizibile DOAR pentru organizator în dashboard
   totalTicketsSold?: int64;
@@ -72,7 +73,6 @@ model EventResponse {
   startTime: utcDateTime;
   endTime: utcDateTime;
   isLive: boolean;
-  isFavorited?: boolean;
   createdAt: utcDateTime;
 
   // Răspunsul include întotdeauna colecțiile dedicate, controlate intern prin pointeri în Go

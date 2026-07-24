@@ -36,7 +36,7 @@ export default function EventStandalonePage() {
         setLoading(true);
         const fetchedEvent = await User.getPublicEventById(params.id);
         setEvent(fetchedEvent);
-        setFavorite(Boolean(fetchedEvent.isFavorited));
+        setFavorite(Boolean(fetchedEvent.stats?.isFavorited));
       } catch (error) {
         console.error("Failed to load event details", error);
       } finally {

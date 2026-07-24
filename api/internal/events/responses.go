@@ -22,6 +22,7 @@ type TicketTypeResponse struct {
 type EventStatsResponse struct {
 	TotalCheckIns    int64  `json:"totalCheckIns"`
 	UserHasCheckedIn *bool  `json:"userHasCheckedIn,omitempty"`
+	IsFavorited      *bool  `json:"isFavorited,omitempty"`
 	TotalTicketsSold *int64 `json:"totalTicketsSold,omitempty"`
 	TotalRevenueRon  *int64 `json:"totalRevenueRon,omitempty"`
 }
@@ -42,7 +43,6 @@ type EventResponse struct {
 	StartTime    time.Time            `json:"startTime"`
 	EndTime      time.Time            `json:"endTime"`
 	IsLive       bool                 `json:"isLive"`
-	IsFavorited  bool                 `json:"isFavorited"`
 	CreatedAt    time.Time            `json:"createdAt"`
 	TicketTypes  []TicketTypeResponse `json:"ticketTypes"`
 	Stats        EventStatsResponse   `json:"stats"`
@@ -99,6 +99,7 @@ func parseTicketTypesWithLogs(functionName string, rawField interface{}) []Ticke
 func MapFromDBListEvents(row db.ListEventsRow) EventResponse {
 	tickets := parseTicketTypesWithLogs("MapFromDBListEvents", row.TicketTypes)
 	hasCheckedIn := row.UserHasCheckedIn
+	isFavorited := row.IsFavorited
 
 	return EventResponse{
 		ID:           common.UUIDToString(row.ID),
@@ -116,12 +117,12 @@ func MapFromDBListEvents(row db.ListEventsRow) EventResponse {
 		StartTime:    row.StartTime.Time,
 		EndTime:      row.EndTime.Time,
 		IsLive:       common.PgBoolToBool(row.IsLive),
-		IsFavorited:  row.IsFavorited,
 		CreatedAt:    row.CreatedAt.Time,
 		TicketTypes:  tickets,
 		Stats: EventStatsResponse{
 			TotalCheckIns:    row.TotalCheckIns,
 			UserHasCheckedIn: &hasCheckedIn,
+			IsFavorited:      &isFavorited,
 			TotalTicketsSold: nil,
 			TotalRevenueRon:  nil,
 		},
@@ -150,12 +151,12 @@ func MapFromDBListEventsWithStats(row db.ListEventsWithStatsRow) EventResponse {
 		StartTime:    row.StartTime.Time,
 		EndTime:      row.EndTime.Time,
 		IsLive:       common.PgBoolToBool(row.IsLive),
-		IsFavorited:  false,
 		CreatedAt:    row.CreatedAt.Time,
 		TicketTypes:  tickets,
 		Stats: EventStatsResponse{
 			TotalCheckIns:    row.TotalCheckIns,
 			UserHasCheckedIn: nil,
+			IsFavorited:      nil,
 			TotalTicketsSold: &ticketsSold,
 			TotalRevenueRon:  &revenue,
 		},
@@ -166,6 +167,7 @@ func MapFromDBListEventsWithStats(row db.ListEventsWithStatsRow) EventResponse {
 func MapFromDBGetEvent(row db.GetEventByIDRow) EventResponse {
 	tickets := parseTicketTypesWithLogs("MapFromDBGetEvent", row.TicketTypes)
 	hasCheckedIn := row.UserHasCheckedIn
+	isFavorited := row.IsFavorited
 
 	return EventResponse{
 		ID:           common.UUIDToString(row.ID),
@@ -183,12 +185,12 @@ func MapFromDBGetEvent(row db.GetEventByIDRow) EventResponse {
 		StartTime:    row.StartTime.Time,
 		EndTime:      row.EndTime.Time,
 		IsLive:       common.PgBoolToBool(row.IsLive),
-		IsFavorited:  row.IsFavorited,
 		CreatedAt:    row.CreatedAt.Time,
 		TicketTypes:  tickets,
 		Stats: EventStatsResponse{
 			TotalCheckIns:    row.TotalCheckIns,
 			UserHasCheckedIn: &hasCheckedIn,
+			IsFavorited:      &isFavorited,
 			TotalTicketsSold: nil,
 			TotalRevenueRon:  nil,
 		},
@@ -217,12 +219,12 @@ func MapFromDBGetEventWithStats(row db.GetEventWithStatsRow) EventResponse {
 		StartTime:    row.StartTime.Time,
 		EndTime:      row.EndTime.Time,
 		IsLive:       common.PgBoolToBool(row.IsLive),
-		IsFavorited:  false,
 		CreatedAt:    row.CreatedAt.Time,
 		TicketTypes:  tickets,
 		Stats: EventStatsResponse{
 			TotalCheckIns:    row.TotalCheckIns,
 			UserHasCheckedIn: nil,
+			IsFavorited:      nil,
 			TotalTicketsSold: &ticketsSold,
 			TotalRevenueRon:  &revenue,
 		},

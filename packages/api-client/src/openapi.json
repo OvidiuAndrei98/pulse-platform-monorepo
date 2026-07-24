@@ -1195,9 +1195,6 @@
           "isLive": {
             "type": "boolean"
           },
-          "isFavorited": {
-            "type": "boolean"
-          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -1224,6 +1221,9 @@
             "format": "int64"
           },
           "userHasCheckedIn": {
+            "type": "boolean"
+          },
+          "isFavorited": {
             "type": "boolean"
           },
           "totalTicketsSold": {
