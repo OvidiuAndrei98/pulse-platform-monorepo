@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
-import { X, Calendar, Check, Heart, Share2, Ticket as TicketIcon } from "lucide-react";
+import { X, Calendar, Bookmark, Check, Share2, Ticket as TicketIcon } from "lucide-react";
 import Image from "next/image";
 import { Event } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
@@ -285,7 +285,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
                   aria-label={favorited ? "Elimina din favorite" : "Adauga la favorite"}
                   className={`grid h-11 w-11 shrink-0 place-items-center rounded-lg border transition ${favorited ? "border-primary/40 bg-primary/15 text-primary" : "border-white/15 bg-white/5 hover:bg-white/10"}`}
                 >
-                  <Heart className={`h-4 w-4 ${favorited ? "fill-current" : ""}`} />
+                  <Bookmark className={`h-4 w-4 ${favorited ? "fill-current" : ""}`} />
                 </button>
               )}
               <button

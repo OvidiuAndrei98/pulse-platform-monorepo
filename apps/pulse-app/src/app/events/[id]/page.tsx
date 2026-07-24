@@ -6,10 +6,10 @@ import { notFound, useParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowUpRight,
+  Bookmark,
   Calendar,
   Check,
   Clock,
-  Heart,
   MapPin,
   Minus,
   Plus,
@@ -19,8 +19,10 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Event, User } from "@/core/DataProvider";
+import { useDataProvider } from "@/core/DataProviderContext";
 
 export default function EventStandalonePage() {
+  const { user } = useDataProvider();
   const [event, setEvent] = useState<Event | undefined>();
   const [loading, setLoading] = useState(true);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -32,7 +34,9 @@ export default function EventStandalonePage() {
     async function fetchEvent() {
       try {
         setLoading(true);
-        setEvent(await User.getPublicEventById(params.id));
+        const fetchedEvent = await User.getPublicEventById(params.id);
+        setEvent(fetchedEvent);
+        setFavorite(Boolean(fetchedEvent.isFavorited));
       } catch (error) {
         console.error("Failed to load event details", error);
       } finally {
@@ -97,6 +101,18 @@ export default function EventStandalonePage() {
     }
   };
 
+  const toggleFavorite = async () => {
+    if (!user) return;
+
+    const nextFavorite = !favorite;
+    setFavorite(nextFavorite);
+    try {
+      await user.setEventFavorite(event.id, nextFavorite);
+    } catch {
+      setFavorite(!nextFavorite);
+    }
+  };
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-background pb-40 text-foreground">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[410px] overflow-hidden">
@@ -126,15 +142,21 @@ export default function EventStandalonePage() {
               <p className="mt-2 text-sm text-muted-foreground">La {event.locationName}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setFavorite((current) => !current)}
-                aria-label={favorite ? "Elimina din favorite" : "Adauga la favorite"}
-                title={favorite ? "Elimina din favorite" : "Adauga la favorite"}
-                className="grid h-9 w-9 place-items-center rounded-full border border-white/15 bg-surface/60 transition hover:border-primary hover:bg-surface"
-              >
-                <Heart className={`h-4 w-4 ${favorite ? "fill-primary text-primary" : ""}`} />
-              </button>
+              {user && (
+                <button
+                  type="button"
+                  onClick={toggleFavorite}
+                  aria-label={favorite ? "Elimina din favorite" : "Adauga la favorite"}
+                  title={favorite ? "Elimina din favorite" : "Adauga la favorite"}
+                  className={`grid h-9 w-9 place-items-center rounded-full border transition hover:border-primary hover:bg-surface ${
+                    favorite
+                      ? "border-primary/40 bg-primary/15 text-primary"
+                      : "border-white/15 bg-surface/60"
+                  }`}
+                >
+                  <Bookmark className={`h-4 w-4 ${favorite ? "fill-current" : ""}`} />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={shareEvent}

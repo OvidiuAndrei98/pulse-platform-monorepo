@@ -281,11 +281,22 @@ export class User {
       await ApiClient.instance.post("/events/{id}/favorite", {
         params: { path: { id: eventId } },
       });
-      return;
+    } else {
+      await ApiClient.instance.delete("/events/{id}/favorite", {
+        params: { path: { id: eventId } },
+      });
     }
-    await ApiClient.instance.delete("/events/{id}/favorite", {
-      params: { path: { id: eventId } },
-    });
+
+    this.updateCachedEventFavorite(eventId, favorite);
+  }
+
+  private updateCachedEventFavorite(eventId: string, favorite: boolean) {
+    if (!this._events) return;
+
+    this._events = this._events.map((event) =>
+      event.id === eventId ? { ...event, isFavorited: favorite } : event,
+    );
+    this.eventsObserversDidChange();
   }
 
   async handleCreateTicketTier(
