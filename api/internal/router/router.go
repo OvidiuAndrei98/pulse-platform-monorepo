@@ -30,6 +30,7 @@ type HandlersConfig struct {
 	CreateUser     http.HandlerFunc
 	GetUser        http.HandlerFunc
 	GetUserTickets http.HandlerFunc
+	GetSavedEvents http.HandlerFunc
 
 	// Events
 	CreateEvent         http.HandlerFunc
@@ -42,6 +43,8 @@ type HandlersConfig struct {
 	ListEventsWithStats http.HandlerFunc
 	UploadEventBanner   http.HandlerFunc
 	GetEventBanner      http.HandlerFunc
+	SaveEvent           http.HandlerFunc
+	RemoveSavedEvent    http.HandlerFunc
 
 	// Interactions / Checkins
 	CreateCheckIn http.HandlerFunc
@@ -134,12 +137,15 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Get("/me", cfg.GetMe)
 				r.Put("/me", cfg.UpdateMe)
 				r.Get("/me/tickets", cfg.GetUserTickets)
+				r.Get("/me/saved-events", cfg.GetSavedEvents)
 				r.Get("/{id}", cfg.GetUser)
 			})
 
 			// --- INTERACȚIUNI EVENIMENTE (orice utilizator autentificat) ---
 			r.Post("/events/{id}/check-in", cfg.CreateCheckIn)
 			r.Post("/events/{id}/comments", cfg.AddComment)
+			r.Post("/events/{id}/favorite", cfg.SaveEvent)
+			r.Delete("/events/{id}/favorite", cfg.RemoveSavedEvent)
 
 			// --- FRIENDS ---
 			r.Route("/friends", func(r chi.Router) {

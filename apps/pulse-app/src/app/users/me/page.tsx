@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { Event } from "@/core/DataProvider";
+import Link from "next/link";
 import { useState } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import {
@@ -20,6 +22,7 @@ import {
   LogOut,
   Mail,
   Sparkles,
+  Bookmark,
   X,
 } from "lucide-react";
 
@@ -87,6 +90,8 @@ export default function MePage() {
   const router = useRouter();
   const [tab, setTab] = useState<"active" | "history">("active");
   const [openTicket, setOpenTicket] = useState<TicketData | null>(null);
+  const [savedEvents, setSavedEvents] = useState<Event[]>([]);
+  const [savedEventsLoading, setSavedEventsLoading] = useState(true);
 
   // Stare pentru a ști ce secțiune de setări este extinsă ("details" | "password" | "delete" | null)
   const [activeRow, setActiveRow] = useState<string | null>(null);
@@ -96,6 +101,14 @@ export default function MePage() {
       router.replace("/login");
     }
   }, [loading, user, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    user.getSavedEvents()
+      .then(setSavedEvents)
+      .catch((error) => console.error("Nu s-au putut incarca evenimentele salvate:", error))
+      .finally(() => setSavedEventsLoading(false));
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -234,6 +247,32 @@ export default function MePage() {
           </div>
 
           <div className="md:col-span-8 space-y-8">
+            <section className="md:border md:border-white/5 md:bg-white/[0.01] md:p-6 md:rounded-3xl">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-lg font-semibold"><Bookmark className="h-4 w-4 text-primary" /> Evenimente salvate</h2>
+                <span className="text-xs text-muted-foreground">{savedEvents.length}</span>
+              </div>
+              {savedEventsLoading ? (
+                <div className="h-24 animate-pulse rounded-2xl bg-white/[0.04]" />
+              ) : savedEvents.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-muted-foreground">Nu ai salvat niciun eveniment inca.</p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {savedEvents.map((event) => (
+                    <Link key={event.id} href={`/events/${event.id}`} className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 transition hover:bg-white/[0.06]">
+                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-white/5">
+                        {event.bannerUrl && <img src={event.bannerUrl} alt="" className="h-full w-full object-cover" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{event.title}</p>
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">{event.locationName} · {new Date(event.startTime).toLocaleDateString("ro-RO", { day: "numeric", month: "short" })}</p>
+                      </div>
+                      <Bookmark className="h-4 w-4 shrink-0 fill-primary text-primary" />
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </section>
             <section className="md:border md:border-white/5 md:bg-white/[0.01] md:p-6 md:rounded-3xl">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-lg font-semibold">My Tickets & Orders</h2>

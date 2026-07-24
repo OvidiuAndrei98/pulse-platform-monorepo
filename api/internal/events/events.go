@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -86,20 +87,20 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 	qtx := h.Queries.WithTx(tx)
 
 	newEvent, err := qtx.CreateEvent(ctx, db.CreateEventParams{
-		OrganizerID:  organizerUUID,
-		Title:        req.Title,
-		Description:  pgtype.Text{String: req.Description, Valid: req.Description != ""},
-		Category:     req.Category,
-		BannerUrl:    pgtype.Text{String: req.BannerUrl, Valid: req.BannerUrl != ""},
+		OrganizerID:   organizerUUID,
+		Title:         req.Title,
+		Description:   pgtype.Text{String: req.Description, Valid: req.Description != ""},
+		Category:      req.Category,
+		BannerUrl:     pgtype.Text{String: req.BannerUrl, Valid: req.BannerUrl != ""},
 		GooglePlaceID: req.GooglePlaceId,
-		LocationName: req.LocationName,
-		City:         req.City,
-		Vibe:         req.Vibe,
-		Latitude:     req.Latitude,
-		Longitude:    req.Longitude,
-		StartTime:    pgtype.Timestamptz{Time: startTime, Valid: true},
-		EndTime:      pgtype.Timestamptz{Time: endTime, Valid: true},
-		Status:       req.Status,
+		LocationName:  req.LocationName,
+		City:          req.City,
+		Vibe:          req.Vibe,
+		Latitude:      req.Latitude,
+		Longitude:     req.Longitude,
+		StartTime:     pgtype.Timestamptz{Time: startTime, Valid: true},
+		EndTime:       pgtype.Timestamptz{Time: endTime, Valid: true},
+		Status:        req.Status,
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la crearea evenimentului: "+err.Error())
@@ -153,6 +154,23 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusBadRequest, "City is required")
 		return
 	}
+
+	userID, err := auth.GetUserIDFromContext(r.Context())
+	if err != nil {
+		router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat")
+		return
+	}
+
+	existingEvent, err := h.Queries.GetEventWithStats(r.Context(), eventUUID)
+	if err != nil {
+		router.RespondWithError(w, http.StatusNotFound, "Evenimentul nu a fost gasit")
+		return
+	}
+	if common.UUIDToString(existingEvent.OrganizerID) != userID {
+		router.RespondWithError(w, http.StatusForbidden, "Nu ai permisiunea sa modifici acest eveniment")
+		return
+	}
+	previousBannerURL := existingEvent.BannerUrl.String
 	if req.Vibe == "" {
 		router.RespondWithError(w, http.StatusBadRequest, "Vibe is required")
 		return
@@ -250,6 +268,12 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if previousBannerURL != event.BannerUrl.String {
+		if err := deleteManagedEventBanner(r.Context(), previousBannerURL); err != nil {
+			log.Printf("event banner cleanup failed after update for event %s: %v", idStr, err)
+		}
+	}
+
 	router.RespondWithJSON(w, http.StatusOK, event)
 }
 
@@ -262,9 +286,28 @@ func (h *Handler) HandleDeleteEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID, err := auth.GetUserIDFromContext(r.Context())
+	if err != nil {
+		router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat")
+		return
+	}
+
+	existingEvent, err := h.Queries.GetEventWithStats(r.Context(), eventUUID)
+	if err != nil {
+		router.RespondWithError(w, http.StatusNotFound, "Evenimentul nu a fost gasit")
+		return
+	}
+	if common.UUIDToString(existingEvent.OrganizerID) != userID {
+		router.RespondWithError(w, http.StatusForbidden, "Nu ai permisiunea sa stergi acest eveniment")
+		return
+	}
+
 	if err := h.Queries.DeleteEvent(r.Context(), eventUUID); err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la ștergerea evenimentului")
 		return
+	}
+	if err := deleteManagedEventBanner(r.Context(), existingEvent.BannerUrl.String); err != nil {
+		log.Printf("event banner cleanup failed after delete for event %s: %v", idStr, err)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

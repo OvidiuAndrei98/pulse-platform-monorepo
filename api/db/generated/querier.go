@@ -45,7 +45,10 @@ type Querier interface {
 	InsertUserToken(ctx context.Context, arg InsertUserTokenParams) (UserTokens, error)
 	ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error)
 	ListEventsWithStats(ctx context.Context, organizerID pgtype.UUID) ([]ListEventsWithStatsRow, error)
+	ListSavedEvents(ctx context.Context, userID pgtype.UUID) ([]Events, error)
+	RemoveSavedEvent(ctx context.Context, arg RemoveSavedEventParams) error
 	RespondToFriendRequest(ctx context.Context, arg RespondToFriendRequestParams) error
+	SaveEvent(ctx context.Context, arg SaveEventParams) error
 	SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error
 	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error
 	UpdateTicketType(ctx context.Context, arg UpdateTicketTypeParams) error

@@ -2,11 +2,13 @@ package events
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -130,9 +132,59 @@ func eventImageType(imageData []byte) (contentType, extension string, ok bool) {
 }
 
 func randomObjectID() (string, error) {
-	bytes := make([]byte, 16)
-	if _, err := rand.Read(bytes); err != nil {
+	randomBytes := make([]byte, 16)
+	if _, err := rand.Read(randomBytes); err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(bytes), nil
+	return hex.EncodeToString(randomBytes), nil
+}
+
+func deleteManagedEventBanner(ctx context.Context, bannerURL string) error {
+	key, ok := managedEventBannerKey(bannerURL)
+	if !ok {
+		return nil
+	}
+
+	bucket := os.Getenv("S3_BUCKET")
+	if bucket == "" {
+		return fmt.Errorf("S3_BUCKET is not configured")
+	}
+
+	awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = s3.NewFromConfig(awsCfg).DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	return err
+}
+
+func managedEventBannerKey(bannerURL string) (string, bool) {
+	if bannerURL == "" {
+		return "", false
+	}
+
+	publicAPIURL := strings.TrimRight(os.Getenv("PUBLIC_API_URL"), "/")
+	baseURL, err := url.Parse(publicAPIURL)
+	if err != nil || baseURL.Host == "" {
+		return "", false
+	}
+
+	parsedBannerURL, err := url.Parse(bannerURL)
+	if err != nil || parsedBannerURL.Scheme != baseURL.Scheme || parsedBannerURL.Host != baseURL.Host {
+		return "", false
+	}
+
+	pathPrefix := strings.TrimRight(baseURL.Path, "/") + "/api/v1/media/"
+	if !strings.HasPrefix(parsedBannerURL.Path, pathPrefix) {
+		return "", false
+	}
+
+	key, err := url.PathUnescape(strings.TrimPrefix(parsedBannerURL.Path, pathPrefix))
+	if err != nil || !strings.HasPrefix(key, eventBannerPrefix) || strings.Contains(key, "..") {
+		return "", false
+	}
+	return key, true
 }

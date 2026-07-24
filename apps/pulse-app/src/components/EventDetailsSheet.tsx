@@ -9,9 +9,10 @@ import {
   type ReactNode,
 } from "react";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
-import { X, Calendar, Share2, Ticket as TicketIcon } from "lucide-react";
+import { X, Calendar, Check, Heart, Share2, Ticket as TicketIcon } from "lucide-react";
 import Image from "next/image";
 import { Event } from "@/core/DataProvider";
+import { useDataProvider } from "@/core/DataProviderContext";
 
 interface EventDetailsContextType {
   open: (event: Event) => void;
@@ -53,8 +54,11 @@ export interface EventDetailsSheetProps {
 }
 
 export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
+  const { user } = useDataProvider();
   const [qty, setQty] = useState<Record<string, number>>({});
   const [purchased, setPurchased] = useState(false);
+  const [favorited, setFavorited] = useState(false);
+  const [shared, setShared] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragControls = useDragControls();
 
@@ -63,6 +67,8 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
     if (event) {
       setQty({});
       setPurchased(false);
+      setFavorited(Boolean(event.isFavorited));
+      setShared(false);
     }
   }, [event?.id]);
 
@@ -94,6 +100,35 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
       ...q,
       [id]: Math.max(0, Math.min(8, (q[id] ?? 0) + delta)),
     }));
+
+  const handleShare = async () => {
+    const url = new URL(`/events/${event.id}`, window.location.origin).toString();
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: event.title, text: event.description, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setShared(true);
+        window.setTimeout(() => setShared(false), 1800);
+      }
+    } catch (error) {
+      if ((error as DOMException).name === "AbortError") return;
+      await navigator.clipboard.writeText(url);
+      setShared(true);
+      window.setTimeout(() => setShared(false), 1800);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    if (!user) return;
+    const nextFavorite = !favorited;
+    setFavorited(nextFavorite);
+    try {
+      await user.setEventFavorite(event.id, nextFavorite);
+    } catch {
+      setFavorited(!nextFavorite);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -243,15 +278,23 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
 
             {/* Footer Actions */}
             <div className="relative z-10 flex items-center gap-2 border-t border-white/10 bg-background/90 px-4 py-3 backdrop-blur md:bg-background/60">
+              {user && (
+                <button
+                  type="button"
+                  onClick={toggleFavorite}
+                  aria-label={favorited ? "Elimina din favorite" : "Adauga la favorite"}
+                  className={`grid h-11 w-11 shrink-0 place-items-center rounded-lg border transition ${favorited ? "border-primary/40 bg-primary/15 text-primary" : "border-white/15 bg-white/5 hover:bg-white/10"}`}
+                >
+                  <Heart className={`h-4 w-4 ${favorited ? "fill-current" : ""}`} />
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
-                  alert("Link copiat!");
-                }}
+                onClick={handleShare}
+                aria-label={shared ? "Link copiat" : "Distribuie evenimentul"}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-white/15 bg-white/5 transition hover:bg-white/10"
               >
-                <Share2 className="h-4 w-4" />
+                {shared ? <Check className="h-4 w-4 text-primary" /> : <Share2 className="h-4 w-4" />}
               </button>
               <button
                 type="button"

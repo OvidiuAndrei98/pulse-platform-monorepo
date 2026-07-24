@@ -72,6 +72,7 @@ model EventResponse {
   startTime: utcDateTime;
   endTime: utcDateTime;
   isLive: boolean;
+  isFavorited?: boolean;
   createdAt: utcDateTime;
 
   // Răspunsul include întotdeauna colecțiile dedicate, controlate intern prin pointeri în Go
@@ -251,6 +252,11 @@ interface UserOperations {
   @get
   @route("/me/tickets")
   getUserTickets(): Ticket[];
+
+  @summary("Obține evenimentele salvate ale utilizatorului curent")
+  @get
+  @route("/me/saved-events")
+  getSavedEvents(): EventResponse[];
 }
 
 @route("/events")
@@ -268,6 +274,20 @@ interface EventOperations {
     @query lonMax?: decimal,
     @query page?: int32,
   ): EventResponse[];
+
+  @summary("Salvează un eveniment în favorite")
+  @post
+  @route("/{id}/favorite")
+  saveEvent(@path id: string): {
+    @statusCode statusCode: 204;
+  };
+
+  @summary("Elimină un eveniment din favorite")
+  @delete
+  @route("/{id}/favorite")
+  removeSavedEvent(@path id: string): {
+    @statusCode statusCode: 204;
+  };
 
   @summary("Detalii eveniment public după ID (folosește în spate clauza unificată ListEvents din DB)")
   @get

@@ -231,6 +231,12 @@ SELECT
         WHERE check_ins.event_id = e.id 
           AND check_ins.user_id = $1
     ) AS user_has_checked_in,
+    EXISTS(
+        SELECT 1
+        FROM saved_events
+        WHERE saved_events.event_id = e.id
+          AND saved_events.user_id = $1
+    ) AS is_favorited,
     
     -- Array JSON cu biletele (FĂRĂ câmpul sensibil tickets_sold)
     COALESCE(
@@ -279,6 +285,7 @@ type GetEventByIDRow struct {
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	TotalCheckIns    int64              `json:"total_check_ins"`
 	UserHasCheckedIn bool               `json:"user_has_checked_in"`
+	IsFavorited      bool               `json:"is_favorited"`
 	TicketTypes      interface{}        `json:"ticket_types"`
 }
 
@@ -305,6 +312,7 @@ func (q *Queries) GetEventByID(ctx context.Context, arg GetEventByIDParams) (Get
 		&i.CreatedAt,
 		&i.TotalCheckIns,
 		&i.UserHasCheckedIn,
+		&i.IsFavorited,
 		&i.TicketTypes,
 	)
 	return i, err
@@ -554,6 +562,12 @@ SELECT
         WHERE check_ins.event_id = e.id 
           AND check_ins.user_id = $1
     ) AS user_has_checked_in,
+    EXISTS(
+        SELECT 1
+        FROM saved_events
+        WHERE saved_events.event_id = e.id
+          AND saved_events.user_id = $1
+    ) AS is_favorited,
     
     COALESCE(
         (
@@ -619,6 +633,7 @@ type ListEventsRow struct {
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	TotalCheckIns    int64              `json:"total_check_ins"`
 	UserHasCheckedIn bool               `json:"user_has_checked_in"`
+	IsFavorited      bool               `json:"is_favorited"`
 	TicketTypes      interface{}        `json:"ticket_types"`
 }
 
@@ -662,6 +677,7 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 			&i.CreatedAt,
 			&i.TotalCheckIns,
 			&i.UserHasCheckedIn,
+			&i.IsFavorited,
 			&i.TicketTypes,
 		); err != nil {
 			return nil, err

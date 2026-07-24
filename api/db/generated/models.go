@@ -172,6 +172,12 @@ type OrganizerProfiles struct {
 	VerificationStatus VerificationStatusType `json:"verification_status"`
 }
 
+type SavedEvents struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	EventID   pgtype.UUID        `json:"event_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type TicketTypes struct {
 	ID          pgtype.UUID        `json:"id"`
 	EventID     pgtype.UUID        `json:"event_id"`

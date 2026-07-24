@@ -663,6 +663,46 @@
         }
       }
     },
+    "/events/{id}/favorite": {
+      "post": {
+        "operationId": "EventOperations_saveEvent",
+        "summary": "Salvează un eveniment în favorite",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      },
+      "delete": {
+        "operationId": "EventOperations_removeSavedEvent",
+        "summary": "Elimină un eveniment din favorite",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      }
+    },
     "/events/{id}/friends": {
       "get": {
         "operationId": "EventOperations_getFriendsGoingToEvent",
@@ -860,6 +900,28 @@
                   },
                   "bio": {
                     "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me/saved-events": {
+      "get": {
+        "operationId": "UserOperations_getSavedEvents",
+        "summary": "Obține evenimentele salvate ale utilizatorului curent",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventResponse"
                   }
                 }
               }
@@ -1131,6 +1193,9 @@
             "format": "date-time"
           },
           "isLive": {
+            "type": "boolean"
+          },
+          "isFavorited": {
             "type": "boolean"
           },
           "createdAt": {

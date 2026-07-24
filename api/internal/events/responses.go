@@ -42,6 +42,7 @@ type EventResponse struct {
 	StartTime    time.Time            `json:"startTime"`
 	EndTime      time.Time            `json:"endTime"`
 	IsLive       bool                 `json:"isLive"`
+	IsFavorited  bool                 `json:"isFavorited"`
 	CreatedAt    time.Time            `json:"createdAt"`
 	TicketTypes  []TicketTypeResponse `json:"ticketTypes"`
 	Stats        EventStatsResponse   `json:"stats"`
@@ -115,6 +116,7 @@ func MapFromDBListEvents(row db.ListEventsRow) EventResponse {
 		StartTime:    row.StartTime.Time,
 		EndTime:      row.EndTime.Time,
 		IsLive:       common.PgBoolToBool(row.IsLive),
+		IsFavorited:  row.IsFavorited,
 		CreatedAt:    row.CreatedAt.Time,
 		TicketTypes:  tickets,
 		Stats: EventStatsResponse{
@@ -148,6 +150,7 @@ func MapFromDBListEventsWithStats(row db.ListEventsWithStatsRow) EventResponse {
 		StartTime:    row.StartTime.Time,
 		EndTime:      row.EndTime.Time,
 		IsLive:       common.PgBoolToBool(row.IsLive),
+		IsFavorited:  false,
 		CreatedAt:    row.CreatedAt.Time,
 		TicketTypes:  tickets,
 		Stats: EventStatsResponse{
@@ -180,6 +183,7 @@ func MapFromDBGetEvent(row db.GetEventByIDRow) EventResponse {
 		StartTime:    row.StartTime.Time,
 		EndTime:      row.EndTime.Time,
 		IsLive:       common.PgBoolToBool(row.IsLive),
+		IsFavorited:  row.IsFavorited,
 		CreatedAt:    row.CreatedAt.Time,
 		TicketTypes:  tickets,
 		Stats: EventStatsResponse{
@@ -213,6 +217,7 @@ func MapFromDBGetEventWithStats(row db.GetEventWithStatsRow) EventResponse {
 		StartTime:    row.StartTime.Time,
 		EndTime:      row.EndTime.Time,
 		IsLive:       common.PgBoolToBool(row.IsLive),
+		IsFavorited:  false,
 		CreatedAt:    row.CreatedAt.Time,
 		TicketTypes:  tickets,
 		Stats: EventStatsResponse{

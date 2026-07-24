@@ -23,6 +23,12 @@ SELECT
         WHERE check_ins.event_id = e.id 
           AND check_ins.user_id = sqlc.arg(user_id)
     ) AS user_has_checked_in,
+    EXISTS(
+        SELECT 1
+        FROM saved_events
+        WHERE saved_events.event_id = e.id
+          AND saved_events.user_id = sqlc.arg(user_id)
+    ) AS is_favorited,
     
     COALESCE(
         (
@@ -128,6 +134,12 @@ SELECT
         WHERE check_ins.event_id = e.id 
           AND check_ins.user_id = $1
     ) AS user_has_checked_in,
+    EXISTS(
+        SELECT 1
+        FROM saved_events
+        WHERE saved_events.event_id = e.id
+          AND saved_events.user_id = $1
+    ) AS is_favorited,
     
     -- Array JSON cu biletele (FĂRĂ câmpul sensibil tickets_sold)
     COALESCE(

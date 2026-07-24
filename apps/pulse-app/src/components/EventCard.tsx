@@ -3,7 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { MapPin, Bookmark } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Event } from "@/core/DataProvider";
+import { useDataProvider } from "@/core/DataProviderContext";
 
 interface EventCardProps {
   event: Event;
@@ -39,7 +41,26 @@ export function EventCard({
   onBookmark,
   live,
 }: EventCardProps) {
+  const { user } = useDataProvider();
+  const [favorited, setFavorited] = useState(Boolean(event.isFavorited));
   const formattedDate = formatEventDate(event.startTime);
+
+  useEffect(() => setFavorited(Boolean(event.isFavorited)), [event.id, event.isFavorited]);
+
+  const toggleFavorite = async () => {
+    if (onBookmark) {
+      onBookmark(event.id);
+      return;
+    }
+    if (!user) return;
+    const nextFavorite = !favorited;
+    setFavorited(nextFavorite);
+    try {
+      await user.setEventFavorite(event.id, nextFavorite);
+    } catch {
+      setFavorited(!nextFavorite);
+    }
+  };
 
   return (
     <div
@@ -135,12 +156,12 @@ export function EventCard({
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (onBookmark) onBookmark(event.id);
+          toggleFavorite();
         }}
-        aria-label="Save event"
-        className="absolute right-3.5 bottom-12 z-10 text-zinc-400 transition-colors hover:text-white"
+        aria-label={favorited ? "Elimina din favorite" : "Salveaza evenimentul"}
+        className={`absolute right-3.5 bottom-12 z-10 transition-colors ${favorited ? "text-primary" : "text-zinc-400 hover:text-white"}`}
       >
-        <Bookmark className="h-4 w-4" />
+        <Bookmark className={`h-4 w-4 ${favorited ? "fill-current" : ""}`} />
       </button>
     </div>
   );

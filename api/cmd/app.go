@@ -137,6 +137,7 @@ func (app *Application) BuildRouter() http.Handler {
 		CreateUser:     usersHandler.HandleCreateUser,
 		GetUser:        usersHandler.HandleGetUser,
 		GetUserTickets: ticketingHandler.HandleGetUserTickets,
+		GetSavedEvents: eventsHandler.HandleListSavedEvents,
 
 		// Events
 		CreateEvent:         eventsHandler.HandleCreateEvent,
@@ -149,6 +150,8 @@ func (app *Application) BuildRouter() http.Handler {
 		ListEventsWithStats: eventsHandler.HandleListEventsWithStats,
 		UploadEventBanner:   eventsHandler.HandleUploadEventBanner,
 		GetEventBanner:      eventsHandler.HandleGetEventBanner,
+		SaveEvent:           eventsHandler.HandleSaveEvent,
+		RemoveSavedEvent:    eventsHandler.HandleRemoveSavedEvent,
 
 		// Interactions / Checkins
 		CreateCheckIn: interactionsHandler.HandleCreateCheckIn,

@@ -213,6 +213,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{id}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Salvează un eveniment în favorite */
+        post: operations["EventOperations_saveEvent"];
+        /** Elimină un eveniment din favorite */
+        delete: operations["EventOperations_removeSavedEvent"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{id}/friends": {
         parameters: {
             query?: never;
@@ -293,6 +311,23 @@ export interface paths {
         get: operations["UserOperations_getMe"];
         /** Actualizează profilul curent */
         put: operations["UserOperations_updateMe"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/saved-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Obține evenimentele salvate ale utilizatorului curent */
+        get: operations["UserOperations_getSavedEvents"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -393,6 +428,7 @@ export interface components {
             /** Format: date-time */
             endTime: string;
             isLive: boolean;
+            isFavorited?: boolean;
             /** Format: date-time */
             createdAt: string;
             ticketTypes: components["schemas"]["TicketTypeResponse"][];
@@ -977,6 +1013,46 @@ export interface operations {
             };
         };
     };
+    EventOperations_saveEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    EventOperations_removeSavedEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     EventOperations_getFriendsGoingToEvent: {
         parameters: {
             query?: never;
@@ -1133,6 +1209,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
+    UserOperations_getSavedEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventResponse"][];
                 };
             };
         };

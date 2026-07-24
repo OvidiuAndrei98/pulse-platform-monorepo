@@ -272,6 +272,22 @@ export class User {
     }
   }
 
+  async getSavedEvents(): Promise<Event[]> {
+    return ApiClient.instance.get("/users/me/saved-events");
+  }
+
+  async setEventFavorite(eventId: string, favorite: boolean): Promise<void> {
+    if (favorite) {
+      await ApiClient.instance.post("/events/{id}/favorite", {
+        params: { path: { id: eventId } },
+      });
+      return;
+    }
+    await ApiClient.instance.delete("/events/{id}/favorite", {
+      params: { path: { id: eventId } },
+    });
+  }
+
   async handleCreateTicketTier(
     eventId: string,
     ticketData: CreateTicketTierPayload,
