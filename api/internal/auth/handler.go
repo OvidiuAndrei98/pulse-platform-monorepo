@@ -12,6 +12,8 @@ import (
 	db "pulse-api/db/generated"
 	"pulse-api/internal/router"
 
+	"log"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -107,7 +109,11 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.EmailSender != nil {
-		go h.EmailSender.SendActivationEmail(ctx, user.Email, plainToken)
+		go func() {
+			if err := h.EmailSender.SendActivationEmail(ctx, user.Email, plainToken); err != nil {
+				log.Printf("activation email failed for %s: %v", user.Email, err)
+			}
+		}()
 	}
 
 	router.RespondWithJSON(w, http.StatusCreated, map[string]interface{}{

@@ -2,8 +2,9 @@ package app
 
 import (
 	"context"
-	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -57,7 +58,16 @@ func InitApplication() (*Application, error) {
 		dbSSLMode = "disable"
 	}
 
-	dbURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", dbUser, dbPassword, dbHost, dbPort, dbName, dbSSLMode)
+	query := url.Values{}
+	query.Set("sslmode", dbSSLMode)
+
+	dbURL := (&url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(dbUser, dbPassword),
+		Host:     net.JoinHostPort(dbHost, dbPort),
+		Path:     dbName,
+		RawQuery: query.Encode(),
+	}).String()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -93,7 +103,9 @@ func (app *Application) BuildRouter() http.Handler {
 		os.Getenv("SMTP_HOST"),
 		os.Getenv("SMTP_PORT"),
 		os.Getenv("SMTP_FROM"),
+		os.Getenv("SMTP_USERNAME"),
 		os.Getenv("SMTP_PASSWORD"),
+		os.Getenv("PUBLIC_API_URL"),
 	)
 
 	// 1. Instanțiem modulele din internal cu dependențele necesare

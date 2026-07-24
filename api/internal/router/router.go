@@ -4,6 +4,9 @@ import (
 	"net/http"
 	"time"
 
+	"os"
+	"strings"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -64,6 +67,16 @@ type HandlersConfig struct {
 }
 
 func SetupRouter(cfg HandlersConfig) http.Handler {
+	allowedOrigins := []string{"http://localhost:3000"}
+
+	if configuredOrigins := os.Getenv("CORS_ALLOWED_ORIGINS"); configuredOrigins != "" {
+		for _, origin := range strings.Split(configuredOrigins, ",") {
+			if origin = strings.TrimSpace(origin); origin != "" {
+				allowedOrigins = append(allowedOrigins, origin)
+			}
+		}
+	}
+
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -72,7 +85,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"},
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,
