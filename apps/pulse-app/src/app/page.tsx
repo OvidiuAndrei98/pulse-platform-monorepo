@@ -32,9 +32,11 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-5 pt-10">
           <div className="relative z-40 flex items-center justify-between">
             <div className="">
-              <p className="text-xl font-semibold leading-tight md:text-2xl">
-                Hello, {user?.properties.username}
-              </p>
+              {user && (
+                <p className="text-xl font-semibold leading-tight md:text-2xl">
+                  Hello, {user?.properties.username}
+                </p>
+              )}
               <p className="mt-0.5 text-sm text-muted-foreground md:text-base">
                 Explore {liveEvents.length} events in Bucharest tonight
               </p>
