@@ -21,7 +21,7 @@ const tabs = [
     exact: true,
   },
   { href: "/dashboard/profile", label: "Profil", icon: User },
-  { href: "/dashboard/verify", label: "Verificare", icon: ShieldCheck },
+  { href: "/dashboard/ticket-validation", label: "Validare bilete", icon: ShieldCheck },
   { href: "/dashboard/events", label: "Evenimente", icon: Calendar },
   { href: "/dashboard/events/new", label: "Event nou", icon: Plus },
 ] as const;

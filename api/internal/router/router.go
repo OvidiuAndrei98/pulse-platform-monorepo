@@ -17,6 +17,7 @@ type HandlersConfig struct {
 	// Middleware-uri de autentificare și autorizare
 	AuthMiddleware         func(http.Handler) http.Handler
 	OptionalAuthMiddleware func(http.Handler) http.Handler
+	ScannerAuthMiddleware  func(http.Handler) http.Handler
 	OrganizerMiddleware    func(http.Handler) http.Handler // RequireRole("organizer", "admin")
 	AdminMiddleware        func(http.Handler) http.Handler // RequireRole("admin")
 
@@ -70,10 +71,19 @@ type HandlersConfig struct {
 	CreateOrganizerProfile http.HandlerFunc
 
 	// Tickets
-	GetEventTicketTypes http.HandlerFunc
-	CreateTicketType    http.HandlerFunc
-	PurchaseTickets     http.HandlerFunc
-	ValidateTicket      http.HandlerFunc
+	GetEventTicketTypes   http.HandlerFunc
+	CreateTicketType      http.HandlerFunc
+	PurchaseTickets       http.HandlerFunc
+	ValidateTicket        http.HandlerFunc
+	ListValidationEvents  http.HandlerFunc
+	ListValidationStaff   http.HandlerFunc
+	AddValidationStaff    http.HandlerFunc
+	RemoveValidationStaff http.HandlerFunc
+	CreateScannerAccess   http.HandlerFunc
+	ListScannerAccess     http.HandlerFunc
+	RevokeScannerAccess   http.HandlerFunc
+	CreateScannerSession  http.HandlerFunc
+	QuickValidateTicket   http.HandlerFunc
 }
 
 func SetupRouter(cfg HandlersConfig) http.Handler {
@@ -116,6 +126,13 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 		r.Get("/media/*", cfg.GetEventBanner)
 		r.Post("/stripe/webhook", cfg.StripeWebhook)
 		r.Post("/stripe/connect/webhook", cfg.StripeConnectWebhook)
+		r.Post("/ticket-validation/quick-access/session", cfg.CreateScannerSession)
+		r.Group(func(r chi.Router) {
+			if cfg.ScannerAuthMiddleware != nil {
+				r.Use(cfg.ScannerAuthMiddleware)
+			}
+			r.Post("/ticket-validation/quick-access/validate", cfg.QuickValidateTicket)
+		})
 
 		// --- AUTH (Public) ---
 		r.Route("/auth", func(r chi.Router) {
@@ -133,7 +150,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			r.With(optionalAuthMiddleware).Get("/{id}", cfg.GetEventByID)
 			r.Get("/{id}/comments", cfg.GetComments)
 			r.Get("/{id}/ticket-types", cfg.GetEventTicketTypes)
-			r.Post("/{id}/tickets/purchase", cfg.PurchaseTickets)
+			r.With(optionalAuthMiddleware).Post("/{id}/tickets/purchase", cfg.PurchaseTickets)
 		})
 
 		// --- RUTE PROTEJATE: Utilizatori autentificați ---
@@ -166,6 +183,18 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Get("/requests", cfg.GetFriendRequests)
 			})
 
+			// Organizatorii isi gestioneaza echipa, iar conturile invitate valideaza doar evenimentele atribuite.
+			r.Route("/dashboard/ticket-validation", func(r chi.Router) {
+				r.Get("/events", cfg.ListValidationEvents)
+				r.Get("/events/{id}/staff", cfg.ListValidationStaff)
+				r.Post("/events/{id}/staff", cfg.AddValidationStaff)
+				r.Delete("/events/{id}/staff/{userId}", cfg.RemoveValidationStaff)
+				r.Get("/events/{id}/quick-access", cfg.ListScannerAccess)
+				r.Post("/events/{id}/quick-access", cfg.CreateScannerAccess)
+				r.Delete("/events/{id}/quick-access/{accessId}", cfg.RevokeScannerAccess)
+				r.Post("/events/{id}/tickets/validate", cfg.ValidateTicket)
+			})
+
 			// --- ORGANIZER+ ONLY: Creare/ștergere evenimente ---
 			r.Group(func(r chi.Router) {
 				if cfg.OrganizerMiddleware != nil {
@@ -183,7 +212,6 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 					r.Post("/{id}", cfg.EditEvent)
 					r.Get("/{id}", cfg.GetEventWithStats)
 					r.Post("/{id}/ticket-types", cfg.CreateTicketType)
-					r.Post("/{id}/tickets/validate", cfg.ValidateTicket)
 				})
 
 				// --- ORGANIZER PROFILE ---

@@ -60,6 +60,77 @@ type TicketValidationResponse struct {
 	ValidatedAt string `json:"validatedAt"`
 }
 
+type ValidationEventResponse struct {
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	StartTime    string `json:"startTime"`
+	EndTime      string `json:"endTime"`
+	Status       string `json:"status"`
+	LocationName string `json:"locationName"`
+	CanManage    bool   `json:"canManage"`
+}
+
+type ValidationStaffResponse struct {
+	ID        string `json:"id"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	CreatedAt string `json:"createdAt"`
+}
+
+func MapValidationEvent(event db.ListValidationEventsRow) ValidationEventResponse {
+	return ValidationEventResponse{
+		ID:           common.UUIDToString(event.ID),
+		Title:        event.Title,
+		StartTime:    common.TimestampToString(event.StartTime),
+		EndTime:      common.TimestampToString(event.EndTime),
+		Status:       event.Status,
+		LocationName: event.LocationName,
+		CanManage:    event.CanManage,
+	}
+}
+
+type ScannerAccessResponse struct {
+	ID        string `json:"id"`
+	Label     string `json:"label"`
+	StartsAt  string `json:"startsAt"`
+	EndsAt    string `json:"endsAt"`
+	RevokedAt string `json:"revokedAt,omitempty"`
+	CreatedAt string `json:"createdAt"`
+}
+
+type CreateScannerAccessResponse struct {
+	ScannerAccessResponse
+	URL string `json:"url"`
+}
+
+type ScannerSessionResponse struct {
+	SessionToken string `json:"sessionToken"`
+	Label        string `json:"label"`
+	EventTitle   string `json:"eventTitle"`
+	LocationName string `json:"locationName"`
+	ExpiresAt    string `json:"expiresAt"`
+}
+
+func MapScannerAccess(access db.ListScannerAccessRow) ScannerAccessResponse {
+	return ScannerAccessResponse{
+		ID:        common.UUIDToString(access.ID),
+		Label:     access.Label,
+		StartsAt:  common.TimestampToString(access.StartsAt),
+		EndsAt:    common.TimestampToString(access.EndsAt),
+		RevokedAt: common.TimestampToString(access.RevokedAt),
+		CreatedAt: common.TimestampToString(access.CreatedAt),
+	}
+}
+
+func MapValidationStaff(member db.ListValidationStaffRow) ValidationStaffResponse {
+	return ValidationStaffResponse{
+		ID:        common.UUIDToString(member.ID),
+		Username:  member.Username,
+		Email:     member.Email,
+		CreatedAt: common.TimestampToString(member.CreatedAt),
+	}
+}
+
 func MapTicketTypesList(t db.TicketTypes) TicketTypesResponse {
 	return TicketTypesResponse{
 		ID:          common.UUIDToString(t.ID),

@@ -253,82 +253,6 @@
         }
       }
     },
-    "/dashboard/events/{id}/tickets/validate": {
-      "post": {
-        "operationId": "DashboardOperations_validateTicket",
-        "summary": "Validare bilet la un eveniment",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The request has succeeded.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TicketValidationResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "The server could not understand the request due to invalid syntax.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "The server cannot find the requested resource.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiError"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "ValidationHash": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "ValidationHash"
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
     "/dashboard/organizer/profile": {
       "post": {
         "operationId": "DashboardOperations_submitProfile",
@@ -418,6 +342,281 @@
                 "schema": {
                   "$ref": "#/components/schemas/OrganizerProfile"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/ticket-validation/events": {
+      "get": {
+        "operationId": "TicketValidationOperations_listValidationEvents",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ValidationEventResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/ticket-validation/events/{id}/quick-access": {
+      "get": {
+        "operationId": "TicketValidationOperations_listScannerAccess",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScannerAccessResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "TicketValidationOperations_createScannerAccess",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The request has succeeded and a new resource has been created as a result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateScannerAccessResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScannerAccessPayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/ticket-validation/events/{id}/quick-access/{accessId}": {
+      "delete": {
+        "operationId": "TicketValidationOperations_revokeScannerAccess",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accessId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      }
+    },
+    "/dashboard/ticket-validation/events/{id}/staff": {
+      "get": {
+        "operationId": "TicketValidationOperations_listValidationStaff",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ValidationStaffResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "TicketValidationOperations_addValidationStaff",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddValidationStaffPayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/ticket-validation/events/{id}/staff/{userId}": {
+      "delete": {
+        "operationId": "TicketValidationOperations_removeValidationStaff",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      }
+    },
+    "/dashboard/ticket-validation/events/{id}/tickets/validate": {
+      "post": {
+        "operationId": "TicketValidationOperations_validateTicket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketValidationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "validationHash": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "validationHash"
+                ]
               }
             }
           }
@@ -772,6 +971,44 @@
         }
       }
     },
+    "/events/{id}/tickets/purchase": {
+      "post": {
+        "operationId": "EventOperations_createCheckoutSession",
+        "summary": "Creeaza o sesiune Stripe Checkout pentru biletele selectate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The request has succeeded and a new resource has been created as a result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutSessionResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCheckoutSessionPayload"
+              }
+            }
+          }
+        }
+      }
+    },
     "/friends": {
       "get": {
         "operationId": "FriendOperations_listFriends",
@@ -872,6 +1109,100 @@
                     "$ref": "#/components/schemas/User"
                   }
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ticket-validation/quick-access/session": {
+      "post": {
+        "operationId": "QuickScannerOperations_createScannerSession",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScannerSessionResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScannerSessionPayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ticket-validation/quick-access/validate": {
+      "post": {
+        "operationId": "QuickScannerOperations_validateTicket",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketValidationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "validationHash": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "validationHash"
+                ]
               }
             }
           }
@@ -993,6 +1324,17 @@
   },
   "components": {
     "schemas": {
+      "AddValidationStaffPayload": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          }
+        }
+      },
       "ApiError": {
         "type": "object",
         "required": [
@@ -1028,6 +1370,37 @@
           }
         }
       },
+      "CheckoutSessionResponse": {
+        "type": "object",
+        "required": [
+          "checkoutUrl",
+          "orderId"
+        ],
+        "properties": {
+          "checkoutUrl": {
+            "type": "string"
+          },
+          "orderId": {
+            "type": "string"
+          }
+        }
+      },
+      "CheckoutTicketItemPayload": {
+        "type": "object",
+        "required": [
+          "ticketTypeId",
+          "quantity"
+        ],
+        "properties": {
+          "ticketTypeId": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "Comment": {
         "type": "object",
         "required": [
@@ -1052,6 +1425,24 @@
           },
           "avatarUrl": {
             "type": "string"
+          }
+        }
+      },
+      "CreateCheckoutSessionPayload": {
+        "type": "object",
+        "required": [
+          "email",
+          "items"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckoutTicketItemPayload"
+            }
           }
         }
       },
@@ -1123,6 +1514,54 @@
             "items": {
               "$ref": "#/components/schemas/CreateTicketTypePayload"
             }
+          }
+        }
+      },
+      "CreateScannerAccessPayload": {
+        "type": "object",
+        "required": [
+          "label",
+          "startsAt",
+          "endsAt"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateScannerAccessResponse": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        },
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ScannerAccessResponse"
+          }
+        ]
+      },
+      "CreateScannerSessionPayload": {
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string"
           }
         }
       },
@@ -1328,6 +1767,68 @@
             "type": "boolean"
           },
           "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ScannerAccessResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "startsAt",
+          "endsAt",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ScannerSessionResponse": {
+        "type": "object",
+        "required": [
+          "sessionToken",
+          "label",
+          "eventTitle",
+          "locationName",
+          "expiresAt"
+        ],
+        "properties": {
+          "sessionToken": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "eventTitle": {
+            "type": "string"
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "expiresAt": {
             "type": "string",
             "format": "date-time"
           }
@@ -1695,6 +2196,67 @@
           },
           "requestOrganizerRole": {
             "type": "boolean"
+          }
+        }
+      },
+      "ValidationEventResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "startTime",
+          "endTime",
+          "status",
+          "locationName",
+          "canManage"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "canManage": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ValidationStaffResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "email",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }

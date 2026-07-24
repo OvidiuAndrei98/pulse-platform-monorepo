@@ -1,10 +1,12 @@
 package payments
 
 import (
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 
+	"github.com/stripe/stripe-go/v85"
 	"github.com/stripe/stripe-go/v85/webhook"
 )
 
@@ -12,10 +14,11 @@ const maxWebhookBodyBytes = 1 << 20
 
 type WebhookHandler struct {
 	webhookSecret string
+	checkout      *CheckoutHandler
 }
 
-func NewWebhookHandler(webhookSecret string) *WebhookHandler {
-	return &WebhookHandler{webhookSecret: webhookSecret}
+func NewWebhookHandler(webhookSecret string, checkout *CheckoutHandler) *WebhookHandler {
+	return &WebhookHandler{webhookSecret: webhookSecret, checkout: checkout}
 }
 
 func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
@@ -45,8 +48,50 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 	}
 
 	switch string(event.Type) {
-	case "checkout.session.completed", "checkout.session.expired", "payment_intent.payment_failed":
-		log.Printf("Stripe webhook received: id=%s type=%s account=%s", event.ID, event.Type, event.Account)
+	case "checkout.session.completed":
+		var session stripe.CheckoutSession
+		if event.Data == nil || json.Unmarshal(event.Data.Raw, &session) != nil {
+			http.Error(w, "Invalid Checkout Session", http.StatusBadRequest)
+			return
+		}
+		if session.PaymentStatus != stripe.CheckoutSessionPaymentStatusPaid {
+			log.Printf("Stripe checkout is not paid yet: session=%s status=%s", session.ID, session.PaymentStatus)
+			break
+		}
+		if h.checkout == nil {
+			http.Error(w, "Checkout is not configured", http.StatusServiceUnavailable)
+			return
+		}
+		paymentIntentID := ""
+		if session.PaymentIntent != nil {
+			paymentIntentID = session.PaymentIntent.ID
+		}
+		if err := h.checkout.FulfillCheckout(r.Context(), session.ID, paymentIntentID, session.Metadata["pulse_order_id"]); err != nil {
+			log.Printf("Stripe checkout fulfillment failed: session=%s err=%v", session.ID, err)
+			http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
+			return
+		}
+		log.Printf("Stripe checkout fulfilled: session=%s", session.ID)
+	case "checkout.session.expired":
+		var session stripe.CheckoutSession
+		if event.Data != nil && json.Unmarshal(event.Data.Raw, &session) == nil && h.checkout != nil {
+			if err := h.checkout.FailCheckout(r.Context(), session.Metadata["pulse_order_id"], ""); err != nil {
+				log.Printf("Stripe checkout release failed: session=%s err=%v", session.ID, err)
+				http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
+				return
+			}
+		}
+		log.Printf("Stripe checkout expired: id=%s", event.ID)
+	case "payment_intent.payment_failed":
+		var paymentIntent stripe.PaymentIntent
+		if event.Data != nil && json.Unmarshal(event.Data.Raw, &paymentIntent) == nil && h.checkout != nil {
+			if err := h.checkout.FailCheckout(r.Context(), paymentIntent.Metadata["pulse_order_id"], paymentIntent.ID); err != nil {
+				log.Printf("Stripe payment failure release failed: payment_intent=%s err=%v", paymentIntent.ID, err)
+				http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
+				return
+			}
+		}
+		log.Printf("Stripe payment failed: id=%s", event.ID)
 	default:
 		log.Printf("Stripe webhook ignored: id=%s type=%s", event.ID, event.Type)
 	}

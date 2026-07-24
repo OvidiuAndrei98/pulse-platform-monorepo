@@ -92,23 +92,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/dashboard/events/{id}/tickets/validate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Validare bilet la un eveniment */
-        post: operations["DashboardOperations_validateTicket"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/dashboard/organizer/profile": {
         parameters: {
             query?: never;
@@ -171,6 +154,102 @@ export interface paths {
         get: operations["DashboardOperations_getStripeAccountStatus"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/ticket-validation/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["TicketValidationOperations_listValidationEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/ticket-validation/events/{id}/quick-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["TicketValidationOperations_listScannerAccess"];
+        put?: never;
+        post: operations["TicketValidationOperations_createScannerAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/ticket-validation/events/{id}/quick-access/{accessId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["TicketValidationOperations_revokeScannerAccess"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/ticket-validation/events/{id}/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["TicketValidationOperations_listValidationStaff"];
+        put?: never;
+        post: operations["TicketValidationOperations_addValidationStaff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/ticket-validation/events/{id}/staff/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["TicketValidationOperations_removeValidationStaff"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/ticket-validation/events/{id}/tickets/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["TicketValidationOperations_validateTicket"];
         delete?: never;
         options?: never;
         head?: never;
@@ -282,6 +361,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{id}/tickets/purchase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creeaza o sesiune Stripe Checkout pentru biletele selectate */
+        post: operations["EventOperations_createCheckoutSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/friends": {
         parameters: {
             query?: never;
@@ -328,6 +424,38 @@ export interface paths {
         get: operations["FriendOperations_getFriendRequests"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ticket-validation/quick-access/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["QuickScannerOperations_createScannerSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ticket-validation/quick-access/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["QuickScannerOperations_validateTicket"];
         delete?: never;
         options?: never;
         head?: never;
@@ -390,6 +518,9 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AddValidationStaffPayload: {
+            email: string;
+        };
         ApiError: {
             message: string;
         };
@@ -400,6 +531,15 @@ export interface components {
             /** Format: date-time */
             checkInTime: string;
         };
+        CheckoutSessionResponse: {
+            checkoutUrl: string;
+            orderId: string;
+        };
+        CheckoutTicketItemPayload: {
+            ticketTypeId: string;
+            /** Format: int32 */
+            quantity: number;
+        };
         Comment: {
             id: string;
             content: string;
@@ -407,6 +547,10 @@ export interface components {
             createdAt: string;
             username: string;
             avatarUrl?: string;
+        };
+        CreateCheckoutSessionPayload: {
+            email: string;
+            items: components["schemas"]["CheckoutTicketItemPayload"][];
         };
         CreateEventPayload: {
             title: string;
@@ -428,6 +572,19 @@ export interface components {
             /** @enum {string} */
             status: "draft" | "published";
             ticketTypes?: components["schemas"]["CreateTicketTypePayload"][];
+        };
+        CreateScannerAccessPayload: {
+            label: string;
+            /** Format: date-time */
+            startsAt: string;
+            /** Format: date-time */
+            endsAt: string;
+        };
+        CreateScannerAccessResponse: {
+            url: string;
+        } & components["schemas"]["ScannerAccessResponse"];
+        CreateScannerSessionPayload: {
+            token: string;
         };
         CreateTicketTypePayload: {
             name: string;
@@ -492,6 +649,26 @@ export interface components {
             stripeDetailsSubmitted: boolean;
             /** Format: date-time */
             createdAt: string;
+        };
+        ScannerAccessResponse: {
+            id: string;
+            label: string;
+            /** Format: date-time */
+            startsAt: string;
+            /** Format: date-time */
+            endsAt: string;
+            /** Format: date-time */
+            revokedAt?: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ScannerSessionResponse: {
+            sessionToken: string;
+            label: string;
+            eventTitle: string;
+            locationName: string;
+            /** Format: date-time */
+            expiresAt: string;
         };
         StripeAccountLinkResponse: {
             url: string;
@@ -604,6 +781,24 @@ export interface components {
             email: string;
             password: string;
             requestOrganizerRole?: boolean;
+        };
+        ValidationEventResponse: {
+            id: string;
+            title: string;
+            /** Format: date-time */
+            startTime: string;
+            /** Format: date-time */
+            endTime: string;
+            status: string;
+            locationName: string;
+            canManage: boolean;
+        };
+        ValidationStaffResponse: {
+            id: string;
+            username: string;
+            email: string;
+            /** Format: date-time */
+            createdAt: string;
         };
     };
     responses: never;
@@ -805,61 +1000,6 @@ export interface operations {
             };
         };
     };
-    DashboardOperations_validateTicket: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    ValidationHash: string;
-                };
-            };
-        };
-        responses: {
-            /** @description The request has succeeded. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TicketValidationResponse"];
-                };
-            };
-            /** @description The server could not understand the request due to invalid syntax. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description The server cannot find the requested resource. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiError"];
-                };
-            };
-        };
-    };
     DashboardOperations_submitProfile: {
         parameters: {
             query?: never;
@@ -942,6 +1082,217 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrganizerProfile"];
+                };
+            };
+        };
+    };
+    TicketValidationOperations_listValidationEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationEventResponse"][];
+                };
+            };
+        };
+    };
+    TicketValidationOperations_listScannerAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScannerAccessResponse"][];
+                };
+            };
+        };
+    };
+    TicketValidationOperations_createScannerAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateScannerAccessPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded and a new resource has been created as a result. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateScannerAccessResponse"];
+                };
+            };
+        };
+    };
+    TicketValidationOperations_revokeScannerAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                accessId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TicketValidationOperations_listValidationStaff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationStaffResponse"][];
+                };
+            };
+        };
+    };
+    TicketValidationOperations_addValidationStaff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddValidationStaffPayload"];
+            };
+        };
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TicketValidationOperations_removeValidationStaff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TicketValidationOperations_validateTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    validationHash: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketValidationResponse"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
         };
@@ -1156,6 +1507,32 @@ export interface operations {
             };
         };
     };
+    EventOperations_createCheckoutSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCheckoutSessionPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded and a new resource has been created as a result. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutSessionResponse"];
+                };
+            };
+        };
+    };
     FriendOperations_listFriends: {
         parameters: {
             query?: never;
@@ -1239,6 +1616,83 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["User"][];
+                };
+            };
+        };
+    };
+    QuickScannerOperations_createScannerSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateScannerSessionPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScannerSessionResponse"];
+                };
+            };
+        };
+    };
+    QuickScannerOperations_validateTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    validationHash: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketValidationResponse"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
         };

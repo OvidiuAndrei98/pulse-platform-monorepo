@@ -13,6 +13,7 @@ import { X, Calendar, Bookmark, Check, Share2, Ticket as TicketIcon } from "luci
 import Image from "next/image";
 import { Event } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { ApiClient } from "@packages/api-client/src/Client";
 
 interface EventDetailsContextType {
   open: (event: Event) => void;
@@ -56,6 +57,9 @@ export interface EventDetailsSheetProps {
 export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
   const { user } = useDataProvider();
   const [qty, setQty] = useState<Record<string, number>>({});
+  const [guestEmail, setGuestEmail] = useState("");
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
   const [purchased, setPurchased] = useState(false);
   const [favorited, setFavorited] = useState(false);
   const [shared, setShared] = useState(false);
@@ -66,6 +70,9 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
   useEffect(() => {
     if (event) {
       setQty({});
+      setGuestEmail(user?.properties.email ?? "");
+      setIsCheckingOut(false);
+      setCheckoutError("");
       setPurchased(false);
       setFavorited(Boolean(event.stats?.isFavorited));
       setShared(false);
@@ -127,6 +134,39 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
       await user.setEventFavorite(event.id, nextFavorite);
     } catch {
       setFavorited(!nextFavorite);
+    }
+  };
+
+  const handleCheckout = async () => {
+    if (count === 0 || isCheckingOut) return;
+
+    const email = guestEmail.trim();
+    if (!email) {
+      setCheckoutError("Introdu adresa de email pentru bilete.");
+      return;
+    }
+
+    setCheckoutError("");
+    setIsCheckingOut(true);
+    setPurchased(true);
+    try {
+      const checkout = await ApiClient.instance.post("/events/{id}/tickets/purchase", {
+        params: { path: { id: event.id } },
+        body: {
+          email,
+          items: ticketTypes
+            .filter((ticket) => (qty[ticket.id] ?? 0) > 0)
+            .map((ticket) => ({
+              ticketTypeId: ticket.id,
+              quantity: qty[ticket.id] ?? 0,
+            })),
+        },
+      });
+      window.location.assign(checkout.checkoutUrl);
+    } catch {
+      setCheckoutError("Plata nu a putut fi pregatita. Incearca din nou.");
+      setIsCheckingOut(false);
+      setPurchased(false);
     }
   };
 
@@ -273,6 +313,22 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
                     </div>
                   </section>
                 )}
+
+                <section>
+                  <label className="block text-sm font-semibold" htmlFor="checkout-email">
+                    Email pentru bilete
+                  </label>
+                  <input
+                    id="checkout-email"
+                    type="email"
+                    autoComplete="email"
+                    value={guestEmail}
+                    onChange={(event) => setGuestEmail(event.target.value)}
+                    placeholder="nume@email.ro"
+                    className="mt-2 h-11 w-full rounded-lg border border-white/15 bg-white/5 px-3 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/60"
+                  />
+                  {checkoutError && <p className="mt-2 text-xs text-red-400">{checkoutError}</p>}
+                </section>
               </div>
             </div>
 
@@ -299,13 +355,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
               <button
                 type="button"
                 disabled={count === 0 || purchased}
-                onClick={() => {
-                  setPurchased(true);
-                  setTimeout(() => {
-                    setPurchased(false);
-                    onClose();
-                  }, 1400);
-                }}
+                onClick={handleCheckout}
                 className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-40"
               >
                 <TicketIcon className="h-4 w-4" />

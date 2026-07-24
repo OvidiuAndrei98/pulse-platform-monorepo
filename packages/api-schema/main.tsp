@@ -205,14 +205,81 @@ model UpdateTicketTypePayload {
   eventId: string;
 }
 
+model CheckoutTicketItemPayload {
+  ticketTypeId: string;
+  quantity: int32;
+}
+
+model CreateCheckoutSessionPayload {
+  email: string;
+  items: CheckoutTicketItemPayload[];
+}
+
+model CheckoutSessionResponse {
+  checkoutUrl: string;
+  orderId: string;
+}
+
 // --- REQUESTS RESPONSE PAYLOADS ---
 
 model TicketValidationResponse {
-  status: "valid" | "already_validated";
-  ticketId: string;
-  ticketType: string;
+	status: "valid" | "already_validated";
+	ticketId: string;
+	ticketType: string;
+	eventTitle: string;
+	validatedAt: utcDateTime;
+}
+
+model ValidationEventResponse {
+  id: string;
+  title: string;
+  startTime: utcDateTime;
+  endTime: utcDateTime;
+  status: string;
+  locationName: string;
+  canManage: boolean;
+}
+
+model ValidationStaffResponse {
+  id: string;
+  username: string;
+  email: string;
+  createdAt: utcDateTime;
+}
+
+model AddValidationStaffPayload {
+  email: string;
+}
+
+model ScannerAccessResponse {
+  id: string;
+  label: string;
+  startsAt: utcDateTime;
+  endsAt: utcDateTime;
+  revokedAt?: utcDateTime;
+  createdAt: utcDateTime;
+}
+
+model CreateScannerAccessPayload {
+  label: string;
+  startsAt: utcDateTime;
+  endsAt: utcDateTime;
+}
+
+model CreateScannerAccessResponse extends ScannerAccessResponse {
+  url: string;
+}
+
+model CreateScannerSessionPayload {
+  token: string;
+}
+
+model ScannerSessionResponse {
+  sessionToken: string;
+  label: string;
   eventTitle: string;
-  validatedAt: utcDateTime;
+  locationName: string;
+  expiresAt: utcDateTime;
 }
 
 // --- ENDPOINTS / RUTE ---
@@ -301,6 +368,17 @@ interface EventOperations {
   @get
   @route("/{id}")
   getEventByID(@path id: string): EventResponse;
+
+  @summary("Creeaza o sesiune Stripe Checkout pentru biletele selectate")
+  @post
+  @route("/{id}/tickets/purchase")
+  createCheckoutSession(
+    @path id: string,
+    @body payload: CreateCheckoutSessionPayload,
+  ): {
+    @statusCode statusCode: 201;
+    @body checkout: CheckoutSessionResponse;
+  };
 
   @summary("Ștergere eveniment")
   @delete
@@ -434,13 +512,87 @@ interface DashboardOperations {
     };
   };
 
-  @summary("Validare bilet la un eveniment")
+}
+
+@route("/dashboard/ticket-validation")
+interface TicketValidationOperations {
+  @get
+  @route("/events")
+  listValidationEvents(): ValidationEventResponse[];
+
+  @get
+  @route("/events/{id}/staff")
+  listValidationStaff(@path id: string): ValidationStaffResponse[];
+
+  @post
+  @route("/events/{id}/staff")
+  addValidationStaff(@path id: string, @body payload: AddValidationStaffPayload): {
+    @statusCode statusCode: 204;
+  };
+
+  @delete
+  @route("/events/{id}/staff/{userId}")
+  removeValidationStaff(@path id: string, @path userId: string): {
+    @statusCode statusCode: 204;
+  };
+
+  @get
+  @route("/events/{id}/quick-access")
+  listScannerAccess(@path id: string): ScannerAccessResponse[];
+
+  @post
+  @route("/events/{id}/quick-access")
+  createScannerAccess(
+    @path id: string,
+    @body payload: CreateScannerAccessPayload,
+  ): {
+    @statusCode statusCode: 201;
+    @body response: CreateScannerAccessResponse;
+  };
+
+  @delete
+  @route("/events/{id}/quick-access/{accessId}")
+  revokeScannerAccess(@path id: string, @path accessId: string): {
+    @statusCode statusCode: 204;
+  };
+
   @post
   @route("/events/{id}/tickets/validate")
   validateTicket(
     @path id: string,
     @body ticket: {
-      ValidationHash: string;
+      validationHash: string;
+    },
+  ):
+    | {
+        @statusCode statusCode: 200;
+        @body response: TicketValidationResponse;
+      }
+    | {
+        @statusCode statusCode: 404;
+        @body response: ApiError;
+      }
+    | {
+        @statusCode statusCode: 400;
+        @body response: ApiError;
+      }
+    | {
+        @statusCode statusCode: 500;
+        @body response: ApiError;
+      };
+}
+
+@route("/ticket-validation/quick-access")
+interface QuickScannerOperations {
+  @post
+  @route("/session")
+  createScannerSession(@body payload: CreateScannerSessionPayload): ScannerSessionResponse;
+
+  @post
+  @route("/validate")
+  validateTicket(
+    @body ticket: {
+      validationHash: string;
     },
   ):
     | {

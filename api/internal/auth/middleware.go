@@ -15,8 +15,10 @@ import (
 type contextKey string
 
 const (
-	UserIDKey contextKey = "userID"
-	RoleKey   contextKey = "userRole"
+	UserIDKey          contextKey = "userID"
+	RoleKey            contextKey = "userRole"
+	ScannerAccessIDKey contextKey = "scannerAccessID"
+	ScannerEventIDKey  contextKey = "scannerEventID"
 )
 
 // AuthMiddleware validează token-ul JWT din header-ul Authorization
@@ -55,6 +57,10 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			router.RespondWithError(w, http.StatusUnauthorized, "Token-ul nu contine informatii valide")
 			return
 		}
+		if scope, _ := claims["scope"].(string); scope == "scanner" {
+			router.RespondWithError(w, http.StatusUnauthorized, "Sesiunea de scanare nu poate accesa acest endpoint")
+			return
+		}
 
 		userIDStr, ok := claims["sub"].(string)
 		if !ok {
@@ -69,6 +75,46 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		ctx := context.WithValue(r.Context(), UserIDKey, userIDStr)
 		ctx = context.WithValue(ctx, RoleKey, role)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// ScannerAuthMiddleware accepta doar sesiunile temporare generate pentru un link de poarta.
+// Ele nu contin un utilizator Pulse si nu pot fi folosite cu AuthMiddleware.
+func ScannerAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			router.RespondWithError(w, http.StatusUnauthorized, "Sesiunea de scanare lipseste sau este invalida")
+			return
+		}
+
+		token, err := jwt.Parse(parts[1], func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("algoritm de semnare neasteptat: %v", t.Header["alg"])
+			}
+			return []byte(os.Getenv("JWT_SECRET")), nil
+		})
+		if err != nil || !token.Valid {
+			router.RespondWithError(w, http.StatusUnauthorized, "Sesiunea de scanare este expirata sau invalida")
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok || claims["scope"] != "scanner" {
+			router.RespondWithError(w, http.StatusUnauthorized, "Sesiunea nu are acces de scanare")
+			return
+		}
+		accessID, accessOK := claims["scanner_access_id"].(string)
+		eventID, eventOK := claims["event_id"].(string)
+		if !accessOK || !eventOK || accessID == "" || eventID == "" {
+			router.RespondWithError(w, http.StatusUnauthorized, "Sesiunea de scanare este incompleta")
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), ScannerAccessIDKey, accessID)
+		ctx = context.WithValue(ctx, ScannerEventIDKey, eventID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -99,6 +145,22 @@ func GetRoleFromContext(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("role lipseste din context")
 	}
 	return role, nil
+}
+
+func GetScannerAccessIDFromContext(ctx context.Context) (string, error) {
+	accessID, ok := ctx.Value(ScannerAccessIDKey).(string)
+	if !ok || accessID == "" {
+		return "", fmt.Errorf("scanner access ID lipseste din context")
+	}
+	return accessID, nil
+}
+
+func GetScannerEventIDFromContext(ctx context.Context) (string, error) {
+	eventID, ok := ctx.Value(ScannerEventIDKey).(string)
+	if !ok || eventID == "" {
+		return "", fmt.Errorf("scanner event ID lipseste din context")
+	}
+	return eventID, nil
 }
 
 // RequireRole returnează middleware care permite accesul doar rolurilor specificate.

@@ -11,10 +11,67 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addValidationStaff = `-- name: AddValidationStaff :exec
+INSERT INTO event_validation_staff (event_id, user_id, added_by)
+VALUES ($1, $2, $3)
+ON CONFLICT (event_id, user_id) DO NOTHING
+`
+
+type AddValidationStaffParams struct {
+	EventID pgtype.UUID `json:"event_id"`
+	UserID  pgtype.UUID `json:"user_id"`
+	AddedBy pgtype.UUID `json:"added_by"`
+}
+
+func (q *Queries) AddValidationStaff(ctx context.Context, arg AddValidationStaffParams) error {
+	_, err := q.db.Exec(ctx, addValidationStaff, arg.EventID, arg.UserID, arg.AddedBy)
+	return err
+}
+
+const createCheckoutOrder = `-- name: CreateCheckoutOrder :one
+INSERT INTO orders (user_id, event_id, email, total_amount, platform_fee_bani, status)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani
+`
+
+type CreateCheckoutOrderParams struct {
+	UserID          pgtype.UUID `json:"user_id"`
+	EventID         pgtype.UUID `json:"event_id"`
+	Email           string      `json:"email"`
+	TotalAmount     int32       `json:"total_amount"`
+	PlatformFeeBani int32       `json:"platform_fee_bani"`
+	Status          OrderStatus `json:"status"`
+}
+
+func (q *Queries) CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrderParams) (Orders, error) {
+	row := q.db.QueryRow(ctx, createCheckoutOrder,
+		arg.UserID,
+		arg.EventID,
+		arg.Email,
+		arg.TotalAmount,
+		arg.PlatformFeeBani,
+		arg.Status,
+	)
+	var i Orders
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.EventID,
+		&i.Email,
+		&i.StripePaymentIntentID,
+		&i.Status,
+		&i.TotalAmount,
+		&i.CreatedAt,
+		&i.StripeCheckoutSessionID,
+		&i.PlatformFeeBani,
+	)
+	return i, err
+}
+
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO orders (user_id, event_id, email, total_amount, stripe_payment_intent_id, status)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at
+RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani
 `
 
 type CreateOrderParams struct {
@@ -45,6 +102,77 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.Status,
 		&i.TotalAmount,
 		&i.CreatedAt,
+		&i.StripeCheckoutSessionID,
+		&i.PlatformFeeBani,
+	)
+	return i, err
+}
+
+const createOrderItem = `-- name: CreateOrderItem :exec
+INSERT INTO order_items (order_id, ticket_type_id, quantity, unit_price_ron)
+VALUES ($1, $2, $3, $4)
+`
+
+type CreateOrderItemParams struct {
+	OrderID      pgtype.UUID `json:"order_id"`
+	TicketTypeID pgtype.UUID `json:"ticket_type_id"`
+	Quantity     int32       `json:"quantity"`
+	UnitPriceRon int32       `json:"unit_price_ron"`
+}
+
+func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) error {
+	_, err := q.db.Exec(ctx, createOrderItem,
+		arg.OrderID,
+		arg.TicketTypeID,
+		arg.Quantity,
+		arg.UnitPriceRon,
+	)
+	return err
+}
+
+const createScannerAccess = `-- name: CreateScannerAccess :one
+INSERT INTO event_scanner_access (event_id, created_by, label, token_hash, starts_at, ends_at)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, event_id, label, starts_at, ends_at, revoked_at, created_at
+`
+
+type CreateScannerAccessParams struct {
+	EventID   pgtype.UUID        `json:"event_id"`
+	CreatedBy pgtype.UUID        `json:"created_by"`
+	Label     string             `json:"label"`
+	TokenHash string             `json:"token_hash"`
+	StartsAt  pgtype.Timestamptz `json:"starts_at"`
+	EndsAt    pgtype.Timestamptz `json:"ends_at"`
+}
+
+type CreateScannerAccessRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	EventID   pgtype.UUID        `json:"event_id"`
+	Label     string             `json:"label"`
+	StartsAt  pgtype.Timestamptz `json:"starts_at"`
+	EndsAt    pgtype.Timestamptz `json:"ends_at"`
+	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) CreateScannerAccess(ctx context.Context, arg CreateScannerAccessParams) (CreateScannerAccessRow, error) {
+	row := q.db.QueryRow(ctx, createScannerAccess,
+		arg.EventID,
+		arg.CreatedBy,
+		arg.Label,
+		arg.TokenHash,
+		arg.StartsAt,
+		arg.EndsAt,
+	)
+	var i CreateScannerAccessRow
+	err := row.Scan(
+		&i.ID,
+		&i.EventID,
+		&i.Label,
+		&i.StartsAt,
+		&i.EndsAt,
+		&i.RevokedAt,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -52,7 +180,7 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 const createTicket = `-- name: CreateTicket :one
 INSERT INTO tickets (order_id, ticket_type_id, user_id, validation_hash)
 VALUES ($1, $2, $3, $4)
-RETURNING id, order_id, ticket_type_id, user_id, validation_hash, is_validated, validated_at, created_at
+RETURNING id, order_id, ticket_type_id, user_id, validation_hash, is_validated, validated_at, created_at, validated_by_user_id, validated_by_scanner_access_id
 `
 
 type CreateTicketParams struct {
@@ -79,6 +207,8 @@ func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Tic
 		&i.IsValidated,
 		&i.ValidatedAt,
 		&i.CreatedAt,
+		&i.ValidatedByUserID,
+		&i.ValidatedByScannerAccessID,
 	)
 	return i, err
 }
@@ -111,8 +241,144 @@ func (q *Queries) CreateTicketType(ctx context.Context, arg CreateTicketTypePara
 	return err
 }
 
+const decrementTicketsSold = `-- name: DecrementTicketsSold :exec
+UPDATE ticket_types
+SET tickets_sold = GREATEST(0, tickets_sold - $2)
+WHERE id = $1
+`
+
+type DecrementTicketsSoldParams struct {
+	ID          pgtype.UUID `json:"id"`
+	TicketsSold int32       `json:"tickets_sold"`
+}
+
+func (q *Queries) DecrementTicketsSold(ctx context.Context, arg DecrementTicketsSoldParams) error {
+	_, err := q.db.Exec(ctx, decrementTicketsSold, arg.ID, arg.TicketsSold)
+	return err
+}
+
+const getOrderForUpdate = `-- name: GetOrderForUpdate :one
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani FROM orders
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) GetOrderForUpdate(ctx context.Context, id pgtype.UUID) (Orders, error) {
+	row := q.db.QueryRow(ctx, getOrderForUpdate, id)
+	var i Orders
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.EventID,
+		&i.Email,
+		&i.StripePaymentIntentID,
+		&i.Status,
+		&i.TotalAmount,
+		&i.CreatedAt,
+		&i.StripeCheckoutSessionID,
+		&i.PlatformFeeBani,
+	)
+	return i, err
+}
+
+const getOrderItems = `-- name: GetOrderItems :many
+SELECT id, order_id, ticket_type_id, quantity, unit_price_ron, created_at FROM order_items
+WHERE order_id = $1
+ORDER BY created_at ASC
+`
+
+func (q *Queries) GetOrderItems(ctx context.Context, orderID pgtype.UUID) ([]OrderItems, error) {
+	rows, err := q.db.Query(ctx, getOrderItems, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []OrderItems
+	for rows.Next() {
+		var i OrderItems
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrderID,
+			&i.TicketTypeID,
+			&i.Quantity,
+			&i.UnitPriceRon,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getScannerAccessByID = `-- name: GetScannerAccessByID :one
+SELECT id, event_id, label, starts_at, ends_at, revoked_at
+FROM event_scanner_access
+WHERE id = $1
+`
+
+type GetScannerAccessByIDRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	EventID   pgtype.UUID        `json:"event_id"`
+	Label     string             `json:"label"`
+	StartsAt  pgtype.Timestamptz `json:"starts_at"`
+	EndsAt    pgtype.Timestamptz `json:"ends_at"`
+	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
+}
+
+func (q *Queries) GetScannerAccessByID(ctx context.Context, id pgtype.UUID) (GetScannerAccessByIDRow, error) {
+	row := q.db.QueryRow(ctx, getScannerAccessByID, id)
+	var i GetScannerAccessByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.EventID,
+		&i.Label,
+		&i.StartsAt,
+		&i.EndsAt,
+		&i.RevokedAt,
+	)
+	return i, err
+}
+
+const getScannerAccessByTokenHash = `-- name: GetScannerAccessByTokenHash :one
+SELECT a.id, a.event_id, a.label, a.starts_at, a.ends_at, a.revoked_at, e.title AS event_title, e.location_name
+FROM event_scanner_access a
+JOIN events e ON e.id = a.event_id
+WHERE a.token_hash = $1
+`
+
+type GetScannerAccessByTokenHashRow struct {
+	ID           pgtype.UUID        `json:"id"`
+	EventID      pgtype.UUID        `json:"event_id"`
+	Label        string             `json:"label"`
+	StartsAt     pgtype.Timestamptz `json:"starts_at"`
+	EndsAt       pgtype.Timestamptz `json:"ends_at"`
+	RevokedAt    pgtype.Timestamptz `json:"revoked_at"`
+	EventTitle   string             `json:"event_title"`
+	LocationName string             `json:"location_name"`
+}
+
+func (q *Queries) GetScannerAccessByTokenHash(ctx context.Context, tokenHash string) (GetScannerAccessByTokenHashRow, error) {
+	row := q.db.QueryRow(ctx, getScannerAccessByTokenHash, tokenHash)
+	var i GetScannerAccessByTokenHashRow
+	err := row.Scan(
+		&i.ID,
+		&i.EventID,
+		&i.Label,
+		&i.StartsAt,
+		&i.EndsAt,
+		&i.RevokedAt,
+		&i.EventTitle,
+		&i.LocationName,
+	)
+	return i, err
+}
+
 const getTicketByHash = `-- name: GetTicketByHash :one
-SELECT t.id, t.order_id, t.ticket_type_id, t.user_id, t.validation_hash, t.is_validated, t.validated_at, t.created_at, tt.name as ticket_type_name, e.title as event_title
+SELECT t.id, t.order_id, t.ticket_type_id, t.user_id, t.validation_hash, t.is_validated, t.validated_at, t.created_at, t.validated_by_user_id, t.validated_by_scanner_access_id, tt.name as ticket_type_name, e.title as event_title, e.id as event_id
 FROM tickets t
 JOIN ticket_types tt ON t.ticket_type_id = tt.id
 JOIN events e ON tt.event_id = e.id
@@ -120,16 +386,19 @@ WHERE t.validation_hash = $1
 `
 
 type GetTicketByHashRow struct {
-	ID             pgtype.UUID        `json:"id"`
-	OrderID        pgtype.UUID        `json:"order_id"`
-	TicketTypeID   pgtype.UUID        `json:"ticket_type_id"`
-	UserID         pgtype.UUID        `json:"user_id"`
-	ValidationHash string             `json:"validation_hash"`
-	IsValidated    bool               `json:"is_validated"`
-	ValidatedAt    pgtype.Timestamptz `json:"validated_at"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	TicketTypeName string             `json:"ticket_type_name"`
-	EventTitle     string             `json:"event_title"`
+	ID                         pgtype.UUID        `json:"id"`
+	OrderID                    pgtype.UUID        `json:"order_id"`
+	TicketTypeID               pgtype.UUID        `json:"ticket_type_id"`
+	UserID                     pgtype.UUID        `json:"user_id"`
+	ValidationHash             string             `json:"validation_hash"`
+	IsValidated                bool               `json:"is_validated"`
+	ValidatedAt                pgtype.Timestamptz `json:"validated_at"`
+	CreatedAt                  pgtype.Timestamptz `json:"created_at"`
+	ValidatedByUserID          pgtype.UUID        `json:"validated_by_user_id"`
+	ValidatedByScannerAccessID pgtype.UUID        `json:"validated_by_scanner_access_id"`
+	TicketTypeName             string             `json:"ticket_type_name"`
+	EventTitle                 string             `json:"event_title"`
+	EventID                    pgtype.UUID        `json:"event_id"`
 }
 
 func (q *Queries) GetTicketByHash(ctx context.Context, validationHash string) (GetTicketByHashRow, error) {
@@ -144,8 +413,11 @@ func (q *Queries) GetTicketByHash(ctx context.Context, validationHash string) (G
 		&i.IsValidated,
 		&i.ValidatedAt,
 		&i.CreatedAt,
+		&i.ValidatedByUserID,
+		&i.ValidatedByScannerAccessID,
 		&i.TicketTypeName,
 		&i.EventTitle,
+		&i.EventID,
 	)
 	return i, err
 }
@@ -214,7 +486,7 @@ func (q *Queries) GetTicketTypesForEvent(ctx context.Context, eventID pgtype.UUI
 }
 
 const getUserTickets = `-- name: GetUserTickets :many
-SELECT t.id, t.order_id, t.ticket_type_id, t.user_id, t.validation_hash, t.is_validated, t.validated_at, t.created_at, tt.name as ticket_type_name, e.title as event_title, e.start_time
+SELECT t.id, t.order_id, t.ticket_type_id, t.user_id, t.validation_hash, t.is_validated, t.validated_at, t.created_at, t.validated_by_user_id, t.validated_by_scanner_access_id, tt.name as ticket_type_name, e.title as event_title, e.start_time
 FROM tickets t
 JOIN ticket_types tt ON t.ticket_type_id = tt.id
 JOIN events e ON tt.event_id = e.id
@@ -223,17 +495,19 @@ ORDER BY t.created_at DESC
 `
 
 type GetUserTicketsRow struct {
-	ID             pgtype.UUID        `json:"id"`
-	OrderID        pgtype.UUID        `json:"order_id"`
-	TicketTypeID   pgtype.UUID        `json:"ticket_type_id"`
-	UserID         pgtype.UUID        `json:"user_id"`
-	ValidationHash string             `json:"validation_hash"`
-	IsValidated    bool               `json:"is_validated"`
-	ValidatedAt    pgtype.Timestamptz `json:"validated_at"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	TicketTypeName string             `json:"ticket_type_name"`
-	EventTitle     string             `json:"event_title"`
-	StartTime      pgtype.Timestamptz `json:"start_time"`
+	ID                         pgtype.UUID        `json:"id"`
+	OrderID                    pgtype.UUID        `json:"order_id"`
+	TicketTypeID               pgtype.UUID        `json:"ticket_type_id"`
+	UserID                     pgtype.UUID        `json:"user_id"`
+	ValidationHash             string             `json:"validation_hash"`
+	IsValidated                bool               `json:"is_validated"`
+	ValidatedAt                pgtype.Timestamptz `json:"validated_at"`
+	CreatedAt                  pgtype.Timestamptz `json:"created_at"`
+	ValidatedByUserID          pgtype.UUID        `json:"validated_by_user_id"`
+	ValidatedByScannerAccessID pgtype.UUID        `json:"validated_by_scanner_access_id"`
+	TicketTypeName             string             `json:"ticket_type_name"`
+	EventTitle                 string             `json:"event_title"`
+	StartTime                  pgtype.Timestamptz `json:"start_time"`
 }
 
 func (q *Queries) GetUserTickets(ctx context.Context, userID pgtype.UUID) ([]GetUserTicketsRow, error) {
@@ -254,6 +528,8 @@ func (q *Queries) GetUserTickets(ctx context.Context, userID pgtype.UUID) ([]Get
 			&i.IsValidated,
 			&i.ValidatedAt,
 			&i.CreatedAt,
+			&i.ValidatedByUserID,
+			&i.ValidatedByScannerAccessID,
 			&i.TicketTypeName,
 			&i.EventTitle,
 			&i.StartTime,
@@ -281,6 +557,206 @@ type IncrementTicketsSoldParams struct {
 
 func (q *Queries) IncrementTicketsSold(ctx context.Context, arg IncrementTicketsSoldParams) error {
 	_, err := q.db.Exec(ctx, incrementTicketsSold, arg.ID, arg.TicketsSold)
+	return err
+}
+
+const isValidationStaffForEvent = `-- name: IsValidationStaffForEvent :one
+SELECT EXISTS(
+    SELECT 1
+    FROM event_validation_staff
+    WHERE event_id = $1 AND user_id = $2
+) AS is_validation_staff
+`
+
+type IsValidationStaffForEventParams struct {
+	EventID pgtype.UUID `json:"event_id"`
+	UserID  pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) IsValidationStaffForEvent(ctx context.Context, arg IsValidationStaffForEventParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isValidationStaffForEvent, arg.EventID, arg.UserID)
+	var is_validation_staff bool
+	err := row.Scan(&is_validation_staff)
+	return is_validation_staff, err
+}
+
+const listScannerAccess = `-- name: ListScannerAccess :many
+SELECT id, event_id, label, starts_at, ends_at, revoked_at, created_at
+FROM event_scanner_access
+WHERE event_id = $1
+ORDER BY created_at DESC
+`
+
+type ListScannerAccessRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	EventID   pgtype.UUID        `json:"event_id"`
+	Label     string             `json:"label"`
+	StartsAt  pgtype.Timestamptz `json:"starts_at"`
+	EndsAt    pgtype.Timestamptz `json:"ends_at"`
+	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) ListScannerAccess(ctx context.Context, eventID pgtype.UUID) ([]ListScannerAccessRow, error) {
+	rows, err := q.db.Query(ctx, listScannerAccess, eventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListScannerAccessRow
+	for rows.Next() {
+		var i ListScannerAccessRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.EventID,
+			&i.Label,
+			&i.StartsAt,
+			&i.EndsAt,
+			&i.RevokedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listValidationEvents = `-- name: ListValidationEvents :many
+SELECT e.id, e.title, e.start_time, e.end_time, e.status, e.location_name,
+       (e.organizer_id = $1) AS can_manage
+FROM events e
+LEFT JOIN event_validation_staff staff
+       ON staff.event_id = e.id AND staff.user_id = $1
+WHERE e.organizer_id = $1 OR staff.user_id IS NOT NULL
+ORDER BY e.start_time DESC
+`
+
+type ListValidationEventsRow struct {
+	ID           pgtype.UUID        `json:"id"`
+	Title        string             `json:"title"`
+	StartTime    pgtype.Timestamptz `json:"start_time"`
+	EndTime      pgtype.Timestamptz `json:"end_time"`
+	Status       string             `json:"status"`
+	LocationName string             `json:"location_name"`
+	CanManage    bool               `json:"can_manage"`
+}
+
+func (q *Queries) ListValidationEvents(ctx context.Context, organizerID pgtype.UUID) ([]ListValidationEventsRow, error) {
+	rows, err := q.db.Query(ctx, listValidationEvents, organizerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListValidationEventsRow
+	for rows.Next() {
+		var i ListValidationEventsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.StartTime,
+			&i.EndTime,
+			&i.Status,
+			&i.LocationName,
+			&i.CanManage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listValidationStaff = `-- name: ListValidationStaff :many
+SELECT u.id, u.username, u.email, staff.created_at
+FROM event_validation_staff staff
+JOIN users u ON u.id = staff.user_id
+WHERE staff.event_id = $1
+ORDER BY u.username ASC
+`
+
+type ListValidationStaffRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	Username  string             `json:"username"`
+	Email     string             `json:"email"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) ListValidationStaff(ctx context.Context, eventID pgtype.UUID) ([]ListValidationStaffRow, error) {
+	rows, err := q.db.Query(ctx, listValidationStaff, eventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListValidationStaffRow
+	for rows.Next() {
+		var i ListValidationStaffRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.Email,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const removeValidationStaff = `-- name: RemoveValidationStaff :exec
+DELETE FROM event_validation_staff
+WHERE event_id = $1 AND user_id = $2
+`
+
+type RemoveValidationStaffParams struct {
+	EventID pgtype.UUID `json:"event_id"`
+	UserID  pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) RemoveValidationStaff(ctx context.Context, arg RemoveValidationStaffParams) error {
+	_, err := q.db.Exec(ctx, removeValidationStaff, arg.EventID, arg.UserID)
+	return err
+}
+
+const revokeScannerAccess = `-- name: RevokeScannerAccess :exec
+UPDATE event_scanner_access
+SET revoked_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND event_id = $2 AND revoked_at IS NULL
+`
+
+type RevokeScannerAccessParams struct {
+	ID      pgtype.UUID `json:"id"`
+	EventID pgtype.UUID `json:"event_id"`
+}
+
+func (q *Queries) RevokeScannerAccess(ctx context.Context, arg RevokeScannerAccessParams) error {
+	_, err := q.db.Exec(ctx, revokeScannerAccess, arg.ID, arg.EventID)
+	return err
+}
+
+const updateOrderCheckoutSession = `-- name: UpdateOrderCheckoutSession :exec
+UPDATE orders
+SET stripe_checkout_session_id = $2
+WHERE id = $1
+`
+
+type UpdateOrderCheckoutSessionParams struct {
+	ID                      pgtype.UUID `json:"id"`
+	StripeCheckoutSessionID pgtype.Text `json:"stripe_checkout_session_id"`
+}
+
+func (q *Queries) UpdateOrderCheckoutSession(ctx context.Context, arg UpdateOrderCheckoutSessionParams) error {
+	_, err := q.db.Exec(ctx, updateOrderCheckoutSession, arg.ID, arg.StripeCheckoutSessionID)
 	return err
 }
 
@@ -336,13 +812,25 @@ func (q *Queries) UpdateTicketType(ctx context.Context, arg UpdateTicketTypePara
 	return err
 }
 
-const validateTicket = `-- name: ValidateTicket :exec
+const validateTicketOnce = `-- name: ValidateTicketOnce :one
 UPDATE tickets
-SET is_validated = TRUE, validated_at = CURRENT_TIMESTAMP
-WHERE id = $1
+SET is_validated = TRUE,
+    validated_at = CURRENT_TIMESTAMP,
+    validated_by_user_id = $2,
+    validated_by_scanner_access_id = $3
+WHERE id = $1 AND is_validated = FALSE
+RETURNING validated_at
 `
 
-func (q *Queries) ValidateTicket(ctx context.Context, id pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, validateTicket, id)
-	return err
+type ValidateTicketOnceParams struct {
+	ID                         pgtype.UUID `json:"id"`
+	ValidatedByUserID          pgtype.UUID `json:"validated_by_user_id"`
+	ValidatedByScannerAccessID pgtype.UUID `json:"validated_by_scanner_access_id"`
+}
+
+func (q *Queries) ValidateTicketOnce(ctx context.Context, arg ValidateTicketOnceParams) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, validateTicketOnce, arg.ID, arg.ValidatedByUserID, arg.ValidatedByScannerAccessID)
+	var validated_at pgtype.Timestamptz
+	err := row.Scan(&validated_at)
+	return validated_at, err
 }

@@ -60,7 +60,7 @@ export default function ProfilePage() {
                   </span>
                 ) : (
                   <Link
-                    href="/organizer/dashboard"
+                    href="/dashboard/ticket-validation"
                     className="inline-flex items-center gap-1 text-xs font-semibold text-amber-300 transition hover:text-amber-200"
                   >
                     <span>Neverificat — verifică firma</span>

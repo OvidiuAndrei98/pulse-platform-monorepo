@@ -12,13 +12,18 @@ import (
 
 type Querier interface {
 	AddComment(ctx context.Context, arg AddCommentParams) (Comments, error)
+	AddValidationStaff(ctx context.Context, arg AddValidationStaffParams) error
 	CreateCheckIn(ctx context.Context, arg CreateCheckInParams) (CheckIns, error)
+	CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrderParams) (Orders, error)
 	CreateEvent(ctx context.Context, arg CreateEventParams) (Events, error)
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (Orders, error)
+	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) error
 	CreateOrganizerProfile(ctx context.Context, arg CreateOrganizerProfileParams) (OrganizerProfiles, error)
+	CreateScannerAccess(ctx context.Context, arg CreateScannerAccessParams) (CreateScannerAccessRow, error)
 	CreateTicket(ctx context.Context, arg CreateTicketParams) (Tickets, error)
 	CreateTicketType(ctx context.Context, arg CreateTicketTypeParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (Users, error)
+	DecrementTicketsSold(ctx context.Context, arg DecrementTicketsSoldParams) error
 	DeleteCheckIn(ctx context.Context, arg DeleteCheckInParams) error
 	DeleteEvent(ctx context.Context, id pgtype.UUID) error
 	DeleteUserToken(ctx context.Context, arg DeleteUserTokenParams) error
@@ -31,8 +36,12 @@ type Querier interface {
 	GetFriends(ctx context.Context, userID pgtype.UUID) ([]GetFriendsRow, error)
 	GetFriendsGoingToEvent(ctx context.Context, arg GetFriendsGoingToEventParams) ([]GetFriendsGoingToEventRow, error)
 	GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAreaParams) ([]GetLiveEventsInAreaRow, error)
+	GetOrderForUpdate(ctx context.Context, id pgtype.UUID) (Orders, error)
+	GetOrderItems(ctx context.Context, orderID pgtype.UUID) ([]OrderItems, error)
 	GetOrganizerByCUI(ctx context.Context, cui string) (OrganizerProfiles, error)
 	GetOrganizerProfile(ctx context.Context, userID pgtype.UUID) (OrganizerProfiles, error)
+	GetScannerAccessByID(ctx context.Context, id pgtype.UUID) (GetScannerAccessByIDRow, error)
+	GetScannerAccessByTokenHash(ctx context.Context, tokenHash string) (GetScannerAccessByTokenHashRow, error)
 	GetTicketByHash(ctx context.Context, validationHash string) (GetTicketByHashRow, error)
 	GetTicketTypeForUpdate(ctx context.Context, id pgtype.UUID) (TicketTypes, error)
 	GetTicketTypesForEvent(ctx context.Context, eventID pgtype.UUID) ([]TicketTypes, error)
@@ -43,14 +52,21 @@ type Querier interface {
 	GetUserTokenByHash(ctx context.Context, arg GetUserTokenByHashParams) (UserTokens, error)
 	IncrementTicketsSold(ctx context.Context, arg IncrementTicketsSoldParams) error
 	InsertUserToken(ctx context.Context, arg InsertUserTokenParams) (UserTokens, error)
+	IsValidationStaffForEvent(ctx context.Context, arg IsValidationStaffForEventParams) (bool, error)
 	ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error)
 	ListEventsWithStats(ctx context.Context, organizerID pgtype.UUID) ([]ListEventsWithStatsRow, error)
 	ListSavedEvents(ctx context.Context, userID pgtype.UUID) ([]Events, error)
+	ListScannerAccess(ctx context.Context, eventID pgtype.UUID) ([]ListScannerAccessRow, error)
+	ListValidationEvents(ctx context.Context, organizerID pgtype.UUID) ([]ListValidationEventsRow, error)
+	ListValidationStaff(ctx context.Context, eventID pgtype.UUID) ([]ListValidationStaffRow, error)
 	RemoveSavedEvent(ctx context.Context, arg RemoveSavedEventParams) error
+	RemoveValidationStaff(ctx context.Context, arg RemoveValidationStaffParams) error
 	RespondToFriendRequest(ctx context.Context, arg RespondToFriendRequestParams) error
+	RevokeScannerAccess(ctx context.Context, arg RevokeScannerAccessParams) error
 	SaveEvent(ctx context.Context, arg SaveEventParams) error
 	SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error
 	SetOrganizerStripeAccount(ctx context.Context, arg SetOrganizerStripeAccountParams) (OrganizerProfiles, error)
+	UpdateOrderCheckoutSession(ctx context.Context, arg UpdateOrderCheckoutSessionParams) error
 	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error
 	UpdateOrganizerStripeAccountStatus(ctx context.Context, arg UpdateOrganizerStripeAccountStatusParams) (OrganizerProfiles, error)
 	UpdateTicketType(ctx context.Context, arg UpdateTicketTypeParams) error
@@ -58,7 +74,7 @@ type Querier interface {
 	UpdateUserActivation(ctx context.Context, arg UpdateUserActivationParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (UpdateUserProfileRow, error)
-	ValidateTicket(ctx context.Context, id pgtype.UUID) error
+	ValidateTicketOnce(ctx context.Context, arg ValidateTicketOnceParams) (pgtype.Timestamptz, error)
 }
 
 var _ Querier = (*Queries)(nil)

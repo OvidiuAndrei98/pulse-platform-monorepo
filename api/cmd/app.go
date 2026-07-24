@@ -115,11 +115,13 @@ func (app *Application) BuildRouter() http.Handler {
 	interactionsHandler := interactions.NewHandler(app.Queries)
 	usersHandler := users.NewHandler(app.Queries)
 	authMiddleware := auth.AuthMiddleware
+	scannerAuthMiddleware := auth.ScannerAuthMiddleware
 	requireOrganizer := auth.RequireRole("organizer", "admin")
 	requireAdmin := auth.RequireRole("admin")
 	organizerHandler := organizer.NewHandler(app.Queries)
-	ticketingHandler := tickets.NewHandler(app.Queries, app.Pool)
-	stripeWebhookHandler := payments.NewWebhookHandler(os.Getenv("STRIPE_WEBHOOK_SECRET"))
+	ticketingHandler := tickets.NewHandler(app.Queries, app.Pool, os.Getenv("PUBLIC_APP_URL"))
+	stripeCheckoutHandler := payments.NewCheckoutHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"))
+	stripeWebhookHandler := payments.NewWebhookHandler(os.Getenv("STRIPE_WEBHOOK_SECRET"), stripeCheckoutHandler)
 	stripeConnectWebhookHandler := payments.NewConnectWebhookHandler(app.Queries, os.Getenv("STRIPE_CONNECT_WEBHOOK_SECRET"))
 	stripeConnectHandler := payments.NewConnectHandler(
 		app.Queries,
@@ -133,6 +135,7 @@ func (app *Application) BuildRouter() http.Handler {
 		// Middleware-uri
 		AuthMiddleware:         authMiddleware,
 		OptionalAuthMiddleware: auth.OptionalAuthMiddleware,
+		ScannerAuthMiddleware:  scannerAuthMiddleware,
 		OrganizerMiddleware:    requireOrganizer,
 		AdminMiddleware:        requireAdmin,
 
@@ -186,10 +189,19 @@ func (app *Application) BuildRouter() http.Handler {
 		CreateOrganizerProfile: organizerHandler.HandleCreateOrganizerProfile,
 
 		// Tickets
-		GetEventTicketTypes: ticketingHandler.HandleGetTicketTypesForEvent,
-		CreateTicketType:    ticketingHandler.HandleCreateTicketType,
-		PurchaseTickets:     ticketingHandler.HandlePurchaseTickets,
-		ValidateTicket:      ticketingHandler.HandleValidateTicket,
+		GetEventTicketTypes:   ticketingHandler.HandleGetTicketTypesForEvent,
+		CreateTicketType:      ticketingHandler.HandleCreateTicketType,
+		PurchaseTickets:       stripeCheckoutHandler.HandleCreateCheckout,
+		ValidateTicket:        ticketingHandler.HandleValidateTicket,
+		ListValidationEvents:  ticketingHandler.HandleListValidationEvents,
+		ListValidationStaff:   ticketingHandler.HandleListValidationStaff,
+		AddValidationStaff:    ticketingHandler.HandleAddValidationStaff,
+		RemoveValidationStaff: ticketingHandler.HandleRemoveValidationStaff,
+		CreateScannerAccess:   ticketingHandler.HandleCreateScannerAccess,
+		ListScannerAccess:     ticketingHandler.HandleListScannerAccess,
+		RevokeScannerAccess:   ticketingHandler.HandleRevokeScannerAccess,
+		CreateScannerSession:  ticketingHandler.HandleCreateScannerSession,
+		QuickValidateTicket:   ticketingHandler.HandleQuickValidateTicket,
 	}
 
 	// 3. Generăm routerul decuplat din internal/router folosind SetupRouter

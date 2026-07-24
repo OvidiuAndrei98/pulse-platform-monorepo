@@ -121,6 +121,25 @@ type EventJoins struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type EventScannerAccess struct {
+	ID        pgtype.UUID        `json:"id"`
+	EventID   pgtype.UUID        `json:"event_id"`
+	CreatedBy pgtype.UUID        `json:"created_by"`
+	Label     string             `json:"label"`
+	TokenHash string             `json:"token_hash"`
+	StartsAt  pgtype.Timestamptz `json:"starts_at"`
+	EndsAt    pgtype.Timestamptz `json:"ends_at"`
+	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type EventValidationStaff struct {
+	EventID   pgtype.UUID        `json:"event_id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	AddedBy   pgtype.UUID        `json:"added_by"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type Events struct {
 	ID              pgtype.UUID        `json:"id"`
 	OrganizerID     pgtype.UUID        `json:"organizer_id"`
@@ -148,15 +167,26 @@ type Friendships struct {
 	Status   pgtype.Text `json:"status"`
 }
 
+type OrderItems struct {
+	ID           pgtype.UUID        `json:"id"`
+	OrderID      pgtype.UUID        `json:"order_id"`
+	TicketTypeID pgtype.UUID        `json:"ticket_type_id"`
+	Quantity     int32              `json:"quantity"`
+	UnitPriceRon int32              `json:"unit_price_ron"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
 type Orders struct {
-	ID                    pgtype.UUID        `json:"id"`
-	UserID                pgtype.UUID        `json:"user_id"`
-	EventID               pgtype.UUID        `json:"event_id"`
-	Email                 string             `json:"email"`
-	StripePaymentIntentID pgtype.Text        `json:"stripe_payment_intent_id"`
-	Status                OrderStatus        `json:"status"`
-	TotalAmount           int32              `json:"total_amount"`
-	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	ID                      pgtype.UUID        `json:"id"`
+	UserID                  pgtype.UUID        `json:"user_id"`
+	EventID                 pgtype.UUID        `json:"event_id"`
+	Email                   string             `json:"email"`
+	StripePaymentIntentID   pgtype.Text        `json:"stripe_payment_intent_id"`
+	Status                  OrderStatus        `json:"status"`
+	TotalAmount             int32              `json:"total_amount"`
+	CreatedAt               pgtype.Timestamptz `json:"created_at"`
+	StripeCheckoutSessionID pgtype.Text        `json:"stripe_checkout_session_id"`
+	PlatformFeeBani         int32              `json:"platform_fee_bani"`
 }
 
 type OrganizerProfiles struct {
@@ -197,14 +227,16 @@ type TicketTypes struct {
 }
 
 type Tickets struct {
-	ID             pgtype.UUID        `json:"id"`
-	OrderID        pgtype.UUID        `json:"order_id"`
-	TicketTypeID   pgtype.UUID        `json:"ticket_type_id"`
-	UserID         pgtype.UUID        `json:"user_id"`
-	ValidationHash string             `json:"validation_hash"`
-	IsValidated    bool               `json:"is_validated"`
-	ValidatedAt    pgtype.Timestamptz `json:"validated_at"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	ID                         pgtype.UUID        `json:"id"`
+	OrderID                    pgtype.UUID        `json:"order_id"`
+	TicketTypeID               pgtype.UUID        `json:"ticket_type_id"`
+	UserID                     pgtype.UUID        `json:"user_id"`
+	ValidationHash             string             `json:"validation_hash"`
+	IsValidated                bool               `json:"is_validated"`
+	ValidatedAt                pgtype.Timestamptz `json:"validated_at"`
+	CreatedAt                  pgtype.Timestamptz `json:"created_at"`
+	ValidatedByUserID          pgtype.UUID        `json:"validated_by_user_id"`
+	ValidatedByScannerAccessID pgtype.UUID        `json:"validated_by_scanner_access_id"`
 }
 
 type UserTokens struct {
