@@ -148,3 +148,28 @@
     hue-rotate(43deg) brightness(103%) contrast(101%);
   opacity: 0.9;
 }
+
+/* Folosim selectorul compus div.leaflet-popup.event-preview-popup pentru specificitate maximă */
+div.leaflet-popup.event-preview-popup .leaflet-popup-content-wrapper {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  outline: none !important;
+}
+
+div.leaflet-popup.event-preview-popup .leaflet-popup-content {
+  margin: 0 !important;
+  width: auto !important;
+  max-width: none !important;
+}
+
+/* Ascundem complet containerul pătrat al săgeții nativ Leaflet */
+div.leaflet-popup.event-preview-popup .leaflet-popup-tip-container {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}

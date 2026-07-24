@@ -13,7 +13,7 @@ export default function OrganizerLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen ">
       <OrganizerSidebar />
       <div className="md:pl-60">
         <OrganizerHeader />

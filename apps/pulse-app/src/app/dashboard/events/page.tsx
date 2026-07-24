@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Calendar, MapPin, Ticket, Euro } from "lucide-react";
 import { useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 
@@ -15,7 +16,7 @@ export default function EventsListPage() {
   const [q, setQ] = useState("");
 
   const filtered = useMemo(() => {
-    return events.filter((e) => {
+    return (events || []).filter((e) => {
       if (filter === "published" && e.status !== "published") return false;
       if (filter === "draft" && e.status !== "draft") return false;
       if (q && !e.title.toLowerCase().includes(q.toLowerCase())) return false;
@@ -23,136 +24,210 @@ export default function EventsListPage() {
     });
   }, [filter, q, events]);
 
+  const filterOptions = [
+    { id: "all", label: "Toate" },
+    { id: "published", label: "Publicate" },
+    { id: "draft", label: "Draft" },
+  ] as const;
+
   return (
-    <div className="min-h-screen bg-background pb-40 text-foreground">
-      <div className="mx-auto max-w-5xl px-5 pt-10">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+    <div className="w-full text-foreground pb-20">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-6 sm:pt-8 space-y-5 sm:space-y-6">
+        {/* HEADER SECTION */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">
               Organizer
             </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
               Evenimente
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {events.length} total ·{" "}
-              {events.filter((e) => e.status === "published").length} publicate
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              {(events || []).length} total ·{" "}
+              {(events || []).filter((e) => e.status === "published").length}{" "}
+              publicate
             </p>
           </div>
+
           <Link
             href="/dashboard/events/new"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-lg shadow-primary/20"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-xs font-bold text-primary-foreground transition hover:opacity-90 active:scale-[0.98] shrink-0 w-full sm:w-auto shadow-sm"
           >
-            <Plus className="h-4 w-4" strokeWidth={2.5} /> Event nou
+            <Plus className="h-4 w-4" strokeWidth={2.5} />
+            <span>Event nou</span>
           </Link>
         </div>
 
-        {/* Filters */}
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        {/* FILTERS & SEARCH BAR */}
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          {/* Search Input */}
+          <div className="relative flex-1 w-full">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Caută eveniment..."
-              className="w-full rounded-full border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary/50"
+              className="h-11 w-full rounded-2xl border border-white/10 bg-white/5 pl-10 pr-4 text-xs sm:text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-white/[0.08]"
             />
           </div>
-          <div className="flex gap-1.5 rounded-full border border-white/10 bg-white/5 p-1">
-            {(["all", "published", "draft"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={
-                  "rounded-full px-3.5 py-1.5 text-xs font-semibold transition " +
-                  (filter === f
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground")
-                }
-              >
-                {f === "all"
-                  ? "Toate"
-                  : f === "published"
-                    ? "Publicate"
-                    : "Draft"}
-              </button>
-            ))}
+
+          {/* SEGMENTED CONTROL */}
+          <div className="relative flex h-11 w-full sm:w-auto items-center rounded-2xl border border-white/10 bg-white/5 p-1 shrink-0">
+            {filterOptions.map((f) => {
+              const isActive = filter === f.id;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => setFilter(f.id)}
+                  className="relative flex-1 sm:flex-none flex h-full items-center justify-center px-4 text-xs font-semibold transition-colors duration-200 z-10"
+                  style={{
+                    color: isActive
+                      ? "var(--primary-foreground)"
+                      : "var(--muted-foreground)",
+                  }}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeFilterBg"
+                      className="absolute inset-0 rounded-xl bg-primary"
+                      transition={{
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 30,
+                      }}
+                    />
+                  )}
+                  <span className="relative z-10">{f.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* List */}
-        <div className="mt-6 space-y-2">
+        {/* EVENTS LIST */}
+        <div className="space-y-4">
           {filtered.length === 0 && (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
-              <p className="text-sm text-muted-foreground">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Niciun eveniment care se potrivește filtrelor.
               </p>
             </div>
           )}
 
           {filtered.map((e) => {
+            const soldTickets =
+              e.ticketTypes?.reduce(
+                (sum, t) => sum + (t.ticketsSold ?? 0),
+                0,
+              ) || 0;
+            const totalCapacity =
+              e.ticketTypes?.reduce((sum, t) => sum + t.capacity, 0) || 0;
+            const totalRevenue =
+              e.ticketTypes?.reduce(
+                (sum, t) => sum + t.priceRon * (t.ticketsSold ?? 0),
+                0,
+              ) || 0;
+            const fillPercentage =
+              totalCapacity > 0
+                ? Math.min(100, Math.round((soldTickets / totalCapacity) * 100))
+                : 0;
+
             return (
               <Link
                 key={e.id}
                 href={`/dashboard/events/${e.id}`}
-                className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-3 transition hover:bg-white/10"
+                className="group flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-5 rounded-3xl border border-white/10 bg-white/5 p-4 sm:p-5 transition hover:border-white/20 hover:bg-white/[0.08]"
               >
-                <img
-                  src={e.bannerUrl}
-                  alt={e.title}
-                  className="h-20 w-20 shrink-0 rounded-xl object-cover"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={
-                        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide " +
-                        (e.status === "published"
-                          ? "bg-primary/15 text-primary"
-                          : "bg-white/10 text-muted-foreground")
-                      }
-                    >
-                      {e.status === "published" ? "Publicat" : "Draft"}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      {e.category}
-                    </span>
-                    {/* <span className="text-[11px] text-muted-foreground">
-                      · {e.vibe}
-                    </span> */}
+                {/* Top Half on Mobile / Left Side on Desktop */}
+                <div className="flex items-start gap-3.5 sm:gap-4 min-w-0 flex-1">
+                  {/* Banner Image */}
+                  <div className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-2xl border border-white/10">
+                    <img
+                      src={e.bannerUrl}
+                      alt={e.title}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
                   </div>
-                  <h3 className="mt-1 truncate text-sm font-semibold">
-                    {e.title}
-                  </h3>
-                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                    {new Date(e.startTime).toLocaleString()} · {e.locationName}
-                  </p>
+
+                  {/* Info Details */}
+                  <div className="min-w-0 flex-1 space-y-1 sm:space-y-1.5 pt-0.5">
+                    {/* Status & Category Badge */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className={
+                          "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0 " +
+                          (e.status === "published"
+                            ? "bg-primary/15 text-primary"
+                            : "bg-white/10 text-muted-foreground")
+                        }
+                      >
+                        {e.status === "published" ? "Publicat" : "Draft"}
+                      </span>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
+                        {e.category}
+                      </span>
+                    </div>
+
+                    {/* Title */}
+                    <h3 className="truncate text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors leading-snug">
+                      {e.title}
+                    </h3>
+
+                    {/* Date & Location */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-0.5">
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        <Calendar className="h-3.5 w-3.5 text-primary shrink-0" />
+                        {new Date(e.startTime).toLocaleDateString("ro-RO", {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </span>
+                      <span className="flex items-center gap-1.5 truncate">
+                        <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="truncate">{e.locationName}</span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="hidden shrink-0 text-right sm:block">
-                  <p className="text-sm font-semibold">
-                    {e.ticketTypes?.reduce(
-                      (sum, t) => sum + (t.ticketsSold ?? 0),
-                      0,
-                    )}{" "}
-                    / {e.ticketTypes?.reduce((sum, t) => sum + t.capacity, 0)}
-                  </p>
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    bilete
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-sm font-semibold">
-                    {e.ticketTypes
-                      ?.reduce(
-                        (sum, t) => sum + t.priceRon * (t.ticketsSold ?? 0),
-                        0,
-                      )
-                      .toLocaleString()}{" "}
-                    €
-                  </p>
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    venit
-                  </p>
+
+                {/* Bottom Half on Mobile / Right Side on Desktop */}
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 w-full md:w-auto shrink-0 pt-3 md:pt-0 border-t border-white/5 md:border-t-0">
+                  {/* Tickets Pill */}
+                  <div className="flex flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-3 space-y-2 min-w-0 md:min-w-[130px] md:w-[140px]">
+                    <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                      <span className="flex items-center gap-1.5 truncate">
+                        <Ticket className="h-3 w-3 text-primary shrink-0" />
+                        Bilete
+                      </span>
+                      <span className="ml-1">{fillPercentage}%</span>
+                    </div>
+                    <p className="text-xs sm:text-sm font-bold text-foreground">
+                      {soldTickets}{" "}
+                      <span className="text-muted-foreground font-normal text-xs">
+                        / {totalCapacity}
+                      </span>
+                    </p>
+                    <div className="h-1 w-full rounded-full bg-white/10 overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all duration-300"
+                        style={{ width: `${fillPercentage}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Revenue Pill */}
+                  <div className="flex flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-3 space-y-2 min-w-0 md:min-w-[130px] md:w-[140px]">
+                    <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                      <Euro className="h-3 w-3 text-primary shrink-0" />
+                      Venit
+                    </div>
+                    <p className="text-xs sm:text-sm font-bold text-primary">
+                      {totalRevenue.toLocaleString()} €
+                    </p>
+                    <span className="text-[9px] text-muted-foreground truncate">
+                      Încasat total
+                    </span>
+                  </div>
                 </div>
               </Link>
             );

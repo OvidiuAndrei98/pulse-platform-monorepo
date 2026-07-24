@@ -1,7 +1,18 @@
+"use client";
+
 import { useEffect, useRef, useState } from "react";
 import { LocateFixed, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
 import { useMap } from "react-leaflet";
 import { Coordinates } from "@/features/events/types";
+
+const glassStyle = {
+  backgroundColor: "rgba(255, 255, 255, 0.06)",
+  backdropFilter: "blur(14px) saturate(160%)",
+  WebkitBackdropFilter: "blur(14px) saturate(160%)",
+  boxShadow:
+    "rgba(255, 255, 255, 0.18) 0px 1px 0px inset, rgba(255, 255, 255, 0.05) 0px -1px 0px inset, rgba(0, 0, 0, 0.35) 0px 6px 20px",
+  opacity: 1,
+};
 
 export function MapControls({
   onLocate,
@@ -48,22 +59,73 @@ export function MapControls({
   };
 
   return (
-    <div className="pointer-events-auto absolute right-3 top-3 z-[1000] flex flex-col gap-1.5">
-      <div className="flex flex-col overflow-hidden rounded-xl border border-white/15 bg-background/80 shadow-lg" style={{ backdropFilter: "blur(16px)" }}>
-        <button type="button" onClick={(event) => { event.stopPropagation(); map.zoomIn(); }} aria-label="Zoom in" className="grid h-9 w-9 place-items-center transition hover:bg-white/10 active:bg-white/20">
+    <div className="pointer-events-auto  absolute top-10 right-5 z-[1000] flex flex-col gap-2">
+      {/* Zoom Controls Container */}
+      <div
+        className="flex flex-col overflow-hidden rounded-2xl text-white/70"
+        style={glassStyle}
+      >
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            map.zoomIn();
+          }}
+          aria-label="Zoom in"
+          className="grid h-9 w-9 place-items-center transition-colors hover:bg-white/10 hover:text-white active:bg-white/20"
+        >
           <Plus className="h-4 w-4" />
         </button>
-        <div className="h-px w-full bg-white/10" />
-        <button type="button" onClick={(event) => { event.stopPropagation(); map.zoomOut(); }} aria-label="Zoom out" className="grid h-9 w-9 place-items-center transition hover:bg-white/10 active:bg-white/20">
+        <div className="h-[1px] w-full bg-white/10" />
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            map.zoomOut();
+          }}
+          aria-label="Zoom out"
+          className="grid h-9 w-9 place-items-center transition-colors hover:bg-white/10 hover:text-white active:bg-white/20"
+        >
           <Minus className="h-4 w-4" />
         </button>
       </div>
-      <button type="button" onClick={(event) => { event.stopPropagation(); handleRecenter(); }} aria-label="Find my location" title="Find my location" disabled={locating} className="grid h-9 w-9 place-items-center rounded-xl border border-white/15 bg-background/80 shadow-lg transition hover:bg-white/10 active:bg-white/20 disabled:opacity-60" style={{ backdropFilter: "blur(16px)" }}>
-        <LocateFixed className={`h-4 w-4 ${locating ? "animate-pulse" : ""}`} />
+
+      {/* Recenter Button */}
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          handleRecenter();
+        }}
+        aria-label="Find my location"
+        title="Find my location"
+        disabled={locating}
+        className="grid h-9 w-9 place-items-center rounded-2xl text-white/70 transition-colors hover:bg-white/10 hover:text-white active:bg-white/20 disabled:opacity-60"
+        style={glassStyle}
+      >
+        <LocateFixed
+          className={`h-4 w-4 ${locating ? "animate-pulse text-white" : ""}`}
+        />
       </button>
+
+      {/* Toggle Full View Button */}
       {onToggleFullView && (
-        <button type="button" onClick={(event) => { event.stopPropagation(); onToggleFullView(); }} aria-label={isFullView ? "Show event list" : "Hide event list"} title={isFullView ? "Show event list" : "Full map view"} className="hidden h-9 w-9 place-items-center rounded-xl border border-white/15 bg-background/80 shadow-lg transition hover:bg-white/10 active:bg-white/20 lg:grid" style={{ backdropFilter: "blur(16px)" }}>
-          {isFullView ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleFullView();
+          }}
+          aria-label={isFullView ? "Show event list" : "Hide event list"}
+          title={isFullView ? "Show event list" : "Full map view"}
+          className="hidden h-9 w-9 place-items-center rounded-2xl text-white/70 transition-colors hover:bg-white/10 hover:text-white active:bg-white/20 lg:grid"
+          style={glassStyle}
+        >
+          {isFullView ? (
+            <Minimize2 className="h-4 w-4" />
+          ) : (
+            <Maximize2 className="h-4 w-4" />
+          )}
         </button>
       )}
     </div>

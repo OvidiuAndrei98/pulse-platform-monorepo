@@ -27,7 +27,6 @@ const tabs = [
 ] as const;
 
 function matchTab(pathname: string) {
-  // Cel mai lung match câștigă
   const sorted = [...tabs].sort((a, b) => b.href.length - a.href.length);
   return sorted.find((t) =>
     "exact" in t && t.exact
@@ -45,7 +44,7 @@ export function OrganizerHeader() {
 
   useEffect(() => {
     const el = sliderRef.current;
-    if (!el) return;
+    if (!el || !el.parentElement) return;
     const update = () => {
       const left = Math.min(0, el.parentElement!.clientWidth - el.scrollWidth);
       setDragConstraints({ left, right: 0 });
@@ -55,7 +54,6 @@ export function OrganizerHeader() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  // Breadcrumb: Organizer > <active label> (> extra if deeper)
   const isEventDetail =
     /^\/dashboard\/events\/[^/]+$/.test(pathname) && !pathname.endsWith("/new");
   const crumbs: { label: string; href?: string }[] = [
@@ -68,25 +66,25 @@ export function OrganizerHeader() {
   if (isEventDetail) crumbs.push({ label: "Detalii" });
 
   return (
-    <div className="sticky top-0 z-20 border-b border-white/10 bg-background/80 backdrop-blur-xl">
-      <div className="mx-auto max-w-5xl px-5 pt-3 pb-2 pl-16 md:pl-5">
-        {/* Breadcrumb */}
+    <header className="sticky top-0 z-20 w-full border-b border-white/10 bg-background/60 backdrop-blur-xl">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-3 pb-2.5 pl-16 md:pl-6">
+        {/* BREADCRUMB NAVIGATION */}
         <nav
           aria-label="Breadcrumb"
-          className="flex items-center gap-1 text-[11px] text-muted-foreground"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground"
         >
           {crumbs.map((c, i) => (
-            <span key={i} className="flex items-center gap-1">
-              {i > 0 && <ChevronRight className="h-3 w-3 opacity-50" />}
+            <span key={i} className="flex items-center gap-1.5">
+              {i > 0 && <ChevronRight className="h-3.5 w-3.5 opacity-40" />}
               {c.href && i < crumbs.length - 1 ? (
                 <Link
                   href={c.href}
-                  className="hover:text-foreground transition"
+                  className="rounded-lg px-2 py-0.5 transition hover:bg-white/5 hover:text-foreground"
                 >
                   {c.label}
                 </Link>
               ) : (
-                <span className="text-foreground/90 font-medium">
+                <span className="rounded-lg bg-white/5 px-2 py-0.5 font-semibold text-foreground">
                   {c.label}
                 </span>
               )}
@@ -94,38 +92,53 @@ export function OrganizerHeader() {
           ))}
         </nav>
 
-        {/* Tab slider — draggable pe mobil, ascuns pe desktop */}
-        <div className="mt-2 -mx-5 overflow-hidden md:hidden">
+        {/* MOBILE TAB SLIDER (H-11 CONSISTENT, SLIDING INDICATOR) */}
+        <div className="mt-3 -mx-4 overflow-hidden md:hidden">
           <motion.div
             ref={sliderRef}
             drag="x"
             dragConstraints={dragConstraints}
             dragElastic={0.05}
             dragTransition={{ bounceStiffness: 300, bounceDamping: 30 }}
-            className="flex cursor-grab items-center gap-1.5 px-5 pb-1 active:cursor-grabbing"
+            className="flex cursor-grab items-center gap-1.5 px-4 pb-1 active:cursor-grabbing"
           >
             {tabs.map((t) => {
               const isActive = active?.href === t.href;
+              const Icon = t.icon;
+
               return (
                 <motion.button
                   key={t.href}
                   type="button"
                   onTap={() => router.push(t.href)}
-                  className={
-                    "inline-flex shrink-0 select-none items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition " +
-                    (isActive
-                      ? "border-primary/40 bg-primary/15 text-primary"
-                      : "border-white/10 bg-white/5 text-muted-foreground hover:text-foreground")
-                  }
+                  className="relative flex h-9 shrink-0 select-none items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 text-xs font-semibold transition-colors duration-200"
+                  style={{
+                    color: isActive
+                      ? "var(--primary-foreground)"
+                      : "var(--muted-foreground)",
+                  }}
                 >
-                  <t.icon className="h-3.5 w-3.5" />
-                  {t.label}
+                  {/* Sliding Background pe Tab Activ */}
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeHeaderTab"
+                      className="absolute inset-0 rounded-xl bg-primary"
+                      transition={{
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 30,
+                      }}
+                    />
+                  )}
+
+                  <Icon className="relative z-10 h-3.5 w-3.5 shrink-0" />
+                  <span className="relative z-10">{t.label}</span>
                 </motion.button>
               );
             })}
           </motion.div>
         </div>
       </div>
-    </div>
+    </header>
   );
 }

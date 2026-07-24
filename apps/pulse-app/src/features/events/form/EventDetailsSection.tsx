@@ -1,15 +1,15 @@
 import { Calendar, MapPin, Sparkles, Tags } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
-import { PlacesAutocomplete, PlaceResult } from "@/components/PlacesAutocomplete";
+import {
+  PlacesAutocomplete,
+  PlaceResult,
+} from "@/components/PlacesAutocomplete";
 import { eventCategories } from "@/core/mappers";
 import { eventCities, eventVibes } from "@/features/events/constants";
 import { EventFormValues } from "@/app/dashboard/components/EventsForm";
 import { ThemedSelect } from "@/features/events/form/ThemedSelect";
 import { DateTimePicker } from "@/features/events/form/DateTimePicker";
-import {
-  eventInputClass,
-  FormField,
-} from "@/features/events/form/FormField";
+import { eventInputClass, FormField } from "@/features/events/form/FormField";
 
 export function EventDetailsSection({
   form,
@@ -18,7 +18,12 @@ export function EventDetailsSection({
   form: UseFormReturn<EventFormValues>;
   mapsReady: boolean;
 }) {
-  const { register, setValue, watch, formState: { errors } } = form;
+  const {
+    register,
+    setValue,
+    watch,
+    formState: { errors },
+  } = form;
   const currentStatus = watch("status");
 
   return (
@@ -27,17 +32,27 @@ export function EventDetailsSection({
         <Calendar className="h-4 w-4 text-primary" /> Detalii eveniment
       </h2>
       <FormField label="Titlu" error={errors.title?.message}>
-        <input {...register("title")} placeholder="Numele evenimentului" className={eventInputClass} />
+        <input
+          {...register("title")}
+          placeholder="Numele evenimentului"
+          className={eventInputClass}
+        />
       </FormField>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <FormField label="Categorie" error={errors.category?.message}>
           <ThemedSelect
             value={watch("category")}
-            options={eventCategories.map((category) => ({ value: category, label: category }))}
+            options={eventCategories.map((category) => ({
+              value: category,
+              label: category,
+            }))}
             placeholder="Alege categoria"
             icon={Tags}
             onChange={(category) =>
-              setValue("category", category, { shouldValidate: true, shouldDirty: true })
+              setValue("category", category, {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
             }
           />
           <input type="hidden" {...register("category")} />
@@ -49,7 +64,10 @@ export function EventDetailsSection({
             placeholder="Alege vibe-ul"
             icon={Sparkles}
             onChange={(vibe) =>
-              setValue("vibe", vibe, { shouldValidate: true, shouldDirty: true })
+              setValue("vibe", vibe, {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
             }
           />
           <input type="hidden" {...register("vibe")} />
@@ -57,7 +75,12 @@ export function EventDetailsSection({
         <FormField label="Stare eveniment">
           <div className="grid h-[42px] grid-cols-2 gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] p-1">
             {(["draft", "published"] as const).map((status) => (
-              <button key={status} type="button" onClick={() => setValue("status", status)} className={`rounded-full text-xs font-medium transition ${currentStatus === status ? status === "published" ? "bg-primary text-primary-foreground" : "bg-white/10 text-white" : "text-muted-foreground hover:text-white"}`}>
+              <button
+                key={status}
+                type="button"
+                onClick={() => setValue("status", status)}
+                className={`rounded-full text-xs font-medium transition ${currentStatus === status ? (status === "published" ? "bg-primary text-primary-foreground" : "bg-white/10 text-white") : "text-muted-foreground hover:text-white"}`}
+              >
                 {status === "draft" ? "Ciorna" : "Publicat"}
               </button>
             ))}
@@ -68,7 +91,12 @@ export function EventDetailsSection({
         <FormField label="Data inceperii" error={errors.startTime?.message}>
           <DateTimePicker
             value={watch("startTime")}
-            onChange={(startTime) => setValue("startTime", startTime, { shouldValidate: true, shouldDirty: true })}
+            onChange={(startTime) =>
+              setValue("startTime", startTime, {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
+            }
             placeholder="Alege inceputul"
           />
           <input type="hidden" {...register("startTime")} />
@@ -76,7 +104,12 @@ export function EventDetailsSection({
         <FormField label="Data finalului" error={errors.endTime?.message}>
           <DateTimePicker
             value={watch("endTime")}
-            onChange={(endTime) => setValue("endTime", endTime, { shouldValidate: true, shouldDirty: true })}
+            onChange={(endTime) =>
+              setValue("endTime", endTime, {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
+            }
             placeholder="Alege finalul"
           />
           <input type="hidden" {...register("endTime")} />
@@ -85,12 +118,17 @@ export function EventDetailsSection({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_13rem]">
         <FormField label="Locatie" error={errors.locationName?.message}>
           <div className="relative">
-            <MapPin aria-hidden className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-primary" />
+            <MapPin
+              aria-hidden
+              className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-primary"
+            />
             <PlacesAutocomplete
               ready={mapsReady}
               className={`${eventInputClass} pl-10`}
               onSelect={(location: PlaceResult) => {
-                setValue("locationName", location.name, { shouldValidate: true });
+                setValue("locationName", location.name, {
+                  shouldValidate: true,
+                });
                 setValue("latitude", location.lat);
                 setValue("longitude", location.lng);
                 setValue("googlePlaceId", location.placeId);
@@ -109,17 +147,29 @@ export function EventDetailsSection({
             placeholder="Alege orasul"
             icon={MapPin}
             onChange={(city) =>
-              setValue("city", city, { shouldValidate: true, shouldDirty: true })
+              setValue("city", city, {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
             }
           />
           <input type="hidden" {...register("city")} />
         </FormField>
       </div>
       <FormField label="Descriere" error={errors.description?.message}>
-        <textarea {...register("description")} placeholder="Descrie evenimentul, DJ-ii, atmosfera..." rows={4} className="w-full resize-none rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-sm outline-none placeholder:text-muted-foreground/40 focus:border-primary/30 focus:bg-white/[0.04]" />
+        <textarea
+          {...register("description")}
+          placeholder="Descrie evenimentul, DJ-ii, atmosfera..."
+          rows={4}
+          className="w-full resize-none rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-sm outline-none placeholder:text-muted-foreground/40 focus:border-primary/30 focus:bg-white/[0.04]"
+        />
       </FormField>
       <FormField label="Imagine (URL)" error={errors.bannerUrl?.message}>
-        <input {...register("bannerUrl")} placeholder="https://..." className={eventInputClass} />
+        <input
+          {...register("bannerUrl")}
+          placeholder="https://..."
+          className={eventInputClass}
+        />
       </FormField>
     </section>
   );
