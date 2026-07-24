@@ -574,7 +574,8 @@ func (h *Handler) HandleSendFriendRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if relationship == "pending_received" {
-		if err := h.Queries.AcceptFriendRequest(r.Context(), db.AcceptFriendRequestParams{UserID: viewerID, FriendID: targetID}); err != nil {
+		updated, err := h.Queries.AcceptFriendRequest(r.Context(), db.AcceptFriendRequestParams{UserID: viewerID, FriendID: targetID})
+		if err != nil || updated == 0 {
 			router.RespondWithError(w, http.StatusInternalServerError, "Cererea nu a putut fi acceptata")
 			return
 		}
@@ -610,7 +611,12 @@ func (h *Handler) HandleRespondToFriendRequest(w http.ResponseWriter, r *http.Re
 	}
 	var err error
 	if action.Status == "accepted" {
-		err = h.Queries.AcceptFriendRequest(r.Context(), db.AcceptFriendRequestParams{UserID: viewerID, FriendID: requesterID})
+		var updated int64
+		updated, err = h.Queries.AcceptFriendRequest(r.Context(), db.AcceptFriendRequestParams{UserID: viewerID, FriendID: requesterID})
+		if err == nil && updated == 0 {
+			router.RespondWithError(w, http.StatusNotFound, "Cererea nu mai este disponibila")
+			return
+		}
 	} else {
 		err = h.Queries.DeclineFriendRequest(r.Context(), db.DeclineFriendRequestParams{UserID: viewerID, FriendID: requesterID})
 	}

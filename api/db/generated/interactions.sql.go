@@ -11,10 +11,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const acceptFriendRequest = `-- name: AcceptFriendRequest :exec
+const acceptFriendRequest = `-- name: AcceptFriendRequest :execrows
 UPDATE friendships
 SET status = 'accepted'
-WHERE user_id = $2 AND friend_id = $1 AND status = 'pending'
+WHERE ((user_id = $2 AND friend_id = $1)
+    OR (user_id = $1 AND friend_id = $2))
+  AND status = 'pending'
 `
 
 type AcceptFriendRequestParams struct {
@@ -22,9 +24,12 @@ type AcceptFriendRequestParams struct {
 	UserID   pgtype.UUID `json:"user_id"`
 }
 
-func (q *Queries) AcceptFriendRequest(ctx context.Context, arg AcceptFriendRequestParams) error {
-	_, err := q.db.Exec(ctx, acceptFriendRequest, arg.FriendID, arg.UserID)
-	return err
+func (q *Queries) AcceptFriendRequest(ctx context.Context, arg AcceptFriendRequestParams) (int64, error) {
+	result, err := q.db.Exec(ctx, acceptFriendRequest, arg.FriendID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const addComment = `-- name: AddComment :one

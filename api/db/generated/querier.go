@@ -11,7 +11,7 @@ import (
 )
 
 type Querier interface {
-	AcceptFriendRequest(ctx context.Context, arg AcceptFriendRequestParams) error
+	AcceptFriendRequest(ctx context.Context, arg AcceptFriendRequestParams) (int64, error)
 	AddComment(ctx context.Context, arg AddCommentParams) (Comments, error)
 	AddValidationStaff(ctx context.Context, arg AddValidationStaffParams) error
 	AssignGuestOrdersToUser(ctx context.Context, userID pgtype.UUID) error

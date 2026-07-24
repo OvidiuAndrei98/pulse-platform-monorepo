@@ -116,10 +116,12 @@ FROM friendships f
 JOIN users u ON (f.user_id = u.id AND f.friend_id = $1)
 WHERE f.status = 'pending';
 
--- name: AcceptFriendRequest :exec
+-- name: AcceptFriendRequest :execrows
 UPDATE friendships
 SET status = 'accepted'
-WHERE user_id = $2 AND friend_id = $1 AND status = 'pending';
+WHERE ((user_id = $2 AND friend_id = $1)
+    OR (user_id = $1 AND friend_id = $2))
+  AND status = 'pending';
 
 -- name: DeclineFriendRequest :exec
 DELETE FROM friendships
