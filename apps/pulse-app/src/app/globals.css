@@ -96,6 +96,14 @@
   }
 }
 
+/* Backdrop filters force expensive offscreen rendering on mobile GPUs. */
+@media (max-width: 767px) {
+  [class*="backdrop-blur"] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
 /* Google Places renders its suggestion list outside the React tree. */
 .pac-container {
   z-index: 10001 !important;

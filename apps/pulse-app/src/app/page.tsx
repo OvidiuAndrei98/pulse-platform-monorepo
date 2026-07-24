@@ -18,16 +18,6 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#0b0c0e] text-foreground">
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div className="absolute -left-28 -top-20 h-[380px] w-[380px] rounded-full bg-emerald-500/20 blur-[130px]" />
-
-        <div className="absolute -right-24 top-[30%] h-[420px] w-[350px] rounded-full bg-green-500/15 blur-[140px]" />
-
-        <div className="absolute -bottom-10 -left-10 h-[320px] w-[320px] rounded-full bg-emerald-400/20 blur-[120px]" />
-
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0b0c0e]/40 to-[#0b0c0e]" />
-      </div>
-
       <div className="relative z-10 pb-32">
         <div className="mx-auto max-w-7xl px-5 pt-10">
           <div className="relative z-40 flex items-center justify-between">
