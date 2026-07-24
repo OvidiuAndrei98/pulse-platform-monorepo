@@ -205,4 +205,41 @@ export class ApiClient {
   ) {
     return this.request("delete", path, options);
   }
+
+  public async uploadEventBanner(file: File): Promise<{ url: string }> {
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      "Content-Type": file.type,
+    };
+
+    if (this.config.getAccessToken) {
+      const token = this.config.getAccessToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await fetch(
+      new URL(`${this.config.apiRoot}/dashboard/uploads/event-banner`).toString(),
+      {
+        method: "POST",
+        headers,
+        body: file,
+      },
+    );
+
+    if (!response.ok) {
+      let errorData: any = {};
+      try {
+        errorData = await response.json();
+      } catch {
+        errorData = { title: response.statusText };
+      }
+      throw new ApiError(
+        response.status,
+        errorData.title || "Error",
+        errorData.detail,
+      );
+    }
+
+    return response.json();
+  }
 }

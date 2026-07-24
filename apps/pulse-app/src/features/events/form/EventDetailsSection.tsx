@@ -10,6 +10,7 @@ import { EventFormValues } from "@/app/dashboard/components/EventsForm";
 import { ThemedSelect } from "@/features/events/form/ThemedSelect";
 import { DateTimePicker } from "@/features/events/form/DateTimePicker";
 import { eventInputClass, FormField } from "@/features/events/form/FormField";
+import { EventBannerUpload } from "@/features/events/form/EventBannerUpload";
 
 export function EventDetailsSection({
   form,
@@ -164,12 +165,17 @@ export function EventDetailsSection({
           className="w-full resize-none rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-sm outline-none placeholder:text-muted-foreground/40 focus:border-primary/30 focus:bg-white/[0.04]"
         />
       </FormField>
-      <FormField label="Imagine (URL)" error={errors.bannerUrl?.message}>
-        <input
-          {...register("bannerUrl")}
-          placeholder="https://..."
-          className={eventInputClass}
+      <FormField label="Imagine eveniment" error={errors.bannerUrl?.message}>
+        <EventBannerUpload
+          value={watch("bannerUrl")}
+          onChange={(bannerUrl) =>
+            setValue("bannerUrl", bannerUrl ?? "", {
+              shouldValidate: true,
+              shouldDirty: true,
+            })
+          }
         />
+        <input type="hidden" {...register("bannerUrl")} />
       </FormField>
     </section>
   );

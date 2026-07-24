@@ -147,6 +147,8 @@ func (app *Application) BuildRouter() http.Handler {
 		EditEvent:           eventsHandler.HandleEditEvent,
 		GetEventWithStats:   eventsHandler.HandleGetEventWithStats,
 		ListEventsWithStats: eventsHandler.HandleListEventsWithStats,
+		UploadEventBanner:   eventsHandler.HandleUploadEventBanner,
+		GetEventBanner:      eventsHandler.HandleGetEventBanner,
 
 		// Interactions / Checkins
 		CreateCheckIn: interactionsHandler.HandleCreateCheckIn,

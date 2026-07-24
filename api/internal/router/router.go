@@ -40,6 +40,8 @@ type HandlersConfig struct {
 	DeleteEvent         http.HandlerFunc
 	EditEvent           http.HandlerFunc
 	ListEventsWithStats http.HandlerFunc
+	UploadEventBanner   http.HandlerFunc
+	GetEventBanner      http.HandlerFunc
 
 	// Interactions / Checkins
 	CreateCheckIn http.HandlerFunc
@@ -99,6 +101,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 	})
 
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Get("/media/*", cfg.GetEventBanner)
 
 		// --- AUTH (Public) ---
 		r.Route("/auth", func(r chi.Router) {
@@ -153,6 +156,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				}
 
 				// --- ORGANIZER DASHBOARD ---
+				r.Post("/dashboard/uploads/event-banner", cfg.UploadEventBanner)
 				r.Route("/dashboard/events", func(r chi.Router) {
 					r.Get("/", cfg.ListEventsWithStats)
 					r.Post("/", cfg.CreateEvent)

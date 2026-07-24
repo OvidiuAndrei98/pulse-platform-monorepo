@@ -17,6 +17,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "guerrillaradio.b-cdn.net",
       },
+      {
+        protocol: "https",
+        hostname: "pulse-api.code-lab.ro",
+        pathname: "/api/v1/media/**",
+      },
     ],
   },
 };
