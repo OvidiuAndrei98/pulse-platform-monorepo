@@ -120,7 +120,7 @@ func (app *Application) BuildRouter() http.Handler {
 	requireAdmin := auth.RequireRole("admin")
 	organizerHandler := organizer.NewHandler(app.Queries)
 	ticketingHandler := tickets.NewHandler(app.Queries, app.Pool, os.Getenv("PUBLIC_APP_URL"))
-	stripeCheckoutHandler := payments.NewCheckoutHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"))
+	stripeCheckoutHandler := payments.NewCheckoutHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), mailerService)
 	stripeWebhookHandler := payments.NewWebhookHandler(os.Getenv("STRIPE_WEBHOOK_SECRET"), stripeCheckoutHandler)
 	stripeConnectWebhookHandler := payments.NewConnectWebhookHandler(app.Queries, os.Getenv("STRIPE_CONNECT_WEBHOOK_SECRET"))
 	stripeConnectHandler := payments.NewConnectHandler(
@@ -169,6 +169,9 @@ func (app *Application) BuildRouter() http.Handler {
 		StripeConnectWebhook:    stripeConnectWebhookHandler.HandleStripeConnectWebhook,
 		CreateStripeAccountLink: stripeConnectHandler.HandleCreateAccountLink,
 		GetStripeAccountStatus:  stripeConnectHandler.HandleGetAccountStatus,
+		GetEventSocial:          interactionsHandler.HandleGetEventSocial,
+		UpdateEventRsvp:         interactionsHandler.HandleUpdateEventRsvp,
+		DeleteEventRsvp:         interactionsHandler.HandleDeleteEventRsvp,
 
 		// Interactions / Checkins
 		CreateCheckIn: interactionsHandler.HandleCreateCheckIn,
@@ -183,6 +186,13 @@ func (app *Application) BuildRouter() http.Handler {
 		SendFriendRequest:      interactionsHandler.HandleSendFriendRequest,
 		RespondToFriendRequest: interactionsHandler.HandleRespondToFriendRequest,
 		GetFriendRequests:      interactionsHandler.HandleGetFriendRequests,
+		ConnectWithFriend:      interactionsHandler.HandleConnectWithFriend,
+		SearchProfiles:         interactionsHandler.HandleSearchProfiles,
+		GetPublicProfile:       interactionsHandler.HandleGetPublicProfile,
+		FollowOrganizer:        interactionsHandler.HandleFollowOrganizer,
+		UnfollowOrganizer:      interactionsHandler.HandleUnfollowOrganizer,
+		GetEventAttendees:      interactionsHandler.HandleGetEventAttendees,
+		GetSocialFeed:          interactionsHandler.HandleGetSocialFeed,
 
 		// Organizer
 		GetOrganizerProfile:    organizerHandler.HandleGetOrganizerProfile,

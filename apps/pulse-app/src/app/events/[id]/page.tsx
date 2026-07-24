@@ -20,6 +20,8 @@ import {
 import { useEffect, useState } from "react";
 import { Event, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { EventSocialProof } from "@/components/EventSocialProof";
+import { EventAttendees } from "@/components/social/EventAttendees";
 
 export default function EventStandalonePage() {
   const { user } = useDataProvider();
@@ -134,7 +136,7 @@ export default function EventStandalonePage() {
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Inapoi
         </Link>
-        <section className="rounded-[28px] border border-white/15 bg-background/90 p-6 backdrop-blur-md sm:p-7">
+        <section className="rounded-xl border border-white/15 bg-background/90 p-6 backdrop-blur-md sm:p-7">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold text-primary">{event.category}</p>
@@ -184,12 +186,20 @@ export default function EventStandalonePage() {
           </p>
         </section>
 
+        <div className="pt-7 sm:pt-8">
+          <EventSocialProof eventId={event.id} />
+        </div>
+
+        <div className="pt-6">
+          <EventAttendees eventId={event.id} />
+        </div>
+
         <section className="pt-8">
           <h2 className="text-sm font-semibold">Bilete</h2>
           {ticketTypes.length > 0 ? (
             <div className="mt-3 space-y-3">
               {ticketTypes.map((ticket) => (
-                <div key={ticket.id} className="flex items-center justify-between gap-4 rounded-[24px] border border-white/15 bg-surface/80 px-4 py-3.5 sm:px-5">
+                <div key={ticket.id} className="flex items-center justify-between gap-4 rounded-lg border border-white/15 bg-surface/80 px-4 py-3.5 sm:px-5">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold">{ticket.name}</p>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
@@ -228,7 +238,7 @@ export default function EventStandalonePage() {
 
         <section className="pt-8">
           <h2 className="text-sm font-semibold">Locatie</h2>
-          <div className="mt-3 flex items-center justify-between gap-4 rounded-[24px] border border-white/15 bg-surface/80 px-4 py-3.5 sm:px-5">
+          <div className="mt-3 flex items-center justify-between gap-4 rounded-lg border border-white/15 bg-surface/80 px-4 py-3.5 sm:px-5">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{event.locationName}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">Deschide traseul in Google Maps</p>
@@ -270,7 +280,7 @@ function Fact({
   value: string;
 }) {
   return (
-    <div className="min-w-0 rounded-[24px] border border-white/15 bg-surface/80 px-4 py-3.5">
+    <div className="min-w-0 rounded-lg border border-white/15 bg-surface/80 px-4 py-3.5">
       <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
         <Icon className="h-3.5 w-3.5" /> {label}
       </div>

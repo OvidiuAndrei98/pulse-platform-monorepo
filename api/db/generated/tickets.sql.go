@@ -28,10 +28,39 @@ func (q *Queries) AddValidationStaff(ctx context.Context, arg AddValidationStaff
 	return err
 }
 
+const assignGuestOrdersToUser = `-- name: AssignGuestOrdersToUser :exec
+UPDATE orders o
+SET user_id = $1
+FROM users u
+WHERE u.id = $1
+  AND o.user_id IS NULL
+  AND o.status = 'completed'
+  AND LOWER(o.email) = LOWER(u.email)
+`
+
+func (q *Queries) AssignGuestOrdersToUser(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, assignGuestOrdersToUser, userID)
+	return err
+}
+
+const assignGuestTicketsToUser = `-- name: AssignGuestTicketsToUser :exec
+UPDATE tickets t
+SET user_id = $1
+FROM orders o
+WHERE t.order_id = o.id
+  AND t.user_id IS NULL
+  AND o.user_id = $1
+`
+
+func (q *Queries) AssignGuestTicketsToUser(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, assignGuestTicketsToUser, userID)
+	return err
+}
+
 const createCheckoutOrder = `-- name: CreateCheckoutOrder :one
 INSERT INTO orders (user_id, event_id, email, total_amount, platform_fee_bani, status)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani
+RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at
 `
 
 type CreateCheckoutOrderParams struct {
@@ -64,6 +93,7 @@ func (q *Queries) CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrd
 		&i.CreatedAt,
 		&i.StripeCheckoutSessionID,
 		&i.PlatformFeeBani,
+		&i.TicketEmailSentAt,
 	)
 	return i, err
 }
@@ -71,7 +101,7 @@ func (q *Queries) CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrd
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO orders (user_id, event_id, email, total_amount, stripe_payment_intent_id, status)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani
+RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at
 `
 
 type CreateOrderParams struct {
@@ -104,6 +134,7 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.CreatedAt,
 		&i.StripeCheckoutSessionID,
 		&i.PlatformFeeBani,
+		&i.TicketEmailSentAt,
 	)
 	return i, err
 }
@@ -258,7 +289,7 @@ func (q *Queries) DecrementTicketsSold(ctx context.Context, arg DecrementTickets
 }
 
 const getOrderForUpdate = `-- name: GetOrderForUpdate :one
-SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani FROM orders
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at FROM orders
 WHERE id = $1
 FOR UPDATE
 `
@@ -277,6 +308,7 @@ func (q *Queries) GetOrderForUpdate(ctx context.Context, id pgtype.UUID) (Orders
 		&i.CreatedAt,
 		&i.StripeCheckoutSessionID,
 		&i.PlatformFeeBani,
+		&i.TicketEmailSentAt,
 	)
 	return i, err
 }
@@ -584,6 +616,55 @@ func (q *Queries) IsValidationStaffForEvent(ctx context.Context, arg IsValidatio
 	return is_validation_staff, err
 }
 
+const listOrderTicketEmailDetails = `-- name: ListOrderTicketEmailDetails :many
+SELECT o.email, o.user_id, o.ticket_email_sent_at, e.title AS event_title,
+       e.location_name, tt.name AS ticket_type_name, t.validation_hash
+FROM orders o
+JOIN events e ON e.id = o.event_id
+JOIN tickets t ON t.order_id = o.id
+JOIN ticket_types tt ON tt.id = t.ticket_type_id
+WHERE o.id = $1
+ORDER BY t.created_at ASC
+`
+
+type ListOrderTicketEmailDetailsRow struct {
+	Email             string             `json:"email"`
+	UserID            pgtype.UUID        `json:"user_id"`
+	TicketEmailSentAt pgtype.Timestamptz `json:"ticket_email_sent_at"`
+	EventTitle        string             `json:"event_title"`
+	LocationName      string             `json:"location_name"`
+	TicketTypeName    string             `json:"ticket_type_name"`
+	ValidationHash    string             `json:"validation_hash"`
+}
+
+func (q *Queries) ListOrderTicketEmailDetails(ctx context.Context, id pgtype.UUID) ([]ListOrderTicketEmailDetailsRow, error) {
+	rows, err := q.db.Query(ctx, listOrderTicketEmailDetails, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrderTicketEmailDetailsRow
+	for rows.Next() {
+		var i ListOrderTicketEmailDetailsRow
+		if err := rows.Scan(
+			&i.Email,
+			&i.UserID,
+			&i.TicketEmailSentAt,
+			&i.EventTitle,
+			&i.LocationName,
+			&i.TicketTypeName,
+			&i.ValidationHash,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listScannerAccess = `-- name: ListScannerAccess :many
 SELECT id, event_id, label, starts_at, ends_at, revoked_at, created_at
 FROM event_scanner_access
@@ -715,6 +796,17 @@ func (q *Queries) ListValidationStaff(ctx context.Context, eventID pgtype.UUID) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const markGuestTicketEmailSent = `-- name: MarkGuestTicketEmailSent :exec
+UPDATE orders
+SET ticket_email_sent_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND user_id IS NULL AND ticket_email_sent_at IS NULL
+`
+
+func (q *Queries) MarkGuestTicketEmailSent(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, markGuestTicketEmailSent, id)
+	return err
 }
 
 const removeValidationStaff = `-- name: RemoveValidationStaff :exec

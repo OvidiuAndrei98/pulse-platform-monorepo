@@ -11,6 +11,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const acceptFriendRequest = `-- name: AcceptFriendRequest :exec
+UPDATE friendships
+SET status = 'accepted'
+WHERE user_id = $2 AND friend_id = $1 AND status = 'pending'
+`
+
+type AcceptFriendRequestParams struct {
+	FriendID pgtype.UUID `json:"friend_id"`
+	UserID   pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) AcceptFriendRequest(ctx context.Context, arg AcceptFriendRequestParams) error {
+	_, err := q.db.Exec(ctx, acceptFriendRequest, arg.FriendID, arg.UserID)
+	return err
+}
+
 const addComment = `-- name: AddComment :one
 INSERT INTO comments (event_id, user_id, content)
 VALUES ($1, $2, $3)
@@ -34,6 +50,33 @@ func (q *Queries) AddComment(ctx context.Context, arg AddCommentParams) (Comment
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const connectFriends = `-- name: ConnectFriends :exec
+WITH existing AS (
+    SELECT 1
+    FROM friendships
+    WHERE (user_id = $1 AND friend_id = $2)
+       OR (user_id = $2 AND friend_id = $1)
+), accepted AS (
+    UPDATE friendships
+    SET status = 'accepted'
+    WHERE (user_id = $1 AND friend_id = $2)
+       OR (user_id = $2 AND friend_id = $1)
+)
+INSERT INTO friendships (user_id, friend_id, status)
+SELECT $1, $2, 'accepted'
+WHERE NOT EXISTS (SELECT 1 FROM existing)
+`
+
+type ConnectFriendsParams struct {
+	UserID   pgtype.UUID `json:"user_id"`
+	FriendID pgtype.UUID `json:"friend_id"`
+}
+
+func (q *Queries) ConnectFriends(ctx context.Context, arg ConnectFriendsParams) error {
+	_, err := q.db.Exec(ctx, connectFriends, arg.UserID, arg.FriendID)
+	return err
 }
 
 const createCheckIn = `-- name: CreateCheckIn :one
@@ -60,6 +103,39 @@ func (q *Queries) CreateCheckIn(ctx context.Context, arg CreateCheckInParams) (C
 	return i, err
 }
 
+const createFriendRequest = `-- name: CreateFriendRequest :exec
+INSERT INTO friendships (user_id, friend_id, status)
+VALUES ($1, $2, 'pending')
+ON CONFLICT (user_id, friend_id)
+DO UPDATE SET status = 'pending'
+WHERE friendships.status = 'declined'
+`
+
+type CreateFriendRequestParams struct {
+	UserID   pgtype.UUID `json:"user_id"`
+	FriendID pgtype.UUID `json:"friend_id"`
+}
+
+func (q *Queries) CreateFriendRequest(ctx context.Context, arg CreateFriendRequestParams) error {
+	_, err := q.db.Exec(ctx, createFriendRequest, arg.UserID, arg.FriendID)
+	return err
+}
+
+const declineFriendRequest = `-- name: DeclineFriendRequest :exec
+DELETE FROM friendships
+WHERE user_id = $2 AND friend_id = $1 AND status = 'pending'
+`
+
+type DeclineFriendRequestParams struct {
+	FriendID pgtype.UUID `json:"friend_id"`
+	UserID   pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) DeclineFriendRequest(ctx context.Context, arg DeclineFriendRequestParams) error {
+	_, err := q.db.Exec(ctx, declineFriendRequest, arg.FriendID, arg.UserID)
+	return err
+}
+
 const deleteCheckIn = `-- name: DeleteCheckIn :exec
 DELETE FROM check_ins 
 WHERE user_id = $1 AND event_id = $2
@@ -73,6 +149,88 @@ type DeleteCheckInParams struct {
 func (q *Queries) DeleteCheckIn(ctx context.Context, arg DeleteCheckInParams) error {
 	_, err := q.db.Exec(ctx, deleteCheckIn, arg.UserID, arg.EventID)
 	return err
+}
+
+const deleteEventRsvp = `-- name: DeleteEventRsvp :exec
+DELETE FROM event_rsvps
+WHERE user_id = $1 AND event_id = $2
+`
+
+type DeleteEventRsvpParams struct {
+	UserID  pgtype.UUID `json:"user_id"`
+	EventID pgtype.UUID `json:"event_id"`
+}
+
+func (q *Queries) DeleteEventRsvp(ctx context.Context, arg DeleteEventRsvpParams) error {
+	_, err := q.db.Exec(ctx, deleteEventRsvp, arg.UserID, arg.EventID)
+	return err
+}
+
+const getEventSocialSummary = `-- name: GetEventSocialSummary :one
+WITH ticket_holders AS (
+    SELECT DISTINCT t.user_id
+    FROM tickets t
+    JOIN orders o ON o.id = t.order_id
+    JOIN ticket_types tt ON tt.id = t.ticket_type_id
+    WHERE tt.event_id = $1
+      AND o.status = 'completed'
+      AND t.user_id IS NOT NULL
+),
+going_users AS (
+    SELECT user_id FROM ticket_holders
+    UNION
+    SELECT r.user_id
+    FROM event_rsvps r
+    WHERE r.event_id = $1
+      AND r.status = 'going'
+      AND NOT EXISTS (SELECT 1 FROM ticket_holders th WHERE th.user_id = r.user_id)
+)
+SELECT
+    (
+        SELECT COUNT(*)::bigint
+        FROM event_rsvps r
+        WHERE r.event_id = $1
+          AND r.status = 'interested'
+          AND NOT EXISTS (SELECT 1 FROM ticket_holders th WHERE th.user_id = r.user_id)
+    ) AS interested_count,
+    (SELECT COUNT(*)::bigint FROM going_users) AS going_count,
+    (SELECT COUNT(*)::bigint FROM ticket_holders) AS ticket_holder_count,
+    CASE
+        WHEN EXISTS (
+            SELECT 1
+            FROM tickets t
+            JOIN orders o ON o.id = t.order_id
+            JOIN ticket_types tt ON tt.id = t.ticket_type_id
+            WHERE tt.event_id = $1 AND o.status = 'completed' AND t.user_id = $2
+        ) THEN 'has_ticket'
+        WHEN EXISTS (SELECT 1 FROM event_rsvps WHERE event_id = $1 AND user_id = $2 AND status = 'going') THEN 'going'
+        WHEN EXISTS (SELECT 1 FROM event_rsvps WHERE event_id = $1 AND user_id = $2 AND status = 'interested') THEN 'interested'
+        ELSE 'none'
+    END AS current_user_status
+`
+
+type GetEventSocialSummaryParams struct {
+	EventID pgtype.UUID `json:"event_id"`
+	UserID  pgtype.UUID `json:"user_id"`
+}
+
+type GetEventSocialSummaryRow struct {
+	InterestedCount   int64  `json:"interested_count"`
+	GoingCount        int64  `json:"going_count"`
+	TicketHolderCount int64  `json:"ticket_holder_count"`
+	CurrentUserStatus string `json:"current_user_status"`
+}
+
+func (q *Queries) GetEventSocialSummary(ctx context.Context, arg GetEventSocialSummaryParams) (GetEventSocialSummaryRow, error) {
+	row := q.db.QueryRow(ctx, getEventSocialSummary, arg.EventID, arg.UserID)
+	var i GetEventSocialSummaryRow
+	err := row.Scan(
+		&i.InterestedCount,
+		&i.GoingCount,
+		&i.TicketHolderCount,
+		&i.CurrentUserStatus,
+	)
+	return i, err
 }
 
 const getFriendRequests = `-- name: GetFriendRequests :many
@@ -121,7 +279,7 @@ func (q *Queries) GetFriendRequests(ctx context.Context, friendID pgtype.UUID) (
 }
 
 const getFriends = `-- name: GetFriends :many
-SELECT u.id, u.username, u.email, u.role, u.avatar_url, u.bio, u.created_at
+SELECT DISTINCT u.id, u.username, u.email, u.role, u.avatar_url, u.bio, u.created_at
 FROM friendships f
 JOIN users u ON (f.friend_id = u.id AND f.user_id = $1) OR (f.user_id = u.id AND f.friend_id = $1)
 WHERE f.status = 'accepted'
@@ -165,6 +323,76 @@ func (q *Queries) GetFriends(ctx context.Context, userID pgtype.UUID) ([]GetFrie
 	return items, nil
 }
 
+const listFriendEventActivity = `-- name: ListFriendEventActivity :many
+WITH friend_ids AS (
+    SELECT friend_id AS user_id
+    FROM friendships f
+    WHERE f.user_id = $1 AND f.status = 'accepted'
+    UNION
+    SELECT user_id
+    FROM friendships f
+    WHERE f.friend_id = $1 AND f.status = 'accepted'
+),
+ticket_holders AS (
+    SELECT DISTINCT t.user_id
+    FROM tickets t
+    JOIN orders o ON o.id = t.order_id
+    JOIN ticket_types tt ON tt.id = t.ticket_type_id
+    WHERE tt.event_id = $2
+      AND o.status = 'completed'
+      AND t.user_id IS NOT NULL
+)
+SELECT u.id, u.username, u.avatar_url,
+       CASE
+           WHEN th.user_id IS NOT NULL THEN 'has_ticket'
+           ELSE r.status
+       END AS status
+FROM friend_ids f
+JOIN users u ON u.id = f.user_id
+LEFT JOIN ticket_holders th ON th.user_id = u.id
+LEFT JOIN event_rsvps r ON r.user_id = u.id AND r.event_id = $2
+WHERE th.user_id IS NOT NULL OR r.status IS NOT NULL
+ORDER BY CASE WHEN th.user_id IS NOT NULL THEN 0 WHEN r.status = 'going' THEN 1 ELSE 2 END, u.username ASC
+LIMIT 8
+`
+
+type ListFriendEventActivityParams struct {
+	UserID  pgtype.UUID `json:"user_id"`
+	EventID pgtype.UUID `json:"event_id"`
+}
+
+type ListFriendEventActivityRow struct {
+	ID        pgtype.UUID `json:"id"`
+	Username  string      `json:"username"`
+	AvatarUrl pgtype.Text `json:"avatar_url"`
+	Status    interface{} `json:"status"`
+}
+
+func (q *Queries) ListFriendEventActivity(ctx context.Context, arg ListFriendEventActivityParams) ([]ListFriendEventActivityRow, error) {
+	rows, err := q.db.Query(ctx, listFriendEventActivity, arg.UserID, arg.EventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListFriendEventActivityRow
+	for rows.Next() {
+		var i ListFriendEventActivityRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.AvatarUrl,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const respondToFriendRequest = `-- name: RespondToFriendRequest :exec
 UPDATE friendships
 SET status = $3
@@ -193,7 +421,26 @@ type SendFriendRequestParams struct {
 	FriendID pgtype.UUID `json:"friend_id"`
 }
 
+// Legacy queries retained until the old handlers can be removed in a dedicated cleanup.
 func (q *Queries) SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error {
 	_, err := q.db.Exec(ctx, sendFriendRequest, arg.UserID, arg.FriendID)
+	return err
+}
+
+const upsertEventRsvp = `-- name: UpsertEventRsvp :exec
+INSERT INTO event_rsvps (user_id, event_id, status)
+VALUES ($1, $2, $3)
+ON CONFLICT (user_id, event_id)
+DO UPDATE SET status = EXCLUDED.status, updated_at = CURRENT_TIMESTAMP
+`
+
+type UpsertEventRsvpParams struct {
+	UserID  pgtype.UUID `json:"user_id"`
+	EventID pgtype.UUID `json:"event_id"`
+	Status  string      `json:"status"`
+}
+
+func (q *Queries) UpsertEventRsvp(ctx context.Context, arg UpsertEventRsvpParams) error {
+	_, err := q.db.Exec(ctx, upsertEventRsvp, arg.UserID, arg.EventID, arg.Status)
 	return err
 }

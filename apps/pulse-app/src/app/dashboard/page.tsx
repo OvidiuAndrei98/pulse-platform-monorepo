@@ -102,7 +102,10 @@ export default function OrganizerDashboard() {
         </header>
 
         {loading ? (
-          <div className="h-36 animate-pulse rounded-xl border border-white/10 bg-white/5" />
+          <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
+            <div className="flex items-center gap-3 p-5"><div className="h-11 w-11 animate-pulse bg-white/[0.08]" /><div className="flex-1 space-y-2"><div className="h-3 w-32 animate-pulse bg-white/[0.1]" /><div className="h-3 w-56 animate-pulse bg-white/[0.06]" /></div></div>
+            <div className="flex items-center gap-3 p-5"><div className="h-11 w-11 animate-pulse bg-white/[0.08]" /><div className="flex-1 space-y-2"><div className="h-3 w-28 animate-pulse bg-white/[0.1]" /><div className="h-3 w-48 animate-pulse bg-white/[0.06]" /></div></div>
+          </div>
         ) : (
           <section className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
             <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">

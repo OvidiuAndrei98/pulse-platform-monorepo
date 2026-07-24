@@ -6,6 +6,7 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { Event } from "@/core/DataProvider";
 import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
 import { TicketQrCode } from "@/components/tickets/TicketQrCode";
+import { ProfileConnectionQr } from "@/components/social/ProfileConnectionQr";
 import Link from "next/link";
 import { useState } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
@@ -30,6 +31,7 @@ import {
 
 type TicketData = {
   id: string;
+  eventId: string;
   event: string;
   date: string;
   time: string;
@@ -45,6 +47,7 @@ type ValidationEvent = ReadableSchema<"ValidationEventResponse">;
 const sampleTickets: TicketData[] = [
   {
     id: "TCK-8821",
+    eventId: "sample-neon-warehouse",
     event: "Neon Warehouse — Techno Night",
     date: "Sat, 21 Nov 2026",
     time: "23:00",
@@ -54,6 +57,7 @@ const sampleTickets: TicketData[] = [
   },
   {
     id: "TCK-8734",
+    eventId: "sample-sunset-rooftop",
     event: "Sunset Rooftop w/ Barac",
     date: "Fri, 04 Dec 2026",
     time: "20:30",
@@ -90,6 +94,14 @@ const orderHistory: Order[] = [
     stripeId: "pi_3PwLm1…2c",
   },
 ];
+
+function groupTicketsByEvent(tickets: TicketData[]) {
+  const groups = new Map<string, TicketData[]>();
+  tickets.forEach((ticket) => {
+    groups.set(ticket.eventId, [...(groups.get(ticket.eventId) ?? []), ticket]);
+  });
+  return Array.from(groups.values());
+}
 
 export default function MePage() {
   const { user, loading, logout, isOrganizer } = useDataProvider();
@@ -134,6 +146,7 @@ export default function MePage() {
         const start = new Date(ticket.startTime);
         return {
           id: ticket.id,
+          eventId: ticket.eventId,
           event: ticket.eventTitle,
           date: start.toLocaleDateString("ro-RO", { weekday: "short", day: "numeric", month: "short", year: "numeric" }),
           time: start.toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" }),
@@ -165,6 +178,9 @@ export default function MePage() {
   if (!user) return null;
 
   const activeTickets = tickets.filter((ticket) => !ticket.isValidated);
+  const usedTickets = tickets.filter((ticket) => ticket.isValidated);
+  const activeTicketGroups = groupTicketsByEvent(activeTickets);
+  const usedTicketGroups = groupTicketsByEvent(usedTickets);
 
   const toggleRow = (rowId: string) => {
     setActiveRow(activeRow === rowId ? null : rowId);
@@ -215,6 +231,8 @@ export default function MePage() {
                 <ChevronRight className="h-4 w-4 shrink-0 text-primary" />
               </Link>
             )}
+
+            <ProfileConnectionQr />
 
             {/* Securitatea pe Desktop */}
             <section className="hidden md:block">
@@ -310,7 +328,7 @@ export default function MePage() {
                 <span className="text-xs text-muted-foreground">{savedEvents.length}</span>
               </div>
               {savedEventsLoading ? (
-                <div className="h-24 animate-pulse rounded-2xl bg-white/[0.04]" />
+                <div className="grid gap-3 sm:grid-cols-2"><div className="h-20 animate-pulse border border-white/10 bg-white/[0.04]" /><div className="h-20 animate-pulse border border-white/10 bg-white/[0.04]" /></div>
               ) : savedEvents.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-muted-foreground">Nu ai salvat niciun eveniment inca.</p>
               ) : (
@@ -355,39 +373,7 @@ export default function MePage() {
               {/* RENDER MOBIL */}
               <div className="md:hidden">
                 {tab === "active" ? (
-                  <div className="space-y-3">
-                    {activeTickets.map((t) => (
-                      <button
-                        key={t.id}
-                        onClick={() => setOpenTicket(t)}
-                        className="group flex w-full items-stretch gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-2 text-left transition hover:bg-white/[0.08]"
-                      >
-                        <div className="flex min-w-0 flex-1 flex-col justify-between py-1 pr-2 pl-2">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                                {t.type}
-                              </span>
-                            </div>
-                            <p className="mt-1 truncate text-sm font-medium">
-                              {t.event}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-2">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" /> {t.date}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3" /> {t.time}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center pr-3 text-primary">
-                          <QrCode className="h-5 w-5" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                  ticketsLoading ? <TicketStackSkeleton /> : activeTicketGroups.length ? <div className="space-y-3">{activeTicketGroups.map((group) => <TicketEventStack key={group[0].eventId} tickets={group} onOpen={setOpenTicket} />)}</div> : <EmptyTickets />
                 ) : (
                   <div className="divide-y divide-white/5 rounded-2xl border border-white/10 bg-white/5">
                     {orderHistory.map((o) => (
@@ -423,37 +409,7 @@ export default function MePage() {
                     <Ticket className="h-4 w-4" /> Active Tickets (
                     {activeTickets.length})
                   </h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {activeTickets.map((t) => (
-                      <button
-                        key={t.id}
-                        onClick={() => setOpenTicket(t)}
-                        className="group flex w-full items-stretch gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-3 text-left transition hover:bg-white/[0.08]"
-                      >
-                        <div className="flex min-w-0 flex-1 flex-col justify-between py-1 px-1">
-                          <div>
-                            <span className="rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                              {t.type}
-                            </span>
-                            <p className="mt-2 text-sm font-medium line-clamp-1">
-                              {t.event}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-4">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" /> {t.date}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3" /> {t.time}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center pr-2 text-primary">
-                          <QrCode className="h-6 w-6" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                  {ticketsLoading ? <div className="grid grid-cols-2 gap-3"><TicketStackSkeleton /><TicketStackSkeleton /></div> : activeTicketGroups.length ? <div className="grid grid-cols-2 gap-3">{activeTicketGroups.map((group) => <TicketEventStack key={group[0].eventId} tickets={group} onOpen={setOpenTicket} />)}</div> : <EmptyTickets />}
                 </div>
 
                 <div className="pt-2">
@@ -778,6 +734,59 @@ function TicketModal({
         </motion.div>
       </div>
     </>
+  );
+}
+
+function TicketStackSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
+      <div className="flex items-center justify-between gap-3 p-4">
+        <div className="space-y-2"><div className="h-3 w-32 animate-pulse bg-white/10" /><div className="h-2.5 w-48 animate-pulse bg-white/5" /></div>
+        <div className="h-5 w-10 animate-pulse bg-white/10" />
+      </div>
+      <div className="border-t border-white/10 px-4 py-3"><div className="h-8 animate-pulse bg-white/5" /></div>
+    </div>
+  );
+}
+
+function EmptyTickets({ used = false }: { used?: boolean }) {
+  return (
+    <div className="border border-dashed border-white/15 px-4 py-8 text-center">
+      <Ticket className="mx-auto h-5 w-5 text-muted-foreground" />
+      <p className="mt-3 text-sm font-medium">{used ? "Nu ai bilete validate inca." : "Nu ai bilete active."}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{used ? "Biletele folosite vor ramane aici ca istoric." : "Biletele cumparate vor aparea aici."}</p>
+    </div>
+  );
+}
+
+function TicketEventStack({ tickets, onOpen }: { tickets: TicketData[]; onOpen: (ticket: TicketData) => void }) {
+  const event = tickets[0];
+  if (!event) return null;
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
+      <div className="flex items-start justify-between gap-3 p-4">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">{event.event}</p>
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {event.date}, {event.time}</span>
+            <span className="flex min-w-0 items-center gap-1"><MapPin className="h-3 w-3 shrink-0" /> <span className="truncate">{event.location}</span></span>
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+          {tickets.length} {tickets.length === 1 ? "bilet" : "bilete"}
+        </span>
+      </div>
+      <div className="divide-y divide-white/10 border-t border-white/10">
+        {tickets.map((ticket, index) => (
+          <button key={ticket.id} type="button" onClick={() => onOpen(ticket)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white/[0.05]">
+            <span className="grid h-8 w-8 shrink-0 place-items-center border border-primary/25 bg-primary/10 text-primary"><QrCode className="h-4 w-4" /></span>
+            <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{ticket.type}</span><span className="mt-0.5 block text-[11px] text-muted-foreground">Biletul {index + 1}</span></span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

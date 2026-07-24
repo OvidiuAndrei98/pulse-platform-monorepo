@@ -1,13 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, Search, Calendar, MapPin, Ticket, Euro } from "lucide-react";
+import { Plus, Search, Calendar, MapPin, Ticket, Euro, Heart, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 
 type Filter = "all" | "published" | "draft";
+
+function EventRowSkeleton() {
+  return (
+    <div className="event-card flex items-center gap-4 border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+      <div className="h-16 w-16 shrink-0 animate-pulse bg-white/[0.07]" />
+      <div className="min-w-0 flex-1 space-y-2"><div className="h-3 w-20 animate-pulse bg-white/[0.08]" /><div className="h-4 w-2/5 animate-pulse bg-white/[0.1]" /><div className="h-3 w-1/3 animate-pulse bg-white/[0.06]" /></div>
+    </div>
+  );
+}
 
 export default function EventsListPage() {
   const { user } = useDataProvider();
@@ -51,7 +60,7 @@ export default function EventsListPage() {
 
           <Link
             href="/dashboard/events/new"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-xs font-bold text-primary-foreground transition hover:opacity-90 active:scale-[0.98] shrink-0 w-full sm:w-auto shadow-sm"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-xs font-bold text-primary-foreground transition hover:opacity-90 active:scale-[0.98] shrink-0 w-full sm:w-auto shadow-sm"
           >
             <Plus className="h-4 w-4" strokeWidth={2.5} />
             <span>Event nou</span>
@@ -72,7 +81,7 @@ export default function EventsListPage() {
           </div>
 
           {/* SEGMENTED CONTROL */}
-          <div className="relative flex h-11 w-full sm:w-auto items-center rounded-2xl border border-white/10 bg-white/5 p-1 shrink-0">
+          <div className="relative flex h-11 w-full sm:w-auto items-center rounded-full border border-white/10 bg-white/5 p-1 shrink-0">
             {filterOptions.map((f) => {
               const isActive = filter === f.id;
               return (
@@ -89,7 +98,7 @@ export default function EventsListPage() {
                   {isActive && (
                     <motion.div
                       layoutId="activeFilterBg"
-                      className="absolute inset-0 rounded-xl bg-primary"
+                      className="absolute inset-0 rounded-full bg-primary"
                       transition={{
                         type: "spring",
                         stiffness: 400,
@@ -106,7 +115,15 @@ export default function EventsListPage() {
 
         {/* EVENTS LIST */}
         <div className="space-y-4">
-          {filtered.length === 0 && (
+          {eventsLoading && (
+            <div className="space-y-4"><EventRowSkeleton /><EventRowSkeleton /><EventRowSkeleton /></div>
+          )}
+
+          {!eventsLoading && eventsError && (
+            <div className="border border-red-400/30 bg-red-400/[0.06] p-6 text-center"><p className="text-sm font-medium text-red-200">Evenimentele nu au putut fi incarcate.</p><p className="mt-1 text-xs text-red-200/70">Reincearca in cateva momente.</p></div>
+          )}
+
+          {!eventsLoading && !eventsError && filtered.length === 0 && (
             <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center">
               <p className="text-xs sm:text-sm text-muted-foreground">
                 Niciun eveniment care se potrivește filtrelor.
@@ -114,32 +131,40 @@ export default function EventsListPage() {
             </div>
           )}
 
-          {filtered.map((e) => {
+          {!eventsLoading && !eventsError && filtered.map((e) => {
             const soldTickets =
-              e.ticketTypes?.reduce(
+              e.stats?.totalTicketsSold ??
+              (e.ticketTypes?.reduce(
                 (sum, t) => sum + (t.ticketsSold ?? 0),
                 0,
-              ) || 0;
+              ) || 0);
             const totalCapacity =
               e.ticketTypes?.reduce((sum, t) => sum + t.capacity, 0) || 0;
             const totalRevenue =
-              e.ticketTypes?.reduce(
+              e.stats?.totalRevenueRon ??
+              (e.ticketTypes?.reduce(
                 (sum, t) => sum + t.priceRon * (t.ticketsSold ?? 0),
                 0,
-              ) || 0;
+              ) || 0);
             const fillPercentage =
               totalCapacity > 0
                 ? Math.min(100, Math.round((soldTickets / totalCapacity) * 100))
                 : 0;
+            const interestedCount = e.stats?.interestedCount ?? 0;
+            const goingCount = e.stats?.goingCount ?? 0;
+            const ticketHolderCount = e.stats?.ticketHolderCount ?? 0;
+            const manualGoing = Math.max(0, goingCount - ticketHolderCount);
+            const estimatedMin = ticketHolderCount + manualGoing + Math.round(interestedCount * 0.15);
+            const estimatedMax = ticketHolderCount + manualGoing + Math.round(interestedCount * 0.2);
 
             return (
               <Link
                 key={e.id}
                 href={`/dashboard/events/${e.id}`}
-                className="group flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-5 rounded-3xl border border-white/10 bg-white/5 p-4 sm:p-5 transition hover:border-white/20 hover:bg-white/[0.08]"
+                className="event-card group flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-5 rounded-3xl border border-white/10 bg-white/5 p-4 sm:p-5 transition hover:border-white/20 hover:bg-white/[0.08]"
               >
                 {/* Top Half on Mobile / Left Side on Desktop */}
-                <div className="flex items-start gap-3.5 sm:gap-4 min-w-0 flex-1">
+                  <div className="flex items-start gap-3.5 sm:gap-4 min-w-0 flex-1">
                   {/* Banner Image */}
                   <div className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-2xl border border-white/10">
                     <img
@@ -187,6 +212,12 @@ export default function EventsListPage() {
                         <span className="truncate">{e.locationName}</span>
                       </span>
                     </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/10 pt-3 text-[11px] text-muted-foreground md:hidden">
+                      <span className="inline-flex items-center gap-1"><UsersRound className="h-3.5 w-3.5 text-primary" /> {goingCount} merg</span>
+                      <span className="inline-flex items-center gap-1"><Heart className="h-3.5 w-3.5 text-primary" /> {interestedCount} interesati</span>
+                      <span>Estimare {estimatedMin}-{estimatedMax}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -222,12 +253,18 @@ export default function EventsListPage() {
                       Venit
                     </div>
                     <p className="text-xs sm:text-sm font-bold text-primary">
-                      {totalRevenue.toLocaleString()} €
+                      {totalRevenue.toLocaleString("ro-RO")} RON
                     </p>
                     <span className="text-[9px] text-muted-foreground truncate">
                       Încasat total
                     </span>
                   </div>
+                </div>
+
+                <div className="hidden border-t border-white/10 pt-3 text-[11px] text-muted-foreground md:flex md:items-center md:justify-end md:gap-3">
+                  <span className="inline-flex items-center gap-1"><UsersRound className="h-3.5 w-3.5 text-primary" /> {goingCount} merg</span>
+                  <span className="inline-flex items-center gap-1"><Heart className="h-3.5 w-3.5 text-primary" /> {interestedCount} interesati</span>
+                  <span>Estimare {estimatedMin}-{estimatedMax} persoane</span>
                 </div>
               </Link>
             );

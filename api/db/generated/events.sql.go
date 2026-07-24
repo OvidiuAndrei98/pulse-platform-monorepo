@@ -346,6 +346,16 @@ SELECT
         0
     )::bigint AS total_revenue_ron,
 
+    (SELECT COUNT(*)::bigint FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'interested') AS interested_count,
+    (SELECT COUNT(*)::bigint FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'going' AND NOT EXISTS (
+        SELECT 1 FROM tickets t
+        JOIN orders o ON o.id = t.order_id
+        JOIN ticket_types ticket_type ON ticket_type.id = t.ticket_type_id
+        WHERE ticket_type.event_id = e.id AND o.status = 'completed' AND t.user_id = r.user_id
+    ))
+      + (SELECT COUNT(DISTINCT t.user_id)::bigint FROM tickets t JOIN orders o ON o.id = t.order_id JOIN ticket_types ticket_type ON ticket_type.id = t.ticket_type_id WHERE ticket_type.event_id = e.id AND o.status = 'completed' AND t.user_id IS NOT NULL) AS going_count,
+    (SELECT COUNT(DISTINCT t.user_id)::bigint FROM tickets t JOIN orders o ON o.id = t.order_id JOIN ticket_types ticket_type ON ticket_type.id = t.ticket_type_id WHERE ticket_type.event_id = e.id AND o.status = 'completed' AND t.user_id IS NOT NULL) AS ticket_holder_count,
+
     -- Include și tickets_sold în interiorul fiecărui tip de bilet
     COALESCE(
         (
@@ -371,28 +381,31 @@ WHERE e.id = $1 LIMIT 1
 `
 
 type GetEventWithStatsRow struct {
-	ID               pgtype.UUID        `json:"id"`
-	OrganizerID      pgtype.UUID        `json:"organizer_id"`
-	Title            string             `json:"title"`
-	Description      pgtype.Text        `json:"description"`
-	Category         string             `json:"category"`
-	BannerUrl        pgtype.Text        `json:"banner_url"`
-	LocationAddress  pgtype.Text        `json:"location_address"`
-	LocationName     string             `json:"location_name"`
-	City             string             `json:"city"`
-	Vibe             string             `json:"vibe"`
-	Latitude         float64            `json:"latitude"`
-	Longitude        float64            `json:"longitude"`
-	StartTime        pgtype.Timestamptz `json:"start_time"`
-	EndTime          pgtype.Timestamptz `json:"end_time"`
-	IsLive           pgtype.Bool        `json:"is_live"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-	GooglePlaceID    string             `json:"google_place_id"`
-	Status           string             `json:"status"`
-	TotalCheckIns    int64              `json:"total_check_ins"`
-	TotalTicketsSold int64              `json:"total_tickets_sold"`
-	TotalRevenueRon  int64              `json:"total_revenue_ron"`
-	TicketTypes      interface{}        `json:"ticket_types"`
+	ID                pgtype.UUID        `json:"id"`
+	OrganizerID       pgtype.UUID        `json:"organizer_id"`
+	Title             string             `json:"title"`
+	Description       pgtype.Text        `json:"description"`
+	Category          string             `json:"category"`
+	BannerUrl         pgtype.Text        `json:"banner_url"`
+	LocationAddress   pgtype.Text        `json:"location_address"`
+	LocationName      string             `json:"location_name"`
+	City              string             `json:"city"`
+	Vibe              string             `json:"vibe"`
+	Latitude          float64            `json:"latitude"`
+	Longitude         float64            `json:"longitude"`
+	StartTime         pgtype.Timestamptz `json:"start_time"`
+	EndTime           pgtype.Timestamptz `json:"end_time"`
+	IsLive            pgtype.Bool        `json:"is_live"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	GooglePlaceID     string             `json:"google_place_id"`
+	Status            string             `json:"status"`
+	TotalCheckIns     int64              `json:"total_check_ins"`
+	TotalTicketsSold  int64              `json:"total_tickets_sold"`
+	TotalRevenueRon   int64              `json:"total_revenue_ron"`
+	InterestedCount   int64              `json:"interested_count"`
+	GoingCount        int32              `json:"going_count"`
+	TicketHolderCount int64              `json:"ticket_holder_count"`
+	TicketTypes       interface{}        `json:"ticket_types"`
 }
 
 func (q *Queries) GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEventWithStatsRow, error) {
@@ -420,6 +433,9 @@ func (q *Queries) GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEve
 		&i.TotalCheckIns,
 		&i.TotalTicketsSold,
 		&i.TotalRevenueRon,
+		&i.InterestedCount,
+		&i.GoingCount,
+		&i.TicketHolderCount,
 		&i.TicketTypes,
 	)
 	return i, err
@@ -700,16 +716,25 @@ SELECT
     ) AS total_check_ins,
     COALESCE(SUM(tt.tickets_sold), 0)::bigint AS total_tickets_sold,
     COALESCE(SUM(tt.tickets_sold * tt.price_ron), 0)::bigint AS total_revenue_ron,
+    (SELECT COUNT(*)::bigint FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'interested') AS interested_count,
+    (SELECT COUNT(*)::bigint FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'going' AND NOT EXISTS (
+        SELECT 1 FROM tickets t
+        JOIN orders o ON o.id = t.order_id
+        JOIN ticket_types ticket_type ON ticket_type.id = t.ticket_type_id
+        WHERE ticket_type.event_id = e.id AND o.status = 'completed' AND t.user_id = r.user_id
+    ))
+      + (SELECT COUNT(DISTINCT t.user_id)::bigint FROM tickets t JOIN orders o ON o.id = t.order_id JOIN ticket_types ticket_type ON ticket_type.id = t.ticket_type_id WHERE ticket_type.event_id = e.id AND o.status = 'completed' AND t.user_id IS NOT NULL) AS going_count,
+    (SELECT COUNT(DISTINCT t.user_id)::bigint FROM tickets t JOIN orders o ON o.id = t.order_id JOIN ticket_types ticket_type ON ticket_type.id = t.ticket_type_id WHERE ticket_type.event_id = e.id AND o.status = 'completed' AND t.user_id IS NOT NULL) AS ticket_holder_count,
     COALESCE(
         jsonb_agg(
             jsonb_build_object(
                 'id', tt.id,
                 'name', tt.name,
-                'priceRon', tt.price_ron, 
+                'price_ron', tt.price_ron,
                 'capacity', tt.capacity,
-                'ticketsSold', tt.tickets_sold,
-                'startSales', tt.start_sales,
-                'endSales', tt.end_sales,
+                'tickets_sold', tt.tickets_sold,
+                'start_sales', tt.start_sales,
+                'end_sales', tt.end_sales,
                 'description', tt.description
             )
         ) FILTER (WHERE tt.id IS NOT NULL),
@@ -723,28 +748,31 @@ ORDER BY e.start_time DESC
 `
 
 type ListEventsWithStatsRow struct {
-	ID               pgtype.UUID        `json:"id"`
-	OrganizerID      pgtype.UUID        `json:"organizer_id"`
-	Title            string             `json:"title"`
-	Description      pgtype.Text        `json:"description"`
-	Category         string             `json:"category"`
-	BannerUrl        pgtype.Text        `json:"banner_url"`
-	LocationAddress  pgtype.Text        `json:"location_address"`
-	LocationName     string             `json:"location_name"`
-	City             string             `json:"city"`
-	Vibe             string             `json:"vibe"`
-	Latitude         float64            `json:"latitude"`
-	Longitude        float64            `json:"longitude"`
-	StartTime        pgtype.Timestamptz `json:"start_time"`
-	EndTime          pgtype.Timestamptz `json:"end_time"`
-	IsLive           pgtype.Bool        `json:"is_live"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-	GooglePlaceID    string             `json:"google_place_id"`
-	Status           string             `json:"status"`
-	TotalCheckIns    int64              `json:"total_check_ins"`
-	TotalTicketsSold int64              `json:"total_tickets_sold"`
-	TotalRevenueRon  int64              `json:"total_revenue_ron"`
-	TicketTypes      interface{}        `json:"ticket_types"`
+	ID                pgtype.UUID        `json:"id"`
+	OrganizerID       pgtype.UUID        `json:"organizer_id"`
+	Title             string             `json:"title"`
+	Description       pgtype.Text        `json:"description"`
+	Category          string             `json:"category"`
+	BannerUrl         pgtype.Text        `json:"banner_url"`
+	LocationAddress   pgtype.Text        `json:"location_address"`
+	LocationName      string             `json:"location_name"`
+	City              string             `json:"city"`
+	Vibe              string             `json:"vibe"`
+	Latitude          float64            `json:"latitude"`
+	Longitude         float64            `json:"longitude"`
+	StartTime         pgtype.Timestamptz `json:"start_time"`
+	EndTime           pgtype.Timestamptz `json:"end_time"`
+	IsLive            pgtype.Bool        `json:"is_live"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	GooglePlaceID     string             `json:"google_place_id"`
+	Status            string             `json:"status"`
+	TotalCheckIns     int64              `json:"total_check_ins"`
+	TotalTicketsSold  int64              `json:"total_tickets_sold"`
+	TotalRevenueRon   int64              `json:"total_revenue_ron"`
+	InterestedCount   int64              `json:"interested_count"`
+	GoingCount        int32              `json:"going_count"`
+	TicketHolderCount int64              `json:"ticket_holder_count"`
+	TicketTypes       interface{}        `json:"ticket_types"`
 }
 
 func (q *Queries) ListEventsWithStats(ctx context.Context, organizerID pgtype.UUID) ([]ListEventsWithStatsRow, error) {
@@ -778,6 +806,9 @@ func (q *Queries) ListEventsWithStats(ctx context.Context, organizerID pgtype.UU
 			&i.TotalCheckIns,
 			&i.TotalTicketsSold,
 			&i.TotalRevenueRon,
+			&i.InterestedCount,
+			&i.GoingCount,
+			&i.TicketHolderCount,
 			&i.TicketTypes,
 		); err != nil {
 			return nil, err

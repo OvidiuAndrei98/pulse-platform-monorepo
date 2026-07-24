@@ -38,6 +38,16 @@ type Handler struct {
 	EmailSender EmailSender
 }
 
+func (h *Handler) claimGuestPurchases(ctx context.Context, userID pgtype.UUID) {
+	if err := h.Queries.AssignGuestOrdersToUser(ctx, userID); err != nil {
+		log.Printf("guest order claim failed for user %s: %v", userID.String(), err)
+		return
+	}
+	if err := h.Queries.AssignGuestTicketsToUser(ctx, userID); err != nil {
+		log.Printf("guest ticket claim failed for user %s: %v", userID.String(), err)
+	}
+}
+
 // NewHandler este constructorul pentru Handler-ul de auth
 func NewHandler(queries *db.Queries, emailSender EmailSender) *Handler {
 	return &Handler{
@@ -164,6 +174,7 @@ func (h *Handler) HandleActivate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Nu s-a putut activa contul", http.StatusInternalServerError)
 		return
 	}
+	h.claimGuestPurchases(r.Context(), dbToken.UserID)
 
 	// 6. Ștergem token-ul folosit pentru a curăța baza de date și a preveni refolosirea
 	_ = h.Queries.DeleteUserToken(r.Context(), db.DeleteUserTokenParams{
@@ -207,6 +218,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusUnauthorized, "Email sau parolă incorectă")
 		return
 	}
+	h.claimGuestPurchases(r.Context(), user.ID)
 
 	// 4. GENERARE JWT TOKEN
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{

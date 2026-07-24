@@ -291,6 +291,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{id}/attendees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["EventOperations_getAttendees"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{id}/check-in": {
         parameters: {
             query?: never;
@@ -361,6 +377,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{id}/rsvp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Setează statusul Interested sau Going */
+        put: operations["EventOperations_setRsvp"];
+        post?: never;
+        /** Elimină statusul Interested sau Going */
+        delete: operations["EventOperations_removeRsvp"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{id}/social": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Obține intenția curentă, contoarele sociale și activitatea prietenilor */
+        get: operations["EventOperations_getSocial"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{id}/tickets/purchase": {
         parameters: {
             query?: never;
@@ -378,6 +429,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["FeedOperations_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/friends": {
         parameters: {
             query?: never;
@@ -389,6 +456,22 @@ export interface paths {
         get: operations["FriendOperations_listFriends"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/friends/connect/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["FriendOperations_connect"];
         delete?: never;
         options?: never;
         head?: never;
@@ -422,6 +505,54 @@ export interface paths {
         };
         /** Obține cererile de prietenie primite */
         get: operations["FriendOperations_getFriendRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizers/{userId}/follow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["OrganizerSocialOperations_follow"];
+        delete: operations["OrganizerSocialOperations_unfollow"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ProfileOperations_search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ProfileOperations_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -599,6 +730,10 @@ export interface components {
             description?: string;
             eventId?: string;
         };
+        EventAttendeeResponse: {
+            /** @enum {string} */
+            attendanceStatus: "going" | "has_ticket";
+        } & components["schemas"]["PublicProfileResponse"];
         EventResponse: {
             id: string;
             organizerId: string;
@@ -624,6 +759,17 @@ export interface components {
             ticketTypes: components["schemas"]["TicketTypeResponse"][];
             stats: components["schemas"]["EventStatsResponse"];
         };
+        EventSocialResponse: {
+            /** Format: int64 */
+            interestedCount: number;
+            /** Format: int64 */
+            goingCount: number;
+            /** Format: int64 */
+            ticketHolderCount: number;
+            /** @enum {string} */
+            currentUserStatus: "none" | "interested" | "going" | "has_ticket";
+            friends: components["schemas"]["FriendEventActivityResponse"][];
+        };
         EventStatsResponse: {
             /** Format: int64 */
             totalCheckIns: number;
@@ -633,6 +779,19 @@ export interface components {
             totalTicketsSold?: number;
             /** Format: int64 */
             totalRevenueRon?: number;
+            /** Format: int64 */
+            interestedCount?: number;
+            /** Format: int64 */
+            goingCount?: number;
+            /** Format: int64 */
+            ticketHolderCount?: number;
+        };
+        FriendEventActivityResponse: {
+            id: string;
+            username: string;
+            avatarUrl?: string;
+            /** @enum {string} */
+            status: "interested" | "going" | "has_ticket";
         };
         OrganizerProfile: {
             id: string;
@@ -649,6 +808,21 @@ export interface components {
             stripeDetailsSubmitted: boolean;
             /** Format: date-time */
             createdAt: string;
+        };
+        PublicProfileResponse: {
+            id: string;
+            username: string;
+            avatarUrl?: string;
+            bio?: string;
+            /** @enum {string} */
+            role: "user" | "organizer" | "admin";
+            organizerName?: string;
+            organizerVerified: boolean;
+            /** @enum {string} */
+            relationship: "none" | "self" | "pending_sent" | "pending_received" | "friends";
+            followsOrganizer: boolean;
+            /** Format: int64 */
+            followerCount: number;
         };
         ScannerAccessResponse: {
             id: string;
@@ -669,6 +843,21 @@ export interface components {
             locationName: string;
             /** Format: date-time */
             expiresAt: string;
+        };
+        SocialFeedItemResponse: {
+            /** @enum {string} */
+            activityType: "friend_ticket" | "friend_going" | "organizer_event";
+            /** Format: date-time */
+            occurredAt: string;
+            actorId: string;
+            actorUsername: string;
+            actorAvatarUrl?: string;
+            eventId: string;
+            eventTitle: string;
+            eventBannerUrl?: string;
+            /** Format: date-time */
+            eventStartTime: string;
+            organizerName?: string;
         };
         StripeAccountLinkResponse: {
             url: string;
@@ -722,6 +911,10 @@ export interface components {
             /** @enum {string} */
             status: "draft" | "published";
             ticketTypes?: components["schemas"]["UpdateTicketTypePayload"][];
+        };
+        UpdateEventRsvpPayload: {
+            /** @enum {string} */
+            status: "interested" | "going";
         };
         UpdateTicketTypePayload: {
             id: string;
@@ -1363,6 +1556,28 @@ export interface operations {
             };
         };
     };
+    EventOperations_getAttendees: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventAttendeeResponse"][];
+                };
+            };
+        };
+    };
     EventOperations_checkIn: {
         parameters: {
             query?: never;
@@ -1501,6 +1716,76 @@ export interface operations {
             };
         };
     };
+    EventOperations_setRsvp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateEventRsvpPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSocialResponse"];
+                };
+            };
+        };
+    };
+    EventOperations_removeRsvp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSocialResponse"];
+                };
+            };
+        };
+    };
+    EventOperations_getSocial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSocialResponse"];
+                };
+            };
+        };
+    };
     EventOperations_createCheckoutSession: {
         parameters: {
             query?: never;
@@ -1527,6 +1812,26 @@ export interface operations {
             };
         };
     };
+    FeedOperations_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SocialFeedItemResponse"][];
+                };
+            };
+        };
+    };
     FriendOperations_listFriends: {
         parameters: {
             query?: never;
@@ -1542,7 +1847,32 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["User"][];
+                    "application/json": components["schemas"]["PublicProfileResponse"][];
+                };
+            };
+        };
+    };
+    FriendOperations_connect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        relationship: "friends";
+                    };
                 };
             };
         };
@@ -1609,7 +1939,99 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["User"][];
+                    "application/json": components["schemas"]["PublicProfileResponse"][];
+                };
+            };
+        };
+    };
+    OrganizerSocialOperations_follow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        followsOrganizer: boolean;
+                    };
+                };
+            };
+        };
+    };
+    OrganizerSocialOperations_unfollow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        followsOrganizer: boolean;
+                    };
+                };
+            };
+        };
+    };
+    ProfileOperations_search: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileResponse"][];
+                };
+            };
+        };
+    };
+    ProfileOperations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProfileResponse"];
                 };
             };
         };

@@ -1,19 +1,25 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Search, X, Calendar, ArrowUpRight } from "lucide-react";
+import { Search, X, Calendar, ArrowUpRight, BadgeCheck, UserRound } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Event } from "@/core/DataProvider";
+import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
 
 interface SearchPopoverProps {
   events?: Event[];
 }
 
+type PublicProfile = ReadableSchema<"PublicProfileResponse">;
+
 export function SearchPopover({ events }: SearchPopoverProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [profiles, setProfiles] = useState<PublicProfile[]>([]);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   // Închidere la tasta Escape
   useEffect(() => {
@@ -48,6 +54,19 @@ export function SearchPopover({ events }: SearchPopoverProps) {
   }, [open]);
 
   const q = query.trim().toLowerCase();
+
+  useEffect(() => {
+    if (!open || q.length < 2) {
+      setProfiles([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      ApiClient.instance.get("/profiles/search", { params: { query: { q } } })
+        .then((data) => setProfiles(data as PublicProfile[]))
+        .catch(() => setProfiles([]));
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [open, q]);
 
   // Filtrare evenimente
   const matchedEvents = useMemo(() => {
@@ -129,7 +148,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
                       icon={Calendar}
                       title={e.title}
                       meta={`${e.category} · ${e.locationName}`}
-                      onClick={() => setOpen(false)}
+                      onClick={() => { setOpen(false); router.push(`/events/${e.id}`); }}
                     />
                   ))}
                   {matchedEvents?.length === 0 && (
@@ -138,6 +157,20 @@ export function SearchPopover({ events }: SearchPopoverProps) {
                     </p>
                   )}
                 </Section>
+                {q.length >= 2 && (
+                  <Section title="Persoane si organizatori" count={profiles.length}>
+                    {profiles.map((profile) => (
+                      <ResultRow
+                        key={profile.id}
+                        icon={profile.role === "organizer" ? BadgeCheck : UserRound}
+                        title={profile.role === "organizer" ? profile.organizerName || profile.username : `@${profile.username}`}
+                        meta={profile.role === "organizer" ? `Organizator . @${profile.username}` : profile.bio || "Profil public"}
+                        onClick={() => { setOpen(false); router.push(`/users/${profile.id}`); }}
+                      />
+                    ))}
+                    {profiles.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">Niciun profil gasit.</p>}
+                  </Section>
+                )}
               </div>
             </div>
           </motion.div>

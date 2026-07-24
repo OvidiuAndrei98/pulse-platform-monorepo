@@ -20,7 +20,7 @@ export function EventBrowseCard({
       type="button"
       onClick={() => open(event)}
       data-event-card
-      className="relative block w-full overflow-hidden rounded-3xl border border-border text-left"
+      className="event-card relative block w-full overflow-hidden rounded-3xl border border-border text-left"
     >
       <div className="relative h-56 w-full">
         <Image

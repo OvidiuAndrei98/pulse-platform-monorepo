@@ -11,11 +11,16 @@ import (
 )
 
 type Querier interface {
+	AcceptFriendRequest(ctx context.Context, arg AcceptFriendRequestParams) error
 	AddComment(ctx context.Context, arg AddCommentParams) (Comments, error)
 	AddValidationStaff(ctx context.Context, arg AddValidationStaffParams) error
+	AssignGuestOrdersToUser(ctx context.Context, userID pgtype.UUID) error
+	AssignGuestTicketsToUser(ctx context.Context, userID pgtype.UUID) error
+	ConnectFriends(ctx context.Context, arg ConnectFriendsParams) error
 	CreateCheckIn(ctx context.Context, arg CreateCheckInParams) (CheckIns, error)
 	CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrderParams) (Orders, error)
 	CreateEvent(ctx context.Context, arg CreateEventParams) (Events, error)
+	CreateFriendRequest(ctx context.Context, arg CreateFriendRequestParams) error
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (Orders, error)
 	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) error
 	CreateOrganizerProfile(ctx context.Context, arg CreateOrganizerProfileParams) (OrganizerProfiles, error)
@@ -23,23 +28,31 @@ type Querier interface {
 	CreateTicket(ctx context.Context, arg CreateTicketParams) (Tickets, error)
 	CreateTicketType(ctx context.Context, arg CreateTicketTypeParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (Users, error)
+	DeclineFriendRequest(ctx context.Context, arg DeclineFriendRequestParams) error
 	DecrementTicketsSold(ctx context.Context, arg DecrementTicketsSoldParams) error
 	DeleteCheckIn(ctx context.Context, arg DeleteCheckInParams) error
 	DeleteEvent(ctx context.Context, id pgtype.UUID) error
+	DeleteEventRsvp(ctx context.Context, arg DeleteEventRsvpParams) error
 	DeleteUserToken(ctx context.Context, arg DeleteUserTokenParams) error
 	EditEvent(ctx context.Context, arg EditEventParams) (Events, error)
+	FollowOrganizer(ctx context.Context, arg FollowOrganizerParams) error
 	GetCommentsForEvent(ctx context.Context, arg GetCommentsForEventParams) ([]GetCommentsForEventRow, error)
 	// RETURNING * va aduce status-ul modificat
 	GetEventByID(ctx context.Context, arg GetEventByIDParams) (GetEventByIDRow, error)
+	GetEventSocialSummary(ctx context.Context, arg GetEventSocialSummaryParams) (GetEventSocialSummaryRow, error)
 	GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEventWithStatsRow, error)
 	GetFriendRequests(ctx context.Context, friendID pgtype.UUID) ([]GetFriendRequestsRow, error)
 	GetFriends(ctx context.Context, userID pgtype.UUID) ([]GetFriendsRow, error)
 	GetFriendsGoingToEvent(ctx context.Context, arg GetFriendsGoingToEventParams) ([]GetFriendsGoingToEventRow, error)
+	GetFriendshipRelationship(ctx context.Context, arg GetFriendshipRelationshipParams) (string, error)
 	GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAreaParams) ([]GetLiveEventsInAreaRow, error)
 	GetOrderForUpdate(ctx context.Context, id pgtype.UUID) (Orders, error)
 	GetOrderItems(ctx context.Context, orderID pgtype.UUID) ([]OrderItems, error)
 	GetOrganizerByCUI(ctx context.Context, cui string) (OrganizerProfiles, error)
+	GetOrganizerFollowState(ctx context.Context, arg GetOrganizerFollowStateParams) (bool, error)
+	GetOrganizerFollowerCount(ctx context.Context, organizerID pgtype.UUID) (int64, error)
 	GetOrganizerProfile(ctx context.Context, userID pgtype.UUID) (OrganizerProfiles, error)
+	GetPublicProfile(ctx context.Context, id pgtype.UUID) (GetPublicProfileRow, error)
 	GetScannerAccessByID(ctx context.Context, id pgtype.UUID) (GetScannerAccessByIDRow, error)
 	GetScannerAccessByTokenHash(ctx context.Context, tokenHash string) (GetScannerAccessByTokenHashRow, error)
 	GetTicketByHash(ctx context.Context, validationHash string) (GetTicketByHashRow, error)
@@ -53,19 +66,27 @@ type Querier interface {
 	IncrementTicketsSold(ctx context.Context, arg IncrementTicketsSoldParams) error
 	InsertUserToken(ctx context.Context, arg InsertUserTokenParams) (UserTokens, error)
 	IsValidationStaffForEvent(ctx context.Context, arg IsValidationStaffForEventParams) (bool, error)
+	ListEventAttendees(ctx context.Context, eventID pgtype.UUID) ([]ListEventAttendeesRow, error)
 	ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error)
 	ListEventsWithStats(ctx context.Context, organizerID pgtype.UUID) ([]ListEventsWithStatsRow, error)
+	ListFriendEventActivity(ctx context.Context, arg ListFriendEventActivityParams) ([]ListFriendEventActivityRow, error)
+	ListOrderTicketEmailDetails(ctx context.Context, id pgtype.UUID) ([]ListOrderTicketEmailDetailsRow, error)
 	ListSavedEvents(ctx context.Context, userID pgtype.UUID) ([]Events, error)
 	ListScannerAccess(ctx context.Context, eventID pgtype.UUID) ([]ListScannerAccessRow, error)
+	ListSocialFeed(ctx context.Context, userID pgtype.UUID) ([]ListSocialFeedRow, error)
 	ListValidationEvents(ctx context.Context, organizerID pgtype.UUID) ([]ListValidationEventsRow, error)
 	ListValidationStaff(ctx context.Context, eventID pgtype.UUID) ([]ListValidationStaffRow, error)
+	MarkGuestTicketEmailSent(ctx context.Context, id pgtype.UUID) error
 	RemoveSavedEvent(ctx context.Context, arg RemoveSavedEventParams) error
 	RemoveValidationStaff(ctx context.Context, arg RemoveValidationStaffParams) error
 	RespondToFriendRequest(ctx context.Context, arg RespondToFriendRequestParams) error
 	RevokeScannerAccess(ctx context.Context, arg RevokeScannerAccessParams) error
 	SaveEvent(ctx context.Context, arg SaveEventParams) error
+	SearchProfiles(ctx context.Context, dollar_1 pgtype.Text) ([]SearchProfilesRow, error)
+	// Legacy queries retained until the old handlers can be removed in a dedicated cleanup.
 	SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error
 	SetOrganizerStripeAccount(ctx context.Context, arg SetOrganizerStripeAccountParams) (OrganizerProfiles, error)
+	UnfollowOrganizer(ctx context.Context, arg UnfollowOrganizerParams) error
 	UpdateOrderCheckoutSession(ctx context.Context, arg UpdateOrderCheckoutSessionParams) error
 	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error
 	UpdateOrganizerStripeAccountStatus(ctx context.Context, arg UpdateOrganizerStripeAccountStatusParams) (OrganizerProfiles, error)
@@ -74,6 +95,7 @@ type Querier interface {
 	UpdateUserActivation(ctx context.Context, arg UpdateUserActivationParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (UpdateUserProfileRow, error)
+	UpsertEventRsvp(ctx context.Context, arg UpsertEventRsvpParams) error
 	ValidateTicketOnce(ctx context.Context, arg ValidateTicketOnceParams) (pgtype.Timestamptz, error)
 }
 

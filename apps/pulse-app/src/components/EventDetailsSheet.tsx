@@ -14,6 +14,8 @@ import Image from "next/image";
 import { Event } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { ApiClient } from "@packages/api-client/src/Client";
+import { EventSocialProof } from "@/components/EventSocialProof";
+import { EventAttendees } from "@/components/social/EventAttendees";
 
 interface EventDetailsContextType {
   open: (event: Event) => void;
@@ -267,6 +269,9 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
               </div>
 
               <div className="space-y-6 px-5 pb-6 pt-5 md:px-6">
+                <EventSocialProof eventId={event.id} />
+                <EventAttendees eventId={event.id} />
+
                 <section>
                   <h3 className="text-sm font-semibold">Despre eveniment</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">

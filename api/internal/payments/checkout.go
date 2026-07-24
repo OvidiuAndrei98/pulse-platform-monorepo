@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/mail"
 	"sort"
@@ -16,6 +17,7 @@ import (
 	db "pulse-api/db/generated"
 	"pulse-api/internal/auth"
 	"pulse-api/internal/common"
+	"pulse-api/internal/email"
 	"pulse-api/internal/organizer"
 	"pulse-api/internal/router"
 
@@ -37,6 +39,7 @@ type CheckoutHandler struct {
 	db         *pgxpool.Pool
 	client     *stripe.Client
 	appURL     string
+	mailer     *email.Mailer
 	configured bool
 }
 
@@ -60,7 +63,7 @@ type checkoutItem struct {
 	quantity   int32
 }
 
-func NewCheckoutHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, appURL string) *CheckoutHandler {
+func NewCheckoutHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, appURL string, mailer *email.Mailer) *CheckoutHandler {
 	if appURL == "" {
 		appURL = "http://localhost:3000"
 	}
@@ -70,6 +73,7 @@ func NewCheckoutHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, a
 		db:         pool,
 		client:     stripe.NewClient(stripeSecret),
 		appURL:     strings.TrimRight(appURL, "/"),
+		mailer:     mailer,
 		configured: stripeSecret != "",
 	}
 }
@@ -130,7 +134,7 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 
 	params := &stripe.CheckoutSessionCreateParams{
 		Mode:               stripe.String("payment"),
-		SuccessURL:         stripe.String(fmt.Sprintf("%s/events/%s?checkout=success&session_id={CHECKOUT_SESSION_ID}", h.appURL, eventIDString)),
+		SuccessURL:         stripe.String(fmt.Sprintf("%s/checkout/success?event_id=%s&session_id={CHECKOUT_SESSION_ID}", h.appURL, eventIDString)),
 		CancelURL:          stripe.String(fmt.Sprintf("%s/events/%s?checkout=cancelled", h.appURL, eventIDString)),
 		CustomerEmail:      stripe.String(req.Email),
 		ClientReferenceID:  stripe.String(common.UUIDToString(order.ID)),
@@ -307,7 +311,11 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 		return err
 	}
 	if order.Status == db.OrderStatusCompleted {
-		return tx.Commit(ctx)
+		if err := tx.Commit(ctx); err != nil {
+			return err
+		}
+		h.deliverGuestTickets(order.ID)
+		return nil
 	}
 	if order.Status != db.OrderStatusPending || (order.StripeCheckoutSessionID.Valid && order.StripeCheckoutSessionID.String != sessionID) {
 		return tx.Commit(ctx)
@@ -342,7 +350,47 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 		return err
 	}
 
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	h.deliverGuestTickets(order.ID)
+	return nil
+}
+
+func (h *CheckoutHandler) deliverGuestTickets(orderID pgtype.UUID) {
+	if h.mailer == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	rows, err := h.queries.ListOrderTicketEmailDetails(ctx, orderID)
+	if err != nil || len(rows) == 0 {
+		if err != nil {
+			log.Printf("guest ticket email details failed for order %s: %v", common.UUIDToString(orderID), err)
+		}
+		return
+	}
+	if rows[0].UserID.Valid || rows[0].TicketEmailSentAt.Valid {
+		return
+	}
+
+	tickets := make([]email.TicketDelivery, 0, len(rows))
+	for _, row := range rows {
+		tickets = append(tickets, email.TicketDelivery{
+			TicketTypeName: row.TicketTypeName,
+			ValidationHash: row.ValidationHash,
+		})
+	}
+
+	if err := h.mailer.SendGuestTicketEmail(ctx, rows[0].Email, rows[0].EventTitle, rows[0].LocationName, tickets); err != nil {
+		log.Printf("guest ticket email failed for order %s: %v", common.UUIDToString(orderID), err)
+		return
+	}
+	if err := h.queries.MarkGuestTicketEmailSent(ctx, orderID); err != nil {
+		log.Printf("guest ticket email could not be marked sent for order %s: %v", common.UUIDToString(orderID), err)
+	}
 }
 
 func (h *CheckoutHandler) FailCheckout(ctx context.Context, orderID, paymentIntentID string) error {

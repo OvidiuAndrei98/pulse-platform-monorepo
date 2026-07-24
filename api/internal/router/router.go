@@ -51,6 +51,9 @@ type HandlersConfig struct {
 	StripeConnectWebhook    http.HandlerFunc
 	CreateStripeAccountLink http.HandlerFunc
 	GetStripeAccountStatus  http.HandlerFunc
+	GetEventSocial          http.HandlerFunc
+	UpdateEventRsvp         http.HandlerFunc
+	DeleteEventRsvp         http.HandlerFunc
 
 	// Interactions / Checkins
 	CreateCheckIn http.HandlerFunc
@@ -65,6 +68,13 @@ type HandlersConfig struct {
 	SendFriendRequest      http.HandlerFunc
 	RespondToFriendRequest http.HandlerFunc
 	GetFriendRequests      http.HandlerFunc
+	ConnectWithFriend      http.HandlerFunc
+	SearchProfiles         http.HandlerFunc
+	GetPublicProfile       http.HandlerFunc
+	FollowOrganizer        http.HandlerFunc
+	UnfollowOrganizer      http.HandlerFunc
+	GetEventAttendees      http.HandlerFunc
+	GetSocialFeed          http.HandlerFunc
 
 	// Organizer
 	GetOrganizerProfile    http.HandlerFunc
@@ -143,11 +153,18 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			}
 		})
 
+		r.Route("/profiles", func(r chi.Router) {
+			r.With(optionalAuthMiddleware).Get("/search", cfg.SearchProfiles)
+			r.With(optionalAuthMiddleware).Get("/{id}", cfg.GetPublicProfile)
+		})
+
 		// --- EVENTS: Citire publică (nu necesită autentificare) ---
 		r.Route("/events", func(r chi.Router) {
 			r.With(optionalAuthMiddleware).Get("/", cfg.ListEvents)
 			r.With(optionalAuthMiddleware).Get("/map", cfg.GetLiveEventsInArea)
 			r.With(optionalAuthMiddleware).Get("/{id}", cfg.GetEventByID)
+			r.With(optionalAuthMiddleware).Get("/{id}/social", cfg.GetEventSocial)
+			r.With(optionalAuthMiddleware).Get("/{id}/attendees", cfg.GetEventAttendees)
 			r.Get("/{id}/comments", cfg.GetComments)
 			r.Get("/{id}/ticket-types", cfg.GetEventTicketTypes)
 			r.With(optionalAuthMiddleware).Post("/{id}/tickets/purchase", cfg.PurchaseTickets)
@@ -174,14 +191,21 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			r.Post("/events/{id}/comments", cfg.AddComment)
 			r.Post("/events/{id}/favorite", cfg.SaveEvent)
 			r.Delete("/events/{id}/favorite", cfg.RemoveSavedEvent)
+			r.Put("/events/{id}/rsvp", cfg.UpdateEventRsvp)
+			r.Delete("/events/{id}/rsvp", cfg.DeleteEventRsvp)
 
 			// --- FRIENDS ---
 			r.Route("/friends", func(r chi.Router) {
 				r.Get("/", cfg.GetFriends)
 				r.Post("/request/{userId}", cfg.SendFriendRequest)
 				r.Put("/request/{userId}", cfg.RespondToFriendRequest)
+				r.Post("/connect/{userId}", cfg.ConnectWithFriend)
 				r.Get("/requests", cfg.GetFriendRequests)
 			})
+
+			r.Get("/feed", cfg.GetSocialFeed)
+			r.Post("/organizers/{userId}/follow", cfg.FollowOrganizer)
+			r.Delete("/organizers/{userId}/follow", cfg.UnfollowOrganizer)
 
 			// Organizatorii isi gestioneaza echipa, iar conturile invitate valideaza doar evenimentele atribuite.
 			r.Route("/dashboard/ticket-validation", func(r chi.Router) {

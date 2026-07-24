@@ -47,6 +47,38 @@ UPDATE orders
 SET status = $2, stripe_payment_intent_id = COALESCE($3, stripe_payment_intent_id)
 WHERE id = $1;
 
+-- name: ListOrderTicketEmailDetails :many
+SELECT o.email, o.user_id, o.ticket_email_sent_at, e.title AS event_title,
+       e.location_name, tt.name AS ticket_type_name, t.validation_hash
+FROM orders o
+JOIN events e ON e.id = o.event_id
+JOIN tickets t ON t.order_id = o.id
+JOIN ticket_types tt ON tt.id = t.ticket_type_id
+WHERE o.id = $1
+ORDER BY t.created_at ASC;
+
+-- name: MarkGuestTicketEmailSent :exec
+UPDATE orders
+SET ticket_email_sent_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND user_id IS NULL AND ticket_email_sent_at IS NULL;
+
+-- name: AssignGuestOrdersToUser :exec
+UPDATE orders o
+SET user_id = $1
+FROM users u
+WHERE u.id = $1
+  AND o.user_id IS NULL
+  AND o.status = 'completed'
+  AND LOWER(o.email) = LOWER(u.email);
+
+-- name: AssignGuestTicketsToUser :exec
+UPDATE tickets t
+SET user_id = $1
+FROM orders o
+WHERE t.order_id = o.id
+  AND t.user_id IS NULL
+  AND o.user_id = $1;
+
 -- name: CreateOrderItem :exec
 INSERT INTO order_items (order_id, ticket_type_id, quantity, unit_price_ron)
 VALUES ($1, $2, $3, $4);

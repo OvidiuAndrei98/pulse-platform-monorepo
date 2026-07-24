@@ -8,7 +8,7 @@ import {
   useTransform,
   animate,
 } from "motion/react";
-import { Home, Map, User } from "lucide-react";
+import { Home, Map, UsersRound, User } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
 
@@ -28,6 +28,7 @@ export function BottomNav() {
   const items: NavItem[] = [
     { icon: Home, label: "Home", url: "/" },
     { icon: Map, label: "Map", url: "/events" },
+    { icon: UsersRound, label: "Feed", url: "/feed" },
     { icon: User, label: "Profile", url: isOrganizer ? "/dashboard" : "/users/me" },
   ];
 
@@ -40,8 +41,9 @@ export function BottomNav() {
       pathname?.startsWith("/users/me") ||
       pathname?.startsWith("/ticket-validation")
     ) {
-      return 2;
+      return 3;
     }
+    if (pathname?.startsWith("/feed") || pathname?.startsWith("/users/")) return pathname?.startsWith("/users/") ? 3 : 2;
     if (pathname?.startsWith("/events")) return 1;
     return 0;
   };

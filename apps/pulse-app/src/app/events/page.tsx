@@ -79,19 +79,22 @@ export default function EventsPage() {
         {view === "list" ? (
           <>
             <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {events.map((event) => (
-                <EventBrowseCard
-                  key={event.id}
-                  event={event}
-                  userLocation={userLocation}
-                />
-              ))}
+              {eventsLoading
+                ? Array.from({ length: 6 }, (_, index) => (
+                    <div key={index} className="event-card h-56 animate-pulse border border-white/10 bg-white/[0.04]" />
+                  ))
+                : events.map((event) => (
+                    <EventBrowseCard
+                      key={event.id}
+                      event={event}
+                      userLocation={userLocation}
+                    />
+                  ))}
             </div>
             {!eventsLoading && !events.length && (
-              <div className="mt-12 text-center">
-                <p className="text-sm text-muted-foreground">
-                  No events match your filters.
-                </p>
+              <div className="mx-auto mt-12 max-w-md border border-dashed border-white/15 px-5 py-10 text-center">
+                <p className="text-sm font-medium">Nu exista evenimente pentru filtrele alese.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Incearca un alt oras, vibe sau o distanta mai mare.</p>
                 <button
                   type="button"
                   onClick={() =>

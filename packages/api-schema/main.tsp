@@ -55,6 +55,58 @@ model EventStatsResponse {
   totalTicketsSold?: int64;
 
   totalRevenueRon?: int64;
+  interestedCount?: int64;
+  goingCount?: int64;
+  ticketHolderCount?: int64;
+}
+
+model FriendEventActivityResponse {
+  id: string;
+  username: string;
+  avatarUrl?: string;
+  status: "interested" | "going" | "has_ticket";
+}
+
+model EventSocialResponse {
+  interestedCount: int64;
+  goingCount: int64;
+  ticketHolderCount: int64;
+  currentUserStatus: "none" | "interested" | "going" | "has_ticket";
+  friends: FriendEventActivityResponse[];
+}
+
+model UpdateEventRsvpPayload {
+  status: "interested" | "going";
+}
+
+model PublicProfileResponse {
+  id: string;
+  username: string;
+  avatarUrl?: string;
+  bio?: string;
+  role: "user" | "organizer" | "admin";
+  organizerName?: string;
+  organizerVerified: boolean;
+  relationship: "none" | "self" | "pending_sent" | "pending_received" | "friends";
+  followsOrganizer: boolean;
+  followerCount: int64;
+}
+
+model EventAttendeeResponse extends PublicProfileResponse {
+  attendanceStatus: "going" | "has_ticket";
+}
+
+model SocialFeedItemResponse {
+  activityType: "friend_ticket" | "friend_going" | "organizer_event";
+  occurredAt: utcDateTime;
+  actorId: string;
+  actorUsername: string;
+  actorAvatarUrl?: string;
+  eventId: string;
+  eventTitle: string;
+  eventBannerUrl?: string;
+  eventStartTime: utcDateTime;
+  organizerName?: string;
 }
 
 model EventResponse {
@@ -333,6 +385,17 @@ interface UserOperations {
   getSavedEvents(): EventResponse[];
 }
 
+@route("/profiles")
+interface ProfileOperations {
+  @get
+  @route("/search")
+  search(@query q: string): PublicProfileResponse[];
+
+  @get
+  @route("/{id}")
+  get(@path id: string): PublicProfileResponse;
+}
+
 @route("/events")
 interface EventOperations {
   @summary("Listă completă de evenimente publice (suportă filtrare după categorie, isLive, geolocație pentru hartă și ID specific)")
@@ -362,6 +425,25 @@ interface EventOperations {
   removeSavedEvent(@path id: string): {
     @statusCode statusCode: 204;
   };
+
+  @summary("Obține intenția curentă, contoarele sociale și activitatea prietenilor")
+  @get
+  @route("/{id}/social")
+  getSocial(@path id: string): EventSocialResponse;
+
+  @summary("Setează statusul Interested sau Going")
+  @put
+  @route("/{id}/rsvp")
+  setRsvp(@path id: string, @body payload: UpdateEventRsvpPayload): EventSocialResponse;
+
+  @summary("Elimină statusul Interested sau Going")
+  @delete
+  @route("/{id}/rsvp")
+  removeRsvp(@path id: string): EventSocialResponse;
+
+  @get
+  @route("/{id}/attendees")
+  getAttendees(@path id: string): EventAttendeeResponse[];
 
   @summary("Detalii eveniment public după ID (folosește în spate clauza unificată ListEvents din DB)")
   @get
@@ -419,7 +501,7 @@ interface EventOperations {
 interface FriendOperations {
   @summary("Lista de prieteni acceptați")
   @get
-  listFriends(): User[];
+  listFriends(): PublicProfileResponse[];
 
   @summary("Trimite cerere de prietenie")
   @post
@@ -440,10 +522,38 @@ interface FriendOperations {
     @statusCode statusCode: 200;
   };
 
+  @post
+  @route("/connect/{userId}")
+  connect(@path userId: string): {
+    @statusCode statusCode: 200;
+    relationship: "friends";
+  };
+
   @summary("Obține cererile de prietenie primite")
   @get
   @route("/requests")
-  getFriendRequests(): User[];
+  getFriendRequests(): PublicProfileResponse[];
+}
+
+@route("/organizers")
+interface OrganizerSocialOperations {
+  @post
+  @route("/{userId}/follow")
+  follow(@path userId: string): {
+    followsOrganizer: boolean;
+  };
+
+  @delete
+  @route("/{userId}/follow")
+  unfollow(@path userId: string): {
+    followsOrganizer: boolean;
+  };
+}
+
+@route("/feed")
+interface FeedOperations {
+  @get
+  list(): SocialFeedItemResponse[];
 }
 
 @route("/dashboard")

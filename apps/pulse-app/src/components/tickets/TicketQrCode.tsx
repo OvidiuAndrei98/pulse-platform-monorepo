@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 
-export function TicketQrCode({ value, size = 220 }: { value: string; size?: number }) {
+export function TicketQrCode({ value, size = 220, alt = "Cod QR bilet" }: { value: string; size?: number; alt?: string }) {
   const [imageUrl, setImageUrl] = useState("");
 
   useEffect(() => {
@@ -25,5 +25,5 @@ export function TicketQrCode({ value, size = 220 }: { value: string; size?: numb
 
   if (!imageUrl) return <div className="animate-pulse bg-black/10" style={{ width: size, height: size }} />;
 
-  return <img src={imageUrl} width={size} height={size} alt="Cod QR bilet" className="block" />;
+  return <img src={imageUrl} width={size} height={size} alt={alt} className="block" />;
 }

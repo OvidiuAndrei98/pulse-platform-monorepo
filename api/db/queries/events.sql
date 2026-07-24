@@ -70,16 +70,25 @@ SELECT
     ) AS total_check_ins,
     COALESCE(SUM(tt.tickets_sold), 0)::bigint AS total_tickets_sold,
     COALESCE(SUM(tt.tickets_sold * tt.price_ron), 0)::bigint AS total_revenue_ron,
+    (SELECT COUNT(*)::bigint FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'interested') AS interested_count,
+    (SELECT COUNT(*)::bigint FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'going' AND NOT EXISTS (
+        SELECT 1 FROM tickets t
+        JOIN orders o ON o.id = t.order_id
+        JOIN ticket_types ticket_type ON ticket_type.id = t.ticket_type_id
+        WHERE ticket_type.event_id = e.id AND o.status = 'completed' AND t.user_id = r.user_id
+    ))
+      + (SELECT COUNT(DISTINCT t.user_id)::bigint FROM tickets t JOIN orders o ON o.id = t.order_id JOIN ticket_types ticket_type ON ticket_type.id = t.ticket_type_id WHERE ticket_type.event_id = e.id AND o.status = 'completed' AND t.user_id IS NOT NULL) AS going_count,
+    (SELECT COUNT(DISTINCT t.user_id)::bigint FROM tickets t JOIN orders o ON o.id = t.order_id JOIN ticket_types ticket_type ON ticket_type.id = t.ticket_type_id WHERE ticket_type.event_id = e.id AND o.status = 'completed' AND t.user_id IS NOT NULL) AS ticket_holder_count,
     COALESCE(
         jsonb_agg(
             jsonb_build_object(
                 'id', tt.id,
                 'name', tt.name,
-                'priceRon', tt.price_ron, 
+                'price_ron', tt.price_ron,
                 'capacity', tt.capacity,
-                'ticketsSold', tt.tickets_sold,
-                'startSales', tt.start_sales,
-                'endSales', tt.end_sales,
+                'tickets_sold', tt.tickets_sold,
+                'start_sales', tt.start_sales,
+                'end_sales', tt.end_sales,
                 'description', tt.description
             )
         ) FILTER (WHERE tt.id IS NOT NULL),
@@ -190,6 +199,16 @@ SELECT
         ), 
         0
     )::bigint AS total_revenue_ron,
+
+    (SELECT COUNT(*)::bigint FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'interested') AS interested_count,
+    (SELECT COUNT(*)::bigint FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'going' AND NOT EXISTS (
+        SELECT 1 FROM tickets t
+        JOIN orders o ON o.id = t.order_id
+        JOIN ticket_types ticket_type ON ticket_type.id = t.ticket_type_id
+        WHERE ticket_type.event_id = e.id AND o.status = 'completed' AND t.user_id = r.user_id
+    ))
+      + (SELECT COUNT(DISTINCT t.user_id)::bigint FROM tickets t JOIN orders o ON o.id = t.order_id JOIN ticket_types ticket_type ON ticket_type.id = t.ticket_type_id WHERE ticket_type.event_id = e.id AND o.status = 'completed' AND t.user_id IS NOT NULL) AS going_count,
+    (SELECT COUNT(DISTINCT t.user_id)::bigint FROM tickets t JOIN orders o ON o.id = t.order_id JOIN ticket_types ticket_type ON ticket_type.id = t.ticket_type_id WHERE ticket_type.event_id = e.id AND o.status = 'completed' AND t.user_id IS NOT NULL) AS ticket_holder_count,
 
     -- Include și tickets_sold în interiorul fiecărui tip de bilet
     COALESCE(

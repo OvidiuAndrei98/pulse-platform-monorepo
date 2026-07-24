@@ -121,6 +121,14 @@ type EventJoins struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type EventRsvps struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	EventID   pgtype.UUID        `json:"event_id"`
+	Status    string             `json:"status"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
 type EventScannerAccess struct {
 	ID        pgtype.UUID        `json:"id"`
 	EventID   pgtype.UUID        `json:"event_id"`
@@ -187,6 +195,13 @@ type Orders struct {
 	CreatedAt               pgtype.Timestamptz `json:"created_at"`
 	StripeCheckoutSessionID pgtype.Text        `json:"stripe_checkout_session_id"`
 	PlatformFeeBani         int32              `json:"platform_fee_bani"`
+	TicketEmailSentAt       pgtype.Timestamptz `json:"ticket_email_sent_at"`
+}
+
+type OrganizerFollows struct {
+	FollowerID  pgtype.UUID        `json:"follower_id"`
+	OrganizerID pgtype.UUID        `json:"organizer_id"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
 type OrganizerProfiles struct {

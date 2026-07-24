@@ -25,6 +25,9 @@ type EventStatsResponse struct {
 	IsFavorited      *bool  `json:"isFavorited,omitempty"`
 	TotalTicketsSold *int64 `json:"totalTicketsSold,omitempty"`
 	TotalRevenueRon  *int64 `json:"totalRevenueRon,omitempty"`
+	InterestedCount   *int64 `json:"interestedCount,omitempty"`
+	GoingCount        *int64 `json:"goingCount,omitempty"`
+	TicketHolderCount *int64 `json:"ticketHolderCount,omitempty"`
 }
 
 type EventResponse struct {
@@ -134,6 +137,9 @@ func MapFromDBListEventsWithStats(row db.ListEventsWithStatsRow) EventResponse {
 	tickets := parseTicketTypesWithLogs("MapFromDBListEventsWithStats", row.TicketTypes)
 	ticketsSold := row.TotalTicketsSold
 	revenue := row.TotalRevenueRon
+	interested := row.InterestedCount
+	going := int64(row.GoingCount)
+	ticketHolders := row.TicketHolderCount
 
 	return EventResponse{
 		ID:           common.UUIDToString(row.ID),
@@ -159,6 +165,9 @@ func MapFromDBListEventsWithStats(row db.ListEventsWithStatsRow) EventResponse {
 			IsFavorited:      nil,
 			TotalTicketsSold: &ticketsSold,
 			TotalRevenueRon:  &revenue,
+			InterestedCount:   &interested,
+			GoingCount:        &going,
+			TicketHolderCount: &ticketHolders,
 		},
 	}
 }
@@ -202,6 +211,9 @@ func MapFromDBGetEventWithStats(row db.GetEventWithStatsRow) EventResponse {
 	tickets := parseTicketTypesWithLogs("MapFromDBGetEventWithStats", row.TicketTypes)
 	ticketsSold := row.TotalTicketsSold
 	revenue := row.TotalRevenueRon
+	interested := row.InterestedCount
+	going := int64(row.GoingCount)
+	ticketHolders := row.TicketHolderCount
 
 	return EventResponse{
 		ID:           common.UUIDToString(row.ID),
@@ -227,6 +239,9 @@ func MapFromDBGetEventWithStats(row db.GetEventWithStatsRow) EventResponse {
 			IsFavorited:      nil,
 			TotalTicketsSold: &ticketsSold,
 			TotalRevenueRon:  &revenue,
+			InterestedCount:   &interested,
+			GoingCount:        &going,
+			TicketHolderCount: &ticketHolders,
 		},
 	}
 }

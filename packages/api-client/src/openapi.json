@@ -779,6 +779,36 @@
         }
       }
     },
+    "/events/{id}/attendees": {
+      "get": {
+        "operationId": "EventOperations_getAttendees",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventAttendeeResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events/{id}/check-in": {
       "post": {
         "operationId": "EventOperations_checkIn",
@@ -971,6 +1001,98 @@
         }
       }
     },
+    "/events/{id}/rsvp": {
+      "put": {
+        "operationId": "EventOperations_setRsvp",
+        "summary": "Setează statusul Interested sau Going",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventSocialResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEventRsvpPayload"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "EventOperations_removeRsvp",
+        "summary": "Elimină statusul Interested sau Going",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventSocialResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}/social": {
+      "get": {
+        "operationId": "EventOperations_getSocial",
+        "summary": "Obține intenția curentă, contoarele sociale și activitatea prietenilor",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventSocialResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events/{id}/tickets/purchase": {
       "post": {
         "operationId": "EventOperations_createCheckoutSession",
@@ -1009,6 +1131,27 @@
         }
       }
     },
+    "/feed": {
+      "get": {
+        "operationId": "FeedOperations_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SocialFeedItemResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/friends": {
       "get": {
         "operationId": "FriendOperations_listFriends",
@@ -1022,8 +1165,46 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/User"
+                    "$ref": "#/components/schemas/PublicProfileResponse"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/friends/connect/{userId}": {
+      "post": {
+        "operationId": "FriendOperations_connect",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "relationship": {
+                      "type": "string",
+                      "enum": [
+                        "friends"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "relationship"
+                  ]
                 }
               }
             }
@@ -1106,8 +1287,134 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/User"
+                    "$ref": "#/components/schemas/PublicProfileResponse"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizers/{userId}/follow": {
+      "post": {
+        "operationId": "OrganizerSocialOperations_follow",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "followsOrganizer": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "followsOrganizer"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "OrganizerSocialOperations_unfollow",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "followsOrganizer": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "followsOrganizer"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/profiles/search": {
+      "get": {
+        "operationId": "ProfileOperations_search",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PublicProfileResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/profiles/{id}": {
+      "get": {
+        "operationId": "ProfileOperations_get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileResponse"
                 }
               }
             }
@@ -1602,6 +1909,26 @@
           }
         }
       },
+      "EventAttendeeResponse": {
+        "type": "object",
+        "required": [
+          "attendanceStatus"
+        ],
+        "properties": {
+          "attendanceStatus": {
+            "type": "string",
+            "enum": [
+              "going",
+              "has_ticket"
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PublicProfileResponse"
+          }
+        ]
+      },
       "EventResponse": {
         "type": "object",
         "required": [
@@ -1687,6 +2014,45 @@
           }
         }
       },
+      "EventSocialResponse": {
+        "type": "object",
+        "required": [
+          "interestedCount",
+          "goingCount",
+          "ticketHolderCount",
+          "currentUserStatus",
+          "friends"
+        ],
+        "properties": {
+          "interestedCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "goingCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ticketHolderCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currentUserStatus": {
+            "type": "string",
+            "enum": [
+              "none",
+              "interested",
+              "going",
+              "has_ticket"
+            ]
+          },
+          "friends": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FriendEventActivityResponse"
+            }
+          }
+        }
+      },
       "EventStatsResponse": {
         "type": "object",
         "required": [
@@ -1710,6 +2076,45 @@
           "totalRevenueRon": {
             "type": "integer",
             "format": "int64"
+          },
+          "interestedCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "goingCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ticketHolderCount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "FriendEventActivityResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "interested",
+              "going",
+              "has_ticket"
+            ]
           }
         }
       },
@@ -1772,6 +2177,63 @@
           }
         }
       },
+      "PublicProfileResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "role",
+          "organizerVerified",
+          "relationship",
+          "followsOrganizer",
+          "followerCount"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "organizer",
+              "admin"
+            ]
+          },
+          "organizerName": {
+            "type": "string"
+          },
+          "organizerVerified": {
+            "type": "boolean"
+          },
+          "relationship": {
+            "type": "string",
+            "enum": [
+              "none",
+              "self",
+              "pending_sent",
+              "pending_received",
+              "friends"
+            ]
+          },
+          "followsOrganizer": {
+            "type": "boolean"
+          },
+          "followerCount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "ScannerAccessResponse": {
         "type": "object",
         "required": [
@@ -1831,6 +2293,57 @@
           "expiresAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "SocialFeedItemResponse": {
+        "type": "object",
+        "required": [
+          "activityType",
+          "occurredAt",
+          "actorId",
+          "actorUsername",
+          "eventId",
+          "eventTitle",
+          "eventStartTime"
+        ],
+        "properties": {
+          "activityType": {
+            "type": "string",
+            "enum": [
+              "friend_ticket",
+              "friend_going",
+              "organizer_event"
+            ]
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "actorUsername": {
+            "type": "string"
+          },
+          "actorAvatarUrl": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "eventTitle": {
+            "type": "string"
+          },
+          "eventBannerUrl": {
+            "type": "string"
+          },
+          "eventStartTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "organizerName": {
+            "type": "string"
           }
         }
       },
@@ -2006,6 +2519,21 @@
             "items": {
               "$ref": "#/components/schemas/UpdateTicketTypePayload"
             }
+          }
+        }
+      },
+      "UpdateEventRsvpPayload": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "interested",
+              "going"
+            ]
           }
         }
       },
