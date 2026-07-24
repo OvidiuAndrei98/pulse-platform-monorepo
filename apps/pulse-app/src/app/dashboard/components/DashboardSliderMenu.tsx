@@ -8,12 +8,13 @@ import {
   ChevronRight,
   LayoutDashboard,
   User,
-  ShieldCheck,
+  QrCode,
   Calendar,
   Plus,
 } from "lucide-react";
+import { useDataProvider } from "@/core/DataProviderContext";
 
-const tabs = [
+const organizerTabs = [
   {
     href: "/dashboard",
     label: "Dashboard",
@@ -21,12 +22,17 @@ const tabs = [
     exact: true,
   },
   { href: "/dashboard/profile", label: "Profil", icon: User },
-  { href: "/dashboard/ticket-validation", label: "Validare bilete", icon: ShieldCheck },
+  { href: "/dashboard/ticket-validation", label: "Validare bilete", icon: QrCode },
   { href: "/dashboard/events", label: "Evenimente", icon: Calendar },
   { href: "/dashboard/events/new", label: "Event nou", icon: Plus },
 ] as const;
 
-function matchTab(pathname: string) {
+const validatorTabs = [
+  { href: "/users/me", label: "Profil", icon: User, exact: true },
+  { href: "/dashboard/ticket-validation", label: "Validare bilete", icon: QrCode },
+] as const;
+
+function matchTab(pathname: string, tabs: readonly { href: string; label: string; icon: typeof User; exact?: boolean }[]) {
   const sorted = [...tabs].sort((a, b) => b.href.length - a.href.length);
   return sorted.find((t) =>
     "exact" in t && t.exact
@@ -38,7 +44,9 @@ function matchTab(pathname: string) {
 export function OrganizerHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const active = matchTab(pathname);
+  const { isOrganizer } = useDataProvider();
+  const tabs = isOrganizer ? organizerTabs : validatorTabs;
+  const active = matchTab(pathname, tabs);
   const sliderRef = useRef<HTMLDivElement>(null);
   const [dragConstraints, setDragConstraints] = useState({ left: 0, right: 0 });
 
@@ -52,15 +60,15 @@ export function OrganizerHeader() {
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, []);
+  }, [tabs.length]);
 
   const isEventDetail =
-    /^\/dashboard\/events\/[^/]+$/.test(pathname) && !pathname.endsWith("/new");
-  const crumbs: { label: string; href?: string }[] = [
-    { label: "Dashboard", href: "/dashboard" },
-  ];
+    isOrganizer && /^\/dashboard\/events\/[^/]+$/.test(pathname) && !pathname.endsWith("/new");
+  const crumbs: { label: string; href?: string }[] = isOrganizer
+    ? [{ label: "Dashboard", href: "/dashboard" }]
+    : [{ label: "Profil", href: "/users/me" }];
 
-  if (active && active.href !== "/dashboard") {
+  if (active && active.href !== (isOrganizer ? "/dashboard" : "/users/me")) {
     crumbs.push({ label: active.label, href: active.href });
   }
   if (isEventDetail) crumbs.push({ label: "Detalii" });

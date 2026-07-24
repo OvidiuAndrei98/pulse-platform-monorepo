@@ -486,7 +486,7 @@ func (q *Queries) GetTicketTypesForEvent(ctx context.Context, eventID pgtype.UUI
 }
 
 const getUserTickets = `-- name: GetUserTickets :many
-SELECT t.id, t.order_id, t.ticket_type_id, t.user_id, t.validation_hash, t.is_validated, t.validated_at, t.created_at, t.validated_by_user_id, t.validated_by_scanner_access_id, tt.name as ticket_type_name, e.title as event_title, e.start_time
+SELECT t.id, t.order_id, t.ticket_type_id, t.user_id, t.validation_hash, t.is_validated, t.validated_at, t.created_at, t.validated_by_user_id, t.validated_by_scanner_access_id, tt.name as ticket_type_name, e.id as event_id, e.title as event_title, e.location_name, e.start_time
 FROM tickets t
 JOIN ticket_types tt ON t.ticket_type_id = tt.id
 JOIN events e ON tt.event_id = e.id
@@ -506,7 +506,9 @@ type GetUserTicketsRow struct {
 	ValidatedByUserID          pgtype.UUID        `json:"validated_by_user_id"`
 	ValidatedByScannerAccessID pgtype.UUID        `json:"validated_by_scanner_access_id"`
 	TicketTypeName             string             `json:"ticket_type_name"`
+	EventID                    pgtype.UUID        `json:"event_id"`
 	EventTitle                 string             `json:"event_title"`
+	LocationName               string             `json:"location_name"`
 	StartTime                  pgtype.Timestamptz `json:"start_time"`
 }
 
@@ -531,7 +533,9 @@ func (q *Queries) GetUserTickets(ctx context.Context, userID pgtype.UUID) ([]Get
 			&i.ValidatedByUserID,
 			&i.ValidatedByScannerAccessID,
 			&i.TicketTypeName,
+			&i.EventID,
 			&i.EventTitle,
+			&i.LocationName,
 			&i.StartTime,
 		); err != nil {
 			return nil, err

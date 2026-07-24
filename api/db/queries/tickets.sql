@@ -148,7 +148,7 @@ WHERE id = $1 AND is_validated = FALSE
 RETURNING validated_at;
 
 -- name: GetUserTickets :many
-SELECT t.*, tt.name as ticket_type_name, e.title as event_title, e.start_time
+SELECT t.*, tt.name as ticket_type_name, e.id as event_id, e.title as event_title, e.location_name, e.start_time
 FROM tickets t
 JOIN ticket_types tt ON t.ticket_type_id = tt.id
 JOIN events e ON tt.event_id = e.id

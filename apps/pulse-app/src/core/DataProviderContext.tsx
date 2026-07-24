@@ -57,6 +57,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const isProtectedRoute =
     pathname?.startsWith("/me") ||
     pathname?.startsWith("/dashboard") ||
+    pathname?.startsWith("/ticket-validation") ||
     pathname?.startsWith("/admin");
 
   const initializeSession = useCallback(async () => {

@@ -211,7 +211,11 @@ func (h *Handler) HandleGetUserTickets(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la obținerea biletelor utilizatorului: "+err.Error())
 		return
 	}
-	router.RespondWithJSON(w, http.StatusOK, tickets)
+	result := make([]UserTicketResponse, 0, len(tickets))
+	for _, ticket := range tickets {
+		result = append(result, MapUserTicket(ticket))
+	}
+	router.RespondWithJSON(w, http.StatusOK, result)
 }
 
 type ValidateTicketRequest struct {

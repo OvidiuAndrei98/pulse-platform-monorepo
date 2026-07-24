@@ -677,25 +677,6 @@ export interface components {
             cui: string;
             companyName: string;
         };
-        Ticket: {
-            id: string;
-            eventId: string;
-            name: string;
-            /** Format: int32 */
-            priceRon: number;
-            /** Format: int32 */
-            capacity: number;
-            /** Format: int32 */
-            ticketsSold: number;
-            /** Format: date-time */
-            startSales: string;
-            /** Format: date-time */
-            endSales: string;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
         TicketTypeResponse: {
             id: string;
             name: string;
@@ -781,6 +762,19 @@ export interface components {
             email: string;
             password: string;
             requestOrganizerRole?: boolean;
+        };
+        UserTicketResponse: {
+            id: string;
+            eventId: string;
+            validationHash: string;
+            isValidated: boolean;
+            /** Format: date-time */
+            validatedAt?: string;
+            ticketTypeName: string;
+            eventTitle: string;
+            locationName: string;
+            /** Format: date-time */
+            startTime: string;
         };
         ValidationEventResponse: {
             id: string;
@@ -1783,7 +1777,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Ticket"][];
+                    "application/json": components["schemas"]["UserTicketResponse"][];
                 };
             };
         };

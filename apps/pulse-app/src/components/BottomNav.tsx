@@ -10,6 +10,7 @@ import {
 } from "motion/react";
 import { Home, Map, User } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
+import { useDataProvider } from "@/core/DataProviderContext";
 
 type NavItem = {
   icon: typeof Home;
@@ -17,23 +18,32 @@ type NavItem = {
   label: string;
 };
 
-const items: NavItem[] = [
-  { icon: Home, label: "Home", url: "/" },
-  { icon: Map, label: "Map", url: "/events" },
-  { icon: User, label: "Profile", url: "/users/me" },
-];
-
 export function BottomNav() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [slotWidth, setSlotWidth] = useState(0);
 
   const router = useRouter();
   const pathname = usePathname();
+  const { isOrganizer } = useDataProvider();
+  const items: NavItem[] = [
+    { icon: Home, label: "Home", url: "/" },
+    { icon: Map, label: "Map", url: "/events" },
+    { icon: User, label: "Profile", url: isOrganizer ? "/dashboard" : "/users/me" },
+  ];
 
   // Determinăm indexul paginii în funcție de URL-ul curent
   const getCurrentIndexFromPath = () => {
     const foundIndex = items.findIndex((item) => item.url === pathname);
-    return foundIndex !== -1 ? foundIndex : 0;
+    if (foundIndex !== -1) return foundIndex;
+    if (
+      pathname?.startsWith("/dashboard") ||
+      pathname?.startsWith("/users/me") ||
+      pathname?.startsWith("/ticket-validation")
+    ) {
+      return 2;
+    }
+    if (pathname?.startsWith("/events")) return 1;
+    return 0;
   };
 
   const [page, setPage] = useState(getCurrentIndexFromPath);
@@ -64,7 +74,7 @@ export function BottomNav() {
     ro.observe(el);
 
     return () => ro.disconnect();
-  }, []);
+  }, [items.length]);
 
   // Sincronizare stării locale când se schimbă ruta
   useEffect(() => {
@@ -72,7 +82,7 @@ export function BottomNav() {
     if (currentIdx !== page) {
       setPage(currentIdx);
     }
-  }, [pathname]);
+  }, [pathname, isOrganizer]);
 
   // Animația de poziționare a capsulei la schimbarea paginii sau la re-size
   useEffect(() => {

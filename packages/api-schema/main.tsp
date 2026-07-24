@@ -117,17 +117,16 @@ model StripeAccountLinkResponse {
   url: string;
 }
 
-model Ticket {
+model UserTicketResponse {
   id: string;
   eventId: string;
-  name: string;
-  priceRon: int32;
-  capacity: int32;
-  ticketsSold: int32;
-  startSales: utcDateTime;
-  endSales: utcDateTime;
-  createdAt: utcDateTime;
-  updatedAt: utcDateTime;
+  validationHash: string;
+  isValidated: boolean;
+  validatedAt?: utcDateTime;
+  ticketTypeName: string;
+  eventTitle: string;
+  locationName: string;
+  startTime: utcDateTime;
 }
 
 // --- REQUEST BODY PAYLOADS ---
@@ -326,7 +325,7 @@ interface UserOperations {
   @summary("Obține biletele utilizatorului curent")
   @get
   @route("/me/tickets")
-  getUserTickets(): Ticket[];
+  getUserTickets(): UserTicketResponse[];
 
   @summary("Obține evenimentele salvate ale utilizatorului curent")
   @get

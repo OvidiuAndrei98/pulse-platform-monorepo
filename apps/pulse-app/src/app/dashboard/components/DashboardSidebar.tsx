@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   User,
-  ShieldCheck,
+  QrCode,
   Calendar,
   Plus,
   Menu,
@@ -13,8 +13,9 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { useDataProvider } from "@/core/DataProviderContext";
 
-const items = [
+const organizerItems = [
   {
     href: "/dashboard",
     label: "Dashboard",
@@ -22,12 +23,19 @@ const items = [
     exact: true,
   },
   { href: "/dashboard/profile", label: "Profil", icon: User },
-  { href: "/dashboard/ticket-validation", label: "Validare bilete", icon: ShieldCheck },
+  { href: "/dashboard/ticket-validation", label: "Validare bilete", icon: QrCode },
   { href: "/dashboard/events", label: "Evenimente", icon: Calendar },
+] as const;
+
+const validatorItems = [
+  { href: "/users/me", label: "Profil", icon: User, exact: true },
+  { href: "/dashboard/ticket-validation", label: "Validare bilete", icon: QrCode },
 ] as const;
 
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { isOrganizer } = useDataProvider();
+  const items = isOrganizer ? organizerItems : validatorItems;
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return pathname === href;
@@ -43,7 +51,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
             Eventify
           </p>
           <h2 className="mt-1 text-lg font-bold tracking-tight text-foreground">
-            Organizer
+            {isOrganizer ? "Organizer" : "Validare bilete"}
           </h2>
         </div>
 
@@ -79,16 +87,18 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           })}
 
           {/* Quick Action - Event Nou */}
-          <div className="pt-3">
-            <Link
-              href="/dashboard/events/new"
-              onClick={onNavigate}
-              className="flex h-11 items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/10 px-3.5 text-xs font-bold text-primary transition hover:bg-primary/20 active:scale-[0.98]"
-            >
-              <Plus className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-              <span>Event nou</span>
-            </Link>
-          </div>
+          {isOrganizer && (
+            <div className="pt-3">
+              <Link
+                href="/dashboard/events/new"
+                onClick={onNavigate}
+                className="flex h-11 items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/10 px-3.5 text-xs font-bold text-primary transition hover:bg-primary/20 active:scale-[0.98]"
+              >
+                <Plus className="h-4 w-4 shrink-0" strokeWidth={2.5} />
+                <span>Event nou</span>
+              </Link>
+            </div>
+          )}
         </nav>
       </div>
 

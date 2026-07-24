@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { Event } from "@/core/DataProvider";
+import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
+import { TicketQrCode } from "@/components/tickets/TicketQrCode";
 import Link from "next/link";
 import { useState } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
@@ -32,11 +34,15 @@ type TicketData = {
   date: string;
   time: string;
   location: string;
-  type: "VIP" | "Regular" | "Early Bird";
+  type: string;
   hash: string;
+  isValidated?: boolean;
 };
 
-const activeTickets: TicketData[] = [
+type UserTicket = ReadableSchema<"UserTicketResponse">;
+type ValidationEvent = ReadableSchema<"ValidationEventResponse">;
+
+const sampleTickets: TicketData[] = [
   {
     id: "TCK-8821",
     event: "Neon Warehouse — Techno Night",
@@ -86,12 +92,15 @@ const orderHistory: Order[] = [
 ];
 
 export default function MePage() {
-  const { user, loading, logout } = useDataProvider();
+  const { user, loading, logout, isOrganizer } = useDataProvider();
   const router = useRouter();
   const [tab, setTab] = useState<"active" | "history">("active");
   const [openTicket, setOpenTicket] = useState<TicketData | null>(null);
   const [savedEvents, setSavedEvents] = useState<Event[]>([]);
   const [savedEventsLoading, setSavedEventsLoading] = useState(true);
+  const [tickets, setTickets] = useState<TicketData[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
+  const [validationEvents, setValidationEvents] = useState<ValidationEvent[]>([]);
 
   // Stare pentru a ști ce secțiune de setări este extinsă ("details" | "password" | "delete" | null)
   const [activeRow, setActiveRow] = useState<string | null>(null);
@@ -110,6 +119,34 @@ export default function MePage() {
       .finally(() => setSavedEventsLoading(false));
   }, [user]);
 
+  useEffect(() => {
+    if (!user || isOrganizer) return;
+    ApiClient.instance
+      .get("/dashboard/ticket-validation/events")
+      .then((response: ValidationEvent[]) => setValidationEvents(response))
+      .catch(() => setValidationEvents([]));
+  }, [user, isOrganizer]);
+
+  useEffect(() => {
+    if (!user) return;
+    ApiClient.instance.get("/users/me/tickets")
+      .then((response: UserTicket[]) => setTickets(response.map((ticket) => {
+        const start = new Date(ticket.startTime);
+        return {
+          id: ticket.id,
+          event: ticket.eventTitle,
+          date: start.toLocaleDateString("ro-RO", { weekday: "short", day: "numeric", month: "short", year: "numeric" }),
+          time: start.toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" }),
+          location: ticket.locationName,
+          type: ticket.ticketTypeName,
+          hash: ticket.validationHash,
+          isValidated: ticket.isValidated,
+        };
+      })))
+      .catch((error) => console.error("Nu s-au putut incarca biletele:", error))
+      .finally(() => setTicketsLoading(false));
+  }, [user]);
+
   const handleLogout = () => {
     logout();
     router.replace("/login");
@@ -126,6 +163,8 @@ export default function MePage() {
   }
 
   if (!user) return null;
+
+  const activeTickets = tickets.filter((ticket) => !ticket.isValidated);
 
   const toggleRow = (rowId: string) => {
     setActiveRow(activeRow === rowId ? null : rowId);
@@ -158,6 +197,24 @@ export default function MePage() {
                 </div>
               </div>
             </header>
+
+            {!isOrganizer && validationEvents.length > 0 && (
+              <Link
+                href="/ticket-validation"
+                className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 p-4 text-left transition hover:bg-primary/15"
+              >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
+                  <QrCode className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold">Validare bilete</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    Ai acces la {validationEvents.length} {validationEvents.length === 1 ? "eveniment" : "evenimente"}.
+                  </span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-primary" />
+              </Link>
+            )}
 
             {/* Securitatea pe Desktop */}
             <section className="hidden md:block">
@@ -690,7 +747,7 @@ function TicketModal({
           </h3>
           <div className="mt-6 flex justify-center">
             <div className="rounded-2xl bg-white p-4 shadow-xl">
-              <FauxQR seed={ticket.hash} />
+              <TicketQrCode value={ticket.hash} size={220} />
             </div>
           </div>
           <div className="mt-6 space-y-3 border-t border-b border-white/5 py-4 text-sm">

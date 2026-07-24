@@ -1312,7 +1312,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Ticket"
+                    "$ref": "#/components/schemas/UserTicketResponse"
                   }
                 }
               }
@@ -1860,60 +1860,6 @@
           }
         }
       },
-      "Ticket": {
-        "type": "object",
-        "required": [
-          "id",
-          "eventId",
-          "name",
-          "priceRon",
-          "capacity",
-          "ticketsSold",
-          "startSales",
-          "endSales",
-          "createdAt",
-          "updatedAt"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "eventId": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "priceRon": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "capacity": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "ticketsSold": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "startSales": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "endSales": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
       "TicketTypeResponse": {
         "type": "object",
         "required": [
@@ -2196,6 +2142,50 @@
           },
           "requestOrganizerRole": {
             "type": "boolean"
+          }
+        }
+      },
+      "UserTicketResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "eventId",
+          "validationHash",
+          "isValidated",
+          "ticketTypeName",
+          "eventTitle",
+          "locationName",
+          "startTime"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "validationHash": {
+            "type": "string"
+          },
+          "isValidated": {
+            "type": "boolean"
+          },
+          "validatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ticketTypeName": {
+            "type": "string"
+          },
+          "eventTitle": {
+            "type": "string"
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

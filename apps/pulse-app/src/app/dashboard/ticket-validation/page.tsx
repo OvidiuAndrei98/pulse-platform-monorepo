@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   ChevronDown,
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
 
 type OrganizerProfile = {
   companyName: string;
@@ -70,11 +71,16 @@ export default function TicketValidationPage() {
   const [latestScannerAccess, setLatestScannerAccess] = useState<CreatedScannerAccess>();
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const selectedEventIdRef = useRef(selectedEventId);
 
   const selectedEvent = useMemo(
     () => events.find((event) => event.id === selectedEventId),
     [events, selectedEventId],
   );
+
+  useEffect(() => {
+    selectedEventIdRef.current = selectedEventId;
+  }, [selectedEventId]);
 
   const loadStaff = async (eventId: string) => {
     setStaffLoading(true);
@@ -83,7 +89,7 @@ export default function TicketValidationPage() {
         "/dashboard/ticket-validation/events/{id}/staff",
         { params: { path: { id: eventId } } },
       );
-      setStaff(response);
+      if (selectedEventIdRef.current === eventId) setStaff(response);
     } catch {
       setError("Lista validatorilor nu a putut fi incarcata.");
     } finally {
@@ -98,7 +104,7 @@ export default function TicketValidationPage() {
         "/dashboard/ticket-validation/events/{id}/quick-access",
         { params: { path: { id: eventId } } },
       );
-      setScannerAccesses(response);
+      if (selectedEventIdRef.current === eventId) setScannerAccesses(response);
     } catch {
       setError("Linkurile temporare nu au putut fi incarcate.");
     } finally {
@@ -178,9 +184,8 @@ export default function TicketValidationPage() {
     }
   };
 
-  const validateTicket = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!selectedEventId || !validationHash.trim()) return;
+  const submitValidationHash = async (hash: string) => {
+    if (!selectedEventId || !hash.trim()) return;
     setValidating(true);
     setError("");
     setNotice("");
@@ -190,7 +195,7 @@ export default function TicketValidationPage() {
         "/dashboard/ticket-validation/events/{id}/tickets/validate",
         {
           params: { path: { id: selectedEventId } },
-          body: { validationHash: validationHash.trim() },
+          body: { validationHash: hash.trim() },
         },
       );
       setResult(response);
@@ -200,6 +205,11 @@ export default function TicketValidationPage() {
     } finally {
       setValidating(false);
     }
+  };
+
+  const validateTicket = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await submitValidationHash(validationHash);
   };
 
   const addStaff = async (event: React.FormEvent) => {
@@ -302,6 +312,29 @@ export default function TicketValidationPage() {
           <p className="text-sm text-muted-foreground">Verifica intrarea si gestioneaza conturile care pot valida pentru fiecare eveniment.</p>
         </header>
 
+        <section className="rounded-xl border border-primary/25 bg-primary/[0.04] p-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Configurezi evenimentul</p>
+          <div className="relative mt-3">
+            <button type="button" onClick={() => setEventMenuOpen((open) => !open)} disabled={eventsLoading} className="flex h-11 w-full items-center justify-between rounded-lg border border-white/15 bg-background/60 px-3 text-left text-sm transition hover:bg-white/[0.08] disabled:opacity-50">
+              <span className={selectedEvent ? "truncate" : "text-muted-foreground"}>{selectedEvent?.title || (eventsLoading ? "Se incarca evenimentele..." : "Alege evenimentul")}</span>
+              <ChevronDown className={`h-4 w-4 shrink-0 transition ${eventMenuOpen ? "rotate-180" : ""}`} />
+            </button>
+            {eventMenuOpen && (
+              <div className="absolute z-20 mt-2 max-h-56 w-full overflow-y-auto rounded-lg border border-white/15 bg-background p-1 shadow-xl">
+                {events.map((event) => (
+                  <button key={event.id} type="button" onClick={() => { setSelectedEventId(event.id); setEventMenuOpen(false); setResult(undefined); }} className={`flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm transition hover:bg-white/5 ${event.id === selectedEventId ? "bg-primary/10 text-primary" : ""}`}>
+                    <Ticket className="h-4 w-4 shrink-0" />
+                    <span className="min-w-0 flex-1 truncate">{event.title}</span>
+                    {event.canManage && <span className="text-[10px] font-semibold uppercase text-muted-foreground">Organizator</span>}
+                  </button>
+                ))}
+                {!events.length && !eventsLoading && <p className="px-3 py-3 text-sm text-muted-foreground">Nu ai evenimente atribuite pentru validare.</p>}
+              </div>
+            )}
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">Validatorii, linkurile temporare si scanarea de mai jos sunt limitate strict la evenimentul selectat.</p>
+        </section>
+
         {isOrganizer && (profileLoading ? (
           <div className="h-28 animate-pulse rounded-xl border border-white/10 bg-white/5" />
         ) : !companyReady ? (
@@ -340,26 +373,8 @@ export default function TicketValidationPage() {
           </div>
 
           <form onSubmit={validateTicket} className="mt-5 space-y-3">
-            <div className="relative">
-              <button type="button" onClick={() => setEventMenuOpen((open) => !open)} disabled={eventsLoading} className="flex h-11 w-full items-center justify-between rounded-lg border border-white/15 bg-white/5 px-3 text-left text-sm transition hover:bg-white/[0.08] disabled:opacity-50">
-                <span className={selectedEvent ? "truncate" : "text-muted-foreground"}>{selectedEvent?.title || (eventsLoading ? "Se incarca evenimentele..." : "Alege evenimentul")}</span>
-                <ChevronDown className={`h-4 w-4 shrink-0 transition ${eventMenuOpen ? "rotate-180" : ""}`} />
-              </button>
-              {eventMenuOpen && (
-                <div className="absolute z-20 mt-2 max-h-56 w-full overflow-y-auto rounded-lg border border-white/15 bg-background p-1 shadow-xl">
-                  {events.map((event) => (
-                    <button key={event.id} type="button" onClick={() => { setSelectedEventId(event.id); setEventMenuOpen(false); setResult(undefined); }} className={`flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm transition hover:bg-white/5 ${event.id === selectedEventId ? "bg-primary/10 text-primary" : ""}`}>
-                      <Ticket className="h-4 w-4 shrink-0" />
-                      <span className="min-w-0 flex-1 truncate">{event.title}</span>
-                      {event.canManage && <span className="text-[10px] font-semibold uppercase text-muted-foreground">Organizator</span>}
-                    </button>
-                  ))}
-                  {!events.length && !eventsLoading && <p className="px-3 py-3 text-sm text-muted-foreground">Nu ai evenimente atribuite pentru validare.</p>}
-                </div>
-              )}
-            </div>
-
             <textarea value={validationHash} onChange={(event) => setValidationHash(event.target.value)} rows={3} placeholder="Lipeste sau introdu codul QR" className="w-full resize-none rounded-lg border border-white/15 bg-white/5 p-3 font-mono text-xs outline-none transition placeholder:font-sans placeholder:text-sm focus:border-primary/60" />
+            <QrCameraScanner disabled={!selectedEventId || validating} onScan={(value) => void submitValidationHash(value)} />
             <button type="submit" disabled={!selectedEventId || !validationHash.trim() || validating} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50 sm:w-auto">
               {validating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
               {validating ? "Se verifica..." : "Valideaza biletul"}

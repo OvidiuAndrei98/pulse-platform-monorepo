@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CheckCircle2, ClipboardCheck, Loader2, MapPin, ScanLine, ShieldAlert, Ticket, XCircle } from "lucide-react";
+import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
 
 type ScannerSession = {
   sessionToken: string;
@@ -75,9 +76,8 @@ export default function ScanPage() {
     void initializeSession();
   }, []);
 
-  const validateTicket = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!session || !validationHash.trim()) return;
+  const submitValidationHash = async (hash: string) => {
+    if (!session || !hash.trim()) return;
     setValidating(true);
     setError("");
     setResult(undefined);
@@ -89,7 +89,7 @@ export default function ScanPage() {
           Accept: "application/json",
           Authorization: `Bearer ${session.sessionToken}`,
         },
-        body: JSON.stringify({ validationHash: validationHash.trim() }),
+        body: JSON.stringify({ validationHash: hash.trim() }),
       });
       const validated = await readJson(response) as TicketValidation;
       setResult(validated);
@@ -104,6 +104,11 @@ export default function ScanPage() {
     } finally {
       setValidating(false);
     }
+  };
+
+  const validateTicket = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await submitValidationHash(validationHash);
   };
 
   if (loading) {
@@ -133,6 +138,7 @@ export default function ScanPage() {
           <div className="flex items-start gap-3"><Ticket className="mt-0.5 h-5 w-5 text-primary" /><div><h2 className="text-base font-semibold">Valideaza bilet</h2><p className="mt-1 text-sm text-muted-foreground">Introdu sau lipeste codul securizat din QR-ul biletului.</p></div></div>
           <form onSubmit={validateTicket} className="mt-5 space-y-3">
             <textarea value={validationHash} onChange={(event) => setValidationHash(event.target.value)} rows={4} placeholder="Cod QR" className="w-full resize-none rounded-lg border border-white/15 bg-white/5 p-3 font-mono text-xs outline-none placeholder:font-sans placeholder:text-sm focus:border-primary/60" autoFocus />
+            <QrCameraScanner disabled={validating} onScan={(value) => void submitValidationHash(value)} />
             <button type="submit" disabled={!validationHash.trim() || validating} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">
               {validating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
               {validating ? "Se verifica..." : "Valideaza biletul"}

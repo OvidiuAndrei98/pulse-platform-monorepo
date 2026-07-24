@@ -18,9 +18,9 @@ export default function LoginPage() {
       if (user.properties.role === "admin") {
         router.replace("/admin");
       } else if (user.properties.role === "organizer") {
-        router.replace("/organizer/dashboard");
+        router.replace("/dashboard");
       } else {
-        router.replace("/me");
+        router.replace("/users/me");
       }
     }
   }, [loading, user, router]);

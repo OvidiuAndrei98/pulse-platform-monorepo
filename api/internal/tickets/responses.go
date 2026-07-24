@@ -60,6 +60,18 @@ type TicketValidationResponse struct {
 	ValidatedAt string `json:"validatedAt"`
 }
 
+type UserTicketResponse struct {
+	ID             string `json:"id"`
+	EventID        string `json:"eventId"`
+	ValidationHash string `json:"validationHash"`
+	IsValidated    bool   `json:"isValidated"`
+	ValidatedAt    string `json:"validatedAt,omitempty"`
+	TicketTypeName string `json:"ticketTypeName"`
+	EventTitle     string `json:"eventTitle"`
+	LocationName   string `json:"locationName"`
+	StartTime      string `json:"startTime"`
+}
+
 type ValidationEventResponse struct {
 	ID           string `json:"id"`
 	Title        string `json:"title"`
@@ -154,5 +166,19 @@ func MapTicketValidationResponse(t db.GetTicketByHashRow) TicketValidationRespon
 		TicketType:  t.TicketTypeName,
 		EventTitle:  t.EventTitle,
 		ValidatedAt: common.TimestampToString(t.ValidatedAt),
+	}
+}
+
+func MapUserTicket(ticket db.GetUserTicketsRow) UserTicketResponse {
+	return UserTicketResponse{
+		ID:             common.UUIDToString(ticket.ID),
+		EventID:        common.UUIDToString(ticket.EventID),
+		ValidationHash: ticket.ValidationHash,
+		IsValidated:    ticket.IsValidated,
+		ValidatedAt:    common.TimestampToString(ticket.ValidatedAt),
+		TicketTypeName: ticket.TicketTypeName,
+		EventTitle:     ticket.EventTitle,
+		LocationName:   ticket.LocationName,
+		StartTime:      common.TimestampToString(ticket.StartTime),
 	}
 }
