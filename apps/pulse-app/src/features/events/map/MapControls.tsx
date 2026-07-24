@@ -5,15 +5,6 @@ import { LocateFixed, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
 import { useMap } from "react-leaflet";
 import { Coordinates } from "@/features/events/types";
 
-const glassStyle = {
-  backgroundColor: "rgba(255, 255, 255, 0.06)",
-  backdropFilter: "blur(14px) saturate(160%)",
-  WebkitBackdropFilter: "blur(14px) saturate(160%)",
-  boxShadow:
-    "rgba(255, 255, 255, 0.18) 0px 1px 0px inset, rgba(255, 255, 255, 0.05) 0px -1px 0px inset, rgba(0, 0, 0, 0.35) 0px 6px 20px",
-  opacity: 1,
-};
-
 export function MapControls({
   onLocate,
   isFullView,
@@ -58,12 +49,15 @@ export function MapControls({
     locationTimeout.current = window.setTimeout(stopLocating, 20_000);
   };
 
+  // Clasa reutilizabilă pentru container sticlă + shadow optimizat
+  const glassClasses =
+    "border border-white/10 bg-[#121418]/85 md:bg-white/[0.06] md:backdrop-blur-md shadow-[rgba(255,255,255,0.18)_0px_1px_0px_inset,rgba(0,0,0,0.35)_0px_6px_20px] transform-gpu";
+
   return (
-    <div className="pointer-events-auto  absolute top-10 right-5 z-[1000] flex flex-col gap-2">
+    <div className="pointer-events-auto absolute top-10 right-5 z-[1000] flex flex-col gap-2">
       {/* Zoom Controls Container */}
       <div
-        className="flex flex-col overflow-hidden rounded-2xl text-white/70"
-        style={glassStyle}
+        className={`flex flex-col overflow-hidden rounded-2xl text-white/70 ${glassClasses}`}
       >
         <button
           type="button"
@@ -100,8 +94,7 @@ export function MapControls({
         aria-label="Find my location"
         title="Find my location"
         disabled={locating}
-        className="grid h-9 w-9 place-items-center rounded-2xl text-white/70 transition-colors hover:bg-white/10 hover:text-white active:bg-white/20 disabled:opacity-60"
-        style={glassStyle}
+        className={`grid h-9 w-9 place-items-center rounded-2xl text-white/70 transition-colors hover:bg-white/10 hover:text-white active:bg-white/20 disabled:opacity-60 ${glassClasses}`}
       >
         <LocateFixed
           className={`h-4 w-4 ${locating ? "animate-pulse text-white" : ""}`}
@@ -118,8 +111,7 @@ export function MapControls({
           }}
           aria-label={isFullView ? "Show event list" : "Hide event list"}
           title={isFullView ? "Show event list" : "Full map view"}
-          className="hidden h-9 w-9 place-items-center rounded-2xl text-white/70 transition-colors hover:bg-white/10 hover:text-white active:bg-white/20 lg:grid"
-          style={glassStyle}
+          className={`hidden h-9 w-9 place-items-center rounded-2xl text-white/70 transition-colors hover:bg-white/10 hover:text-white active:bg-white/20 lg:grid ${glassClasses}`}
         >
           {isFullView ? (
             <Minimize2 className="h-4 w-4" />

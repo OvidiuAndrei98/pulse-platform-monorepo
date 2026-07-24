@@ -9,26 +9,34 @@ import {
   animate,
 } from "motion/react";
 import { Home, Map, User } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 type NavItem = {
   icon: typeof Home;
-  index?: number;
-  url?: string;
+  url: string;
   label: string;
 };
 
 const items: NavItem[] = [
-  { icon: Home, label: "Home", index: 0, url: "/" },
-  { icon: Map, label: "Map", index: 1, url: "/events" },
-  { icon: User, label: "Profile", index: 2, url: "/users/me" },
+  { icon: Home, label: "Home", url: "/" },
+  { icon: Map, label: "Map", url: "/events" },
+  { icon: User, label: "Profile", url: "/users/me" },
 ];
 
 export function BottomNav() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [slotWidth, setSlotWidth] = useState(0);
-  const [page, setPage] = useState(0);
+
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Determinăm indexul paginii în funcție de URL-ul curent
+  const getCurrentIndexFromPath = () => {
+    const foundIndex = items.findIndex((item) => item.url === pathname);
+    return foundIndex !== -1 ? foundIndex : 0;
+  };
+
+  const [page, setPage] = useState(getCurrentIndexFromPath);
 
   const x = useMotionValue(0);
 
@@ -42,6 +50,7 @@ export function BottomNav() {
   const [dragging, setDragging] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(page);
 
+  // Măsurarea lățimii fiecărui slot
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -57,6 +66,15 @@ export function BottomNav() {
     return () => ro.disconnect();
   }, []);
 
+  // Sincronizare stării locale când se schimbă ruta
+  useEffect(() => {
+    const currentIdx = getCurrentIndexFromPath();
+    if (currentIdx !== page) {
+      setPage(currentIdx);
+    }
+  }, [pathname]);
+
+  // Animația de poziționare a capsulei la schimbarea paginii sau la re-size
   useEffect(() => {
     if (dragging || slotWidth === 0) return;
 
@@ -75,42 +93,46 @@ export function BottomNav() {
       mass: 0.6,
     });
 
-    router.push(items[page].url || "/");
-
     return () => controls.stop();
-  }, [page, slotWidth, dragging, x, router]);
+  }, [page, slotWidth, dragging, x]);
+
+  const handlePageChange = (idx: number) => {
+    if (idx === page) return;
+    setPage(idx);
+    router.push(items[idx].url);
+  };
 
   const activeIndex = dragging ? previewIndex : page;
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
       {/* 
-        Container de Sticlă - potrivire 1:1 cu fundalul cardurilor:
-        - bg-white/[0.05] + backdrop-blur-2xl
-        - border-white/10
+        Container de Sticlă:
+        - Fundal aerisit: bg-[#121217]/40
+        - Blur discret: backdrop-blur-md
       */}
-      <div className="pointer-events-auto w-[min(100%,320px)] rounded-full border border-white/10 bg-white/[0.05] p-1.5 shadow-2xl backdrop-blur-2xl">
+      <div className="pointer-events-auto w-[min(100%,320px)] rounded-full border border-white/10 bg-[#121217]/40 p-1.5 shadow-2xl backdrop-blur-md">
         <div
           ref={containerRef}
-          className="relative flex h-12 items-center justify-between select-none touch-none"
+          className="relative flex h-12 select-none touch-none items-center justify-between"
         >
-          {/* Hit-box direct */}
+          {/* Hit-box pentru click pe tab-uri */}
           <div className="absolute inset-0 z-10 flex">
             {items.map((_, idx) => (
               <div
                 key={idx}
                 onClick={() => {
-                  if (!draggingRef.current) setPage(idx);
+                  if (!draggingRef.current) handlePageChange(idx);
                 }}
                 className="h-full flex-1 cursor-pointer rounded-full"
               />
             ))}
           </div>
 
-          {/* Slider Fluid / Capsulă Activă din Sticlă */}
+          {/* Slider Fluid / Capsulă Activă */}
           {slotWidth > 0 && (
             <motion.div
-              className="absolute bottom-0 left-0 top-0 z-20 cursor-grab active:cursor-grabbing"
+              className="absolute bottom-0 left-0 top-0 z-20 cursor-grab transform-gpu will-change-transform active:cursor-grabbing"
               style={{
                 x,
                 width: slotWidth,
@@ -150,12 +172,12 @@ export function BottomNav() {
                   mass: 0.55,
                 });
 
-                setPage(clamped);
+                handlePageChange(clamped);
               }}
             >
-              {/* Capsula interioară - Efect de pastilă de sticlă iluminată */}
+              {/* Capsula interioară iluminată */}
               <motion.div
-                className="h-full w-full rounded-full border border-white/20 bg-white/10 shadow-lg backdrop-blur-md origin-center"
+                className="h-full w-full origin-center rounded-full border border-white/20 bg-white/10 shadow-lg backdrop-blur-sm"
                 style={{ scaleX }}
               />
             </motion.div>

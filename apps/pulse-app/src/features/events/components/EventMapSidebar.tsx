@@ -35,7 +35,7 @@ export function EventMapSidebar({
               type="button"
               onClick={() => onSelect(event.id)}
               onDoubleClick={() => onOpen(event)}
-              className={`group flex w-full items-center gap-3 rounded-[24px] border p-2.5 text-left antialiased transition-all duration-300 ${
+              className={`group flex w-full items-center gap-3 rounded-[24px] border p-2.5 text-left antialiased transition-all duration-300 transform-gpu ${
                 isSelected
                   ? "border-primary/50 bg-primary/10 shadow-[0_0_20px_rgba(255,255,255,0.08)]"
                   : "border-white/10 bg-white/[0.04] shadow-lg hover:border-white/20 hover:bg-white/[0.07]"
@@ -78,14 +78,13 @@ export function EventMapSidebar({
                 </div>
 
                 {/* 3. JOS: Badges (Categorie + Status Live) */}
-                {/* Am adăugat items-center pentru alinierea verticală */}
                 <div className="mt-2 flex items-center gap-2">
-                  {/* Badge Categorie - Am ajustat padding, font-weight și uppercase */}
-                  <span className="inline-flex h-6 items-center rounded-full border border-white/10 bg-white/10 px-2 text-[10px] font-semibold uppercase leading-none text-zinc-200 backdrop-blur-sm">
+                  {/* Badge Categorie */}
+                  <span className="inline-flex h-6 items-center rounded-full border border-white/10 bg-white/10 px-2 text-[10px] font-semibold uppercase leading-none text-zinc-200 md:backdrop-blur-sm">
                     {event.category || "General"}
                   </span>
 
-                  {/* Badge Live Status - Am forțat h-6 cu !h-6 ca să se potrivească */}
+                  {/* Badge Live Status */}
                   {event.isLive && (
                     <EventStatusBadge
                       event={event}

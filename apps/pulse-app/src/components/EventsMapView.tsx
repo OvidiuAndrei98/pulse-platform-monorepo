@@ -113,7 +113,9 @@ export function EventsMapView({
   }
 
   return (
-    <div className={`relative w-full overflow-hidden bg-black ${mapSize}`}>
+    <div
+      className={`relative w-full overflow-hidden bg-black transform-gpu ${mapSize}`}
+    >
       <MapContainer
         center={[44.4323, 26.1063]}
         zoom={12}
@@ -121,7 +123,7 @@ export function EventsMapView({
         attributionControl={false}
         dragging
         touchZoom
-        className="z-0 h-full w-full touch-none bg-black"
+        className="z-0 h-full w-full touch-none bg-black transform-gpu"
         style={{ touchAction: "none" }}
       >
         <TileLayer
@@ -178,7 +180,7 @@ export function EventsMapView({
         {eventMapStyles}
       </style>
       {!events.length && (
-        <div className="pointer-events-none absolute inset-0 z-[1000] grid place-items-center bg-background/50 backdrop-blur-sm">
+        <div className="pointer-events-none absolute inset-0 z-[1000] grid place-items-center bg-black/80 md:bg-background/50 md:backdrop-blur-sm">
           <p className="text-sm text-muted-foreground">
             No events match your filters.
           </p>

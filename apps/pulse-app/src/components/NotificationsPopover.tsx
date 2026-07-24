@@ -77,7 +77,6 @@ export function NotificationsPopover() {
   }, [open]);
 
   return (
-    // Păstrăm containerul relativ pentru a ancora popover-ul exact pe buton
     <div ref={wrapperRef} className="inline-flex items-center justify-center">
       <AnimatePresence mode="popLayout">
         {!open && (
@@ -87,10 +86,7 @@ export function NotificationsPopover() {
             type="button"
             aria-label="Notifications"
             onClick={() => setOpen(true)}
-            className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-full border border-white/15 text-foreground"
-            style={{
-              backgroundColor: "rgba(255,255,255,0.06)",
-            }}
+            className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-full border border-white/15 bg-white/[0.06] text-foreground transform-gpu"
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
           >
             <motion.span
@@ -109,25 +105,13 @@ export function NotificationsPopover() {
           <motion.div
             key="panel"
             layoutId="notif-morph"
-            // Schimbat în absolute, lipit de colțul dreapta-sus al containerului (right-0 top-0)
-            className="absolute right-0 top-0 z-[100] overflow-hidden rounded-3xl border border-white/20 text-foreground"
-            style={{
-              width: "min(20rem, calc(100vw - 2.5rem))",
-              backgroundColor: "rgba(20,22,20,0.85)",
-              backdropFilter: "blur(24px) saturate(160%)",
-
-              transformOrigin: "top right",
-            }}
+            className="absolute right-0 top-0 z-[100] w-[min(20rem,calc(100vw-2.5rem))] origin-top-right overflow-hidden rounded-3xl border border-white/20 bg-[#141614]/95 md:bg-[#141614]/85 text-foreground md:backdrop-blur-xl transform-gpu"
             transition={{ type: "spring", stiffness: 220, damping: 26 }}
           >
             {/* Sheen efect */}
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background:
-                  "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 40%)",
-              }}
+              className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/[0.06] to-transparent"
             />
 
             <div className="relative flex items-center justify-between px-5 pt-4">
@@ -167,7 +151,7 @@ export function NotificationsPopover() {
                     hidden: { opacity: 0, y: 8 },
                     show: { opacity: 1, y: 0 },
                   }}
-                  className="flex gap-3 rounded-2xl px-3 py-3 hover:bg-white/5 transition-colors duration-150"
+                  className="flex gap-3 rounded-2xl px-3 py-3 hover:bg-white/5 transition-colors duration-150 transform-gpu"
                 >
                   <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full border border-primary/30 bg-primary/10">
                     {n.icon}

@@ -9,14 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
-import {
-  X,
-  Calendar,
-  Share2,
-  Ticket as TicketIcon,
-  MapPin,
-  Clock,
-} from "lucide-react";
+import { X, Calendar, Share2, Ticket as TicketIcon } from "lucide-react";
 import Image from "next/image";
 import { Event } from "@/core/DataProvider";
 
@@ -112,7 +105,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/70 md:bg-black/60 md:backdrop-blur-sm"
           />
 
           {/* Modal Container */}
@@ -120,7 +113,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
             initial={{ y: "100%", opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: "100%", opacity: 0 }}
-            transition={{ type: "spring", stiffness: 260, damping: 30 }}
+            transition={{ type: "spring", stiffness: 300, damping: 32 }}
             drag="y"
             dragListener={false}
             dragControls={dragControls}
@@ -129,17 +122,16 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
             onDragEnd={(_, info) => {
               if (info.offset.y > 120 || info.velocity.y > 600) onClose();
             }}
-            className="relative z-10 flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl border border-white/15 bg-background/80 text-foreground shadow-2xl md:max-h-[88vh] md:max-w-2xl md:rounded-xl"
-            style={{ backdropFilter: "blur(24px) saturate(160%)" }}
+            className="relative z-10 flex max-h-[92vh] w-full transform-gpu flex-col overflow-hidden rounded-t-2xl border border-white/15 bg-background/95 text-foreground shadow-2xl will-change-transform md:max-h-[88vh] md:max-w-2xl md:rounded-xl md:bg-background/80 md:backdrop-blur-xl md:backdrop-saturate-150"
           >
             {/* Mobile Drag Handle */}
             <div
               onPointerDown={(e) =>
                 dragControls.start(e, { snapToCursor: false })
               }
-              className="relative z-20 flex cursor-grab touch-none justify-center py-2 active:cursor-grabbing md:hidden"
+              className="relative z-20 flex cursor-grab touch-none justify-center py-2.5 active:cursor-grabbing md:hidden"
             >
-              <span className="h-1.5 w-10 rounded-full bg-white/25" />
+              <span className="h-1.5 w-10 rounded-full bg-white/30" />
             </div>
 
             {/* Scroll Content */}
@@ -154,6 +146,8 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
                       src={event.bannerUrl}
                       alt={event.title}
                       fill
+                      sizes="(max-width: 768px) 100vw, 672px"
+                      priority
                       className="object-cover"
                     />
                   )}
@@ -248,7 +242,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
             </div>
 
             {/* Footer Actions */}
-            <div className="relative z-10 flex items-center gap-2 border-t border-white/10 bg-background/60 px-4 py-3 backdrop-blur">
+            <div className="relative z-10 flex items-center gap-2 border-t border-white/10 bg-background/90 px-4 py-3 backdrop-blur md:bg-background/60">
               <button
                 type="button"
                 onClick={() => {

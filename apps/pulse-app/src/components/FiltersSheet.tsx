@@ -24,6 +24,7 @@ export function FiltersSheet({ value, onChange }: FiltersSheetProps = {}) {
   useEffect(() => {
     if (value) setFilters(value);
   }, [value]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) =>
@@ -55,15 +56,7 @@ export function FiltersSheet({ value, onChange }: FiltersSheetProps = {}) {
             type="button"
             aria-label="Filters"
             onClick={() => setOpen(true)}
-            className="group grid h-[44px] w-[44px] shrink-0 place-items-center overflow-hidden rounded-full text-white/70 transition-colors hover:text-white"
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.06)",
-              backdropFilter: "blur(14px) saturate(160%)",
-              WebkitBackdropFilter: "blur(14px) saturate(160%)",
-              boxShadow:
-                "rgba(255, 255, 255, 0.18) 0px 1px 0px inset, rgba(255, 255, 255, 0.05) 0px -1px 0px inset, rgba(0, 0, 0, 0.35) 0px 6px 20px",
-              opacity: 1,
-            }}
+            className="group grid h-[44px] w-[44px] shrink-0 place-items-center overflow-hidden rounded-full border border-white/15 bg-white/[0.06] text-white/70 shadow-lg transition-colors hover:text-white transform-gpu"
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
           >
             <motion.span
@@ -78,6 +71,7 @@ export function FiltersSheet({ value, onChange }: FiltersSheetProps = {}) {
           </motion.button>
         )}
       </AnimatePresence>
+
       {mounted &&
         createPortal(
           <AnimatePresence>
@@ -90,28 +84,17 @@ export function FiltersSheet({ value, onChange }: FiltersSheetProps = {}) {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.25 }}
                   onClick={() => setOpen(false)}
-                  className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-md"
+                  className="fixed inset-0 z-[9999] bg-black/70 md:bg-black/60 md:backdrop-blur-sm transform-gpu"
                 />
                 <motion.div
                   key="sheet"
                   layoutId="filter-morph"
-                  className="fixed inset-x-3 bottom-3 top-16 z-[10000] overflow-hidden rounded-[2rem] border border-white/15 text-foreground md:inset-x-auto md:left-1/2 md:top-1/2 md:h-auto md:max-h-[85vh] md:w-[min(32rem,calc(100vw-2rem))] md:-translate-x-1/2 md:-translate-y-1/2"
-                  style={{
-                    backgroundColor: "rgba(20,22,20,0.75)",
-                    backdropFilter: "blur(28px) saturate(180%)",
-                    WebkitBackdropFilter: "blur(28px) saturate(180%)",
-                    boxShadow:
-                      "inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(255,255,255,0.05), 0 24px 60px rgba(0,0,0,0.5)",
-                  }}
+                  className="fixed inset-x-3 bottom-3 top-16 z-[10000] overflow-hidden rounded-[2rem] border border-white/15 bg-[#141614]/95 text-foreground shadow-2xl md:inset-x-auto md:left-1/2 md:top-1/2 md:h-auto md:max-h-[85vh] md:w-[min(32rem,calc(100vw-2rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:bg-[#141614]/85 md:backdrop-blur-2xl transform-gpu"
                   transition={{ type: "spring", stiffness: 220, damping: 26 }}
                 >
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute inset-0"
-                    style={{
-                      background:
-                        "linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 40%)",
-                    }}
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/10 to-transparent"
                   />
                   <EventFiltersPanel
                     filters={filters}

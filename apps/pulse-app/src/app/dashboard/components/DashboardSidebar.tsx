@@ -121,17 +121,17 @@ export function OrganizerSidebar() {
 
   return (
     <>
-      {/* DESKTOP SIDEBAR - Curat și transparent cu backdrop-blur */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-white/10 backdrop-blur-xl md:flex md:flex-col">
+      {/* DESKTOP SIDEBAR - Optimizat fundalul transparent + backdrop-blur */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-white/10 bg-background/40 backdrop-blur-xl md:flex md:flex-col">
         <SidebarBody />
       </aside>
 
-      {/* MOBILE MENU BUTTON */}
+      {/* MOBILE MENU BUTTON - Blur optimizat cu opacitate de fundal */}
       <button
         type="button"
         aria-label="Deschide meniul"
         onClick={() => setOpen(true)}
-        className="fixed left-4 top-3.5 z-40 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-foreground backdrop-blur-xl transition hover:bg-white/10 active:scale-95 md:hidden"
+        className="fixed left-4 top-3.5 z-40 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-background/40 text-foreground backdrop-blur-md transition hover:bg-background/60 active:scale-95 md:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -150,7 +150,7 @@ export function OrganizerSidebar() {
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
 
-            {/* Sliding Panel */}
+            {/* Sliding Panel - Efect frosted glass accentuat cu backdrop-blur-2xl și opacitate 80% */}
             <motion.aside
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
@@ -163,13 +163,13 @@ export function OrganizerSidebar() {
                 if (info.offset.x < -60 || info.velocity.x < -300)
                   setOpen(false);
               }}
-              className="absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r border-white/10 bg-background/95 backdrop-blur-2xl shadow-2xl"
+              className="absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r border-white/10 bg-background/80 backdrop-blur-2xl shadow-2xl"
             >
               <button
                 type="button"
                 aria-label="Închide meniul"
                 onClick={() => setOpen(false)}
-                className="absolute right-3.5 top-3.5 flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-muted-foreground transition hover:text-foreground active:scale-95 z-20"
+                className="absolute right-3.5 top-3.5 flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-background/50 text-muted-foreground backdrop-blur-md transition hover:text-foreground active:scale-95 z-20"
               >
                 <X className="h-4 w-4" />
               </button>

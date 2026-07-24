@@ -61,12 +61,6 @@ export function SearchPopover({ events }: SearchPopoverProps) {
     );
   }, [q, events]);
 
-  // Filtrare organizatori
-  // const matchedOrganizers = useMemo(() => {
-  //   if (!q) return organizers.slice(0, 3);
-  //   return organizers.filter((o) => o.name.toLowerCase().includes(q));
-  // }, [q]);
-
   return (
     <div ref={wrapperRef} className="relative z-30 h-11 w-full">
       <AnimatePresence>
@@ -77,10 +71,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
             type="button"
             aria-label="Search events"
             onClick={() => setOpen(true)}
-            className="absolute inset-x-0 top-0 flex h-11 items-center gap-2 overflow-hidden rounded-full border border-border bg-surface/70 px-4 text-left text-foreground"
-            style={{
-              backdropFilter: "blur(14px) saturate(160%)",
-            }}
+            className="absolute inset-x-0 top-0 flex h-11 items-center gap-2 overflow-hidden rounded-full border border-border bg-surface/90 md:bg-surface/70 md:backdrop-blur-md px-4 text-left text-foreground transform-gpu"
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
           >
             <motion.span layout className="flex items-center gap-2">
@@ -98,21 +89,13 @@ export function SearchPopover({ events }: SearchPopoverProps) {
           <motion.div
             key="search-panel"
             layoutId="search-morph"
-            className="absolute left-0 right-0 top-0 z-50 overflow-hidden rounded-3xl border border-white/20 text-foreground"
-            style={{
-              backgroundColor: "rgba(20,22,20,0.45)",
-              backdropFilter: "blur(24px) saturate(160%)",
-            }}
+            className="absolute left-0 right-0 top-0 z-50 overflow-hidden rounded-3xl border border-white/20 bg-[#141614]/90 md:bg-[#141614]/45 text-foreground md:backdrop-blur-xl transform-gpu"
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
           >
             {/* Efect subtil de sticlă (sheen) */}
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background:
-                  "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 40%)",
-              }}
+              className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/[0.06] to-transparent"
             />
 
             <div className="relative">
@@ -155,23 +138,6 @@ export function SearchPopover({ events }: SearchPopoverProps) {
                     </p>
                   )}
                 </Section>
-                {/* 
-                <Section title="Organizers" count={matchedOrganizers.length}>
-                  {matchedOrganizers.map((o) => (
-                    <ResultRow
-                      key={o.id}
-                      icon={User}
-                      title={o.name}
-                      meta={`${o.events} events`}
-                      onClick={() => setOpen(false)}
-                    />
-                  ))}
-                  {matchedOrganizers.length === 0 && (
-                    <p className="px-3 py-2 text-xs text-muted-foreground">
-                      No organizers found.
-                    </p>
-                  )}
-                </Section> */}
               </div>
             </div>
           </motion.div>
@@ -218,7 +184,7 @@ function ResultRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition hover:bg-white/5 active:scale-[0.99]"
+      className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition hover:bg-white/5 active:scale-[0.99] transform-gpu"
     >
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10">
         <Icon className="h-4 w-4 text-primary" />
