@@ -114,7 +114,9 @@ export default function MePage() {
   const [savedEventsLoading, setSavedEventsLoading] = useState(true);
   const [tickets, setTickets] = useState<TicketData[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
-  const [validationEvents, setValidationEvents] = useState<ValidationEvent[]>([]);
+  const [validationEvents, setValidationEvents] = useState<ValidationEvent[]>(
+    [],
+  );
 
   // Stare pentru a ști ce secțiune de setări este extinsă ("details" | "password" | "delete" | null)
   const [activeRow, setActiveRow] = useState<string | null>(null);
@@ -127,9 +129,12 @@ export default function MePage() {
 
   useEffect(() => {
     if (!user) return;
-    user.getSavedEvents()
+    user
+      .getSavedEvents()
       .then(setSavedEvents)
-      .catch((error) => console.error("Nu s-au putut incarca evenimentele salvate:", error))
+      .catch((error) =>
+        console.error("Nu s-au putut incarca evenimentele salvate:", error),
+      )
       .finally(() => setSavedEventsLoading(false));
   }, [user]);
 
@@ -143,23 +148,36 @@ export default function MePage() {
 
   useEffect(() => {
     if (!user) return;
-    ApiClient.instance.get("/users/me/tickets")
-      .then((response: UserTicket[]) => setTickets(response.map((ticket) => {
-        const start = new Date(ticket.startTime);
-        return {
-          id: ticket.id,
-          eventId: ticket.eventId,
-          event: ticket.eventTitle,
-          date: start.toLocaleDateString("ro-RO", { weekday: "short", day: "numeric", month: "short", year: "numeric" }),
-          time: start.toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" }),
-          location: ticket.locationName,
-          type: ticket.ticketTypeName,
-          hash: ticket.validationHash,
-          startTime: ticket.startTime,
-          endTime: ticket.endTime,
-          isValidated: ticket.isValidated,
-        };
-      })))
+    ApiClient.instance
+      .get("/users/me/tickets")
+      .then((response: UserTicket[]) =>
+        setTickets(
+          response.map((ticket) => {
+            const start = new Date(ticket.startTime);
+            return {
+              id: ticket.id,
+              eventId: ticket.eventId,
+              event: ticket.eventTitle,
+              date: start.toLocaleDateString("ro-RO", {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              }),
+              time: start.toLocaleTimeString("ro-RO", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              location: ticket.locationName,
+              type: ticket.ticketTypeName,
+              hash: ticket.validationHash,
+              startTime: ticket.startTime,
+              endTime: ticket.endTime,
+              isValidated: ticket.isValidated,
+            };
+          }),
+        ),
+      )
       .catch((error) => console.error("Nu s-au putut incarca biletele:", error))
       .finally(() => setTicketsLoading(false));
   }, [user]);
@@ -181,7 +199,11 @@ export default function MePage() {
 
   if (!user) return null;
 
-  const activeTickets = tickets.filter((ticket) => !ticket.isValidated && (!ticket.endTime || new Date(ticket.endTime).getTime() >= Date.now()));
+  const activeTickets = tickets.filter(
+    (ticket) =>
+      !ticket.isValidated &&
+      (!ticket.endTime || new Date(ticket.endTime).getTime() >= Date.now()),
+  );
   const activeTicketGroups = groupTicketsByEvent(activeTickets);
 
   const toggleRow = (rowId: string) => {
@@ -225,9 +247,13 @@ export default function MePage() {
                   <QrCode className="h-5 w-5" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold">Validare bilete</span>
+                  <span className="block text-sm font-semibold">
+                    Validare bilete
+                  </span>
                   <span className="mt-0.5 block text-xs text-muted-foreground">
-                    Ai acces la {validationEvents.length} {validationEvents.length === 1 ? "eveniment" : "evenimente"}.
+                    Ai acces la {validationEvents.length}{" "}
+                    {validationEvents.length === 1 ? "eveniment" : "evenimente"}
+                    .
                   </span>
                 </span>
                 <ChevronRight className="h-4 w-4 shrink-0 text-primary" />
@@ -326,23 +352,51 @@ export default function MePage() {
           <div className="md:col-span-8 space-y-8">
             <section className="md:border md:border-white/5 md:bg-white/[0.01] md:p-6 md:rounded-3xl">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-lg font-semibold"><Bookmark className="h-4 w-4 text-primary" /> Evenimente salvate</h2>
-                <span className="text-xs text-muted-foreground">{savedEvents.length}</span>
+                <h2 className="flex items-center gap-2 text-lg font-semibold">
+                  <Bookmark className="h-4 w-4 text-primary" /> Evenimente
+                  salvate
+                </h2>
+                <span className="text-xs text-muted-foreground">
+                  {savedEvents.length}
+                </span>
               </div>
               {savedEventsLoading ? (
-                <div className="grid gap-3 sm:grid-cols-2"><div className="h-20 animate-pulse border border-white/10 bg-white/[0.04]" /><div className="h-20 animate-pulse border border-white/10 bg-white/[0.04]" /></div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="h-20 animate-pulse border border-white/10 bg-white/[0.04]" />
+                  <div className="h-20 animate-pulse border border-white/10 bg-white/[0.04]" />
+                </div>
               ) : savedEvents.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-muted-foreground">Nu ai salvat niciun eveniment inca.</p>
+                <p className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-muted-foreground">
+                  Nu ai salvat niciun eveniment inca.
+                </p>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {savedEvents.map((event) => (
-                    <Link key={event.id} href={`/events/${event.id}`} className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 transition hover:bg-white/[0.06]">
+                    <Link
+                      key={event.id}
+                      href={`/events/${event.id}`}
+                      className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 transition hover:bg-white/[0.06]"
+                    >
                       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-white/5">
-                        {event.bannerUrl && <img src={event.bannerUrl} alt="" className="h-full w-full object-cover" />}
+                        {event.bannerUrl && (
+                          <img
+                            src={event.bannerUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">{event.title}</p>
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground">{event.locationName} · {new Date(event.startTime).toLocaleDateString("ro-RO", { day: "numeric", month: "short" })}</p>
+                        <p className="truncate text-sm font-semibold">
+                          {event.title}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {event.locationName} ·{" "}
+                          {new Date(event.startTime).toLocaleDateString(
+                            "ro-RO",
+                            { day: "numeric", month: "short" },
+                          )}
+                        </p>
                       </div>
                       <Bookmark className="h-4 w-4 shrink-0 fill-primary text-primary" />
                     </Link>
@@ -375,33 +429,73 @@ export default function MePage() {
               {/* RENDER MOBIL */}
               <div className="md:hidden">
                 {tab === "active" ? (
-                  ticketsLoading ? <TicketStackSkeleton /> : activeTicketGroups.length ? <><div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">{activeTicketGroups.map((group) => <TicketEventStack key={group[0].eventId} tickets={group} onOpen={setOpenTicket} className="w-[min(86vw,22rem)] shrink-0 snap-start" />)}</div><Link href="/users/me/tickets" className="mt-3 flex items-center justify-between border border-white/10 px-4 py-3 text-sm font-semibold transition hover:border-primary/50"><span>Vezi toate biletele</span><ChevronRight className="h-4 w-4 text-primary" /></Link></> : <EmptyTickets />
+                  ticketsLoading ? (
+                    <TicketStackSkeleton />
+                  ) : activeTicketGroups.length ? (
+                    <>
+                      <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
+                        {activeTicketGroups.map((group) => (
+                          <TicketEventStack
+                            key={group[0].eventId}
+                            tickets={group}
+                            onOpen={setOpenTicket}
+                            className="w-[min(86vw,22rem)] shrink-0 snap-start"
+                          />
+                        ))}
+                      </div>
+                      <Link
+                        href="/users/me/tickets"
+                        className="mt-3 flex items-center justify-between border border-white/10 px-4 py-3 text-sm font-semibold transition hover:border-primary/50"
+                      >
+                        <span>Vezi toate biletele</span>
+                        <ChevronRight className="h-4 w-4 text-primary" />
+                      </Link>
+                    </>
+                  ) : (
+                    <EmptyTickets />
+                  )
                 ) : (
                   <>
-                    <Link href="/users/me/invoices" className="flex items-center gap-3 border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-primary/50"><span className="grid h-9 w-9 place-items-center bg-primary/10 text-primary"><Receipt className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Vezi facturile</span><span className="mt-0.5 block text-xs text-muted-foreground">Comenzile si platile tale</span></span><ChevronRight className="h-4 w-4 text-primary" /></Link>
+                    <Link
+                      href="/users/me/invoices"
+                      className="flex items-center gap-3 border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-primary/50"
+                    >
+                      <span className="grid h-9 w-9 place-items-center bg-primary/10 text-primary">
+                        <Receipt className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold">
+                          Vezi facturile
+                        </span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          Comenzile si platile tale
+                        </span>
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-primary" />
+                    </Link>
                     <div className="hidden divide-y divide-white/5 rounded-2xl border border-white/10 bg-white/5">
-                    {orderHistory.map((o) => (
-                      <div key={o.id} className="flex items-center gap-3 p-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">
-                            {o.event}
-                          </p>
-                          <p className="mt-0.5 text-[11px] text-muted-foreground truncate">
-                            {o.date} · {o.id} · {o.stripeId}
-                          </p>
+                      {orderHistory.map((o) => (
+                        <div key={o.id} className="flex items-center gap-3 p-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">
+                              {o.event}
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-muted-foreground truncate">
+                              {o.date} · {o.id} · {o.stripeId}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="text-sm font-semibold">
+                              {o.amount}
+                            </span>
+                            <span
+                              className={`rounded-full border px-2 py-0.5 text-[10px] capitalize ${statusStyles[o.status]}`}
+                            >
+                              {o.status}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <span className="text-sm font-semibold">
-                            {o.amount}
-                          </span>
-                          <span
-                            className={`rounded-full border px-2 py-0.5 text-[10px] capitalize ${statusStyles[o.status]}`}
-                          >
-                            {o.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                     </div>
                   </>
                 )}
@@ -414,14 +508,56 @@ export default function MePage() {
                     <Ticket className="h-4 w-4" /> Active Tickets (
                     {activeTickets.length})
                   </h3>
-                  {ticketsLoading ? <div className="grid grid-cols-2 gap-3"><TicketStackSkeleton /><TicketStackSkeleton /></div> : activeTicketGroups.length ? <><div className="grid grid-cols-2 gap-3">{activeTicketGroups.slice(0, 4).map((group) => <TicketEventStack key={group[0].eventId} tickets={group} onOpen={setOpenTicket} />)}</div><Link href="/users/me/tickets" className="mt-3 flex items-center justify-between border border-white/10 px-4 py-3 text-sm font-semibold transition hover:border-primary/50"><span>Vezi toate biletele</span><ChevronRight className="h-4 w-4 text-primary" /></Link></> : <EmptyTickets />}
+                  {ticketsLoading ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <TicketStackSkeleton />
+                      <TicketStackSkeleton />
+                    </div>
+                  ) : activeTicketGroups.length ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        {activeTicketGroups.slice(0, 4).map((group) => (
+                          <TicketEventStack
+                            key={group[0].eventId}
+                            tickets={group}
+                            onOpen={setOpenTicket}
+                          />
+                        ))}
+                      </div>
+                      <Link
+                        href="/users/me/tickets"
+                        className="mt-3 flex items-center justify-between border border-white/10 px-4 py-3 text-sm font-semibold transition hover:border-primary/50"
+                      >
+                        <span>Vezi toate biletele</span>
+                        <ChevronRight className="h-4 w-4 text-primary" />
+                      </Link>
+                    </>
+                  ) : (
+                    <EmptyTickets />
+                  )}
                 </div>
 
                 <div className="pt-2">
                   <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
                     <Receipt className="h-4 w-4" /> Order History
                   </h3>
-                  <Link href="/users/me/invoices" className="flex items-center gap-3 border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-primary/50"><span className="grid h-9 w-9 place-items-center bg-primary/10 text-primary"><Receipt className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Vezi facturile</span><span className="mt-0.5 block text-xs text-muted-foreground">Comenzile si platile tale</span></span><ChevronRight className="h-4 w-4 text-primary" /></Link>
+                  <Link
+                    href="/users/me/invoices"
+                    className="flex items-center gap-3 border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-primary/50"
+                  >
+                    <span className="grid h-9 w-9 place-items-center bg-primary/10 text-primary">
+                      <Receipt className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold">
+                        Vezi facturile
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        Comenzile si platile tale
+                      </span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-primary" />
+                  </Link>
                   <div className="hidden divide-y divide-white/5 rounded-2xl border border-white/10 bg-white/5">
                     {orderHistory.map((o) => (
                       <div key={o.id} className="flex items-center gap-3 p-3.5">
@@ -747,10 +883,15 @@ function TicketStackSkeleton() {
   return (
     <div className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
       <div className="flex items-center justify-between gap-3 p-4">
-        <div className="space-y-2"><div className="h-3 w-32 animate-pulse bg-white/10" /><div className="h-2.5 w-48 animate-pulse bg-white/5" /></div>
+        <div className="space-y-2">
+          <div className="h-3 w-32 animate-pulse bg-white/10" />
+          <div className="h-2.5 w-48 animate-pulse bg-white/5" />
+        </div>
         <div className="h-5 w-10 animate-pulse bg-white/10" />
       </div>
-      <div className="border-t border-white/10 px-4 py-3"><div className="h-8 animate-pulse bg-white/5" /></div>
+      <div className="border-t border-white/10 px-4 py-3">
+        <div className="h-8 animate-pulse bg-white/5" />
+      </div>
     </div>
   );
 }
@@ -759,24 +900,45 @@ function EmptyTickets({ used = false }: { used?: boolean }) {
   return (
     <div className="border border-dashed border-white/15 px-4 py-8 text-center">
       <Ticket className="mx-auto h-5 w-5 text-muted-foreground" />
-      <p className="mt-3 text-sm font-medium">{used ? "Nu ai bilete validate inca." : "Nu ai bilete active."}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{used ? "Biletele folosite vor ramane aici ca istoric." : "Biletele cumparate vor aparea aici."}</p>
+      <p className="mt-3 text-sm font-medium">
+        {used ? "Nu ai bilete validate inca." : "Nu ai bilete active."}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {used
+          ? "Biletele folosite vor ramane aici ca istoric."
+          : "Biletele cumparate vor aparea aici."}
+      </p>
     </div>
   );
 }
 
-function TicketEventStack({ tickets, onOpen, className = "" }: { tickets: TicketData[]; onOpen: (ticket: TicketData) => void; className?: string }) {
+function TicketEventStack({
+  tickets,
+  onOpen,
+  className = "",
+}: {
+  tickets: TicketData[];
+  onOpen: (ticket: TicketData) => void;
+  className?: string;
+}) {
   const event = tickets[0];
   if (!event) return null;
 
   return (
-    <div className={`overflow-hidden rounded-lg border border-white/10 bg-white/[0.03] ${className}`}>
+    <div
+      className={`overflow-hidden rounded-lg border border-white/10 bg-white/[0.03] ${className}`}
+    >
       <div className="flex items-start justify-between gap-3 p-4">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">{event.event}</p>
           <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {event.date}, {event.time}</span>
-            <span className="flex min-w-0 items-center gap-1"><MapPin className="h-3 w-3 shrink-0" /> <span className="truncate">{event.location}</span></span>
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" /> {event.date}, {event.time}
+            </span>
+            <span className="flex min-w-0 items-center gap-1">
+              <MapPin className="h-3 w-3 shrink-0" />{" "}
+              <span className="truncate">{event.location}</span>
+            </span>
           </p>
         </div>
         <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
@@ -785,9 +947,23 @@ function TicketEventStack({ tickets, onOpen, className = "" }: { tickets: Ticket
       </div>
       <div className="max-h-56 divide-y divide-white/10 overflow-y-auto overscroll-contain border-t border-white/10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tickets.map((ticket, index) => (
-          <button key={ticket.id} type="button" onClick={() => onOpen(ticket)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white/[0.05]">
-            <span className="grid h-8 w-8 shrink-0 place-items-center border border-primary/25 bg-primary/10 text-primary"><QrCode className="h-4 w-4" /></span>
-            <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{ticket.type}</span><span className="mt-0.5 block text-[11px] text-muted-foreground">Biletul {index + 1}</span></span>
+          <button
+            key={ticket.id}
+            type="button"
+            onClick={() => onOpen(ticket)}
+            className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white/[0.05]"
+          >
+            <span className="grid h-8 w-8 shrink-0 place-items-center border border-primary/25 bg-primary/10 text-primary">
+              <QrCode className="h-4 w-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">
+                {ticket.type}
+              </span>
+              <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                Biletul {index + 1}
+              </span>
+            </span>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
           </button>
         ))}
