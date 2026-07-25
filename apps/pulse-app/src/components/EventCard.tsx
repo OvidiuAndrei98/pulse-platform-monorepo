@@ -76,7 +76,8 @@ export function EventCard({
             className="transform-gpu object-cover transition-transform duration-300 will-change-transform group-hover:scale-105"
           />
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-black/20" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
 
           {/* Badges Header */}
           <div className="absolute left-2.5 right-2.5 top-2.5 flex items-start justify-between">

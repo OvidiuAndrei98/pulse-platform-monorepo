@@ -22,6 +22,7 @@ import { Event, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
+import { ApiClient } from "@packages/api-client/src/Client";
 
 export default function EventStandalonePage() {
   const { user } = useDataProvider();
@@ -30,6 +31,9 @@ export default function EventStandalonePage() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [shared, setShared] = useState(false);
   const [favorite, setFavorite] = useState(false);
+  const [guestEmail, setGuestEmail] = useState("");
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
   const params = useParams<{ id: string }>();
 
   useEffect(() => {
@@ -39,6 +43,7 @@ export default function EventStandalonePage() {
         const fetchedEvent = await User.getPublicEventById(params.id);
         setEvent(fetchedEvent);
         setFavorite(Boolean(fetchedEvent.stats?.isFavorited));
+        setGuestEmail(user?.properties.email ?? "");
       } catch (error) {
         console.error("Failed to load event details", error);
       } finally {
@@ -115,6 +120,38 @@ export default function EventStandalonePage() {
     }
   };
 
+  const handleCheckout = async () => {
+    if (ticketCount === 0 || isCheckingOut) return;
+
+    const email = guestEmail.trim();
+    if (!email) {
+      setCheckoutError("Introdu adresa de email pentru bilete.");
+      return;
+    }
+
+    setCheckoutError("");
+    setIsCheckingOut(true);
+
+    try {
+      const checkout = await ApiClient.instance.post("/events/{id}/tickets/purchase", {
+        params: { path: { id: event.id } },
+        body: {
+          email,
+          items: ticketTypes
+            .filter((ticket) => (quantities[ticket.id] ?? 0) > 0)
+            .map((ticket) => ({
+              ticketTypeId: ticket.id,
+              quantity: quantities[ticket.id] ?? 0,
+            })),
+        },
+      });
+      window.location.assign(checkout.checkoutUrl);
+    } catch {
+      setCheckoutError("Plata nu a putut fi pregatita. Incearca din nou.");
+      setIsCheckingOut(false);
+    }
+  };
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-background pb-40 text-foreground">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[410px] overflow-hidden">
@@ -123,10 +160,10 @@ export default function EventStandalonePage() {
           alt=""
           fill
           priority
-          className="object-cover opacity-70"
+          className="object-cover opacity-75"
         />
-        <div className="absolute inset-0 bg-background/35" />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/45 to-background" />
+        <div className="absolute inset-0 bg-black/35" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-background/60 to-background" />
       </div>
 
       <div className="relative mx-auto max-w-3xl px-5 pt-16 sm:px-8 sm:pt-24">
@@ -222,17 +259,39 @@ export default function EventStandalonePage() {
             <p className="mt-3 text-sm text-muted-foreground">Accesul este liber sau biletele se achizitioneaza direct la locatie.</p>
           )}
           {ticketTypes.length > 0 && (
-            <button
-              type="button"
-              disabled={ticketCount === 0}
-              className="mt-4 flex h-12 w-full items-center justify-between rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <span className="inline-flex items-center gap-2">
-                <Ticket className="h-4 w-4" />
-                {ticketCount ? `Cumpara ${ticketCount} bilete` : "Alege biletele"}
-              </span>
-              {ticketCount > 0 && <span>{total} RON</span>}
-            </button>
+            <>
+              <div className="mt-4">
+                <label className="text-sm font-semibold" htmlFor="ticket-email">
+                  Email pentru bilete
+                </label>
+                <input
+                  id="ticket-email"
+                  type="email"
+                  autoComplete="email"
+                  value={guestEmail}
+                  onChange={(inputEvent) => setGuestEmail(inputEvent.target.value)}
+                  placeholder="nume@email.ro"
+                  className="mt-2 h-12 w-full rounded-lg border border-white/15 bg-surface/80 px-4 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/60"
+                />
+                {checkoutError && <p className="mt-2 text-xs text-red-400">{checkoutError}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={handleCheckout}
+                disabled={ticketCount === 0 || isCheckingOut}
+                className="mt-4 flex h-12 w-full items-center justify-between rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <Ticket className="h-4 w-4" />
+                  {isCheckingOut
+                    ? "Se pregateste plata..."
+                    : ticketCount
+                      ? `Cumpara ${ticketCount} bilete`
+                      : "Alege biletele"}
+                </span>
+                {ticketCount > 0 && <span>{total} RON</span>}
+              </button>
+            </>
           )}
         </section>
 

@@ -31,7 +31,8 @@ export function EventBrowseCard({
           className="object-cover"
         />
       </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/40 to-transparent" />
+      <div className="absolute inset-0 bg-black/25" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/55 to-transparent" />
 
       <div className="absolute left-4 right-4 top-4 flex flex-wrap items-center gap-2">
         <EventStatusBadge event={event} />

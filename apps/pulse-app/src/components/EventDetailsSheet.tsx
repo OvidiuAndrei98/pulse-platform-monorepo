@@ -196,7 +196,8 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
                     />
                   )}
                 </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
+                <div className="absolute inset-0 bg-black/30" />
+                <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/55 to-transparent" />
 
                 <div className="absolute left-4 right-4 top-4 flex flex-wrap items-center gap-2">
                   {event.isLive ? (
