@@ -31,6 +31,8 @@ type EventSocialResponse struct {
 	InterestedCount   int64                         `json:"interestedCount"`
 	GoingCount        int64                         `json:"goingCount"`
 	TicketHolderCount int64                         `json:"ticketHolderCount"`
+	TicketsSoldCount  int64                         `json:"ticketsSoldCount"`
+	ManualGoingCount  int64                         `json:"manualGoingCount"`
 	CurrentUserStatus string                        `json:"currentUserStatus"`
 	Friends           []FriendEventActivityResponse `json:"friends"`
 }
@@ -111,6 +113,8 @@ func (h *Handler) eventSocialResponse(r *http.Request, eventID, userID pgtype.UU
 		InterestedCount:   summary.InterestedCount,
 		GoingCount:        summary.GoingCount,
 		TicketHolderCount: summary.TicketHolderCount,
+		TicketsSoldCount:  summary.TicketsSoldCount,
+		ManualGoingCount:  summary.ManualGoingCount,
 		CurrentUserStatus: summary.CurrentUserStatus,
 		Friends:           []FriendEventActivityResponse{},
 	}

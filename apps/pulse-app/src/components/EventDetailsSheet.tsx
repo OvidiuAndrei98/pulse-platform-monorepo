@@ -4,18 +4,18 @@ import {
   createContext,
   useContext,
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
-import { AnimatePresence, motion, useDragControls } from "framer-motion";
-import { X, Calendar, Bookmark, Check, Share2, Ticket as TicketIcon } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Calendar, Bookmark, Check, Share2, Ticket as TicketIcon } from "lucide-react";
 import Image from "next/image";
 import { Event } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { ApiClient } from "@packages/api-client/src/Client";
 import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 
 interface EventDetailsContextType {
   open: (event: Event) => void;
@@ -65,8 +65,16 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
   const [purchased, setPurchased] = useState(false);
   const [favorited, setFavorited] = useState(false);
   const [shared, setShared] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const dragControls = useDragControls();
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    const updateViewport = () => setIsDesktop(mediaQuery.matches);
+
+    updateViewport();
+    mediaQuery.addEventListener("change", updateViewport);
+    return () => mediaQuery.removeEventListener("change", updateViewport);
+  }, []);
 
   // Resetăm biletele selectate de fiecare dată când se deschide un alt eveniment
   useEffect(() => {
@@ -172,52 +180,11 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
     }
   };
 
-  return (
-    <AnimatePresence>
-      {event && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center md:items-center">
-          {/* Overlay Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-black/70 md:bg-black/60 md:backdrop-blur-sm"
-          />
-
-          {/* Modal Container */}
-          <motion.div
-            initial={{ y: "100%", opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: "100%", opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 32 }}
-            drag="y"
-            dragListener={false}
-            dragControls={dragControls}
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.4 }}
-            onDragEnd={(_, info) => {
-              if (info.offset.y > 120 || info.velocity.y > 600) onClose();
-            }}
-            className="relative z-10 flex max-h-[92vh] w-full transform-gpu flex-col overflow-hidden rounded-t-2xl border border-white/15 bg-background/95 text-foreground shadow-2xl will-change-transform md:max-h-[88vh] md:max-w-2xl md:rounded-xl md:bg-background/80 md:backdrop-blur-xl md:backdrop-saturate-150"
-          >
-            {/* Mobile Drag Handle */}
-            <div
-              onPointerDown={(e) =>
-                dragControls.start(e, { snapToCursor: false })
-              }
-              className="relative z-20 flex cursor-grab touch-none justify-center py-2.5 active:cursor-grabbing md:hidden"
-            >
-              <span className="h-1.5 w-10 rounded-full bg-white/30" />
-            </div>
-
-            {/* Scroll Content */}
-            <div
-              ref={scrollRef}
-              className="relative z-10 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
+  const sheetContent = (
+    <>
+      <div className="relative z-10 min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <div className="relative">
-                <div className="relative h-56 w-full bg-muted md:h-72">
+                <div className="relative h-48 w-full bg-muted md:h-72">
                   {event.bannerUrl && (
                     <Image
                       src={event.bannerUrl}
@@ -231,15 +198,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/30 to-transparent" />
 
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-lg border border-white/20 bg-background/50 backdrop-blur transition hover:bg-background/80"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-
-                <div className="absolute left-4 right-4 top-4 flex flex-wrap items-center gap-2 pr-12">
+                <div className="absolute left-4 right-4 top-4 flex flex-wrap items-center gap-2">
                   {event.isLive ? (
                     <span className="inline-flex items-center gap-1.5 rounded-md border border-red-500/40 bg-red-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-400 backdrop-blur">
                       <span className="relative flex h-2 w-2">
@@ -335,10 +294,9 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
                   {checkoutError && <p className="mt-2 text-xs text-red-400">{checkoutError}</p>}
                 </section>
               </div>
-            </div>
+      </div>
 
-            {/* Footer Actions */}
-            <div className="relative z-10 flex items-center gap-2 border-t border-white/10 bg-background/90 px-4 py-3 backdrop-blur md:bg-background/60">
+      <div className="relative z-10 flex items-center gap-2 border-t border-white/10 bg-background/90 px-4 py-3 backdrop-blur md:bg-background/60">
               {user && (
                 <button
                   type="button"
@@ -370,10 +328,29 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
                     ? "Selectează bilete"
                     : `Cumpără ${count} · ${total} RON`}
               </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+      </div>
+    </>
+  );
+
+  if (!isDesktop) {
+    return (
+      <Drawer open onOpenChange={(open) => !open && onClose()}>
+        <DrawerContent className="h-[78svh] max-h-[42rem] overflow-hidden rounded-t-3xl border-white/10 bg-neutral-950">
+          <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
+          {sheetContent}
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/60" />
+        <motion.div initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 260 }} onClick={(clickEvent) => clickEvent.stopPropagation()} className="relative z-10 flex h-[min(88vh,48rem)] w-[calc(100%-1.5rem)] max-w-2xl flex-col overflow-hidden rounded-xl border border-white/10 bg-background/80 text-foreground shadow-2xl backdrop-blur-xl backdrop-saturate-150">
+          {sheetContent}
+        </motion.div>
+      </div>
     </AnimatePresence>
   );
 }

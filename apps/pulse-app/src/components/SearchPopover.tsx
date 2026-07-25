@@ -90,7 +90,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
             type="button"
             aria-label="Search events"
             onClick={() => setOpen(true)}
-            className="absolute inset-x-0 top-0 flex h-11 items-center gap-2 overflow-hidden rounded-full border border-border bg-surface/90 md:bg-surface/70 md:backdrop-blur-md px-4 text-left text-foreground transform-gpu"
+            className="absolute inset-x-0 top-0 flex h-11 items-center gap-2 overflow-hidden rounded-full border border-border bg-surface/90 px-4 text-left text-foreground backdrop-blur-lg transform-gpu md:bg-surface/70 md:backdrop-blur-md"
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
           >
             <motion.span layout className="flex items-center gap-2">
@@ -108,7 +108,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
           <motion.div
             key="search-panel"
             layoutId="search-morph"
-            className="absolute left-0 right-0 top-0 z-50 overflow-hidden rounded-3xl border border-white/20 bg-[#141614]/90 md:bg-[#141614]/45 text-foreground md:backdrop-blur-xl transform-gpu"
+            className="absolute left-0 right-0 top-0 z-50 overflow-hidden rounded-3xl border border-white/20 bg-[#141614]/90 text-foreground backdrop-blur-xl transform-gpu md:bg-[#141614]/45"
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
           >
             {/* Efect subtil de sticlă (sheen) */}
@@ -148,7 +148,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
                       icon={Calendar}
                       title={e.title}
                       meta={`${e.category} · ${e.locationName}`}
-                      onClick={() => { setOpen(false); router.push(`/events/${e.id}`); }}
+                      onClick={() => { router.push(`/events/${e.id}`); setOpen(false); }}
                     />
                   ))}
                   {matchedEvents?.length === 0 && (
@@ -165,7 +165,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
                         icon={profile.role === "organizer" ? BadgeCheck : UserRound}
                         title={profile.role === "organizer" ? profile.organizerName || profile.username : `@${profile.username}`}
                         meta={profile.role === "organizer" ? `Organizator . @${profile.username}` : profile.bio || "Profil public"}
-                        onClick={() => { setOpen(false); router.push(`/users/${profile.id}`); }}
+                        onClick={() => { router.push(`/users/${profile.id}`); setOpen(false); }}
                       />
                     ))}
                     {profiles.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">Niciun profil gasit.</p>}

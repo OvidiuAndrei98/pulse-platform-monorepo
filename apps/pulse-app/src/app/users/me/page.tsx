@@ -38,6 +38,8 @@ type TicketData = {
   location: string;
   type: string;
   hash: string;
+  startTime?: string;
+  endTime?: string;
   isValidated?: boolean;
 };
 
@@ -153,6 +155,8 @@ export default function MePage() {
           location: ticket.locationName,
           type: ticket.ticketTypeName,
           hash: ticket.validationHash,
+          startTime: ticket.startTime,
+          endTime: ticket.endTime,
           isValidated: ticket.isValidated,
         };
       })))
@@ -177,10 +181,8 @@ export default function MePage() {
 
   if (!user) return null;
 
-  const activeTickets = tickets.filter((ticket) => !ticket.isValidated);
-  const usedTickets = tickets.filter((ticket) => ticket.isValidated);
+  const activeTickets = tickets.filter((ticket) => !ticket.isValidated && (!ticket.endTime || new Date(ticket.endTime).getTime() >= Date.now()));
   const activeTicketGroups = groupTicketsByEvent(activeTickets);
-  const usedTicketGroups = groupTicketsByEvent(usedTickets);
 
   const toggleRow = (rowId: string) => {
     setActiveRow(activeRow === rowId ? null : rowId);
@@ -373,9 +375,11 @@ export default function MePage() {
               {/* RENDER MOBIL */}
               <div className="md:hidden">
                 {tab === "active" ? (
-                  ticketsLoading ? <TicketStackSkeleton /> : activeTicketGroups.length ? <div className="space-y-3">{activeTicketGroups.map((group) => <TicketEventStack key={group[0].eventId} tickets={group} onOpen={setOpenTicket} />)}</div> : <EmptyTickets />
+                  ticketsLoading ? <TicketStackSkeleton /> : activeTicketGroups.length ? <><div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">{activeTicketGroups.map((group) => <TicketEventStack key={group[0].eventId} tickets={group} onOpen={setOpenTicket} className="w-[min(86vw,22rem)] shrink-0 snap-start" />)}</div><Link href="/users/me/tickets" className="mt-3 flex items-center justify-between border border-white/10 px-4 py-3 text-sm font-semibold transition hover:border-primary/50"><span>Vezi toate biletele</span><ChevronRight className="h-4 w-4 text-primary" /></Link></> : <EmptyTickets />
                 ) : (
-                  <div className="divide-y divide-white/5 rounded-2xl border border-white/10 bg-white/5">
+                  <>
+                    <Link href="/users/me/invoices" className="flex items-center gap-3 border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-primary/50"><span className="grid h-9 w-9 place-items-center bg-primary/10 text-primary"><Receipt className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Vezi facturile</span><span className="mt-0.5 block text-xs text-muted-foreground">Comenzile si platile tale</span></span><ChevronRight className="h-4 w-4 text-primary" /></Link>
+                    <div className="hidden divide-y divide-white/5 rounded-2xl border border-white/10 bg-white/5">
                     {orderHistory.map((o) => (
                       <div key={o.id} className="flex items-center gap-3 p-3">
                         <div className="min-w-0 flex-1">
@@ -398,7 +402,8 @@ export default function MePage() {
                         </div>
                       </div>
                     ))}
-                  </div>
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -409,14 +414,15 @@ export default function MePage() {
                     <Ticket className="h-4 w-4" /> Active Tickets (
                     {activeTickets.length})
                   </h3>
-                  {ticketsLoading ? <div className="grid grid-cols-2 gap-3"><TicketStackSkeleton /><TicketStackSkeleton /></div> : activeTicketGroups.length ? <div className="grid grid-cols-2 gap-3">{activeTicketGroups.map((group) => <TicketEventStack key={group[0].eventId} tickets={group} onOpen={setOpenTicket} />)}</div> : <EmptyTickets />}
+                  {ticketsLoading ? <div className="grid grid-cols-2 gap-3"><TicketStackSkeleton /><TicketStackSkeleton /></div> : activeTicketGroups.length ? <><div className="grid grid-cols-2 gap-3">{activeTicketGroups.slice(0, 4).map((group) => <TicketEventStack key={group[0].eventId} tickets={group} onOpen={setOpenTicket} />)}</div><Link href="/users/me/tickets" className="mt-3 flex items-center justify-between border border-white/10 px-4 py-3 text-sm font-semibold transition hover:border-primary/50"><span>Vezi toate biletele</span><ChevronRight className="h-4 w-4 text-primary" /></Link></> : <EmptyTickets />}
                 </div>
 
                 <div className="pt-2">
                   <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
                     <Receipt className="h-4 w-4" /> Order History
                   </h3>
-                  <div className="divide-y divide-white/5 rounded-2xl border border-white/10 bg-white/5">
+                  <Link href="/users/me/invoices" className="flex items-center gap-3 border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-primary/50"><span className="grid h-9 w-9 place-items-center bg-primary/10 text-primary"><Receipt className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Vezi facturile</span><span className="mt-0.5 block text-xs text-muted-foreground">Comenzile si platile tale</span></span><ChevronRight className="h-4 w-4 text-primary" /></Link>
+                  <div className="hidden divide-y divide-white/5 rounded-2xl border border-white/10 bg-white/5">
                     {orderHistory.map((o) => (
                       <div key={o.id} className="flex items-center gap-3 p-3.5">
                         <div className="min-w-0 flex-1">
@@ -759,12 +765,12 @@ function EmptyTickets({ used = false }: { used?: boolean }) {
   );
 }
 
-function TicketEventStack({ tickets, onOpen }: { tickets: TicketData[]; onOpen: (ticket: TicketData) => void }) {
+function TicketEventStack({ tickets, onOpen, className = "" }: { tickets: TicketData[]; onOpen: (ticket: TicketData) => void; className?: string }) {
   const event = tickets[0];
   if (!event) return null;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.03]">
+    <div className={`overflow-hidden rounded-lg border border-white/10 bg-white/[0.03] ${className}`}>
       <div className="flex items-start justify-between gap-3 p-4">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">{event.event}</p>
@@ -777,7 +783,7 @@ function TicketEventStack({ tickets, onOpen }: { tickets: TicketData[]; onOpen: 
           {tickets.length} {tickets.length === 1 ? "bilet" : "bilete"}
         </span>
       </div>
-      <div className="divide-y divide-white/10 border-t border-white/10">
+      <div className="max-h-56 divide-y divide-white/10 overflow-y-auto overscroll-contain border-t border-white/10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tickets.map((ticket, index) => (
           <button key={ticket.id} type="button" onClick={() => onOpen(ticket)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white/[0.05]">
             <span className="grid h-8 w-8 shrink-0 place-items-center border border-primary/25 bg-primary/10 text-primary"><QrCode className="h-4 w-4" /></span>

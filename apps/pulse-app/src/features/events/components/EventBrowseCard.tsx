@@ -5,6 +5,7 @@ import { useEventDetails } from "@/components/EventDetailsSheet";
 import { EventStatusBadge } from "@/features/events/components/EventStatusBadge";
 import { Coordinates } from "@/features/events/types";
 import { formatDistance, getDistanceKm } from "@/features/events/utils";
+import { EventFriendsPreview } from "@/components/social/EventFriendsPreview";
 
 export function EventBrowseCard({
   event,
@@ -53,9 +54,10 @@ export function EventBrowseCard({
             </span>
           )}
         </div>
+        <EventFriendsPreview eventId={event.id} className="mt-3" />
         <span
           aria-hidden
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-2.5 text-sm font-semibold text-primary-foreground"
         >
           View event <ArrowUpRight className="h-4 w-4" strokeWidth={2.4} />
         </span>

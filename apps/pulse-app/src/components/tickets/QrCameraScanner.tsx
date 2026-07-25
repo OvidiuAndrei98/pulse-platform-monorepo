@@ -62,7 +62,7 @@ export function QrCameraScanner({ disabled, onScan }: QrCameraScannerProps) {
   useEffect(() => () => { void stopScanner(); }, []);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 text-center">
       {(starting || running) && <div id={scannerId} className="overflow-hidden rounded-lg border border-primary/30 bg-black" />}
       <button type="button" onClick={() => running ? void stopScanner() : void startScanner()} disabled={disabled || starting} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/15 px-3 text-xs font-semibold transition hover:bg-white/5 disabled:opacity-50">
         {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : running ? <X className="h-4 w-4" /> : <Camera className="h-4 w-4" />}

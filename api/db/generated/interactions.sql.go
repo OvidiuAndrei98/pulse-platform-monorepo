@@ -200,6 +200,8 @@ SELECT
     ) AS interested_count,
     (SELECT COUNT(*)::bigint FROM going_users) AS going_count,
     (SELECT COUNT(*)::bigint FROM ticket_holders) AS ticket_holder_count,
+    (SELECT COUNT(*)::bigint FROM tickets t JOIN orders o ON o.id = t.order_id JOIN ticket_types tt ON tt.id = t.ticket_type_id WHERE tt.event_id = $1 AND o.status = 'completed') AS tickets_sold_count,
+    (SELECT COUNT(*)::bigint FROM event_rsvps r WHERE r.event_id = $1 AND r.status = 'going' AND NOT EXISTS (SELECT 1 FROM ticket_holders th WHERE th.user_id = r.user_id)) AS manual_going_count,
     CASE
         WHEN EXISTS (
             SELECT 1
@@ -223,6 +225,8 @@ type GetEventSocialSummaryRow struct {
 	InterestedCount   int64  `json:"interested_count"`
 	GoingCount        int64  `json:"going_count"`
 	TicketHolderCount int64  `json:"ticket_holder_count"`
+	TicketsSoldCount  int64  `json:"tickets_sold_count"`
+	ManualGoingCount  int64  `json:"manual_going_count"`
 	CurrentUserStatus string `json:"current_user_status"`
 }
 
@@ -233,6 +237,8 @@ func (q *Queries) GetEventSocialSummary(ctx context.Context, arg GetEventSocialS
 		&i.InterestedCount,
 		&i.GoingCount,
 		&i.TicketHolderCount,
+		&i.TicketsSoldCount,
+		&i.ManualGoingCount,
 		&i.CurrentUserStatus,
 	)
 	return i, err

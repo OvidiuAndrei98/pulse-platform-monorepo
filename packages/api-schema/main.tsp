@@ -71,6 +71,8 @@ model EventSocialResponse {
   interestedCount: int64;
   goingCount: int64;
   ticketHolderCount: int64;
+  ticketsSoldCount: int64;
+  manualGoingCount: int64;
   currentUserStatus: "none" | "interested" | "going" | "has_ticket";
   friends: FriendEventActivityResponse[];
 }
@@ -179,6 +181,7 @@ model UserTicketResponse {
   eventTitle: string;
   locationName: string;
   startTime: utcDateTime;
+  endTime: utcDateTime;
 }
 
 // --- REQUEST BODY PAYLOADS ---
@@ -254,6 +257,18 @@ model UpdateTicketTypePayload {
   endSales: utcDateTime;
   description?: string;
   eventId: string;
+}
+
+model UserOrderResponse {
+  id: string;
+  status: string;
+  totalAmountRon: int32;
+  createdAt: utcDateTime;
+  stripePaymentIntentId?: string;
+  eventId: string;
+  eventTitle: string;
+  locationName: string;
+  startTime: utcDateTime;
 }
 
 model CheckoutTicketItemPayload {
@@ -378,6 +393,10 @@ interface UserOperations {
   @get
   @route("/me/tickets")
   getUserTickets(): UserTicketResponse[];
+
+  @get
+  @route("/me/orders")
+  getUserOrders(): UserOrderResponse[];
 
   @summary("Obține evenimentele salvate ale utilizatorului curent")
   @get

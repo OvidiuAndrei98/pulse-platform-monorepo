@@ -123,7 +123,7 @@ export function BottomNav() {
         - Fundal aerisit: bg-[#121217]/40
         - Blur discret: backdrop-blur-md
       */}
-      <div className="pointer-events-auto w-[min(100%,320px)] rounded-full border border-white/10 bg-[#121217]/40 p-1.5 shadow-2xl backdrop-blur-md">
+      <div className="pointer-events-auto w-[min(100%,320px)] rounded-full border border-white/10 bg-[#121217]/55 p-1.5 shadow-2xl backdrop-blur-lg md:bg-[#121217]/40 md:backdrop-blur-md">
         <div
           ref={containerRef}
           className="relative flex h-12 select-none touch-none items-center justify-between"

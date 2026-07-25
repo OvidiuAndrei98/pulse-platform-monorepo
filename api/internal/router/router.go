@@ -32,6 +32,7 @@ type HandlersConfig struct {
 	CreateUser     http.HandlerFunc
 	GetUser        http.HandlerFunc
 	GetUserTickets http.HandlerFunc
+	GetUserOrders  http.HandlerFunc
 	GetSavedEvents http.HandlerFunc
 
 	// Events
@@ -182,6 +183,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Get("/me", cfg.GetMe)
 				r.Put("/me", cfg.UpdateMe)
 				r.Get("/me/tickets", cfg.GetUserTickets)
+				r.Get("/me/orders", cfg.GetUserOrders)
 				r.Get("/me/saved-events", cfg.GetSavedEvents)
 				r.Get("/{id}", cfg.GetUser)
 			})

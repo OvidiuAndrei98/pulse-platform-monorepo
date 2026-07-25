@@ -1584,6 +1584,27 @@
         }
       }
     },
+    "/users/me/orders": {
+      "get": {
+        "operationId": "UserOperations_getUserOrders",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserOrderResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/users/me/saved-events": {
       "get": {
         "operationId": "UserOperations_getSavedEvents",
@@ -2020,6 +2041,8 @@
           "interestedCount",
           "goingCount",
           "ticketHolderCount",
+          "ticketsSoldCount",
+          "manualGoingCount",
           "currentUserStatus",
           "friends"
         ],
@@ -2033,6 +2056,14 @@
             "format": "int64"
           },
           "ticketHolderCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ticketsSoldCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "manualGoingCount": {
             "type": "integer",
             "format": "int64"
           },
@@ -2651,6 +2682,51 @@
           }
         }
       },
+      "UserOrderResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "totalAmountRon",
+          "createdAt",
+          "eventId",
+          "eventTitle",
+          "locationName",
+          "startTime"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "totalAmountRon": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "stripePaymentIntentId": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "eventTitle": {
+            "type": "string"
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "UserRegisterPayload": {
         "type": "object",
         "required": [
@@ -2683,7 +2759,8 @@
           "ticketTypeName",
           "eventTitle",
           "locationName",
-          "startTime"
+          "startTime",
+          "endTime"
         ],
         "properties": {
           "id": {
@@ -2712,6 +2789,10 @@
             "type": "string"
           },
           "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
             "type": "string",
             "format": "date-time"
           }

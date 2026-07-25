@@ -74,6 +74,7 @@ type Querier interface {
 	ListSavedEvents(ctx context.Context, userID pgtype.UUID) ([]Events, error)
 	ListScannerAccess(ctx context.Context, eventID pgtype.UUID) ([]ListScannerAccessRow, error)
 	ListSocialFeed(ctx context.Context, userID pgtype.UUID) ([]ListSocialFeedRow, error)
+	ListUserOrders(ctx context.Context, userID pgtype.UUID) ([]ListUserOrdersRow, error)
 	ListValidationEvents(ctx context.Context, organizerID pgtype.UUID) ([]ListValidationEventsRow, error)
 	ListValidationStaff(ctx context.Context, eventID pgtype.UUID) ([]ListValidationStaffRow, error)
 	MarkGuestTicketEmailSent(ctx context.Context, id pgtype.UUID) error

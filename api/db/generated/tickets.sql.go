@@ -518,7 +518,7 @@ func (q *Queries) GetTicketTypesForEvent(ctx context.Context, eventID pgtype.UUI
 }
 
 const getUserTickets = `-- name: GetUserTickets :many
-SELECT t.id, t.order_id, t.ticket_type_id, t.user_id, t.validation_hash, t.is_validated, t.validated_at, t.created_at, t.validated_by_user_id, t.validated_by_scanner_access_id, tt.name as ticket_type_name, e.id as event_id, e.title as event_title, e.location_name, e.start_time
+SELECT t.id, t.order_id, t.ticket_type_id, t.user_id, t.validation_hash, t.is_validated, t.validated_at, t.created_at, t.validated_by_user_id, t.validated_by_scanner_access_id, tt.name as ticket_type_name, e.id as event_id, e.title as event_title, e.location_name, e.start_time, e.end_time
 FROM tickets t
 JOIN ticket_types tt ON t.ticket_type_id = tt.id
 JOIN events e ON tt.event_id = e.id
@@ -542,6 +542,7 @@ type GetUserTicketsRow struct {
 	EventTitle                 string             `json:"event_title"`
 	LocationName               string             `json:"location_name"`
 	StartTime                  pgtype.Timestamptz `json:"start_time"`
+	EndTime                    pgtype.Timestamptz `json:"end_time"`
 }
 
 func (q *Queries) GetUserTickets(ctx context.Context, userID pgtype.UUID) ([]GetUserTicketsRow, error) {
@@ -569,6 +570,7 @@ func (q *Queries) GetUserTickets(ctx context.Context, userID pgtype.UUID) ([]Get
 			&i.EventTitle,
 			&i.LocationName,
 			&i.StartTime,
+			&i.EndTime,
 		); err != nil {
 			return nil, err
 		}
@@ -699,6 +701,57 @@ func (q *Queries) ListScannerAccess(ctx context.Context, eventID pgtype.UUID) ([
 			&i.EndsAt,
 			&i.RevokedAt,
 			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserOrders = `-- name: ListUserOrders :many
+SELECT o.id, o.status, o.total_amount, o.created_at, o.stripe_payment_intent_id,
+       e.id AS event_id, e.title AS event_title, e.location_name, e.start_time
+FROM orders o
+JOIN events e ON e.id = o.event_id
+WHERE o.user_id = $1
+ORDER BY o.created_at DESC
+`
+
+type ListUserOrdersRow struct {
+	ID                    pgtype.UUID        `json:"id"`
+	Status                OrderStatus        `json:"status"`
+	TotalAmount           int32              `json:"total_amount"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	StripePaymentIntentID pgtype.Text        `json:"stripe_payment_intent_id"`
+	EventID               pgtype.UUID        `json:"event_id"`
+	EventTitle            string             `json:"event_title"`
+	LocationName          string             `json:"location_name"`
+	StartTime             pgtype.Timestamptz `json:"start_time"`
+}
+
+func (q *Queries) ListUserOrders(ctx context.Context, userID pgtype.UUID) ([]ListUserOrdersRow, error) {
+	rows, err := q.db.Query(ctx, listUserOrders, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUserOrdersRow
+	for rows.Next() {
+		var i ListUserOrdersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.TotalAmount,
+			&i.CreatedAt,
+			&i.StripePaymentIntentID,
+			&i.EventID,
+			&i.EventTitle,
+			&i.LocationName,
+			&i.StartTime,
 		); err != nil {
 			return nil, err
 		}

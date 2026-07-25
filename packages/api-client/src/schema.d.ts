@@ -611,6 +611,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["UserOperations_getUserOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/me/saved-events": {
         parameters: {
             query?: never;
@@ -766,6 +782,10 @@ export interface components {
             goingCount: number;
             /** Format: int64 */
             ticketHolderCount: number;
+            /** Format: int64 */
+            ticketsSoldCount: number;
+            /** Format: int64 */
+            manualGoingCount: number;
             /** @enum {string} */
             currentUserStatus: "none" | "interested" | "going" | "has_ticket";
             friends: components["schemas"]["FriendEventActivityResponse"][];
@@ -950,6 +970,20 @@ export interface components {
             username: string;
             avatarUrl?: string;
         };
+        UserOrderResponse: {
+            id: string;
+            status: string;
+            /** Format: int32 */
+            totalAmountRon: number;
+            /** Format: date-time */
+            createdAt: string;
+            stripePaymentIntentId?: string;
+            eventId: string;
+            eventTitle: string;
+            locationName: string;
+            /** Format: date-time */
+            startTime: string;
+        };
         UserRegisterPayload: {
             username: string;
             email: string;
@@ -968,6 +1002,8 @@ export interface components {
             locationName: string;
             /** Format: date-time */
             startTime: string;
+            /** Format: date-time */
+            endTime: string;
         };
         ValidationEventResponse: {
             id: string;
@@ -2160,6 +2196,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
+    UserOperations_getUserOrders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOrderResponse"][];
                 };
             };
         };

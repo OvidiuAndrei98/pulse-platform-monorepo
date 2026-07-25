@@ -218,6 +218,30 @@ func (h *Handler) HandleGetUserTickets(w http.ResponseWriter, r *http.Request) {
 	router.RespondWithJSON(w, http.StatusOK, result)
 }
 
+func (h *Handler) HandleGetUserOrders(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userIDStr, err := auth.GetUserIDFromContext(ctx)
+	if err != nil || userIDStr == "" {
+		router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat")
+		return
+	}
+	var userID pgtype.UUID
+	if err := userID.Scan(userIDStr); err != nil || !userID.Valid {
+		router.RespondWithError(w, http.StatusBadRequest, "ID-ul utilizatorului este invalid")
+		return
+	}
+	orders, err := h.Queries.ListUserOrders(ctx, userID)
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Facturile nu au putut fi incarcate")
+		return
+	}
+	result := make([]UserOrderResponse, 0, len(orders))
+	for _, order := range orders {
+		result = append(result, MapUserOrder(order))
+	}
+	router.RespondWithJSON(w, http.StatusOK, result)
+}
+
 type ValidateTicketRequest struct {
 	ValidationHash string `json:"validationHash"`
 }

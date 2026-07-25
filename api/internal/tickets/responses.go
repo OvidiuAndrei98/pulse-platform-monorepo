@@ -70,6 +70,19 @@ type UserTicketResponse struct {
 	EventTitle     string `json:"eventTitle"`
 	LocationName   string `json:"locationName"`
 	StartTime      string `json:"startTime"`
+	EndTime        string `json:"endTime"`
+}
+
+type UserOrderResponse struct {
+	ID                    string `json:"id"`
+	Status                string `json:"status"`
+	TotalAmountRon        int32  `json:"totalAmountRon"`
+	CreatedAt             string `json:"createdAt"`
+	StripePaymentIntentID string `json:"stripePaymentIntentId,omitempty"`
+	EventID               string `json:"eventId"`
+	EventTitle            string `json:"eventTitle"`
+	LocationName          string `json:"locationName"`
+	StartTime             string `json:"startTime"`
 }
 
 type ValidationEventResponse struct {
@@ -180,5 +193,20 @@ func MapUserTicket(ticket db.GetUserTicketsRow) UserTicketResponse {
 		EventTitle:     ticket.EventTitle,
 		LocationName:   ticket.LocationName,
 		StartTime:      common.TimestampToString(ticket.StartTime),
+		EndTime:        common.TimestampToString(ticket.EndTime),
+	}
+}
+
+func MapUserOrder(order db.ListUserOrdersRow) UserOrderResponse {
+	return UserOrderResponse{
+		ID:                    common.UUIDToString(order.ID),
+		Status:                string(order.Status),
+		TotalAmountRon:        order.TotalAmount,
+		CreatedAt:             common.TimestampToString(order.CreatedAt),
+		StripePaymentIntentID: order.StripePaymentIntentID.String,
+		EventID:               common.UUIDToString(order.EventID),
+		EventTitle:            order.EventTitle,
+		LocationName:          order.LocationName,
+		StartTime:             common.TimestampToString(order.StartTime),
 	}
 }

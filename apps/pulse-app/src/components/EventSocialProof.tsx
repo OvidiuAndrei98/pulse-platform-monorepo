@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Check, Ticket, UsersRound } from "lucide-react";
+import { Ticket, UsersRound } from "lucide-react";
 import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
 
@@ -59,10 +59,13 @@ export function EventSocialProof({ eventId }: { eventId: string }) {
   }
 
   const isTicketHolder = social.currentUserStatus === "has_ticket";
-  const friendsWithTickets = social.friends.filter(
-    (friend) => friend.status === "has_ticket",
+  const followingFriends = social.friends.filter(
+    (friend) => friend.status !== "has_ticket",
   );
-  const activeFriends = social.friends;
+  const attendanceCount =
+    social.ticketsSoldCount === undefined
+      ? social.goingCount
+      : social.ticketsSoldCount + social.manualGoingCount;
 
   return (
     <section className="border-y border-white/10 py-4">
@@ -70,7 +73,8 @@ export function EventSocialProof({ eventId }: { eventId: string }) {
         <div className="flex items-center gap-2.5">
           <UsersRound className="h-4 w-4 text-primary" />
           <p className="text-sm font-semibold">
-            {social.goingCount} merg <span className="text-muted-foreground">. {social.interestedCount} interesati</span>
+            {attendanceCount} merg
+            <span className="text-muted-foreground"> · {social.interestedCount} interesati</span>
           </p>
         </div>
 
@@ -109,10 +113,10 @@ export function EventSocialProof({ eventId }: { eventId: string }) {
         )}
       </div>
 
-      {activeFriends.length > 0 && (
+      {followingFriends.length > 0 && (
         <div className="mt-3 flex items-center gap-3">
           <div className="flex -space-x-2">
-            {activeFriends.slice(0, 4).map((friend) => (
+            {followingFriends.slice(0, 3).map((friend) => (
               <div
                 key={friend.id}
                 title={friend.username}
@@ -123,18 +127,11 @@ export function EventSocialProof({ eventId }: { eventId: string }) {
                 ) : (
                   friend.username.slice(0, 1).toUpperCase()
                 )}
-                {friend.status === "has_ticket" && (
-                  <span className="absolute -bottom-0.5 -right-0.5 grid h-3.5 w-3.5 place-items-center rounded-full bg-primary text-primary-foreground">
-                    <Check className="h-2.5 w-2.5" strokeWidth={3} />
-                  </span>
-                )}
               </div>
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            {friendsWithTickets.length > 0
-              ? `${friendsWithTickets[0].username}${friendsWithTickets.length > 1 ? ` si alti ${friendsWithTickets.length - 1} prieteni au bilet` : " are bilet"}`
-              : `${activeFriends[0].username}${activeFriends.length > 1 ? ` si alti ${activeFriends.length - 1} prieteni urmaresc evenimentul` : " urmareste evenimentul"}`}
+            {`${followingFriends[0].username}${followingFriends.length > 1 ? ` si alti ${followingFriends.length - 1} prieteni urmaresc evenimentul` : " urmareste evenimentul"}`}
           </p>
         </div>
       )}

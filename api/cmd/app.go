@@ -150,6 +150,7 @@ func (app *Application) BuildRouter() http.Handler {
 		CreateUser:     usersHandler.HandleCreateUser,
 		GetUser:        usersHandler.HandleGetUser,
 		GetUserTickets: ticketingHandler.HandleGetUserTickets,
+		GetUserOrders:  ticketingHandler.HandleGetUserOrders,
 		GetSavedEvents: eventsHandler.HandleListSavedEvents,
 
 		// Events

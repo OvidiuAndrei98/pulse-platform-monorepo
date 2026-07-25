@@ -62,10 +62,10 @@ export default function EventsPage() {
 
   return (
     <div
-      className={`relative  text-foreground ${view === "map" ? "h-dvh overflow-hidden overscroll-none pb-0" : "min-h-screen pb-40"}`}
+      className="relative h-dvh overflow-hidden overscroll-none text-foreground"
     >
       <div
-        className={`relative mx-auto max-w-7xl px-5 pt-10 ${view === "map" ? "pointer-events-none fixed inset-x-0 top-0 z-30 lg:static lg:pointer-events-auto" : ""}`}
+        className={`relative mx-auto h-full max-w-7xl px-5 pt-10 ${view === "map" ? "pointer-events-none fixed inset-x-0 top-0 z-30 lg:static lg:pointer-events-auto" : "flex flex-col"}`}
       >
         <div className="relative z-20 flex flex-wrap items-start justify-between gap-3 sm:items-center">
           <div
@@ -78,7 +78,8 @@ export default function EventsPage() {
 
         {view === "list" ? (
           <>
-            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain pb-28 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {eventsLoading
                 ? Array.from({ length: 6 }, (_, index) => (
                     <div key={index} className="event-card h-56 animate-pulse border border-white/10 bg-white/[0.04]" />
@@ -106,6 +107,7 @@ export default function EventsPage() {
                 </button>
               </div>
             )}
+            </div>
           </>
         ) : (
           <div className="pointer-events-auto fixed inset-0 z-0 w-screen max-w-none bg-transparent lg:static lg:mt-5 lg:w-auto">

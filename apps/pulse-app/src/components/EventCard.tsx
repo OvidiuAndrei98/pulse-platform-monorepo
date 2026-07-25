@@ -6,6 +6,7 @@ import { MapPin, Bookmark } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Event } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { EventFriendsPreview } from "@/components/social/EventFriendsPreview";
 
 interface EventCardProps {
   event: Event;
@@ -28,12 +29,6 @@ function formatEventDate(dateString?: string): string {
 
   return `${day} ${formattedMonth}`;
 }
-
-const SAMPLE_ATTENDEES = [
-  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80",
-];
 
 export function EventCard({
   event,
@@ -118,27 +113,7 @@ export function EventCard({
               {event.category || "Music"}
             </span>
 
-            <div className="flex items-center gap-1.5">
-              <div className="flex -space-x-1.5 overflow-hidden">
-                {SAMPLE_ATTENDEES.map((src, i) => (
-                  <div
-                    key={i}
-                    className="relative h-5 w-5 rounded-full ring-1 ring-black/80"
-                  >
-                    <Image
-                      src={src}
-                      alt="Attendee"
-                      fill
-                      sizes="20px"
-                      className="rounded-full object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
-              <span className="text-[10px] font-medium text-zinc-400">
-                40k+ Going
-              </span>
-            </div>
+            <EventFriendsPreview eventId={event.id} />
           </div>
 
           <div className="mt-2.5 flex items-center gap-1 text-[11px] text-zinc-400">

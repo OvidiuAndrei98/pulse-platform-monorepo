@@ -180,9 +180,17 @@ WHERE id = $1 AND is_validated = FALSE
 RETURNING validated_at;
 
 -- name: GetUserTickets :many
-SELECT t.*, tt.name as ticket_type_name, e.id as event_id, e.title as event_title, e.location_name, e.start_time
+SELECT t.*, tt.name as ticket_type_name, e.id as event_id, e.title as event_title, e.location_name, e.start_time, e.end_time
 FROM tickets t
 JOIN ticket_types tt ON t.ticket_type_id = tt.id
 JOIN events e ON tt.event_id = e.id
 WHERE t.user_id = $1
 ORDER BY t.created_at DESC;
+
+-- name: ListUserOrders :many
+SELECT o.id, o.status, o.total_amount, o.created_at, o.stripe_payment_intent_id,
+       e.id AS event_id, e.title AS event_title, e.location_name, e.start_time
+FROM orders o
+JOIN events e ON e.id = o.event_id
+WHERE o.user_id = $1
+ORDER BY o.created_at DESC;
