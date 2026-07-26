@@ -36,7 +36,7 @@ export function SelectedEventPopup({
       className="event-preview-popup"
     >
       {/* Container Glassmorphic Optimizat cu transform-gpu */}
-      <div className="relative w-[280px] sm:w-[320px] rounded-[24px] border border-white/10 bg-[#121418]/90 md:bg-white/[0.06] p-3.5 text-left antialiased backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5)] transform-gpu">
+      <div className="relative w-[min(19rem,calc(100vw-2rem))] rounded-xl border border-white/10 bg-[#121418]/95 p-3 text-left antialiased shadow-[0_8px_32px_rgba(0,0,0,0.5)] transform-gpu md:w-[20rem] md:bg-white/[0.06] md:backdrop-blur-md">
         {/* Buton Închidere - Fără blur redundant pe mobil */}
         <button
           type="button"
@@ -49,7 +49,7 @@ export function SelectedEventPopup({
 
         <div className="flex gap-3">
           {/* Banner / Imagine Event */}
-          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[16px] border border-white/10">
+          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-white/10">
             <Image
               src={event.bannerUrl || "/images/events/default.jpg"}
               alt={event.title}
@@ -60,7 +60,7 @@ export function SelectedEventPopup({
           </div>
 
           {/* Informații Event */}
-          <div className="min-w-0 flex-1 pr-6">
+          <div className="min-w-0 flex-1 pr-5">
             {/* Titlu */}
             <h3 className="truncate text-sm font-bold leading-snug tracking-wide text-white">
               {event.title}
@@ -78,8 +78,8 @@ export function SelectedEventPopup({
             </div>
 
             {/* Badges / Categorie */}
-            <div className="mt-2.5 flex items-center gap-1.5">
-              <span className="inline-flex h-6 items-center rounded-full border border-white/10 bg-white/15 px-2.5 text-[10px] font-semibold uppercase leading-none text-zinc-200 md:backdrop-blur-sm">
+            <div className="mt-2.5 flex flex-nowrap items-center gap-1.5">
+              <span className="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full border border-white/10 bg-white/15 px-2.5 text-[10px] font-semibold uppercase leading-none text-zinc-200 md:backdrop-blur-sm">
                 {event.category || "General"}
               </span>
 
@@ -87,7 +87,7 @@ export function SelectedEventPopup({
                 <EventStatusBadge
                   event={event}
                   compact
-                  className="!h-6 !text-[10px] !font-semibold !uppercase"
+                  className="!h-6 shrink-0 !whitespace-nowrap !text-[10px] !font-semibold !uppercase"
                 />
               )}
             </div>
@@ -98,7 +98,7 @@ export function SelectedEventPopup({
         <button
           type="button"
           onClick={onOpen}
-          className="mt-3.5 flex h-9 w-full items-center justify-center rounded-xl border border-white/10 bg-white/15 text-xs font-semibold text-white shadow-sm transition duration-200 hover:bg-white/25 hover:border-white/20 active:scale-[0.98] md:backdrop-blur-md"
+          className="mt-3 flex h-9 w-full items-center justify-center rounded-lg border border-white/10 bg-white/15 text-xs font-semibold text-white shadow-sm transition duration-200 hover:bg-white/25 hover:border-white/20 active:scale-[0.98] md:backdrop-blur-md"
         >
           View event
         </button>

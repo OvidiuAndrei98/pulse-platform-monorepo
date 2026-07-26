@@ -13,7 +13,7 @@ export function EventStatusBadge({
   if (event.isLive) {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/20 md:bg-red-500/15 font-semibold uppercase tracking-wide text-red-400 md:backdrop-blur-sm transform-gpu ${
+        className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-red-500/40 bg-red-500/20 font-semibold uppercase tracking-wide text-red-400 transform-gpu md:bg-red-500/15 md:backdrop-blur-sm ${
           compact ? "px-2 py-1 text-[9px]" : "px-3 py-1.5 text-[11px]"
         } ${className}`}
       >

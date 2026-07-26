@@ -34,6 +34,8 @@ export function BottomNav() {
 
   // Determinăm indexul paginii în funcție de URL-ul curent
   const getCurrentIndexFromPath = () => {
+    if (pathname === "/login" || pathname === "/register") return 3;
+
     const foundIndex = items.findIndex((item) => item.url === pathname);
     if (foundIndex !== -1) return foundIndex;
     if (

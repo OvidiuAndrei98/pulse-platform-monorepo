@@ -230,7 +230,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
 
               <div className="space-y-6 px-5 pb-6 pt-5 md:px-6">
                 <EventSocialProof eventId={event.id} />
-                <EventAttendees eventId={event.id} onProfileClick={onClose} />
+                <EventAttendees eventId={event.id} />
 
                 <section>
                   <h3 className="text-sm font-semibold">Despre eveniment</h3>

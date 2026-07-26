@@ -2,174 +2,194 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import {
+  ArrowRight,
+  Building2,
+  Check,
+  CircleCheck,
+  LockKeyhole,
+  Mail,
+  UserRound,
+} from "lucide-react";
 import { useDataProvider } from "@/core/DataProviderContext";
 
-type State = "idle" | "loading" | "success" | "error";
+type RegistrationState = "idle" | "loading" | "success" | "error";
 
 export default function RegisterPage() {
+  const { register, loading } = useDataProvider();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isOrganizer, setIsOrganizer] = useState(false);
-  const [state, setState] = useState<State>("idle");
-  const [errorMsg, setErrorMsg] = useState("");
-  const { register, loading, error, user } = useDataProvider();
+  const [state, setState] = useState<RegistrationState>("idle");
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setState("loading");
-    setErrorMsg("");
+    setErrorMessage("");
 
     try {
       await register(username, email, password, isOrganizer);
       setState("success");
-    } catch (err) {
+    } catch (error) {
       setState("error");
-      setErrorMsg(
-        err instanceof Error ? err.message : "A apărut o eroare neașteptată",
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Contul nu a putut fi creat. Incearca din nou.",
       );
     }
   };
 
   if (state === "success") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 px-4">
-        <div className="w-full max-w-sm text-center">
-          <div className="mb-4 text-5xl">📧</div>
-          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-2">
-            Cont creat cu succes!
-          </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
-            Am trimis un link de activare la{" "}
-            <strong className="text-zinc-700 dark:text-zinc-300">
-              {email}
-            </strong>
-            . Verifică inbox-ul și folderul de spam.
-          </p>
-          <Link
-            href="/login"
-            className="text-sm font-medium text-zinc-900 dark:text-zinc-50 underline underline-offset-4"
-          >
-            Mergi la Login →
-          </Link>
-        </div>
-      </div>
+      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-32 pt-16 text-foreground sm:pt-24">
+        <span className="grid h-12 w-12 place-items-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
+          <CircleCheck className="h-6 w-6" />
+        </span>
+        <h1 className="mt-5 text-2xl font-semibold">Verifica-ti emailul</h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          Am trimis un link de activare la <span className="font-semibold text-foreground">{email}</span>. Dupa confirmare te poti conecta in cont.
+        </p>
+        <Link
+          href="/login"
+          className="mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-110"
+        >
+          Mergi la conectare <ArrowRight className="h-4 w-4" />
+        </Link>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 px-4">
-      <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 mb-1">
-          Creează cont Pulse
-        </h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8">
-          Ai deja cont?{" "}
-          <Link
-            href="/login"
-            className="font-medium text-zinc-900 dark:text-zinc-50 underline underline-offset-4"
-          >
-            Autentifică-te
-          </Link>
-        </p>
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-32 pt-12 text-foreground sm:pt-20">
+      <div className="flex items-center gap-3">
+        <span className="grid h-11 w-11 place-items-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
+          <UserRound className="h-5 w-5" />
+        </span>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+            Cont nou
+          </p>
+          <h1 className="mt-0.5 text-2xl font-semibold">Creeaza-ti profilul</h1>
+        </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Username */}
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="username"
-              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-            >
-              Username
-            </label>
+      <p className="mt-5 text-sm leading-6 text-muted-foreground">
+        Descopera evenimente, pastreaza biletele aproape si conecteaza-te cu oamenii cu care iesi.
+      </p>
+
+      <form
+        onSubmit={handleSubmit}
+        className="mt-7 border border-white/15 bg-[#101311]/90 p-5 shadow-xl sm:p-6"
+      >
+        <div className="space-y-4">
+          <Field label="Username" icon={UserRound}>
             <input
               id="username"
               type="text"
+              autoComplete="username"
               required
               minLength={3}
               maxLength={50}
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-50"
+              onChange={(inputEvent) => setUsername(inputEvent.target.value)}
+              className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
               placeholder="andrei_pulse"
             />
-          </div>
+          </Field>
 
-          {/* Email */}
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="reg-email"
-              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-            >
-              Email
-            </label>
+          <Field label="Email" icon={Mail}>
             <input
-              id="reg-email"
+              id="email"
               type="email"
               autoComplete="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-50"
-              placeholder="tu@exemplu.com"
+              onChange={(inputEvent) => setEmail(inputEvent.target.value)}
+              className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              placeholder="nume@email.ro"
             />
-          </div>
+          </Field>
 
-          {/* Password */}
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="reg-password"
-              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-            >
-              Parolă
-            </label>
+          <Field label="Parola" icon={LockKeyhole}>
             <input
-              id="reg-password"
+              id="password"
               type="password"
               autoComplete="new-password"
               required
               minLength={6}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-50"
-              placeholder="minim 6 caractere"
+              onChange={(inputEvent) => setPassword(inputEvent.target.value)}
+              className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              placeholder="Minimum 6 caractere"
             />
-          </div>
+          </Field>
 
-          {/* Organizer toggle */}
-          <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 hover:bg-white dark:hover:bg-zinc-900 transition-colors has-[:checked]:border-zinc-900 dark:has-[:checked]:border-zinc-300">
+          <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 transition ${isOrganizer ? "border-primary/45 bg-primary/10" : "border-white/15 bg-white/[0.025] hover:border-white/25"}`}>
             <input
               type="checkbox"
               checked={isOrganizer}
-              onChange={(e) => setIsOrganizer(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-zinc-300 accent-zinc-900 dark:accent-zinc-50"
+              onChange={(inputEvent) => setIsOrganizer(inputEvent.target.checked)}
+              className="peer sr-only"
             />
-            <div>
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                Cont de Organizator
-              </p>
-              <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">
-                PFA sau SRL care organizează evenimente. Vei putea crea și
-                gestiona evenimente pe platformă.
-              </p>
-            </div>
+            <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded border transition ${isOrganizer ? "border-primary bg-primary text-primary-foreground" : "border-white/25 text-transparent"}`}>
+              <Check className="h-3.5 w-3.5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2 text-sm font-semibold">
+                <Building2 className="h-4 w-4 text-primary" /> Cont de organizator
+              </span>
+              <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                Pentru firme care publica si vand bilete la evenimente.
+              </span>
+            </span>
           </label>
+        </div>
 
-          {state === "error" && (
-            <p className="text-sm text-red-500 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">
-              {errorMsg}
-            </p>
-          )}
+        {state === "error" && (
+          <p className="mt-4 border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300">
+            {errorMessage}
+          </p>
+        )}
 
-          <button
-            type="submit"
-            disabled={state === "loading"}
-            className="mt-1 rounded-lg bg-zinc-900 dark:bg-zinc-50 px-4 py-2.5 text-sm font-medium text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {state === "loading" ? "Se creează contul…" : "Creează cont"}
-          </button>
-        </form>
-      </div>
-    </div>
+        <button
+          type="submit"
+          disabled={state === "loading" || loading}
+          className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {state === "loading" ? "Se creeaza contul..." : "Creeaza cont"}
+          {state !== "loading" && <ArrowRight className="h-4 w-4" />}
+        </button>
+      </form>
+
+      <p className="mt-5 text-center text-sm text-muted-foreground">
+        Ai deja cont?{" "}
+        <Link href="/login" className="font-semibold text-primary transition hover:text-primary/80">
+          Conecteaza-te
+        </Link>
+      </p>
+    </main>
+  );
+}
+
+function Field({
+  label,
+  icon: Icon,
+  children,
+}: {
+  label: string;
+  icon: typeof UserRound;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-semibold">{label}</span>
+      <span className="flex h-12 items-center gap-3 rounded-lg border border-white/15 bg-white/[0.035] px-3 text-muted-foreground transition focus-within:border-primary/60">
+        <Icon className="h-4 w-4 shrink-0 text-primary" />
+        {children}
+      </span>
+    </label>
   );
 }

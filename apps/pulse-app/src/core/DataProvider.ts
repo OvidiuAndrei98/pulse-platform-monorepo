@@ -14,10 +14,20 @@ export type UpdateEventPayload = WritableSchema<"UpdateEventPayload">;
 export type TicketTier = ReadableSchema<"TicketTypeResponse">;
 export type CreateTicketTierPayload = WritableSchema<"CreateTicketTypePayload">;
 export type Event = ReadableSchema<"EventResponse">;
+export type PublicProfile = ReadableSchema<"PublicProfileResponse">;
+export type EventAttendee = ReadableSchema<"EventAttendeeResponse">;
 
 let publicEventsCache: { data: Event[]; timestamp: number } | null = null;
 let publicEventsPromise: Promise<Event[]> | null = null;
 const PUBLIC_CACHE_TTL = 2 * 60 * 1000;
+const EVENT_FRIENDS_CACHE_TTL = 2 * 60 * 1000;
+
+type CachedValue<T> = { data: T; timestamp: number };
+
+const eventFriendsCache = new Map<string, CachedValue<EventAttendee[]>>();
+const eventFriendsPromises = new Map<string, Promise<EventAttendee[]>>();
+const publicProfileCache = new Map<string, CachedValue<PublicProfile>>();
+const publicProfilePromises = new Map<string, Promise<PublicProfile>>();
 
 export class User {
   /**
@@ -504,6 +514,136 @@ export class User {
 
     return { events, eventsLoading, eventsError };
   }
+
+  static async getEventFriends(
+    eventId: string,
+    viewerId: string,
+  ): Promise<EventAttendee[]> {
+    const cacheKey = `${viewerId}:${eventId}`;
+    const cached = eventFriendsCache.get(cacheKey);
+
+    if (
+      cached &&
+      Date.now() - cached.timestamp < EVENT_FRIENDS_CACHE_TTL
+    ) {
+      return cached.data;
+    }
+
+    const pending = eventFriendsPromises.get(cacheKey);
+    if (pending) return pending;
+
+    const request = ApiClient.instance
+      .get("/events/{id}/attendees", { params: { path: { id: eventId } } })
+      .then((attendees) => {
+        const friends = (attendees as EventAttendee[]).filter(
+          (attendee) => attendee.relationship === "friends",
+        );
+        eventFriendsCache.set(cacheKey, { data: friends, timestamp: Date.now() });
+        return friends;
+      })
+      .finally(() => {
+        eventFriendsPromises.delete(cacheKey);
+      });
+
+    eventFriendsPromises.set(cacheKey, request);
+    return request;
+  }
+
+  static useEventFriends(
+    user: User | undefined,
+    eventId: string,
+  ): {
+    friends: readonly EventAttendee[];
+    friendsLoading: boolean;
+    friendsError?: Error;
+  } {
+    const viewerId = user?.properties.id;
+    const cacheKey = viewerId ? `${viewerId}:${eventId}` : "";
+    const cached = cacheKey ? eventFriendsCache.get(cacheKey) : undefined;
+    const [friends, setFriends] = useState<readonly EventAttendee[]>(
+      () => cached?.data ?? [],
+    );
+    const [friendsLoading, setFriendsLoading] = useState(
+      () => Boolean(viewerId && !cached),
+    );
+    const [friendsError, setFriendsError] = useState<Error | undefined>();
+
+    useEffect(() => {
+      if (!user || !eventId) {
+        setFriends([]);
+        setFriendsLoading(false);
+        setFriendsError(undefined);
+        return;
+      }
+
+      const currentCacheKey = `${user.properties.id}:${eventId}`;
+      const currentCached = eventFriendsCache.get(currentCacheKey);
+      let isMounted = true;
+
+      setFriends(currentCached?.data ?? []);
+
+      if (currentCached && Date.now() - currentCached.timestamp < EVENT_FRIENDS_CACHE_TTL) {
+        setFriends(currentCached.data);
+        setFriendsLoading(false);
+        setFriendsError(undefined);
+        return;
+      }
+
+      setFriendsLoading(true);
+      setFriendsError(undefined);
+      User.getEventFriends(eventId, user.properties.id)
+        .then((data) => {
+          if (isMounted) setFriends(data);
+        })
+        .catch((error) => {
+          if (isMounted) {
+            setFriends([]);
+            setFriendsError(
+              error instanceof Error ? error : new Error(String(error)),
+            );
+          }
+        })
+        .finally(() => {
+          if (isMounted) setFriendsLoading(false);
+        });
+
+      return () => {
+        isMounted = false;
+      };
+    }, [eventId, user, viewerId]);
+
+    return { friends, friendsLoading, friendsError };
+  }
+
+  static async getPublicProfile(
+    profileId: string,
+    viewerId = "guest",
+  ): Promise<PublicProfile> {
+    const cacheKey = `${viewerId}:${profileId}`;
+    const cached = publicProfileCache.get(cacheKey);
+
+    if (cached && Date.now() - cached.timestamp < PUBLIC_CACHE_TTL) {
+      return cached.data;
+    }
+
+    const pending = publicProfilePromises.get(cacheKey);
+    if (pending) return pending;
+
+    const request = ApiClient.instance
+      .get("/profiles/{id}", { params: { path: { id: profileId } } })
+      .then((profile) => {
+        const data = profile as PublicProfile;
+        publicProfileCache.set(cacheKey, { data, timestamp: Date.now() });
+        return data;
+      })
+      .finally(() => {
+        publicProfilePromises.delete(cacheKey);
+      });
+
+    publicProfilePromises.set(cacheKey, request);
+    return request;
+  }
+
   static async getPublicEventById(id: string): Promise<Event> {
     try {
       const event = await ApiClient.instance.get("/events/{id}", {
