@@ -17,10 +17,10 @@ export default function Home() {
   const upcomingEvents = events.filter((e) => !e.isLive);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0b0c0e] text-foreground">
+    <div className="relative min-h-screen overflow-hidden  text-foreground">
       <div className="relative z-10 pb-32">
         <div className="mx-auto max-w-7xl px-5 pt-10">
-          <div className="relative z-40 flex items-center justify-between">
+          <div className="relative z-40 h-[40px] flex items-center justify-between">
             <div className="">
               {user && (
                 <p className="text-xl font-semibold leading-tight md:text-2xl">

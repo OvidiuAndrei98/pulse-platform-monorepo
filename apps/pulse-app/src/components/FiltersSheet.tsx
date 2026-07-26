@@ -56,7 +56,7 @@ export function FiltersSheet({ value, onChange }: FiltersSheetProps = {}) {
             type="button"
             aria-label="Filters"
             onClick={() => setOpen(true)}
-            className="group grid h-[44px] w-[44px] shrink-0 place-items-center overflow-hidden rounded-full border border-white/15 bg-white/[0.06] text-white/70 shadow-lg transition-colors hover:text-white transform-gpu"
+            className="group grid h-[44px] w-[44px] shrink-0 place-items-center overflow-hidden rounded-full border border-white/10 bg-[#121418]/85 md:bg-white/[0.06] text-white/70 shadow-lg transition-colors hover:text-white transform-gpu"
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
           >
             <motion.span
