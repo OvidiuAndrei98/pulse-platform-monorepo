@@ -32,6 +32,31 @@ INSERT INTO orders (user_id, event_id, email, total_amount, platform_fee_bani, s
 VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
+-- name: ListOrganizerFinanceEvents :many
+SELECT
+    e.id AS event_id,
+    e.title AS event_title,
+    e.start_time,
+    COALESCE((
+        SELECT SUM(o.total_amount)::bigint
+        FROM orders o
+        WHERE o.event_id = e.id AND o.status = 'completed'
+    ), 0)::bigint AS gross_revenue_ron,
+    COALESCE((
+        SELECT SUM(o.platform_fee_bani)::bigint
+        FROM orders o
+        WHERE o.event_id = e.id AND o.status = 'completed'
+    ), 0)::bigint AS platform_fee_bani,
+    COALESCE((
+        SELECT COUNT(*)::bigint
+        FROM tickets t
+        JOIN orders o ON o.id = t.order_id
+        WHERE o.event_id = e.id AND o.status = 'completed'
+    ), 0)::bigint AS tickets_sold
+FROM events e
+WHERE e.organizer_id = $1
+ORDER BY e.start_time DESC;
+
 -- name: UpdateOrderCheckoutSession :exec
 UPDATE orders
 SET stripe_checkout_session_id = $2

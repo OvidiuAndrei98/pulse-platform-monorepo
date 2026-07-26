@@ -16,6 +16,8 @@ export type CreateTicketTierPayload = WritableSchema<"CreateTicketTypePayload">;
 export type Event = ReadableSchema<"EventResponse">;
 export type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 export type EventAttendee = ReadableSchema<"EventAttendeeResponse">;
+export type OrganizerFinanceEvent = ReadableSchema<"OrganizerFinanceEventResponse">;
+export type OrganizerProfile = ReadableSchema<"OrganizerProfile">;
 
 let publicEventsCache: { data: Event[]; timestamp: number } | null = null;
 let publicEventsPromise: Promise<Event[]> | null = null;
@@ -49,9 +51,7 @@ export class User {
     return this._properties;
   }
 
-  async getOrganizerProfile(): Promise<
-    ReadableSchema<"OrganizerProfile"> | undefined
-  > {
+  async getOrganizerProfile(): Promise<OrganizerProfile | undefined> {
     try {
       const profile = await ApiClient.instance.get(
         "/dashboard/organizer/profile/{id}",
@@ -70,7 +70,8 @@ export class User {
   async updateOrganizerProfile(
     cui: string,
     companyName: string,
-  ): Promise<ReadableSchema<"OrganizerProfile">> {
+    organizerAgreementVersion: string,
+  ): Promise<OrganizerProfile> {
     try {
       const updatedProfile = await ApiClient.instance.post(
         "/dashboard/organizer/profile",
@@ -78,6 +79,7 @@ export class User {
           body: {
             cui,
             companyName,
+            organizerAgreementVersion,
           },
         },
       );
@@ -91,14 +93,24 @@ export class User {
     }
   }
 
+  async acceptOrganizerAgreement(
+    version: string,
+  ): Promise<OrganizerProfile> {
+    return ApiClient.instance.post("/dashboard/organizer/agreement", {
+      body: { version },
+    });
+  }
+
   async createStripeAccountLink(): Promise<{ url: string }> {
     return ApiClient.instance.post("/dashboard/stripe/account-link");
   }
 
-  async refreshStripeAccountStatus(): Promise<
-    ReadableSchema<"OrganizerProfile">
-  > {
+  async refreshStripeAccountStatus(): Promise<OrganizerProfile> {
     return ApiClient.instance.get("/dashboard/stripe/status");
+  }
+
+  async getOrganizerFinance(): Promise<OrganizerFinanceEvent[]> {
+    return ApiClient.instance.get("/dashboard/finance");
   }
 
   private _organizerEvents?: Event[];

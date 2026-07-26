@@ -3,17 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Building2, Calendar, CheckCircle2, CreditCard, LogOut, MapPin, Plus, QrCode, RefreshCw } from "lucide-react";
-import { User } from "@/core/DataProvider";
+import { OrganizerProfile, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
-
-type OrganizerProfile = {
-  companyName: string;
-  cui: string;
-  verificationStatus: "pending" | "approved" | "rejected";
-  stripeAccountId?: string;
-  stripeChargesEnabled: boolean;
-  stripePayoutsEnabled: boolean;
-};
 
 export default function OrganizerDashboard() {
   const { user, logout } = useDataProvider();
@@ -27,7 +18,7 @@ export default function OrganizerDashboard() {
     if (!user) return;
     setLoading(true);
     try {
-      setProfile((await user.getOrganizerProfile()) as OrganizerProfile | undefined);
+      setProfile(await user.getOrganizerProfile());
     } catch {
       setProfile(undefined);
     } finally {
@@ -40,7 +31,7 @@ export default function OrganizerDashboard() {
     setStripeLoading(true);
     setError("");
     try {
-      setProfile((await user.refreshStripeAccountStatus()) as OrganizerProfile);
+      setProfile(await user.refreshStripeAccountStatus());
     } catch {
       setError("Starea platilor nu a putut fi actualizata.");
     } finally {
@@ -80,6 +71,7 @@ export default function OrganizerDashboard() {
 
   const companyReady = profile?.verificationStatus === "approved";
   const stripeReady = Boolean(profile?.stripeChargesEnabled && profile?.stripePayoutsEnabled);
+  const agreementCurrent = profile?.organizerAgreementVersion === "2026-07-27";
 
   return (
     <main className="min-h-screen pb-20 text-foreground">
@@ -134,11 +126,13 @@ export default function OrganizerDashboard() {
                 <div>
                   <p className="text-sm font-semibold">Plati Stripe</p>
                   <p className="text-xs text-muted-foreground">
-                    {!companyReady ? "Disponibil dupa aprobarea firmei." : stripeReady ? "Platile si transferurile sunt active." : "Conecteaza Stripe pentru a vinde bilete."}
+                    {!companyReady ? "Disponibil dupa aprobarea firmei." : !agreementCurrent ? "Accepta acordul pentru organizatori inainte de Stripe." : stripeReady ? "Platile si transferurile sunt active." : "Conecteaza Stripe pentru a vinde bilete."}
                   </p>
+                  {!stripeReady && <Link href="/organizers/stripe-connect" className="mt-1 inline-block text-[11px] font-semibold text-primary transition hover:opacity-80">Cum functioneaza Stripe Connect</Link>}
                 </div>
               </div>
-              {companyReady && !stripeReady && (
+              {companyReady && !agreementCurrent && <Link href="/organizers/agreement?returnTo=/dashboard" className="inline-flex h-10 items-center justify-center rounded-lg border border-primary/35 px-3 text-xs font-semibold text-primary transition hover:bg-primary/10">Accepta acordul</Link>}
+              {companyReady && agreementCurrent && !stripeReady && (
                 <div className="flex gap-2">
                   {profile?.stripeAccountId && (
                     <button type="button" onClick={refreshStripeStatus} disabled={stripeLoading} aria-label="Actualizeaza starea Stripe" className="grid h-10 w-10 place-items-center rounded-lg border border-white/15 transition hover:bg-white/5 disabled:opacity-50">

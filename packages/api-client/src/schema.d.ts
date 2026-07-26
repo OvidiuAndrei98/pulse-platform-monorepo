@@ -92,6 +92,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/finance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Situația financiară a evenimentelor organizatorului, bazată pe comenzi finalizate */
+        get: operations["DashboardOperations_getFinance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/organizer/agreement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Inregistreaza acceptarea acordului pentru organizatori */
+        post: operations["DashboardOperations_acceptOrganizerAgreement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/organizer/profile": {
         parameters: {
             query?: never;
@@ -665,6 +699,9 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AcceptOrganizerAgreementPayload: {
+            version: string;
+        };
         AddValidationStaffPayload: {
             email: string;
         };
@@ -813,6 +850,18 @@ export interface components {
             /** @enum {string} */
             status: "interested" | "going" | "has_ticket";
         };
+        OrganizerFinanceEventResponse: {
+            eventId: string;
+            eventTitle: string;
+            /** Format: date-time */
+            startTime: string;
+            /** Format: int64 */
+            grossRevenueRon: number;
+            /** Format: int64 */
+            platformFeeBani: number;
+            /** Format: int64 */
+            ticketsSold: number;
+        };
         OrganizerProfile: {
             id: string;
             userId: string;
@@ -826,6 +875,9 @@ export interface components {
             stripeChargesEnabled: boolean;
             stripePayoutsEnabled: boolean;
             stripeDetailsSubmitted: boolean;
+            organizerAgreementVersion?: string;
+            /** Format: date-time */
+            organizerAgreementAcceptedAt?: string;
             /** Format: date-time */
             createdAt: string;
         };
@@ -885,6 +937,7 @@ export interface components {
         SubmitOrganizerProfilePayload: {
             cui: string;
             companyName: string;
+            organizerAgreementVersion: string;
         };
         TicketTypeResponse: {
             id: string;
@@ -1219,6 +1272,50 @@ export interface operations {
                         /** @enum {string} */
                         status: "success";
                     };
+                };
+            };
+        };
+    };
+    DashboardOperations_getFinance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizerFinanceEventResponse"][];
+                };
+            };
+        };
+    };
+    DashboardOperations_acceptOrganizerAgreement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptOrganizerAgreementPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizerProfile"];
                 };
             };
         };

@@ -162,6 +162,7 @@ export default function RegisterPage() {
           {state === "loading" ? "Se creeaza contul..." : "Creeaza cont"}
           {state !== "loading" && <ArrowRight className="h-4 w-4" />}
         </button>
+        <p className="mt-4 text-center text-[11px] leading-5 text-muted-foreground">Prin crearea contului confirmi ca ai citit <Link href="/legal/terms" className="text-primary hover:underline">Termenii si conditiile</Link> si <Link href="/legal/privacy" className="text-primary hover:underline">Politica de confidentialitate</Link>.</p>
       </form>
 
       <p className="mt-5 text-center text-sm text-muted-foreground">

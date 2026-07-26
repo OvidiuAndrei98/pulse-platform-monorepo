@@ -10,6 +10,7 @@ import {
   Plus,
   Menu,
   X,
+  WalletCards,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -24,6 +25,7 @@ const organizerItems = [
   },
   { href: "/dashboard/profile", label: "Profil", icon: User },
   { href: "/dashboard/ticket-validation", label: "Validare bilete", icon: QrCode },
+  { href: "/dashboard/finance", label: "Finante", icon: WalletCards },
   { href: "/dashboard/events", label: "Evenimente", icon: Calendar },
 ] as const;
 

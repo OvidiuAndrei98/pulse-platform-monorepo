@@ -80,6 +80,8 @@ type HandlersConfig struct {
 	// Organizer
 	GetOrganizerProfile    http.HandlerFunc
 	CreateOrganizerProfile http.HandlerFunc
+	AcceptOrganizerAgreement http.HandlerFunc
+	GetOrganizerFinance    http.HandlerFunc
 
 	// Tickets
 	GetEventTicketTypes   http.HandlerFunc
@@ -241,8 +243,10 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				})
 
 				// --- ORGANIZER PROFILE ---
+				r.Get("/dashboard/finance", cfg.GetOrganizerFinance)
 				r.Post("/dashboard/organizer/profile", cfg.CreateOrganizerProfile)
 				r.Get("/dashboard/organizer/profile/{id}", cfg.GetOrganizerProfile)
+				r.Post("/dashboard/organizer/agreement", cfg.AcceptOrganizerAgreement)
 				r.Post("/dashboard/stripe/account-link", cfg.CreateStripeAccountLink)
 				r.Get("/dashboard/stripe/status", cfg.GetStripeAccountStatus)
 

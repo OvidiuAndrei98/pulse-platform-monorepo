@@ -12,6 +12,7 @@ import (
 
 type Querier interface {
 	AcceptFriendRequest(ctx context.Context, arg AcceptFriendRequestParams) (int64, error)
+	AcceptOrganizerAgreement(ctx context.Context, arg AcceptOrganizerAgreementParams) (OrganizerProfiles, error)
 	AddComment(ctx context.Context, arg AddCommentParams) (Comments, error)
 	AddValidationStaff(ctx context.Context, arg AddValidationStaffParams) error
 	AssignGuestOrdersToUser(ctx context.Context, userID pgtype.UUID) error
@@ -71,6 +72,7 @@ type Querier interface {
 	ListEventsWithStats(ctx context.Context, organizerID pgtype.UUID) ([]ListEventsWithStatsRow, error)
 	ListFriendEventActivity(ctx context.Context, arg ListFriendEventActivityParams) ([]ListFriendEventActivityRow, error)
 	ListOrderTicketEmailDetails(ctx context.Context, id pgtype.UUID) ([]ListOrderTicketEmailDetailsRow, error)
+	ListOrganizerFinanceEvents(ctx context.Context, organizerID pgtype.UUID) ([]ListOrganizerFinanceEventsRow, error)
 	ListSavedEvents(ctx context.Context, userID pgtype.UUID) ([]Events, error)
 	ListScannerAccess(ctx context.Context, eventID pgtype.UUID) ([]ListScannerAccessRow, error)
 	ListSocialFeed(ctx context.Context, userID pgtype.UUID) ([]ListSocialFeedRow, error)

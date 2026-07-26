@@ -11,6 +11,7 @@ import {
   QrCode,
   Calendar,
   Plus,
+  WalletCards,
 } from "lucide-react";
 import { useDataProvider } from "@/core/DataProviderContext";
 
@@ -23,6 +24,7 @@ const organizerTabs = [
   },
   { href: "/dashboard/profile", label: "Profil", icon: User },
   { href: "/dashboard/ticket-validation", label: "Validare bilete", icon: QrCode },
+  { href: "/dashboard/finance", label: "Finante", icon: WalletCards },
   { href: "/dashboard/events", label: "Evenimente", icon: Calendar },
   { href: "/dashboard/events/new", label: "Event nou", icon: Plus },
 ] as const;

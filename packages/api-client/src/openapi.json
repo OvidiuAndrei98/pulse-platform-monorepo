@@ -253,6 +253,57 @@
         }
       }
     },
+    "/dashboard/finance": {
+      "get": {
+        "operationId": "DashboardOperations_getFinance",
+        "summary": "Situația financiară a evenimentelor organizatorului, bazată pe comenzi finalizate",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizerFinanceEventResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/organizer/agreement": {
+      "post": {
+        "operationId": "DashboardOperations_acceptOrganizerAgreement",
+        "summary": "Inregistreaza acceptarea acordului pentru organizatori",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizerProfile"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptOrganizerAgreementPayload"
+              }
+            }
+          }
+        }
+      }
+    },
     "/dashboard/organizer/profile": {
       "post": {
         "operationId": "DashboardOperations_submitProfile",
@@ -1652,6 +1703,17 @@
   },
   "components": {
     "schemas": {
+      "AcceptOrganizerAgreementPayload": {
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "version": {
+            "type": "string"
+          }
+        }
+      },
       "AddValidationStaffPayload": {
         "type": "object",
         "required": [
@@ -2149,6 +2211,41 @@
           }
         }
       },
+      "OrganizerFinanceEventResponse": {
+        "type": "object",
+        "required": [
+          "eventId",
+          "eventTitle",
+          "startTime",
+          "grossRevenueRon",
+          "platformFeeBani",
+          "ticketsSold"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "eventTitle": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "grossRevenueRon": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "platformFeeBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ticketsSold": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "OrganizerProfile": {
         "type": "object",
         "required": [
@@ -2201,6 +2298,13 @@
           },
           "stripeDetailsSubmitted": {
             "type": "boolean"
+          },
+          "organizerAgreementVersion": {
+            "type": "string"
+          },
+          "organizerAgreementAcceptedAt": {
+            "type": "string",
+            "format": "date-time"
           },
           "createdAt": {
             "type": "string",
@@ -2393,13 +2497,17 @@
         "type": "object",
         "required": [
           "cui",
-          "companyName"
+          "companyName",
+          "organizerAgreementVersion"
         ],
         "properties": {
           "cui": {
             "type": "string"
           },
           "companyName": {
+            "type": "string"
+          },
+          "organizerAgreementVersion": {
             "type": "string"
           }
         }

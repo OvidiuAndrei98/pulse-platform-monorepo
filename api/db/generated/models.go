@@ -7,6 +7,7 @@ package db
 import (
 	"database/sql/driver"
 	"fmt"
+	"net/netip"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -205,20 +206,23 @@ type OrganizerFollows struct {
 }
 
 type OrganizerProfiles struct {
-	ID                     pgtype.UUID            `json:"id"`
-	UserID                 pgtype.UUID            `json:"user_id"`
-	Cui                    string                 `json:"cui"`
-	CompanyName            string                 `json:"company_name"`
-	FiscalAddress          string                 `json:"fiscal_address"`
-	IsVerified             pgtype.Bool            `json:"is_verified"`
-	VerifiedAt             pgtype.Timestamptz     `json:"verified_at"`
-	CreatedAt              pgtype.Timestamptz     `json:"created_at"`
-	UpdatedAt              pgtype.Timestamptz     `json:"updated_at"`
-	VerificationStatus     VerificationStatusType `json:"verification_status"`
-	StripeAccountID        pgtype.Text            `json:"stripe_account_id"`
-	StripeChargesEnabled   bool                   `json:"stripe_charges_enabled"`
-	StripePayoutsEnabled   bool                   `json:"stripe_payouts_enabled"`
-	StripeDetailsSubmitted bool                   `json:"stripe_details_submitted"`
+	ID                           pgtype.UUID            `json:"id"`
+	UserID                       pgtype.UUID            `json:"user_id"`
+	Cui                          string                 `json:"cui"`
+	CompanyName                  string                 `json:"company_name"`
+	FiscalAddress                string                 `json:"fiscal_address"`
+	IsVerified                   pgtype.Bool            `json:"is_verified"`
+	VerifiedAt                   pgtype.Timestamptz     `json:"verified_at"`
+	CreatedAt                    pgtype.Timestamptz     `json:"created_at"`
+	UpdatedAt                    pgtype.Timestamptz     `json:"updated_at"`
+	VerificationStatus           VerificationStatusType `json:"verification_status"`
+	StripeAccountID              pgtype.Text            `json:"stripe_account_id"`
+	StripeChargesEnabled         bool                   `json:"stripe_charges_enabled"`
+	StripePayoutsEnabled         bool                   `json:"stripe_payouts_enabled"`
+	StripeDetailsSubmitted       bool                   `json:"stripe_details_submitted"`
+	OrganizerAgreementVersion    pgtype.Text            `json:"organizer_agreement_version"`
+	OrganizerAgreementAcceptedAt pgtype.Timestamptz     `json:"organizer_agreement_accepted_at"`
+	OrganizerAgreementAcceptedIp *netip.Addr            `json:"organizer_agreement_accepted_ip"`
 }
 
 type SavedEvents struct {

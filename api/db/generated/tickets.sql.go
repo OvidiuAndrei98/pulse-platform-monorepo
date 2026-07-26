@@ -667,6 +667,68 @@ func (q *Queries) ListOrderTicketEmailDetails(ctx context.Context, id pgtype.UUI
 	return items, nil
 }
 
+const listOrganizerFinanceEvents = `-- name: ListOrganizerFinanceEvents :many
+SELECT
+    e.id AS event_id,
+    e.title AS event_title,
+    e.start_time,
+    COALESCE((
+        SELECT SUM(o.total_amount)::bigint
+        FROM orders o
+        WHERE o.event_id = e.id AND o.status = 'completed'
+    ), 0)::bigint AS gross_revenue_ron,
+    COALESCE((
+        SELECT SUM(o.platform_fee_bani)::bigint
+        FROM orders o
+        WHERE o.event_id = e.id AND o.status = 'completed'
+    ), 0)::bigint AS platform_fee_bani,
+    COALESCE((
+        SELECT COUNT(*)::bigint
+        FROM tickets t
+        JOIN orders o ON o.id = t.order_id
+        WHERE o.event_id = e.id AND o.status = 'completed'
+    ), 0)::bigint AS tickets_sold
+FROM events e
+WHERE e.organizer_id = $1
+ORDER BY e.start_time DESC
+`
+
+type ListOrganizerFinanceEventsRow struct {
+	EventID         pgtype.UUID        `json:"event_id"`
+	EventTitle      string             `json:"event_title"`
+	StartTime       pgtype.Timestamptz `json:"start_time"`
+	GrossRevenueRon int64              `json:"gross_revenue_ron"`
+	PlatformFeeBani int64              `json:"platform_fee_bani"`
+	TicketsSold     int64              `json:"tickets_sold"`
+}
+
+func (q *Queries) ListOrganizerFinanceEvents(ctx context.Context, organizerID pgtype.UUID) ([]ListOrganizerFinanceEventsRow, error) {
+	rows, err := q.db.Query(ctx, listOrganizerFinanceEvents, organizerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrganizerFinanceEventsRow
+	for rows.Next() {
+		var i ListOrganizerFinanceEventsRow
+		if err := rows.Scan(
+			&i.EventID,
+			&i.EventTitle,
+			&i.StartTime,
+			&i.GrossRevenueRon,
+			&i.PlatformFeeBani,
+			&i.TicketsSold,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listScannerAccess = `-- name: ListScannerAccess :many
 SELECT id, event_id, label, starts_at, ends_at, revoked_at, created_at
 FROM event_scanner_access

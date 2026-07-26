@@ -198,6 +198,8 @@ func (app *Application) BuildRouter() http.Handler {
 		// Organizer
 		GetOrganizerProfile:    organizerHandler.HandleGetOrganizerProfile,
 		CreateOrganizerProfile: organizerHandler.HandleCreateOrganizerProfile,
+		AcceptOrganizerAgreement: organizerHandler.HandleAcceptOrganizerAgreement,
+		GetOrganizerFinance:    organizerHandler.HandleGetOrganizerFinance,
 
 		// Tickets
 		GetEventTicketTypes:   ticketingHandler.HandleGetTicketTypesForEvent,

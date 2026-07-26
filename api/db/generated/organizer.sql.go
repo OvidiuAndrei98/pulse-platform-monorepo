@@ -7,45 +7,34 @@ package db
 
 import (
 	"context"
+	"net/netip"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createOrganizerProfile = `-- name: CreateOrganizerProfile :one
-INSERT INTO organizer_profiles (
-    user_id, cui, company_name, fiscal_address, is_verified, verified_at, verification_status
-)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-ON CONFLICT (user_id) DO UPDATE 
-SET 
-    cui = EXCLUDED.cui, 
-    company_name = EXCLUDED.company_name, 
-    fiscal_address = EXCLUDED.fiscal_address, 
-    is_verified = EXCLUDED.is_verified, 
-    verified_at = EXCLUDED.verified_at,
-    verification_status = EXCLUDED.verification_status
-RETURNING id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted
+const acceptOrganizerAgreement = `-- name: AcceptOrganizerAgreement :one
+UPDATE organizer_profiles
+SET organizer_agreement_version = $2,
+    organizer_agreement_accepted_at = $3,
+    organizer_agreement_accepted_ip = $4,
+    updated_at = NOW()
+WHERE user_id = $1
+RETURNING id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted, organizer_agreement_version, organizer_agreement_accepted_at, organizer_agreement_accepted_ip
 `
 
-type CreateOrganizerProfileParams struct {
-	UserID             pgtype.UUID            `json:"user_id"`
-	Cui                string                 `json:"cui"`
-	CompanyName        string                 `json:"company_name"`
-	FiscalAddress      string                 `json:"fiscal_address"`
-	IsVerified         pgtype.Bool            `json:"is_verified"`
-	VerifiedAt         pgtype.Timestamptz     `json:"verified_at"`
-	VerificationStatus VerificationStatusType `json:"verification_status"`
+type AcceptOrganizerAgreementParams struct {
+	UserID                       pgtype.UUID        `json:"user_id"`
+	OrganizerAgreementVersion    pgtype.Text        `json:"organizer_agreement_version"`
+	OrganizerAgreementAcceptedAt pgtype.Timestamptz `json:"organizer_agreement_accepted_at"`
+	OrganizerAgreementAcceptedIp *netip.Addr        `json:"organizer_agreement_accepted_ip"`
 }
 
-func (q *Queries) CreateOrganizerProfile(ctx context.Context, arg CreateOrganizerProfileParams) (OrganizerProfiles, error) {
-	row := q.db.QueryRow(ctx, createOrganizerProfile,
+func (q *Queries) AcceptOrganizerAgreement(ctx context.Context, arg AcceptOrganizerAgreementParams) (OrganizerProfiles, error) {
+	row := q.db.QueryRow(ctx, acceptOrganizerAgreement,
 		arg.UserID,
-		arg.Cui,
-		arg.CompanyName,
-		arg.FiscalAddress,
-		arg.IsVerified,
-		arg.VerifiedAt,
-		arg.VerificationStatus,
+		arg.OrganizerAgreementVersion,
+		arg.OrganizerAgreementAcceptedAt,
+		arg.OrganizerAgreementAcceptedIp,
 	)
 	var i OrganizerProfiles
 	err := row.Scan(
@@ -63,12 +52,84 @@ func (q *Queries) CreateOrganizerProfile(ctx context.Context, arg CreateOrganize
 		&i.StripeChargesEnabled,
 		&i.StripePayoutsEnabled,
 		&i.StripeDetailsSubmitted,
+		&i.OrganizerAgreementVersion,
+		&i.OrganizerAgreementAcceptedAt,
+		&i.OrganizerAgreementAcceptedIp,
+	)
+	return i, err
+}
+
+const createOrganizerProfile = `-- name: CreateOrganizerProfile :one
+INSERT INTO organizer_profiles (
+    user_id, cui, company_name, fiscal_address, is_verified, verified_at, verification_status,
+    organizer_agreement_version, organizer_agreement_accepted_at, organizer_agreement_accepted_ip
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+ON CONFLICT (user_id) DO UPDATE 
+SET 
+    cui = EXCLUDED.cui, 
+    company_name = EXCLUDED.company_name, 
+    fiscal_address = EXCLUDED.fiscal_address, 
+    is_verified = EXCLUDED.is_verified, 
+    verified_at = EXCLUDED.verified_at,
+    verification_status = EXCLUDED.verification_status,
+    organizer_agreement_version = EXCLUDED.organizer_agreement_version,
+    organizer_agreement_accepted_at = EXCLUDED.organizer_agreement_accepted_at,
+    organizer_agreement_accepted_ip = EXCLUDED.organizer_agreement_accepted_ip
+RETURNING id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted, organizer_agreement_version, organizer_agreement_accepted_at, organizer_agreement_accepted_ip
+`
+
+type CreateOrganizerProfileParams struct {
+	UserID                       pgtype.UUID            `json:"user_id"`
+	Cui                          string                 `json:"cui"`
+	CompanyName                  string                 `json:"company_name"`
+	FiscalAddress                string                 `json:"fiscal_address"`
+	IsVerified                   pgtype.Bool            `json:"is_verified"`
+	VerifiedAt                   pgtype.Timestamptz     `json:"verified_at"`
+	VerificationStatus           VerificationStatusType `json:"verification_status"`
+	OrganizerAgreementVersion    pgtype.Text            `json:"organizer_agreement_version"`
+	OrganizerAgreementAcceptedAt pgtype.Timestamptz     `json:"organizer_agreement_accepted_at"`
+	OrganizerAgreementAcceptedIp *netip.Addr            `json:"organizer_agreement_accepted_ip"`
+}
+
+func (q *Queries) CreateOrganizerProfile(ctx context.Context, arg CreateOrganizerProfileParams) (OrganizerProfiles, error) {
+	row := q.db.QueryRow(ctx, createOrganizerProfile,
+		arg.UserID,
+		arg.Cui,
+		arg.CompanyName,
+		arg.FiscalAddress,
+		arg.IsVerified,
+		arg.VerifiedAt,
+		arg.VerificationStatus,
+		arg.OrganizerAgreementVersion,
+		arg.OrganizerAgreementAcceptedAt,
+		arg.OrganizerAgreementAcceptedIp,
+	)
+	var i OrganizerProfiles
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Cui,
+		&i.CompanyName,
+		&i.FiscalAddress,
+		&i.IsVerified,
+		&i.VerifiedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.VerificationStatus,
+		&i.StripeAccountID,
+		&i.StripeChargesEnabled,
+		&i.StripePayoutsEnabled,
+		&i.StripeDetailsSubmitted,
+		&i.OrganizerAgreementVersion,
+		&i.OrganizerAgreementAcceptedAt,
+		&i.OrganizerAgreementAcceptedIp,
 	)
 	return i, err
 }
 
 const getOrganizerByCUI = `-- name: GetOrganizerByCUI :one
-SELECT id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted FROM organizer_profiles WHERE cui = $1 LIMIT 1
+SELECT id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted, organizer_agreement_version, organizer_agreement_accepted_at, organizer_agreement_accepted_ip FROM organizer_profiles WHERE cui = $1 LIMIT 1
 `
 
 func (q *Queries) GetOrganizerByCUI(ctx context.Context, cui string) (OrganizerProfiles, error) {
@@ -89,12 +150,15 @@ func (q *Queries) GetOrganizerByCUI(ctx context.Context, cui string) (OrganizerP
 		&i.StripeChargesEnabled,
 		&i.StripePayoutsEnabled,
 		&i.StripeDetailsSubmitted,
+		&i.OrganizerAgreementVersion,
+		&i.OrganizerAgreementAcceptedAt,
+		&i.OrganizerAgreementAcceptedIp,
 	)
 	return i, err
 }
 
 const getOrganizerProfile = `-- name: GetOrganizerProfile :one
-SELECT id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted FROM organizer_profiles WHERE user_id = $1 LIMIT 1
+SELECT id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted, organizer_agreement_version, organizer_agreement_accepted_at, organizer_agreement_accepted_ip FROM organizer_profiles WHERE user_id = $1 LIMIT 1
 `
 
 func (q *Queries) GetOrganizerProfile(ctx context.Context, userID pgtype.UUID) (OrganizerProfiles, error) {
@@ -115,6 +179,9 @@ func (q *Queries) GetOrganizerProfile(ctx context.Context, userID pgtype.UUID) (
 		&i.StripeChargesEnabled,
 		&i.StripePayoutsEnabled,
 		&i.StripeDetailsSubmitted,
+		&i.OrganizerAgreementVersion,
+		&i.OrganizerAgreementAcceptedAt,
+		&i.OrganizerAgreementAcceptedIp,
 	)
 	return i, err
 }
@@ -127,7 +194,7 @@ SET stripe_account_id = $2,
     stripe_details_submitted = $5,
     updated_at = NOW()
 WHERE user_id = $1
-RETURNING id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted
+RETURNING id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted, organizer_agreement_version, organizer_agreement_accepted_at, organizer_agreement_accepted_ip
 `
 
 type SetOrganizerStripeAccountParams struct {
@@ -162,6 +229,9 @@ func (q *Queries) SetOrganizerStripeAccount(ctx context.Context, arg SetOrganize
 		&i.StripeChargesEnabled,
 		&i.StripePayoutsEnabled,
 		&i.StripeDetailsSubmitted,
+		&i.OrganizerAgreementVersion,
+		&i.OrganizerAgreementAcceptedAt,
+		&i.OrganizerAgreementAcceptedIp,
 	)
 	return i, err
 }
@@ -173,7 +243,7 @@ SET stripe_charges_enabled = $2,
     stripe_details_submitted = $4,
     updated_at = NOW()
 WHERE stripe_account_id = $1
-RETURNING id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted
+RETURNING id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted, organizer_agreement_version, organizer_agreement_accepted_at, organizer_agreement_accepted_ip
 `
 
 type UpdateOrganizerStripeAccountStatusParams struct {
@@ -206,6 +276,9 @@ func (q *Queries) UpdateOrganizerStripeAccountStatus(ctx context.Context, arg Up
 		&i.StripeChargesEnabled,
 		&i.StripePayoutsEnabled,
 		&i.StripeDetailsSubmitted,
+		&i.OrganizerAgreementVersion,
+		&i.OrganizerAgreementAcceptedAt,
+		&i.OrganizerAgreementAcceptedIp,
 	)
 	return i, err
 }

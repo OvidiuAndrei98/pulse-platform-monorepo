@@ -164,6 +164,8 @@ model OrganizerProfile {
   stripeChargesEnabled: boolean;
   stripePayoutsEnabled: boolean;
   stripeDetailsSubmitted: boolean;
+  organizerAgreementVersion?: string;
+  organizerAgreementAcceptedAt?: utcDateTime;
   createdAt: utcDateTime;
 }
 
@@ -236,6 +238,11 @@ model UpdateEventPayload {
 model SubmitOrganizerProfilePayload {
   cui: string;
   companyName: string;
+  organizerAgreementVersion: string;
+}
+
+model AcceptOrganizerAgreementPayload {
+  version: string;
 }
 
 model CreateTicketTypePayload {
@@ -346,6 +353,15 @@ model ScannerSessionResponse {
   eventTitle: string;
   locationName: string;
   expiresAt: utcDateTime;
+}
+
+model OrganizerFinanceEventResponse {
+  eventId: string;
+  eventTitle: string;
+  startTime: utcDateTime;
+  grossRevenueRon: int64;
+  platformFeeBani: int64;
+  ticketsSold: int64;
 }
 
 // --- ENDPOINTS / RUTE ---
@@ -577,6 +593,11 @@ interface FeedOperations {
 
 @route("/dashboard")
 interface DashboardOperations {
+  @get
+  @route("/finance")
+  @summary("Situația financiară a evenimentelor organizatorului, bazată pe comenzi finalizate")
+  getFinance(): OrganizerFinanceEventResponse[];
+
   @post
   @route("/organizer/profile")
   @summary("Trimite datele pentru un profil nou sau existent de organizator (Validare ANAF)")
@@ -586,6 +607,11 @@ interface DashboardOperations {
   @route("/organizer/profile/{id}")
   @summary("Preia profilul unui organizator după ID-ul său")
   getProfile(@path id: string): OrganizerProfile;
+
+  @post
+  @route("/organizer/agreement")
+  @summary("Inregistreaza acceptarea acordului pentru organizatori")
+  acceptOrganizerAgreement(@body payload: AcceptOrganizerAgreementPayload): OrganizerProfile;
 
   @summary("Creeaza sau reia onboarding-ul Stripe Connect pentru organizatorul curent")
   @post

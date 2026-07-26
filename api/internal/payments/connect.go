@@ -161,6 +161,10 @@ func (h *ConnectHandler) getVerifiedOrganizerProfile(w http.ResponseWriter, r *h
 		router.RespondWithError(w, http.StatusForbidden, "Profilul organizatorului trebuie validat inainte de configurarea platilor")
 		return pgtype.UUID{}, db.OrganizerProfiles{}, false
 	}
+	if !profile.OrganizerAgreementVersion.Valid || profile.OrganizerAgreementVersion.String != organizer.AgreementVersion {
+		router.RespondWithError(w, http.StatusForbidden, "Accepta acordul pentru organizatori inainte de configurarea Stripe")
+		return pgtype.UUID{}, db.OrganizerProfiles{}, false
+	}
 
 	return userID, profile, true
 }

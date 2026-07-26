@@ -9,15 +9,38 @@ import {
   User as UserIcon,
   ArrowUpRight,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDataProvider } from "@/core/DataProviderContext";
-import { UserData } from "@/core/DataProvider";
+import { OrganizerProfile, UserData } from "@/core/DataProvider";
 
 export default function ProfilePage() {
   const { user } = useDataProvider();
 
-  // Simulare stare verificare firma
-  const [isVerified] = useState(false);
+  const [organizerProfile, setOrganizerProfile] = useState<OrganizerProfile>();
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) {
+      setProfileLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    void user.getOrganizerProfile()
+      .then((profile) => {
+        if (!cancelled) setOrganizerProfile(profile);
+      })
+      .catch(() => {
+        if (!cancelled) setOrganizerProfile(undefined);
+      })
+      .finally(() => {
+        if (!cancelled) setProfileLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   return (
     <div className="w-full text-foreground pb-20">
@@ -54,16 +77,18 @@ export default function ProfilePage() {
               </p>
 
               <div className="pt-1">
-                {isVerified ? (
+                {profileLoading ? (
+                  <span className="inline-block h-4 w-32 animate-pulse bg-white/10" />
+                ) : organizerProfile?.verificationStatus === "approved" ? (
                   <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
-                    Firmă verificată
+                    Firma verificata{organizerProfile.companyName ? `: ${organizerProfile.companyName}` : ""}
                   </span>
                 ) : (
                   <Link
                     href="/dashboard/ticket-validation"
                     className="inline-flex items-center gap-1 text-xs font-semibold text-amber-300 transition hover:text-amber-200"
                   >
-                    <span>Neverificat — verifică firma</span>
+                    <span>{organizerProfile?.verificationStatus === "pending" ? "Firma este in verificare" : organizerProfile?.verificationStatus === "rejected" ? "Verificarea firmei necesita actualizare" : "Configureaza si verifica firma"}</span>
                     <ArrowUpRight className="h-3.5 w-3.5" />
                   </Link>
                 )}

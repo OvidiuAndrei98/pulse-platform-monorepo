@@ -20,6 +20,8 @@ type OrganizerProfileResponse struct {
 	StripeChargesEnabled   bool   `json:"stripeChargesEnabled"`
 	StripePayoutsEnabled   bool   `json:"stripePayoutsEnabled"`
 	StripeDetailsSubmitted bool   `json:"stripeDetailsSubmitted"`
+	OrganizerAgreementVersion    string `json:"organizerAgreementVersion,omitempty"`
+	OrganizerAgreementAcceptedAt string `json:"organizerAgreementAcceptedAt,omitempty"`
 }
 
 func MapOrganizerProfile(p db.OrganizerProfiles) OrganizerProfileResponse {
@@ -38,5 +40,7 @@ func MapOrganizerProfile(p db.OrganizerProfiles) OrganizerProfileResponse {
 		StripeChargesEnabled:   p.StripeChargesEnabled,
 		StripePayoutsEnabled:   p.StripePayoutsEnabled,
 		StripeDetailsSubmitted: p.StripeDetailsSubmitted,
+		OrganizerAgreementVersion:    p.OrganizerAgreementVersion.String,
+		OrganizerAgreementAcceptedAt: common.TimestampToString(p.OrganizerAgreementAcceptedAt),
 	}
 }

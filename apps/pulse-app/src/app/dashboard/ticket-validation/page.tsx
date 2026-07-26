@@ -19,13 +19,10 @@ import {
 } from "lucide-react";
 import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { OrganizerProfile } from "@/core/DataProvider";
 import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
 
-type OrganizerProfile = {
-  companyName: string;
-  cui: string;
-  verificationStatus: "pending" | "approved" | "rejected";
-};
+const ORGANIZER_AGREEMENT_VERSION = "2026-07-27";
 
 type ValidationEvent = ReadableSchema<"ValidationEventResponse">;
 type ValidationStaff = ReadableSchema<"ValidationStaffResponse">;
@@ -51,6 +48,7 @@ export default function TicketValidationPage() {
   const [companyName, setCompanyName] = useState("");
   const [cui, setCui] = useState("");
   const [submittingProfile, setSubmittingProfile] = useState(false);
+  const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [events, setEvents] = useState<ValidationEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState("");
@@ -146,7 +144,7 @@ export default function TicketValidationPage() {
     async function loadProfile() {
       setProfileLoading(true);
       try {
-        setProfile((await currentUser.getOrganizerProfile()) as OrganizerProfile | undefined);
+        setProfile(await currentUser.getOrganizerProfile());
       } catch {
         setProfile(undefined);
       } finally {
@@ -171,11 +169,11 @@ export default function TicketValidationPage() {
 
   const submitCompany = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!user || !cui.trim() || !companyName.trim()) return;
+    if (!user || !cui.trim() || !companyName.trim() || !agreementAccepted) return;
     setSubmittingProfile(true);
     setError("");
     try {
-      setProfile((await user.updateOrganizerProfile(cui.trim(), companyName.trim())) as OrganizerProfile);
+      setProfile(await user.updateOrganizerProfile(cui.trim(), companyName.trim(), ORGANIZER_AGREEMENT_VERSION));
       setNotice("Datele firmei au fost trimise pentru verificare.");
     } catch {
       setError("Firma nu a putut fi verificata. Verifica datele introduse.");
@@ -349,13 +347,19 @@ export default function TicketValidationPage() {
             {profile?.verificationStatus === "pending" ? (
               <p className="mt-5 text-sm text-amber-200">Cererea este in curs de verificare.</p>
             ) : (
-              <form onSubmit={submitCompany} className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">
+              <form onSubmit={submitCompany} className="mt-5 space-y-3">
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">
                 <input value={cui} onChange={(event) => setCui(event.target.value)} placeholder="CUI / CIF" required className="h-11 rounded-lg border border-white/15 bg-black/20 px-3 text-sm outline-none focus:border-primary/60" />
                 <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} placeholder="Denumire firma" required className="h-11 rounded-lg border border-white/15 bg-black/20 px-3 text-sm outline-none focus:border-primary/60" />
-                <button type="submit" disabled={submittingProfile} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                <button type="submit" disabled={submittingProfile || !agreementAccepted} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">
                   {submittingProfile && <Loader2 className="h-4 w-4 animate-spin" />}
                   Verifica
                 </button>
+                </div>
+                <label className="flex cursor-pointer items-start gap-3 border border-white/10 bg-black/10 p-3 text-xs leading-5 text-muted-foreground">
+                  <input type="checkbox" checked={agreementAccepted} onChange={(event) => setAgreementAccepted(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]" />
+                  <span>Am citit si accept <a href="/organizers/agreement" target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">Acordul pentru organizatori</a>, inclusiv regulile Stripe Connect, comisionul platformei si responsabilitatile fiscale.</span>
+                </label>
               </form>
             )}
           </section>
