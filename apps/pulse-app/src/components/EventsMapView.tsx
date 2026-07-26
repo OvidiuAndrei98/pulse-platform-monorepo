@@ -117,6 +117,12 @@ export function EventsMapView({
       className={`relative w-full overflow-hidden bg-black transform-gpu ${mapSize}`}
     >
       <MapContainer
+        maxBounds={[
+          [-90, -180],
+          [90, 180],
+        ]}
+        maxBoundsViscosity={1.0}
+        minZoom={3}
         center={[44.4323, 26.1063]}
         zoom={12}
         zoomControl={false}
@@ -127,6 +133,7 @@ export function EventsMapView({
         style={{ touchAction: "none" }}
       >
         <TileLayer
+          noWrap={true}
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           maxZoom={19}
           keepBuffer={6}
