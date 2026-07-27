@@ -42,6 +42,10 @@ const storeOfflineSession = (user: UserData) => {
   }
 };
 
+const isNetworkFailure = (error: unknown) =>
+  error instanceof TypeError ||
+  (error instanceof Error && /network|fetch|offline/i.test(error.message));
+
 ApiClient.configure({
   apiRoot: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1",
   getAccessToken: getStoredToken,
@@ -106,11 +110,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       const cachedSession = getOfflineSession();
       const canUseOfflineSession =
-        typeof navigator !== "undefined" &&
-        !navigator.onLine &&
-        cachedSession &&
-        await hasPreparedOfflineValidationForUser(cachedSession.id);
-      if (canUseOfflineSession) {
+        Boolean(cachedSession) &&
+        (typeof navigator === "undefined" || !navigator.onLine || isNetworkFailure(err)) &&
+        await hasPreparedOfflineValidationForUser(cachedSession!.id);
+      if (canUseOfflineSession && cachedSession) {
         setUser(new User(cachedSession));
         return;
       }

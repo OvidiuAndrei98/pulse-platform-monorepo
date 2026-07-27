@@ -164,7 +164,25 @@ export default function TicketValidationPage() {
       await saveOfflineSnapshot(user.properties.id, snapshot, selectedEvent);
       if ("serviceWorker" in navigator) {
         const registration = await navigator.serviceWorker.ready;
-        registration.active?.postMessage({ type: "PREPARE_OFFLINE_SCANNER" });
+        const assets = performance
+          .getEntriesByType("resource")
+          .map((entry) => entry.name)
+          .filter((url) => url.startsWith(window.location.origin + "/_next/"));
+        const cache = await caches.open("glow-offline-scanner-v2");
+        const pageResponse = await fetch("/dashboard/ticket-validation", { cache: "reload" });
+        if (pageResponse.ok) {
+          await cache.put("/dashboard/ticket-validation", pageResponse.clone());
+        }
+        await Promise.all(
+          assets.map(async (url) => {
+            const response = await fetch(url, { cache: "reload" });
+            if (response.ok) await cache.put(url, response);
+          }),
+        );
+        registration.active?.postMessage({
+          type: "PREPARE_OFFLINE_SCANNER",
+          assets,
+        });
       }
       await refreshOfflineState();
       setNotice(t("validation.offlinePrepared", { count: snapshot.ticketCount }));
