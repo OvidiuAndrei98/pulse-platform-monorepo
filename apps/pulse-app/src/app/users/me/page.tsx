@@ -12,6 +12,7 @@ import { ProfileAvatarUpload } from "@/components/profile/ProfileAvatarUpload";
 import { PersonalDetailsForm } from "@/components/profile/PersonalDetailsForm";
 import { PasswordResetRequest } from "@/components/profile/PasswordResetRequest";
 import { LanguagePreferenceRow } from "@/components/profile/LanguagePreferenceRow";
+import { useEventDetails } from "@/components/EventDetailsSheet";
 import {
   formatEventDate,
   formatEventDateShort,
@@ -120,6 +121,7 @@ function groupTicketsByEvent(tickets: TicketData[]) {
 
 export default function MePage() {
   const { t } = useTranslation();
+  const { open: openEventDetails } = useEventDetails();
   const { user, loading, logout, isOrganizer, reloadSession } =
     useDataProvider();
   const router = useRouter();
@@ -353,10 +355,11 @@ export default function MePage() {
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {savedEvents.map((event) => (
-                    <Link
+                    <button
+                      type="button"
                       key={event.id}
-                      href={`/events/${event.id}`}
-                      className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 transition hover:bg-white/[0.06]"
+                      onClick={() => openEventDetails(event)}
+                      className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-left transition hover:bg-white/[0.06]"
                     >
                       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-white/5">
                         {event.bannerUrl && (
@@ -377,7 +380,7 @@ export default function MePage() {
                         </p>
                       </div>
                       <Bookmark className="h-4 w-4 shrink-0 fill-primary text-primary" />
-                    </Link>
+                    </button>
                   ))}
                 </div>
               )}
