@@ -4,10 +4,15 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
+  type TouchEvent as ReactTouchEvent,
   type ReactNode,
 } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import {
+  AnimatePresence,
+  motion,
+} from "framer-motion";
 import { Calendar, Bookmark, Check, Share2, Ticket as TicketIcon } from "lucide-react";
 import Image from "next/image";
 import { Event } from "@/core/DataProvider";
@@ -16,7 +21,6 @@ import { ApiClient } from "@packages/api-client/src/Client";
 import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
 import { EventLineup } from "@/features/events/lineup/EventLineup";
-import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { calculateServiceFeeRon, formatRon } from "@/features/events/serviceFee";
 import { formatEventDateTime } from "@/features/events/dateFormat";
@@ -41,7 +45,11 @@ export function EventDetailsProvider({ children }: { children: ReactNode }) {
   return (
     <EventDetailsContext.Provider value={{ open, close, selectedEvent }}>
       {children}
-      <EventDetailsSheet event={selectedEvent} onClose={close} />
+      <AnimatePresence>
+        {selectedEvent && (
+          <EventDetailsSheet event={selectedEvent} onClose={close} />
+        )}
+      </AnimatePresence>
     </EventDetailsContext.Provider>
   );
 }
@@ -72,6 +80,48 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
   const [favorited, setFavorited] = useState(false);
   const [shared, setShared] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [mobileOffset, setMobileOffset] = useState(0);
+  const [isPullingSheet, setIsPullingSheet] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const touchStartY = useRef<number | null>(null);
+  const mobileOffsetRef = useRef(0);
+
+  const setSheetOffset = (nextOffset: number) => {
+    mobileOffsetRef.current = nextOffset;
+    setMobileOffset(nextOffset);
+  };
+
+  const handleTouchStart = (touchEvent: ReactTouchEvent<HTMLDivElement>) => {
+    touchStartY.current = touchEvent.touches[0]?.clientY ?? null;
+    setIsPullingSheet(false);
+  };
+
+  const handleTouchMove = (touchEvent: ReactTouchEvent<HTMLDivElement>) => {
+    const startY = touchStartY.current;
+    const currentY = touchEvent.touches[0]?.clientY;
+    if (startY === null || currentY === undefined) return;
+
+    const distance = currentY - startY;
+    if (distance <= 0 || (contentRef.current?.scrollTop ?? 0) > 0) return;
+
+    touchEvent.preventDefault();
+    setIsPullingSheet(true);
+    setSheetOffset(distance * 0.82);
+  };
+
+  const handleTouchEnd = () => {
+    const shouldDismiss = mobileOffsetRef.current > 150;
+    touchStartY.current = null;
+    setIsPullingSheet(false);
+
+    if (shouldDismiss) {
+      setSheetOffset(window.innerHeight);
+      window.setTimeout(onClose, 220);
+      return;
+    }
+
+    setSheetOffset(0);
+  };
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 768px)");
@@ -81,6 +131,10 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
     mediaQuery.addEventListener("change", updateViewport);
     return () => mediaQuery.removeEventListener("change", updateViewport);
   }, []);
+
+  useEffect(() => {
+    setSheetOffset(0);
+  }, [event?.id]);
 
   // Resetăm biletele selectate de fiecare dată când se deschide un alt eveniment
   useEffect(() => {
@@ -197,7 +251,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
 
   const sheetContent = (
     <>
-      <div className="relative z-10 min-h-0 flex-1 overflow-y-auto">
+      <div ref={contentRef} className="relative z-10 min-h-0 flex-1 overflow-y-auto">
               <div className="relative">
                 <div className="relative h-48 w-full bg-muted md:h-72">
                   {event.bannerUrl && (
@@ -366,24 +420,54 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
 
   if (!isDesktop) {
     return (
-      <Drawer open onOpenChange={(open) => !open && onClose()}>
-        <DrawerContent className="h-[78svh] max-h-[42rem] overflow-hidden rounded-t-3xl border-white/10 bg-neutral-950">
-          <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
-          {sheetContent}
-        </DrawerContent>
-      </Drawer>
+      <div className="fixed inset-0 z-[100] flex items-end justify-center md:hidden">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        />
+        <motion.div
+          initial={{ y: "100%" }}
+          animate={{ y: 0 }}
+          exit={{ y: "100%" }}
+          transition={{ type: "spring", damping: 28, stiffness: 260 }}
+          className="relative h-[78svh] max-h-[42rem] w-full max-w-md"
+        >
+          <div
+            onClick={(clickEvent) => clickEvent.stopPropagation()}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
+            className="relative flex h-full w-full flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-neutral-950 shadow-2xl"
+            style={{
+              transform: `translateY(${mobileOffset}px)`,
+              transition: isPullingSheet
+                ? "none"
+                : "transform 240ms cubic-bezier(0.22, 1, 0.36, 1)",
+              backgroundImage:
+                "linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0) 40%)",
+            }}
+          >
+            <div className="absolute left-0 right-0 top-0 z-20 flex h-10 cursor-grab items-center justify-center active:cursor-grabbing">
+              <div className="h-1.5 w-12 rounded-full bg-white/20" />
+            </div>
+            {sheetContent}
+          </div>
+        </motion.div>
+      </div>
     );
   }
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center">
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/60" />
-        <motion.div initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 260 }} onClick={(clickEvent) => clickEvent.stopPropagation()} className="relative z-10 flex h-[min(88vh,48rem)] w-[calc(100%-1.5rem)] max-w-2xl flex-col overflow-hidden rounded-xl border border-white/10 bg-background/80 text-foreground shadow-2xl backdrop-blur-xl backdrop-saturate-150">
-          {sheetContent}
-        </motion.div>
-      </div>
-    </AnimatePresence>
+    <div className="fixed inset-0 z-[100] hidden items-center justify-center md:flex">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/60" />
+      <motion.div initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }} transition={{ type: "spring", damping: 28, stiffness: 260 }} onClick={(clickEvent) => clickEvent.stopPropagation()} className="relative z-10 flex h-[min(88vh,48rem)] w-[calc(100%-1.5rem)] max-w-2xl flex-col overflow-hidden rounded-xl border border-white/10 bg-background/80 text-foreground shadow-2xl backdrop-blur-xl backdrop-saturate-150">
+        {sheetContent}
+      </motion.div>
+    </div>
   );
 }
 

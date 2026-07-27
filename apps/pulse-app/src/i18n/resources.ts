@@ -51,6 +51,7 @@ export const resources = {
         resetFilters: "Reset filters",
         viewEvent: "View event",
         liveNow: "Live now",
+        finalPrice: "Final price",
       },
       eventSheet: {
         about: "About this event",
@@ -157,6 +158,7 @@ export const resources = {
         resetFilters: "Reseteaza filtrele",
         viewEvent: "Vezi evenimentul",
         liveNow: "Live acum",
+        finalPrice: "Pret final",
       },
       eventSheet: {
         about: "Despre eveniment",
