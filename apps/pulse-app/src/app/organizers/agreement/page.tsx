@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { AgreementAcceptance } from "@/components/organizer/AgreementAcceptance";
 import { LegalDocument } from "@/features/legal/LegalDocument";
 
@@ -15,5 +16,9 @@ export default function OrganizerAgreementPage() {
         { title: "5. Date personale", paragraphs: ["Pulse si organizatorul prelucreaza datele participantilor numai pentru scopurile necesare evenimentului, biletelor, accesului si obligatiilor legale. Fiecare parte isi indeplineste propriile obligatii de confidentialitate si protectie a datelor."] },
         { title: "6. Suspendare si incetare", paragraphs: ["Pulse poate suspenda publicarea, vanzarea sau transferurile atunci cand exista risc de frauda, plangeri relevante, incalcarea acordului, cerinte Stripe sau obligatii legale. Incetarea acordului nu afecteaza comenzile, disputele si obligatiile deja aparute."] },
       ]}
-    ><AgreementAcceptance /></LegalDocument>;
+    >
+      <Suspense fallback={<div className="mt-8 h-24 animate-pulse border border-white/10 bg-white/[0.03]" />}>
+        <AgreementAcceptance />
+      </Suspense>
+    </LegalDocument>;
 }
