@@ -16,6 +16,16 @@ export type OfflineValidationSnapshot = {
   tickets: OfflineTicketSnapshot[];
 };
 
+export type OfflineValidationEvent = {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  locationName: string;
+  canManage: boolean;
+};
+
 export type OfflineScanStatus =
   | "pending"
   | "synced"
@@ -38,6 +48,7 @@ export type OfflineTicketScan = {
 type StoredSnapshot = OfflineValidationSnapshot & {
   cacheKey: string;
   userId: string;
+  event?: OfflineValidationEvent;
 };
 
 type OfflineValidationDb = DBSchema & {
@@ -96,12 +107,14 @@ export async function getOfflineDeviceId() {
 export async function saveOfflineSnapshot(
   userId: string,
   snapshot: OfflineValidationSnapshot,
+  event?: OfflineValidationEvent,
 ) {
   const db = await getDb();
   await db.put("snapshots", {
     ...snapshot,
     cacheKey: cacheKey(userId, snapshot.eventId),
     userId,
+    event,
   });
 }
 
@@ -148,6 +161,33 @@ export async function clearExpiredOfflineData() {
       .filter(hasExpired)
       .map((snapshot) => clearOfflineEventData(snapshot.userId, snapshot.eventId)),
   );
+}
+
+export async function hasPreparedOfflineValidationForUser(userId: string) {
+  const db = await getDb();
+  const snapshots = await db.getAll("snapshots");
+  return snapshots.some(
+    (snapshot) => snapshot.userId === userId && !hasExpired(snapshot),
+  );
+}
+
+export async function getOfflineValidationEvents(userId: string): Promise<OfflineValidationEvent[]> {
+  const db = await getDb();
+  const snapshots = (await db.getAll("snapshots"))
+    .filter((snapshot) => snapshot.userId === userId && !hasExpired(snapshot));
+  const events = new Map<string, OfflineValidationEvent>();
+  for (const snapshot of snapshots) {
+    events.set(snapshot.eventId, snapshot.event ?? {
+      id: snapshot.eventId,
+      title: snapshot.eventTitle,
+      startTime: snapshot.generatedAt,
+      endTime: snapshot.expiresAt,
+      status: "published",
+      locationName: "",
+      canManage: false,
+    });
+  }
+  return Array.from(events.values()).sort((a, b) => a.startTime.localeCompare(b.startTime));
 }
 
 export async function clearAllOfflineValidationData() {

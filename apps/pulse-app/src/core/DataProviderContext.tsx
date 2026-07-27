@@ -10,15 +10,36 @@ import React, {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ApiClient } from "@packages/api-client/src/Client";
-import { User } from "./DataProvider";
+import { User, UserData } from "./DataProvider";
 import { useTranslation } from "react-i18next";
-import { clearAllOfflineValidationData } from "@/features/tickets/offlineValidationStore";
+import {
+  clearAllOfflineValidationData,
+  hasPreparedOfflineValidationForUser,
+} from "@/features/tickets/offlineValidationStore";
+
+const offlineSessionKey = "pulse_offline_session";
 
 const getStoredToken = (): string | null => {
   if (typeof window !== "undefined") {
     return localStorage.getItem("pulse_token");
   }
   return null;
+};
+
+const getOfflineSession = (): UserData | undefined => {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const stored = localStorage.getItem(offlineSessionKey);
+    return stored ? (JSON.parse(stored) as UserData) : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const storeOfflineSession = (user: UserData) => {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(offlineSessionKey, JSON.stringify(user));
+  }
 };
 
 ApiClient.configure({
@@ -78,10 +99,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const userData = await ApiClient.instance.get("/users/me");
 
       setUser(new User(userData));
+      storeOfflineSession(userData);
       if (userData.preferredLanguage === "en" || userData.preferredLanguage === "ro") {
         await i18n.changeLanguage(userData.preferredLanguage);
       }
     } catch (err) {
+      const cachedSession = getOfflineSession();
+      const canUseOfflineSession =
+        typeof navigator !== "undefined" &&
+        !navigator.onLine &&
+        cachedSession &&
+        await hasPreparedOfflineValidationForUser(cachedSession.id);
+      if (canUseOfflineSession) {
+        setUser(new User(cachedSession));
+        return;
+      }
       setError(
         err instanceof Error
           ? err
@@ -90,6 +122,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setUser(undefined);
       if (typeof window !== "undefined") {
         localStorage.removeItem("pulse_token");
+        localStorage.removeItem(offlineSessionKey);
       }
     } finally {
       setLoading(false);
@@ -133,6 +166,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     void clearAllOfflineValidationData();
     if (typeof window !== "undefined") {
       localStorage.removeItem("pulse_token");
+      localStorage.removeItem(offlineSessionKey);
     }
     setUser(undefined);
     if (isProtectedRoute) {

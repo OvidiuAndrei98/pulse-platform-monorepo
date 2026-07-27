@@ -32,6 +32,7 @@ import {
   clearExpiredOfflineData,
   clearOfflineEventData,
   getOfflineDeviceId,
+  getOfflineValidationEvents,
   getOfflineValidationState,
   getPendingOfflineScans,
   recordOfflineTicketScan,
@@ -160,7 +161,7 @@ export default function TicketValidationPage() {
         "/dashboard/ticket-validation/events/{id}/offline-snapshot",
         { params: { path: { id: selectedEventId } } },
       ) as OfflineSnapshotResponse;
-      await saveOfflineSnapshot(user.properties.id, snapshot);
+      await saveOfflineSnapshot(user.properties.id, snapshot, selectedEvent);
       if ("serviceWorker" in navigator) {
         const registration = await navigator.serviceWorker.ready;
         registration.active?.postMessage({ type: "PREPARE_OFFLINE_SCANNER" });
@@ -224,7 +225,14 @@ export default function TicketValidationPage() {
         setEvents(response);
         setSelectedEventId((current) => current || response[0]?.id || "");
       } catch {
-        if (!cancelled) setError(t("validation.eventsLoadFailed"));
+        const offlineEvents = await getOfflineValidationEvents(currentUser.properties.id);
+        if (cancelled) return;
+        if (offlineEvents.length) {
+          setEvents(offlineEvents);
+          setSelectedEventId((current) => current || offlineEvents[0].id);
+        } else {
+          setError(t("validation.eventsLoadFailed"));
+        }
       } finally {
         if (!cancelled) setEventsLoading(false);
       }
