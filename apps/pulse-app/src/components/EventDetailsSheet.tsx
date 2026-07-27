@@ -4,10 +4,11 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Calendar,
   Bookmark,
@@ -94,6 +95,8 @@ export function EventDetailsSheet({
   const { t } = useTranslation();
   const { user } = useDataProvider();
   const router = useRouter();
+  const activeEventRef = useRef<Event | null>(activeEvent);
+  activeEventRef.current = activeEvent;
   const [displayedEvent, setDisplayedEvent] = useState<Event | null>(
     activeEvent,
   );
@@ -107,7 +110,7 @@ export function EventDetailsSheet({
   const [isDesktop, setIsDesktop] = useState(false);
 
   const handleClose = (clearReturnEvent = true) => {
-    setDisplayedEvent(null);
+    if (isDesktop) setDisplayedEvent(null);
     onClose();
 
     const url = new URL(window.location.href);
@@ -122,7 +125,7 @@ export function EventDetailsSheet({
   };
 
   useEffect(() => {
-    setDisplayedEvent(activeEvent);
+    if (activeEvent) setDisplayedEvent(activeEvent);
   }, [activeEvent]);
 
   useEffect(() => {
@@ -288,12 +291,6 @@ export function EventDetailsSheet({
 
   const sheetContent = (
     <>
-      {!isDesktop && (
-        <div className="absolute top-0 inset-x-0 z-30 pointer-events-none flex h-10 items-start justify-center pt-2.5 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
-          <div className="h-1.5 w-12 rounded-full bg-white/60 backdrop-blur-md shadow-sm border border-white/20" />
-        </div>
-      )}
-
       <div className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-y-none touch-pan-y">
         <div className="relative">
           <div className="relative h-56 w-full overflow-hidden bg-neutral-900 md:h-72">
@@ -499,12 +496,17 @@ export function EventDetailsSheet({
       <Drawer
         open={Boolean(activeEvent)}
         onOpenChange={(open) => !open && handleClose()}
-        onAnimationEnd={(open) => !open && setDisplayedEvent(null)}
+        onAnimationEnd={(open) => {
+          if (!open && !activeEventRef.current) setDisplayedEvent(null);
+        }}
         shouldScaleBackground={false}
         closeThreshold={0.35}
       >
         <DrawerContent className="h-[82svh] max-h-[46rem] overflow-hidden rounded-t-[32px] border-none bg-neutral-950 p-0 touch-none [&>div:first-child]:hidden">
           <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-10 items-start justify-center pt-2.5 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
+            <div className="h-1.5 w-12 rounded-full border border-white/20 bg-white/60 shadow-sm backdrop-blur-md" />
+          </div>
           {sheetContent}
         </DrawerContent>
       </Drawer>
