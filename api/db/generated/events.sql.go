@@ -734,8 +734,11 @@ WHERE ($2::VARCHAR = '' OR $2 IS NULL OR e.category = ANY(string_to_array($2::VA
   AND ($9::FLOAT IS NULL OR e.longitude BETWEEN $9 AND $10)
   -- Filtru ID specific
   AND ($11::UUID IS NULL OR e.id = $11)
+  -- Filtru organizator pentru profilul public
+  AND ($12::UUID IS NULL OR e.organizer_id = $12)
+  AND e.status = 'published'
 ORDER BY e.start_time DESC
-LIMIT $13 OFFSET $12
+LIMIT $14 OFFSET $13
 `
 
 type ListEventsParams struct {
@@ -750,6 +753,7 @@ type ListEventsParams struct {
 	LonMin       pgtype.Float8      `json:"lon_min"`
 	LonMax       pgtype.Float8      `json:"lon_max"`
 	EventID      pgtype.UUID        `json:"event_id"`
+	OrganizerID  pgtype.UUID        `json:"organizer_id"`
 	ReqOffset    int32              `json:"req_offset"`
 	ReqLimit     int32              `json:"req_limit"`
 }
@@ -793,6 +797,7 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 		arg.LonMin,
 		arg.LonMax,
 		arg.EventID,
+		arg.OrganizerID,
 		arg.ReqOffset,
 		arg.ReqLimit,
 	)

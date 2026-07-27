@@ -78,6 +78,9 @@ WHERE (sqlc.arg(category)::VARCHAR = '' OR sqlc.arg(category) IS NULL OR e.categ
   AND (sqlc.narg(lon_min)::FLOAT IS NULL OR e.longitude BETWEEN sqlc.narg(lon_min) AND sqlc.narg(lon_max))
   -- Filtru ID specific
   AND (sqlc.narg(event_id)::UUID IS NULL OR e.id = sqlc.narg(event_id))
+  -- Filtru organizator pentru profilul public
+  AND (sqlc.narg(organizer_id)::UUID IS NULL OR e.organizer_id = sqlc.narg(organizer_id))
+  AND e.status = 'published'
 ORDER BY e.start_time DESC
 LIMIT sqlc.arg(req_limit) OFFSET sqlc.arg(req_offset);
 

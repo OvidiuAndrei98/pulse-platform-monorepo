@@ -59,6 +59,7 @@ type Querier interface {
 	GetOrganizerFollowState(ctx context.Context, arg GetOrganizerFollowStateParams) (bool, error)
 	GetOrganizerFollowerCount(ctx context.Context, organizerID pgtype.UUID) (int64, error)
 	GetOrganizerProfile(ctx context.Context, userID pgtype.UUID) (OrganizerProfiles, error)
+	GetOrganizerPublicStats(ctx context.Context, organizerID pgtype.UUID) (GetOrganizerPublicStatsRow, error)
 	GetPublicProfile(ctx context.Context, id pgtype.UUID) (GetPublicProfileRow, error)
 	GetScannerAccessByID(ctx context.Context, id pgtype.UUID) (GetScannerAccessByIDRow, error)
 	GetScannerAccessByTokenHash(ctx context.Context, tokenHash string) (GetScannerAccessByTokenHashRow, error)

@@ -1,4 +1,5 @@
 import { Calendar } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Event } from "@/core/DataProvider";
 import { formatEventDateShort } from "@/features/events/dateFormat";
 
@@ -11,6 +12,7 @@ export function EventStatusBadge({
   compact?: boolean;
   className?: string;
 }) {
+  const { t } = useTranslation();
   if (event.isLive) {
     return (
       <span
@@ -22,7 +24,7 @@ export function EventStatusBadge({
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
         </span>
-        Live Now
+        {t("common.liveNow")}
       </span>
     );
   }

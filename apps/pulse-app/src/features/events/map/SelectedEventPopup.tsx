@@ -3,6 +3,7 @@ import Image from "next/image";
 import L from "leaflet";
 import { Clock, X } from "lucide-react";
 import { Popup, useMap } from "react-leaflet";
+import { useTranslation } from "react-i18next";
 import { Event } from "@/core/DataProvider";
 import { EventStatusBadge } from "@/features/events/components/EventStatusBadge";
 import { formatEventTime } from "@/features/events/dateFormat";
@@ -18,6 +19,7 @@ export function SelectedEventPopup({
   onClose,
   onOpen,
 }: SelectedEventPopupProps) {
+  const { t } = useTranslation();
   const map = useMap();
   const popupRef = useRef<L.Popup | null>(null);
 
@@ -42,7 +44,7 @@ export function SelectedEventPopup({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close popup"
+          aria-label={t("common.close")}
           className="absolute right-3 top-3 z-20 grid h-6 w-6 place-items-center rounded-full border border-white/10 bg-white/15 text-zinc-300 transition duration-200 hover:bg-white/25 hover:text-white md:backdrop-blur-md"
         >
           <X className="h-3.5 w-3.5" />
@@ -78,7 +80,7 @@ export function SelectedEventPopup({
             {/* Badges / Categorie */}
             <div className="mt-2.5 flex flex-nowrap items-center gap-1.5">
               <span className="inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full border border-white/10 bg-white/15 px-2.5 text-[10px] font-semibold uppercase leading-none text-zinc-200 md:backdrop-blur-sm">
-                {event.category || "General"}
+                {event.category || t("events.generalCategory")}
               </span>
 
               {event.isLive && (
@@ -98,7 +100,7 @@ export function SelectedEventPopup({
           onClick={onOpen}
           className="mt-3 flex h-9 w-full items-center justify-center rounded-lg border border-white/10 bg-white/15 text-xs font-semibold text-white shadow-sm transition duration-200 hover:bg-white/25 hover:border-white/20 active:scale-[0.98] md:backdrop-blur-md"
         >
-          View event
+          {t("events.viewEvent")}
         </button>
       </div>
     </Popup>

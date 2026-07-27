@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { MapPin, Bookmark, CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Event } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { EventFriendsPreview } from "@/components/social/EventFriendsPreview";
@@ -22,6 +23,7 @@ export function EventCard({
   onBookmark,
   live,
 }: EventCardProps) {
+  const { t } = useTranslation();
   const { user } = useDataProvider();
   const { open } = useEventDetails();
   const [favorited, setFavorited] = useState(Boolean(event.stats?.isFavorited));
@@ -84,7 +86,7 @@ export function EventCard({
                   <span className="relative h-2 w-2 rounded-full bg-red-500" />
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-red-400">
-                  LIVE NOW
+                  {t("common.liveNow")}
                 </span>
               </div>
             ) : (
@@ -97,7 +99,7 @@ export function EventCard({
           </div>
           {event.organizerAbsorbsServiceFee && (
             <span className="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1 rounded-full border border-primary/35 bg-black/65 px-2 py-1 text-[10px] font-semibold text-primary backdrop-blur-md">
-              <CheckCircle2 className="h-3 w-3" /> Preț final
+              <CheckCircle2 className="h-3 w-3" /> {t("events.finalPrice")}
             </span>
           )}
         </div>
@@ -114,7 +116,7 @@ export function EventCard({
             <div className="flex items-center gap-2 min-w-0">
               {/* Category Pill */}
               <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-zinc-300">
-                {event.category || "Music"}
+                {event.category || t("events.generalCategory")}
               </span>
 
               {/* Friends Avatars / Counter */}
@@ -130,7 +132,9 @@ export function EventCard({
                 toggleFavorite();
               }}
               aria-label={
-                favorited ? "Elimina din favorite" : "Salveaza evenimentul"
+                favorited
+                  ? t("eventSheet.removeFavorite")
+                  : t("eventSheet.addFavorite")
               }
               className={`p-1 transition-transform active:scale-90 ${
                 favorited ? "text-primary" : "text-zinc-400 hover:text-white"
@@ -146,7 +150,7 @@ export function EventCard({
           <div className="flex items-center gap-1.5 text-xs text-zinc-300/80 pt-0.5">
             <MapPin className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
             <span className="truncate">
-              {event.locationName || "Locație neprecizată"}
+              {event.locationName || t("events.locationUnknown")}
             </span>
           </div>
         </div>

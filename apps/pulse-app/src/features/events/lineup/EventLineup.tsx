@@ -14,11 +14,11 @@ export function EventLineup({ artists }: { artists?: readonly Artist[] }) {
       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         {t("lineup.title")}
       </p>
-      <div className="mt-3 divide-y divide-white/10 border-y border-white/10">
+      <div className="mt-3 flex flex-col gap-2">
         {artists.map((artist) => (
           <div
             key={artist.id}
-            className={`flex min-h-16 items-center gap-3 py-3 ${
+            className={`flex min-h-16 items-center gap-3 p-2 rounded-xl overflow-hidden ${
               artist.isHeadliner ? "bg-primary/[0.035]" : ""
             }`}
           >
@@ -36,7 +36,9 @@ export function EventLineup({ artists }: { artists?: readonly Artist[] }) {
               </div>
               {(artist.stage || artist.performanceTime) && (
                 <p className="mt-0.5 truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  {[artist.stage, artist.performanceTime].filter(Boolean).join(" · ")}
+                  {[artist.stage, artist.performanceTime]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </p>
               )}
             </div>
@@ -83,7 +85,9 @@ function ArtistAvatar({ artist }: { artist: Artist }) {
       alt=""
       onError={() => setImageFailed(true)}
       className={`h-12 w-12 shrink-0 rounded-full object-cover ${
-        artist.isHeadliner ? "ring-1 ring-primary ring-offset-2 ring-offset-background" : ""
+        artist.isHeadliner
+          ? "ring-1 ring-primary ring-offset-2 ring-offset-background"
+          : ""
       }`}
     />
   );

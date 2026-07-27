@@ -1199,6 +1199,7 @@ export class PublicEventsService {
     category?: string;
     city?: string;
     vibe?: string;
+    organizerId?: string;
     startsAfter?: string;
     startsBefore?: string;
   }): Promise<Event[]> {

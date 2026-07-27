@@ -440,6 +440,13 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pageStr := r.URL.Query().Get("page")
+	organizerID := pgtype.UUID{}
+	if organizerIDValue := r.URL.Query().Get("organizerId"); organizerIDValue != "" {
+		if err := organizerID.Scan(organizerIDValue); err != nil || !organizerID.Valid {
+			router.RespondWithError(w, http.StatusBadRequest, "ID organizator invalid")
+			return
+		}
+	}
 
 	// Preluare parametri hartă (dacă există)
 	latMinStr := r.URL.Query().Get("latMin")
@@ -462,6 +469,7 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 		StartsBefore: startsBefore,
 		ReqLimit:     pageSize,
 		ReqOffset:    page * pageSize,
+		OrganizerID:  organizerID,
 	}
 
 	// Setăm valoarea pentru starea Check-In a utilizatorului curent

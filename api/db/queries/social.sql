@@ -42,6 +42,17 @@ SELECT COUNT(*)::bigint AS follower_count
 FROM organizer_follows
 WHERE organizer_id = $1;
 
+-- name: GetOrganizerPublicStats :one
+SELECT
+    COUNT(DISTINCT e.id)::bigint AS event_count,
+    COUNT(t.id) FILTER (WHERE o.status = 'completed')::bigint AS tickets_sold_count
+FROM events e
+LEFT JOIN ticket_types tt ON tt.event_id = e.id
+LEFT JOIN tickets t ON t.ticket_type_id = tt.id
+LEFT JOIN orders o ON o.id = t.order_id
+WHERE e.organizer_id = $1
+  AND e.status = 'published';
+
 -- name: FollowOrganizer :exec
 INSERT INTO organizer_follows (follower_id, organizer_id)
 VALUES ($1, $2)

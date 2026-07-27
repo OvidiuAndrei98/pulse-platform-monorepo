@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { notFound, useParams } from "next/navigation";
+import { notFound, useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -23,6 +23,7 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
 import { EventLineup } from "@/features/events/lineup/EventLineup";
+import { EventOrganizerProfile } from "@/components/EventOrganizerProfile";
 import { ApiClient } from "@packages/api-client/src/Client";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { calculateServiceFeeRon, formatRon } from "@/features/events/serviceFee";
@@ -44,6 +45,7 @@ export default function EventStandalonePage() {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const params = useParams<{ id: string }>();
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchEvent() {
@@ -73,6 +75,7 @@ export default function EventStandalonePage() {
     : undefined;
   const ticketTypes = event.ticketTypes ?? [];
   const isOwnEvent = user?.properties.id === event.organizerId;
+  const isFinished = new Date(event.endTime).getTime() <= Date.now();
   const ticketCount = ticketTypes.reduce(
     (count, ticket) => count + (quantities[ticket.id] ?? 0),
     0,
@@ -122,6 +125,7 @@ export default function EventStandalonePage() {
   };
 
   const handleCheckout = async () => {
+    if (isFinished) return;
     if (isOwnEvent) {
       setCheckoutError(t("eventPage.cannotBuyOwn"));
       return;
@@ -184,6 +188,11 @@ export default function EventStandalonePage() {
               <p className="text-xs font-semibold text-primary">{event.category}</p>
               <h1 className="mt-1 text-3xl font-semibold leading-tight sm:text-4xl">{event.title}</h1>
               <p className="mt-2 text-sm text-muted-foreground">{t("eventPage.locationAt", { location: event.locationName })}</p>
+              {isFinished && (
+                <p className="mt-3 inline-flex rounded-full border border-white/15 bg-black/20 px-3 py-1 text-xs font-medium text-muted-foreground">
+                  {t("eventPage.eventCompleted")}
+                </p>
+              )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {user && (
@@ -224,9 +233,13 @@ export default function EventStandalonePage() {
         <section className="pt-7 sm:pt-8">
           <h2 className="text-sm font-semibold">{t("eventPage.about")}</h2>
           <p className="mt-3 max-w-2xl whitespace-pre-line text-sm leading-6 text-muted-foreground">
-            {event.description || "Nu exista o descriere detaliata pentru acest eveniment."}
+            {event.description || t("eventPage.noDescription")}
           </p>
         </section>
+
+        <div className="pt-7 sm:pt-8">
+          <EventOrganizerProfile organizerId={event.organizerId} />
+        </div>
 
         <EventLineup artists={event.lineup} />
 
@@ -250,22 +263,24 @@ export default function EventStandalonePage() {
                       {ticket.description || t("eventPage.eventAccess")} <span className="text-foreground">. {ticket.priceRon} RON</span>
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <QuantityButton label={t("eventPage.decrease")} onClick={() => changeQuantity(ticket.id, -1)} disabled={!quantities[ticket.id]}>
-                      <Minus className="h-3.5 w-3.5" />
-                    </QuantityButton>
-                    <span className="w-3 text-center text-sm font-semibold">{quantities[ticket.id] ?? 0}</span>
-                    <QuantityButton label={t("eventPage.increase")} variant="primary" onClick={() => changeQuantity(ticket.id, 1)}>
-                      <Plus className="h-3.5 w-3.5" />
-                    </QuantityButton>
-                  </div>
+                  {!isFinished && (
+                    <div className="flex shrink-0 items-center gap-3">
+                      <QuantityButton label={t("eventPage.decrease")} onClick={() => changeQuantity(ticket.id, -1)} disabled={!quantities[ticket.id]}>
+                        <Minus className="h-3.5 w-3.5" />
+                      </QuantityButton>
+                      <span className="w-3 text-center text-sm font-semibold">{quantities[ticket.id] ?? 0}</span>
+                      <QuantityButton label={t("eventPage.increase")} variant="primary" onClick={() => changeQuantity(ticket.id, 1)}>
+                        <Plus className="h-3.5 w-3.5" />
+                      </QuantityButton>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           ) : (
             <p className="mt-3 text-sm text-muted-foreground">{t("eventPage.noTickets")}</p>
           )}
-          {ticketTypes.length > 0 && (
+          {ticketTypes.length > 0 && !isFinished && (
             <>
               <div className="mt-4 rounded-lg border border-white/10 bg-black/15 px-4 py-3 text-xs">
                 {ticketCount > 0 ? (
@@ -316,6 +331,16 @@ export default function EventStandalonePage() {
                 {ticketCount > 0 && <span>{formatRon(total)}</span>}
               </button>
             </>
+          )}
+          {isFinished && (
+            <button
+              type="button"
+              onClick={() => router.push(`/users/${event.organizerId}`)}
+              className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-110"
+            >
+              {t("eventPage.viewOrganizerEvents")}
+              <ArrowUpRight className="h-4 w-4" />
+            </button>
           )}
         </section>
 

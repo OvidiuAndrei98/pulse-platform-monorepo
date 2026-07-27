@@ -60,29 +60,6 @@ type TicketData = {
 type UserTicket = ReadableSchema<"UserTicketResponse">;
 type ValidationEvent = ReadableSchema<"ValidationEventResponse">;
 
-const sampleTickets: TicketData[] = [
-  {
-    id: "TCK-8821",
-    eventId: "sample-neon-warehouse",
-    event: "Neon Warehouse — Techno Night",
-    date: "Sat, 21 Nov 2026",
-    time: "23:00",
-    location: "Expirat, Str. Halelor 5, București",
-    type: "VIP",
-    hash: "a1f4c9b2e8d7",
-  },
-  {
-    id: "TCK-8734",
-    eventId: "sample-sunset-rooftop",
-    event: "Sunset Rooftop w/ Barac",
-    date: "Fri, 04 Dec 2026",
-    time: "20:30",
-    location: "Nomad Skybar, București",
-    type: "Regular",
-    hash: "77bde12aa903",
-  },
-];
-
 type Order = {
   id: string;
   event: string;
@@ -313,8 +290,7 @@ export default function MePage() {
                 >
                   <div className="pt-2 space-y-2">
                     <p className="text-xs text-red-400/80 leading-normal">
-                      This action is permanent. All your active tickets and
-                      history will be wiped instantly.
+                      {t("userProfile.deleteWarning")}
                     </p>
                     <button className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 text-xs font-semibold py-2 rounded-xl transition">
                       {t("userProfile.confirmDelete")}
@@ -442,7 +418,7 @@ export default function MePage() {
                   <>
                     <Link
                       href="/users/me/invoices"
-                      className="flex items-center gap-3 border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-primary/50"
+                      className="flex items-center gap-3 border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-primary/50 rounded-lg"
                     >
                       <span className="grid h-9 w-9 place-items-center bg-primary/10 text-primary">
                         <Receipt className="h-4 w-4" />
@@ -528,7 +504,7 @@ export default function MePage() {
                   </h3>
                   <Link
                     href="/users/me/invoices"
-                    className="flex items-center gap-3 border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-primary/50"
+                    className="flex items-center gap-3 border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-primary/50 rounded-lg"
                   >
                     <span className="grid h-9 w-9 place-items-center bg-primary/10 text-primary">
                       <Receipt className="h-4 w-4" />
@@ -613,7 +589,7 @@ export default function MePage() {
                   >
                     <div className="pt-2 space-y-2">
                       <p className="text-xs text-red-400/80">
-                        This action is permanent.
+                        {t("userProfile.deleteShortWarning")}
                       </p>
                       <button className="w-full bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold py-2 rounded-xl">
                         {t("userProfile.confirmDelete")}
@@ -761,9 +737,13 @@ function TicketModal({
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     if (window.innerWidth < 768 && info.offset.y > 100) onClose();
   };
+
   return (
     <>
-      <div className="fixed inset-0 z-[9999] flex items-end justify-center sm:items-center md:justify-end">
+      <div
+        className="fixed inset-0 z-[9999] flex items-end justify-center sm:items-center md:justify-end"
+        onClick={onClose}
+      >
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

@@ -122,6 +122,8 @@ model PublicProfileResponse {
   relationship: "none" | "self" | "pending_sent" | "pending_received" | "friends";
   followsOrganizer: boolean;
   followerCount: int64;
+  eventCount: int64;
+  ticketsSoldCount: int64;
 }
 
 model EventAttendeeResponse extends PublicProfileResponse {
@@ -542,6 +544,7 @@ interface EventOperations {
     @query latMax?: decimal,
     @query lonMin?: decimal,
     @query lonMax?: decimal,
+    @query organizerId?: string,
     @query page?: int32,
   ): EventResponse[];
 

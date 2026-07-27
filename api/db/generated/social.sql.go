@@ -86,6 +86,30 @@ func (q *Queries) GetOrganizerFollowerCount(ctx context.Context, organizerID pgt
 	return follower_count, err
 }
 
+const getOrganizerPublicStats = `-- name: GetOrganizerPublicStats :one
+SELECT
+    COUNT(DISTINCT e.id)::bigint AS event_count,
+    COUNT(t.id) FILTER (WHERE o.status = 'completed')::bigint AS tickets_sold_count
+FROM events e
+LEFT JOIN ticket_types tt ON tt.event_id = e.id
+LEFT JOIN tickets t ON t.ticket_type_id = tt.id
+LEFT JOIN orders o ON o.id = t.order_id
+WHERE e.organizer_id = $1
+  AND e.status = 'published'
+`
+
+type GetOrganizerPublicStatsRow struct {
+	EventCount       int64 `json:"event_count"`
+	TicketsSoldCount int64 `json:"tickets_sold_count"`
+}
+
+func (q *Queries) GetOrganizerPublicStats(ctx context.Context, organizerID pgtype.UUID) (GetOrganizerPublicStatsRow, error) {
+	row := q.db.QueryRow(ctx, getOrganizerPublicStats, organizerID)
+	var i GetOrganizerPublicStatsRow
+	err := row.Scan(&i.EventCount, &i.TicketsSoldCount)
+	return i, err
+}
+
 const getPublicProfile = `-- name: GetPublicProfile :one
 SELECT u.id, u.username, u.avatar_url, u.bio, u.role,
        COALESCE(op.company_name, '') AS organizer_name,

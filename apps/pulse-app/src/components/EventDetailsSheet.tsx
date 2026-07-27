@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar,
   Bookmark,
@@ -16,12 +16,14 @@ import {
   Ticket as TicketIcon,
 } from "lucide-react";
 import Image from "next/image";
-import { Event } from "@/core/DataProvider";
+import { usePathname, useRouter } from "next/navigation";
+import { Event, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { ApiClient } from "@packages/api-client/src/Client";
 import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
 import { EventLineup } from "@/features/events/lineup/EventLineup";
+import { EventOrganizerProfile } from "@/components/EventOrganizerProfile";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import {
   calculateServiceFeeRon,
@@ -43,9 +45,24 @@ const EventDetailsContext = createContext<EventDetailsContextType | undefined>(
 
 export function EventDetailsProvider({ children }: { children: ReactNode }) {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const pathname = usePathname();
 
   const open = (event: Event) => setSelectedEvent(event);
   const close = () => setSelectedEvent(null);
+
+  useEffect(() => {
+    const eventId = new URLSearchParams(window.location.search).get("eventId");
+    if (!eventId || selectedEvent?.id === eventId) return;
+
+    let active = true;
+    User.getPublicEventById(eventId)
+      .then((event) => active && setSelectedEvent(event))
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [pathname, selectedEvent?.id]);
 
   return (
     <EventDetailsContext.Provider value={{ open, close, selectedEvent }}>
@@ -76,6 +93,7 @@ export function EventDetailsSheet({
 }: EventDetailsSheetProps) {
   const { t } = useTranslation();
   const { user } = useDataProvider();
+  const router = useRouter();
   const [displayedEvent, setDisplayedEvent] = useState<Event | null>(
     activeEvent,
   );
@@ -88,8 +106,23 @@ export function EventDetailsSheet({
   const [shared, setShared] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
 
+  const handleClose = (clearReturnEvent = true) => {
+    setDisplayedEvent(null);
+    onClose();
+
+    const url = new URL(window.location.href);
+    if (clearReturnEvent && url.searchParams.has("eventId")) {
+      url.searchParams.delete("eventId");
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${url.pathname}${url.search}${url.hash}`,
+      );
+    }
+  };
+
   useEffect(() => {
-    if (activeEvent) setDisplayedEvent(activeEvent);
+    setDisplayedEvent(activeEvent);
   }, [activeEvent]);
 
   useEffect(() => {
@@ -101,7 +134,6 @@ export function EventDetailsSheet({
     return () => mediaQuery.removeEventListener("change", updateViewport);
   }, []);
 
-  // Resetăm biletele selectate de fiecare dată când se deschide un alt eveniment
   useEffect(() => {
     if (activeEvent) {
       setQty({});
@@ -114,19 +146,18 @@ export function EventDetailsSheet({
     }
   }, [activeEvent?.id, user?.properties.email]);
 
-  // Lock body scroll și închidere pe tastă Escape
   useEffect(() => {
     if (!displayedEvent) return;
 
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && handleClose();
     window.addEventListener("keydown", onKey);
 
     return () => {
       document.body.style.overflow = "";
       window.removeEventListener("keydown", onKey);
     };
-  }, [displayedEvent, onClose]);
+  }, [displayedEvent]);
 
   if (!displayedEvent) return null;
 
@@ -134,6 +165,7 @@ export function EventDetailsSheet({
 
   const ticketTypes = event.ticketTypes ?? [];
   const isOwnEvent = user?.properties.id === event.organizerId;
+  const isFinished = new Date(event.endTime).getTime() <= Date.now();
   const ticketSubtotal = ticketTypes.reduce(
     (sum, t) => sum + (qty[t.id] ?? 0) * (t.priceRon ?? 0),
     0,
@@ -143,6 +175,15 @@ export function EventDetailsSheet({
     ? 0
     : calculateServiceFeeRon(ticketSubtotal, count);
   const total = ticketSubtotal + serviceFee;
+  const checkoutLabel = isFinished
+    ? t("eventSheet.viewOrganizerEvents")
+    : isOwnEvent
+      ? t("eventSheet.ownEvent")
+      : purchased
+        ? t("checkout.reserved")
+        : count === 0
+          ? t("eventSheet.selectTickets")
+          : t("eventSheet.buy", { count, total: formatRon(total) });
 
   const setTierQty = (id: string, delta: number) =>
     setQty((q) => ({
@@ -187,6 +228,7 @@ export function EventDetailsSheet({
   };
 
   const handleCheckout = async () => {
+    if (isFinished) return;
     if (isOwnEvent) {
       setCheckoutError(t("eventSheet.ownEvent"));
       return;
@@ -226,15 +268,35 @@ export function EventDetailsSheet({
     }
   };
 
+  const viewOrganizerEvents = () => {
+    handleClose();
+    router.push(`/users/${event.organizerId}`);
+  };
+
+  const viewOrganizerProfile = () => {
+    const returnUrl = new URL(window.location.href);
+    returnUrl.searchParams.set("eventId", event.id);
+    const returnTo = `${returnUrl.pathname}${returnUrl.search}${returnUrl.hash}`;
+
+    // Keep this event in the current history entry so browser Back restores it.
+    window.history.replaceState(window.history.state, "", returnTo);
+    handleClose(false);
+    router.push(
+      `/users/${event.organizerId}?returnTo=${encodeURIComponent(returnTo)}`,
+    );
+  };
+
   const sheetContent = (
     <>
-      {/* 
-        Schimbat overscroll-y-contain în overscroll-y-none + touch-pan-y
-        Asta previne bounce-ul nativ de browser când scroll-ul ajunge la top 0.
-      */}
+      {!isDesktop && (
+        <div className="absolute top-0 inset-x-0 z-30 pointer-events-none flex h-10 items-start justify-center pt-2.5 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
+          <div className="h-1.5 w-12 rounded-full bg-white/60 backdrop-blur-md shadow-sm border border-white/20" />
+        </div>
+      )}
+
       <div className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-y-none touch-pan-y">
         <div className="relative">
-          <div className="relative h-48 w-full bg-muted md:h-72">
+          <div className="relative h-56 w-full overflow-hidden bg-neutral-900 md:h-72">
             {event.bannerUrl && (
               <Image
                 src={event.bannerUrl}
@@ -245,13 +307,18 @@ export function EventDetailsSheet({
                 className="object-cover"
               />
             )}
-          </div>
-          <div className="absolute inset-0 bg-black/30" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/55 to-transparent" />
 
-          <div className="absolute left-4 right-4 top-4 flex flex-wrap items-center gap-2">
-            {event.isLive ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-red-500/40 bg-red-500/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-400 backdrop-blur">
+            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+          </div>
+
+          <div className="absolute left-4 right-4 top-10 md:top-6 flex flex-wrap items-center gap-2">
+            {isFinished ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/45 px-3 py-1 text-[11px] font-medium text-white/80 backdrop-blur-md shadow-lg">
+                {t("eventSheet.eventCompleted")}
+              </span>
+            ) : event.isLive ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-400 backdrop-blur-md shadow-lg">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
@@ -259,66 +326,77 @@ export function EventDetailsSheet({
                 {t("common.liveNow")}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-md border border-white/20 bg-background/50 px-2.5 py-1 text-[11px] text-foreground backdrop-blur">
-                <Calendar className="h-3 w-3" />{" "}
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-[11px] font-medium text-white backdrop-blur-md shadow-lg">
+                <Calendar className="h-3.5 w-3.5 text-primary" />{" "}
                 {formatEventDateTime(event.startTime)}
               </span>
             )}
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 p-5">
-            <p className="text-xs font-medium text-primary">{event.category}</p>
-            <h2 className="mt-1 text-2xl font-semibold leading-tight md:text-3xl">
+          <div className="absolute inset-x-0 bottom-0 p-5 md:p-6">
+            <p className="text-xs font-semibold tracking-wider uppercase text-primary">
+              {event.category}
+            </p>
+            <h2 className="mt-1 text-2xl font-bold leading-tight md:text-3xl tracking-tight text-white drop-shadow-sm">
               {event.title}
             </h2>
           </div>
         </div>
 
-        <div className="space-y-6 px-5 pb-6 pt-5 md:px-6">
+        <div className="space-y-6 px-5 pb-8 pt-4 md:px-6">
           <EventSocialProof eventId={event.id} />
           <EventAttendees eventId={event.id} />
 
           <section>
-            <h3 className="text-sm font-semibold">{t("eventSheet.about")}</h3>
+            <h3 className="text-sm font-semibold text-foreground/90">
+              {t("eventSheet.about")}
+            </h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              {event.description || "Nicio descriere disponibilă."}
+              {event.description || t("eventSheet.noDescription")}
             </p>
           </section>
+
+          <EventOrganizerProfile
+            organizerId={event.organizerId}
+            onOpen={viewOrganizerProfile}
+          />
 
           <EventLineup artists={event.lineup} />
 
           {ticketTypes.length > 0 && (
             <section>
-              <h3 className="text-sm font-semibold">
+              <h3 className="text-sm font-semibold text-foreground/90">
                 {t("eventSheet.tickets")}
               </h3>
-              <div className="mt-3 space-y-2">
+              <div className="mt-3 space-y-2.5">
                 {ticketTypes.map((t) => (
                   <div
                     key={t.id}
-                    className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 transition-colors hover:bg-white/[0.05]"
                   >
                     <div>
                       <p className="text-sm font-medium">{t.name}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs font-semibold text-primary/90 mt-0.5">
                         {t.priceRon} RON
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <button
                         type="button"
                         onClick={() => setTierQty(t.id, -1)}
-                        className="h-8 w-8 rounded-md border border-white/15 bg-white/5 font-bold transition hover:bg-white/10"
+                        disabled={isFinished}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-sm font-bold transition hover:bg-white/10 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         -
                       </button>
-                      <span className="w-5 text-center text-sm font-medium">
+                      <span className="w-5 text-center text-sm font-semibold">
                         {qty[t.id] ?? 0}
                       </span>
                       <button
                         type="button"
                         onClick={() => setTierQty(t.id, 1)}
-                        className="h-8 w-8 rounded-md border border-primary/40 bg-primary/15 font-bold text-primary transition hover:bg-primary/25"
+                        disabled={isFinished}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/30 bg-primary/20 text-sm font-bold text-primary transition hover:bg-primary/30 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         +
                       </button>
@@ -326,20 +404,26 @@ export function EventDetailsSheet({
                   </div>
                 ))}
               </div>
-              <CheckoutPriceSummary
-                ticketSubtotal={ticketSubtotal}
-                ticketCount={count}
-                serviceFee={serviceFee}
-                total={total}
-                organizerAbsorbsServiceFee={event.organizerAbsorbsServiceFee}
-                t={t}
-              />
+              {isFinished ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {t("eventSheet.eventCompleted")}
+                </p>
+              ) : (
+                <CheckoutPriceSummary
+                  ticketSubtotal={ticketSubtotal}
+                  ticketCount={count}
+                  serviceFee={serviceFee}
+                  total={total}
+                  organizerAbsorbsServiceFee={event.organizerAbsorbsServiceFee}
+                  t={t}
+                />
+              )}
             </section>
           )}
 
-          <section>
+          {!isFinished && <section>
             <label
-              className="block text-sm font-semibold"
+              className="block text-sm font-semibold text-foreground/90"
               htmlFor="checkout-email"
             >
               {t("eventSheet.emailForTickets")}
@@ -351,22 +435,24 @@ export function EventDetailsSheet({
               value={guestEmail}
               onChange={(event) => setGuestEmail(event.target.value)}
               placeholder={t("checkout.emailPlaceholder")}
-              className="mt-2 h-11 w-full rounded-lg border border-white/15 bg-white/5 px-3 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/60"
+              className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/60 focus:bg-white/[0.07]"
             />
             {!user && (
               <GoogleSignInButton
                 returnTo={`/events/${event.id}?checkout=1`}
-                className="mt-3 h-10 text-xs"
+                className="mt-3 h-10 text-xs rounded-xl"
               />
             )}
             {checkoutError && (
-              <p className="mt-2 text-xs text-red-400">{checkoutError}</p>
+              <p className="mt-2 text-xs font-medium text-red-400">
+                {checkoutError}
+              </p>
             )}
-          </section>
+          </section>}
         </div>
       </div>
 
-      <div className="relative z-10 flex items-center gap-2 border-t border-white/10 bg-background/90 px-4 py-3 backdrop-blur md:bg-background/60">
+      <div className="relative z-10 flex items-center gap-2.5 border-t border-white/10 bg-background/80 px-4 py-3.5 backdrop-blur-xl md:bg-background/60">
         {user && (
           <button
             type="button"
@@ -376,7 +462,7 @@ export function EventDetailsSheet({
                 ? t("eventSheet.removeFavorite")
                 : t("eventSheet.addFavorite")
             }
-            className={`grid h-11 w-11 shrink-0 place-items-center rounded-lg border transition ${favorited ? "border-primary/40 bg-primary/15 text-primary" : "border-white/15 bg-white/5 hover:bg-white/10"}`}
+            className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition-all active:scale-95 ${favorited ? "border-primary/40 bg-primary/20 text-primary" : "border-white/10 bg-white/5 hover:bg-white/10"}`}
           >
             <Bookmark
               className={`h-4 w-4 ${favorited ? "fill-current" : ""}`}
@@ -387,7 +473,7 @@ export function EventDetailsSheet({
           type="button"
           onClick={handleShare}
           aria-label={shared ? t("checkout.copiedLink") : t("eventSheet.share")}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-white/15 bg-white/5 transition hover:bg-white/10"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 transition-all active:scale-95 hover:bg-white/10"
         >
           {shared ? (
             <Check className="h-4 w-4 text-primary" />
@@ -397,18 +483,12 @@ export function EventDetailsSheet({
         </button>
         <button
           type="button"
-          disabled={count === 0 || purchased || isOwnEvent}
-          onClick={handleCheckout}
-          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-40"
+          disabled={!isFinished && (count === 0 || purchased || isOwnEvent)}
+          onClick={isFinished ? viewOrganizerEvents : handleCheckout}
+          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:opacity-90 disabled:opacity-40 disabled:shadow-none"
         >
           <TicketIcon className="h-4 w-4" />
-          {isOwnEvent
-            ? t("eventSheet.ownEvent")
-            : purchased
-              ? "Rezervat ✓"
-              : count === 0
-                ? "Selectează bilete"
-                : `Cumpără ${count} · ${formatRon(total)}`}
+          {checkoutLabel}
         </button>
       </div>
     </>
@@ -418,12 +498,12 @@ export function EventDetailsSheet({
     return (
       <Drawer
         open={Boolean(activeEvent)}
-        onOpenChange={(open) => !open && onClose()}
+        onOpenChange={(open) => !open && handleClose()}
         onAnimationEnd={(open) => !open && setDisplayedEvent(null)}
         shouldScaleBackground={false}
         closeThreshold={0.35}
       >
-        <DrawerContent className="h-[78svh] max-h-[42rem] overflow-hidden rounded-t-3xl border-white/10 bg-neutral-950 touch-none">
+        <DrawerContent className="h-[82svh] max-h-[46rem] overflow-hidden rounded-t-[32px] border-none bg-neutral-950 p-0 touch-none [&>div:first-child]:hidden">
           <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
           {sheetContent}
         </DrawerContent>
@@ -432,21 +512,17 @@ export function EventDetailsSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] hidden items-center justify-center md:flex">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="absolute inset-0 bg-black/60"
-      />
+    <div
+      onClick={() => handleClose()}
+      className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/70 backdrop-blur-sm md:flex cursor-pointer"
+    >
       <motion.div
         initial={{ y: 24, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 24, opacity: 0 }}
         transition={{ type: "spring", damping: 28, stiffness: 260 }}
         onClick={(clickEvent) => clickEvent.stopPropagation()}
-        className="relative z-10 flex h-[min(88vh,48rem)] w-[calc(100%-1.5rem)] max-w-2xl flex-col overflow-hidden rounded-xl border border-white/10 bg-background/80 text-foreground shadow-2xl backdrop-blur-xl backdrop-saturate-150"
+        className="relative z-10 flex h-[min(88vh,49rem)] w-[calc(100%-1.5rem)] max-w-2xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-neutral-950 text-foreground shadow-2xl backdrop-blur-xl cursor-default"
       >
         {sheetContent}
       </motion.div>
@@ -480,7 +556,7 @@ function CheckoutPriceSummary({
   }
 
   return (
-    <div className="mt-3 space-y-1.5 rounded-lg border border-white/10 bg-black/15 px-3 py-2.5 text-xs">
+    <div className="mt-3 space-y-1.5 rounded-xl border border-white/10 bg-white/[0.02] px-3.5 py-3 text-xs">
       <div className="flex justify-between text-muted-foreground">
         <span>{t("checkout.tickets")}</span>
         <span>{formatRon(ticketSubtotal)}</span>
@@ -495,9 +571,9 @@ function CheckoutPriceSummary({
           {organizerAbsorbsServiceFee ? "0 RON" : formatRon(serviceFee)}
         </span>
       </div>
-      <div className="flex justify-between border-t border-white/10 pt-1.5 text-sm font-semibold">
+      <div className="flex justify-between border-t border-white/10 pt-2 text-sm font-semibold text-foreground">
         <span>{t("checkout.total")}</span>
-        <span>{formatRon(total)}</span>
+        <span className="text-primary">{formatRon(total)}</span>
       </div>
     </div>
   );

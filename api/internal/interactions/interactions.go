@@ -48,6 +48,8 @@ type PublicProfileResponse struct {
 	Relationship      string `json:"relationship"`
 	FollowsOrganizer  bool   `json:"followsOrganizer"`
 	FollowerCount     int64  `json:"followerCount"`
+	EventCount        int64  `json:"eventCount"`
+	TicketsSoldCount  int64  `json:"ticketsSoldCount"`
 }
 
 type EventAttendeeResponse struct {
@@ -452,6 +454,15 @@ func (h *Handler) HandleGetPublicProfile(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Profilul nu a putut fi incarcat")
 		return
+	}
+	if profile.Role.String == "organizer" {
+		stats, err := h.Queries.GetOrganizerPublicStats(r.Context(), profile.ID)
+		if err != nil {
+			router.RespondWithError(w, http.StatusInternalServerError, "Statisticile organizatorului nu au putut fi incarcate")
+			return
+		}
+		response.EventCount = stats.EventCount
+		response.TicketsSoldCount = stats.TicketsSoldCount
 	}
 	router.RespondWithJSON(w, http.StatusOK, response)
 }

@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import { FiltersSheet } from "@/components/FiltersSheet";
 import { Event, PublicEventsService } from "@/core/DataProvider";
 import {
@@ -14,6 +15,8 @@ import { EventBrowseCard } from "@/features/events/components/EventBrowseCard";
 import { EventViewToggle } from "@/features/events/components/EventViewToggle";
 import { getEventDateRange } from "@/features/events/dateFilters";
 import { Coordinates, EventFilters } from "@/features/events/types";
+
+const eventsFiltersStorageKey = "glow.events.filters";
 
 const EventsMapLayout = dynamic(
   () =>
@@ -32,6 +35,38 @@ function getDateFilter(value: string | null) {
     : defaultEventFilters.date;
 }
 
+function getStoredFilters(
+  requestedDate: string,
+  hasDateInUrl: boolean,
+): EventFilters {
+  if (typeof window === "undefined") {
+    return { ...defaultEventFilters, date: requestedDate };
+  }
+
+  try {
+    const stored = JSON.parse(
+      window.sessionStorage.getItem(eventsFiltersStorageKey) ?? "null",
+    ) as Partial<EventFilters> | null;
+
+    if (!stored || !Array.isArray(stored.categories) || !Array.isArray(stored.vibes)) {
+      return { ...defaultEventFilters, date: requestedDate };
+    }
+
+    return {
+      categories: stored.categories,
+      vibes: stored.vibes,
+      city: typeof stored.city === "string" ? stored.city : "",
+      distance:
+        typeof stored.distance === "number"
+          ? stored.distance
+          : defaultEventFilters.distance,
+      date: hasDateInUrl ? requestedDate : stored.date || requestedDate,
+    };
+  } catch {
+    return { ...defaultEventFilters, date: requestedDate };
+  }
+}
+
 export default function EventsPage() {
   return (
     <Suspense fallback={<div className="h-dvh bg-background" />}>
@@ -41,12 +76,13 @@ export default function EventsPage() {
 }
 
 function EventsPageContent() {
+  const { t } = useTranslation();
   const searchParams = useSearchParams();
   const requestedDate = getDateFilter(searchParams.get("date"));
-  const [filters, setFilters] = useState<EventFilters>(() => ({
-    ...defaultEventFilters,
-    date: requestedDate,
-  }));
+  const hasDateInUrl = searchParams.has("date");
+  const [filters, setFilters] = useState<EventFilters>(() =>
+    getStoredFilters(requestedDate, hasDateInUrl),
+  );
   const [view, setView] = useState<"list" | "map">("list");
   const [events, setEvents] = useState<Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
@@ -56,20 +92,32 @@ function EventsPageContent() {
     : null;
 
   useEffect(() => {
+    if (!hasDateInUrl) return;
+
     setFilters((current) =>
       current.date === requestedDate
         ? current
         : { ...current, date: requestedDate },
     );
-  }, [requestedDate]);
+  }, [hasDateInUrl, requestedDate]);
+
+  useEffect(() => {
+    window.sessionStorage.setItem(eventsFiltersStorageKey, JSON.stringify(filters));
+  }, [filters]);
 
   const eventQuery = useMemo(
-    () => ({
-      category: filters.categories.join(",") || undefined,
-      city: filters.city || undefined,
-      vibe: filters.vibes.join(",") || undefined,
-      ...getEventDateRange(filters.date),
-    }),
+    () => {
+      const dateRange = getEventDateRange(filters.date);
+
+      return {
+        category: filters.categories.join(",") || undefined,
+        city: filters.city || undefined,
+        vibe: filters.vibes.join(",") || undefined,
+        ...dateRange,
+        // Discovery should never surface events that have already ended.
+        startsAfter: dateRange.startsAfter ?? new Date().toISOString(),
+      };
+    },
     [filters.categories, filters.city, filters.date, filters.vibes],
   );
 
@@ -135,10 +183,10 @@ function EventsPageContent() {
               {!eventsLoading && !events.length && (
                 <div className="mx-auto mt-12 max-w-md border border-dashed border-white/15 px-5 py-10 text-center">
                   <p className="text-sm font-medium">
-                    Nu exista evenimente pentru filtrele alese.
+                    {t("events.noMatch")}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Incearca un alt oras, vibe sau o distanta mai mare.
+                    {t("events.tryAnother")}
                   </p>
                   <button
                     type="button"
@@ -147,7 +195,7 @@ function EventsPageContent() {
                     }
                     className="mt-3 text-sm font-medium text-primary"
                   >
-                    Reset filters
+                    {t("events.resetFilters")}
                   </button>
                 </div>
               )}

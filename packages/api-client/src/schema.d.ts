@@ -1066,6 +1066,10 @@ export interface components {
             followsOrganizer: boolean;
             /** Format: int64 */
             followerCount: number;
+            /** Format: int64 */
+            eventCount: number;
+            /** Format: int64 */
+            ticketsSoldCount: number;
         };
         ScannerAccessResponse: {
             id: string;
@@ -1863,6 +1867,7 @@ export interface operations {
                 latMax?: number;
                 lonMin?: number;
                 lonMax?: number;
+                organizerId?: string;
                 page?: number;
             };
             header?: never;

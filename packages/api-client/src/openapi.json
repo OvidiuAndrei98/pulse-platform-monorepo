@@ -834,6 +834,15 @@
             "explode": false
           },
           {
+            "name": "organizerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -2723,7 +2732,9 @@
           "organizerVerified",
           "relationship",
           "followsOrganizer",
-          "followerCount"
+          "followerCount",
+          "eventCount",
+          "ticketsSoldCount"
         ],
         "properties": {
           "id": {
@@ -2773,6 +2784,14 @@
             "type": "boolean"
           },
           "followerCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "eventCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ticketsSoldCount": {
             "type": "integer",
             "format": "int64"
           }
