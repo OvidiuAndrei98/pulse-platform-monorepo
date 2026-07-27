@@ -102,11 +102,17 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
     if (startY === null || currentY === undefined) return;
 
     const distance = currentY - startY;
-    if (distance <= 0 || (contentRef.current?.scrollTop ?? 0) > 0) return;
+    const pullActivationDistance = 36;
+    if (
+      distance <= pullActivationDistance ||
+      (contentRef.current?.scrollTop ?? 0) > 0
+    ) {
+      return;
+    }
 
     touchEvent.preventDefault();
     setIsPullingSheet(true);
-    setSheetOffset(distance * 0.82);
+    setSheetOffset((distance - pullActivationDistance) * 0.82);
   };
 
   const handleTouchEnd = () => {
@@ -251,7 +257,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
 
   const sheetContent = (
     <>
-      <div ref={contentRef} className="relative z-10 min-h-0 flex-1 overflow-y-auto">
+      <div ref={contentRef} className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
               <div className="relative">
                 <div className="relative h-48 w-full bg-muted md:h-72">
                   {event.bannerUrl && (
