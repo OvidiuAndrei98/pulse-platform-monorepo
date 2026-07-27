@@ -106,6 +106,8 @@ type HandlersConfig struct {
 	RevokeScannerAccess   http.HandlerFunc
 	CreateScannerSession  http.HandlerFunc
 	QuickValidateTicket   http.HandlerFunc
+	CreateOfflineSnapshot http.HandlerFunc
+	SyncOfflineScans      http.HandlerFunc
 }
 
 func SetupRouter(cfg HandlersConfig) http.Handler {
@@ -247,6 +249,8 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Post("/events/{id}/quick-access", cfg.CreateScannerAccess)
 				r.Delete("/events/{id}/quick-access/{accessId}", cfg.RevokeScannerAccess)
 				r.Post("/events/{id}/tickets/validate", cfg.ValidateTicket)
+				r.Post("/events/{id}/offline-snapshot", cfg.CreateOfflineSnapshot)
+				r.Post("/events/{id}/offline-sync", cfg.SyncOfflineScans)
 			})
 
 			// --- ORGANIZER+ ONLY: Creare/ștergere evenimente ---

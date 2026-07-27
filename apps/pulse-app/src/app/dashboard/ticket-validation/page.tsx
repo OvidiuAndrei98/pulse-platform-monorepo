@@ -15,6 +15,10 @@ import {
   Trash2,
   UserRoundCheck,
   UsersRound,
+  Download,
+  RefreshCw,
+  Wifi,
+  WifiOff,
   XCircle,
 } from "lucide-react";
 import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
@@ -23,6 +27,16 @@ import { OrganizerProfile, ValidationEvent } from "@/core/DataProvider";
 import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
 import { formatEventDateTime } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
+import {
+  applyOfflineSyncResults,
+  clearExpiredOfflineData,
+  clearOfflineEventData,
+  getOfflineDeviceId,
+  getOfflineValidationState,
+  getPendingOfflineScans,
+  recordOfflineTicketScan,
+  saveOfflineSnapshot,
+} from "@/features/tickets/offlineValidationStore";
 
 const ORGANIZER_AGREEMENT_VERSION = "2026-07-27-glow";
 
@@ -30,6 +44,13 @@ type ValidationStaff = ReadableSchema<"ValidationStaffResponse">;
 type TicketValidation = ReadableSchema<"TicketValidationResponse">;
 type ScannerAccess = ReadableSchema<"ScannerAccessResponse">;
 type CreatedScannerAccess = ReadableSchema<"CreateScannerAccessResponse">;
+type OfflineSnapshotResponse = ReadableSchema<"OfflineValidationSnapshotResponse">;
+type OfflineSyncResponse = ReadableSchema<"SyncOfflineTicketScansResponse">;
+type ScannerResult = TicketValidation | {
+  status: "offline_valid" | "offline_duplicate" | "offline_unknown" | "offline_expired" | "offline_unprepared";
+  ticketType?: string;
+  eventTitle?: string;
+};
 
 function toDateTimeLocal(value: string) {
   const date = new Date(value);
@@ -53,7 +74,7 @@ export default function TicketValidationPage() {
   const [eventMenuOpen, setEventMenuOpen] = useState(false);
   const [validationHash, setValidationHash] = useState("");
   const [validating, setValidating] = useState(false);
-  const [result, setResult] = useState<TicketValidation>();
+  const [result, setResult] = useState<ScannerResult>();
   const [staff, setStaff] = useState<ValidationStaff[]>([]);
   const [staffLoading, setStaffLoading] = useState(false);
   const [staffEmail, setStaffEmail] = useState("");
@@ -67,6 +88,11 @@ export default function TicketValidationPage() {
   const [latestScannerAccess, setLatestScannerAccess] = useState<CreatedScannerAccess>();
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
+  const [offlineSnapshot, setOfflineSnapshot] = useState<OfflineSnapshotResponse>();
+  const [offlinePendingCount, setOfflinePendingCount] = useState(0);
+  const [preparingOffline, setPreparingOffline] = useState(false);
+  const [syncingOffline, setSyncingOffline] = useState(false);
   const selectedEventIdRef = useRef(selectedEventId);
 
   const selectedEvent = useMemo(
@@ -74,9 +100,86 @@ export default function TicketValidationPage() {
     [events, selectedEventId],
   );
 
+  const refreshOfflineState = async (eventId = selectedEventId) => {
+    if (!user || !eventId) {
+      setOfflineSnapshot(undefined);
+      setOfflinePendingCount(0);
+      return;
+    }
+    const state = await getOfflineValidationState(user.properties.id, eventId);
+    setOfflineSnapshot(state.snapshot);
+    setOfflinePendingCount(state.pendingCount);
+  };
+
   useEffect(() => {
     selectedEventIdRef.current = selectedEventId;
   }, [selectedEventId]);
+
+  const syncOfflineScans = async (eventId = selectedEventId) => {
+    if (!user || !eventId || !navigator.onLine) return;
+    const state = await getOfflineValidationState(user.properties.id, eventId);
+    if (!state.snapshot || state.pendingCount === 0) return;
+
+    setSyncingOffline(true);
+    try {
+      const scans = await getPendingOfflineScans(user.properties.id, eventId);
+      if (!scans.length) return;
+      const response = await ApiClient.instance.post(
+        "/dashboard/ticket-validation/events/{id}/offline-sync",
+        {
+          params: { path: { id: eventId } },
+          body: {
+            snapshotId: state.snapshot.snapshotId,
+            deviceId: await getOfflineDeviceId(),
+            scans: scans.map((scan) => ({
+              clientScanId: scan.clientScanId,
+              validationHash: scan.validationHash,
+              scannedAt: scan.scannedAt,
+            })),
+          },
+        },
+      ) as OfflineSyncResponse;
+      await applyOfflineSyncResults(user.properties.id, eventId, response.results);
+      await refreshOfflineState(eventId);
+      const conflicts = response.results.filter((item) => item.status !== "accepted").length;
+      setNotice(conflicts ? t("validation.offlineSyncConflicts", { count: conflicts }) : t("validation.offlineSyncComplete"));
+    } catch {
+      setError(t("validation.offlineSyncFailed"));
+    } finally {
+      setSyncingOffline(false);
+    }
+  };
+
+  const prepareOffline = async () => {
+    if (!user || !selectedEventId || !navigator.onLine) return;
+    setPreparingOffline(true);
+    setError("");
+    setNotice("");
+    try {
+      const snapshot = await ApiClient.instance.post(
+        "/dashboard/ticket-validation/events/{id}/offline-snapshot",
+        { params: { path: { id: selectedEventId } } },
+      ) as OfflineSnapshotResponse;
+      await saveOfflineSnapshot(user.properties.id, snapshot);
+      if ("serviceWorker" in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+        registration.active?.postMessage({ type: "PREPARE_OFFLINE_SCANNER" });
+      }
+      await refreshOfflineState();
+      setNotice(t("validation.offlinePrepared", { count: snapshot.ticketCount }));
+    } catch {
+      setError(t("validation.offlinePrepareFailed"));
+    } finally {
+      setPreparingOffline(false);
+    }
+  };
+
+  const removeOfflineData = async () => {
+    if (!user || !selectedEventId) return;
+    await clearOfflineEventData(user.properties.id, selectedEventId);
+    await refreshOfflineState();
+    setNotice(t("validation.offlineRemoved"));
+  };
 
   const loadStaff = async (eventId: string) => {
     setStaffLoading(true);
@@ -166,6 +269,25 @@ export default function TicketValidationPage() {
     void loadScannerAccesses(selectedEvent.id);
   }, [selectedEvent?.canManage, selectedEvent?.id]);
 
+  useEffect(() => {
+    void clearExpiredOfflineData();
+    void refreshOfflineState();
+  }, [selectedEventId, user?.properties.id]);
+
+  useEffect(() => {
+    const goOnline = () => {
+      setIsOnline(true);
+      void syncOfflineScans();
+    };
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, [selectedEventId, user?.properties.id]);
+
   const submitCompany = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!user || !cui.trim() || !companyName.trim() || !agreementAccepted) return;
@@ -181,12 +303,40 @@ export default function TicketValidationPage() {
     }
   };
 
+  const validateOfflineTicket = async (hash: string) => {
+    if (!user || !selectedEventId) return;
+    const offlineResult = await recordOfflineTicketScan(user.properties.id, selectedEventId, hash);
+    switch (offlineResult.status) {
+      case "accepted":
+        setResult({ status: "offline_valid", ticketType: offlineResult.scan.ticketType, eventTitle: selectedEvent?.title });
+        break;
+      case "duplicate":
+        setResult({ status: "offline_duplicate", ticketType: offlineResult.scan.ticketType, eventTitle: selectedEvent?.title });
+        break;
+      case "unknown":
+        setResult({ status: "offline_unknown" });
+        break;
+      case "expired":
+        setResult({ status: "offline_expired" });
+        break;
+      default:
+        setResult({ status: "offline_unprepared" });
+    }
+    setValidationHash("");
+    await refreshOfflineState();
+  };
+
   const submitValidationHash = async (hash: string) => {
     if (!selectedEventId || !hash.trim()) return;
     setValidating(true);
     setError("");
     setNotice("");
     setResult(undefined);
+    if (!navigator.onLine) {
+      await validateOfflineTicket(hash);
+      setValidating(false);
+      return;
+    }
     try {
       const response = await ApiClient.instance.post(
         "/dashboard/ticket-validation/events/{id}/tickets/validate",
@@ -198,7 +348,11 @@ export default function TicketValidationPage() {
       setResult(response);
       setValidationHash("");
     } catch {
-      setError(t("validation.invalidTicket"));
+      if (!navigator.onLine) {
+        await validateOfflineTicket(hash);
+      } else {
+        setError(t("validation.invalidTicket"));
+      }
     } finally {
       setValidating(false);
     }
@@ -375,7 +529,24 @@ export default function TicketValidationPage() {
             <div><h2 className="text-base font-semibold">{t("validation.verifyTicket")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("validation.ticketHint")}</p></div>
           </div>
 
-          <form onSubmit={validateTicket} className="mt-5 space-y-3">
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/15 p-3">
+            <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+              {isOnline ? <Wifi className="h-4 w-4 shrink-0 text-primary" /> : <WifiOff className="h-4 w-4 shrink-0 text-amber-300" />}
+              <span>{isOnline ? t("validation.online") : t("validation.offline")}</span>
+              {offlineSnapshot && <span className="truncate text-foreground/80">{t("validation.offlineReady", { count: offlineSnapshot.ticketCount })}</span>}
+              {offlinePendingCount > 0 && <span className="font-semibold text-amber-200">{t("validation.offlinePending", { count: offlinePendingCount })}</span>}
+            </div>
+            <div className="flex items-center gap-2">
+              {offlineSnapshot && <button type="button" onClick={() => void removeOfflineData()} className="h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-muted-foreground transition hover:bg-white/5">{t("validation.offlineRemove")}</button>}
+              <button type="button" onClick={() => void (offlinePendingCount ? syncOfflineScans() : prepareOffline())} disabled={!selectedEventId || !isOnline || preparingOffline || syncingOffline} className="inline-flex h-9 items-center gap-2 rounded-lg border border-primary/35 bg-primary/10 px-3 text-xs font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50">
+                {preparingOffline || syncingOffline ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : offlinePendingCount ? <RefreshCw className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+                {offlinePendingCount ? t("validation.syncNow") : t("validation.prepareOffline")}
+              </button>
+            </div>
+            <p className="basis-full text-[11px] leading-4 text-muted-foreground">{t("validation.offlineHint")}</p>
+          </div>
+
+          <form onSubmit={validateTicket} className="mt-4 space-y-3">
             <textarea value={validationHash} onChange={(event) => setValidationHash(event.target.value)} rows={3} placeholder={t("validation.pasteQr")} className="w-full resize-none rounded-lg border border-white/15 bg-white/5 p-3 font-mono text-xs outline-none transition placeholder:font-sans placeholder:text-sm focus:border-primary/60" />
             <QrCameraScanner disabled={!selectedEventId || validating} onScan={(value) => void submitValidationHash(value)} />
             <button type="submit" disabled={!selectedEventId || !validationHash.trim() || validating} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50 sm:w-auto">
@@ -385,9 +556,16 @@ export default function TicketValidationPage() {
           </form>
 
           {result && (
-            <div className={`mt-5 flex gap-3 rounded-lg border p-4 ${result.status === "valid" ? "border-primary/30 bg-primary/10" : "border-amber-400/30 bg-amber-400/10"}`}>
-              {result.status === "valid" ? <CheckCircle2 className="mt-0.5 h-5 w-5 text-primary" /> : <XCircle className="mt-0.5 h-5 w-5 text-amber-300" />}
-              <div><p className="text-sm font-semibold">{result.status === "valid" ? "Bilet valid" : "Bilet deja folosit"}</p><p className="mt-1 text-xs text-muted-foreground">{result.ticketType} - {result.eventTitle}</p></div>
+            <div className={`mt-5 flex gap-3 rounded-lg border p-4 ${result.status === "valid" || result.status === "offline_valid" ? "border-primary/30 bg-primary/10" : "border-amber-400/30 bg-amber-400/10"}`}>
+              {result.status === "valid" || result.status === "offline_valid" ? <CheckCircle2 className="mt-0.5 h-5 w-5 text-primary" /> : <XCircle className="mt-0.5 h-5 w-5 text-amber-300" />}
+              <div><p className="text-sm font-semibold">{
+                result.status === "valid" ? t("scanner.validTicket") :
+                result.status === "offline_valid" ? t("validation.offlineValid") :
+                result.status === "offline_duplicate" ? t("validation.offlineDuplicate") :
+                result.status === "offline_unknown" ? t("validation.offlineUnknown") :
+                result.status === "offline_expired" ? t("validation.offlineExpired") :
+                result.status === "offline_unprepared" ? t("validation.offlineUnprepared") : t("scanner.usedTicket")
+              }</p>{result.ticketType && <p className="mt-1 text-xs text-muted-foreground">{result.ticketType} - {result.eventTitle}</p>}</div>
             </div>
           )}
         </section>

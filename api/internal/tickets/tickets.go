@@ -260,12 +260,79 @@ type CreateScannerSessionRequest struct {
 	Token string `json:"token"`
 }
 
+type OfflineTicketSnapshot struct {
+	TicketID       string `json:"ticketId"`
+	ValidationHash string `json:"validationHash"`
+	TicketType     string `json:"ticketType"`
+}
+
+type OfflineValidationSnapshotResponse struct {
+	SnapshotID  string                  `json:"snapshotId"`
+	EventID     string                  `json:"eventId"`
+	EventTitle  string                  `json:"eventTitle"`
+	GeneratedAt string                  `json:"generatedAt"`
+	ExpiresAt   string                  `json:"expiresAt"`
+	TicketCount int32                   `json:"ticketCount"`
+	Tickets     []OfflineTicketSnapshot `json:"tickets"`
+}
+
+type OfflineTicketScanPayload struct {
+	ClientScanID   string `json:"clientScanId"`
+	ValidationHash string `json:"validationHash"`
+	ScannedAt      string `json:"scannedAt"`
+}
+
+type SyncOfflineTicketScansRequest struct {
+	SnapshotID string                     `json:"snapshotId"`
+	DeviceID   string                     `json:"deviceId"`
+	Scans      []OfflineTicketScanPayload `json:"scans"`
+}
+
+type OfflineTicketSyncResult struct {
+	ClientScanID string `json:"clientScanId"`
+	Status       string `json:"status"`
+	TicketID     string `json:"ticketId,omitempty"`
+	TicketType   string `json:"ticketType,omitempty"`
+	EventTitle   string `json:"eventTitle,omitempty"`
+	ValidatedAt  string `json:"validatedAt,omitempty"`
+}
+
+type SyncOfflineTicketScansResponse struct {
+	Results []OfflineTicketSyncResult `json:"results"`
+}
+
 func (h *Handler) isEventManager(ctx context.Context, eventID, userID pgtype.UUID) (bool, error) {
 	event, err := h.Queries.GetEventWithStats(ctx, eventID)
 	if err != nil {
 		return false, err
 	}
 	return event.OrganizerID == userID, nil
+}
+
+func (h *Handler) canValidateEvent(ctx context.Context, eventID, userID pgtype.UUID) (db.GetEventWithStatsRow, bool, error) {
+	event, err := h.Queries.GetEventWithStats(ctx, eventID)
+	if err != nil {
+		return db.GetEventWithStatsRow{}, false, err
+	}
+	if event.OrganizerID == userID {
+		return event, true, nil
+	}
+	isStaff, err := h.Queries.IsValidationStaffForEvent(ctx, db.IsValidationStaffForEventParams{EventID: eventID, UserID: userID})
+	if err != nil {
+		return event, false, err
+	}
+	return event, isStaff, nil
+}
+
+func parseValidationHash(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	if len(value) != 64 {
+		return "", false
+	}
+	if _, err := hex.DecodeString(value); err != nil {
+		return "", false
+	}
+	return value, true
 }
 
 func (h *Handler) HandleListValidationEvents(w http.ResponseWriter, r *http.Request) {
@@ -689,12 +756,271 @@ func (h *Handler) HandleQuickValidateTicket(w http.ResponseWriter, r *http.Reque
 	router.RespondWithJSON(w, statusCode, response)
 }
 
-func (h *Handler) validateTicketForEvent(ctx context.Context, eventID pgtype.UUID, validationHash string, validatedByUserID, validatedByScannerAccessID pgtype.UUID) (TicketValidationResponse, int, string) {
-	validationHash = strings.TrimSpace(validationHash)
-	if len(validationHash) != 64 {
-		return TicketValidationResponse{}, http.StatusBadRequest, "Codul biletului este invalid"
+func (h *Handler) HandleCreateOfflineSnapshot(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userIDString, err := auth.GetUserIDFromContext(ctx)
+	if err != nil || userIDString == "" {
+		router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat")
+		return
 	}
-	if _, err := hex.DecodeString(validationHash); err != nil {
+
+	var userID, eventID pgtype.UUID
+	if err := userID.Scan(userIDString); err != nil || !userID.Valid {
+		router.RespondWithError(w, http.StatusBadRequest, "ID-ul utilizatorului este invalid")
+		return
+	}
+	if err := eventID.Scan(chi.URLParam(r, "id")); err != nil || !eventID.Valid {
+		router.RespondWithError(w, http.StatusBadRequest, "ID-ul evenimentului este invalid")
+		return
+	}
+
+	event, allowed, err := h.canValidateEvent(ctx, eventID, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		router.RespondWithError(w, http.StatusNotFound, "Evenimentul nu a fost gasit")
+		return
+	}
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Permisiunile de validare nu au putut fi verificate")
+		return
+	}
+	if !allowed {
+		router.RespondWithError(w, http.StatusForbidden, "Nu ai permisiunea sa pregatesti validarea offline pentru acest eveniment")
+		return
+	}
+	if !event.EndTime.Valid || !time.Now().Before(event.EndTime.Time) {
+		router.RespondWithError(w, http.StatusBadRequest, "Evenimentul s-a terminat si nu mai poate fi pregatit offline")
+		return
+	}
+
+	tickets, err := h.Queries.ListOfflineValidationTickets(ctx, eventID)
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Biletele pentru validare offline nu au putut fi incarcate")
+		return
+	}
+	snapshot, err := h.Queries.CreateOfflineValidationSnapshot(ctx, db.CreateOfflineValidationSnapshotParams{
+		EventID:         eventID,
+		CreatedByUserID: userID,
+		TicketCount:     int32(len(tickets)),
+		ExpiresAt:       event.EndTime,
+	})
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Pachetul offline nu a putut fi pregatit")
+		return
+	}
+
+	responseTickets := make([]OfflineTicketSnapshot, 0, len(tickets))
+	for _, ticket := range tickets {
+		responseTickets = append(responseTickets, OfflineTicketSnapshot{
+			TicketID:       common.UUIDToString(ticket.ID),
+			ValidationHash: ticket.ValidationHash,
+			TicketType:     ticket.TicketTypeName,
+		})
+	}
+	router.RespondWithJSON(w, http.StatusOK, OfflineValidationSnapshotResponse{
+		SnapshotID:  common.UUIDToString(snapshot.ID),
+		EventID:     common.UUIDToString(eventID),
+		EventTitle:  event.Title,
+		GeneratedAt: common.TimestampToString(snapshot.CreatedAt),
+		ExpiresAt:   common.TimestampToString(snapshot.ExpiresAt),
+		TicketCount: snapshot.TicketCount,
+		Tickets:     responseTickets,
+	})
+}
+
+func offlineSyncResultFromStored(row db.GetOfflineTicketValidationByClientScanIDRow) OfflineTicketSyncResult {
+	return OfflineTicketSyncResult{
+		ClientScanID: common.UUIDToString(row.ClientScanID),
+		Status:       row.Result,
+		TicketID:     common.UUIDToString(row.TicketID),
+		TicketType:   row.TicketType,
+		EventTitle:   row.EventTitle,
+		ValidatedAt:  common.TimestampToString(row.ServerValidatedAt),
+	}
+}
+
+func (h *Handler) syncOfflineTicketScan(ctx context.Context, eventID, userID, snapshotID pgtype.UUID, deviceID string, scan OfflineTicketScanPayload) (OfflineTicketSyncResult, error) {
+	var clientScanID pgtype.UUID
+	if err := clientScanID.Scan(scan.ClientScanID); err != nil || !clientScanID.Valid {
+		return OfflineTicketSyncResult{}, fmt.Errorf("client scan id invalid")
+	}
+	scannedAt, err := time.Parse(time.RFC3339, scan.ScannedAt)
+	if err != nil {
+		return OfflineTicketSyncResult{}, fmt.Errorf("scan time invalid")
+	}
+
+	tx, err := h.DB.Begin(ctx)
+	if err != nil {
+		return OfflineTicketSyncResult{}, err
+	}
+	defer tx.Rollback(ctx)
+	qtx := h.Queries.WithTx(tx)
+
+	auditID, err := qtx.CreateOfflineTicketValidation(ctx, db.CreateOfflineTicketValidationParams{
+		ClientScanID:      clientScanID,
+		SnapshotID:        snapshotID,
+		EventID:           eventID,
+		ValidatedByUserID: userID,
+		DeviceID:          deviceID,
+		ValidationHash:    strings.TrimSpace(scan.ValidationHash),
+		ScannedAt:         pgtype.Timestamptz{Time: scannedAt, Valid: true},
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		stored, storedErr := qtx.GetOfflineTicketValidationByClientScanID(ctx, db.GetOfflineTicketValidationByClientScanIDParams{
+			ClientScanID:      clientScanID,
+			EventID:           eventID,
+			ValidatedByUserID: userID,
+		})
+		if storedErr != nil {
+			return OfflineTicketSyncResult{}, storedErr
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return OfflineTicketSyncResult{}, err
+		}
+		return offlineSyncResultFromStored(stored), nil
+	}
+	if err != nil {
+		return OfflineTicketSyncResult{}, err
+	}
+
+	result := OfflineTicketSyncResult{ClientScanID: scan.ClientScanID}
+	validationHash, validHash := parseValidationHash(scan.ValidationHash)
+	if !validHash {
+		result.Status = "invalid"
+	} else {
+		ticket, ticketErr := qtx.GetTicketByHash(ctx, validationHash)
+		if errors.Is(ticketErr, pgx.ErrNoRows) {
+			result.Status = "invalid"
+		} else if ticketErr != nil {
+			return OfflineTicketSyncResult{}, ticketErr
+		} else if ticket.EventID != eventID {
+			result.Status = "wrong_event"
+			result.TicketID = common.UUIDToString(ticket.ID)
+			result.TicketType = ticket.TicketTypeName
+			result.EventTitle = ticket.EventTitle
+		} else {
+			result.TicketID = common.UUIDToString(ticket.ID)
+			result.TicketType = ticket.TicketTypeName
+			result.EventTitle = ticket.EventTitle
+			if ticket.IsValidated {
+				result.Status = "already_validated"
+				result.ValidatedAt = common.TimestampToString(ticket.ValidatedAt)
+			} else {
+				validatedAt, validationErr := qtx.ValidateTicketOnce(ctx, db.ValidateTicketOnceParams{
+					ID:                         ticket.ID,
+					ValidatedByUserID:          userID,
+					ValidatedByScannerAccessID: pgtype.UUID{},
+				})
+				if errors.Is(validationErr, pgx.ErrNoRows) {
+					result.Status = "already_validated"
+				} else if validationErr != nil {
+					return OfflineTicketSyncResult{}, validationErr
+				} else {
+					result.Status = "accepted"
+					result.ValidatedAt = common.TimestampToString(validatedAt)
+				}
+			}
+		}
+	}
+
+	var ticketID pgtype.UUID
+	if result.TicketID != "" {
+		_ = ticketID.Scan(result.TicketID)
+	}
+	var validatedAt pgtype.Timestamptz
+	if result.ValidatedAt != "" {
+		if parsed, parseErr := time.Parse(time.RFC3339, result.ValidatedAt); parseErr == nil {
+			validatedAt = pgtype.Timestamptz{Time: parsed, Valid: true}
+		}
+	}
+	if err := qtx.CompleteOfflineTicketValidation(ctx, db.CompleteOfflineTicketValidationParams{
+		ID:                auditID,
+		TicketID:          ticketID,
+		Result:            result.Status,
+		ServerValidatedAt: validatedAt,
+	}); err != nil {
+		return OfflineTicketSyncResult{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return OfflineTicketSyncResult{}, err
+	}
+	return result, nil
+}
+
+func (h *Handler) HandleSyncOfflineScans(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userIDString, err := auth.GetUserIDFromContext(ctx)
+	if err != nil || userIDString == "" {
+		router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat")
+		return
+	}
+	var userID, eventID pgtype.UUID
+	if err := userID.Scan(userIDString); err != nil || !userID.Valid {
+		router.RespondWithError(w, http.StatusBadRequest, "ID-ul utilizatorului este invalid")
+		return
+	}
+	if err := eventID.Scan(chi.URLParam(r, "id")); err != nil || !eventID.Valid {
+		router.RespondWithError(w, http.StatusBadRequest, "ID-ul evenimentului este invalid")
+		return
+	}
+	_, allowed, err := h.canValidateEvent(ctx, eventID, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		router.RespondWithError(w, http.StatusNotFound, "Evenimentul nu a fost gasit")
+		return
+	}
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Permisiunile de validare nu au putut fi verificate")
+		return
+	}
+	if !allowed {
+		router.RespondWithError(w, http.StatusForbidden, "Nu ai permisiunea sa sincronizezi bilete pentru acest eveniment")
+		return
+	}
+
+	var req SyncOfflineTicketScansRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		router.RespondWithError(w, http.StatusBadRequest, "Request body invalid")
+		return
+	}
+	req.DeviceID = strings.TrimSpace(req.DeviceID)
+	if req.DeviceID == "" || len(req.DeviceID) > 128 || len(req.Scans) == 0 || len(req.Scans) > 200 {
+		router.RespondWithError(w, http.StatusBadRequest, "Pachetul de sincronizare este invalid")
+		return
+	}
+	var snapshotID pgtype.UUID
+	if err := snapshotID.Scan(req.SnapshotID); err != nil || !snapshotID.Valid {
+		router.RespondWithError(w, http.StatusBadRequest, "Snapshot-ul offline este invalid")
+		return
+	}
+	snapshot, err := h.Queries.GetOfflineValidationSnapshotForSync(ctx, db.GetOfflineValidationSnapshotForSyncParams{ID: snapshotID, EventID: eventID, CreatedByUserID: userID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		router.RespondWithError(w, http.StatusForbidden, "Snapshot-ul offline nu apartine acestui cont")
+		return
+	}
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Snapshot-ul offline nu a putut fi verificat")
+		return
+	}
+	if !time.Now().Before(snapshot.ExpiresAt.Time) {
+		router.RespondWithError(w, http.StatusBadRequest, "Snapshot-ul offline a expirat")
+		return
+	}
+
+	results := make([]OfflineTicketSyncResult, 0, len(req.Scans))
+	for _, scan := range req.Scans {
+		result, syncErr := h.syncOfflineTicketScan(ctx, eventID, userID, snapshotID, req.DeviceID, scan)
+		if syncErr != nil {
+			router.RespondWithError(w, http.StatusBadRequest, "O scanare offline are date invalide")
+			return
+		}
+		results = append(results, result)
+	}
+	router.RespondWithJSON(w, http.StatusOK, SyncOfflineTicketScansResponse{Results: results})
+}
+
+func (h *Handler) validateTicketForEvent(ctx context.Context, eventID pgtype.UUID, validationHash string, validatedByUserID, validatedByScannerAccessID pgtype.UUID) (TicketValidationResponse, int, string) {
+	var valid bool
+	validationHash, valid = parseValidationHash(validationHash)
+	if !valid {
 		return TicketValidationResponse{}, http.StatusBadRequest, "Codul biletului este invalid"
 	}
 

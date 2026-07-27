@@ -244,6 +244,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/ticket-validation/events/{id}/offline-snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["TicketValidationOperations_createOfflineSnapshot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/ticket-validation/events/{id}/offline-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["TicketValidationOperations_syncOfflineScans"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/ticket-validation/events/{id}/quick-access": {
         parameters: {
             query?: never;
@@ -1012,6 +1044,39 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
+        OfflineTicketScanPayload: {
+            clientScanId: string;
+            validationHash: string;
+            /** Format: date-time */
+            scannedAt: string;
+        };
+        OfflineTicketSnapshot: {
+            ticketId: string;
+            validationHash: string;
+            ticketType: string;
+        };
+        OfflineTicketSyncResult: {
+            clientScanId: string;
+            /** @enum {string} */
+            status: "accepted" | "already_validated" | "invalid" | "wrong_event";
+            ticketId?: string;
+            ticketType?: string;
+            eventTitle?: string;
+            /** Format: date-time */
+            validatedAt?: string;
+        };
+        OfflineValidationSnapshotResponse: {
+            snapshotId: string;
+            eventId: string;
+            eventTitle: string;
+            /** Format: date-time */
+            generatedAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: int32 */
+            ticketCount: number;
+            tickets: components["schemas"]["OfflineTicketSnapshot"][];
+        };
         OrganizerFinanceEventResponse: {
             eventId: string;
             eventTitle: string;
@@ -1120,6 +1185,14 @@ export interface components {
             cui: string;
             companyName: string;
             organizerAgreementVersion: string;
+        };
+        SyncOfflineTicketScansPayload: {
+            snapshotId: string;
+            deviceId: string;
+            scans: components["schemas"]["OfflineTicketScanPayload"][];
+        };
+        SyncOfflineTicketScansResponse: {
+            results: components["schemas"]["OfflineTicketSyncResult"][];
         };
         TicketTypeResponse: {
             id: string;
@@ -1660,6 +1733,126 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ValidationEventResponse"][];
+                };
+            };
+        };
+    };
+    TicketValidationOperations_createOfflineSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfflineValidationSnapshotResponse"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access is forbidden. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    TicketValidationOperations_syncOfflineScans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncOfflineTicketScansPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncOfflineTicketScansResponse"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access is forbidden. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
         };

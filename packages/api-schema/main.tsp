@@ -378,6 +378,47 @@ model TicketValidationResponse {
 	validatedAt: utcDateTime;
 }
 
+model OfflineTicketSnapshot {
+  ticketId: string;
+  validationHash: string;
+  ticketType: string;
+}
+
+model OfflineValidationSnapshotResponse {
+  snapshotId: string;
+  eventId: string;
+  eventTitle: string;
+  generatedAt: utcDateTime;
+  expiresAt: utcDateTime;
+  ticketCount: int32;
+  tickets: OfflineTicketSnapshot[];
+}
+
+model OfflineTicketScanPayload {
+  clientScanId: string;
+  validationHash: string;
+  scannedAt: utcDateTime;
+}
+
+model SyncOfflineTicketScansPayload {
+  snapshotId: string;
+  deviceId: string;
+  scans: OfflineTicketScanPayload[];
+}
+
+model OfflineTicketSyncResult {
+  clientScanId: string;
+  status: "accepted" | "already_validated" | "invalid" | "wrong_event";
+  ticketId?: string;
+  ticketType?: string;
+  eventTitle?: string;
+  validatedAt?: utcDateTime;
+}
+
+model SyncOfflineTicketScansResponse {
+  results: OfflineTicketSyncResult[];
+}
+
 model ValidationEventResponse {
   id: string;
   title: string;
@@ -807,6 +848,33 @@ interface TicketValidationOperations {
   removeValidationStaff(@path id: string, @path userId: string): {
     @statusCode statusCode: 204;
   };
+
+  @post
+  @route("/events/{id}/offline-snapshot")
+  createOfflineSnapshot(@path id: string):
+    | {
+        @statusCode statusCode: 200;
+        @body response: OfflineValidationSnapshotResponse;
+      }
+    | {
+        @statusCode statusCode: 400 | 403 | 404 | 500;
+        @body response: ApiError;
+      };
+
+  @post
+  @route("/events/{id}/offline-sync")
+  syncOfflineScans(
+    @path id: string,
+    @body payload: SyncOfflineTicketScansPayload,
+  ):
+    | {
+        @statusCode statusCode: 200;
+        @body response: SyncOfflineTicketScansResponse;
+      }
+    | {
+        @statusCode statusCode: 400 | 403 | 404 | 500;
+        @body response: ApiError;
+      };
 
   @get
   @route("/events/{id}/quick-access")

@@ -6,6 +6,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { GlobalNotifications } from "@/components/GlobalNotifications";
 import { I18nProvider } from "@/components/I18nProvider";
 import { EventDetailsProvider } from "@/components/EventDetailsSheet";
+import { OfflineScannerServiceWorker } from "@/components/OfflineScannerServiceWorker";
 
 const inter = Inter({
   variable: "--font-inter-sans",
@@ -74,6 +75,7 @@ export default function RootLayout({
               </EventDetailsProvider>
               <GlobalNotifications />
               <BottomNav />
+              <OfflineScannerServiceWorker />
             </DataProvider>
           </I18nProvider>
         </div>

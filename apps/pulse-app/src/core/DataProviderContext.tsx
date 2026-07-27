@@ -12,6 +12,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ApiClient } from "@packages/api-client/src/Client";
 import { User } from "./DataProvider";
 import { useTranslation } from "react-i18next";
+import { clearAllOfflineValidationData } from "@/features/tickets/offlineValidationStore";
 
 const getStoredToken = (): string | null => {
   if (typeof window !== "undefined") {
@@ -129,6 +130,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(() => {
+    void clearAllOfflineValidationData();
     if (typeof window !== "undefined") {
       localStorage.removeItem("pulse_token");
     }

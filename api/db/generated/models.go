@@ -203,6 +203,31 @@ type Notifications struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type OfflineTicketValidations struct {
+	ID                pgtype.UUID        `json:"id"`
+	ClientScanID      pgtype.UUID        `json:"client_scan_id"`
+	SnapshotID        pgtype.UUID        `json:"snapshot_id"`
+	EventID           pgtype.UUID        `json:"event_id"`
+	TicketID          pgtype.UUID        `json:"ticket_id"`
+	ValidatedByUserID pgtype.UUID        `json:"validated_by_user_id"`
+	DeviceID          string             `json:"device_id"`
+	ValidationHash    string             `json:"validation_hash"`
+	ScannedAt         pgtype.Timestamptz `json:"scanned_at"`
+	SyncedAt          pgtype.Timestamptz `json:"synced_at"`
+	ServerValidatedAt pgtype.Timestamptz `json:"server_validated_at"`
+	Result            string             `json:"result"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+}
+
+type OfflineValidationSnapshots struct {
+	ID              pgtype.UUID        `json:"id"`
+	EventID         pgtype.UUID        `json:"event_id"`
+	CreatedByUserID pgtype.UUID        `json:"created_by_user_id"`
+	TicketCount     int32              `json:"ticket_count"`
+	ExpiresAt       pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
 type OrderItems struct {
 	ID           pgtype.UUID        `json:"id"`
 	OrderID      pgtype.UUID        `json:"order_id"`

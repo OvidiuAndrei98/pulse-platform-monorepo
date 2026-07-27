@@ -57,6 +57,32 @@ func (q *Queries) AssignGuestTicketsToUser(ctx context.Context, userID pgtype.UU
 	return err
 }
 
+const completeOfflineTicketValidation = `-- name: CompleteOfflineTicketValidation :exec
+UPDATE offline_ticket_validations
+SET ticket_id = $2,
+    result = $3,
+    synced_at = CURRENT_TIMESTAMP,
+    server_validated_at = $4
+WHERE id = $1
+`
+
+type CompleteOfflineTicketValidationParams struct {
+	ID                pgtype.UUID        `json:"id"`
+	TicketID          pgtype.UUID        `json:"ticket_id"`
+	Result            string             `json:"result"`
+	ServerValidatedAt pgtype.Timestamptz `json:"server_validated_at"`
+}
+
+func (q *Queries) CompleteOfflineTicketValidation(ctx context.Context, arg CompleteOfflineTicketValidationParams) error {
+	_, err := q.db.Exec(ctx, completeOfflineTicketValidation,
+		arg.ID,
+		arg.TicketID,
+		arg.Result,
+		arg.ServerValidatedAt,
+	)
+	return err
+}
+
 const createCheckoutOrder = `-- name: CreateCheckoutOrder :one
 INSERT INTO orders (user_id, event_id, email, total_amount, platform_fee_bani, status)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -94,6 +120,73 @@ func (q *Queries) CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrd
 		&i.StripeCheckoutSessionID,
 		&i.PlatformFeeBani,
 		&i.TicketEmailSentAt,
+	)
+	return i, err
+}
+
+const createOfflineTicketValidation = `-- name: CreateOfflineTicketValidation :one
+INSERT INTO offline_ticket_validations (
+    client_scan_id, snapshot_id, event_id, validated_by_user_id,
+    device_id, validation_hash, scanned_at
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (client_scan_id) DO NOTHING
+RETURNING id
+`
+
+type CreateOfflineTicketValidationParams struct {
+	ClientScanID      pgtype.UUID        `json:"client_scan_id"`
+	SnapshotID        pgtype.UUID        `json:"snapshot_id"`
+	EventID           pgtype.UUID        `json:"event_id"`
+	ValidatedByUserID pgtype.UUID        `json:"validated_by_user_id"`
+	DeviceID          string             `json:"device_id"`
+	ValidationHash    string             `json:"validation_hash"`
+	ScannedAt         pgtype.Timestamptz `json:"scanned_at"`
+}
+
+func (q *Queries) CreateOfflineTicketValidation(ctx context.Context, arg CreateOfflineTicketValidationParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, createOfflineTicketValidation,
+		arg.ClientScanID,
+		arg.SnapshotID,
+		arg.EventID,
+		arg.ValidatedByUserID,
+		arg.DeviceID,
+		arg.ValidationHash,
+		arg.ScannedAt,
+	)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const createOfflineValidationSnapshot = `-- name: CreateOfflineValidationSnapshot :one
+INSERT INTO offline_validation_snapshots (event_id, created_by_user_id, ticket_count, expires_at)
+VALUES ($1, $2, $3, $4)
+RETURNING id, event_id, created_by_user_id, ticket_count, expires_at, created_at
+`
+
+type CreateOfflineValidationSnapshotParams struct {
+	EventID         pgtype.UUID        `json:"event_id"`
+	CreatedByUserID pgtype.UUID        `json:"created_by_user_id"`
+	TicketCount     int32              `json:"ticket_count"`
+	ExpiresAt       pgtype.Timestamptz `json:"expires_at"`
+}
+
+func (q *Queries) CreateOfflineValidationSnapshot(ctx context.Context, arg CreateOfflineValidationSnapshotParams) (OfflineValidationSnapshots, error) {
+	row := q.db.QueryRow(ctx, createOfflineValidationSnapshot,
+		arg.EventID,
+		arg.CreatedByUserID,
+		arg.TicketCount,
+		arg.ExpiresAt,
+	)
+	var i OfflineValidationSnapshots
+	err := row.Scan(
+		&i.ID,
+		&i.EventID,
+		&i.CreatedByUserID,
+		&i.TicketCount,
+		&i.ExpiresAt,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -286,6 +379,75 @@ type DecrementTicketsSoldParams struct {
 func (q *Queries) DecrementTicketsSold(ctx context.Context, arg DecrementTicketsSoldParams) error {
 	_, err := q.db.Exec(ctx, decrementTicketsSold, arg.ID, arg.TicketsSold)
 	return err
+}
+
+const getOfflineTicketValidationByClientScanID = `-- name: GetOfflineTicketValidationByClientScanID :one
+SELECT o.client_scan_id, o.result, o.server_validated_at,
+       COALESCE(t.id, '00000000-0000-0000-0000-000000000000'::uuid) AS ticket_id,
+       COALESCE(tt.name, '') AS ticket_type,
+       COALESCE(e.title, '') AS event_title
+FROM offline_ticket_validations o
+LEFT JOIN tickets t ON t.id = o.ticket_id
+LEFT JOIN ticket_types tt ON tt.id = t.ticket_type_id
+LEFT JOIN events e ON e.id = o.event_id
+WHERE o.client_scan_id = $1
+  AND o.event_id = $2
+  AND o.validated_by_user_id = $3
+`
+
+type GetOfflineTicketValidationByClientScanIDParams struct {
+	ClientScanID      pgtype.UUID `json:"client_scan_id"`
+	EventID           pgtype.UUID `json:"event_id"`
+	ValidatedByUserID pgtype.UUID `json:"validated_by_user_id"`
+}
+
+type GetOfflineTicketValidationByClientScanIDRow struct {
+	ClientScanID      pgtype.UUID        `json:"client_scan_id"`
+	Result            string             `json:"result"`
+	ServerValidatedAt pgtype.Timestamptz `json:"server_validated_at"`
+	TicketID          pgtype.UUID        `json:"ticket_id"`
+	TicketType        string             `json:"ticket_type"`
+	EventTitle        string             `json:"event_title"`
+}
+
+func (q *Queries) GetOfflineTicketValidationByClientScanID(ctx context.Context, arg GetOfflineTicketValidationByClientScanIDParams) (GetOfflineTicketValidationByClientScanIDRow, error) {
+	row := q.db.QueryRow(ctx, getOfflineTicketValidationByClientScanID, arg.ClientScanID, arg.EventID, arg.ValidatedByUserID)
+	var i GetOfflineTicketValidationByClientScanIDRow
+	err := row.Scan(
+		&i.ClientScanID,
+		&i.Result,
+		&i.ServerValidatedAt,
+		&i.TicketID,
+		&i.TicketType,
+		&i.EventTitle,
+	)
+	return i, err
+}
+
+const getOfflineValidationSnapshotForSync = `-- name: GetOfflineValidationSnapshotForSync :one
+SELECT id, event_id, created_by_user_id, ticket_count, expires_at, created_at
+FROM offline_validation_snapshots
+WHERE id = $1 AND event_id = $2 AND created_by_user_id = $3
+`
+
+type GetOfflineValidationSnapshotForSyncParams struct {
+	ID              pgtype.UUID `json:"id"`
+	EventID         pgtype.UUID `json:"event_id"`
+	CreatedByUserID pgtype.UUID `json:"created_by_user_id"`
+}
+
+func (q *Queries) GetOfflineValidationSnapshotForSync(ctx context.Context, arg GetOfflineValidationSnapshotForSyncParams) (OfflineValidationSnapshots, error) {
+	row := q.db.QueryRow(ctx, getOfflineValidationSnapshotForSync, arg.ID, arg.EventID, arg.CreatedByUserID)
+	var i OfflineValidationSnapshots
+	err := row.Scan(
+		&i.ID,
+		&i.EventID,
+		&i.CreatedByUserID,
+		&i.TicketCount,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getOrderForUpdate = `-- name: GetOrderForUpdate :one
@@ -631,6 +793,41 @@ func (q *Queries) IsValidationStaffForEvent(ctx context.Context, arg IsValidatio
 	var is_validation_staff bool
 	err := row.Scan(&is_validation_staff)
 	return is_validation_staff, err
+}
+
+const listOfflineValidationTickets = `-- name: ListOfflineValidationTickets :many
+SELECT t.id, t.validation_hash, tt.name AS ticket_type_name
+FROM tickets t
+JOIN ticket_types tt ON tt.id = t.ticket_type_id
+WHERE tt.event_id = $1
+  AND t.is_validated = FALSE
+ORDER BY t.created_at ASC
+`
+
+type ListOfflineValidationTicketsRow struct {
+	ID             pgtype.UUID `json:"id"`
+	ValidationHash string      `json:"validation_hash"`
+	TicketTypeName string      `json:"ticket_type_name"`
+}
+
+func (q *Queries) ListOfflineValidationTickets(ctx context.Context, eventID pgtype.UUID) ([]ListOfflineValidationTicketsRow, error) {
+	rows, err := q.db.Query(ctx, listOfflineValidationTickets, eventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOfflineValidationTicketsRow
+	for rows.Next() {
+		var i ListOfflineValidationTicketsRow
+		if err := rows.Scan(&i.ID, &i.ValidationHash, &i.TicketTypeName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listOrderTicketEmailDetails = `-- name: ListOrderTicketEmailDetails :many

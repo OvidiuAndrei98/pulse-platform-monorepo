@@ -238,6 +238,8 @@ func (app *Application) BuildRouter() http.Handler {
 		RevokeScannerAccess:   ticketingHandler.HandleRevokeScannerAccess,
 		CreateScannerSession:  ticketingHandler.HandleCreateScannerSession,
 		QuickValidateTicket:   ticketingHandler.HandleQuickValidateTicket,
+		CreateOfflineSnapshot: ticketingHandler.HandleCreateOfflineSnapshot,
+		SyncOfflineScans:      ticketingHandler.HandleSyncOfflineScans,
 	}
 
 	// 3. Generăm routerul decuplat din internal/router folosind SetupRouter

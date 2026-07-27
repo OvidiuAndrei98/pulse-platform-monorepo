@@ -17,6 +17,7 @@ type Querier interface {
 	AddValidationStaff(ctx context.Context, arg AddValidationStaffParams) error
 	AssignGuestOrdersToUser(ctx context.Context, userID pgtype.UUID) error
 	AssignGuestTicketsToUser(ctx context.Context, userID pgtype.UUID) error
+	CompleteOfflineTicketValidation(ctx context.Context, arg CompleteOfflineTicketValidationParams) error
 	ConnectFriends(ctx context.Context, arg ConnectFriendsParams) error
 	CountUnreadNotifications(ctx context.Context, userID pgtype.UUID) (int64, error)
 	CreateCheckIn(ctx context.Context, arg CreateCheckInParams) (CheckIns, error)
@@ -25,6 +26,8 @@ type Querier interface {
 	CreateEventArtist(ctx context.Context, arg CreateEventArtistParams) error
 	CreateFriendRequest(ctx context.Context, arg CreateFriendRequestParams) (int64, error)
 	CreateNotification(ctx context.Context, arg CreateNotificationParams) error
+	CreateOfflineTicketValidation(ctx context.Context, arg CreateOfflineTicketValidationParams) (pgtype.UUID, error)
+	CreateOfflineValidationSnapshot(ctx context.Context, arg CreateOfflineValidationSnapshotParams) (OfflineValidationSnapshots, error)
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (Orders, error)
 	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) error
 	CreateOrganizerEventNotifications(ctx context.Context, id pgtype.UUID) error
@@ -53,6 +56,8 @@ type Querier interface {
 	GetFriendsGoingToEvent(ctx context.Context, arg GetFriendsGoingToEventParams) ([]GetFriendsGoingToEventRow, error)
 	GetFriendshipRelationship(ctx context.Context, arg GetFriendshipRelationshipParams) (string, error)
 	GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAreaParams) ([]GetLiveEventsInAreaRow, error)
+	GetOfflineTicketValidationByClientScanID(ctx context.Context, arg GetOfflineTicketValidationByClientScanIDParams) (GetOfflineTicketValidationByClientScanIDRow, error)
+	GetOfflineValidationSnapshotForSync(ctx context.Context, arg GetOfflineValidationSnapshotForSyncParams) (OfflineValidationSnapshots, error)
 	GetOrderForUpdate(ctx context.Context, id pgtype.UUID) (Orders, error)
 	GetOrderItems(ctx context.Context, orderID pgtype.UUID) ([]OrderItems, error)
 	GetOrganizerByCUI(ctx context.Context, cui string) (OrganizerProfiles, error)
@@ -80,6 +85,7 @@ type Querier interface {
 	ListEventsWithStats(ctx context.Context, organizerID pgtype.UUID) ([]ListEventsWithStatsRow, error)
 	ListFriendEventActivity(ctx context.Context, arg ListFriendEventActivityParams) ([]ListFriendEventActivityRow, error)
 	ListNotifications(ctx context.Context, arg ListNotificationsParams) ([]ListNotificationsRow, error)
+	ListOfflineValidationTickets(ctx context.Context, eventID pgtype.UUID) ([]ListOfflineValidationTicketsRow, error)
 	ListOrderTicketEmailDetails(ctx context.Context, id pgtype.UUID) ([]ListOrderTicketEmailDetailsRow, error)
 	ListOrganizerFinanceEvents(ctx context.Context, organizerID pgtype.UUID) ([]ListOrganizerFinanceEventsRow, error)
 	ListSavedEvents(ctx context.Context, userID pgtype.UUID) ([]Events, error)

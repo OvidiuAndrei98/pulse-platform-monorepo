@@ -204,6 +204,54 @@ SET is_validated = TRUE,
 WHERE id = $1 AND is_validated = FALSE
 RETURNING validated_at;
 
+-- name: ListOfflineValidationTickets :many
+SELECT t.id, t.validation_hash, tt.name AS ticket_type_name
+FROM tickets t
+JOIN ticket_types tt ON tt.id = t.ticket_type_id
+WHERE tt.event_id = $1
+  AND t.is_validated = FALSE
+ORDER BY t.created_at ASC;
+
+-- name: CreateOfflineValidationSnapshot :one
+INSERT INTO offline_validation_snapshots (event_id, created_by_user_id, ticket_count, expires_at)
+VALUES ($1, $2, $3, $4)
+RETURNING id, event_id, created_by_user_id, ticket_count, expires_at, created_at;
+
+-- name: GetOfflineValidationSnapshotForSync :one
+SELECT id, event_id, created_by_user_id, ticket_count, expires_at, created_at
+FROM offline_validation_snapshots
+WHERE id = $1 AND event_id = $2 AND created_by_user_id = $3;
+
+-- name: CreateOfflineTicketValidation :one
+INSERT INTO offline_ticket_validations (
+    client_scan_id, snapshot_id, event_id, validated_by_user_id,
+    device_id, validation_hash, scanned_at
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (client_scan_id) DO NOTHING
+RETURNING id;
+
+-- name: GetOfflineTicketValidationByClientScanID :one
+SELECT o.client_scan_id, o.result, o.server_validated_at,
+       COALESCE(t.id, '00000000-0000-0000-0000-000000000000'::uuid) AS ticket_id,
+       COALESCE(tt.name, '') AS ticket_type,
+       COALESCE(e.title, '') AS event_title
+FROM offline_ticket_validations o
+LEFT JOIN tickets t ON t.id = o.ticket_id
+LEFT JOIN ticket_types tt ON tt.id = t.ticket_type_id
+LEFT JOIN events e ON e.id = o.event_id
+WHERE o.client_scan_id = $1
+  AND o.event_id = $2
+  AND o.validated_by_user_id = $3;
+
+-- name: CompleteOfflineTicketValidation :exec
+UPDATE offline_ticket_validations
+SET ticket_id = $2,
+    result = $3,
+    synced_at = CURRENT_TIMESTAMP,
+    server_validated_at = $4
+WHERE id = $1;
+
 -- name: GetUserTickets :many
 SELECT t.*, tt.name AS ticket_type_name, e.id AS event_id, e.title AS event_title,
        e.location_name, e.start_time, e.end_time,

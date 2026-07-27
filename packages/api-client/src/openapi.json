@@ -478,6 +478,150 @@
         }
       }
     },
+    "/dashboard/ticket-validation/events/{id}/offline-snapshot": {
+      "post": {
+        "operationId": "TicketValidationOperations_createOfflineSnapshot",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfflineValidationSnapshotResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access is forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/ticket-validation/events/{id}/offline-sync": {
+      "post": {
+        "operationId": "TicketValidationOperations_syncOfflineScans",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncOfflineTicketScansResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access is forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncOfflineTicketScansPayload"
+              }
+            }
+          }
+        }
+      }
+    },
     "/dashboard/ticket-validation/events/{id}/quick-access": {
       "get": {
         "operationId": "TicketValidationOperations_listScannerAccess",
@@ -2598,6 +2742,120 @@
           }
         }
       },
+      "OfflineTicketScanPayload": {
+        "type": "object",
+        "required": [
+          "clientScanId",
+          "validationHash",
+          "scannedAt"
+        ],
+        "properties": {
+          "clientScanId": {
+            "type": "string"
+          },
+          "validationHash": {
+            "type": "string"
+          },
+          "scannedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OfflineTicketSnapshot": {
+        "type": "object",
+        "required": [
+          "ticketId",
+          "validationHash",
+          "ticketType"
+        ],
+        "properties": {
+          "ticketId": {
+            "type": "string"
+          },
+          "validationHash": {
+            "type": "string"
+          },
+          "ticketType": {
+            "type": "string"
+          }
+        }
+      },
+      "OfflineTicketSyncResult": {
+        "type": "object",
+        "required": [
+          "clientScanId",
+          "status"
+        ],
+        "properties": {
+          "clientScanId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "already_validated",
+              "invalid",
+              "wrong_event"
+            ]
+          },
+          "ticketId": {
+            "type": "string"
+          },
+          "ticketType": {
+            "type": "string"
+          },
+          "eventTitle": {
+            "type": "string"
+          },
+          "validatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OfflineValidationSnapshotResponse": {
+        "type": "object",
+        "required": [
+          "snapshotId",
+          "eventId",
+          "eventTitle",
+          "generatedAt",
+          "expiresAt",
+          "ticketCount",
+          "tickets"
+        ],
+        "properties": {
+          "snapshotId": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "eventTitle": {
+            "type": "string"
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ticketCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tickets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OfflineTicketSnapshot"
+            }
+          }
+        }
+      },
       "OrganizerFinanceEventResponse": {
         "type": "object",
         "required": [
@@ -2970,6 +3228,42 @@
           },
           "organizerAgreementVersion": {
             "type": "string"
+          }
+        }
+      },
+      "SyncOfflineTicketScansPayload": {
+        "type": "object",
+        "required": [
+          "snapshotId",
+          "deviceId",
+          "scans"
+        ],
+        "properties": {
+          "snapshotId": {
+            "type": "string"
+          },
+          "deviceId": {
+            "type": "string"
+          },
+          "scans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OfflineTicketScanPayload"
+            }
+          }
+        }
+      },
+      "SyncOfflineTicketScansResponse": {
+        "type": "object",
+        "required": [
+          "results"
+        ],
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OfflineTicketSyncResult"
+            }
           }
         }
       },
