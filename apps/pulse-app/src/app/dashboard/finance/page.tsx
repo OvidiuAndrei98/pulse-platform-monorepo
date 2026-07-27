@@ -6,6 +6,8 @@ import {
   BookOpenText,
   CalendarDays,
   CircleDollarSign,
+  ChevronLeft,
+  ChevronRight,
   ReceiptText,
   Ticket,
   WalletCards,
@@ -22,11 +24,14 @@ const formatRon = (amount: number) =>
     maximumFractionDigits: 2,
   }).format(amount);
 
+const SALES_PAGE_SIZE = 10;
+
 export default function FinancePage() {
   const { user } = useDataProvider();
   const [items, setItems] = useState<OrganizerFinanceEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [salesPage, setSalesPage] = useState(1);
 
   useEffect(() => {
     if (!user) return;
@@ -67,6 +72,12 @@ export default function FinancePage() {
   const platformFeeRon = totals.platformFeeBani / 100;
   const estimatedPayoutRon = totals.grossRevenueRon - platformFeeRon;
   const sales = items.filter((item) => item.ticketsSold > 0);
+  const salesPageCount = Math.max(1, Math.ceil(sales.length / SALES_PAGE_SIZE));
+  const visibleSales = sales.slice((salesPage - 1) * SALES_PAGE_SIZE, salesPage * SALES_PAGE_SIZE);
+
+  useEffect(() => {
+    setSalesPage((page) => Math.min(page, salesPageCount));
+  }, [salesPageCount]);
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-28 pt-7 text-foreground sm:px-6 sm:pt-9">
@@ -121,7 +132,7 @@ export default function FinancePage() {
                   <span>Eveniment</span><span>Bilete</span><span>Incasari</span><span>Comision</span><span>Estimat</span>
                 </div>
                 <div className="divide-y divide-white/10">
-                  {sales.map((item) => {
+                  {visibleSales.map((item) => {
                     const commissionRon = item.platformFeeBani / 100;
                     return (
                       <article key={item.eventId} className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1.6fr)_0.7fr_0.9fr_0.9fr_0.9fr] md:items-center md:gap-4">
@@ -137,6 +148,15 @@ export default function FinancePage() {
                     );
                   })}
                 </div>
+                {salesPageCount > 1 && (
+                  <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3">
+                    <span className="text-xs text-muted-foreground">Pagina {salesPage} din {salesPageCount}</span>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => setSalesPage((page) => Math.max(1, page - 1))} disabled={salesPage === 1} aria-label="Pagina anterioara" className="grid h-8 w-8 place-items-center rounded-md border border-white/15 text-muted-foreground transition hover:bg-white/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-35"><ChevronLeft className="h-4 w-4" /></button>
+                      <button type="button" onClick={() => setSalesPage((page) => Math.min(salesPageCount, page + 1))} disabled={salesPage === salesPageCount} aria-label="Pagina urmatoare" className="grid h-8 w-8 place-items-center rounded-md border border-white/15 text-muted-foreground transition hover:bg-white/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-35"><ChevronRight className="h-4 w-4" /></button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="border border-dashed border-white/15 px-5 py-8 text-sm text-muted-foreground">

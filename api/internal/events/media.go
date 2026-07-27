@@ -24,6 +24,7 @@ import (
 const (
 	maxEventBannerBytes = 5 << 20
 	eventBannerPrefix   = "events/"
+	avatarPrefix        = "avatars/"
 )
 
 func (h *Handler) HandleUploadEventBanner(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +91,7 @@ func (h *Handler) HandleUploadEventBanner(w http.ResponseWriter, r *http.Request
 func (h *Handler) HandleGetEventBanner(w http.ResponseWriter, r *http.Request) {
 	bucket := os.Getenv("S3_BUCKET")
 	key := strings.TrimPrefix(chi.URLParam(r, "*"), "/")
-	if bucket == "" || !strings.HasPrefix(key, eventBannerPrefix) {
+	if bucket == "" || (!strings.HasPrefix(key, eventBannerPrefix) && !strings.HasPrefix(key, avatarPrefix)) {
 		http.NotFound(w, r)
 		return
 	}

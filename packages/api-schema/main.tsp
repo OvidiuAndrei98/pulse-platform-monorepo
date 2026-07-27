@@ -119,6 +119,7 @@ model EventResponse {
   category: string;
   status: string;
   bannerUrl?: string;
+  googlePlaceId: string;
   locationName: string;
   city: string;
   vibe: string;
@@ -406,6 +407,10 @@ interface UserOperations {
   ): User;
 
   @summary("Obține biletele utilizatorului curent")
+  @post
+  @route("/me/avatar")
+  uploadAvatar(): User;
+
   @get
   @route("/me/tickets")
   getUserTickets(): UserTicketResponse[];

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Script from "next/dist/client/script";
+import Script from "next/script";
 import { Resolver, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -32,7 +32,7 @@ export const eventFormSchema = z.object({
   vibe: z.string().min(1, "Selecteaza vibe-ul"),
   latitude: z.coerce.number({ error: "Latitudinea este obligatorie" }),
   longitude: z.coerce.number({ error: "Longitudinea este obligatorie" }),
-  googlePlaceId: z.string().min(1, "Google Place ID este obligatoriu"),
+  googlePlaceId: z.string(),
   description: z.string().min(10, "Descrierea trebuie sa aiba cel putin 10 caractere"),
   bannerUrl: z.string().url("Introdu un URL valid").optional().or(z.literal("").transform(() => undefined)),
   status: z.enum(["draft", "published"]).default("draft"),
@@ -75,7 +75,7 @@ function getDefaultValues(values?: EventFormProps["initialValues"]): EventFormVa
 }
 
 export default function EventForm({ initialValues, onSubmit, onDelete }: EventFormProps) {
-  const [mapsReady, setMapsReady] = useState(false);
+  const [mapsReady, setMapsReady] = useState(() => typeof window !== "undefined" && Boolean(window.google?.maps?.places));
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const isEditMode = Boolean(initialValues && Object.keys(initialValues).length);
   const form = useForm<EventFormValues>({
@@ -86,6 +86,10 @@ export default function EventForm({ initialValues, onSubmit, onDelete }: EventFo
   useEffect(() => {
     if (isEditMode) form.reset(getDefaultValues(initialValues));
   }, [form, initialValues, isEditMode]);
+
+  useEffect(() => {
+    if (window.google?.maps?.places) setMapsReady(true);
+  }, []);
 
   const handleFormSubmit = (data: EventFormValues) => {
     onSubmit({
@@ -99,7 +103,7 @@ export default function EventForm({ initialValues, onSubmit, onDelete }: EventFo
   return (
     <>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
-        <Script src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`} strategy="afterInteractive" onLoad={() => setMapsReady(true)} />
+        <Script id="google-maps-places" src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`} strategy="afterInteractive" onLoad={() => setMapsReady(true)} onReady={() => setMapsReady(true)} />
         <EventDetailsSection form={form} mapsReady={mapsReady} />
         <TicketTypesSection form={form} />
         <div className="mt-6 flex flex-wrap items-center gap-3">

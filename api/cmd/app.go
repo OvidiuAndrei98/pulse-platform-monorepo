@@ -145,13 +145,14 @@ func (app *Application) BuildRouter() http.Handler {
 		Login:    authHandler.Login,
 
 		// Users
-		GetMe:          usersHandler.HandleGetMe,
-		UpdateMe:       usersHandler.HandleUpdateMe,
-		CreateUser:     usersHandler.HandleCreateUser,
-		GetUser:        usersHandler.HandleGetUser,
-		GetUserTickets: ticketingHandler.HandleGetUserTickets,
-		GetUserOrders:  ticketingHandler.HandleGetUserOrders,
-		GetSavedEvents: eventsHandler.HandleListSavedEvents,
+		GetMe:            usersHandler.HandleGetMe,
+		UpdateMe:         usersHandler.HandleUpdateMe,
+		UploadUserAvatar: usersHandler.HandleUploadAvatar,
+		CreateUser:       usersHandler.HandleCreateUser,
+		GetUser:          usersHandler.HandleGetUser,
+		GetUserTickets:   ticketingHandler.HandleGetUserTickets,
+		GetUserOrders:    ticketingHandler.HandleGetUserOrders,
+		GetSavedEvents:   eventsHandler.HandleListSavedEvents,
 
 		// Events
 		CreateEvent:             eventsHandler.HandleCreateEvent,
@@ -196,10 +197,10 @@ func (app *Application) BuildRouter() http.Handler {
 		GetSocialFeed:          interactionsHandler.HandleGetSocialFeed,
 
 		// Organizer
-		GetOrganizerProfile:    organizerHandler.HandleGetOrganizerProfile,
-		CreateOrganizerProfile: organizerHandler.HandleCreateOrganizerProfile,
+		GetOrganizerProfile:      organizerHandler.HandleGetOrganizerProfile,
+		CreateOrganizerProfile:   organizerHandler.HandleCreateOrganizerProfile,
 		AcceptOrganizerAgreement: organizerHandler.HandleAcceptOrganizerAgreement,
-		GetOrganizerFinance:    organizerHandler.HandleGetOrganizerFinance,
+		GetOrganizerFinance:      organizerHandler.HandleGetOrganizerFinance,
 
 		// Tickets
 		GetEventTicketTypes:   ticketingHandler.HandleGetTicketTypesForEvent,

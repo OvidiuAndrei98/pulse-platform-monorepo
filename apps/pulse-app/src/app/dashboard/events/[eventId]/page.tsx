@@ -16,7 +16,7 @@ import { useParams } from "next/navigation";
 export default function EditEventPage() {
   const router = useRouter();
   const { user } = useDataProvider();
-  const [event, setEvent] = useState<Event>({} as Event);
+  const [event, setEvent] = useState<Event>();
   const [loading, setLoading] = useState(true);
   const params = useParams();
   const eventId = params?.eventId as string;
@@ -73,14 +73,14 @@ export default function EditEventPage() {
           </h1>
         </div>
 
-        <EventForm
+        {loading ? <div className="mt-6 h-[34rem] animate-pulse rounded-lg border border-white/10 bg-white/[0.03]" /> : event ? <EventForm
           onSubmit={(data) => handleSave(data)}
           initialValues={{
             ...event,
             status: event.status === "published" ? "published" : "draft",
           }}
           onDelete={handleDelete}
-        />
+        /> : <p className="mt-6 text-sm text-muted-foreground">Evenimentul nu a putut fi incarcat.</p>}
       </div>
     </div>
   );

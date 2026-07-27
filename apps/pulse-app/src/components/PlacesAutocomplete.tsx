@@ -11,6 +11,8 @@ export interface PlaceResult {
 
 interface PlacesAutocompleteProps {
   onSelect: (place: PlaceResult) => void;
+  value: string;
+  onChange: (value: string) => void;
   ready: boolean;
   placeholder?: string;
   className?: string;
@@ -25,6 +27,8 @@ declare global {
 
 export function PlacesAutocomplete({
   onSelect,
+  value,
+  onChange,
   ready,
   placeholder = "Caută locația evenimentului...",
   className,
@@ -32,6 +36,11 @@ export function PlacesAutocomplete({
   const inputRef = useRef<HTMLInputElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const autocompleteRef = useRef<any>(null);
+  const onSelectRef = useRef(onSelect);
+
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+  }, [onSelect]);
 
   useEffect(() => {
     if (!ready || !inputRef.current || !window.google?.maps?.places) return;
@@ -50,7 +59,7 @@ export function PlacesAutocomplete({
         const place = autocompleteRef.current.getPlace();
         if (!place?.place_id || !place?.geometry?.location) return;
 
-        onSelect({
+        onSelectRef.current({
           placeId: place.place_id,
           name: place.name ?? "",
           lat: place.geometry.location.lat(),
@@ -62,12 +71,14 @@ export function PlacesAutocomplete({
     return () => {
       window.google?.maps?.event?.removeListener(listener);
     };
-  }, [ready, onSelect]);
+  }, [ready]);
 
   return (
     <input
       ref={inputRef}
       type="text"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       className={className}
       autoComplete="off"

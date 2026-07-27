@@ -1635,6 +1635,25 @@
         }
       }
     },
+    "/users/me/avatar": {
+      "post": {
+        "operationId": "UserOperations_uploadAvatar",
+        "summary": "Obține biletele utilizatorului curent",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/users/me/orders": {
       "get": {
         "operationId": "UserOperations_getUserOrders",
@@ -1681,7 +1700,6 @@
     "/users/me/tickets": {
       "get": {
         "operationId": "UserOperations_getUserTickets",
-        "summary": "Obține biletele utilizatorului curent",
         "parameters": [],
         "responses": {
           "200": {
@@ -2020,6 +2038,7 @@
           "title",
           "category",
           "status",
+          "googlePlaceId",
           "locationName",
           "city",
           "vibe",
@@ -2052,6 +2071,9 @@
             "type": "string"
           },
           "bannerUrl": {
+            "type": "string"
+          },
+          "googlePlaceId": {
             "type": "string"
           },
           "locationName": {

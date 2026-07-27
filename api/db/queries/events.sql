@@ -1,5 +1,5 @@
 -- name: GetLiveEventsInArea :many
-SELECT id, organizer_id, title, description, category, status, banner_url, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at
+SELECT id, organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at
 FROM events 
 WHERE is_live = true 
   AND latitude BETWEEN $1 AND $2 
@@ -8,7 +8,7 @@ WHERE is_live = true
 -- name: ListEvents :many
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
+    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     (
@@ -126,7 +126,7 @@ RETURNING *; -- RETURNING * va aduce status-ul modificat
 -- name: GetEventByID :one
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
+    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     -- Numărul total de check-ins (vizibil public)

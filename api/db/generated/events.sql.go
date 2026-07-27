@@ -214,7 +214,7 @@ const getEventByID = `-- name: GetEventByID :one
 
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
+    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     -- Numărul total de check-ins (vizibil public)
@@ -274,6 +274,7 @@ type GetEventByIDRow struct {
 	Category         string             `json:"category"`
 	Status           string             `json:"status"`
 	BannerUrl        pgtype.Text        `json:"banner_url"`
+	GooglePlaceID    string             `json:"google_place_id"`
 	LocationName     string             `json:"location_name"`
 	City             string             `json:"city"`
 	Vibe             string             `json:"vibe"`
@@ -301,6 +302,7 @@ func (q *Queries) GetEventByID(ctx context.Context, arg GetEventByIDParams) (Get
 		&i.Category,
 		&i.Status,
 		&i.BannerUrl,
+		&i.GooglePlaceID,
 		&i.LocationName,
 		&i.City,
 		&i.Vibe,
@@ -485,7 +487,7 @@ func (q *Queries) GetFriendsGoingToEvent(ctx context.Context, arg GetFriendsGoin
 }
 
 const getLiveEventsInArea = `-- name: GetLiveEventsInArea :many
-SELECT id, organizer_id, title, description, category, status, banner_url, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at
+SELECT id, organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at
 FROM events 
 WHERE is_live = true 
   AND latitude BETWEEN $1 AND $2 
@@ -500,22 +502,23 @@ type GetLiveEventsInAreaParams struct {
 }
 
 type GetLiveEventsInAreaRow struct {
-	ID           pgtype.UUID        `json:"id"`
-	OrganizerID  pgtype.UUID        `json:"organizer_id"`
-	Title        string             `json:"title"`
-	Description  pgtype.Text        `json:"description"`
-	Category     string             `json:"category"`
-	Status       string             `json:"status"`
-	BannerUrl    pgtype.Text        `json:"banner_url"`
-	LocationName string             `json:"location_name"`
-	City         string             `json:"city"`
-	Vibe         string             `json:"vibe"`
-	Latitude     float64            `json:"latitude"`
-	Longitude    float64            `json:"longitude"`
-	StartTime    pgtype.Timestamptz `json:"start_time"`
-	EndTime      pgtype.Timestamptz `json:"end_time"`
-	IsLive       pgtype.Bool        `json:"is_live"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	ID            pgtype.UUID        `json:"id"`
+	OrganizerID   pgtype.UUID        `json:"organizer_id"`
+	Title         string             `json:"title"`
+	Description   pgtype.Text        `json:"description"`
+	Category      string             `json:"category"`
+	Status        string             `json:"status"`
+	BannerUrl     pgtype.Text        `json:"banner_url"`
+	GooglePlaceID string             `json:"google_place_id"`
+	LocationName  string             `json:"location_name"`
+	City          string             `json:"city"`
+	Vibe          string             `json:"vibe"`
+	Latitude      float64            `json:"latitude"`
+	Longitude     float64            `json:"longitude"`
+	StartTime     pgtype.Timestamptz `json:"start_time"`
+	EndTime       pgtype.Timestamptz `json:"end_time"`
+	IsLive        pgtype.Bool        `json:"is_live"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAreaParams) ([]GetLiveEventsInAreaRow, error) {
@@ -540,6 +543,7 @@ func (q *Queries) GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAr
 			&i.Category,
 			&i.Status,
 			&i.BannerUrl,
+			&i.GooglePlaceID,
 			&i.LocationName,
 			&i.City,
 			&i.Vibe,
@@ -563,7 +567,7 @@ func (q *Queries) GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAr
 const listEvents = `-- name: ListEvents :many
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
+    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     (
@@ -638,6 +642,7 @@ type ListEventsRow struct {
 	Category         string             `json:"category"`
 	Status           string             `json:"status"`
 	BannerUrl        pgtype.Text        `json:"banner_url"`
+	GooglePlaceID    string             `json:"google_place_id"`
 	LocationName     string             `json:"location_name"`
 	City             string             `json:"city"`
 	Vibe             string             `json:"vibe"`
@@ -682,6 +687,7 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 			&i.Category,
 			&i.Status,
 			&i.BannerUrl,
+			&i.GooglePlaceID,
 			&i.LocationName,
 			&i.City,
 			&i.Vibe,

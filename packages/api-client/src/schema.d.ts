@@ -645,6 +645,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Obține biletele utilizatorului curent */
+        post: operations["UserOperations_uploadAvatar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/me/orders": {
         parameters: {
             query?: never;
@@ -685,7 +702,6 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Obține biletele utilizatorului curent */
         get: operations["UserOperations_getUserTickets"];
         put?: never;
         post?: never;
@@ -795,6 +811,7 @@ export interface components {
             category: string;
             status: string;
             bannerUrl?: string;
+            googlePlaceId: string;
             locationName: string;
             city: string;
             vibe: string;
@@ -2285,6 +2302,26 @@ export interface operations {
                 };
             };
         };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
+    UserOperations_uploadAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description The request has succeeded. */
             200: {

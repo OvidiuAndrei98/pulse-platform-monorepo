@@ -27,13 +27,14 @@ type HandlersConfig struct {
 	Login    http.HandlerFunc
 
 	// Users
-	GetMe          http.HandlerFunc
-	UpdateMe       http.HandlerFunc
-	CreateUser     http.HandlerFunc
-	GetUser        http.HandlerFunc
-	GetUserTickets http.HandlerFunc
-	GetUserOrders  http.HandlerFunc
-	GetSavedEvents http.HandlerFunc
+	GetMe            http.HandlerFunc
+	UpdateMe         http.HandlerFunc
+	UploadUserAvatar http.HandlerFunc
+	CreateUser       http.HandlerFunc
+	GetUser          http.HandlerFunc
+	GetUserTickets   http.HandlerFunc
+	GetUserOrders    http.HandlerFunc
+	GetSavedEvents   http.HandlerFunc
 
 	// Events
 	CreateEvent             http.HandlerFunc
@@ -78,10 +79,10 @@ type HandlersConfig struct {
 	GetSocialFeed          http.HandlerFunc
 
 	// Organizer
-	GetOrganizerProfile    http.HandlerFunc
-	CreateOrganizerProfile http.HandlerFunc
+	GetOrganizerProfile      http.HandlerFunc
+	CreateOrganizerProfile   http.HandlerFunc
 	AcceptOrganizerAgreement http.HandlerFunc
-	GetOrganizerFinance    http.HandlerFunc
+	GetOrganizerFinance      http.HandlerFunc
 
 	// Tickets
 	GetEventTicketTypes   http.HandlerFunc
@@ -184,6 +185,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Post("/", cfg.CreateUser)
 				r.Get("/me", cfg.GetMe)
 				r.Put("/me", cfg.UpdateMe)
+				r.Post("/me/avatar", cfg.UploadUserAvatar)
 				r.Get("/me/tickets", cfg.GetUserTickets)
 				r.Get("/me/orders", cfg.GetUserOrders)
 				r.Get("/me/saved-events", cfg.GetSavedEvents)

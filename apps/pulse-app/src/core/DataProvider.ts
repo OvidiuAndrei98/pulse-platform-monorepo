@@ -18,6 +18,7 @@ export type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 export type EventAttendee = ReadableSchema<"EventAttendeeResponse">;
 export type OrganizerFinanceEvent = ReadableSchema<"OrganizerFinanceEventResponse">;
 export type OrganizerProfile = ReadableSchema<"OrganizerProfile">;
+export type ValidationEvent = ReadableSchema<"ValidationEventResponse">;
 
 let publicEventsCache: { data: Event[]; timestamp: number } | null = null;
 let publicEventsPromise: Promise<Event[]> | null = null;
@@ -49,6 +50,12 @@ export class User {
    */
   get properties(): Readonly<UserFields> {
     return this._properties;
+  }
+
+  async uploadAvatar(file: File): Promise<UserData> {
+    const updatedUser = await ApiClient.instance.uploadProfileAvatar(file);
+    this._properties = updatedUser;
+    return updatedUser;
   }
 
   async getOrganizerProfile(): Promise<OrganizerProfile | undefined> {
@@ -111,6 +118,10 @@ export class User {
 
   async getOrganizerFinance(): Promise<OrganizerFinanceEvent[]> {
     return ApiClient.instance.get("/dashboard/finance");
+  }
+
+  async getValidationEvents(): Promise<ValidationEvent[]> {
+    return ApiClient.instance.get("/dashboard/ticket-validation/events");
   }
 
   private _organizerEvents?: Event[];

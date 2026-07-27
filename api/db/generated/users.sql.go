@@ -146,6 +146,36 @@ func (q *Queries) UpdateUserActivation(ctx context.Context, arg UpdateUserActiva
 	return err
 }
 
+const updateUserAvatar = `-- name: UpdateUserAvatar :one
+UPDATE users
+SET avatar_url = $2
+WHERE id = $1
+RETURNING id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id
+`
+
+type UpdateUserAvatarParams struct {
+	ID        pgtype.UUID `json:"id"`
+	AvatarUrl pgtype.Text `json:"avatar_url"`
+}
+
+func (q *Queries) UpdateUserAvatar(ctx context.Context, arg UpdateUserAvatarParams) (Users, error) {
+	row := q.db.QueryRow(ctx, updateUserAvatar, arg.ID, arg.AvatarUrl)
+	var i Users
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.PasswordHash,
+		&i.AvatarUrl,
+		&i.Role,
+		&i.Bio,
+		&i.CreatedAt,
+		&i.IsActive,
+		&i.GoogleID,
+	)
+	return i, err
+}
+
 const updateUserPassword = `-- name: UpdateUserPassword :exec
 UPDATE users SET password_hash = $1 WHERE id = $2
 `

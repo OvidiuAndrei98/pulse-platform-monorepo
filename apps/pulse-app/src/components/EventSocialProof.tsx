@@ -59,9 +59,6 @@ export function EventSocialProof({ eventId }: { eventId: string }) {
   }
 
   const isTicketHolder = social.currentUserStatus === "has_ticket";
-  const followingFriends = social.friends.filter(
-    (friend) => friend.status !== "has_ticket",
-  );
   const attendanceCount =
     social.ticketsSoldCount === undefined
       ? social.goingCount
@@ -112,29 +109,6 @@ export function EventSocialProof({ eventId }: { eventId: string }) {
           </Link>
         )}
       </div>
-
-      {followingFriends.length > 0 && (
-        <div className="mt-3 flex items-center gap-3">
-          <div className="flex -space-x-2">
-            {followingFriends.slice(0, 3).map((friend) => (
-              <div
-                key={friend.id}
-                title={friend.username}
-                className="relative grid h-8 w-8 place-items-center overflow-hidden rounded-full border-2 border-background bg-surface text-[10px] font-bold text-primary"
-              >
-                {friend.avatarUrl ? (
-                  <img src={friend.avatarUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  friend.username.slice(0, 1).toUpperCase()
-                )}
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {`${followingFriends[0].username}${followingFriends.length > 1 ? ` si alti ${followingFriends.length - 1} prieteni urmaresc evenimentul` : " urmareste evenimentul"}`}
-          </p>
-        </div>
-      )}
     </section>
   );
 }

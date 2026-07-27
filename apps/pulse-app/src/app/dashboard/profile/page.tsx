@@ -12,9 +12,10 @@ import {
 import { useEffect, useState } from "react";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { OrganizerProfile, UserData } from "@/core/DataProvider";
+import { ProfileAvatarUpload } from "@/components/profile/ProfileAvatarUpload";
 
 export default function ProfilePage() {
-  const { user } = useDataProvider();
+  const { user, reloadSession } = useDataProvider();
 
   const [organizerProfile, setOrganizerProfile] = useState<OrganizerProfile>();
   const [profileLoading, setProfileLoading] = useState(true);
@@ -62,11 +63,17 @@ export default function ProfilePage() {
         <div className="space-y-6">
           {/* 1. IDENTITY SUMMARY CARD */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-5 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-sm">
-            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-primary/15 text-primary">
-              <span className="text-xl font-bold">
-                {user?.properties?.username?.slice(0, 2).toUpperCase() || "US"}
-              </span>
-            </div>
+            {user ? (
+              <ProfileAvatarUpload
+                user={user}
+                size="medium"
+                onUploaded={() => void reloadSession()}
+              />
+            ) : (
+              <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+                <span className="text-xl font-bold">US</span>
+              </div>
+            )}
 
             <div className="min-w-0 flex-1 space-y-1">
               <p className="truncate text-base font-semibold">

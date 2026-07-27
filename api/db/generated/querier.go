@@ -96,6 +96,7 @@ type Querier interface {
 	UpdateTicketType(ctx context.Context, arg UpdateTicketTypeParams) error
 	UpdateUserActivated(ctx context.Context, id pgtype.UUID) error
 	UpdateUserActivation(ctx context.Context, arg UpdateUserActivationParams) error
+	UpdateUserAvatar(ctx context.Context, arg UpdateUserAvatarParams) (Users, error)
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (UpdateUserProfileRow, error)
 	UpsertEventRsvp(ctx context.Context, arg UpsertEventRsvpParams) error

@@ -26,6 +26,7 @@ export function EventDetailsSection({
     formState: { errors },
   } = form;
   const currentStatus = watch("status");
+  const locationName = watch("locationName");
 
   return (
     <section className="space-y-4 rounded-3xl border border-white/[0.06] bg-white/[0.02] p-5">
@@ -125,6 +126,11 @@ export function EventDetailsSection({
             />
             <PlacesAutocomplete
               ready={mapsReady}
+              value={locationName}
+              onChange={(value) => {
+                setValue("locationName", value, { shouldDirty: true, shouldValidate: true });
+                setValue("googlePlaceId", "", { shouldDirty: true });
+              }}
               className={`${eventInputClass} pl-10`}
               onSelect={(location: PlaceResult) => {
                 setValue("locationName", location.name, {

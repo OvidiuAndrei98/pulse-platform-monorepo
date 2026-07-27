@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { OrganizerSidebar } from "./components/DashboardSidebar";
 import { OrganizerHeader } from "./components/DashboardSliderMenu";
+import { DashboardAccessGuard } from "./components/DashboardAccessGuard";
 
 export const metadata: Metadata = {
   title: "Organizer — Eventify",
@@ -13,12 +14,14 @@ export default function OrganizerLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen ">
-      <OrganizerSidebar />
-      <div className="md:pl-60">
-        <OrganizerHeader />
-        {children}
+    <DashboardAccessGuard>
+      <div className="min-h-screen ">
+        <OrganizerSidebar />
+        <div className="md:pl-60">
+          <OrganizerHeader />
+          {children}
+        </div>
       </div>
-    </div>
+    </DashboardAccessGuard>
   );
 }

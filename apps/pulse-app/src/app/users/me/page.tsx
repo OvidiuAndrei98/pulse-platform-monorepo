@@ -7,6 +7,7 @@ import { Event } from "@/core/DataProvider";
 import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
 import { TicketQrCode } from "@/components/tickets/TicketQrCode";
 import { ProfileConnectionQr } from "@/components/social/ProfileConnectionQr";
+import { ProfileAvatarUpload } from "@/components/profile/ProfileAvatarUpload";
 import Link from "next/link";
 import { useState } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
@@ -106,7 +107,7 @@ function groupTicketsByEvent(tickets: TicketData[]) {
 }
 
 export default function MePage() {
-  const { user, loading, logout, isOrganizer } = useDataProvider();
+  const { user, loading, logout, isOrganizer, reloadSession } = useDataProvider();
   const router = useRouter();
   const [tab, setTab] = useState<"active" | "history">("active");
   const [openTicket, setOpenTicket] = useState<TicketData | null>(null);
@@ -216,14 +217,11 @@ export default function MePage() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-12 items-start">
           <div className="md:col-span-4 md:sticky md:top-16 space-y-6">
             <header className="flex items-center gap-4">
-              <div className="relative">
-                <div className="h-20 w-20 rounded-full bg-white/5 ring-2 ring-primary/50 flex items-center justify-center">
-                  <User className="h-10 w-10 text-muted-foreground" />
-                </div>
-                <span className="absolute -bottom-1 -right-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                  PRO
-                </span>
-              </div>
+              <ProfileAvatarUpload
+                user={user}
+                showBadge
+                onUploaded={() => void reloadSession()}
+              />
               <div className="min-w-0 flex-1">
                 <h1 className="truncate text-2xl font-semibold tracking-tight">
                   {user.properties.username}

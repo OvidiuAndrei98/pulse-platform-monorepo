@@ -154,17 +154,18 @@ export default function EventsListPage() {
             const goingCount = e.stats?.goingCount ?? 0;
             const ticketHolderCount = e.stats?.ticketHolderCount ?? 0;
             const manualGoing = Math.max(0, goingCount - ticketHolderCount);
-            const estimatedMin = ticketHolderCount + manualGoing + Math.round(interestedCount * 0.15);
-            const estimatedMax = ticketHolderCount + manualGoing + Math.round(interestedCount * 0.2);
+            const attendanceCount = soldTickets + manualGoing;
+            const estimatedMin = attendanceCount + Math.round(interestedCount * 0.15);
+            const estimatedMax = attendanceCount + Math.round(interestedCount * 0.2);
 
             return (
               <Link
                 key={e.id}
                 href={`/dashboard/events/${e.id}`}
-                className="event-card group flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-5 rounded-3xl border border-white/10 bg-white/5 p-4 sm:p-5 transition hover:border-white/20 hover:bg-white/[0.08]"
+                className="event-card group flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-4 sm:p-5 transition hover:border-white/20 hover:bg-white/[0.08] lg:grid lg:grid-cols-[minmax(0,1fr)_17.5rem_minmax(12rem,0.72fr)] lg:items-center lg:gap-5"
               >
                 {/* Top Half on Mobile / Left Side on Desktop */}
-                  <div className="flex items-start gap-3.5 sm:gap-4 min-w-0 flex-1">
+                  <div className="flex min-w-0 items-start gap-3.5 sm:gap-4">
                   {/* Banner Image */}
                   <div className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-2xl border border-white/10">
                     <img
@@ -213,8 +214,8 @@ export default function EventsListPage() {
                       </span>
                     </div>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/10 pt-3 text-[11px] text-muted-foreground md:hidden">
-                      <span className="inline-flex items-center gap-1"><UsersRound className="h-3.5 w-3.5 text-primary" /> {goingCount} merg</span>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/10 pt-3 text-[11px] text-muted-foreground lg:hidden">
+                      <span className="inline-flex items-center gap-1"><UsersRound className="h-3.5 w-3.5 text-primary" /> {attendanceCount} merg</span>
                       <span className="inline-flex items-center gap-1"><Heart className="h-3.5 w-3.5 text-primary" /> {interestedCount} interesati</span>
                       <span>Estimare {estimatedMin}-{estimatedMax}</span>
                     </div>
@@ -222,9 +223,9 @@ export default function EventsListPage() {
                 </div>
 
                 {/* Bottom Half on Mobile / Right Side on Desktop */}
-                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 w-full md:w-auto shrink-0 pt-3 md:pt-0 border-t border-white/5 md:border-t-0">
+                <div className="grid w-full grid-cols-2 gap-2.5 border-t border-white/10 pt-4 sm:gap-3 lg:border-t-0 lg:pt-0">
                   {/* Tickets Pill */}
-                  <div className="flex flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-3 space-y-2 min-w-0 md:min-w-[130px] md:w-[140px]">
+                  <div className="flex min-w-0 flex-col justify-between rounded-lg border border-white/10 bg-black/10 p-3 space-y-2">
                     <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
                       <span className="flex items-center gap-1.5 truncate">
                         <Ticket className="h-3 w-3 text-primary shrink-0" />
@@ -247,7 +248,7 @@ export default function EventsListPage() {
                   </div>
 
                   {/* Revenue Pill */}
-                  <div className="flex flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-3 space-y-2 min-w-0 md:min-w-[130px] md:w-[140px]">
+                  <div className="flex min-w-0 flex-col justify-between rounded-lg border border-white/10 bg-black/10 p-3 space-y-2">
                     <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
                       <Euro className="h-3 w-3 text-primary shrink-0" />
                       Venit
@@ -261,10 +262,13 @@ export default function EventsListPage() {
                   </div>
                 </div>
 
-                <div className="hidden border-t border-white/10 pt-3 text-[11px] text-muted-foreground md:flex md:items-center md:justify-end md:gap-3">
-                  <span className="inline-flex items-center gap-1"><UsersRound className="h-3.5 w-3.5 text-primary" /> {goingCount} merg</span>
-                  <span className="inline-flex items-center gap-1"><Heart className="h-3.5 w-3.5 text-primary" /> {interestedCount} interesati</span>
-                  <span>Estimare {estimatedMin}-{estimatedMax} persoane</span>
+                <div className="hidden border-l border-white/10 pl-5 text-[11px] text-muted-foreground lg:flex lg:min-w-0 lg:flex-col lg:justify-center lg:gap-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">Audienta</p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                    <span className="inline-flex items-center gap-1 font-medium text-foreground"><UsersRound className="h-3.5 w-3.5 text-primary" /> {attendanceCount} merg</span>
+                    <span className="inline-flex items-center gap-1"><Heart className="h-3.5 w-3.5 text-primary" /> {interestedCount} interesati</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">Estimare {estimatedMin}-{estimatedMax} persoane</span>
                 </div>
               </Link>
             );

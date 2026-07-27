@@ -206,6 +206,17 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusBadRequest, "Vibe is required")
 		return
 	}
+	googlePlaceID := req.GooglePlaceID
+	if googlePlaceID == "" {
+		locationChanged := req.LocationName != existingEvent.LocationName ||
+			req.Latitude != existingEvent.Latitude ||
+			req.Longitude != existingEvent.Longitude
+		if locationChanged {
+			router.RespondWithError(w, http.StatusBadRequest, "Selecteaza o locatie din sugestiile Google dupa ce modifici locatia")
+			return
+		}
+		googlePlaceID = existingEvent.GooglePlaceID
+	}
 
 	startTime, err := time.Parse(time.RFC3339, req.StartTime)
 	if err != nil {
@@ -242,7 +253,7 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		LocationName:  req.LocationName,
 		Latitude:      req.Latitude,
 		Longitude:     req.Longitude,
-		GooglePlaceID: req.GooglePlaceID,
+		GooglePlaceID: googlePlaceID,
 		Description:   pgtype.Text{String: req.Description, Valid: true},
 		Status:        req.Status,
 		BannerUrl:     bannerURL,

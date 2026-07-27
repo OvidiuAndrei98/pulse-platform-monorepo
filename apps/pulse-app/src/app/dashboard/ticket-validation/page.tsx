@@ -19,12 +19,11 @@ import {
 } from "lucide-react";
 import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
-import { OrganizerProfile } from "@/core/DataProvider";
+import { OrganizerProfile, ValidationEvent } from "@/core/DataProvider";
 import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
 
 const ORGANIZER_AGREEMENT_VERSION = "2026-07-27";
 
-type ValidationEvent = ReadableSchema<"ValidationEventResponse">;
 type ValidationStaff = ReadableSchema<"ValidationStaffResponse">;
 type TicketValidation = ReadableSchema<"TicketValidationResponse">;
 type ScannerAccess = ReadableSchema<"ScannerAccessResponse">;
@@ -112,12 +111,13 @@ export default function TicketValidationPage() {
 
   useEffect(() => {
     if (!user) return;
+    const currentUser = user;
     let cancelled = false;
 
     async function load() {
       setEventsLoading(true);
       try {
-        const response = await ApiClient.instance.get("/dashboard/ticket-validation/events");
+        const response = await currentUser.getValidationEvents();
         if (cancelled) return;
         setEvents(response);
         setSelectedEventId((current) => current || response[0]?.id || "");

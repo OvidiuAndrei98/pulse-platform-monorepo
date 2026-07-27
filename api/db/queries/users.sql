@@ -29,6 +29,12 @@ SET
 WHERE id = $1
 RETURNING id, username, email, role, avatar_url, bio, created_at;
 
+-- name: UpdateUserAvatar :one
+UPDATE users
+SET avatar_url = $2
+WHERE id = $1
+RETURNING *;
+
 -- name: UpdateUserActivated :exec
 UPDATE users
 SET is_active = true

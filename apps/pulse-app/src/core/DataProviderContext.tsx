@@ -74,15 +74,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       const userData = await ApiClient.instance.get("/users/me");
 
-      setUser((currentUserInstance) => {
-        if (
-          currentUserInstance &&
-          currentUserInstance.properties.id === userData.id
-        ) {
-          return currentUserInstance;
-        }
-        return new User(userData);
-      });
+      setUser(new User(userData));
     } catch (err) {
       setError(
         err instanceof Error

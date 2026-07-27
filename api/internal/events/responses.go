@@ -38,6 +38,7 @@ type EventResponse struct {
 	Category     string               `json:"category"`
 	Status       string               `json:"status"`
 	BannerUrl    string               `json:"bannerUrl,omitempty"`
+	GooglePlaceID string               `json:"googlePlaceId"`
 	LocationName string               `json:"locationName"`
 	City         string               `json:"city"`
 	Vibe         string               `json:"vibe"`
@@ -112,6 +113,7 @@ func MapFromDBListEvents(row db.ListEventsRow) EventResponse {
 		Category:     row.Category,
 		Status:       row.Status,
 		BannerUrl:    row.BannerUrl.String,
+		GooglePlaceID: row.GooglePlaceID,
 		LocationName: row.LocationName,
 		City:         row.City,
 		Vibe:         row.Vibe,
@@ -149,6 +151,7 @@ func MapFromDBListEventsWithStats(row db.ListEventsWithStatsRow) EventResponse {
 		Category:     row.Category,
 		Status:       row.Status,
 		BannerUrl:    row.BannerUrl.String,
+		GooglePlaceID: row.GooglePlaceID,
 		LocationName: row.LocationName,
 		City:         row.City,
 		Vibe:         row.Vibe,
@@ -186,6 +189,7 @@ func MapFromDBGetEvent(row db.GetEventByIDRow) EventResponse {
 		Category:     row.Category,
 		Status:       row.Status,
 		BannerUrl:    row.BannerUrl.String,
+		GooglePlaceID: row.GooglePlaceID,
 		LocationName: row.LocationName,
 		City:         row.City,
 		Vibe:         row.Vibe,
@@ -223,6 +227,7 @@ func MapFromDBGetEventWithStats(row db.GetEventWithStatsRow) EventResponse {
 		Category:     row.Category,
 		Status:       row.Status,
 		BannerUrl:    row.BannerUrl.String,
+		GooglePlaceID: row.GooglePlaceID,
 		LocationName: row.LocationName,
 		City:         row.City,
 		Vibe:         row.Vibe,
