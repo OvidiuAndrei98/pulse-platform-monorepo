@@ -5,6 +5,7 @@ import { DataProvider } from "@/core/DataProviderContext";
 import { BottomNav } from "@/components/BottomNav";
 import { GlobalNotifications } from "@/components/GlobalNotifications";
 import { I18nProvider } from "@/components/I18nProvider";
+import { EventDetailsProvider } from "@/components/EventDetailsSheet";
 
 const inter = Inter({
   variable: "--font-inter-sans",
@@ -67,8 +68,10 @@ export default function RootLayout({
         <div className="relative z-10">
           <I18nProvider>
             <DataProvider>
-              {children}
-              {modal}
+              <EventDetailsProvider>
+                {children}
+                {modal}
+              </EventDetailsProvider>
               <GlobalNotifications />
               <BottomNav />
             </DataProvider>

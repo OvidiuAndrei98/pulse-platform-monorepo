@@ -1,13 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { MapPin, Bookmark, CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Event } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { EventFriendsPreview } from "@/components/social/EventFriendsPreview";
 import { formatEventDateShort } from "@/features/events/dateFormat";
+import { useEventDetails } from "@/components/EventDetailsSheet";
 
 interface EventCardProps {
   event: Event;
@@ -23,6 +23,7 @@ export function EventCard({
   live,
 }: EventCardProps) {
   const { user } = useDataProvider();
+  const { open } = useEventDetails();
   const [favorited, setFavorited] = useState(Boolean(event.stats?.isFavorited));
   const formattedDate = formatEventDateShort(event.startTime);
 
@@ -48,9 +49,18 @@ export function EventCard({
 
   return (
     <div
-      className={`group relative w-[260px] shrink-0 rounded-[24px] border border-white/10 bg-[#121217]/40 backdrop-blur-md p-2 shadow-2xl transition-all duration-200 hover:border-white/20 hover:bg-[#121217]/60 ${className}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => open(event)}
+      onKeyDown={(keyboardEvent) => {
+        if (keyboardEvent.key === "Enter" || keyboardEvent.key === " ") {
+          keyboardEvent.preventDefault();
+          open(event);
+        }
+      }}
+      className={`group relative w-[260px] shrink-0 cursor-pointer rounded-[24px] border border-white/10 bg-[#121217]/40 p-2 shadow-2xl transition-all duration-200 hover:border-white/20 hover:bg-[#121217]/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${className}`}
     >
-      <Link href={`/events/${event.id}`} className="block">
+      <div className="block">
         {/* 1. CONTAINER IMAGINE */}
         <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[18px]">
           <Image
@@ -140,7 +150,7 @@ export function EventCard({
             </span>
           </div>
         </div>
-      </Link>
+      </div>
     </div>
   );
 }
