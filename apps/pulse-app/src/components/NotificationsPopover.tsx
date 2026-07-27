@@ -16,9 +16,12 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { User, type AppNotification } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { formatEventDateShort } from "@/features/events/dateFormat";
+import { useTranslation } from "react-i18next";
 
 export function NotificationsPopover() {
   const { user } = useDataProvider();
+  const { t } = useTranslation();
   const router = useRouter();
   const { notifications, notificationsLoading } = User.useNotifications(user);
   const [open, setOpen] = useState(false);
@@ -64,7 +67,7 @@ export function NotificationsPopover() {
             key="bell"
             layoutId="notif-morph"
             type="button"
-            aria-label="Notifications"
+            aria-label={t("notifications.title")}
             onClick={() => setOpen(true)}
             className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-full border border-white/15 bg-white/[0.06] text-foreground transform-gpu"
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
@@ -100,11 +103,11 @@ export function NotificationsPopover() {
                 className="flex items-center gap-2"
               >
                 <Bell className="h-4 w-4 text-primary" strokeWidth={2.2} />
-                <span className="text-sm font-semibold">Notifications</span>
+                <span className="text-sm font-semibold">{t("notifications.title")}</span>
               </motion.div>
               <button
                 type="button"
-                aria-label="Close notifications"
+                aria-label={t("notifications.close")}
                 onClick={() => setOpen(false)}
                 className="grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/5 transition-transform active:scale-95"
               >
@@ -131,7 +134,7 @@ export function NotificationsPopover() {
                 </li>
               ) : notifications.length === 0 ? (
                 <li className="px-3 py-8 text-center text-xs text-muted-foreground">
-                  No notifications yet.
+                  {t("notifications.empty")}
                 </li>
               ) : (
                 notifications.map((notification) => (
@@ -148,14 +151,14 @@ export function NotificationsPopover() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <p className="truncate text-sm font-medium">
-                          {notification.title}
+                          {notificationText(notification, t).title}
                         </p>
                         <span className="shrink-0 text-[11px] text-muted-foreground">
-                          {formatRelativeTime(notification.createdAt)}
+                          {formatRelativeTime(notification.createdAt, t)}
                         </span>
                       </div>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {notification.body}
+                        {notificationText(notification, t).body}
                       </p>
                     </div>
                     {!notification.isRead && (
@@ -202,15 +205,22 @@ function NotificationIcon({ notification }: { notification: AppNotification }) {
   );
 }
 
-function formatRelativeTime(value: string) {
+function notificationText(notification: AppNotification, t: (key: string, options?: Record<string, unknown>) => string) {
+  if (notification.type === "organizer_event") {
+    return { title: t("notifications.organizerEventTitle"), body: t("notifications.organizerEventBody", { name: notification.actorUsername || "Glow" }) };
+  }
+  if (notification.type === "ticket_purchased") {
+    return { title: t("notifications.ticketPurchasedTitle"), body: t("notifications.ticketPurchasedBody") };
+  }
+  return { title: notification.title, body: notification.body };
+}
+
+function formatRelativeTime(value: string, t: (key: string, options?: Record<string, unknown>) => string) {
   const elapsed = Math.max(0, Date.now() - new Date(value).getTime());
   const minutes = Math.floor(elapsed / 60000);
-  if (minutes < 1) return "now";
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 1) return t("notifications.now");
+  if (minutes < 60) return t("notifications.minutes", { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  return new Date(value).toLocaleDateString("en-US", {
-    day: "numeric",
-    month: "short",
-  });
+  if (hours < 24) return t("notifications.hours", { count: hours });
+  return formatEventDateShort(value);
 }

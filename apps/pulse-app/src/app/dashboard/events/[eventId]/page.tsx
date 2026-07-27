@@ -12,8 +12,10 @@ import EventForm from "../../components/EventsForm";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import { useTranslation } from "react-i18next";
 
 export default function EditEventPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { user } = useDataProvider();
   const [event, setEvent] = useState<Event>();
@@ -69,7 +71,7 @@ export default function EditEventPage() {
 
         <div className="mt-4 flex items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            {"Editare eveniment"}
+            {t("eventForm.editEvent")}
           </h1>
         </div>
 
@@ -80,7 +82,7 @@ export default function EditEventPage() {
             status: event.status === "published" ? "published" : "draft",
           }}
           onDelete={handleDelete}
-        /> : <p className="mt-6 text-sm text-muted-foreground">Evenimentul nu a putut fi incarcat.</p>}
+        /> : <p className="mt-6 text-sm text-muted-foreground">{t("eventForm.loadFailed")}</p>}
       </div>
     </div>
   );

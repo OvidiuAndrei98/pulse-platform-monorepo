@@ -98,21 +98,21 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 	qtx := h.Queries.WithTx(tx)
 
 	newEvent, err := qtx.CreateEvent(ctx, db.CreateEventParams{
-		OrganizerID:   organizerUUID,
-		Title:         req.Title,
-		Description:   pgtype.Text{String: req.Description, Valid: req.Description != ""},
-		Category:      req.Category,
-		BannerUrl:     pgtype.Text{String: req.BannerUrl, Valid: req.BannerUrl != ""},
-		GooglePlaceID: req.GooglePlaceId,
-		LocationName:  req.LocationName,
-		City:          req.City,
-		Vibe:          req.Vibe,
+		OrganizerID:                organizerUUID,
+		Title:                      req.Title,
+		Description:                pgtype.Text{String: req.Description, Valid: req.Description != ""},
+		Category:                   req.Category,
+		BannerUrl:                  pgtype.Text{String: req.BannerUrl, Valid: req.BannerUrl != ""},
+		GooglePlaceID:              req.GooglePlaceId,
+		LocationName:               req.LocationName,
+		City:                       req.City,
+		Vibe:                       req.Vibe,
 		OrganizerAbsorbsServiceFee: req.OrganizerAbsorbsServiceFee,
-		Latitude:      req.Latitude,
-		Longitude:     req.Longitude,
-		StartTime:     pgtype.Timestamptz{Time: startTime, Valid: true},
-		EndTime:       pgtype.Timestamptz{Time: endTime, Valid: true},
-		Status:        req.Status,
+		Latitude:                   req.Latitude,
+		Longitude:                  req.Longitude,
+		StartTime:                  pgtype.Timestamptz{Time: startTime, Valid: true},
+		EndTime:                    pgtype.Timestamptz{Time: endTime, Valid: true},
+		Status:                     req.Status,
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la crearea evenimentului: "+err.Error())
@@ -138,6 +138,11 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if err := saveEventLineup(ctx, qtx, newEvent.ID, req.Lineup, false); err != nil {
+		router.RespondWithError(w, http.StatusBadRequest, "Lineup-ul nu a putut fi salvat: "+err.Error())
+		return
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la salvarea tranzacției")
 		return
@@ -148,8 +153,14 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Întoarcem evenimentul proaspăt creat mapat curat în DTO-ul de răspuns
-	router.RespondWithJSON(w, http.StatusCreated, (newEvent))
+	createdEvent, err := h.Queries.GetEventWithStats(ctx, newEvent.ID)
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Evenimentul a fost creat, dar nu a putut fi reincarcat")
+		return
+	}
+
+	// Răspunsul respectă contractul EventResponse, inclusiv lineup-ul nou creat.
+	router.RespondWithJSON(w, http.StatusCreated, MapFromDBGetEventWithStats(createdEvent))
 }
 
 // HandleEditEvent - Modificare eveniment
@@ -251,20 +262,20 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 
 	// 4. Update Eveniment
 	event, err := qtx.EditEvent(r.Context(), db.EditEventParams{
-		ID:            eventUUID,
-		Title:         req.Title,
-		Category:      req.Category,
-		StartTime:     pgtype.Timestamptz{Time: startTime, Valid: true},
-		EndTime:       pgtype.Timestamptz{Time: endTime, Valid: true},
-		LocationName:  req.LocationName,
-		Latitude:      req.Latitude,
-		Longitude:     req.Longitude,
-		GooglePlaceID: googlePlaceID,
-		Description:   pgtype.Text{String: req.Description, Valid: true},
-		Status:        req.Status,
-		BannerUrl:     bannerURL,
-		City:          req.City,
-		Vibe:          req.Vibe,
+		ID:                         eventUUID,
+		Title:                      req.Title,
+		Category:                   req.Category,
+		StartTime:                  pgtype.Timestamptz{Time: startTime, Valid: true},
+		EndTime:                    pgtype.Timestamptz{Time: endTime, Valid: true},
+		LocationName:               req.LocationName,
+		Latitude:                   req.Latitude,
+		Longitude:                  req.Longitude,
+		GooglePlaceID:              googlePlaceID,
+		Description:                pgtype.Text{String: req.Description, Valid: true},
+		Status:                     req.Status,
+		BannerUrl:                  bannerURL,
+		City:                       req.City,
+		Vibe:                       req.Vibe,
 		OrganizerAbsorbsServiceFee: req.OrganizerAbsorbsServiceFee,
 		// Adaugă restul câmpurilor din EditEventParams generat de sqlc
 	})
@@ -307,6 +318,13 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			router.RespondWithError(w, http.StatusInternalServerError, "Eroare la salvarea biletului: "+err.Error())
+			return
+		}
+	}
+
+	if req.Lineup != nil {
+		if err := saveEventLineup(r.Context(), qtx, eventUUID, *req.Lineup, true); err != nil {
+			router.RespondWithError(w, http.StatusBadRequest, "Lineup-ul nu a putut fi salvat: "+err.Error())
 			return
 		}
 	}
@@ -437,13 +455,13 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 	const pageSize = int32(20)
 
 	params := db.ListEventsParams{
-		Category:  category,
-		City:      city,
-		Vibe:      vibe,
-		StartsAfter: startsAfter,
+		Category:     category,
+		City:         city,
+		Vibe:         vibe,
+		StartsAfter:  startsAfter,
 		StartsBefore: startsBefore,
-		ReqLimit:  pageSize,
-		ReqOffset: page * pageSize,
+		ReqLimit:     pageSize,
+		ReqOffset:    page * pageSize,
 	}
 
 	// Setăm valoarea pentru starea Check-In a utilizatorului curent

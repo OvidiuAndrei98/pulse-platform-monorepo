@@ -6,6 +6,8 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { formatEventDateShort } from "@/features/events/dateFormat";
+import { useTranslation } from "react-i18next";
 
 type Filter = "all" | "published" | "draft";
 
@@ -19,6 +21,7 @@ function EventRowSkeleton() {
 }
 
 export default function EventsListPage() {
+  const { t, i18n } = useTranslation();
   const { user } = useDataProvider();
   const { events, eventsLoading, eventsError } = User.useOrganizerEvents(user);
   const [filter, setFilter] = useState<Filter>("all");
@@ -34,9 +37,9 @@ export default function EventsListPage() {
   }, [filter, q, events]);
 
   const filterOptions = [
-    { id: "all", label: "Toate" },
-    { id: "published", label: "Publicate" },
-    { id: "draft", label: "Draft" },
+    { id: "all", label: t("organizerEvents.all") },
+    { id: "published", label: t("organizerEvents.published") },
+    { id: "draft", label: t("organizerEvents.draft") },
   ] as const;
 
   return (
@@ -46,15 +49,15 @@ export default function EventsListPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">
-              Organizer
+              {t("dashboardNav.organizer")}
             </p>
             <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              Evenimente
+              {t("organizerEvents.title")}
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground">
               {(events || []).length} total ·{" "}
               {(events || []).filter((e) => e.status === "published").length}{" "}
-              publicate
+              {t("organizerEvents.published")}
             </p>
           </div>
 
@@ -63,7 +66,7 @@ export default function EventsListPage() {
             className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-xs font-bold text-primary-foreground transition hover:opacity-90 active:scale-[0.98] shrink-0 w-full sm:w-auto shadow-sm"
           >
             <Plus className="h-4 w-4" strokeWidth={2.5} />
-            <span>Event nou</span>
+            <span>{t("organizerEvents.newEvent")}</span>
           </Link>
         </div>
 
@@ -75,7 +78,7 @@ export default function EventsListPage() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Caută eveniment..."
+              placeholder={t("organizerEvents.searchPlaceholder")}
               className="h-11 w-full rounded-2xl border border-white/10 bg-white/5 pl-10 pr-4 text-xs sm:text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-white/[0.08]"
             />
           </div>
@@ -120,13 +123,13 @@ export default function EventsListPage() {
           )}
 
           {!eventsLoading && eventsError && (
-            <div className="border border-red-400/30 bg-red-400/[0.06] p-6 text-center"><p className="text-sm font-medium text-red-200">Evenimentele nu au putut fi incarcate.</p><p className="mt-1 text-xs text-red-200/70">Reincearca in cateva momente.</p></div>
+            <div className="border border-red-400/30 bg-red-400/[0.06] p-6 text-center"><p className="text-sm font-medium text-red-200">{t("organizerEvents.loadFailed")}</p><p className="mt-1 text-xs text-red-200/70">{t("organizerEvents.retryHint")}</p></div>
           )}
 
           {!eventsLoading && !eventsError && filtered.length === 0 && (
             <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center">
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Niciun eveniment care se potrivește filtrelor.
+                {t("organizerEvents.noMatch")}
               </p>
             </div>
           )}
@@ -187,7 +190,7 @@ export default function EventsListPage() {
                             : "bg-white/10 text-muted-foreground")
                         }
                       >
-                        {e.status === "published" ? "Publicat" : "Draft"}
+                        {e.status === "published" ? t("organizerEvents.published") : t("organizerEvents.draft")}
                       </span>
                       <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
                         {e.category}
@@ -203,10 +206,7 @@ export default function EventsListPage() {
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-0.5">
                       <span className="flex items-center gap-1.5 shrink-0">
                         <Calendar className="h-3.5 w-3.5 text-primary shrink-0" />
-                        {new Date(e.startTime).toLocaleDateString("ro-RO", {
-                          day: "numeric",
-                          month: "short",
-                        })}
+                        {formatEventDateShort(e.startTime)}
                       </span>
                       <span className="flex items-center gap-1.5 truncate">
                         <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -215,9 +215,9 @@ export default function EventsListPage() {
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/10 pt-3 text-[11px] text-muted-foreground lg:hidden">
-                      <span className="inline-flex items-center gap-1"><UsersRound className="h-3.5 w-3.5 text-primary" /> {attendanceCount} merg</span>
-                      <span className="inline-flex items-center gap-1"><Heart className="h-3.5 w-3.5 text-primary" /> {interestedCount} interesati</span>
-                      <span>Estimare {estimatedMin}-{estimatedMax}</span>
+                      <span className="inline-flex items-center gap-1"><UsersRound className="h-3.5 w-3.5 text-primary" /> {t("organizerEvents.going", { count: attendanceCount })}</span>
+                      <span className="inline-flex items-center gap-1"><Heart className="h-3.5 w-3.5 text-primary" /> {t("organizerEvents.interested", { count: interestedCount })}</span>
+                      <span>{t("organizerEvents.estimate", { min: estimatedMin, max: estimatedMax })}</span>
                     </div>
                   </div>
                 </div>
@@ -229,7 +229,7 @@ export default function EventsListPage() {
                     <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
                       <span className="flex items-center gap-1.5 truncate">
                         <Ticket className="h-3 w-3 text-primary shrink-0" />
-                        Bilete
+                        {t("organizerEvents.tickets")}
                       </span>
                       <span className="ml-1">{fillPercentage}%</span>
                     </div>
@@ -251,24 +251,24 @@ export default function EventsListPage() {
                   <div className="flex min-w-0 flex-col justify-between rounded-lg border border-white/10 bg-black/10 p-3 space-y-2">
                     <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
                       <Euro className="h-3 w-3 text-primary shrink-0" />
-                      Venit
+                      {t("organizerEvents.revenue")}
                     </div>
                     <p className="text-xs sm:text-sm font-bold text-primary">
-                      {totalRevenue.toLocaleString("ro-RO")} RON
+                      {totalRevenue.toLocaleString(i18n.language === "ro" ? "ro-RO" : "en-GB")} RON
                     </p>
                     <span className="text-[9px] text-muted-foreground truncate">
-                      Încasat total
+                      {t("organizerEvents.totalCollected")}
                     </span>
                   </div>
                 </div>
 
                 <div className="hidden border-l border-white/10 pl-5 text-[11px] text-muted-foreground lg:flex lg:min-w-0 lg:flex-col lg:justify-center lg:gap-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">Audienta</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">{t("organizerEvents.audience")}</p>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                    <span className="inline-flex items-center gap-1 font-medium text-foreground"><UsersRound className="h-3.5 w-3.5 text-primary" /> {attendanceCount} merg</span>
-                    <span className="inline-flex items-center gap-1"><Heart className="h-3.5 w-3.5 text-primary" /> {interestedCount} interesati</span>
+                    <span className="inline-flex items-center gap-1 font-medium text-foreground"><UsersRound className="h-3.5 w-3.5 text-primary" /> {t("organizerEvents.going", { count: attendanceCount })}</span>
+                    <span className="inline-flex items-center gap-1"><Heart className="h-3.5 w-3.5 text-primary" /> {t("organizerEvents.interested", { count: interestedCount })}</span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground">Estimare {estimatedMin}-{estimatedMax} persoane</span>
+                  <span className="text-[10px] text-muted-foreground">{t("organizerEvents.estimate", { min: estimatedMin, max: estimatedMax })}</span>
                 </div>
               </Link>
             );

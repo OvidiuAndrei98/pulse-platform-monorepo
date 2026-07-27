@@ -204,12 +204,12 @@ func (h *Handler) findOrCreateGoogleUser(r *http.Request, profile googleProfile)
 
 	username := googleUsername(profile)
 	return h.Queries.CreateUser(r.Context(), db.CreateUserParams{
-		Username:     username,
-		Email:        strings.ToLower(profile.Email),
-		AvatarUrl:    pgtype.Text{String: profile.Picture, Valid: profile.Picture != ""},
-		Role:         pgtype.Text{String: "user", Valid: true},
-		IsActive:     pgtype.Bool{Bool: true, Valid: true},
-		GoogleID:     googleID,
+		Username:  username,
+		Email:     strings.ToLower(profile.Email),
+		AvatarUrl: pgtype.Text{String: profile.Picture, Valid: profile.Picture != ""},
+		Role:      pgtype.Text{String: "user", Valid: true},
+		IsActive:  pgtype.Bool{Bool: true, Valid: true},
+		GoogleID:  googleID,
 	})
 }
 

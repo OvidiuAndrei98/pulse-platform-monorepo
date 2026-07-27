@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { useTranslation } from "react-i18next";
 
 export function DashboardAccessGuard({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const { user, loading, isOrganizer } = useDataProvider();
   const pathname = usePathname();
   const router = useRouter();
@@ -46,7 +48,7 @@ export function DashboardAccessGuard({ children }: { children: React.ReactNode }
   }, [isOrganizer, loading, pathname, router, user]);
 
   if (loading || checkingAccess) {
-    return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Se verifica accesul...</div>;
+    return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">{t("dashboardNav.checkingAccess")}</div>;
   }
 
   return <>{children}</>;

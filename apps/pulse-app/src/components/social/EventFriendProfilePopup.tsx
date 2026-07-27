@@ -8,6 +8,7 @@ import {
   type PublicProfile,
   User,
 } from "@/core/DataProvider";
+import { useTranslation } from "react-i18next";
 
 export function EventFriendProfilePopup({
   attendee,
@@ -18,6 +19,7 @@ export function EventFriendProfilePopup({
   viewerId: string;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<PublicProfile | null>(attendee);
 
   useEffect(() => {
@@ -50,14 +52,14 @@ export function EventFriendProfilePopup({
       <section
         role="dialog"
         aria-modal="true"
-        aria-label={`Profilul lui ${displayName}`}
+        aria-label={t("social.attendeeProfile", { name: displayName })}
         className="relative w-full max-w-sm border border-white/15 bg-[#101311] p-5 text-foreground shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <button
           type="button"
           onClick={onClose}
-          aria-label="Inchide profilul"
+          aria-label={t("social.closeProfile")}
           className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
         >
           <X className="h-4 w-4" />
@@ -97,11 +99,11 @@ export function EventFriendProfilePopup({
         <div className="mt-4 flex items-center gap-2 border-t border-white/10 pt-4 text-xs font-medium text-muted-foreground">
           {attendee.attendanceStatus === "has_ticket" ? (
             <>
-              <Ticket className="h-4 w-4 text-primary" /> Are bilet pentru acest eveniment
+              <Ticket className="h-4 w-4 text-primary" /> {t("social.hasTicketForEvent")}
             </>
           ) : (
             <>
-              <UsersRound className="h-4 w-4 text-primary" /> Merge la acest eveniment
+              <UsersRound className="h-4 w-4 text-primary" /> {t("social.goingToEvent")}
             </>
           )}
         </div>

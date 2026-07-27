@@ -678,6 +678,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/spotify/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SpotifyOperations_searchArtists"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ticket-validation/quick-access/session": {
         parameters: {
             query?: never;
@@ -807,6 +823,27 @@ export interface components {
         ApiError: {
             message: string;
         };
+        Artist: {
+            id: string;
+            name: string;
+            imageUrl: string;
+            stage?: string;
+            performanceTime?: string;
+            spotifyUrl?: string;
+            isHeadliner: boolean;
+            /** @enum {string} */
+            source: "SPOTIFY" | "MANUAL";
+        };
+        ArtistInput: {
+            name: string;
+            imageUrl?: string;
+            stage?: string;
+            performanceTime?: string;
+            spotifyUrl?: string;
+            isHeadliner?: boolean;
+            /** @enum {string} */
+            source: "SPOTIFY" | "MANUAL";
+        };
         CheckIn: {
             id: string;
             eventId: string;
@@ -856,6 +893,7 @@ export interface components {
             /** @enum {string} */
             status: "draft" | "published";
             ticketTypes?: components["schemas"]["CreateTicketTypePayload"][];
+            lineup?: components["schemas"]["ArtistInput"][];
         };
         CreateScannerAccessPayload: {
             label: string;
@@ -912,6 +950,7 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             ticketTypes: components["schemas"]["TicketTypeResponse"][];
+            lineup: components["schemas"]["Artist"][];
             stats: components["schemas"]["EventStatsResponse"];
         };
         EventSocialResponse: {
@@ -1017,6 +1056,8 @@ export interface components {
             avatarUrl?: string;
             bio?: string;
             /** @enum {string} */
+            preferredLanguage: "en" | "ro";
+            /** @enum {string} */
             role: "user" | "organizer" | "admin";
             organizerName?: string;
             organizerVerified: boolean;
@@ -1060,6 +1101,13 @@ export interface components {
             /** Format: date-time */
             eventStartTime: string;
             organizerName?: string;
+        };
+        SpotifyArtistResponse: {
+            id: string;
+            name: string;
+            imageUrl: string;
+            genres: string[];
+            spotifyUrl: string;
         };
         StripeAccountLinkResponse: {
             url: string;
@@ -1115,6 +1163,7 @@ export interface components {
             /** @enum {string} */
             status: "draft" | "published";
             ticketTypes?: components["schemas"]["UpdateTicketTypePayload"][];
+            lineup?: components["schemas"]["ArtistInput"][];
         };
         UpdateEventRsvpPayload: {
             /** @enum {string} */
@@ -2422,6 +2471,28 @@ export interface operations {
             };
         };
     };
+    SpotifyOperations_searchArtists: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpotifyArtistResponse"][];
+                };
+            };
+        };
+    };
     QuickScannerOperations_createScannerSession: {
         parameters: {
             query?: never;
@@ -2531,6 +2602,8 @@ export interface operations {
                 "application/json": {
                     username?: string;
                     bio?: string;
+                    /** @enum {string} */
+                    preferredLanguage?: "en" | "ro";
                 };
             };
         };

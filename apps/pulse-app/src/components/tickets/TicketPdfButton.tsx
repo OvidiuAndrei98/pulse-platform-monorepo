@@ -3,6 +3,8 @@
 import { useState } from "react";
 import QRCode from "qrcode";
 import { Download } from "lucide-react";
+import { formatEventDateTime } from "@/features/events/dateFormat";
+import { useTranslation } from "react-i18next";
 
 type PrintableTicket = {
   id: string;
@@ -32,11 +34,11 @@ function escapeHtml(value: string) {
   })[character] ?? character);
 }
 
-async function openTicketPdf(ticket: PrintableTicket) {
+async function openTicketPdf(ticket: PrintableTicket, t: (key: string, options?: Record<string, unknown>) => string, language: string) {
   const printWindow = window.open("", "_blank", "popup,width=760,height=900");
   if (!printWindow) throw new Error("Print popup blocked");
 
-  printWindow.document.write("<!doctype html><title>Se pregateste biletul...</title><body style=\"margin:0;background:#101311\"></body>");
+  printWindow.document.write(`<!doctype html><title>${escapeHtml(t("ticketPdf.preparingTitle"))}</title><body style="margin:0;background:#101311"></body>`);
   printWindow.document.close();
 
   const qrCode = await QRCode.toDataURL(ticket.validationHash, {
@@ -45,26 +47,23 @@ async function openTicketPdf(ticket: PrintableTicket) {
     errorCorrectionLevel: "M",
     color: { dark: "#000000", light: "#ffffff" },
   });
-  const date = new Intl.DateTimeFormat("ro-RO", {
-    dateStyle: "full",
-    timeStyle: "short",
-  }).format(new Date(ticket.startTime));
+  const date = formatEventDateTime(ticket.startTime);
   const price = ticket.priceRon;
-  const formatRon = (amount: number) => `${new Intl.NumberFormat("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)} RON`;
+  const formatRon = (amount: number) => `${new Intl.NumberFormat(language === "ro" ? "ro-RO" : "en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)} RON`;
   const organizerDetails = ticket.organizerCompanyName
-    ? `<section class="details"><h2>Organizator</h2><dl><div><dt>Denumire</dt><dd>${escapeHtml(ticket.organizerCompanyName)}</dd></div><div><dt>CUI</dt><dd>${escapeHtml(ticket.organizerCui || "-")}</dd></div><div><dt>Sediu fiscal</dt><dd>${escapeHtml(ticket.organizerFiscalAddress || "-")}</dd></div></dl></section>`
+    ? `<section class="details"><h2>${escapeHtml(t("ticketPdf.organizer"))}</h2><dl><div><dt>${escapeHtml(t("ticketPdf.companyName"))}</dt><dd>${escapeHtml(ticket.organizerCompanyName)}</dd></div><div><dt>${escapeHtml(t("ticketPdf.cui"))}</dt><dd>${escapeHtml(ticket.organizerCui || "-")}</dd></div><div><dt>${escapeHtml(t("ticketPdf.fiscalAddress"))}</dt><dd>${escapeHtml(ticket.organizerFiscalAddress || "-")}</dd></div></dl></section>`
     : "";
   const paymentDetails = price === undefined
     ? ""
-    : `<section class="details"><h2>Valoare bilet</h2><dl><div><dt>Pret</dt><dd>${formatRon(price)}</dd></div><div><dt>TVA</dt><dd>Include TVA, daca este aplicabil.</dd></div></dl></section>`;
+    : `<section class="details"><h2>${escapeHtml(t("ticketPdf.ticketValue"))}</h2><dl><div><dt>${escapeHtml(t("ticketPdf.price"))}</dt><dd>${formatRon(price)}</dd></div></dl></section>`;
 
   printWindow.document.open();
   printWindow.document.write(`<!doctype html>
-    <html lang="ro">
+    <html lang="${escapeHtml(language)}">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>${escapeHtml(ticket.eventTitle)} - bilet</title>
+        <title>${escapeHtml(ticket.eventTitle)} - ${escapeHtml(t("ticketPdf.ticket"))}</title>
         <style>
           @page { size: A4; margin: 18mm; }
           * { box-sizing: border-box; }
@@ -90,21 +89,21 @@ async function openTicketPdf(ticket: PrintableTicket) {
       <body>
         <main>
           <header>
-            <p class="eyebrow">Pulse ticket</p>
+            <p class="eyebrow">${escapeHtml(t("ticketPdf.glowTicket"))}</p>
             <h1>${escapeHtml(ticket.eventTitle)}</h1>
             <span class="type">${escapeHtml(ticket.ticketTypeName)}</span>
           </header>
           <section>
             <dl>
-              <div><dt>Data si ora</dt><dd>${escapeHtml(date)}</dd></div>
-              <div><dt>Locatie</dt><dd>${escapeHtml(ticket.locationName)}</dd></div>
-              <div><dt>Cod bilet</dt><dd class="id">${escapeHtml(ticket.id)}</dd></div>
+              <div><dt>${escapeHtml(t("ticketPdf.dateAndTime"))}</dt><dd>${escapeHtml(date)}</dd></div>
+              <div><dt>${escapeHtml(t("ticketPdf.location"))}</dt><dd>${escapeHtml(ticket.locationName)}</dd></div>
+              <div><dt>${escapeHtml(t("ticketPdf.ticketCode"))}</dt><dd class="id">${escapeHtml(ticket.id)}</dd></div>
             </dl>
-            <img src="${qrCode}" alt="Cod QR bilet" />
+            <img src="${qrCode}" alt="${escapeHtml(t("ticketPdf.ticketQr"))}" />
           </section>
           ${organizerDetails}
           ${paymentDetails}
-          <footer>Prezinta codul QR la intrare. Fiecare cod poate fi validat o singura data.</footer>
+          <footer>${escapeHtml(t("ticketPdf.validationHint"))}</footer>
         </main>
         <script>window.onload = () => window.print(); window.onafterprint = () => window.close();<\/script>
       </body>
@@ -113,6 +112,7 @@ async function openTicketPdf(ticket: PrintableTicket) {
 }
 
 export function TicketPdfButton({ ticket, className }: TicketPdfButtonProps) {
+  const { t, i18n } = useTranslation();
   const [isPreparing, setIsPreparing] = useState(false);
   const [hasError, setHasError] = useState(false);
 
@@ -120,7 +120,7 @@ export function TicketPdfButton({ ticket, className }: TicketPdfButtonProps) {
     setIsPreparing(true);
     setHasError(false);
     try {
-      await openTicketPdf(ticket);
+      await openTicketPdf(ticket, t, i18n.language);
     } catch {
       setHasError(true);
     } finally {
@@ -133,11 +133,11 @@ export function TicketPdfButton({ ticket, className }: TicketPdfButtonProps) {
       type="button"
       onClick={() => void handleDownload()}
       disabled={isPreparing}
-      title={hasError ? "Permite ferestre pop-up pentru a genera PDF-ul" : undefined}
+      title={hasError ? t("ticketPdf.popupBlocked") : undefined}
       className={className ?? "flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-xs font-medium text-white transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-60"}
     >
       <Download className="h-4 w-4" />
-      {isPreparing ? "Se pregateste..." : hasError ? "Permite popup-ul" : "Descarca PDF"}
+      {isPreparing ? t("ticketPdf.preparing") : hasError ? t("ticketPdf.allowPopup") : t("ticketPdf.downloadPdf")}
     </button>
   );
 }

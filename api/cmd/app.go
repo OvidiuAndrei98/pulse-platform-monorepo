@@ -17,6 +17,7 @@ import (
 	"pulse-api/internal/organizer"
 	"pulse-api/internal/payments"
 	"pulse-api/internal/router"
+	"pulse-api/internal/spotify"
 	"pulse-api/internal/tickets"
 	"pulse-api/internal/users"
 
@@ -138,6 +139,10 @@ func (app *Application) BuildRouter() http.Handler {
 		os.Getenv("PUBLIC_APP_URL"),
 		os.Getenv("STRIPE_CONNECT_COUNTRY"),
 	)
+	spotifyHandler := spotify.NewHandler(
+		os.Getenv("SPOTIFY_CLIENT_ID"),
+		os.Getenv("SPOTIFY_CLIENT_SECRET"),
+	)
 
 	// 2. Mapăm funcțiile în noua structură de configurare din router
 	cfg := router.HandlersConfig{
@@ -149,13 +154,14 @@ func (app *Application) BuildRouter() http.Handler {
 		AdminMiddleware:        requireAdmin,
 
 		// Auth
-		Register:       authHandler.HandleRegister,
-		Activate:       authHandler.HandleActivate,
-		Login:          authHandler.Login,
-		GoogleLogin:    authHandler.HandleGoogleLogin,
-		GoogleCallback: authHandler.HandleGoogleCallback,
-		ForgotPassword: authHandler.ForgotPassword,
-		ResetPassword:  authHandler.ResetPassword,
+		Register:             authHandler.HandleRegister,
+		Activate:             authHandler.HandleActivate,
+		Login:                authHandler.Login,
+		GoogleLogin:          authHandler.HandleGoogleLogin,
+		GoogleCallback:       authHandler.HandleGoogleCallback,
+		SearchSpotifyArtists: spotifyHandler.Search,
+		ForgotPassword:       authHandler.ForgotPassword,
+		ResetPassword:        authHandler.ResetPassword,
 
 		// Users
 		GetMe:                    usersHandler.HandleGetMe,

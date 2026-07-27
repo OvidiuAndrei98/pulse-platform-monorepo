@@ -22,6 +22,7 @@ type Querier interface {
 	CreateCheckIn(ctx context.Context, arg CreateCheckInParams) (CheckIns, error)
 	CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrderParams) (Orders, error)
 	CreateEvent(ctx context.Context, arg CreateEventParams) (Events, error)
+	CreateEventArtist(ctx context.Context, arg CreateEventArtistParams) error
 	CreateFriendRequest(ctx context.Context, arg CreateFriendRequestParams) (int64, error)
 	CreateNotification(ctx context.Context, arg CreateNotificationParams) error
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (Orders, error)
@@ -37,6 +38,7 @@ type Querier interface {
 	DecrementTicketsSold(ctx context.Context, arg DecrementTicketsSoldParams) error
 	DeleteCheckIn(ctx context.Context, arg DeleteCheckInParams) error
 	DeleteEvent(ctx context.Context, id pgtype.UUID) error
+	DeleteEventArtists(ctx context.Context, eventID pgtype.UUID) error
 	DeleteEventRsvp(ctx context.Context, arg DeleteEventRsvpParams) error
 	DeleteUserToken(ctx context.Context, arg DeleteUserTokenParams) error
 	EditEvent(ctx context.Context, arg EditEventParams) (Events, error)

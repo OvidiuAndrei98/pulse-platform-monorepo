@@ -16,6 +16,8 @@ import {
   type OrganizerFinanceEvent,
 } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { formatEventDate } from "@/features/events/dateFormat";
+import { useTranslation } from "react-i18next";
 
 const formatRon = (amount: number) =>
   new Intl.NumberFormat("ro-RO", {
@@ -28,6 +30,7 @@ const SALES_PAGE_SIZE = 10;
 
 export default function FinancePage() {
   const { user } = useDataProvider();
+  const { t } = useTranslation();
   const [items, setItems] = useState<OrganizerFinanceEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -46,7 +49,7 @@ export default function FinancePage() {
         if (active) setItems(data);
       })
       .catch(() => {
-        if (active) setError("Situatia financiara nu a putut fi incarcata.");
+        if (active) setError(t("finance.loadFailed"));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -55,7 +58,7 @@ export default function FinancePage() {
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [t, user]);
 
   const totals = useMemo(
     () =>
@@ -85,11 +88,11 @@ export default function FinancePage() {
         <div>
           <div className="flex items-center gap-2 text-primary">
             <WalletCards className="h-4 w-4" />
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em]">Organizer</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em]">{t("dashboardNav.organizer")}</p>
           </div>
-          <h1 className="mt-2 text-2xl font-bold sm:text-3xl">Finante</h1>
+          <h1 className="mt-2 text-2xl font-bold sm:text-3xl">{t("finance.title")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Vanzari confirmate, comisioane Pulse si documentele tale de comision.
+	            Vanzari confirmate, comisioane Glow si documentele tale de comision.
           </p>
         </div>
       </header>
@@ -107,29 +110,29 @@ export default function FinancePage() {
       ) : (
         <>
           <section className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <FinanceMetric icon={CircleDollarSign} label="Incasari brute" value={formatRon(totals.grossRevenueRon)} detail="Comenzi finalizate" />
-            <FinanceMetric icon={BadgeDollarSign} label="Comision Pulse" value={formatRon(platformFeeRon)} detail="5% + 1 RON / bilet" accent="muted" />
-            <FinanceMetric icon={WalletCards} label="Estimat spre tine" value={formatRon(estimatedPayoutRon)} detail="Dupa comisionul Pulse" accent="primary" />
-            <FinanceMetric icon={Ticket} label="Bilete vandute" value={totals.ticketsSold.toLocaleString("ro-RO")} detail="Plati confirmate" />
+            <FinanceMetric icon={CircleDollarSign} label={t("finance.grossRevenue")} value={formatRon(totals.grossRevenueRon)} detail={t("finance.completedOrders")} />
+            <FinanceMetric icon={BadgeDollarSign} label={t("finance.glowFee")} value={formatRon(platformFeeRon)} detail="4% + 2,50 RON / bilet" accent="muted" />
+	            <FinanceMetric icon={WalletCards} label={t("finance.estimatedPayout")} value={formatRon(estimatedPayoutRon)} detail={t("finance.afterGlowFee")} accent="primary" />
+            <FinanceMetric icon={Ticket} label={t("finance.ticketsSold")} value={totals.ticketsSold.toLocaleString("ro-RO")} detail={t("finance.confirmedPayments")} />
           </section>
 
           <p className="mt-4 text-xs leading-5 text-muted-foreground">
-            Suma estimata nu include eventuale ajustari ulterioare, refunduri sau dispute. Taxele de procesare Stripe sunt gestionate separat in fluxul Connect.
+            {t("finance.estimateNote")}
           </p>
 
           <section className="mt-8">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold">Vanzari pe eveniment</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Doar comenzile platite cu succes sunt incluse.</p>
+                <h2 className="text-lg font-semibold">{t("finance.salesByEvent")}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{t("finance.successfulOrders")}</p>
               </div>
-              <span className="text-xs font-medium text-muted-foreground">{sales.length} cu vanzari</span>
+              <span className="text-xs font-medium text-muted-foreground">{t("finance.withSales", { count: sales.length })}</span>
             </div>
 
             {sales.length ? (
               <div className="overflow-hidden border border-white/10 bg-white/[0.025]">
                 <div className="hidden grid-cols-[minmax(0,1.6fr)_0.7fr_0.9fr_0.9fr_0.9fr] gap-4 border-b border-white/10 px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-muted-foreground md:grid">
-                  <span>Eveniment</span><span>Bilete</span><span>Incasari</span><span>Comision</span><span>Estimat</span>
+                  <span>{t("finance.event")}</span><span>{t("finance.tickets")}</span><span>{t("finance.revenue")}</span><span>{t("finance.commission")}</span><span>{t("finance.estimate")}</span>
                 </div>
                 <div className="divide-y divide-white/10">
                   {visibleSales.map((item) => {
@@ -138,29 +141,29 @@ export default function FinancePage() {
                       <article key={item.eventId} className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1.6fr)_0.7fr_0.9fr_0.9fr_0.9fr] md:items-center md:gap-4">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold">{item.eventTitle}</p>
-                          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" /> {new Date(item.startTime).toLocaleDateString("ro-RO", { day: "numeric", month: "short", year: "numeric" })}</p>
+                          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" /> {formatEventDate(item.startTime)}</p>
                         </div>
-                        <FinanceCell label="Bilete" value={item.ticketsSold.toLocaleString("ro-RO")} />
-                        <FinanceCell label="Incasari" value={formatRon(item.grossRevenueRon)} />
-                        <FinanceCell label="Comision" value={formatRon(commissionRon)} muted />
-                        <FinanceCell label="Estimat" value={formatRon(item.grossRevenueRon - commissionRon)} primary />
+                        <FinanceCell label={t("finance.tickets")} value={item.ticketsSold.toLocaleString("ro-RO")} />
+                        <FinanceCell label={t("finance.revenue")} value={formatRon(item.grossRevenueRon)} />
+                        <FinanceCell label={t("finance.commission")} value={formatRon(commissionRon)} muted />
+                        <FinanceCell label={t("finance.estimate")} value={formatRon(item.grossRevenueRon - commissionRon)} primary />
                       </article>
                     );
                   })}
                 </div>
                 {salesPageCount > 1 && (
                   <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3">
-                    <span className="text-xs text-muted-foreground">Pagina {salesPage} din {salesPageCount}</span>
+                    <span className="text-xs text-muted-foreground">{t("finance.page", { current: salesPage, total: salesPageCount })}</span>
                     <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => setSalesPage((page) => Math.max(1, page - 1))} disabled={salesPage === 1} aria-label="Pagina anterioara" className="grid h-8 w-8 place-items-center rounded-md border border-white/15 text-muted-foreground transition hover:bg-white/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-35"><ChevronLeft className="h-4 w-4" /></button>
-                      <button type="button" onClick={() => setSalesPage((page) => Math.min(salesPageCount, page + 1))} disabled={salesPage === salesPageCount} aria-label="Pagina urmatoare" className="grid h-8 w-8 place-items-center rounded-md border border-white/15 text-muted-foreground transition hover:bg-white/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-35"><ChevronRight className="h-4 w-4" /></button>
+                      <button type="button" onClick={() => setSalesPage((page) => Math.max(1, page - 1))} disabled={salesPage === 1} aria-label={t("finance.previousPage")} className="grid h-8 w-8 place-items-center rounded-md border border-white/15 text-muted-foreground transition hover:bg-white/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-35"><ChevronLeft className="h-4 w-4" /></button>
+                      <button type="button" onClick={() => setSalesPage((page) => Math.min(salesPageCount, page + 1))} disabled={salesPage === salesPageCount} aria-label={t("finance.nextPage")} className="grid h-8 w-8 place-items-center rounded-md border border-white/15 text-muted-foreground transition hover:bg-white/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-35"><ChevronRight className="h-4 w-4" /></button>
                     </div>
                   </div>
                 )}
               </div>
             ) : (
               <div className="border border-dashed border-white/15 px-5 py-8 text-sm text-muted-foreground">
-                Nu exista inca vanzari confirmate pentru evenimentele tale.
+                {t("finance.noSales")}
               </div>
             )}
           </section>
@@ -169,15 +172,15 @@ export default function FinancePage() {
             <div className="flex items-start gap-3">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-primary/25 bg-primary/10 text-primary"><ReceiptText className="h-4 w-4" /></span>
               <div>
-                <h2 className="text-lg font-semibold">Facturi Pulse</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Documentele emise de Pulse pentru comisioanele tale.</p>
+	                <h2 className="text-lg font-semibold">{t("finance.glowInvoices")}</h2>
+	                <p className="mt-1 text-sm text-muted-foreground">{t("finance.invoiceHint")}</p>
               </div>
             </div>
             <div className="mt-4 border border-dashed border-white/15 px-5 py-6">
               <div className="flex items-start gap-3">
                 <BookOpenText className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Nu exista facturi Pulse emise inca. Cand facturarea comisioanelor este activata, documentele reale vor aparea aici pentru descarcare.
+	                  {t("finance.noInvoices")}
                 </p>
               </div>
             </div>

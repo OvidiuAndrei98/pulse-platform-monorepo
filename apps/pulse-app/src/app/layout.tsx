@@ -4,6 +4,7 @@ import "./globals.css";
 import { DataProvider } from "@/core/DataProviderContext";
 import { BottomNav } from "@/components/BottomNav";
 import { GlobalNotifications } from "@/components/GlobalNotifications";
+import { I18nProvider } from "@/components/I18nProvider";
 
 const inter = Inter({
   variable: "--font-inter-sans",
@@ -16,13 +17,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pulse App",
-  description: "Pulse Event Platform",
+  title: "Glow",
+  description: "Glow Event Platform",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Pulse",
+    title: "Glow",
   },
 };
 
@@ -64,12 +65,14 @@ export default function RootLayout({
 
         {/* Conținut */}
         <div className="relative z-10">
-          <DataProvider>
-            {children}
-            {modal}
-            <GlobalNotifications />
-            <BottomNav />
-          </DataProvider>
+          <I18nProvider>
+            <DataProvider>
+              {children}
+              {modal}
+              <GlobalNotifications />
+              <BottomNav />
+            </DataProvider>
+          </I18nProvider>
         </div>
       </body>
     </html>

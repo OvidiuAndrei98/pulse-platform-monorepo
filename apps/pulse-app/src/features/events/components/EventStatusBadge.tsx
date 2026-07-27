@@ -1,5 +1,6 @@
 import { Calendar } from "lucide-react";
 import { Event } from "@/core/DataProvider";
+import { formatEventDateShort } from "@/features/events/dateFormat";
 
 export function EventStatusBadge({
   event,
@@ -31,7 +32,7 @@ export function EventStatusBadge({
       className={`inline-flex items-center gap-1 rounded-full border border-white/20 bg-neutral-900/80 md:bg-background/50 px-3 py-1.5 text-[11px] text-foreground md:backdrop-blur-sm transform-gpu ${className}`}
     >
       <Calendar className="h-3 w-3" />
-      {event.startTime && new Date(event.startTime).toLocaleDateString()}
+      {formatEventDateShort(event.startTime)}
     </span>
   );
 }

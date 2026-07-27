@@ -15,6 +15,7 @@ import { SelectedEventPopup } from "@/features/events/map/SelectedEventPopup";
 import { eventMapStyles } from "@/features/events/map/eventMapStyles";
 import { useEventDetails } from "@/components/EventDetailsSheet";
 import { Coordinates } from "@/features/events/types";
+import { useTranslation } from "react-i18next";
 
 import "leaflet/dist/leaflet.css";
 
@@ -45,6 +46,7 @@ export function EventsMapView({
   distanceKm?: number;
   cityCenter?: Coordinates | null;
 }) {
+  const { t } = useTranslation();
   const [internalId, setInternalId] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [userLocation, setUserLocation] = useState<Coordinates | null>(
@@ -107,7 +109,7 @@ export function EventsMapView({
       <div
         className={`grid w-full place-items-center bg-background/50 ${mapSize}`}
       >
-        <p className="text-sm text-muted-foreground">Loading map...</p>
+        <p className="text-sm text-muted-foreground">{t("eventMap.loading")}</p>
       </div>
     );
   }
@@ -189,7 +191,7 @@ export function EventsMapView({
       {!events.length && (
         <div className="pointer-events-none absolute inset-0 z-[1000] grid place-items-center bg-black/80 md:bg-background/50 md:backdrop-blur-sm">
           <p className="text-sm text-muted-foreground">
-            No events match your filters.
+            {t("events.noMatch")}
           </p>
         </div>
       )}

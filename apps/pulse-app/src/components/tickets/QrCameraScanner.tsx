@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { Html5Qrcode } from "html5-qrcode";
 import { Camera, Loader2, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type QrCameraScannerProps = {
   disabled?: boolean;
@@ -10,6 +11,7 @@ type QrCameraScannerProps = {
 };
 
 export function QrCameraScanner({ disabled, onScan }: QrCameraScannerProps) {
+  const { t } = useTranslation();
   const scannerId = `qr-scanner-${useId().replace(/:/g, "")}`;
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [running, setRunning] = useState(false);
@@ -53,7 +55,7 @@ export function QrCameraScanner({ disabled, onScan }: QrCameraScannerProps) {
       setRunning(true);
     } catch {
       scannerRef.current = null;
-      setError("Camera nu a putut fi pornita. Permite accesul la camera si incearca din nou.");
+      setError(t("qr.cameraFailed"));
     } finally {
       setStarting(false);
     }
@@ -66,7 +68,7 @@ export function QrCameraScanner({ disabled, onScan }: QrCameraScannerProps) {
       {(starting || running) && <div id={scannerId} className="overflow-hidden rounded-lg border border-primary/30 bg-black" />}
       <button type="button" onClick={() => running ? void stopScanner() : void startScanner()} disabled={disabled || starting} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/15 px-3 text-xs font-semibold transition hover:bg-white/5 disabled:opacity-50">
         {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : running ? <X className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
-        {starting ? "Se porneste camera..." : running ? "Opreste camera" : "Scaneaza QR"}
+        {starting ? t("qr.startingCamera") : running ? t("qr.stopCamera") : t("qr.scanQr")}
       </button>
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>

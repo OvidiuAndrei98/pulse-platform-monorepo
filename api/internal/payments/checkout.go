@@ -178,7 +178,7 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 				Currency:   stripe.String("ron"),
 				UnitAmount: stripe.Int64(int64(order.PlatformFeeBani)),
 				ProductData: &stripe.CheckoutSessionCreateLineItemPriceDataProductDataParams{
-					Name: stripe.String("Taxa de servicii Pulse"),
+					Name: stripe.String("Taxa de servicii Glow"),
 				},
 			},
 		})

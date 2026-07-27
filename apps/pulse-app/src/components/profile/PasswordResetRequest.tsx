@@ -3,8 +3,10 @@
 import { Check, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { User } from "@/core/DataProvider";
+import { useTranslation } from "react-i18next";
 
 export function PasswordResetRequest({ email }: { email?: string }) {
+  const { t } = useTranslation();
   const [state, setState] = useState<"idle" | "loading" | "sent">("idle");
   const [error, setError] = useState<string>();
 
@@ -16,7 +18,7 @@ export function PasswordResetRequest({ email }: { email?: string }) {
       await User.requestPasswordReset(email);
       setState("sent");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Linkul nu a putut fi trimis.");
+      setError(cause instanceof Error ? cause.message : t("profile.resetFailed"));
       setState("idle");
     }
   };
@@ -25,7 +27,7 @@ export function PasswordResetRequest({ email }: { email?: string }) {
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
       <div>
         <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
-          Iti trimitem un link securizat de resetare direct pe adresa <strong className="text-foreground">{email || "contului tau"}</strong>.
+          {t("profile.resetHint", { email: email || t("profile.yourAccount") })}
         </p>
         {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
       </div>
@@ -37,7 +39,7 @@ export function PasswordResetRequest({ email }: { email?: string }) {
       >
         {state === "loading" && <Loader2 className="h-4 w-4 animate-spin" />}
         {state === "sent" && <Check className="h-4 w-4" />}
-        {state === "loading" ? "Se trimite..." : state === "sent" ? "Link trimis" : "Reseteaza parola"}
+        {state === "loading" ? t("profile.sending") : state === "sent" ? t("profile.linkSent") : t("profile.resetPassword")}
       </button>
     </div>
   );

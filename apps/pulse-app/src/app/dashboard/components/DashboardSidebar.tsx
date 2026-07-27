@@ -17,6 +17,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { useTranslation } from "react-i18next";
 
 const organizerItems = [
   {
@@ -49,7 +50,17 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { isOrganizer, logout } = useDataProvider();
+  const { t } = useTranslation();
   const items = isOrganizer ? organizerItems : validatorItems;
+  const labelFor = (href: string) => ({
+    "/dashboard": t("dashboardNav.dashboard"),
+    "/dashboard/profile": t("dashboardNav.profile"),
+    "/dashboard/ticket-validation": t("dashboardNav.ticketValidation"),
+    "/dashboard/finance": t("dashboardNav.finance"),
+    "/dashboard/purchases": t("dashboardNav.purchases"),
+    "/dashboard/events": t("dashboardNav.events"),
+    "/users/me": t("dashboardNav.profile"),
+  })[href] ?? href;
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return pathname === href;
@@ -71,7 +82,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
             Eventify
           </p>
           <h2 className="mt-1 text-lg font-bold tracking-tight text-foreground">
-            {isOrganizer ? "Organizer" : "Validare bilete"}
+            {isOrganizer ? t("dashboardNav.organizer") : t("dashboardNav.ticketValidation")}
           </h2>
         </div>
 
@@ -101,7 +112,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                 )}
 
                 <Icon className="relative z-10 h-4 w-4 shrink-0" />
-                <span className="relative z-10">{it.label}</span>
+                <span className="relative z-10">{labelFor(it.href)}</span>
               </Link>
             );
           })}
@@ -115,7 +126,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                 className="flex h-11 items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/10 px-3.5 text-xs font-bold text-primary transition hover:bg-primary/20 active:scale-[0.98]"
               >
                 <Plus className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                <span>Event nou</span>
+                <span>{t("dashboardNav.newEvent")}</span>
               </Link>
             </div>
           )}
@@ -130,7 +141,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           className="flex h-10 w-full items-center gap-3 rounded-xl px-3.5 text-xs font-semibold text-muted-foreground transition hover:bg-red-500/10 hover:text-red-300"
         >
           <LogOut className="h-4 w-4" />
-          Deconectare
+          {t("dashboardNav.logout")}
         </button>
         © {new Date().getFullYear()} Eventify. All rights reserved.
       </div>
@@ -141,6 +152,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 export function OrganizerSidebar() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const { t } = useTranslation();
 
   // Închide sertarul automat când se schimbă ruta
   useEffect(() => {
@@ -167,7 +179,7 @@ export function OrganizerSidebar() {
       {/* MOBILE MENU BUTTON - Blur optimizat cu opacitate de fundal */}
       <button
         type="button"
-        aria-label="Deschide meniul"
+        aria-label={t("dashboardNav.openMenu")}
         onClick={() => setOpen(true)}
         className="fixed left-4 top-3.5 z-40 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-background/40 text-foreground backdrop-blur-md transition hover:bg-background/60 active:scale-95 md:hidden"
       >

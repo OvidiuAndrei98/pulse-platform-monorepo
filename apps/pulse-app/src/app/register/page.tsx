@@ -12,10 +12,12 @@ import {
   UserRound,
 } from "lucide-react";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { useTranslation } from "react-i18next";
 
 type RegistrationState = "idle" | "loading" | "success" | "error";
 
 export default function RegisterPage() {
+  const { t } = useTranslation();
   const { register, loading } = useDataProvider();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -37,7 +39,7 @@ export default function RegisterPage() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Contul nu a putut fi creat. Incearca din nou.",
+          : t("auth.registrationFailed"),
       );
     }
   };
@@ -48,15 +50,15 @@ export default function RegisterPage() {
         <span className="grid h-12 w-12 place-items-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
           <CircleCheck className="h-6 w-6" />
         </span>
-        <h1 className="mt-5 text-2xl font-semibold">Verifica-ti emailul</h1>
+        <h1 className="mt-5 text-2xl font-semibold">{t("auth.activationTitle")}</h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          Am trimis un link de activare la <span className="font-semibold text-foreground">{email}</span>. Dupa confirmare te poti conecta in cont.
+          {t("auth.activationText", { email })}
         </p>
         <Link
           href="/login"
           className="mt-7 inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-110"
         >
-          Mergi la conectare <ArrowRight className="h-4 w-4" />
+          {t("auth.goToLogin")} <ArrowRight className="h-4 w-4" />
         </Link>
       </main>
     );
@@ -70,14 +72,14 @@ export default function RegisterPage() {
         </span>
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-            Cont nou
+            {t("auth.newAccount")}
           </p>
-          <h1 className="mt-0.5 text-2xl font-semibold">Creeaza-ti profilul</h1>
+          <h1 className="mt-0.5 text-2xl font-semibold">{t("auth.createProfile")}</h1>
         </div>
       </div>
 
       <p className="mt-5 text-sm leading-6 text-muted-foreground">
-        Descopera evenimente, pastreaza biletele aproape si conecteaza-te cu oamenii cu care iesi.
+        {t("auth.registerHint")}
       </p>
 
       <form
@@ -85,7 +87,7 @@ export default function RegisterPage() {
         className="mt-7 border border-white/15 bg-[#101311]/90 p-5 shadow-xl sm:p-6"
       >
         <div className="space-y-4">
-          <Field label="Username" icon={UserRound}>
+          <Field label={t("auth.username")} icon={UserRound}>
             <input
               id="username"
               type="text"
@@ -96,11 +98,11 @@ export default function RegisterPage() {
               value={username}
               onChange={(inputEvent) => setUsername(inputEvent.target.value)}
               className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-              placeholder="andrei_pulse"
+              placeholder={t("auth.usernamePlaceholder")}
             />
           </Field>
 
-          <Field label="Email" icon={Mail}>
+          <Field label={t("auth.email")} icon={Mail}>
             <input
               id="email"
               type="email"
@@ -109,11 +111,11 @@ export default function RegisterPage() {
               value={email}
               onChange={(inputEvent) => setEmail(inputEvent.target.value)}
               className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-              placeholder="nume@email.ro"
+              placeholder={t("auth.emailPlaceholder")}
             />
           </Field>
 
-          <Field label="Parola" icon={LockKeyhole}>
+          <Field label={t("auth.password")} icon={LockKeyhole}>
             <input
               id="password"
               type="password"
@@ -123,7 +125,7 @@ export default function RegisterPage() {
               value={password}
               onChange={(inputEvent) => setPassword(inputEvent.target.value)}
               className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-              placeholder="Minimum 6 caractere"
+              placeholder={t("auth.minCharacters")}
             />
           </Field>
 
@@ -139,10 +141,10 @@ export default function RegisterPage() {
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-2 text-sm font-semibold">
-                <Building2 className="h-4 w-4 text-primary" /> Cont de organizator
+                <Building2 className="h-4 w-4 text-primary" /> {t("auth.organizerAccount")}
               </span>
               <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                Pentru firme care publica si vand bilete la evenimente.
+                {t("auth.organizerHint")}
               </span>
             </span>
           </label>
@@ -159,16 +161,16 @@ export default function RegisterPage() {
           disabled={state === "loading" || loading}
           className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {state === "loading" ? "Se creeaza contul..." : "Creeaza cont"}
+          {state === "loading" ? t("auth.creatingAccount") : t("auth.createAccount")}
           {state !== "loading" && <ArrowRight className="h-4 w-4" />}
         </button>
-        <p className="mt-4 text-center text-[11px] leading-5 text-muted-foreground">Prin crearea contului confirmi ca ai citit <Link href="/legal/terms" className="text-primary hover:underline">Termenii si conditiile</Link> si <Link href="/legal/privacy" className="text-primary hover:underline">Politica de confidentialitate</Link>.</p>
+        <p className="mt-4 text-center text-[11px] leading-5 text-muted-foreground">{t("auth.termsPrefix")} <Link href="/legal/terms" className="text-primary hover:underline">{t("auth.terms")}</Link> {t("auth.and")} <Link href="/legal/privacy" className="text-primary hover:underline">{t("auth.privacy")}</Link>.</p>
       </form>
 
       <p className="mt-5 text-center text-sm text-muted-foreground">
-        Ai deja cont?{" "}
+        {t("auth.haveAccount")}{" "}
         <Link href="/login" className="font-semibold text-primary transition hover:text-primary/80">
-          Conecteaza-te
+          {t("auth.signIn")}
         </Link>
       </p>
     </main>

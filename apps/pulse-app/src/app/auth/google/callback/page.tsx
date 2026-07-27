@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { useTranslation } from "react-i18next";
 
 export default function GoogleAuthCallbackPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { reloadSession } = useDataProvider();
   const [error, setError] = useState("");
@@ -20,7 +22,7 @@ export default function GoogleAuthCallbackPage() {
         : "/users/me";
 
       if (!token) {
-        setError("Sesiunea Google nu a putut fi creată.");
+        setError(t("auth.googleSessionFailed"));
         return;
       }
 
@@ -30,12 +32,12 @@ export default function GoogleAuthCallbackPage() {
         router.replace(safeReturnTo);
       } catch {
         localStorage.removeItem("pulse_token");
-        setError("Contul Google nu a putut fi încărcat.");
+        setError(t("auth.googleLoadFailed"));
       }
     };
 
     void complete();
-  }, [reloadSession, router]);
+  }, [reloadSession, router, t]);
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-5 text-foreground">
@@ -45,7 +47,7 @@ export default function GoogleAuthCallbackPage() {
         ) : (
           <>
             <LoaderCircle className="mx-auto h-6 w-6 animate-spin text-primary" />
-            <p className="mt-3 text-sm font-semibold">Se conectează contul Google...</p>
+            <p className="mt-3 text-sm font-semibold">{t("auth.connectingGoogle")}</p>
           </>
         )}
       </div>

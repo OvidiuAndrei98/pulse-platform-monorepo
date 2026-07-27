@@ -14,7 +14,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, email, password_hash, avatar_url, role, bio, is_active, google_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id
+RETURNING id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id, preferred_language
 `
 
 type CreateUserParams struct {
@@ -51,12 +51,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (Users, 
 		&i.CreatedAt,
 		&i.IsActive,
 		&i.GoogleID,
+		&i.PreferredLanguage,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id FROM users WHERE email = $1 LIMIT 1
+SELECT id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id, preferred_language FROM users WHERE email = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (Users, error) {
@@ -73,12 +74,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (Users, erro
 		&i.CreatedAt,
 		&i.IsActive,
 		&i.GoogleID,
+		&i.PreferredLanguage,
 	)
 	return i, err
 }
 
 const getUserByGoogleID = `-- name: GetUserByGoogleID :one
-SELECT id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id FROM users WHERE google_id = $1 LIMIT 1
+SELECT id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id, preferred_language FROM users WHERE google_id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByGoogleID(ctx context.Context, googleID pgtype.Text) (Users, error) {
@@ -95,12 +97,13 @@ func (q *Queries) GetUserByGoogleID(ctx context.Context, googleID pgtype.Text) (
 		&i.CreatedAt,
 		&i.IsActive,
 		&i.GoogleID,
+		&i.PreferredLanguage,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id FROM users WHERE id = $1 LIMIT 1
+SELECT id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id, preferred_language FROM users WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (Users, error) {
@@ -117,6 +120,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (Users, error
 		&i.CreatedAt,
 		&i.IsActive,
 		&i.GoogleID,
+		&i.PreferredLanguage,
 	)
 	return i, err
 }
@@ -124,10 +128,10 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (Users, error
 const linkGoogleIdentity = `-- name: LinkGoogleIdentity :one
 UPDATE users
 SET google_id = $2,
-    avatar_url = COALESCE(NULLIF($3::TEXT, ''), avatar_url),
+    avatar_url = COALESCE(NULLIF(avatar_url, ''), NULLIF($3::TEXT, '')),
     is_active = TRUE
 WHERE id = $1
-RETURNING id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id
+RETURNING id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id, preferred_language
 `
 
 type LinkGoogleIdentityParams struct {
@@ -150,6 +154,7 @@ func (q *Queries) LinkGoogleIdentity(ctx context.Context, arg LinkGoogleIdentity
 		&i.CreatedAt,
 		&i.IsActive,
 		&i.GoogleID,
+		&i.PreferredLanguage,
 	)
 	return i, err
 }
@@ -183,7 +188,7 @@ const updateUserAvatar = `-- name: UpdateUserAvatar :one
 UPDATE users
 SET avatar_url = $2
 WHERE id = $1
-RETURNING id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id
+RETURNING id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id, preferred_language
 `
 
 type UpdateUserAvatarParams struct {
@@ -205,6 +210,7 @@ func (q *Queries) UpdateUserAvatar(ctx context.Context, arg UpdateUserAvatarPara
 		&i.CreatedAt,
 		&i.IsActive,
 		&i.GoogleID,
+		&i.PreferredLanguage,
 	)
 	return i, err
 }
@@ -230,28 +236,31 @@ SET
     email      = COALESCE(NULLIF($3, ''), email),
     role       = COALESCE(NULLIF($4, ''), role),
     avatar_url = COALESCE(NULLIF($5, ''), avatar_url),
-    bio        = COALESCE($6, bio)
+    bio        = COALESCE($6, bio),
+    preferred_language = COALESCE(NULLIF($7::TEXT, ''), preferred_language)
 WHERE id = $1
-RETURNING id, username, email, role, avatar_url, bio, created_at
+RETURNING id, username, email, role, avatar_url, bio, preferred_language, created_at
 `
 
 type UpdateUserProfileParams struct {
-	ID      pgtype.UUID `json:"id"`
-	Column2 interface{} `json:"column_2"`
-	Column3 interface{} `json:"column_3"`
-	Column4 interface{} `json:"column_4"`
-	Column5 interface{} `json:"column_5"`
-	Bio     pgtype.Text `json:"bio"`
+	ID                pgtype.UUID `json:"id"`
+	Column2           interface{} `json:"column_2"`
+	Column3           interface{} `json:"column_3"`
+	Column4           interface{} `json:"column_4"`
+	Column5           interface{} `json:"column_5"`
+	Bio               pgtype.Text `json:"bio"`
+	PreferredLanguage string      `json:"preferred_language"`
 }
 
 type UpdateUserProfileRow struct {
-	ID        pgtype.UUID        `json:"id"`
-	Username  string             `json:"username"`
-	Email     string             `json:"email"`
-	Role      pgtype.Text        `json:"role"`
-	AvatarUrl pgtype.Text        `json:"avatar_url"`
-	Bio       pgtype.Text        `json:"bio"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID                pgtype.UUID        `json:"id"`
+	Username          string             `json:"username"`
+	Email             string             `json:"email"`
+	Role              pgtype.Text        `json:"role"`
+	AvatarUrl         pgtype.Text        `json:"avatar_url"`
+	Bio               pgtype.Text        `json:"bio"`
+	PreferredLanguage string             `json:"preferred_language"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 }
 
 func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (UpdateUserProfileRow, error) {
@@ -262,6 +271,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		arg.Column4,
 		arg.Column5,
 		arg.Bio,
+		arg.PreferredLanguage,
 	)
 	var i UpdateUserProfileRow
 	err := row.Scan(
@@ -271,6 +281,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Role,
 		&i.AvatarUrl,
 		&i.Bio,
+		&i.PreferredLanguage,
 		&i.CreatedAt,
 	)
 	return i, err

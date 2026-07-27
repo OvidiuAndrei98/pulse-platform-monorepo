@@ -15,7 +15,7 @@ SELECT * FROM users WHERE google_id = $1 LIMIT 1;
 -- name: LinkGoogleIdentity :one
 UPDATE users
 SET google_id = $2,
-    avatar_url = COALESCE(NULLIF(sqlc.arg(avatar_url)::TEXT, ''), avatar_url),
+    avatar_url = COALESCE(NULLIF(avatar_url, ''), NULLIF(sqlc.arg(avatar_url)::TEXT, '')),
     is_active = TRUE
 WHERE id = $1
 RETURNING *;
@@ -33,9 +33,10 @@ SET
     email      = COALESCE(NULLIF($3, ''), email),
     role       = COALESCE(NULLIF($4, ''), role),
     avatar_url = COALESCE(NULLIF($5, ''), avatar_url),
-    bio        = COALESCE($6, bio)
+    bio        = COALESCE($6, bio),
+    preferred_language = COALESCE(NULLIF(sqlc.arg(preferred_language)::TEXT, ''), preferred_language)
 WHERE id = $1
-RETURNING id, username, email, role, avatar_url, bio, created_at;
+RETURNING id, username, email, role, avatar_url, bio, preferred_language, created_at;
 
 -- name: UpdateUserAvatar :one
 UPDATE users

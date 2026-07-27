@@ -5,9 +5,11 @@ import { Ticket, UsersRound } from "lucide-react";
 import { type EventAttendee, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { EventFriendProfilePopup } from "@/components/social/EventFriendProfilePopup";
+import { useTranslation } from "react-i18next";
 
 export function EventAttendees({ eventId }: { eventId: string }) {
   const { user } = useDataProvider();
+  const { t } = useTranslation();
   const { friends } = User.useEventFriends(user, eventId);
   const [selectedFriend, setSelectedFriend] = useState<EventAttendee | null>(
     null,
@@ -23,7 +25,7 @@ export function EventAttendees({ eventId }: { eventId: string }) {
     <section className="border-b border-white/10 pb-5">
       <div className="flex items-center gap-2">
         <UsersRound className="h-4 w-4 text-primary" />
-        <h2 className="text-sm font-semibold">Prietenii tai care merg</h2>
+        <h2 className="text-sm font-semibold">{t("social.friendsGoing")}</h2>
         <span className="text-xs text-muted-foreground">{friends.length}</span>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">

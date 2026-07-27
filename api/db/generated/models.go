@@ -114,6 +114,20 @@ type Comments struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type EventArtists struct {
+	ID              pgtype.UUID        `json:"id"`
+	EventID         pgtype.UUID        `json:"event_id"`
+	Name            string             `json:"name"`
+	ImageUrl        pgtype.Text        `json:"image_url"`
+	Stage           pgtype.Text        `json:"stage"`
+	PerformanceTime pgtype.Text        `json:"performance_time"`
+	SpotifyUrl      pgtype.Text        `json:"spotify_url"`
+	Source          string             `json:"source"`
+	IsHeadliner     bool               `json:"is_headliner"`
+	SortOrder       int32              `json:"sort_order"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
 type EventJoins struct {
 	ID        pgtype.UUID        `json:"id"`
 	EventID   pgtype.UUID        `json:"event_id"`
@@ -281,14 +295,15 @@ type UserTokens struct {
 }
 
 type Users struct {
-	ID           pgtype.UUID        `json:"id"`
-	Username     string             `json:"username"`
-	Email        string             `json:"email"`
-	PasswordHash pgtype.Text        `json:"password_hash"`
-	AvatarUrl    pgtype.Text        `json:"avatar_url"`
-	Role         pgtype.Text        `json:"role"`
-	Bio          pgtype.Text        `json:"bio"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	IsActive     pgtype.Bool        `json:"is_active"`
-	GoogleID     pgtype.Text        `json:"google_id"`
+	ID                pgtype.UUID        `json:"id"`
+	Username          string             `json:"username"`
+	Email             string             `json:"email"`
+	PasswordHash      pgtype.Text        `json:"password_hash"`
+	AvatarUrl         pgtype.Text        `json:"avatar_url"`
+	Role              pgtype.Text        `json:"role"`
+	Bio               pgtype.Text        `json:"bio"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	IsActive          pgtype.Bool        `json:"is_active"`
+	GoogleID          pgtype.Text        `json:"google_id"`
+	PreferredLanguage string             `json:"preferred_language"`
 }

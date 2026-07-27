@@ -16,25 +16,26 @@ import {
 } from "lucide-react";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
+import { useTranslation } from "react-i18next";
 
 const organizerTabs = [
   {
     href: "/dashboard",
-    label: "Dashboard",
+    label: "dashboardNav.dashboard",
     icon: LayoutDashboard,
     exact: true,
   },
-  { href: "/dashboard/profile", label: "Profil", icon: User },
-  { href: "/dashboard/ticket-validation", label: "Validare bilete", icon: QrCode },
-  { href: "/dashboard/finance", label: "Finante", icon: WalletCards },
-  { href: "/dashboard/purchases", label: "Achizitii", icon: Ticket },
-  { href: "/dashboard/events", label: "Evenimente", icon: Calendar },
-  { href: "/dashboard/events/new", label: "Event nou", icon: Plus },
+  { href: "/dashboard/profile", label: "dashboardNav.profile", icon: User },
+  { href: "/dashboard/ticket-validation", label: "dashboardNav.ticketValidation", icon: QrCode },
+  { href: "/dashboard/finance", label: "dashboardNav.finance", icon: WalletCards },
+  { href: "/dashboard/purchases", label: "dashboardNav.purchases", icon: Ticket },
+  { href: "/dashboard/events", label: "dashboardNav.events", icon: Calendar },
+  { href: "/dashboard/events/new", label: "dashboardNav.newEvent", icon: Plus },
 ] as const;
 
 const validatorTabs = [
-  { href: "/users/me", label: "Profil", icon: User, exact: true },
-  { href: "/dashboard/ticket-validation", label: "Validare bilete", icon: QrCode },
+  { href: "/users/me", label: "dashboardNav.profile", icon: User, exact: true },
+  { href: "/dashboard/ticket-validation", label: "dashboardNav.ticketValidation", icon: QrCode },
 ] as const;
 
 function matchTab(pathname: string, tabs: readonly { href: string; label: string; icon: typeof User; exact?: boolean }[]) {
@@ -47,6 +48,7 @@ function matchTab(pathname: string, tabs: readonly { href: string; label: string
 }
 
 export function OrganizerHeader() {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const router = useRouter();
   const { isOrganizer, user, loading } = useDataProvider();
@@ -70,13 +72,13 @@ export function OrganizerHeader() {
   const isEventDetail =
     isOrganizer && /^\/dashboard\/events\/[^/]+$/.test(pathname) && !pathname.endsWith("/new");
   const crumbs: { label: string; href?: string }[] = isOrganizer
-    ? [{ label: "Dashboard", href: "/dashboard" }]
-    : [{ label: "Profil", href: "/users/me" }];
+    ? [{ label: "dashboardNav.dashboard", href: "/dashboard" }]
+    : [{ label: "dashboardNav.profile", href: "/users/me" }];
 
   if (active && active.href !== (isOrganizer ? "/dashboard" : "/users/me")) {
     crumbs.push({ label: active.label, href: active.href });
   }
-  if (isEventDetail) crumbs.push({ label: "Detalii" });
+  if (isEventDetail) crumbs.push({ label: "dashboardNav.details" });
 
   return (
     <header className="sticky top-0 z-20 w-full border-b border-white/10 bg-background/60 backdrop-blur-xl">
@@ -95,11 +97,11 @@ export function OrganizerHeader() {
                     href={c.href}
                     className="truncate rounded-lg px-2 py-0.5 transition hover:bg-white/5 hover:text-foreground"
                   >
-                    {c.label}
+                    {t(c.label)}
                   </Link>
                 ) : (
                   <span className="truncate rounded-lg bg-white/5 px-2 py-0.5 font-semibold text-foreground">
-                    {c.label}
+                    {t(c.label)}
                   </span>
                 )}
               </span>
@@ -122,15 +124,15 @@ export function OrganizerHeader() {
             dragTransition={{ bounceStiffness: 300, bounceDamping: 30 }}
             className="flex cursor-grab items-center gap-1.5 px-4 pb-1 active:cursor-grabbing"
           >
-            {tabs.map((t) => {
-              const isActive = active?.href === t.href;
-              const Icon = t.icon;
+            {tabs.map((tab) => {
+              const isActive = active?.href === tab.href;
+              const Icon = tab.icon;
 
               return (
                 <motion.button
-                  key={t.href}
+                  key={tab.href}
                   type="button"
-                  onTap={() => router.push(t.href)}
+                  onTap={() => router.push(tab.href)}
                   className="relative flex h-9 shrink-0 select-none items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 text-xs font-semibold transition-colors duration-200"
                   style={{
                     color: isActive
@@ -152,7 +154,7 @@ export function OrganizerHeader() {
                   )}
 
                   <Icon className="relative z-10 h-3.5 w-3.5 shrink-0" />
-                  <span className="relative z-10">{t.label}</span>
+                  <span className="relative z-10">{t(tab.label)}</span>
                 </motion.button>
               );
             })}

@@ -47,7 +47,26 @@ SELECT
             WHERE tt.event_id = e.id
         ), 
         '[]'::json
-    ) AS ticket_types
+    ) AS ticket_types,
+    COALESCE(
+        (
+            SELECT json_agg(
+                json_build_object(
+                    'id', artist.id,
+                    'name', artist.name,
+                    'image_url', COALESCE(artist.image_url, ''),
+                    'stage', artist.stage,
+                    'performance_time', artist.performance_time,
+                    'spotify_url', artist.spotify_url,
+                    'is_headliner', artist.is_headliner,
+                    'source', artist.source
+                ) ORDER BY artist.sort_order, artist.created_at
+            )
+            FROM event_artists artist
+            WHERE artist.event_id = e.id
+        ),
+        '[]'::json
+    ) AS lineup
 FROM events e
 WHERE (sqlc.arg(category)::VARCHAR = '' OR sqlc.arg(category) IS NULL OR e.category = ANY(string_to_array(sqlc.arg(category)::VARCHAR, ',')))
   AND (sqlc.arg(city)::VARCHAR = '' OR sqlc.arg(city) IS NULL OR e.city = sqlc.arg(city))
@@ -95,7 +114,26 @@ SELECT
             )
         ) FILTER (WHERE tt.id IS NOT NULL),
         '[]'::jsonb
-    ) AS ticket_types
+    ) AS ticket_types,
+    COALESCE(
+        (
+            SELECT json_agg(
+                json_build_object(
+                    'id', artist.id,
+                    'name', artist.name,
+                    'image_url', COALESCE(artist.image_url, ''),
+                    'stage', artist.stage,
+                    'performance_time', artist.performance_time,
+                    'spotify_url', artist.spotify_url,
+                    'is_headliner', artist.is_headliner,
+                    'source', artist.source
+                ) ORDER BY artist.sort_order, artist.created_at
+            )
+            FROM event_artists artist
+            WHERE artist.event_id = e.id
+        ),
+        '[]'::json
+    ) AS lineup
 FROM events e
 LEFT JOIN ticket_types tt ON tt.event_id = e.id
 WHERE e.organizer_id = $1
@@ -171,7 +209,26 @@ SELECT
             WHERE tt.event_id = e.id
         ), 
         '[]'::json
-    ) AS ticket_types
+    ) AS ticket_types,
+    COALESCE(
+        (
+            SELECT json_agg(
+                json_build_object(
+                    'id', artist.id,
+                    'name', artist.name,
+                    'image_url', COALESCE(artist.image_url, ''),
+                    'stage', artist.stage,
+                    'performance_time', artist.performance_time,
+                    'spotify_url', artist.spotify_url,
+                    'is_headliner', artist.is_headliner,
+                    'source', artist.source
+                ) ORDER BY artist.sort_order, artist.created_at
+            )
+            FROM event_artists artist
+            WHERE artist.event_id = e.id
+        ),
+        '[]'::json
+    ) AS lineup
 FROM events e
 WHERE e.id = $2 LIMIT 1;
 
@@ -232,9 +289,38 @@ SELECT
             WHERE tt.event_id = e.id
         ), 
         '[]'::json
-    ) AS ticket_types
+    ) AS ticket_types,
+    COALESCE(
+        (
+            SELECT json_agg(
+                json_build_object(
+                    'id', artist.id,
+                    'name', artist.name,
+                    'image_url', COALESCE(artist.image_url, ''),
+                    'stage', artist.stage,
+                    'performance_time', artist.performance_time,
+                    'spotify_url', artist.spotify_url,
+                    'is_headliner', artist.is_headliner,
+                    'source', artist.source
+                ) ORDER BY artist.sort_order, artist.created_at
+            )
+            FROM event_artists artist
+            WHERE artist.event_id = e.id
+        ),
+        '[]'::json
+    ) AS lineup
 FROM events e
 WHERE e.id = $1 LIMIT 1;
+
+-- name: DeleteEventArtists :exec
+DELETE FROM event_artists WHERE event_id = $1;
+
+-- name: CreateEventArtist :exec
+INSERT INTO event_artists (
+    event_id, name, image_url, stage, performance_time, spotify_url,
+    source, is_headliner, sort_order
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
 -- name: DeleteEvent :exec
 DELETE FROM events WHERE id = $1;

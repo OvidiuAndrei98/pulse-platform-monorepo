@@ -3,19 +3,16 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Ticket, UsersRound } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
 
 type EventSocial = ReadableSchema<"EventSocialResponse">;
 type RsvpStatus = "interested" | "going";
 
-const statusLabel: Record<RsvpStatus, string> = {
-  interested: "Interesat",
-  going: "Merg",
-};
-
 export function EventSocialProof({ eventId }: { eventId: string }) {
   const { user } = useDataProvider();
+  const { t } = useTranslation();
   const [social, setSocial] = useState<EventSocial | null>(null);
   const [updating, setUpdating] = useState(false);
 
@@ -70,14 +67,16 @@ export function EventSocialProof({ eventId }: { eventId: string }) {
         <div className="flex items-center gap-2.5">
           <UsersRound className="h-4 w-4 text-primary" />
           <p className="text-sm font-semibold">
-            {attendanceCount} merg
-            <span className="text-muted-foreground"> · {social.interestedCount} interesati</span>
+            {t("social.attendeesGoing", { count: attendanceCount })}
+            <span className="text-muted-foreground">
+              {" "}· {t("social.interestedCount", { count: social.interestedCount })}
+            </span>
           </p>
         </div>
 
         {isTicketHolder ? (
           <span className="inline-flex h-9 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-3 text-xs font-semibold text-primary">
-            <Ticket className="h-3.5 w-3.5" /> Ai bilet
+            <Ticket className="h-3.5 w-3.5" /> {t("social.ticketHolder")}
           </span>
         ) : user ? (
           <div className="flex h-9 items-center rounded-full border border-white/15 bg-white/[0.04] p-0.5">
@@ -95,7 +94,7 @@ export function EventSocialProof({ eventId }: { eventId: string }) {
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {statusLabel[status]}
+                  {t(`social.${status}`)}
                 </button>
               );
             })}
@@ -105,7 +104,7 @@ export function EventSocialProof({ eventId }: { eventId: string }) {
             href="/login"
             className="inline-flex h-9 items-center rounded-full border border-white/15 px-3 text-xs font-semibold text-muted-foreground transition hover:border-primary/50 hover:text-primary"
           >
-            Conecteaza-te pentru RSVP
+            {t("social.signInToRsvp")}
           </Link>
         )}
       </div>

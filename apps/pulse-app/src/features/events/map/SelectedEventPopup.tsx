@@ -5,6 +5,7 @@ import { Clock, X } from "lucide-react";
 import { Popup, useMap } from "react-leaflet";
 import { Event } from "@/core/DataProvider";
 import { EventStatusBadge } from "@/features/events/components/EventStatusBadge";
+import { formatEventTime } from "@/features/events/dateFormat";
 
 interface SelectedEventPopupProps {
   event: Event;
@@ -70,10 +71,7 @@ export function SelectedEventPopup({
             <div className="mt-1 flex items-center gap-1.5 text-xs leading-none text-zinc-400">
               <Clock className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
               <span>
-                {new Date(event.startTime).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                {formatEventTime(event.startTime)}
               </span>
             </div>
 

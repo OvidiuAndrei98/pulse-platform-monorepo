@@ -7,27 +7,13 @@ import { useEffect, useState } from "react";
 import { Event } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { EventFriendsPreview } from "@/components/social/EventFriendsPreview";
+import { formatEventDateShort } from "@/features/events/dateFormat";
 
 interface EventCardProps {
   event: Event;
   className?: string;
   onBookmark?: (eventId: string) => void;
   live?: boolean;
-}
-
-function formatEventDate(dateString?: string): string {
-  if (!dateString) return "25 Dec";
-
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return dateString;
-
-  const day = date.getDate();
-  const month = date
-    .toLocaleDateString("ro-RO", { month: "short" })
-    .replace(".", "");
-  const formattedMonth = month.charAt(0).toUpperCase() + month.slice(1);
-
-  return `${day} ${formattedMonth}`;
 }
 
 export function EventCard({
@@ -38,7 +24,7 @@ export function EventCard({
 }: EventCardProps) {
   const { user } = useDataProvider();
   const [favorited, setFavorited] = useState(Boolean(event.stats?.isFavorited));
-  const formattedDate = formatEventDate(event.startTime);
+  const formattedDate = formatEventDateShort(event.startTime);
 
   useEffect(
     () => setFavorited(Boolean(event.stats?.isFavorited)),

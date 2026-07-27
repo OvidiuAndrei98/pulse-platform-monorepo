@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { FiltersSheet } from "@/components/FiltersSheet";
 import { Event, PublicEventsService } from "@/core/DataProvider";
-import { cityCenters, defaultEventFilters } from "@/features/events/constants";
+import {
+  cityCenters,
+  defaultEventFilters,
+  eventDateFilters,
+} from "@/features/events/constants";
 import { EventBrowseCard } from "@/features/events/components/EventBrowseCard";
 import { EventViewToggle } from "@/features/events/components/EventViewToggle";
 import { getEventDateRange } from "@/features/events/dateFilters";
@@ -21,8 +26,27 @@ const EventsMapLayout = dynamic(
   },
 );
 
+function getDateFilter(value: string | null) {
+  return eventDateFilters.includes(value as (typeof eventDateFilters)[number])
+    ? value!
+    : defaultEventFilters.date;
+}
+
 export default function EventsPage() {
-  const [filters, setFilters] = useState<EventFilters>(defaultEventFilters);
+  return (
+    <Suspense fallback={<div className="h-dvh bg-background" />}>
+      <EventsPageContent />
+    </Suspense>
+  );
+}
+
+function EventsPageContent() {
+  const searchParams = useSearchParams();
+  const requestedDate = getDateFilter(searchParams.get("date"));
+  const [filters, setFilters] = useState<EventFilters>(() => ({
+    ...defaultEventFilters,
+    date: requestedDate,
+  }));
   const [view, setView] = useState<"list" | "map">("list");
   const [events, setEvents] = useState<Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
@@ -30,6 +54,14 @@ export default function EventsPage() {
   const selectedCityCenter = filters.city
     ? (cityCenters[filters.city] ?? null)
     : null;
+
+  useEffect(() => {
+    setFilters((current) =>
+      current.date === requestedDate
+        ? current
+        : { ...current, date: requestedDate },
+    );
+  }, [requestedDate]);
 
   const eventQuery = useMemo(
     () => ({

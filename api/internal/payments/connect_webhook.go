@@ -71,7 +71,7 @@ func (h *ConnectWebhookHandler) HandleStripeConnectWebhook(w http.ResponseWriter
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			log.Printf("Stripe Connect account is not associated with Pulse: account=%s", account.ID)
+			log.Printf("Stripe Connect account is not associated with Glow: account=%s", account.ID)
 			w.WriteHeader(http.StatusOK)
 			return
 		}

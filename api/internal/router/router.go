@@ -22,13 +22,14 @@ type HandlersConfig struct {
 	AdminMiddleware        func(http.Handler) http.Handler // RequireRole("admin")
 
 	// Auth
-	Register       http.HandlerFunc
-	Activate       http.HandlerFunc
-	Login          http.HandlerFunc
-	GoogleLogin    http.HandlerFunc
-	GoogleCallback http.HandlerFunc
-	ForgotPassword http.HandlerFunc
-	ResetPassword  http.HandlerFunc
+	Register             http.HandlerFunc
+	Activate             http.HandlerFunc
+	Login                http.HandlerFunc
+	GoogleLogin          http.HandlerFunc
+	GoogleCallback       http.HandlerFunc
+	SearchSpotifyArtists http.HandlerFunc
+	ForgotPassword       http.HandlerFunc
+	ResetPassword        http.HandlerFunc
 
 	// Users
 	GetMe                    http.HandlerFunc
@@ -174,6 +175,10 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			r.With(optionalAuthMiddleware).Get("/search", cfg.SearchProfiles)
 			r.With(optionalAuthMiddleware).Get("/{id}", cfg.GetPublicProfile)
 		})
+
+		if cfg.SearchSpotifyArtists != nil {
+			r.Get("/spotify/search", cfg.SearchSpotifyArtists)
+		}
 
 		// --- EVENTS: Citire publică (nu necesită autentificare) ---
 		r.Route("/events", func(r chi.Router) {

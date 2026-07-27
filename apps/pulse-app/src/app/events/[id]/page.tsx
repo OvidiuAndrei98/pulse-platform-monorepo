@@ -22,12 +22,19 @@ import { Event, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
+import { EventLineup } from "@/features/events/lineup/EventLineup";
 import { ApiClient } from "@packages/api-client/src/Client";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { calculateServiceFeeRon, formatRon } from "@/features/events/serviceFee";
+import {
+  formatEventDate,
+  formatEventTime,
+} from "@/features/events/dateFormat";
+import { useTranslation } from "react-i18next";
 
 export default function EventStandalonePage() {
   const { user } = useDataProvider();
+  const { t } = useTranslation();
   const [event, setEvent] = useState<Event | undefined>();
   const [loading, setLoading] = useState(true);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -59,24 +66,11 @@ export default function EventStandalonePage() {
   if (loading) return <div className="min-h-screen bg-background" />;
   if (!event) notFound();
 
-  const startDate = new Date(event.startTime);
-  const formattedDate = startDate.toLocaleDateString("ro-RO", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-  const formattedTime = startDate.toLocaleTimeString("ro-RO", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const formattedDate = formatEventDate(event.startTime);
+  const formattedTime = formatEventTime(event.startTime);
   const formattedEndTime = event.endTime
-    ? new Date(event.endTime).toLocaleTimeString("ro-RO", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+    ? formatEventTime(event.endTime)
     : undefined;
-  const when = getWhenLabel(startDate, formattedDate);
   const ticketTypes = event.ticketTypes ?? [];
   const isOwnEvent = user?.properties.id === event.organizerId;
   const ticketCount = ticketTypes.reduce(
@@ -129,14 +123,14 @@ export default function EventStandalonePage() {
 
   const handleCheckout = async () => {
     if (isOwnEvent) {
-      setCheckoutError("Nu poti cumpara bilete la propriul eveniment.");
+      setCheckoutError(t("eventPage.cannotBuyOwn"));
       return;
     }
     if (ticketCount === 0 || isCheckingOut) return;
 
     const email = guestEmail.trim();
     if (!email) {
-      setCheckoutError("Introdu adresa de email pentru bilete.");
+      setCheckoutError(t("eventSheet.emailRequired"));
       return;
     }
 
@@ -158,7 +152,7 @@ export default function EventStandalonePage() {
       });
       window.location.assign(checkout.checkoutUrl);
     } catch {
-      setCheckoutError("Plata nu a putut fi pregatita. Incearca din nou.");
+      setCheckoutError(t("eventSheet.purchaseError"));
       setIsCheckingOut(false);
     }
   };
@@ -182,22 +176,22 @@ export default function EventStandalonePage() {
           href="/events"
           className="mb-5 inline-flex h-9 items-center gap-2 rounded-lg border border-white/15 bg-background/65 px-3 text-xs font-semibold text-foreground backdrop-blur transition hover:bg-surface"
         >
-          <ArrowLeft className="h-3.5 w-3.5" /> Inapoi
+          <ArrowLeft className="h-3.5 w-3.5" /> {t("common.back")}
         </Link>
         <section className="rounded-xl border border-white/15 bg-background/90 p-6 backdrop-blur-md sm:p-7">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold text-primary">{event.category}</p>
               <h1 className="mt-1 text-3xl font-semibold leading-tight sm:text-4xl">{event.title}</h1>
-              <p className="mt-2 text-sm text-muted-foreground">La {event.locationName}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{t("eventPage.locationAt", { location: event.locationName })}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {user && (
                 <button
                   type="button"
                   onClick={toggleFavorite}
-                  aria-label={favorite ? "Elimina din favorite" : "Adauga la favorite"}
-                  title={favorite ? "Elimina din favorite" : "Adauga la favorite"}
+                  aria-label={favorite ? t("eventSheet.removeFavorite") : t("eventSheet.addFavorite")}
+                  title={favorite ? t("eventSheet.removeFavorite") : t("eventSheet.addFavorite")}
                   className={`grid h-9 w-9 place-items-center rounded-full border transition hover:border-primary hover:bg-surface ${
                     favorite
                       ? "border-primary/40 bg-primary/15 text-primary"
@@ -210,8 +204,8 @@ export default function EventStandalonePage() {
               <button
                 type="button"
                 onClick={shareEvent}
-                aria-label={shared ? "Link copiat" : "Distribuie evenimentul"}
-                title={shared ? "Link copiat" : "Distribuie"}
+                aria-label={shared ? t("checkout.copiedLink") : t("eventSheet.share")}
+                title={shared ? t("checkout.copiedLink") : t("eventSheet.share")}
                 className="grid h-9 w-9 place-items-center rounded-full border border-white/15 bg-surface/60 transition hover:bg-surface"
               >
                 {shared ? <Check className="h-4 w-4 text-primary" /> : <Share2 className="h-4 w-4" />}
@@ -220,19 +214,21 @@ export default function EventStandalonePage() {
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <Fact icon={Clock} label="Ora" value={formattedEndTime ? `Pana la ${formattedEndTime}` : formattedTime} />
-            <Fact icon={MapPin} label="Locatie" value={event.locationName} />
-            <Fact icon={Calendar} label="Cand" value={when} />
-            <Fact icon={Users} label="Vibe" value={event.category} />
+            <Fact icon={Clock} label={t("eventPage.time")} value={formattedEndTime ? t("eventPage.until", { time: formattedEndTime }) : formattedTime} />
+            <Fact icon={MapPin} label={t("eventPage.location")} value={event.locationName} />
+            <Fact icon={Calendar} label={t("eventPage.when")} value={formattedDate} />
+            <Fact icon={Users} label={t("eventPage.vibe")} value={event.category} />
           </div>
         </section>
 
         <section className="pt-7 sm:pt-8">
-          <h2 className="text-sm font-semibold">Despre eveniment</h2>
+          <h2 className="text-sm font-semibold">{t("eventPage.about")}</h2>
           <p className="mt-3 max-w-2xl whitespace-pre-line text-sm leading-6 text-muted-foreground">
             {event.description || "Nu exista o descriere detaliata pentru acest eveniment."}
           </p>
         </section>
+
+        <EventLineup artists={event.lineup} />
 
         <div className="pt-7 sm:pt-8">
           <EventSocialProof eventId={event.id} />
@@ -243,7 +239,7 @@ export default function EventStandalonePage() {
         </div>
 
         <section className="pt-8">
-          <h2 className="text-sm font-semibold">Bilete</h2>
+          <h2 className="text-sm font-semibold">{t("eventPage.tickets")}</h2>
           {ticketTypes.length > 0 ? (
             <div className="mt-3 space-y-3">
               {ticketTypes.map((ticket) => (
@@ -251,15 +247,15 @@ export default function EventStandalonePage() {
                   <div className="min-w-0">
                     <p className="text-sm font-semibold">{ticket.name}</p>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {ticket.description || "Acces la eveniment"} <span className="text-foreground">. {ticket.priceRon} RON</span>
+                      {ticket.description || t("eventPage.eventAccess")} <span className="text-foreground">. {ticket.priceRon} RON</span>
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
-                    <QuantityButton label="Scade" onClick={() => changeQuantity(ticket.id, -1)} disabled={!quantities[ticket.id]}>
+                    <QuantityButton label={t("eventPage.decrease")} onClick={() => changeQuantity(ticket.id, -1)} disabled={!quantities[ticket.id]}>
                       <Minus className="h-3.5 w-3.5" />
                     </QuantityButton>
                     <span className="w-3 text-center text-sm font-semibold">{quantities[ticket.id] ?? 0}</span>
-                    <QuantityButton label="Adauga" variant="primary" onClick={() => changeQuantity(ticket.id, 1)}>
+                    <QuantityButton label={t("eventPage.increase")} variant="primary" onClick={() => changeQuantity(ticket.id, 1)}>
                       <Plus className="h-3.5 w-3.5" />
                     </QuantityButton>
                   </div>
@@ -267,32 +263,30 @@ export default function EventStandalonePage() {
               ))}
             </div>
           ) : (
-            <p className="mt-3 text-sm text-muted-foreground">Accesul este liber sau biletele se achizitioneaza direct la locatie.</p>
+            <p className="mt-3 text-sm text-muted-foreground">{t("eventPage.noTickets")}</p>
           )}
           {ticketTypes.length > 0 && (
             <>
               <div className="mt-4 rounded-lg border border-white/10 bg-black/15 px-4 py-3 text-xs">
                 {ticketCount > 0 ? (
                   <div className="space-y-1.5">
-                    <div className="flex justify-between text-muted-foreground"><span>Bilete</span><span>{formatRon(ticketSubtotal)}</span></div>
+                    <div className="flex justify-between text-muted-foreground"><span>{t("checkout.tickets")}</span><span>{formatRon(ticketSubtotal)}</span></div>
                     <div className="flex justify-between text-muted-foreground"><span>{event.organizerAbsorbsServiceFee ? "Taxă de servicii suportată de organizator" : "Taxă de servicii (4% + 2,50 RON/bilet)"}</span><span>{event.organizerAbsorbsServiceFee ? "0 RON" : formatRon(serviceFee)}</span></div>
-                    <div className="flex justify-between border-t border-white/10 pt-1.5 text-sm font-semibold"><span>Total de plată</span><span>{formatRon(total)}</span></div>
+                    <div className="flex justify-between border-t border-white/10 pt-1.5 text-sm font-semibold"><span>{t("checkout.total")}</span><span>{formatRon(total)}</span></div>
                   </div>
                 ) : (
                   <p className="text-muted-foreground">{event.organizerAbsorbsServiceFee ? "Preț final, fără taxe adăugate la checkout." : "Taxa de servicii se calculează înainte de plată."}</p>
                 )}
               </div>
               <div className="mt-4">
-                <label className="text-sm font-semibold" htmlFor="ticket-email">
-                  Email pentru bilete
-                </label>
+                <label className="text-sm font-semibold" htmlFor="ticket-email">{t("eventSheet.emailForTickets")}</label>
                 <input
                   id="ticket-email"
                   type="email"
                   autoComplete="email"
                   value={guestEmail}
                   onChange={(inputEvent) => setGuestEmail(inputEvent.target.value)}
-                  placeholder="nume@email.ro"
+                  placeholder={t("checkout.emailPlaceholder")}
                   className="mt-2 h-12 w-full rounded-lg border border-white/15 bg-surface/80 px-4 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/60"
                 />
                 {!user && (
@@ -312,12 +306,12 @@ export default function EventStandalonePage() {
                 <span className="inline-flex items-center gap-2">
                   <Ticket className="h-4 w-4" />
                   {isOwnEvent
-                    ? "Evenimentul tau"
+                    ? t("eventPage.ownEvent")
                     : isCheckingOut
-                    ? "Se pregateste plata..."
+                    ? t("checkout.preparingPayment")
                     : ticketCount
-                      ? `Cumpara ${ticketCount} bilete`
-                      : "Alege biletele"}
+                      ? t("eventPage.buyTickets", { count: ticketCount })
+                      : t("checkout.selectTickets")}
                 </span>
                 {ticketCount > 0 && <span>{formatRon(total)}</span>}
               </button>
@@ -326,11 +320,11 @@ export default function EventStandalonePage() {
         </section>
 
         <section className="pt-8">
-          <h2 className="text-sm font-semibold">Locatie</h2>
+          <h2 className="text-sm font-semibold">{t("eventPage.location")}</h2>
           <div className="mt-3 flex items-center justify-between gap-4 rounded-lg border border-white/15 bg-surface/80 px-4 py-3.5 sm:px-5">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{event.locationName}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">Deschide traseul in Google Maps</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{t("eventPage.directions")}</p>
             </div>
             <a
               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.locationName)}`}
@@ -338,7 +332,7 @@ export default function EventStandalonePage() {
               rel="noreferrer"
               className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/20 px-3 py-2 text-xs font-semibold transition hover:border-primary hover:text-primary"
             >
-              Deschide <ArrowUpRight className="h-3.5 w-3.5" />
+              {t("eventPage.open")} <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
           </div>
         </section>
@@ -346,17 +340,6 @@ export default function EventStandalonePage() {
       </div>
     </main>
   );
-}
-
-function getWhenLabel(date: Date, fallback: string) {
-  const today = new Date();
-  const todayAtMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const eventAtMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const daysAway = Math.round((eventAtMidnight.getTime() - todayAtMidnight.getTime()) / 86_400_000);
-
-  if (daysAway === 0) return "Astazi";
-  if (daysAway === 1) return "Maine";
-  return fallback;
 }
 
 function Fact({

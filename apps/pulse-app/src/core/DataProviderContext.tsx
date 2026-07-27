@@ -11,6 +11,7 @@ import React, {
 import { usePathname, useRouter } from "next/navigation";
 import { ApiClient } from "@packages/api-client/src/Client";
 import { User } from "./DataProvider";
+import { useTranslation } from "react-i18next";
 
 const getStoredToken = (): string | null => {
   if (typeof window !== "undefined") {
@@ -47,6 +48,7 @@ const DataProviderContext = createContext<DataProviderContextProps | undefined>(
 );
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
+  const { t, i18n } = useTranslation();
   const [user, setUser] = useState<User | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -75,11 +77,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const userData = await ApiClient.instance.get("/users/me");
 
       setUser(new User(userData));
+      if (userData.preferredLanguage === "en" || userData.preferredLanguage === "ro") {
+        await i18n.changeLanguage(userData.preferredLanguage);
+      }
     } catch (err) {
       setError(
         err instanceof Error
           ? err
-          : new Error("Failed to resolve active user session"),
+          : new Error(t("common.sessionFailed")),
       );
       setUser(undefined);
       if (typeof window !== "undefined") {
@@ -88,7 +93,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [i18n]);
 
   useEffect(() => {
     initializeSession();
@@ -116,11 +121,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         await initializeSession();
       } catch (err) {
-        setError(err instanceof Error ? err : new Error("Login failed"));
+        setError(err instanceof Error ? err : new Error(t("common.loginFailed")));
         setLoading(false);
       }
     },
-    [initializeSession],
+    [initializeSession, t],
   );
 
   const logout = useCallback(() => {
@@ -181,7 +186,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   if (isProtectedRoute && loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
-        <span>Se încarcă...</span>
+        <span>{t("common.loading")}</span>
       </div>
     );
   }

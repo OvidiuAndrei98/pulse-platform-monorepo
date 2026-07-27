@@ -80,7 +80,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 }
 
 // ScannerAuthMiddleware accepta doar sesiunile temporare generate pentru un link de poarta.
-// Ele nu contin un utilizator Pulse si nu pot fi folosite cu AuthMiddleware.
+// Ele nu contin un utilizator Glow si nu pot fi folosite cu AuthMiddleware.
 func ScannerAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")

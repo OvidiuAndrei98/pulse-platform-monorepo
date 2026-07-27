@@ -1634,6 +1634,37 @@
         }
       }
     },
+    "/spotify/search": {
+      "get": {
+        "operationId": "SpotifyOperations_searchArtists",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SpotifyArtistResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ticket-validation/quick-access/session": {
       "post": {
         "operationId": "QuickScannerOperations_createScannerSession",
@@ -1774,6 +1805,13 @@
                   },
                   "bio": {
                     "type": "string"
+                  },
+                  "preferredLanguage": {
+                    "type": "string",
+                    "enum": [
+                      "en",
+                      "ro"
+                    ]
                   }
                 }
               }
@@ -1898,6 +1936,80 @@
         "properties": {
           "message": {
             "type": "string"
+          }
+        }
+      },
+      "Artist": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "imageUrl",
+          "isHeadliner",
+          "source"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "stage": {
+            "type": "string"
+          },
+          "performanceTime": {
+            "type": "string"
+          },
+          "spotifyUrl": {
+            "type": "string"
+          },
+          "isHeadliner": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "SPOTIFY",
+              "MANUAL"
+            ]
+          }
+        }
+      },
+      "ArtistInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "source"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "stage": {
+            "type": "string"
+          },
+          "performanceTime": {
+            "type": "string"
+          },
+          "spotifyUrl": {
+            "type": "string"
+          },
+          "isHeadliner": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "SPOTIFY",
+              "MANUAL"
+            ]
           }
         }
       },
@@ -2072,6 +2184,12 @@
             "items": {
               "$ref": "#/components/schemas/CreateTicketTypePayload"
             }
+          },
+          "lineup": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArtistInput"
+            }
           }
         }
       },
@@ -2200,6 +2318,7 @@
           "isLive",
           "createdAt",
           "ticketTypes",
+          "lineup",
           "stats"
         ],
         "properties": {
@@ -2266,6 +2385,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/TicketTypeResponse"
+            }
+          },
+          "lineup": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Artist"
             }
           },
           "stats": {
@@ -2593,6 +2718,7 @@
         "required": [
           "id",
           "username",
+          "preferredLanguage",
           "role",
           "organizerVerified",
           "relationship",
@@ -2611,6 +2737,13 @@
           },
           "bio": {
             "type": "string"
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "enum": [
+              "en",
+              "ro"
+            ]
           },
           "role": {
             "type": "string",
@@ -2754,6 +2887,36 @@
             "format": "date-time"
           },
           "organizerName": {
+            "type": "string"
+          }
+        }
+      },
+      "SpotifyArtistResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "imageUrl",
+          "genres",
+          "spotifyUrl"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "spotifyUrl": {
             "type": "string"
           }
         }
@@ -2936,6 +3099,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/UpdateTicketTypePayload"
+            }
+          },
+          "lineup": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArtistInput"
             }
           }
         }

@@ -15,6 +15,8 @@ import {
 } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { SocialAvatar } from "@/components/social/SocialAvatar";
+import { formatEventDate } from "@/features/events/dateFormat";
+import { useTranslation } from "react-i18next";
 
 const INITIAL_VISIBLE_ITEMS = 6;
 const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -34,6 +36,7 @@ type FeedGroup = {
 
 export default function FeedPage() {
   const { user, loading, isOrganizer } = useDataProvider();
+  const { t } = useTranslation();
   const { friends, friendsLoading } = User.useFriends(
     isOrganizer ? undefined : user,
   );
@@ -104,15 +107,15 @@ export default function FeedPage() {
   if (!loading && !user) {
     return (
       <main className="mx-auto min-h-screen max-w-xl px-5 pt-12 text-foreground">
-        <h1 className="text-2xl font-semibold">Activitate</h1>
+        <h1 className="text-2xl font-semibold">{t("feed.title")}</h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          Conecteaza-te pentru a vedea activitatea prietenilor.
+          {t("feed.signInHint")}
         </p>
         <Link
           href="/login"
           className="mt-5 inline-flex rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
         >
-          Conecteaza-te
+          {t("social.signIn")}
         </Link>
       </main>
     );
@@ -126,9 +129,9 @@ export default function FeedPage() {
             <UsersRound className="h-5 w-5" />
           </span>
           <div>
-            <h1 className="text-2xl font-semibold">Activitate</h1>
+            <h1 className="text-2xl font-semibold">{t("feed.title")}</h1>
             <p className="text-sm text-muted-foreground">
-              {isOrganizer ? "Organizatori urmariti" : "Prieteni si organizatori urmariti"}
+              {isOrganizer ? t("feed.followedOrganizers") : t("feed.friendsAndOrganizers")}
             </p>
           </div>
         </div>
@@ -144,7 +147,7 @@ export default function FeedPage() {
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-28 pt-6">
         {!isOrganizer && !requestsLoading && requests.length > 0 && (
           <section>
-            <h2 className="text-sm font-semibold">Cereri de prietenie</h2>
+            <h2 className="text-sm font-semibold">{t("feed.friendRequests")}</h2>
             <div className="mt-3 space-y-2">
               {requests.map((request) => (
                 <div
@@ -160,14 +163,14 @@ export default function FeedPage() {
                       {request.username}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      vrea sa va conectati
+                      {t("feed.wantsToConnect")}
                     </p>
                   </Link>
                   <button
                     type="button"
                     onClick={() => void respond(request.id, "accepted")}
                     className="grid h-8 w-8 place-items-center rounded-full bg-primary text-primary-foreground"
-                    aria-label={`Accepta cererea lui ${request.username}`}
+                    aria-label={t("feed.acceptRequest", { name: request.username })}
                   >
                     <Check className="h-4 w-4" />
                   </button>
@@ -175,7 +178,7 @@ export default function FeedPage() {
                     type="button"
                     onClick={() => void respond(request.id, "declined")}
                     className="grid h-8 w-8 place-items-center rounded-full border border-white/15 text-muted-foreground"
-                    aria-label={`Refuza cererea lui ${request.username}`}
+                    aria-label={t("feed.declineRequest", { name: request.username })}
                   >
                     x
                   </button>
@@ -187,10 +190,10 @@ export default function FeedPage() {
 
         <section className={!requestsLoading && requests.length > 0 ? "mt-8" : ""}>
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold">Noutati recente</h2>
+            <h2 className="text-sm font-semibold">{t("feed.recent")}</h2>
             {groupedItems.length > 0 && (
               <span className="text-xs text-muted-foreground">
-                {Math.min(visibleCount, groupedItems.length)} din {groupedItems.length}
+                {t("feed.of", { visible: Math.min(visibleCount, groupedItems.length), total: groupedItems.length })}
               </span>
             )}
           </div>
@@ -200,12 +203,12 @@ export default function FeedPage() {
             <div className="mt-3 rounded-lg border border-dashed border-white/15 px-5 py-10 text-center">
               <UserRoundPlus className="mx-auto h-5 w-5 text-primary" />
               <p className="mt-3 text-sm font-medium">
-                Feed-ul tau este inca linistit.
+                {t("feed.empty")}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {isOrganizer
-                  ? "Urmareste organizatori pentru a vedea evenimente noi aici."
-                  : "Adauga prieteni sau urmareste organizatori din cautare."}
+                  ? t("feed.emptyOrganizer")
+                  : t("feed.emptyUser")}
               </p>
             </div>
           ) : (
@@ -225,7 +228,7 @@ export default function FeedPage() {
                   }
                   className="mt-4 w-full rounded-lg border border-white/15 px-4 py-2.5 text-sm font-semibold text-muted-foreground transition hover:border-primary/50 hover:text-primary"
                 >
-                  Incarca mai multe
+                  {t("feed.loadMore")}
                 </button>
               )}
             </>
@@ -245,6 +248,7 @@ function FriendsRail({
   loading: boolean;
   activeFriendIds: Set<string>;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="-mx-5 mt-5 flex items-start gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-7 sm:px-7">
       {loading ? (
@@ -255,7 +259,7 @@ function FriendsRail({
             key={friend.id}
             href={`/users/${friend.id}`}
             className="flex w-12 shrink-0 flex-col items-center gap-1.5 text-center"
-            title={`Vezi profilul lui ${friend.username}`}
+            title={t("feed.viewProfile", { name: friend.username })}
           >
             <SocialAvatar
               profile={friend}
@@ -273,7 +277,7 @@ function FriendsRail({
           href="/users/me/friends"
           className="flex h-12 shrink-0 items-center rounded-full border border-white/15 px-3 text-xs font-semibold text-muted-foreground transition hover:border-primary/50 hover:text-primary"
         >
-          Vezi toti ({friends.length})
+          {t("feed.seeAll", { count: friends.length })}
         </Link>
       )}
     </div>
@@ -281,16 +285,17 @@ function FriendsRail({
 }
 
 function FeedRow({ item }: { item: FeedGroup }) {
+  const { t } = useTranslation();
   const primaryActor = item.actors[0];
-  const actorSummary = actorLabel(item.actors);
+  const actorSummary = actorLabel(item.actors, t);
   const copy =
     item.kind === "organizer"
-      ? "a publicat un eveniment nou"
+      ? t("feed.publishedEvent")
       : item.ticketActors.length > 0 && item.goingActors.length > 0
-        ? "se pregatesc pentru"
+        ? t("feed.gettingReady")
         : item.ticketActors.length > 0
-          ? "au bilet la"
-          : "merg la";
+          ? t("feed.haveTickets")
+          : t("feed.goingTo");
 
   return (
     <div className="flex items-center gap-3 py-3 transition hover:bg-white/[0.03]">
@@ -317,17 +322,17 @@ function FeedRow({ item }: { item: FeedGroup }) {
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
           <span>{formatEventDate(item.eventStartTime)}</span>
           {item.kind === "friends" && item.ticketActors.length > 0 && (
-            <span>{item.ticketActors.length} cu bilet</span>
+            <span>{t("feed.withTicket", { count: item.ticketActors.length })}</span>
           )}
           {item.kind === "friends" && item.goingActors.length > 0 && (
-            <span>{item.goingActors.length} merg</span>
+            <span>{t("feed.going", { count: item.goingActors.length })}</span>
           )}
         </div>
       </Link>
       <Link
         href={`/events/${item.eventId}`}
-        aria-label={`Vezi biletele pentru ${item.eventTitle}`}
-        title="Vezi biletele"
+        aria-label={t("feed.viewTicketsFor", { event: item.eventTitle })}
+        title={t("feed.viewTickets")}
         className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-primary/35 bg-primary/10 text-primary transition hover:bg-primary hover:text-primary-foreground"
       >
         <Ticket className="h-4 w-4" />
@@ -409,15 +414,8 @@ function createGroup(kind: FeedGroup["kind"], item: SocialFeedItem): FeedGroup {
   };
 }
 
-function actorLabel(actors: SocialFeedItem[]) {
-  const firstName = actors[0]?.actorUsername ?? "Prietenii tai";
+function actorLabel(actors: SocialFeedItem[], t?: (key: string, options?: Record<string, unknown>) => string) {
+  const firstName = actors[0]?.actorUsername ?? t?.("feed.yourFriends") ?? "";
   if (actors.length === 1) return firstName;
-  return `${firstName} si alti ${actors.length - 1} prieteni`;
-}
-
-function formatEventDate(value: string) {
-  return new Date(value).toLocaleDateString("ro-RO", {
-    day: "numeric",
-    month: "short",
-  });
+  return t?.("feed.andOtherFriends", { name: firstName, count: actors.length - 1 }) ?? firstName;
 }

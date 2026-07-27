@@ -11,6 +11,7 @@ import {
 import { Home, Map, UsersRound, User } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { useTranslation } from "react-i18next";
 
 type NavItem = {
   icon: typeof Home;
@@ -25,11 +26,12 @@ export function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
   const { isOrganizer } = useDataProvider();
+  const { t } = useTranslation();
   const items: NavItem[] = [
-    { icon: Home, label: "Home", url: "/" },
-    { icon: Map, label: "Map", url: "/events" },
-    { icon: UsersRound, label: "Feed", url: "/feed" },
-    { icon: User, label: "Profile", url: isOrganizer ? "/dashboard" : "/users/me" },
+    { icon: Home, label: t("nav.home"), url: "/" },
+    { icon: Map, label: t("nav.map"), url: "/events" },
+    { icon: UsersRound, label: t("nav.feed"), url: "/feed" },
+    { icon: User, label: t("nav.profile"), url: isOrganizer ? "/dashboard" : "/users/me" },
   ];
 
   // Determinăm indexul paginii în funcție de URL-ul curent

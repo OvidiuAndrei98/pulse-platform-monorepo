@@ -19,6 +19,14 @@ export const eventVibes = [
   "Indoor",
 ];
 
+export const eventDateFilters = [
+  "See all",
+  "Tonight",
+  "Tomorrow",
+  "This weekend",
+  "Next week",
+] as const;
+
 export const cityCenters: Record<string, Coordinates> = {
   Bucuresti: [44.4268, 26.1025],
   "Cluj-Napoca": [46.7712, 23.6236],
@@ -32,7 +40,7 @@ export const cityCenters: Record<string, Coordinates> = {
 export const defaultEventFilters: EventFilters = {
   categories: [],
   vibes: [],
-  date: "Tonight",
+  date: "See all",
   distance: 15,
   city: "",
 };

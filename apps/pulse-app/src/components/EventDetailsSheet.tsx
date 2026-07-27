@@ -15,9 +15,12 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { ApiClient } from "@packages/api-client/src/Client";
 import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
+import { EventLineup } from "@/features/events/lineup/EventLineup";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { calculateServiceFeeRon, formatRon } from "@/features/events/serviceFee";
+import { formatEventDateTime } from "@/features/events/dateFormat";
+import { useTranslation } from "react-i18next";
 
 interface EventDetailsContextType {
   open: (event: Event) => void;
@@ -59,6 +62,7 @@ export interface EventDetailsSheetProps {
 }
 
 export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
+  const { t } = useTranslation();
   const { user } = useDataProvider();
   const [qty, setQty] = useState<Record<string, number>>({});
   const [guestEmail, setGuestEmail] = useState("");
@@ -156,14 +160,14 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
 
   const handleCheckout = async () => {
     if (isOwnEvent) {
-      setCheckoutError("Nu poti cumpara bilete la propriul eveniment.");
+      setCheckoutError(t("eventSheet.ownEvent"));
       return;
     }
     if (count === 0 || isCheckingOut) return;
 
     const email = guestEmail.trim();
     if (!email) {
-      setCheckoutError("Introdu adresa de email pentru bilete.");
+      setCheckoutError(t("eventSheet.emailRequired"));
       return;
     }
 
@@ -185,7 +189,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
       });
       window.location.assign(checkout.checkoutUrl);
     } catch {
-      setCheckoutError("Plata nu a putut fi pregatita. Incearca din nou.");
+      setCheckoutError(t("eventSheet.purchaseError"));
       setIsCheckingOut(false);
       setPurchased(false);
     }
@@ -217,14 +221,12 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
                         <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
                       </span>
-                      Live Now
+                      {t("common.liveNow")}
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 rounded-md border border-white/20 bg-background/50 px-2.5 py-1 text-[11px] text-foreground backdrop-blur">
                       <Calendar className="h-3 w-3" />{" "}
-                      {event.startTime ||
-                        (event.startTime &&
-                          new Date(event.startTime).toLocaleTimeString())}
+                      {formatEventDateTime(event.startTime)}
                     </span>
                   )}
                 </div>
@@ -244,15 +246,17 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
                 <EventAttendees eventId={event.id} />
 
                 <section>
-                  <h3 className="text-sm font-semibold">Despre eveniment</h3>
+                  <h3 className="text-sm font-semibold">{t("eventSheet.about")}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                     {event.description || "Nicio descriere disponibilă."}
                   </p>
                 </section>
 
+                <EventLineup artists={event.lineup} />
+
                 {ticketTypes.length > 0 && (
                   <section>
-                    <h3 className="text-sm font-semibold">Bilete</h3>
+                    <h3 className="text-sm font-semibold">{t("eventSheet.tickets")}</h3>
                     <div className="mt-3 space-y-2">
                       {ticketTypes.map((t) => (
                         <div
@@ -293,13 +297,14 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
                       serviceFee={serviceFee}
                       total={total}
                       organizerAbsorbsServiceFee={event.organizerAbsorbsServiceFee}
+                      t={t}
                     />
                   </section>
                 )}
 
                 <section>
                   <label className="block text-sm font-semibold" htmlFor="checkout-email">
-                    Email pentru bilete
+                    {t("eventSheet.emailForTickets")}
                   </label>
                   <input
                     id="checkout-email"
@@ -307,7 +312,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
                     autoComplete="email"
                     value={guestEmail}
                     onChange={(event) => setGuestEmail(event.target.value)}
-                    placeholder="nume@email.ro"
+                    placeholder={t("checkout.emailPlaceholder")}
                     className="mt-2 h-11 w-full rounded-lg border border-white/15 bg-white/5 px-3 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/60"
                   />
                   {!user && (
@@ -326,7 +331,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
                 <button
                   type="button"
                   onClick={toggleFavorite}
-                  aria-label={favorited ? "Elimina din favorite" : "Adauga la favorite"}
+                  aria-label={favorited ? t("eventSheet.removeFavorite") : t("eventSheet.addFavorite")}
                   className={`grid h-11 w-11 shrink-0 place-items-center rounded-lg border transition ${favorited ? "border-primary/40 bg-primary/15 text-primary" : "border-white/15 bg-white/5 hover:bg-white/10"}`}
                 >
                   <Bookmark className={`h-4 w-4 ${favorited ? "fill-current" : ""}`} />
@@ -335,7 +340,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
               <button
                 type="button"
                 onClick={handleShare}
-                aria-label={shared ? "Link copiat" : "Distribuie evenimentul"}
+                  aria-label={shared ? t("checkout.copiedLink") : t("eventSheet.share")}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-white/15 bg-white/5 transition hover:bg-white/10"
               >
                 {shared ? <Check className="h-4 w-4 text-primary" /> : <Share2 className="h-4 w-4" />}
@@ -348,7 +353,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
               >
                 <TicketIcon className="h-4 w-4" />
                 {isOwnEvent
-                  ? "Evenimentul tau"
+                  ? t("eventSheet.ownEvent")
                   : purchased
                   ? "Rezervat ✓"
                   : count === 0
@@ -388,12 +393,14 @@ function CheckoutPriceSummary({
   serviceFee,
   total,
   organizerAbsorbsServiceFee,
+  t,
 }: {
   ticketSubtotal: number;
   ticketCount: number;
   serviceFee: number;
   total: number;
   organizerAbsorbsServiceFee: boolean;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   if (ticketCount === 0) {
     return (
@@ -407,9 +414,9 @@ function CheckoutPriceSummary({
 
   return (
     <div className="mt-3 space-y-1.5 rounded-lg border border-white/10 bg-black/15 px-3 py-2.5 text-xs">
-      <div className="flex justify-between text-muted-foreground"><span>Bilete</span><span>{formatRon(ticketSubtotal)}</span></div>
+      <div className="flex justify-between text-muted-foreground"><span>{t("checkout.tickets")}</span><span>{formatRon(ticketSubtotal)}</span></div>
       <div className="flex justify-between text-muted-foreground"><span>{organizerAbsorbsServiceFee ? "Taxă de servicii suportată de organizator" : "Taxă de servicii (4% + 2,50 RON/bilet)"}</span><span>{organizerAbsorbsServiceFee ? "0 RON" : formatRon(serviceFee)}</span></div>
-      <div className="flex justify-between border-t border-white/10 pt-1.5 text-sm font-semibold"><span>Total de plată</span><span>{formatRon(total)}</span></div>
+      <div className="flex justify-between border-t border-white/10 pt-1.5 text-sm font-semibold"><span>{t("checkout.total")}</span><span>{formatRon(total)}</span></div>
     </div>
   );
 }

@@ -78,12 +78,56 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 	return i, err
 }
 
+const createEventArtist = `-- name: CreateEventArtist :exec
+INSERT INTO event_artists (
+    event_id, name, image_url, stage, performance_time, spotify_url,
+    source, is_headliner, sort_order
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+`
+
+type CreateEventArtistParams struct {
+	EventID         pgtype.UUID `json:"event_id"`
+	Name            string      `json:"name"`
+	ImageUrl        pgtype.Text `json:"image_url"`
+	Stage           pgtype.Text `json:"stage"`
+	PerformanceTime pgtype.Text `json:"performance_time"`
+	SpotifyUrl      pgtype.Text `json:"spotify_url"`
+	Source          string      `json:"source"`
+	IsHeadliner     bool        `json:"is_headliner"`
+	SortOrder       int32       `json:"sort_order"`
+}
+
+func (q *Queries) CreateEventArtist(ctx context.Context, arg CreateEventArtistParams) error {
+	_, err := q.db.Exec(ctx, createEventArtist,
+		arg.EventID,
+		arg.Name,
+		arg.ImageUrl,
+		arg.Stage,
+		arg.PerformanceTime,
+		arg.SpotifyUrl,
+		arg.Source,
+		arg.IsHeadliner,
+		arg.SortOrder,
+	)
+	return err
+}
+
 const deleteEvent = `-- name: DeleteEvent :exec
 DELETE FROM events WHERE id = $1
 `
 
 func (q *Queries) DeleteEvent(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deleteEvent, id)
+	return err
+}
+
+const deleteEventArtists = `-- name: DeleteEventArtists :exec
+DELETE FROM event_artists WHERE event_id = $1
+`
+
+func (q *Queries) DeleteEventArtists(ctx context.Context, eventID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteEventArtists, eventID)
 	return err
 }
 
@@ -263,7 +307,26 @@ SELECT
             WHERE tt.event_id = e.id
         ), 
         '[]'::json
-    ) AS ticket_types
+    ) AS ticket_types,
+    COALESCE(
+        (
+            SELECT json_agg(
+                json_build_object(
+                    'id', artist.id,
+                    'name', artist.name,
+                    'image_url', COALESCE(artist.image_url, ''),
+                    'stage', artist.stage,
+                    'performance_time', artist.performance_time,
+                    'spotify_url', artist.spotify_url,
+                    'is_headliner', artist.is_headliner,
+                    'source', artist.source
+                ) ORDER BY artist.sort_order, artist.created_at
+            )
+            FROM event_artists artist
+            WHERE artist.event_id = e.id
+        ),
+        '[]'::json
+    ) AS lineup
 FROM events e
 WHERE e.id = $2 LIMIT 1
 `
@@ -296,6 +359,7 @@ type GetEventByIDRow struct {
 	UserHasCheckedIn           bool               `json:"user_has_checked_in"`
 	IsFavorited                bool               `json:"is_favorited"`
 	TicketTypes                interface{}        `json:"ticket_types"`
+	Lineup                     interface{}        `json:"lineup"`
 }
 
 // RETURNING * va aduce status-ul modificat
@@ -325,6 +389,7 @@ func (q *Queries) GetEventByID(ctx context.Context, arg GetEventByIDParams) (Get
 		&i.UserHasCheckedIn,
 		&i.IsFavorited,
 		&i.TicketTypes,
+		&i.Lineup,
 	)
 	return i, err
 }
@@ -386,7 +451,26 @@ SELECT
             WHERE tt.event_id = e.id
         ), 
         '[]'::json
-    ) AS ticket_types
+    ) AS ticket_types,
+    COALESCE(
+        (
+            SELECT json_agg(
+                json_build_object(
+                    'id', artist.id,
+                    'name', artist.name,
+                    'image_url', COALESCE(artist.image_url, ''),
+                    'stage', artist.stage,
+                    'performance_time', artist.performance_time,
+                    'spotify_url', artist.spotify_url,
+                    'is_headliner', artist.is_headliner,
+                    'source', artist.source
+                ) ORDER BY artist.sort_order, artist.created_at
+            )
+            FROM event_artists artist
+            WHERE artist.event_id = e.id
+        ),
+        '[]'::json
+    ) AS lineup
 FROM events e
 WHERE e.id = $1 LIMIT 1
 `
@@ -418,6 +502,7 @@ type GetEventWithStatsRow struct {
 	GoingCount                 int32              `json:"going_count"`
 	TicketHolderCount          int64              `json:"ticket_holder_count"`
 	TicketTypes                interface{}        `json:"ticket_types"`
+	Lineup                     interface{}        `json:"lineup"`
 }
 
 func (q *Queries) GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEventWithStatsRow, error) {
@@ -450,6 +535,7 @@ func (q *Queries) GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEve
 		&i.GoingCount,
 		&i.TicketHolderCount,
 		&i.TicketTypes,
+		&i.Lineup,
 	)
 	return i, err
 }
@@ -617,7 +703,26 @@ SELECT
             WHERE tt.event_id = e.id
         ), 
         '[]'::json
-    ) AS ticket_types
+    ) AS ticket_types,
+    COALESCE(
+        (
+            SELECT json_agg(
+                json_build_object(
+                    'id', artist.id,
+                    'name', artist.name,
+                    'image_url', COALESCE(artist.image_url, ''),
+                    'stage', artist.stage,
+                    'performance_time', artist.performance_time,
+                    'spotify_url', artist.spotify_url,
+                    'is_headliner', artist.is_headliner,
+                    'source', artist.source
+                ) ORDER BY artist.sort_order, artist.created_at
+            )
+            FROM event_artists artist
+            WHERE artist.event_id = e.id
+        ),
+        '[]'::json
+    ) AS lineup
 FROM events e
 WHERE ($2::VARCHAR = '' OR $2 IS NULL OR e.category = ANY(string_to_array($2::VARCHAR, ',')))
   AND ($3::VARCHAR = '' OR $3 IS NULL OR e.city = $3)
@@ -672,6 +777,7 @@ type ListEventsRow struct {
 	UserHasCheckedIn           bool               `json:"user_has_checked_in"`
 	IsFavorited                bool               `json:"is_favorited"`
 	TicketTypes                interface{}        `json:"ticket_types"`
+	Lineup                     interface{}        `json:"lineup"`
 }
 
 func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error) {
@@ -720,6 +826,7 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 			&i.UserHasCheckedIn,
 			&i.IsFavorited,
 			&i.TicketTypes,
+			&i.Lineup,
 		); err != nil {
 			return nil, err
 		}
@@ -764,7 +871,26 @@ SELECT
             )
         ) FILTER (WHERE tt.id IS NOT NULL),
         '[]'::jsonb
-    ) AS ticket_types
+    ) AS ticket_types,
+    COALESCE(
+        (
+            SELECT json_agg(
+                json_build_object(
+                    'id', artist.id,
+                    'name', artist.name,
+                    'image_url', COALESCE(artist.image_url, ''),
+                    'stage', artist.stage,
+                    'performance_time', artist.performance_time,
+                    'spotify_url', artist.spotify_url,
+                    'is_headliner', artist.is_headliner,
+                    'source', artist.source
+                ) ORDER BY artist.sort_order, artist.created_at
+            )
+            FROM event_artists artist
+            WHERE artist.event_id = e.id
+        ),
+        '[]'::json
+    ) AS lineup
 FROM events e
 LEFT JOIN ticket_types tt ON tt.event_id = e.id
 WHERE e.organizer_id = $1
@@ -799,6 +925,7 @@ type ListEventsWithStatsRow struct {
 	GoingCount                 int32              `json:"going_count"`
 	TicketHolderCount          int64              `json:"ticket_holder_count"`
 	TicketTypes                interface{}        `json:"ticket_types"`
+	Lineup                     interface{}        `json:"lineup"`
 }
 
 func (q *Queries) ListEventsWithStats(ctx context.Context, organizerID pgtype.UUID) ([]ListEventsWithStatsRow, error) {
@@ -837,6 +964,7 @@ func (q *Queries) ListEventsWithStats(ctx context.Context, organizerID pgtype.UU
 			&i.GoingCount,
 			&i.TicketHolderCount,
 			&i.TicketTypes,
+			&i.Lineup,
 		); err != nil {
 			return nil, err
 		}

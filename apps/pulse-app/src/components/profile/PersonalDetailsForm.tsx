@@ -3,6 +3,7 @@
 import { Check, Loader2 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { User } from "@/core/DataProvider";
+import { useTranslation } from "react-i18next";
 
 export function PersonalDetailsForm({
   user,
@@ -11,6 +12,7 @@ export function PersonalDetailsForm({
   user: User;
   onSaved?: () => Promise<void> | void;
 }) {
+  const { t } = useTranslation();
   const [username, setUsername] = useState(user.properties.username);
   const [bio, setBio] = useState(user.properties.bio ?? "");
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
@@ -25,7 +27,7 @@ export function PersonalDetailsForm({
     event.preventDefault();
     const trimmedUsername = username.trim();
     if (trimmedUsername.length < 3) {
-      setError("Numele afisat trebuie sa aiba cel putin 3 caractere.");
+      setError(t("profile.displayNameTooShort"));
       return;
     }
 
@@ -37,7 +39,7 @@ export function PersonalDetailsForm({
       setState("saved");
       window.setTimeout(() => setState("idle"), 1600);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Datele nu au putut fi actualizate.");
+      setError(cause instanceof Error ? cause.message : t("profile.updateFailed"));
       setState("idle");
     }
   };
@@ -46,7 +48,7 @@ export function PersonalDetailsForm({
     <form onSubmit={save} className="space-y-4">
       <div className="space-y-1.5">
         <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Nume afisat
+          {t("profile.displayName")}
         </label>
         <input
           value={username}
@@ -59,14 +61,14 @@ export function PersonalDetailsForm({
       </div>
       <div className="space-y-1.5">
         <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Bio
+          {t("profile.bio")}
         </label>
         <textarea
           value={bio}
           onChange={(event) => setBio(event.target.value)}
           rows={3}
           maxLength={500}
-          placeholder="Cateva cuvinte despre tine..."
+          placeholder={t("profile.bioPlaceholder")}
           className="w-full resize-none rounded-xl border border-white/10 bg-white/5 p-3.5 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-white/[0.08]"
         />
       </div>
@@ -78,7 +80,7 @@ export function PersonalDetailsForm({
       >
         {state === "saving" && <Loader2 className="h-4 w-4 animate-spin" />}
         {state === "saved" && <Check className="h-4 w-4" />}
-        {state === "saving" ? "Se salveaza..." : state === "saved" ? "Salvat" : "Salveaza modificarile"}
+        {state === "saving" ? t("profile.saving") : state === "saved" ? t("profile.saved") : t("profile.saveChanges")}
       </button>
     </form>
   );

@@ -44,6 +44,35 @@ model TicketTypeResponse {
   ticketsSold?: int32;
 }
 
+model Artist {
+  id: string;
+  name: string;
+  imageUrl: string;
+  stage?: string;
+  performanceTime?: string;
+  spotifyUrl?: string;
+  isHeadliner: boolean;
+  source: "SPOTIFY" | "MANUAL";
+}
+
+model ArtistInput {
+  name: string;
+  imageUrl?: string;
+  stage?: string;
+  performanceTime?: string;
+  spotifyUrl?: string;
+  isHeadliner?: boolean;
+  source: "SPOTIFY" | "MANUAL";
+}
+
+model SpotifyArtistResponse {
+  id: string;
+  name: string;
+  imageUrl: string;
+  genres: string[];
+  spotifyUrl: string;
+}
+
 model EventStatsResponse {
   totalCheckIns: int64;
 
@@ -86,6 +115,7 @@ model PublicProfileResponse {
   username: string;
   avatarUrl?: string;
   bio?: string;
+  preferredLanguage: "en" | "ro";
   role: "user" | "organizer" | "admin";
   organizerName?: string;
   organizerVerified: boolean;
@@ -164,6 +194,7 @@ model EventResponse {
 
   // Răspunsul include întotdeauna colecțiile dedicate, controlate intern prin pointeri în Go
   ticketTypes: TicketTypeResponse[];
+  lineup: Artist[];
 
   stats: EventStatsResponse;
 }
@@ -253,6 +284,7 @@ model CreateEventPayload {
   endTime: utcDateTime;
   status: "draft" | "published";
   ticketTypes?: CreateTicketTypePayload[];
+  lineup?: ArtistInput[];
 }
 
 model UpdateEventPayload {
@@ -272,6 +304,7 @@ model UpdateEventPayload {
   endTime: utcDateTime;
   status: "draft" | "published";
   ticketTypes?: UpdateTicketTypePayload[];
+  lineup?: ArtistInput[];
 }
 
 model SubmitOrganizerProfilePayload {
@@ -448,6 +481,7 @@ interface UserOperations {
     @body profile: {
       username?: string;
       bio?: string;
+      preferredLanguage?: "en" | "ro";
     },
   ): User;
 
@@ -640,6 +674,13 @@ interface FriendOperations {
   @get
   @route("/requests")
   getFriendRequests(): PublicProfileResponse[];
+}
+
+@route("/spotify")
+interface SpotifyOperations {
+  @get
+  @route("/search")
+  searchArtists(@query q: string): SpotifyArtistResponse[];
 }
 
 @route("/organizers")

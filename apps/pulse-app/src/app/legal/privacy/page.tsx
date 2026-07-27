@@ -5,7 +5,7 @@ export default function PrivacyPage() {
     eyebrow="Date personale"
     title="Politica de confidentialitate"
     updatedAt="27 iulie 2026"
-    intro="Aceasta politica explica ce date foloseste Pulse pentru conturi, evenimente, bilete, plati si siguranta serviciului."
+    intro="Aceasta politica explica ce date foloseste Glow pentru conturi, evenimente, bilete, plati si siguranta serviciului."
     sections={[
       { title: "1. Date prelucrate", items: ["Date de cont: username, email, parola stocata securizat, fotografie si bio daca alegi sa le completezi.", "Date pentru bilete: eveniment, tip bilet, cod securizat, adresa de email si istoricul validarii.", "Date de organizator: denumire, CUI, adresa fiscala, starea verificarii si identificatorul contului Stripe Connect.", "Date tehnice si de securitate: adresa IP pentru acceptarea acordului de organizator, tokenuri de sesiune si jurnale necesare prevenirii abuzului."] },
       { title: "2. Scopuri si temei", paragraphs: ["Folosim datele pentru furnizarea contului, emiterea si validarea biletelor, procesarea comenzilor, suport, prevenirea fraudei si respectarea obligatiilor legale. Prelucrarea se bazeaza, dupa caz, pe executarea contractului, obligatie legala, interes legitim sau consimtamant." ] },

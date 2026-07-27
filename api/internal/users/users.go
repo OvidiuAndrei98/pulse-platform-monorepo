@@ -43,8 +43,9 @@ func (h *Handler) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 }
 
 type UpdateMeRequest struct {
-	Username string  `json:"username"`
-	Bio      *string `json:"bio"`
+	Username          string  `json:"username"`
+	Bio               *string `json:"bio"`
+	PreferredLanguage string  `json:"preferredLanguage"`
 }
 
 func (h *Handler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
@@ -73,6 +74,10 @@ func (h *Handler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusBadRequest, "Bio-ul poate avea cel mult 500 de caractere")
 		return
 	}
+	if req.PreferredLanguage != "" && req.PreferredLanguage != "en" && req.PreferredLanguage != "ro" {
+		router.RespondWithError(w, http.StatusBadRequest, "Limba selectata este invalida")
+		return
+	}
 
 	bio := pgtype.Text{}
 	if req.Bio != nil {
@@ -80,9 +85,10 @@ func (h *Handler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	updated, err := h.Queries.UpdateUserProfile(r.Context(), db.UpdateUserProfileParams{
-		ID:      uuid,
-		Column2: req.Username,
-		Bio:     bio,
+		ID:                uuid,
+		Column2:           req.Username,
+		Bio:               bio,
+		PreferredLanguage: req.PreferredLanguage,
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la actualizarea profilului")

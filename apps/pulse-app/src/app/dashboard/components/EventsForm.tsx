@@ -10,40 +10,59 @@ import { eventCategories } from "@/core/mappers";
 import { DeleteEventDialog } from "@/features/events/form/DeleteEventDialog";
 import { EventDetailsSection } from "@/features/events/form/EventDetailsSection";
 import { TicketTypesSection } from "@/features/events/form/TicketTypesSection";
+import { LineupSection } from "@/features/events/lineup/LineupSection";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 
 export const ticketTypeSchema = z.object({
-  id: z.string().uuid("ID-ul biletului trebuie sa fie un UUID valid").optional().or(z.literal("").transform(() => undefined)).or(z.null().transform(() => undefined)),
-  name: z.string().min(2, "Numele biletului este prea scurt"),
-  priceRon: z.coerce.number().min(0, "Pretul nu poate fi negativ"),
-  capacity: z.coerce.number().min(1, "Capacitatea trebuie sa fie cel putin 1"),
-  description: z.string().max(1000, "Descrierea este prea lunga").optional(),
-  startSales: z.string().min(1, "Data de start este obligatorie"),
-  endSales: z.string().min(1, "Data de final este obligatorie"),
+  id: z.string().uuid(i18n.t("formValidation.invalidTicketId")).optional().or(z.literal("").transform(() => undefined)).or(z.null().transform(() => undefined)),
+  name: z.string().min(2, i18n.t("formValidation.ticketNameShort")),
+  priceRon: z.coerce.number().min(0, i18n.t("formValidation.priceNegative")),
+  capacity: z.coerce.number().min(1, i18n.t("formValidation.capacityMinimum")),
+  description: z.string().max(1000, i18n.t("formValidation.descriptionLong")).optional(),
+  startSales: z.string().min(1, i18n.t("formValidation.salesStartRequired")),
+  endSales: z.string().min(1, i18n.t("formValidation.salesEndRequired")),
   ticketsSold: z.number().optional(),
-}).refine((data) => new Date(data.endSales) > new Date(data.startSales), { message: "Data de final a vanzarilor trebuie sa fie dupa data de start", path: ["endSales"] });
+}).refine((data) => new Date(data.endSales) > new Date(data.startSales), { message: i18n.t("formValidation.salesEndAfterStart"), path: ["endSales"] });
+
+export const lineupArtistSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, i18n.t("formValidation.artistNameRequired")).max(120),
+  imageUrl: z.string().optional().default(""),
+  stage: z.string().max(120).optional().default(""),
+  performanceTime: z.string().max(40).optional().default(""),
+  spotifyUrl: z.string().optional().default(""),
+  isHeadliner: z.boolean().default(false),
+  source: z.enum(["SPOTIFY", "MANUAL"]),
+});
 
 export const eventFormSchema = z.object({
-  title: z.string().min(3, "Titlul trebuie sa aiba cel putin 3 caractere"),
-  category: z.string().min(1, "Selecteaza o categorie"),
-  startTime: z.string().min(1, "Data de inceput este obligatorie"),
-  endTime: z.string().min(1, "Data de final este obligatorie"),
-  locationName: z.string().min(1, "Locatia este obligatorie"),
-  city: z.string().min(1, "Selecteaza orasul"),
-  vibe: z.string().min(1, "Selecteaza vibe-ul"),
-  latitude: z.coerce.number({ error: "Latitudinea este obligatorie" }),
-  longitude: z.coerce.number({ error: "Longitudinea este obligatorie" }),
+  title: z.string().min(3, i18n.t("formValidation.titleShort")),
+  category: z.string().min(1, i18n.t("formValidation.categoryRequired")),
+  startTime: z.string().min(1, i18n.t("formValidation.startRequired")),
+  endTime: z.string().min(1, i18n.t("formValidation.endRequired")),
+  locationName: z.string().min(1, i18n.t("formValidation.locationRequired")),
+  city: z.string().min(1, i18n.t("formValidation.cityRequired")),
+  vibe: z.string().min(1, i18n.t("formValidation.vibeRequired")),
+  latitude: z.coerce.number({ error: i18n.t("formValidation.latitudeRequired") }),
+  longitude: z.coerce.number({ error: i18n.t("formValidation.longitudeRequired") }),
   googlePlaceId: z.string(),
-  description: z.string().min(10, "Descrierea trebuie sa aiba cel putin 10 caractere"),
-  bannerUrl: z.string().url("Introdu un URL valid").optional().or(z.literal("").transform(() => undefined)),
+  description: z.string().min(10, i18n.t("formValidation.descriptionShort")),
+  bannerUrl: z.string().url(i18n.t("formValidation.invalidUrl")).optional().or(z.literal("").transform(() => undefined)),
   status: z.enum(["draft", "published"]).default("draft"),
   organizerAbsorbsServiceFee: z.boolean().default(false),
   ticketTypes: z.array(ticketTypeSchema),
-}).refine((data) => new Date(data.endTime) > new Date(data.startTime), { message: "Data de final a evenimentului trebuie sa fie dupa data de inceput", path: ["endTime"] });
+  lineup: z.array(lineupArtistSchema).default([]),
+}).refine((data) => new Date(data.endTime) > new Date(data.startTime), { message: i18n.t("formValidation.endAfterStart"), path: ["endTime"] });
 
 export type EventFormValues = z.infer<typeof eventFormSchema>;
 
 type EventFormProps = {
-  initialValues?: Partial<Omit<EventFormValues, "startTime" | "endTime">> & { startTime?: string; endTime?: string };
+  initialValues?: Partial<Omit<EventFormValues, "startTime" | "endTime" | "lineup">> & {
+    startTime?: string;
+    endTime?: string;
+    lineup?: Array<Partial<EventFormValues["lineup"][number]>>;
+  };
   onSubmit: (data: any) => void;
   onDelete?: () => void;
 };
@@ -73,10 +92,12 @@ function getDefaultValues(values?: EventFormProps["initialValues"]): EventFormVa
     status: values?.status || "draft",
     organizerAbsorbsServiceFee: values?.organizerAbsorbsServiceFee ?? false,
     ticketTypes: values?.ticketTypes?.map((ticket) => ({ id: ticket.id, name: ticket.name || "", priceRon: ticket.priceRon ?? 0, capacity: ticket.capacity ?? 100, description: ticket.description || "", ticketsSold: ticket.ticketsSold ?? 0, startSales: formatToDatetimeLocal(ticket.startSales), endSales: formatToDatetimeLocal(ticket.endSales) })) || [],
+    lineup: values?.lineup?.map((artist) => ({ id: artist.id, name: artist.name || "", imageUrl: artist.imageUrl || "", stage: artist.stage || "", performanceTime: artist.performanceTime || "", spotifyUrl: artist.spotifyUrl || "", isHeadliner: artist.isHeadliner ?? false, source: artist.source || "MANUAL" })) || [],
   };
 }
 
 export default function EventForm({ initialValues, onSubmit, onDelete }: EventFormProps) {
+  const { t } = useTranslation();
   const [mapsReady, setMapsReady] = useState(() => typeof window !== "undefined" && Boolean(window.google?.maps?.places));
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const isEditMode = Boolean(initialValues && Object.keys(initialValues).length);
@@ -99,6 +120,7 @@ export default function EventForm({ initialValues, onSubmit, onDelete }: EventFo
       startTime: formatToISO(data.startTime),
       endTime: formatToISO(data.endTime),
       ticketTypes: data.ticketTypes.map(({ ticketsSold, ...ticket }) => ({ ...ticket, startSales: formatToISO(ticket.startSales), endSales: formatToISO(ticket.endSales) })),
+      lineup: data.lineup.map(({ id: _id, ...artist }) => artist),
     });
   };
 
@@ -107,10 +129,11 @@ export default function EventForm({ initialValues, onSubmit, onDelete }: EventFo
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
         <Script id="google-maps-places" src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`} strategy="afterInteractive" onLoad={() => setMapsReady(true)} onReady={() => setMapsReady(true)} />
         <EventDetailsSection form={form} mapsReady={mapsReady} />
+        <LineupSection form={form} />
         <TicketTypesSection form={form} />
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          {isEditMode && <button type="button" onClick={() => setShowDeleteModal(true)} className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-5 text-sm font-semibold text-red-400 transition hover:bg-red-500/20 active:scale-[0.99]"><Trash2 className="h-4 w-4" /> Sterge evenimentul</button>}
-          <button type="submit" className="inline-flex h-12 flex-1 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-black shadow-sm transition hover:opacity-95 active:scale-[0.99]">{isEditMode ? "Salveaza modificarile" : "Creeaza evenimentul"}</button>
+          {isEditMode && <button type="button" onClick={() => setShowDeleteModal(true)} className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-5 text-sm font-semibold text-red-400 transition hover:bg-red-500/20 active:scale-[0.99]"><Trash2 className="h-4 w-4" /> {t("eventForm.deleteEvent")}</button>}
+          <button type="submit" className="inline-flex h-12 flex-1 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-black shadow-sm transition hover:opacity-95 active:scale-[0.99]">{isEditMode ? t("eventForm.saveChanges") : t("eventForm.createEvent")}</button>
         </div>
       </form>
       {showDeleteModal && <DeleteEventDialog onCancel={() => setShowDeleteModal(false)} onConfirm={() => { setShowDeleteModal(false); onDelete?.(); }} />}

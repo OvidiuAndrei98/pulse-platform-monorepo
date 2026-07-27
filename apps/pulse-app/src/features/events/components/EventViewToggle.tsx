@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { List, Map as MapIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export function EventViewToggle({
   view,
@@ -10,6 +11,7 @@ export function EventViewToggle({
   view: "list" | "map";
   onChange: (view: "list" | "map") => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="relative inline-flex h-[44px] items-center rounded-full p-1 border border-white/10 bg-[#121418]/85 md:bg-white/[0.06] md:backdrop-blur-md shadow-[rgba(255,255,255,0.18)_0px_1px_0px_inset,rgba(0,0,0,0.35)_0px_6px_20px] transform-gpu">
       {["list", "map"].map((item) => {
@@ -38,12 +40,12 @@ export function EventViewToggle({
             {item === "list" ? (
               <>
                 <List className="h-4 w-4 transition-colors" />
-                <span className="hidden sm:inline">List</span>
+                <span className="hidden sm:inline">{t("eventMap.list")}</span>
               </>
             ) : (
               <>
                 <MapIcon className="h-4 w-4 transition-colors" />
-                <span className="hidden sm:inline">Map</span>
+                <span className="hidden sm:inline">{t("eventMap.map")}</span>
               </>
             )}
           </button>

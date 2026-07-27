@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { useTranslation } from "react-i18next";
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const { login, loading, error, user } = useDataProvider();
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -45,14 +47,14 @@ export default function LoginPage() {
         </span>
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-            Contul tau
+            {t("auth.account")}
           </p>
-          <h1 className="mt-0.5 text-2xl font-semibold">Bine ai revenit</h1>
+          <h1 className="mt-0.5 text-2xl font-semibold">{t("auth.welcomeBack")}</h1>
         </div>
       </div>
 
       <p className="mt-5 text-sm leading-6 text-muted-foreground">
-        Conecteaza-te pentru biletele tale, evenimentele salvate si activitatea prietenilor.
+        {t("auth.loginHint")}
       </p>
 
       <form
@@ -60,10 +62,10 @@ export default function LoginPage() {
         className="mt-8 border border-white/15 bg-[#101311]/90 p-5 shadow-xl sm:p-6"
       >
         <GoogleSignInButton returnTo={returnTo || "/users/me"} />
-        <div className="my-5 flex items-center gap-3 text-[11px] uppercase tracking-wide text-muted-foreground"><span className="h-px flex-1 bg-white/10" />sau<span className="h-px flex-1 bg-white/10" /></div>
+        <div className="my-5 flex items-center gap-3 text-[11px] uppercase tracking-wide text-muted-foreground"><span className="h-px flex-1 bg-white/10" />{t("auth.or")}<span className="h-px flex-1 bg-white/10" /></div>
         <div className="space-y-4">
           <label className="block" htmlFor="email">
-            <span className="mb-2 block text-sm font-semibold">Email</span>
+            <span className="mb-2 block text-sm font-semibold">{t("auth.email")}</span>
             <span className="flex h-12 items-center gap-3 rounded-lg border border-white/15 bg-white/[0.035] px-3 text-muted-foreground transition focus-within:border-primary/60">
               <Mail className="h-4 w-4 shrink-0 text-primary" />
               <input
@@ -74,13 +76,13 @@ export default function LoginPage() {
                 value={email}
                 onChange={(inputEvent) => setEmail(inputEvent.target.value)}
                 className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-                placeholder="nume@email.ro"
+                placeholder={t("auth.emailPlaceholder")}
               />
             </span>
           </label>
 
           <label className="block" htmlFor="password">
-            <span className="mb-2 block text-sm font-semibold">Parola</span>
+            <span className="mb-2 block text-sm font-semibold">{t("auth.password")}</span>
             <span className="flex h-12 items-center gap-3 rounded-lg border border-white/15 bg-white/[0.035] px-3 text-muted-foreground transition focus-within:border-primary/60">
               <LockKeyhole className="h-4 w-4 shrink-0 text-primary" />
               <input
@@ -91,7 +93,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(inputEvent) => setPassword(inputEvent.target.value)}
                 className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-                placeholder="Introdu parola"
+                placeholder={t("auth.passwordPlaceholder")}
               />
             </span>
           </label>
@@ -108,15 +110,15 @@ export default function LoginPage() {
           disabled={loading}
           className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? "Se conecteaza..." : "Conecteaza-te"}
+          {loading ? t("auth.signingIn") : t("auth.signIn")}
           {!loading && <ArrowRight className="h-4 w-4" />}
         </button>
       </form>
 
       <p className="mt-5 text-center text-sm text-muted-foreground">
-        Nu ai inca un cont?{" "}
+        {t("auth.noAccount")}{" "}
         <Link href="/register" className="font-semibold text-primary transition hover:text-primary/80">
-          Creeaza cont
+          {t("auth.createAccount")}
         </Link>
       </p>
     </main>

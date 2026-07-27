@@ -5,6 +5,7 @@ import { useEventDetails } from "@/components/EventDetailsSheet";
 import { EventStatusBadge } from "@/features/events/components/EventStatusBadge";
 import { Coordinates } from "@/features/events/types";
 import { formatDistance, getDistanceKm } from "@/features/events/utils";
+import { formatEventTime } from "@/features/events/dateFormat";
 import { EventFriendsPreview } from "@/components/social/EventFriendsPreview";
 
 export function EventBrowseCard({
@@ -51,7 +52,7 @@ export function EventBrowseCard({
         <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            {event.startTime && new Date(event.startTime).toLocaleTimeString()}
+            {formatEventTime(event.startTime)}
           </span>
           {userLocation && (
             <span className="flex items-center gap-1">

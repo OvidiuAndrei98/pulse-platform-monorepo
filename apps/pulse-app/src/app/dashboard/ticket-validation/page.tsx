@@ -21,8 +21,10 @@ import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { OrganizerProfile, ValidationEvent } from "@/core/DataProvider";
 import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
+import { formatEventDateTime } from "@/features/events/dateFormat";
+import { useTranslation } from "react-i18next";
 
-const ORGANIZER_AGREEMENT_VERSION = "2026-07-27";
+const ORGANIZER_AGREEMENT_VERSION = "2026-07-27-glow";
 
 type ValidationStaff = ReadableSchema<"ValidationStaffResponse">;
 type TicketValidation = ReadableSchema<"TicketValidationResponse">;
@@ -35,12 +37,9 @@ function toDateTimeLocal(value: string) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("ro-RO", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
-}
-
 export default function TicketValidationPage() {
   const { user } = useDataProvider();
+  const { t } = useTranslation();
   const isOrganizer = user?.properties.role === "organizer" || user?.properties.role === "admin";
   const [profile, setProfile] = useState<OrganizerProfile>();
   const [profileLoading, setProfileLoading] = useState(isOrganizer);
@@ -88,7 +87,7 @@ export default function TicketValidationPage() {
       );
       if (selectedEventIdRef.current === eventId) setStaff(response);
     } catch {
-      setError("Lista validatorilor nu a putut fi incarcata.");
+      setError(t("validation.staffLoadFailed"));
     } finally {
       setStaffLoading(false);
     }
@@ -103,7 +102,7 @@ export default function TicketValidationPage() {
       );
       if (selectedEventIdRef.current === eventId) setScannerAccesses(response);
     } catch {
-      setError("Linkurile temporare nu au putut fi incarcate.");
+      setError(t("validation.linksLoadFailed"));
     } finally {
       setScannerAccessLoading(false);
     }
@@ -122,7 +121,7 @@ export default function TicketValidationPage() {
         setEvents(response);
         setSelectedEventId((current) => current || response[0]?.id || "");
       } catch {
-        if (!cancelled) setError("Evenimentele pentru validare nu au putut fi incarcate.");
+        if (!cancelled) setError(t("validation.eventsLoadFailed"));
       } finally {
         if (!cancelled) setEventsLoading(false);
       }
@@ -174,9 +173,9 @@ export default function TicketValidationPage() {
     setError("");
     try {
       setProfile(await user.updateOrganizerProfile(cui.trim(), companyName.trim(), ORGANIZER_AGREEMENT_VERSION));
-      setNotice("Datele firmei au fost trimise pentru verificare.");
+      setNotice(t("validation.companySubmitted"));
     } catch {
-      setError("Firma nu a putut fi verificata. Verifica datele introduse.");
+      setError(t("validation.companyFailed"));
     } finally {
       setSubmittingProfile(false);
     }
@@ -199,7 +198,7 @@ export default function TicketValidationPage() {
       setResult(response);
       setValidationHash("");
     } catch {
-      setError("Biletul este invalid sau nu apartine evenimentului selectat.");
+      setError(t("validation.invalidTicket"));
     } finally {
       setValidating(false);
     }
@@ -222,10 +221,10 @@ export default function TicketValidationPage() {
         body: { email: staffEmail.trim() },
       });
       setStaffEmail("");
-      setNotice("Validatorul are acum acces la acest eveniment.");
+      setNotice(t("validation.staffAdded"));
       await loadStaff(selectedEvent.id);
     } catch {
-      setError("Contul nu a putut fi adaugat. Verifica emailul si activarea contului Pulse.");
+      setError(t("validation.staffAddFailed"));
     } finally {
       setSavingStaff(false);
     }
@@ -240,9 +239,9 @@ export default function TicketValidationPage() {
         params: { path: { id: selectedEvent.id, userId: member.id } },
       });
       setStaff((current) => current.filter((item) => item.id !== member.id));
-      setNotice("Accesul validatorului a fost retras.");
+      setNotice(t("validation.staffRemoved"));
     } catch {
-      setError("Accesul validatorului nu a putut fi retras.");
+      setError(t("validation.staffRemoveFailed"));
     }
   };
 
@@ -265,10 +264,10 @@ export default function TicketValidationPage() {
         },
       );
       setLatestScannerAccess(response);
-      setNotice("Linkul temporar a fost generat. Copiaza-l acum si trimite-l voluntarului.");
+      setNotice(t("validation.linkCreated"));
       await loadScannerAccesses(selectedEvent.id);
     } catch {
-      setError("Linkul nu a putut fi generat. Intervalul trebuie sa fie in timpul evenimentului.");
+      setError(t("validation.linkCreateFailed"));
     } finally {
       setCreatingScannerAccess(false);
     }
@@ -277,9 +276,9 @@ export default function TicketValidationPage() {
   const copyScannerAccess = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
-      setNotice("Linkul de acces rapid a fost copiat.");
+      setNotice(t("validation.linkCopied"));
     } catch {
-      setError("Linkul nu a putut fi copiat automat.");
+      setError(t("validation.linkCopyFailed"));
     }
   };
 
@@ -293,9 +292,9 @@ export default function TicketValidationPage() {
         { params: { path: { id: selectedEvent.id, accessId: access.id } } },
       );
       setScannerAccesses((current) => current.map((item) => item.id === access.id ? { ...item, revokedAt: new Date().toISOString() } : item));
-      setNotice("Linkul de acces rapid a fost revocat.");
+      setNotice(t("validation.linkRevoked"));
     } catch {
-      setError("Linkul de acces rapid nu a putut fi revocat.");
+      setError(t("validation.linkRevokeFailed"));
     }
   };
 
@@ -305,16 +304,16 @@ export default function TicketValidationPage() {
     <main className="min-h-screen pb-20 text-foreground">
       <div className="mx-auto max-w-5xl space-y-6 px-4 pt-7 sm:px-6 sm:pt-9">
         <header className="space-y-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">Acces eveniment</p>
-          <h1 className="text-2xl font-bold sm:text-3xl">Validare bilete</h1>
-          <p className="text-sm text-muted-foreground">Verifica intrarea si gestioneaza conturile care pot valida pentru fiecare eveniment.</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">{t("validation.eventAccess")}</p>
+          <h1 className="text-2xl font-bold sm:text-3xl">{t("validation.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("validation.subtitle")}</p>
         </header>
 
         <section className="rounded-xl border border-primary/25 bg-primary/[0.04] p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Configurezi evenimentul</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">{t("validation.configureEvent")}</p>
           <div className="relative mt-3">
             <button type="button" onClick={() => setEventMenuOpen((open) => !open)} disabled={eventsLoading} className="flex h-11 w-full items-center justify-between rounded-lg border border-white/15 bg-background/60 px-3 text-left text-sm transition hover:bg-white/[0.08] disabled:opacity-50">
-              <span className={selectedEvent ? "truncate" : "text-muted-foreground"}>{selectedEvent?.title || (eventsLoading ? "Se incarca evenimentele..." : "Alege evenimentul")}</span>
+              <span className={selectedEvent ? "truncate" : "text-muted-foreground"}>{selectedEvent?.title || (eventsLoading ? t("validation.loadingEvents") : t("validation.chooseEvent"))}</span>
               <ChevronDown className={`h-4 w-4 shrink-0 transition ${eventMenuOpen ? "rotate-180" : ""}`} />
             </button>
             {eventMenuOpen && (
@@ -323,14 +322,14 @@ export default function TicketValidationPage() {
                   <button key={event.id} type="button" onClick={() => { setSelectedEventId(event.id); setEventMenuOpen(false); setResult(undefined); }} className={`flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm transition hover:bg-white/5 ${event.id === selectedEventId ? "bg-primary/10 text-primary" : ""}`}>
                     <Ticket className="h-4 w-4 shrink-0" />
                     <span className="min-w-0 flex-1 truncate">{event.title}</span>
-                    {event.canManage && <span className="text-[10px] font-semibold uppercase text-muted-foreground">Organizator</span>}
+                    {event.canManage && <span className="text-[10px] font-semibold uppercase text-muted-foreground">{t("validation.organizer")}</span>}
                   </button>
                 ))}
-                {!events.length && !eventsLoading && <p className="px-3 py-3 text-sm text-muted-foreground">Nu ai evenimente atribuite pentru validare.</p>}
+                {!events.length && !eventsLoading && <p className="px-3 py-3 text-sm text-muted-foreground">{t("validation.noAssignedEvents")}</p>}
               </div>
             )}
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">Validatorii, linkurile temporare si scanarea de mai jos sunt limitate strict la evenimentul selectat.</p>
+          <p className="mt-3 text-xs text-muted-foreground">{t("validation.scopeHint")}</p>
         </section>
 
         {isOrganizer && (profileLoading ? (
@@ -340,25 +339,25 @@ export default function TicketValidationPage() {
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 h-5 w-5 text-amber-300" />
               <div>
-                <h2 className="text-base font-semibold">Verificare firma</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Firma trebuie aprobata inainte sa publici evenimente sau sa vinzi bilete.</p>
+                <h2 className="text-base font-semibold">{t("validation.companyVerification")}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{t("validation.companyHint")}</p>
               </div>
             </div>
             {profile?.verificationStatus === "pending" ? (
-              <p className="mt-5 text-sm text-amber-200">Cererea este in curs de verificare.</p>
+              <p className="mt-5 text-sm text-amber-200">{t("validation.companyPending")}</p>
             ) : (
               <form onSubmit={submitCompany} className="mt-5 space-y-3">
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">
-                <input value={cui} onChange={(event) => setCui(event.target.value)} placeholder="CUI / CIF" required className="h-11 rounded-lg border border-white/15 bg-black/20 px-3 text-sm outline-none focus:border-primary/60" />
-                <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} placeholder="Denumire firma" required className="h-11 rounded-lg border border-white/15 bg-black/20 px-3 text-sm outline-none focus:border-primary/60" />
+                <input value={cui} onChange={(event) => setCui(event.target.value)} placeholder={t("validation.cui")} required className="h-11 rounded-lg border border-white/15 bg-black/20 px-3 text-sm outline-none focus:border-primary/60" />
+                <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} placeholder={t("validation.companyName")} required className="h-11 rounded-lg border border-white/15 bg-black/20 px-3 text-sm outline-none focus:border-primary/60" />
                 <button type="submit" disabled={submittingProfile || !agreementAccepted} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">
                   {submittingProfile && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Verifica
+                  {t("validation.verify")}
                 </button>
                 </div>
                 <label className="flex cursor-pointer items-start gap-3 border border-white/10 bg-black/10 p-3 text-xs leading-5 text-muted-foreground">
                   <input type="checkbox" checked={agreementAccepted} onChange={(event) => setAgreementAccepted(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]" />
-                  <span>Am citit si accept <a href="/organizers/agreement" target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">Acordul pentru organizatori</a>, inclusiv regulile Stripe Connect, comisionul platformei si responsabilitatile fiscale.</span>
+                  <span>{t("validation.agreementPrefix")} <a href="/organizers/agreement" target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">{t("validation.agreementLink")}</a>{t("validation.agreementSuffix")}</span>
                 </label>
               </form>
             )}
@@ -366,22 +365,22 @@ export default function TicketValidationPage() {
         ) : (
           <section className="flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/[0.04] p-5">
             <CheckCircle2 className="h-5 w-5 text-primary" />
-            <div><p className="text-sm font-semibold">{profile.companyName}</p><p className="text-xs text-muted-foreground">CUI {profile.cui} - profil verificat</p></div>
+            <div><p className="text-sm font-semibold">{profile.companyName}</p><p className="text-xs text-muted-foreground">{t("validation.verifiedCompany", { cui: profile.cui })}</p></div>
           </section>
         ))}
 
         <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
           <div className="flex items-start gap-3">
             <ScanLine className="mt-0.5 h-5 w-5 text-primary" />
-            <div><h2 className="text-base font-semibold">Verifica un bilet</h2><p className="mt-1 text-sm text-muted-foreground">Alege evenimentul si introdu sau lipeste codul securizat din QR.</p></div>
+            <div><h2 className="text-base font-semibold">{t("validation.verifyTicket")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("validation.ticketHint")}</p></div>
           </div>
 
           <form onSubmit={validateTicket} className="mt-5 space-y-3">
-            <textarea value={validationHash} onChange={(event) => setValidationHash(event.target.value)} rows={3} placeholder="Lipeste sau introdu codul QR" className="w-full resize-none rounded-lg border border-white/15 bg-white/5 p-3 font-mono text-xs outline-none transition placeholder:font-sans placeholder:text-sm focus:border-primary/60" />
+            <textarea value={validationHash} onChange={(event) => setValidationHash(event.target.value)} rows={3} placeholder={t("validation.pasteQr")} className="w-full resize-none rounded-lg border border-white/15 bg-white/5 p-3 font-mono text-xs outline-none transition placeholder:font-sans placeholder:text-sm focus:border-primary/60" />
             <QrCameraScanner disabled={!selectedEventId || validating} onScan={(value) => void submitValidationHash(value)} />
             <button type="submit" disabled={!selectedEventId || !validationHash.trim() || validating} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50 sm:w-auto">
               {validating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
-              {validating ? "Se verifica..." : "Valideaza biletul"}
+              {validating ? t("scanner.validating") : t("scanner.validate")}
             </button>
           </form>
 
@@ -397,14 +396,14 @@ export default function TicketValidationPage() {
           <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
             <div className="flex items-start gap-3">
               <UsersRound className="mt-0.5 h-5 w-5 text-primary" />
-              <div><h2 className="text-base font-semibold">Echipa de validare</h2><p className="mt-1 text-sm text-muted-foreground">Conturile adaugate pot valida doar biletele pentru {selectedEvent.title}.</p></div>
+              <div><h2 className="text-base font-semibold">{t("validation.validationTeam")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("validation.staffHint", { event: selectedEvent.title })}</p></div>
             </div>
 
             <form onSubmit={addStaff} className="mt-5 flex flex-col gap-2 sm:flex-row">
-              <input type="email" value={staffEmail} onChange={(event) => setStaffEmail(event.target.value)} placeholder="email@exemplu.ro" required className="h-11 min-w-0 flex-1 rounded-lg border border-white/15 bg-white/5 px-3 text-sm outline-none focus:border-primary/60" />
+              <input type="email" value={staffEmail} onChange={(event) => setStaffEmail(event.target.value)} placeholder={t("validation.staffEmailPlaceholder")} required className="h-11 min-w-0 flex-1 rounded-lg border border-white/15 bg-white/5 px-3 text-sm outline-none focus:border-primary/60" />
               <button type="submit" disabled={!staffEmail.trim() || savingStaff} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-primary/35 bg-primary/10 px-4 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50">
                 {savingStaff ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailPlus className="h-4 w-4" />}
-                Adauga acces
+                {t("validation.addAccess")}
               </button>
             </form>
 
@@ -415,10 +414,10 @@ export default function TicketValidationPage() {
                 <div key={member.id} className="flex items-center gap-3 px-3 py-3">
                   <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><UserRoundCheck className="h-4 w-4" /></div>
                   <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{member.username}</p><p className="truncate text-xs text-muted-foreground">{member.email}</p></div>
-                  <button type="button" onClick={() => void removeStaff(member)} aria-label={`Retrage accesul pentru ${member.username}`} className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 text-muted-foreground transition hover:border-red-400/30 hover:bg-red-400/10 hover:text-red-300"><Trash2 className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => void removeStaff(member)} aria-label={t("validation.removeAccess", { name: member.username })} className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 text-muted-foreground transition hover:border-red-400/30 hover:bg-red-400/10 hover:text-red-300"><Trash2 className="h-4 w-4" /></button>
                 </div>
               )) : (
-                <p className="px-3 py-4 text-sm text-muted-foreground">Doar contul tau poate valida momentan.</p>
+                <p className="px-3 py-4 text-sm text-muted-foreground">{t("validation.onlyYou")}</p>
               )}
             </div>
           </section>
@@ -429,16 +428,16 @@ export default function TicketValidationPage() {
             <div className="flex items-start gap-3">
               <Link2 className="mt-0.5 h-5 w-5 text-primary" />
               <div>
-                <h2 className="text-base font-semibold">Link de acces rapid</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Pentru voluntari fara cont Pulse. Linkul ofera doar scanarea biletelor pentru {selectedEvent.title}.</p>
+                <h2 className="text-base font-semibold">{t("validation.quickAccess")}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{t("validation.quickAccessHint", { event: selectedEvent.title })}</p>
               </div>
             </div>
 
             <form onSubmit={createScannerAccess} className="mt-5 grid gap-3 md:grid-cols-2">
-              <input value={scannerLabel} onChange={(event) => setScannerLabel(event.target.value)} maxLength={80} placeholder="Gate 1 Scanner" required className="h-11 rounded-lg border border-white/15 bg-white/5 px-3 text-sm outline-none focus:border-primary/60" />
+              <input value={scannerLabel} onChange={(event) => setScannerLabel(event.target.value)} maxLength={80} placeholder={t("validation.scannerLabelPlaceholder")} required className="h-11 rounded-lg border border-white/15 bg-white/5 px-3 text-sm outline-none focus:border-primary/60" />
               <div className="hidden md:block" />
-              <label className="space-y-1.5 text-xs font-semibold text-muted-foreground"><span>Activ de la</span><input type="datetime-local" value={scannerStartsAt} onChange={(event) => setScannerStartsAt(event.target.value)} required className="h-11 w-full rounded-lg border border-white/15 bg-white/5 px-3 text-sm text-foreground outline-none focus:border-primary/60" /></label>
-              <label className="space-y-1.5 text-xs font-semibold text-muted-foreground"><span>Pana la</span><input type="datetime-local" value={scannerEndsAt} onChange={(event) => setScannerEndsAt(event.target.value)} required className="h-11 w-full rounded-lg border border-white/15 bg-white/5 px-3 text-sm text-foreground outline-none focus:border-primary/60" /></label>
+              <label className="space-y-1.5 text-xs font-semibold text-muted-foreground"><span>{t("validation.activeFrom")}</span><input type="datetime-local" value={scannerStartsAt} onChange={(event) => setScannerStartsAt(event.target.value)} required className="h-11 w-full rounded-lg border border-white/15 bg-white/5 px-3 text-sm text-foreground outline-none focus:border-primary/60" /></label>
+              <label className="space-y-1.5 text-xs font-semibold text-muted-foreground"><span>{t("validation.activeUntil")}</span><input type="datetime-local" value={scannerEndsAt} onChange={(event) => setScannerEndsAt(event.target.value)} required className="h-11 w-full rounded-lg border border-white/15 bg-white/5 px-3 text-sm text-foreground outline-none focus:border-primary/60" /></label>
               <button type="submit" disabled={!scannerLabel.trim() || !scannerStartsAt || !scannerEndsAt || creatingScannerAccess} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-primary/35 bg-primary/10 px-4 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50 md:col-span-2 md:w-fit">
                 {creatingScannerAccess ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
                 Genereaza link
@@ -447,7 +446,7 @@ export default function TicketValidationPage() {
 
             {latestScannerAccess && (
               <div className="mt-4 rounded-lg border border-primary/30 bg-primary/[0.07] p-3">
-                <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">{latestScannerAccess.label}</p><button type="button" onClick={() => void copyScannerAccess(latestScannerAccess.url)} className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground"><Copy className="h-3.5 w-3.5" />Copiaza</button></div>
+                <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">{latestScannerAccess.label}</p><button type="button" onClick={() => void copyScannerAccess(latestScannerAccess.url)} className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground"><Copy className="h-3.5 w-3.5" />{t("validation.copy")}</button></div>
                 <p className="mt-2 break-all font-mono text-[11px] text-muted-foreground">{latestScannerAccess.url}</p>
               </div>
             )}
@@ -456,13 +455,13 @@ export default function TicketValidationPage() {
               {scannerAccessLoading ? (
                 <div className="flex h-16 items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
               ) : scannerAccesses.length ? scannerAccesses.map((access) => (
-                <div key={access.id} className="flex items-center gap-3 px-3 py-3">
+                  <div key={access.id} className="flex items-center gap-3 px-3 py-3">
                   <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${access.revokedAt ? "bg-white/5 text-muted-foreground" : "bg-primary/10 text-primary"}`}><Link2 className="h-4 w-4" /></div>
-                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{access.label}</p><p className="truncate text-xs text-muted-foreground">{formatDateTime(access.startsAt)} - {formatDateTime(access.endsAt)}</p></div>
-                  {access.revokedAt ? <span className="text-xs font-semibold text-muted-foreground">Revocat</span> : <button type="button" onClick={() => void revokeScannerAccess(access)} aria-label={`Revoca linkul ${access.label}`} className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 text-muted-foreground transition hover:border-red-400/30 hover:bg-red-400/10 hover:text-red-300"><Trash2 className="h-4 w-4" /></button>}
+                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{access.label}</p><p className="truncate text-xs text-muted-foreground">{formatEventDateTime(access.startsAt)} - {formatEventDateTime(access.endsAt)}</p></div>
+                  {access.revokedAt ? <span className="text-xs font-semibold text-muted-foreground">{t("validation.revoked")}</span> : <button type="button" onClick={() => void revokeScannerAccess(access)} aria-label={t("validation.revoke", { label: access.label })} className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 text-muted-foreground transition hover:border-red-400/30 hover:bg-red-400/10 hover:text-red-300"><Trash2 className="h-4 w-4" /></button>}
                 </div>
               )) : (
-                <p className="px-3 py-4 text-sm text-muted-foreground">Nu exista linkuri temporare pentru acest eveniment.</p>
+                <p className="px-3 py-4 text-sm text-muted-foreground">{t("validation.noLinks")}</p>
               )}
             </div>
           </section>

@@ -12,6 +12,9 @@ export type UserData = ReadableSchema<"User">;
 export type CreateEventPayload = WritableSchema<"CreateEventPayload">;
 export type UpdateEventPayload = WritableSchema<"UpdateEventPayload">;
 export type TicketTier = ReadableSchema<"TicketTypeResponse">;
+export type Artist = ReadableSchema<"Artist">;
+export type ArtistInput = WritableSchema<"ArtistInput">;
+export type SpotifyArtist = ReadableSchema<"SpotifyArtistResponse">;
 export type CreateTicketTierPayload = WritableSchema<"CreateTicketTypePayload">;
 export type Event = ReadableSchema<"EventResponse">;
 export type PublicProfile = ReadableSchema<"PublicProfileResponse">;
@@ -68,7 +71,7 @@ export class User {
     return updatedUser;
   }
 
-  async updateProfile(profile: { username: string; bio: string }): Promise<UserData> {
+  async updateProfile(profile: { username?: string; bio?: string; preferredLanguage?: "en" | "ro" }): Promise<UserData> {
     const updatedUser = await ApiClient.instance.put("/users/me", {
       body: profile,
     });
@@ -1178,6 +1181,17 @@ export class User {
 // }
 
 export class PublicEventsService {
+  static async uploadArtistImage(file: File): Promise<{ url: string }> {
+    return ApiClient.instance.uploadEventBanner(file);
+  }
+
+  static async searchSpotifyArtists(query: string): Promise<SpotifyArtist[]> {
+    const artists = await ApiClient.instance.get("/spotify/search", {
+      params: { query: { q: query } },
+    });
+    return artists;
+  }
+
   /**
    * Preluare evenimente publice pentru Homepage / Discovery (Fără autentificare)
    */

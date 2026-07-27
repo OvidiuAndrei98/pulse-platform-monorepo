@@ -11,9 +11,16 @@ import { ProfileConnectionQr } from "@/components/social/ProfileConnectionQr";
 import { ProfileAvatarUpload } from "@/components/profile/ProfileAvatarUpload";
 import { PersonalDetailsForm } from "@/components/profile/PersonalDetailsForm";
 import { PasswordResetRequest } from "@/components/profile/PasswordResetRequest";
+import { LanguagePreferenceRow } from "@/components/profile/LanguagePreferenceRow";
+import {
+  formatEventDate,
+  formatEventDateShort,
+  formatEventTime,
+} from "@/features/events/dateFormat";
 import Link from "next/link";
 import { useState } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   QrCode,
   Ticket,
@@ -112,7 +119,9 @@ function groupTicketsByEvent(tickets: TicketData[]) {
 }
 
 export default function MePage() {
-  const { user, loading, logout, isOrganizer, reloadSession } = useDataProvider();
+  const { t } = useTranslation();
+  const { user, loading, logout, isOrganizer, reloadSession } =
+    useDataProvider();
   const router = useRouter();
   const [tab, setTab] = useState<"active" | "history">("active");
   const [openTicket, setOpenTicket] = useState<TicketData | null>(null);
@@ -165,21 +174,12 @@ export default function MePage() {
       .then((response: UserTicket[]) =>
         setTickets(
           response.map((ticket) => {
-            const start = new Date(ticket.startTime);
             return {
               id: ticket.id,
               eventId: ticket.eventId,
               event: ticket.eventTitle,
-              date: start.toLocaleDateString("ro-RO", {
-                weekday: "short",
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              }),
-              time: start.toLocaleTimeString("ro-RO", {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
+              date: formatEventDate(ticket.startTime),
+              time: formatEventTime(ticket.startTime),
               location: ticket.locationName,
               type: ticket.ticketTypeName,
               hash: ticket.validationHash,
@@ -207,7 +207,7 @@ export default function MePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
         <div className="flex items-center gap-2 text-sm text-zinc-500">
-          <span className="animate-pulse">Loading…</span>
+          <span className="animate-pulse">{t("common.loading")}</span>
         </div>
       </div>
     );
@@ -234,7 +234,6 @@ export default function MePage() {
             <header className="flex items-center gap-4">
               <ProfileAvatarUpload
                 user={user}
-                showBadge
                 onUploaded={() => void reloadSession()}
               />
               <div className="min-w-0 flex-1">
@@ -246,7 +245,7 @@ export default function MePage() {
                 </p>
                 <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-muted-foreground">
                   <Sparkles className="h-3 w-3 text-primary" />
-                  Member since 2026
+                  {t("userProfile.memberSince", { year: 2026 })}
                 </div>
               </div>
             </header>
@@ -261,12 +260,12 @@ export default function MePage() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold">
-                    Validare bilete
+                    {t("userProfile.ticketValidation")}
                   </span>
                   <span className="mt-0.5 block text-xs text-muted-foreground">
-                    Ai acces la {validationEvents.length}{" "}
-                    {validationEvents.length === 1 ? "eveniment" : "evenimente"}
-                    .
+                    {t("userProfile.validationAccess", {
+                      count: validationEvents.length,
+                    })}
                   </span>
                 </span>
                 <ChevronRight className="h-4 w-4 shrink-0 text-primary" />
@@ -277,28 +276,35 @@ export default function MePage() {
 
             {/* Securitatea pe Desktop */}
             <section className="hidden md:block">
-              <h2 className="mb-3 text-lg font-semibold">Account & Security</h2>
+              <h2 className="mb-3 text-lg font-semibold">
+                {t("userProfile.accountSecurity")}
+              </h2>
               <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
                 <Row
                   icon={User}
-                  label="Personal details"
-                  hint="Display name and bio"
+                  label={t("userProfile.personalDetails")}
+                  hint={t("userProfile.personalDetailsHint")}
                   isOpen={activeRow === "details-desktop"}
                   onClick={() => toggleRow("details-desktop")}
                 >
-                  <div className="pt-2"><PersonalDetailsForm user={user} onSaved={reloadSession} /></div>
+                  <div className="pt-2">
+                    <PersonalDetailsForm user={user} onSaved={reloadSession} />
+                  </div>
                 </Row>
                 <Row
                   icon={Lock}
-                  label="Change password"
+                  label={t("userProfile.changePassword")}
                   isOpen={activeRow === "password-desktop"}
                   onClick={() => toggleRow("password-desktop")}
                 >
-                  <div className="pt-2"><PasswordResetRequest email={user.properties.email} /></div>
+                  <div className="pt-2">
+                    <PasswordResetRequest email={user.properties.email} />
+                  </div>
                 </Row>
+                <LanguagePreferenceRow />
                 <Row
                   icon={Trash2}
-                  label="Delete account"
+                  label={t("userProfile.deleteAccount")}
                   danger
                   isOpen={activeRow === "delete-desktop"}
                   onClick={() => toggleRow("delete-desktop")}
@@ -309,7 +315,7 @@ export default function MePage() {
                       history will be wiped instantly.
                     </p>
                     <button className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 text-xs font-semibold py-2 rounded-xl transition">
-                      Confirm Delete
+                      {t("userProfile.confirmDelete")}
                     </button>
                   </div>
                 </Row>
@@ -320,7 +326,7 @@ export default function MePage() {
               className="hidden md:flex mountaineer w-full items-center justify-center gap-2 rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3.5 text-sm font-semibold text-red-400 transition hover:bg-red-500/15"
               onClick={handleLogout}
             >
-              <LogOut className="h-4 w-4" /> Log out
+              <LogOut className="h-4 w-4" /> {t("userProfile.logout")}
             </button>
           </div>
 
@@ -328,8 +334,8 @@ export default function MePage() {
             <section className="md:border md:border-white/5 md:bg-white/[0.01] md:p-6 md:rounded-3xl">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
-                  <Bookmark className="h-4 w-4 text-primary" /> Evenimente
-                  salvate
+                  <Bookmark className="h-4 w-4 text-primary" />{" "}
+                  {t("userProfile.savedEvents")}
                 </h2>
                 <span className="text-xs text-muted-foreground">
                   {savedEvents.length}
@@ -342,7 +348,7 @@ export default function MePage() {
                 </div>
               ) : savedEvents.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-muted-foreground">
-                  Nu ai salvat niciun eveniment inca.
+                  {t("userProfile.noSavedEvents")}
                 </p>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -367,10 +373,7 @@ export default function MePage() {
                         </p>
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">
                           {event.locationName} ·{" "}
-                          {new Date(event.startTime).toLocaleDateString(
-                            "ro-RO",
-                            { day: "numeric", month: "short" },
-                          )}
+                          {formatEventDateShort(event.startTime)}
                         </p>
                       </div>
                       <Bookmark className="h-4 w-4 shrink-0 fill-primary text-primary" />
@@ -381,13 +384,15 @@ export default function MePage() {
             </section>
             <section className="md:border md:border-white/5 md:bg-white/[0.01] md:p-6 md:rounded-3xl">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">My Tickets & Orders</h2>
+                <h2 className="text-lg font-semibold">
+                  {t("userProfile.ticketsOrders")}
+                </h2>
                 <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1 md:hidden">
                   <TabBtn
                     active={tab === "active"}
                     onClick={() => setTab("active")}
                   >
-                    <Ticket className="h-3.5 w-3.5" /> Active
+                    <Ticket className="h-3.5 w-3.5" /> {t("userProfile.active")}
                     <span className="ml-1 rounded-full bg-primary/20 px-1.5 text-[10px] text-primary">
                       {activeTickets.length}
                     </span>
@@ -396,7 +401,8 @@ export default function MePage() {
                     active={tab === "history"}
                     onClick={() => setTab("history")}
                   >
-                    <Receipt className="h-3.5 w-3.5" /> History
+                    <Receipt className="h-3.5 w-3.5" />{" "}
+                    {t("userProfile.history")}
                   </TabBtn>
                 </div>
               </div>
@@ -422,7 +428,7 @@ export default function MePage() {
                         href="/users/me/tickets"
                         className="mt-3 flex items-center justify-between border border-white/10 px-4 py-3 text-sm font-semibold transition hover:border-primary/50"
                       >
-                        <span>Vezi toate biletele</span>
+                        <span>{t("userProfile.viewAllTickets")}</span>
                         <ChevronRight className="h-4 w-4 text-primary" />
                       </Link>
                     </>
@@ -440,10 +446,10 @@ export default function MePage() {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-semibold">
-                          Vezi facturile
+                          {t("userProfile.viewInvoices")}
                         </span>
                         <span className="mt-0.5 block text-xs text-muted-foreground">
-                          Comenzile si platile tale
+                          {t("userProfile.ordersPayments")}
                         </span>
                       </span>
                       <ChevronRight className="h-4 w-4 text-primary" />
@@ -503,7 +509,7 @@ export default function MePage() {
                         href="/users/me/tickets"
                         className="mt-3 flex items-center justify-between border border-white/10 px-4 py-3 text-sm font-semibold transition hover:border-primary/50"
                       >
-                        <span>Vezi toate biletele</span>
+                        <span>{t("userProfile.viewAllTickets")}</span>
                         <ChevronRight className="h-4 w-4 text-primary" />
                       </Link>
                     </>
@@ -514,7 +520,8 @@ export default function MePage() {
 
                 <div className="pt-2">
                   <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                    <Receipt className="h-4 w-4" /> Order History
+                    <Receipt className="h-4 w-4" />{" "}
+                    {t("userProfile.orderHistory")}
                   </h3>
                   <Link
                     href="/users/me/invoices"
@@ -525,10 +532,10 @@ export default function MePage() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-semibold">
-                        Vezi facturile
+                        {t("userProfile.viewInvoices")}
                       </span>
                       <span className="mt-0.5 block text-xs text-muted-foreground">
-                        Comenzile si platile tale
+                        {t("userProfile.ordersPayments")}
                       </span>
                     </span>
                     <ChevronRight className="h-4 w-4 text-primary" />
@@ -566,29 +573,37 @@ export default function MePage() {
             <div className="space-y-6 md:hidden">
               <section>
                 <h2 className="mb-3 text-lg font-semibold">
-                  Account & Security
+                  {t("userProfile.accountSecurity")}
                 </h2>
                 <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
                   <Row
                     icon={User}
-                    label="Personal details"
-                    hint="Display name and bio"
+                    label={t("userProfile.personalDetails")}
+                    hint={t("userProfile.personalDetailsHint")}
                     isOpen={activeRow === "details-mobile"}
                     onClick={() => toggleRow("details-mobile")}
                   >
-                    <div className="pt-2"><PersonalDetailsForm user={user} onSaved={reloadSession} /></div>
+                    <div className="pt-2">
+                      <PersonalDetailsForm
+                        user={user}
+                        onSaved={reloadSession}
+                      />
+                    </div>
                   </Row>
                   <Row
                     icon={Lock}
-                    label="Change password"
+                    label={t("userProfile.changePassword")}
                     isOpen={activeRow === "password-mobile"}
                     onClick={() => toggleRow("password-mobile")}
                   >
-                    <div className="pt-2"><PasswordResetRequest email={user.properties.email} /></div>
+                    <div className="pt-2">
+                      <PasswordResetRequest email={user.properties.email} />
+                    </div>
                   </Row>
+                  <LanguagePreferenceRow />
                   <Row
                     icon={Trash2}
-                    label="Delete account"
+                    label={t("userProfile.deleteAccount")}
                     danger
                     isOpen={activeRow === "delete-mobile"}
                     onClick={() => toggleRow("delete-mobile")}
@@ -598,7 +613,7 @@ export default function MePage() {
                         This action is permanent.
                       </p>
                       <button className="w-full bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold py-2 rounded-xl">
-                        Confirm Delete
+                        {t("userProfile.confirmDelete")}
                       </button>
                     </div>
                   </Row>
@@ -608,23 +623,22 @@ export default function MePage() {
 
             <section>
               <h2 className="mb-3 text-lg font-semibold md:text-sm md:font-medium md:text-muted-foreground">
-                Support & Legal
+                {t("userProfile.supportLegal")}
               </h2>
               <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
                 <Row
                   icon={ChevronRight}
-                  label="Help & Support"
-                  hint="Ticket or payment issues"
+                  label={t("userProfile.helpSupport")}
+                  hint={t("userProfile.helpHint")}
                   isOpen={activeRow === "help"}
                   onClick={() => toggleRow("help")}
                 >
                   <p className="text-xs text-muted-foreground pt-2">
-                    For any immediate problems, drop us an email at
-                    help@pulse.com.
+                    {t("userProfile.helpText")}
                   </p>
                 </Row>
-                <Row icon={ChevronRight} label="Terms & Conditions" />
-                <Row icon={ChevronRight} label="Privacy policy" />
+                <Row icon={ChevronRight} label={t("userProfile.terms")} />
+                <Row icon={ChevronRight} label={t("userProfile.privacy")} />
               </div>
             </section>
 
@@ -632,11 +646,11 @@ export default function MePage() {
               className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3.5 text-sm font-semibold text-red-400 transition hover:bg-red-500/15 md:hidden"
               onClick={handleLogout}
             >
-              <LogOut className="h-4 w-4" /> Log out
+              <LogOut className="h-4 w-4" /> {t("userProfile.logout")}
             </button>
 
             <p className="text-center text-[10px] text-muted-foreground/60 md:text-left">
-              Pulse · v1.0.0
+              Glow · v1.0.0
             </p>
           </div>
         </div>
@@ -851,16 +865,19 @@ function TicketStackSkeleton() {
 }
 
 function EmptyTickets({ used = false }: { used?: boolean }) {
+  const { t } = useTranslation();
   return (
     <div className="border border-dashed border-white/15 px-4 py-8 text-center">
       <Ticket className="mx-auto h-5 w-5 text-muted-foreground" />
       <p className="mt-3 text-sm font-medium">
-        {used ? "Nu ai bilete validate inca." : "Nu ai bilete active."}
+        {used
+          ? t("userProfile.noUsedTickets")
+          : t("userProfile.noActiveTickets")}
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
         {used
-          ? "Biletele folosite vor ramane aici ca istoric."
-          : "Biletele cumparate vor aparea aici."}
+          ? t("userProfile.noUsedTicketsHint")
+          : t("userProfile.noActiveTicketsHint")}
       </p>
     </div>
   );
@@ -875,6 +892,7 @@ function TicketEventStack({
   onOpen: (ticket: TicketData) => void;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const event = tickets[0];
   if (!event) return null;
 
@@ -896,7 +914,7 @@ function TicketEventStack({
           </p>
         </div>
         <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-          {tickets.length} {tickets.length === 1 ? "bilet" : "bilete"}
+          {t("userProfile.ticketCount", { count: tickets.length })}
         </span>
       </div>
       <div className="max-h-56 divide-y divide-white/10 overflow-y-auto overscroll-contain border-t border-white/10">
@@ -915,7 +933,7 @@ function TicketEventStack({
                 {ticket.type}
               </span>
               <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                Biletul {index + 1}
+                {t("userProfile.ticketNumber", { count: index + 1 })}
               </span>
             </span>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />

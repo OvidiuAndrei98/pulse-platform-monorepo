@@ -4,6 +4,7 @@ import { Event } from "@/core/DataProvider";
 import { Coordinates } from "@/features/events/types";
 import { formatDistance, getDistanceKm } from "@/features/events/utils";
 import { EventStatusBadge } from "@/features/events/components/EventStatusBadge";
+import { formatEventTime } from "@/features/events/dateFormat";
 
 export function EventMapSidebar({
   events,
@@ -63,10 +64,7 @@ export function EventMapSidebar({
                 <div className="mt-1 flex items-center gap-3 text-xs leading-none text-zinc-400">
                   <span className="inline-flex items-center gap-1.5 text-zinc-300">
                     <Clock className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                    {new Date(event.startTime).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {formatEventTime(event.startTime)}
                   </span>
 
                   {userLocation && (

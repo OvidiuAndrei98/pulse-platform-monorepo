@@ -49,7 +49,7 @@ func Lookup(ctx context.Context, cuiRaw string, companyName string) (*CompanyInf
 	}
 
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "PulseOnboardingBackend/1.0")
+	req.Header.Set("User-Agent", "GlowOnboardingBackend/1.0")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)

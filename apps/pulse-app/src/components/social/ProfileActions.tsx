@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Check, UserMinus, UserPlus } from "lucide-react";
 import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { useTranslation } from "react-i18next";
 
 type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 
@@ -15,10 +16,11 @@ export function ProfileActions({
   onChange?: (update: Partial<PublicProfile>) => void;
 }) {
   const { user, isOrganizer } = useDataProvider();
+  const { t } = useTranslation();
 
   if (profile.relationship === "self") return null;
   if (!user) {
-    return <Link href="/login" className="inline-flex h-9 items-center rounded-full border border-white/15 px-3 text-xs font-semibold text-muted-foreground">Conecteaza-te</Link>;
+    return <Link href="/login" className="inline-flex h-9 items-center rounded-full border border-white/15 px-3 text-xs font-semibold text-muted-foreground">{t("social.signIn")}</Link>;
   }
 
   const updateFriendship = async (relationship: PublicProfile["relationship"]) => {
@@ -40,7 +42,7 @@ export function ProfileActions({
     return (
       <button type="button" onClick={() => void toggleFollow()} className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition ${profile.followsOrganizer ? "border-primary/40 bg-primary/15 text-primary" : "border-white/15 text-foreground hover:border-primary/50"}`}>
         {profile.followsOrganizer ? <Check className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
-        {profile.followsOrganizer ? "Urmaresti" : "Urmareste"}
+        {profile.followsOrganizer ? t("social.following") : t("social.follow")}
       </button>
     );
   }
@@ -69,7 +71,7 @@ export function ProfileActions({
   };
 
   const isFriend = profile.relationship === "friends";
-  const label = isFriend ? "Scoate din prieteni" : profile.relationship === "pending_sent" ? "Cerere trimisa" : profile.relationship === "pending_received" ? "Accepta" : "Adauga prieten";
+  const label = isFriend ? t("social.removeFriend") : profile.relationship === "pending_sent" ? t("social.requestSent") : profile.relationship === "pending_received" ? t("social.accept") : t("social.addFriend");
   return (
     <button type="button" disabled={profile.relationship === "pending_sent"} onClick={() => void (isFriend ? removeFriend() : connect())} className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition disabled:cursor-default ${isFriend ? "border-white/15 text-muted-foreground hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive" : "border-white/15 text-foreground hover:border-primary/50"}`}>
       {isFriend ? <UserMinus className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}

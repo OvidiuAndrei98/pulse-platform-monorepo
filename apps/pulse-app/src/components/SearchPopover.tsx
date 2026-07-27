@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Event } from "@/core/DataProvider";
 import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
+import { useTranslation } from "react-i18next";
 
 interface SearchPopoverProps {
   events?: Event[];
@@ -20,6 +21,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const { t } = useTranslation();
 
   // Închidere la tasta Escape
   useEffect(() => {
@@ -88,7 +90,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
             key="search-btn"
             layoutId="search-morph"
             type="button"
-            aria-label="Search events"
+            aria-label={t("search.open")}
             onClick={() => setOpen(true)}
             className="absolute inset-x-0 top-0 flex h-11 items-center gap-2 overflow-hidden rounded-full border border-border bg-surface/90 px-4 text-left text-foreground backdrop-blur-lg transform-gpu md:bg-surface/70 md:backdrop-blur-md"
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
@@ -96,7 +98,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
             <motion.span layout className="flex items-center gap-2">
               <Search className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
-                Search events, places...
+                {t("search.placeholder")}
               </span>
             </motion.span>
           </motion.button>
@@ -126,12 +128,12 @@ export function SearchPopover({ events }: SearchPopoverProps) {
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search events, places..."
+                  placeholder={t("search.placeholder")}
                   className="h-10 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                 />
                 <button
                   type="button"
-                  aria-label="Close search"
+                  aria-label={t("search.close")}
                   onClick={() => setOpen(false)}
                   className="grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/5 transition-colors hover:bg-white/10"
                 >
@@ -141,7 +143,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
 
               {/* Contorizăm înălțimea independent pentru a opri trepidațiile (dansul) listei la filtrare */}
               <div className="max-h-[60vh] overflow-y-auto px-2 pb-3 pt-3">
-                <Section title="Events" count={matchedEvents?.length ?? 0}>
+                <Section title={t("search.events")} count={matchedEvents?.length ?? 0}>
                   {matchedEvents?.map((e) => (
                     <ResultRow
                       key={e.id}
@@ -153,22 +155,22 @@ export function SearchPopover({ events }: SearchPopoverProps) {
                   ))}
                   {matchedEvents?.length === 0 && (
                     <p className="px-3 py-2 text-xs text-muted-foreground">
-                      No events found.
+                      {t("search.noEvents")}
                     </p>
                   )}
                 </Section>
                 {q.length >= 2 && (
-                  <Section title="Persoane si organizatori" count={profiles.length}>
+                  <Section title={t("search.peopleAndOrganizers")} count={profiles.length}>
                     {profiles.map((profile) => (
                       <ResultRow
                         key={profile.id}
                         icon={profile.role === "organizer" ? BadgeCheck : UserRound}
                         title={profile.role === "organizer" ? profile.organizerName || profile.username : `@${profile.username}`}
-                        meta={profile.role === "organizer" ? `Organizator . @${profile.username}` : profile.bio || "Profil public"}
+                        meta={profile.role === "organizer" ? t("search.organizerMeta", { username: profile.username }) : profile.bio || t("search.publicProfile")}
                         onClick={() => { router.push(`/users/${profile.id}`); setOpen(false); }}
                       />
                     ))}
-                    {profiles.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">Niciun profil gasit.</p>}
+                    {profiles.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">{t("search.noProfiles")}</p>}
                   </Section>
                 )}
               </div>
