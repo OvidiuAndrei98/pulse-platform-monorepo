@@ -36,6 +36,7 @@ export const eventFormSchema = z.object({
   description: z.string().min(10, "Descrierea trebuie sa aiba cel putin 10 caractere"),
   bannerUrl: z.string().url("Introdu un URL valid").optional().or(z.literal("").transform(() => undefined)),
   status: z.enum(["draft", "published"]).default("draft"),
+  organizerAbsorbsServiceFee: z.boolean().default(false),
   ticketTypes: z.array(ticketTypeSchema),
 }).refine((data) => new Date(data.endTime) > new Date(data.startTime), { message: "Data de final a evenimentului trebuie sa fie dupa data de inceput", path: ["endTime"] });
 
@@ -70,6 +71,7 @@ function getDefaultValues(values?: EventFormProps["initialValues"]): EventFormVa
     description: values?.description || "",
     bannerUrl: values?.bannerUrl || undefined,
     status: values?.status || "draft",
+    organizerAbsorbsServiceFee: values?.organizerAbsorbsServiceFee ?? false,
     ticketTypes: values?.ticketTypes?.map((ticket) => ({ id: ticket.id, name: ticket.name || "", priceRon: ticket.priceRon ?? 0, capacity: ticket.capacity ?? 100, description: ticket.description || "", ticketsSold: ticket.ticketsSold ?? 0, startSales: formatToDatetimeLocal(ticket.startSales), endSales: formatToDatetimeLocal(ticket.endSales) })) || [],
   };
 }

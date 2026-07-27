@@ -54,7 +54,7 @@ export function MapControls({
     "border border-white/10 bg-[#121418]/85 md:bg-white/[0.06] md:backdrop-blur-md shadow-[rgba(255,255,255,0.18)_0px_1px_0px_inset,rgba(0,0,0,0.35)_0px_6px_20px] transform-gpu";
 
   return (
-    <div className="pointer-events-auto absolute top-10 right-5 z-[1000] flex flex-col gap-2">
+    <div className="pointer-events-auto absolute right-5 top-[5.75rem] z-[1000] flex flex-col gap-2 lg:top-10">
       {/* Zoom Controls Container */}
       <div
         className={`flex flex-col overflow-hidden rounded-2xl text-white/70 ${glassClasses}`}

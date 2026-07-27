@@ -16,6 +16,7 @@ import { ApiClient } from "@packages/api-client/src/Client";
 import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { calculateServiceFeeRon, formatRon } from "@/features/events/serviceFee";
 
 interface EventDetailsContextType {
   open: (event: Event) => void;
@@ -106,11 +107,16 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
   if (!event) return null;
 
   const ticketTypes = event.ticketTypes ?? [];
-  const total = ticketTypes.reduce(
+  const isOwnEvent = user?.properties.id === event.organizerId;
+  const ticketSubtotal = ticketTypes.reduce(
     (sum, t) => sum + (qty[t.id] ?? 0) * (t.priceRon ?? 0),
     0,
   );
   const count = ticketTypes.reduce((sum, t) => sum + (qty[t.id] ?? 0), 0);
+  const serviceFee = event.organizerAbsorbsServiceFee
+    ? 0
+    : calculateServiceFeeRon(ticketSubtotal, count);
+  const total = ticketSubtotal + serviceFee;
 
   const setTierQty = (id: string, delta: number) =>
     setQty((q) => ({
@@ -148,6 +154,10 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
   };
 
   const handleCheckout = async () => {
+    if (isOwnEvent) {
+      setCheckoutError("Nu poti cumpara bilete la propriul eveniment.");
+      return;
+    }
     if (count === 0 || isCheckingOut) return;
 
     const email = guestEmail.trim();
@@ -182,7 +192,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
 
   const sheetContent = (
     <>
-      <div className="relative z-10 min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="relative z-10 min-h-0 flex-1 overflow-y-auto">
               <div className="relative">
                 <div className="relative h-48 w-full bg-muted md:h-72">
                   {event.bannerUrl && (
@@ -276,6 +286,13 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
                         </div>
                       ))}
                     </div>
+                    <CheckoutPriceSummary
+                      ticketSubtotal={ticketSubtotal}
+                      ticketCount={count}
+                      serviceFee={serviceFee}
+                      total={total}
+                      organizerAbsorbsServiceFee={event.organizerAbsorbsServiceFee}
+                    />
                   </section>
                 )}
 
@@ -318,16 +335,18 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
               </button>
               <button
                 type="button"
-                disabled={count === 0 || purchased}
+                disabled={count === 0 || purchased || isOwnEvent}
                 onClick={handleCheckout}
                 className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-40"
               >
                 <TicketIcon className="h-4 w-4" />
-                {purchased
+                {isOwnEvent
+                  ? "Evenimentul tau"
+                  : purchased
                   ? "Rezervat ✓"
                   : count === 0
                     ? "Selectează bilete"
-                    : `Cumpără ${count} · ${total} RON`}
+                    : `Cumpără ${count} · ${formatRon(total)}`}
               </button>
       </div>
     </>
@@ -353,5 +372,37 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
         </motion.div>
       </div>
     </AnimatePresence>
+  );
+}
+
+function CheckoutPriceSummary({
+  ticketSubtotal,
+  ticketCount,
+  serviceFee,
+  total,
+  organizerAbsorbsServiceFee,
+}: {
+  ticketSubtotal: number;
+  ticketCount: number;
+  serviceFee: number;
+  total: number;
+  organizerAbsorbsServiceFee: boolean;
+}) {
+  if (ticketCount === 0) {
+    return (
+      <p className="mt-3 text-xs text-muted-foreground">
+        {organizerAbsorbsServiceFee
+          ? "Preț final, fără taxe adăugate la checkout."
+          : "Taxa de servicii se calculează înainte de plată."}
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3 space-y-1.5 rounded-lg border border-white/10 bg-black/15 px-3 py-2.5 text-xs">
+      <div className="flex justify-between text-muted-foreground"><span>Bilete</span><span>{formatRon(ticketSubtotal)}</span></div>
+      <div className="flex justify-between text-muted-foreground"><span>{organizerAbsorbsServiceFee ? "Taxă de servicii suportată de organizator" : "Taxă de servicii (4% + 2,50 RON/bilet)"}</span><span>{organizerAbsorbsServiceFee ? "0 RON" : formatRon(serviceFee)}</span></div>
+      <div className="flex justify-between border-t border-white/10 pt-1.5 text-sm font-semibold"><span>Total de plată</span><span>{formatRon(total)}</span></div>
+    </div>
   );
 }

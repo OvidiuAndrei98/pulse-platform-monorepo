@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Building2, Calendar, CheckCircle2, CreditCard, LogOut, MapPin, Plus, QrCode, RefreshCw } from "lucide-react";
+import { Building2, Calendar, CheckCircle2, CreditCard, MapPin, Plus, QrCode, RefreshCw } from "lucide-react";
 import { OrganizerProfile, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 
 export default function OrganizerDashboard() {
-  const { user, logout } = useDataProvider();
+  const { user } = useDataProvider();
   const { events, eventsLoading } = User.useOrganizerEvents(user);
   const [profile, setProfile] = useState<OrganizerProfile>();
   const [loading, setLoading] = useState(true);
@@ -87,9 +87,6 @@ export default function OrganizerDashboard() {
               <Plus className="h-4 w-4" />
               Event nou
             </Link>
-            <button type="button" onClick={logout} aria-label="Deconectare" title="Deconectare" className="grid h-11 w-11 place-items-center rounded-lg border border-white/15 text-muted-foreground transition hover:bg-white/5 hover:text-foreground">
-              <LogOut className="h-4 w-4" />
-            </button>
           </div>
         </header>
 

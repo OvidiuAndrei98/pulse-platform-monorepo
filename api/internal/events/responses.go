@@ -20,36 +20,37 @@ type TicketTypeResponse struct {
 }
 
 type EventStatsResponse struct {
-	TotalCheckIns    int64  `json:"totalCheckIns"`
-	UserHasCheckedIn *bool  `json:"userHasCheckedIn,omitempty"`
-	IsFavorited      *bool  `json:"isFavorited,omitempty"`
-	TotalTicketsSold *int64 `json:"totalTicketsSold,omitempty"`
-	TotalRevenueRon  *int64 `json:"totalRevenueRon,omitempty"`
+	TotalCheckIns     int64  `json:"totalCheckIns"`
+	UserHasCheckedIn  *bool  `json:"userHasCheckedIn,omitempty"`
+	IsFavorited       *bool  `json:"isFavorited,omitempty"`
+	TotalTicketsSold  *int64 `json:"totalTicketsSold,omitempty"`
+	TotalRevenueRon   *int64 `json:"totalRevenueRon,omitempty"`
 	InterestedCount   *int64 `json:"interestedCount,omitempty"`
 	GoingCount        *int64 `json:"goingCount,omitempty"`
 	TicketHolderCount *int64 `json:"ticketHolderCount,omitempty"`
 }
 
 type EventResponse struct {
-	ID           string               `json:"id"`
-	OrganizerID  string               `json:"organizerId"`
-	Title        string               `json:"title"`
-	Description  string               `json:"description,omitempty"`
-	Category     string               `json:"category"`
-	Status       string               `json:"status"`
-	BannerUrl    string               `json:"bannerUrl,omitempty"`
+	ID            string               `json:"id"`
+	OrganizerID   string               `json:"organizerId"`
+	Title         string               `json:"title"`
+	Description   string               `json:"description,omitempty"`
+	Category      string               `json:"category"`
+	Status        string               `json:"status"`
+	BannerUrl     string               `json:"bannerUrl,omitempty"`
 	GooglePlaceID string               `json:"googlePlaceId"`
-	LocationName string               `json:"locationName"`
-	City         string               `json:"city"`
-	Vibe         string               `json:"vibe"`
-	Latitude     float64              `json:"latitude"`
-	Longitude    float64              `json:"longitude"`
-	StartTime    time.Time            `json:"startTime"`
-	EndTime      time.Time            `json:"endTime"`
-	IsLive       bool                 `json:"isLive"`
-	CreatedAt    time.Time            `json:"createdAt"`
-	TicketTypes  []TicketTypeResponse `json:"ticketTypes"`
-	Stats        EventStatsResponse   `json:"stats"`
+	LocationName  string               `json:"locationName"`
+	City          string               `json:"city"`
+	Vibe          string               `json:"vibe"`
+	OrganizerAbsorbsServiceFee bool     `json:"organizerAbsorbsServiceFee"`
+	Latitude      float64              `json:"latitude"`
+	Longitude     float64              `json:"longitude"`
+	StartTime     time.Time            `json:"startTime"`
+	EndTime       time.Time            `json:"endTime"`
+	IsLive        bool                 `json:"isLive"`
+	CreatedAt     time.Time            `json:"createdAt"`
+	TicketTypes   []TicketTypeResponse `json:"ticketTypes"`
+	Stats         EventStatsResponse   `json:"stats"`
 }
 
 // Funcție ajutătoare universală cu logging detaliat pentru parsarea biletelor
@@ -106,24 +107,25 @@ func MapFromDBListEvents(row db.ListEventsRow) EventResponse {
 	isFavorited := row.IsFavorited
 
 	return EventResponse{
-		ID:           common.UUIDToString(row.ID),
-		OrganizerID:  common.UUIDToString(row.OrganizerID),
-		Title:        row.Title,
-		Description:  row.Description.String,
-		Category:     row.Category,
-		Status:       row.Status,
-		BannerUrl:    row.BannerUrl.String,
+		ID:            common.UUIDToString(row.ID),
+		OrganizerID:   common.UUIDToString(row.OrganizerID),
+		Title:         row.Title,
+		Description:   row.Description.String,
+		Category:      row.Category,
+		Status:        row.Status,
+		BannerUrl:     row.BannerUrl.String,
 		GooglePlaceID: row.GooglePlaceID,
-		LocationName: row.LocationName,
-		City:         row.City,
-		Vibe:         row.Vibe,
-		Latitude:     row.Latitude,
-		Longitude:    row.Longitude,
-		StartTime:    row.StartTime.Time,
-		EndTime:      row.EndTime.Time,
-		IsLive:       common.PgBoolToBool(row.IsLive),
-		CreatedAt:    row.CreatedAt.Time,
-		TicketTypes:  tickets,
+		LocationName:  row.LocationName,
+		City:          row.City,
+		Vibe:          row.Vibe,
+		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		Latitude:      row.Latitude,
+		Longitude:     row.Longitude,
+		StartTime:     row.StartTime.Time,
+		EndTime:       row.EndTime.Time,
+		IsLive:        common.PgBoolToBool(row.IsLive),
+		CreatedAt:     row.CreatedAt.Time,
+		TicketTypes:   tickets,
 		Stats: EventStatsResponse{
 			TotalCheckIns:    row.TotalCheckIns,
 			UserHasCheckedIn: &hasCheckedIn,
@@ -144,30 +146,31 @@ func MapFromDBListEventsWithStats(row db.ListEventsWithStatsRow) EventResponse {
 	ticketHolders := row.TicketHolderCount
 
 	return EventResponse{
-		ID:           common.UUIDToString(row.ID),
-		OrganizerID:  common.UUIDToString(row.OrganizerID),
-		Title:        row.Title,
-		Description:  row.Description.String,
-		Category:     row.Category,
-		Status:       row.Status,
-		BannerUrl:    row.BannerUrl.String,
+		ID:            common.UUIDToString(row.ID),
+		OrganizerID:   common.UUIDToString(row.OrganizerID),
+		Title:         row.Title,
+		Description:   row.Description.String,
+		Category:      row.Category,
+		Status:        row.Status,
+		BannerUrl:     row.BannerUrl.String,
 		GooglePlaceID: row.GooglePlaceID,
-		LocationName: row.LocationName,
-		City:         row.City,
-		Vibe:         row.Vibe,
-		Latitude:     row.Latitude,
-		Longitude:    row.Longitude,
-		StartTime:    row.StartTime.Time,
-		EndTime:      row.EndTime.Time,
-		IsLive:       common.PgBoolToBool(row.IsLive),
-		CreatedAt:    row.CreatedAt.Time,
-		TicketTypes:  tickets,
+		LocationName:  row.LocationName,
+		City:          row.City,
+		Vibe:          row.Vibe,
+		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		Latitude:      row.Latitude,
+		Longitude:     row.Longitude,
+		StartTime:     row.StartTime.Time,
+		EndTime:       row.EndTime.Time,
+		IsLive:        common.PgBoolToBool(row.IsLive),
+		CreatedAt:     row.CreatedAt.Time,
+		TicketTypes:   tickets,
 		Stats: EventStatsResponse{
-			TotalCheckIns:    row.TotalCheckIns,
-			UserHasCheckedIn: nil,
-			IsFavorited:      nil,
-			TotalTicketsSold: &ticketsSold,
-			TotalRevenueRon:  &revenue,
+			TotalCheckIns:     row.TotalCheckIns,
+			UserHasCheckedIn:  nil,
+			IsFavorited:       nil,
+			TotalTicketsSold:  &ticketsSold,
+			TotalRevenueRon:   &revenue,
 			InterestedCount:   &interested,
 			GoingCount:        &going,
 			TicketHolderCount: &ticketHolders,
@@ -182,24 +185,25 @@ func MapFromDBGetEvent(row db.GetEventByIDRow) EventResponse {
 	isFavorited := row.IsFavorited
 
 	return EventResponse{
-		ID:           common.UUIDToString(row.ID),
-		OrganizerID:  common.UUIDToString(row.OrganizerID),
-		Title:        row.Title,
-		Description:  row.Description.String,
-		Category:     row.Category,
-		Status:       row.Status,
-		BannerUrl:    row.BannerUrl.String,
+		ID:            common.UUIDToString(row.ID),
+		OrganizerID:   common.UUIDToString(row.OrganizerID),
+		Title:         row.Title,
+		Description:   row.Description.String,
+		Category:      row.Category,
+		Status:        row.Status,
+		BannerUrl:     row.BannerUrl.String,
 		GooglePlaceID: row.GooglePlaceID,
-		LocationName: row.LocationName,
-		City:         row.City,
-		Vibe:         row.Vibe,
-		Latitude:     row.Latitude,
-		Longitude:    row.Longitude,
-		StartTime:    row.StartTime.Time,
-		EndTime:      row.EndTime.Time,
-		IsLive:       common.PgBoolToBool(row.IsLive),
-		CreatedAt:    row.CreatedAt.Time,
-		TicketTypes:  tickets,
+		LocationName:  row.LocationName,
+		City:          row.City,
+		Vibe:          row.Vibe,
+		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		Latitude:      row.Latitude,
+		Longitude:     row.Longitude,
+		StartTime:     row.StartTime.Time,
+		EndTime:       row.EndTime.Time,
+		IsLive:        common.PgBoolToBool(row.IsLive),
+		CreatedAt:     row.CreatedAt.Time,
+		TicketTypes:   tickets,
 		Stats: EventStatsResponse{
 			TotalCheckIns:    row.TotalCheckIns,
 			UserHasCheckedIn: &hasCheckedIn,
@@ -220,30 +224,31 @@ func MapFromDBGetEventWithStats(row db.GetEventWithStatsRow) EventResponse {
 	ticketHolders := row.TicketHolderCount
 
 	return EventResponse{
-		ID:           common.UUIDToString(row.ID),
-		OrganizerID:  common.UUIDToString(row.OrganizerID),
-		Title:        row.Title,
-		Description:  row.Description.String,
-		Category:     row.Category,
-		Status:       row.Status,
-		BannerUrl:    row.BannerUrl.String,
+		ID:            common.UUIDToString(row.ID),
+		OrganizerID:   common.UUIDToString(row.OrganizerID),
+		Title:         row.Title,
+		Description:   row.Description.String,
+		Category:      row.Category,
+		Status:        row.Status,
+		BannerUrl:     row.BannerUrl.String,
 		GooglePlaceID: row.GooglePlaceID,
-		LocationName: row.LocationName,
-		City:         row.City,
-		Vibe:         row.Vibe,
-		Latitude:     row.Latitude,
-		Longitude:    row.Longitude,
-		StartTime:    row.StartTime.Time,
-		EndTime:      row.EndTime.Time,
-		IsLive:       common.PgBoolToBool(row.IsLive),
-		CreatedAt:    row.CreatedAt.Time,
-		TicketTypes:  tickets,
+		LocationName:  row.LocationName,
+		City:          row.City,
+		Vibe:          row.Vibe,
+		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		Latitude:      row.Latitude,
+		Longitude:     row.Longitude,
+		StartTime:     row.StartTime.Time,
+		EndTime:       row.EndTime.Time,
+		IsLive:        common.PgBoolToBool(row.IsLive),
+		CreatedAt:     row.CreatedAt.Time,
+		TicketTypes:   tickets,
 		Stats: EventStatsResponse{
-			TotalCheckIns:    row.TotalCheckIns,
-			UserHasCheckedIn: nil,
-			IsFavorited:      nil,
-			TotalTicketsSold: &ticketsSold,
-			TotalRevenueRon:  &revenue,
+			TotalCheckIns:     row.TotalCheckIns,
+			UserHasCheckedIn:  nil,
+			IsFavorited:       nil,
+			TotalTicketsSold:  &ticketsSold,
+			TotalRevenueRon:   &revenue,
 			InterestedCount:   &interested,
 			GoingCount:        &going,
 			TicketHolderCount: &ticketHolders,

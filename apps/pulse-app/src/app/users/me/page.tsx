@@ -6,8 +6,11 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { Event } from "@/core/DataProvider";
 import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
 import { TicketQrCode } from "@/components/tickets/TicketQrCode";
+import { TicketPdfButton } from "@/components/tickets/TicketPdfButton";
 import { ProfileConnectionQr } from "@/components/social/ProfileConnectionQr";
 import { ProfileAvatarUpload } from "@/components/profile/ProfileAvatarUpload";
+import { PersonalDetailsForm } from "@/components/profile/PersonalDetailsForm";
+import { PasswordResetRequest } from "@/components/profile/PasswordResetRequest";
 import Link from "next/link";
 import { useState } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
@@ -18,8 +21,6 @@ import {
   ChevronRight,
   MapPin,
   Calendar,
-  Download,
-  Wallet,
   User,
   Lock,
   Trash2,
@@ -42,6 +43,10 @@ type TicketData = {
   startTime?: string;
   endTime?: string;
   isValidated?: boolean;
+  priceRon?: number;
+  organizerCompanyName?: string;
+  organizerCui?: string;
+  organizerFiscalAddress?: string;
 };
 
 type UserTicket = ReadableSchema<"UserTicketResponse">;
@@ -129,6 +134,12 @@ export default function MePage() {
   }, [loading, user, router]);
 
   useEffect(() => {
+    if (!loading && isOrganizer) {
+      router.replace("/dashboard/profile");
+    }
+  }, [isOrganizer, loading, router]);
+
+  useEffect(() => {
     if (!user) return;
     user
       .getSavedEvents()
@@ -175,6 +186,10 @@ export default function MePage() {
               startTime: ticket.startTime,
               endTime: ticket.endTime,
               isValidated: ticket.isValidated,
+              priceRon: ticket.priceRon,
+              organizerCompanyName: ticket.organizerCompanyName,
+              organizerCui: ticket.organizerCui,
+              organizerFiscalAddress: ticket.organizerFiscalAddress,
             };
           }),
         ),
@@ -267,35 +282,11 @@ export default function MePage() {
                 <Row
                   icon={User}
                   label="Personal details"
-                  hint="Name, phone number"
+                  hint="Display name and bio"
                   isOpen={activeRow === "details-desktop"}
                   onClick={() => toggleRow("details-desktop")}
                 >
-                  <div className="space-y-3 pt-2">
-                    <div>
-                      <label className="text-[11px] text-muted-foreground block mb-1">
-                        Full Name
-                      </label>
-                      <input
-                        type="text"
-                        defaultValue={user.properties.username}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] text-muted-foreground block mb-1">
-                        Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        placeholder="+40 7xx xxx xxx"
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
-                      />
-                    </div>
-                    <button className="w-full bg-primary text-primary-foreground text-xs font-semibold py-2 rounded-xl hover:bg-primary/90 transition">
-                      Save Changes
-                    </button>
-                  </div>
+                  <div className="pt-2"><PersonalDetailsForm user={user} onSaved={reloadSession} /></div>
                 </Row>
                 <Row
                   icon={Lock}
@@ -303,21 +294,7 @@ export default function MePage() {
                   isOpen={activeRow === "password-desktop"}
                   onClick={() => toggleRow("password-desktop")}
                 >
-                  <div className="space-y-3 pt-2">
-                    <input
-                      type="password"
-                      placeholder="Current password"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
-                    />
-                    <input
-                      type="password"
-                      placeholder="New password"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
-                    />
-                    <button className="w-full bg-primary text-primary-foreground text-xs font-semibold py-2 rounded-xl hover:bg-primary/90 transition">
-                      Update Password
-                    </button>
-                  </div>
+                  <div className="pt-2"><PasswordResetRequest email={user.properties.email} /></div>
                 </Row>
                 <Row
                   icon={Trash2}
@@ -595,25 +572,11 @@ export default function MePage() {
                   <Row
                     icon={User}
                     label="Personal details"
-                    hint="Name, phone number"
+                    hint="Display name and bio"
                     isOpen={activeRow === "details-mobile"}
                     onClick={() => toggleRow("details-mobile")}
                   >
-                    <div className="space-y-3 pt-2">
-                      <input
-                        type="text"
-                        defaultValue={user.properties.username}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
-                      />
-                      <input
-                        type="tel"
-                        placeholder="Phone number"
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
-                      />
-                      <button className="w-full bg-primary text-primary-foreground text-xs font-semibold py-2 rounded-xl">
-                        Save
-                      </button>
-                    </div>
+                    <div className="pt-2"><PersonalDetailsForm user={user} onSaved={reloadSession} /></div>
                   </Row>
                   <Row
                     icon={Lock}
@@ -621,21 +584,7 @@ export default function MePage() {
                     isOpen={activeRow === "password-mobile"}
                     onClick={() => toggleRow("password-mobile")}
                   >
-                    <div className="space-y-3 pt-2">
-                      <input
-                        type="password"
-                        placeholder="Current password"
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
-                      />
-                      <input
-                        type="password"
-                        placeholder="New password"
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
-                      />
-                      <button className="w-full bg-primary text-primary-foreground text-xs font-semibold py-2 rounded-xl">
-                        Update
-                      </button>
-                    </div>
+                    <div className="pt-2"><PasswordResetRequest email={user.properties.email} /></div>
                   </Row>
                   <Row
                     icon={Trash2}
@@ -863,14 +812,21 @@ function TicketModal({
               <span className="leading-tight">{ticket.location}</span>
             </a>
           </div>
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <button className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-xs font-medium transition hover:bg-white/10 text-white">
-              <Wallet className="h-4 w-4 text-primary" /> Add to Wallet
-            </button>
-            <button className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-xs font-medium transition hover:bg-white/10 text-white">
-              <Download className="h-4 w-4" /> PDF
-            </button>
-          </div>
+          <TicketPdfButton
+            ticket={{
+              id: ticket.id,
+              eventTitle: ticket.event,
+              ticketTypeName: ticket.type,
+              validationHash: ticket.hash,
+              startTime: ticket.startTime ?? new Date().toISOString(),
+              locationName: ticket.location,
+              priceRon: ticket.priceRon,
+              organizerCompanyName: ticket.organizerCompanyName,
+              organizerCui: ticket.organizerCui,
+              organizerFiscalAddress: ticket.organizerFiscalAddress,
+            }}
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-xs font-medium text-white transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-60"
+          />
         </motion.div>
       </div>
     </>
@@ -943,7 +899,7 @@ function TicketEventStack({
           {tickets.length} {tickets.length === 1 ? "bilet" : "bilete"}
         </span>
       </div>
-      <div className="max-h-56 divide-y divide-white/10 overflow-y-auto overscroll-contain border-t border-white/10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="max-h-56 divide-y divide-white/10 overflow-y-auto overscroll-contain border-t border-white/10">
         {tickets.map((ticket, index) => (
           <button
             key={ticket.id}

@@ -455,7 +455,7 @@ func (q *Queries) GetTicketByHash(ctx context.Context, validationHash string) (G
 }
 
 const getTicketTypeForUpdate = `-- name: GetTicketTypeForUpdate :one
-SELECT id, event_id, name, price_ron, capacity, tickets_sold, start_sales, end_sales, created_at, updated_at, description FROM ticket_types 
+SELECT id, event_id, name, price_ron, capacity, tickets_sold, start_sales, end_sales, created_at, updated_at, description FROM ticket_types
 WHERE id = $1 
 FOR UPDATE
 `
@@ -480,7 +480,7 @@ func (q *Queries) GetTicketTypeForUpdate(ctx context.Context, id pgtype.UUID) (T
 }
 
 const getTicketTypesForEvent = `-- name: GetTicketTypesForEvent :many
-SELECT id, event_id, name, price_ron, capacity, tickets_sold, start_sales, end_sales, created_at, updated_at, description FROM ticket_types 
+SELECT id, event_id, name, price_ron, capacity, tickets_sold, start_sales, end_sales, created_at, updated_at, description FROM ticket_types
 WHERE event_id = $1 
 ORDER BY created_at ASC
 `
@@ -518,10 +518,17 @@ func (q *Queries) GetTicketTypesForEvent(ctx context.Context, eventID pgtype.UUI
 }
 
 const getUserTickets = `-- name: GetUserTickets :many
-SELECT t.id, t.order_id, t.ticket_type_id, t.user_id, t.validation_hash, t.is_validated, t.validated_at, t.created_at, t.validated_by_user_id, t.validated_by_scanner_access_id, tt.name as ticket_type_name, e.id as event_id, e.title as event_title, e.location_name, e.start_time, e.end_time
+SELECT t.id, t.order_id, t.ticket_type_id, t.user_id, t.validation_hash, t.is_validated, t.validated_at, t.created_at, t.validated_by_user_id, t.validated_by_scanner_access_id, tt.name AS ticket_type_name, e.id AS event_id, e.title AS event_title,
+       e.location_name, e.start_time, e.end_time,
+       COALESCE(oi.unit_price_ron, tt.price_ron) AS unit_price_ron,
+       COALESCE(op.company_name, '') AS organizer_company_name,
+       COALESCE(op.cui, '') AS organizer_cui,
+       COALESCE(op.fiscal_address, '') AS organizer_fiscal_address
 FROM tickets t
 JOIN ticket_types tt ON t.ticket_type_id = tt.id
 JOIN events e ON tt.event_id = e.id
+LEFT JOIN order_items oi ON oi.order_id = t.order_id AND oi.ticket_type_id = t.ticket_type_id
+LEFT JOIN organizer_profiles op ON op.user_id = e.organizer_id
 WHERE t.user_id = $1
 ORDER BY t.created_at DESC
 `
@@ -543,6 +550,10 @@ type GetUserTicketsRow struct {
 	LocationName               string             `json:"location_name"`
 	StartTime                  pgtype.Timestamptz `json:"start_time"`
 	EndTime                    pgtype.Timestamptz `json:"end_time"`
+	UnitPriceRon               int32              `json:"unit_price_ron"`
+	OrganizerCompanyName       string             `json:"organizer_company_name"`
+	OrganizerCui               string             `json:"organizer_cui"`
+	OrganizerFiscalAddress     string             `json:"organizer_fiscal_address"`
 }
 
 func (q *Queries) GetUserTickets(ctx context.Context, userID pgtype.UUID) ([]GetUserTicketsRow, error) {
@@ -571,6 +582,10 @@ func (q *Queries) GetUserTickets(ctx context.Context, userID pgtype.UUID) ([]Get
 			&i.LocationName,
 			&i.StartTime,
 			&i.EndTime,
+			&i.UnitPriceRon,
+			&i.OrganizerCompanyName,
+			&i.OrganizerCui,
+			&i.OrganizerFiscalAddress,
 		); err != nil {
 			return nil, err
 		}

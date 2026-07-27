@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   User,
@@ -11,6 +11,8 @@ import {
   Menu,
   X,
   WalletCards,
+  Ticket,
+  LogOut,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -24,24 +26,40 @@ const organizerItems = [
     exact: true,
   },
   { href: "/dashboard/profile", label: "Profil", icon: User },
-  { href: "/dashboard/ticket-validation", label: "Validare bilete", icon: QrCode },
+  {
+    href: "/dashboard/ticket-validation",
+    label: "Validare bilete",
+    icon: QrCode,
+  },
   { href: "/dashboard/finance", label: "Finante", icon: WalletCards },
+  { href: "/dashboard/purchases", label: "Biletea", icon: Ticket },
   { href: "/dashboard/events", label: "Evenimente", icon: Calendar },
 ] as const;
 
 const validatorItems = [
   { href: "/users/me", label: "Profil", icon: User, exact: true },
-  { href: "/dashboard/ticket-validation", label: "Validare bilete", icon: QrCode },
+  {
+    href: "/dashboard/ticket-validation",
+    label: "Validare bilete",
+    icon: QrCode,
+  },
 ] as const;
 
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { isOrganizer } = useDataProvider();
+  const router = useRouter();
+  const { isOrganizer, logout } = useDataProvider();
   const items = isOrganizer ? organizerItems : validatorItems;
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return pathname === href;
     return pathname === href || pathname.startsWith(href + "/");
+  };
+
+  const handleLogout = () => {
+    onNavigate?.();
+    logout();
+    router.replace("/login");
   };
 
   return (
@@ -105,7 +123,15 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       {/* FOOTER */}
-      <div className="p-4 text-[10px] font-medium text-muted-foreground/60">
+      <div className="space-y-3 p-4 text-[10px] font-medium text-muted-foreground/60">
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex h-10 w-full items-center gap-3 rounded-xl px-3.5 text-xs font-semibold text-muted-foreground transition hover:bg-red-500/10 hover:text-red-300"
+        >
+          <LogOut className="h-4 w-4" />
+          Deconectare
+        </button>
         © {new Date().getFullYear()} Eventify. All rights reserved.
       </div>
     </div>

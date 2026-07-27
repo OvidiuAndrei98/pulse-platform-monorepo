@@ -1,12 +1,8 @@
 "use client";
 
-import { ArrowUpRight, Clock, MapPin } from "lucide-react";
-import Image from "next/image";
-import avatar from "../../public/vercel.svg";
 import { SearchPopover } from "@/components/SearchPopover";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { User, Event } from "@/core/DataProvider";
-import Link from "next/link";
 import { EventCard } from "@/components/EventCard";
 
 export default function Home() {

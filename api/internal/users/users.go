@@ -43,11 +43,8 @@ func (h *Handler) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 }
 
 type UpdateMeRequest struct {
-	Username  string `json:"username"`
-	Email     string `json:"email"`
-	Role      string `json:"role"`
-	AvatarUrl string `json:"avatarUrl"`
-	Bio       string `json:"bio"`
+	Username string  `json:"username"`
+	Bio      *string `json:"bio"`
 }
 
 func (h *Handler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
@@ -68,14 +65,24 @@ func (h *Handler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusBadRequest, "Request body invalid")
 		return
 	}
+	if len(req.Username) > 0 && (len(req.Username) < 3 || len(req.Username) > 50) {
+		router.RespondWithError(w, http.StatusBadRequest, "Username-ul trebuie sa aiba intre 3 si 50 de caractere")
+		return
+	}
+	if req.Bio != nil && len(*req.Bio) > 500 {
+		router.RespondWithError(w, http.StatusBadRequest, "Bio-ul poate avea cel mult 500 de caractere")
+		return
+	}
+
+	bio := pgtype.Text{}
+	if req.Bio != nil {
+		bio = pgtype.Text{String: *req.Bio, Valid: true}
+	}
 
 	updated, err := h.Queries.UpdateUserProfile(r.Context(), db.UpdateUserProfileParams{
 		ID:      uuid,
-		Column2: req.Username,  // username
-		Column3: req.Email,     // email
-		Column4: req.Role,      // role
-		Column5: req.AvatarUrl, // avatar_url
-		Bio:     pgtype.Text{String: req.Bio, Valid: req.Bio != ""},
+		Column2: req.Username,
+		Bio:     bio,
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la actualizarea profilului")

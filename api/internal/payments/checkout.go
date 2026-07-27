@@ -29,8 +29,8 @@ import (
 )
 
 const (
-	platformFeePercent       = int64(5)
-	platformFeePerTicketBani = int64(100)
+	platformFeePercent       = int64(4)
+	platformFeePerTicketBani = int64(250)
 	checkoutExpiration       = 30 * time.Minute
 )
 
@@ -121,7 +121,7 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	order, checkoutItems, eventTitle, eventIDString, organizerStripeAccount, err := h.reserveOrder(r.Context(), eventID, userID, req.Email, items, totalTicketCount)
+	order, checkoutItems, eventTitle, eventIDString, organizerStripeAccount, organizerAbsorbsServiceFee, err := h.reserveOrder(r.Context(), eventID, userID, req.Email, items, totalTicketCount)
 	if err != nil {
 		var requestError *checkoutRequestError
 		if errors.As(err, &requestError) {
@@ -171,6 +171,18 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 			},
 		})
 	}
+	if !organizerAbsorbsServiceFee {
+		params.LineItems = append(params.LineItems, &stripe.CheckoutSessionCreateLineItemParams{
+			Quantity: stripe.Int64(1),
+			PriceData: &stripe.CheckoutSessionCreateLineItemPriceDataParams{
+				Currency:   stripe.String("ron"),
+				UnitAmount: stripe.Int64(int64(order.PlatformFeeBani)),
+				ProductData: &stripe.CheckoutSessionCreateLineItemPriceDataProductDataParams{
+					Name: stripe.String("Taxa de servicii Pulse"),
+				},
+			},
+		})
+	}
 
 	session, err := h.client.V1CheckoutSessions.Create(r.Context(), params)
 	if err != nil {
@@ -193,10 +205,10 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	})
 }
 
-func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgtype.UUID, email string, requested map[string]int32, totalTicketCount int32) (db.Orders, []checkoutItem, string, string, string, error) {
+func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgtype.UUID, email string, requested map[string]int32, totalTicketCount int32) (db.Orders, []checkoutItem, string, string, string, bool, error) {
 	tx, err := h.db.Begin(ctx)
 	if err != nil {
-		return db.Orders{}, nil, "", "", "", err
+		return db.Orders{}, nil, "", "", "", false, err
 	}
 	defer tx.Rollback(ctx)
 
@@ -204,14 +216,17 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	event, err := qtx.GetEventWithStats(ctx, eventID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return db.Orders{}, nil, "", "", "", &checkoutRequestError{status: http.StatusNotFound, message: "Evenimentul nu a fost gasit"}
+			return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusNotFound, message: "Evenimentul nu a fost gasit"}
 		}
-		return db.Orders{}, nil, "", "", "", err
+		return db.Orders{}, nil, "", "", "", false, err
+	}
+	if userID.Valid && event.OrganizerID == userID {
+		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusForbidden, message: "Nu poti cumpara bilete la propriul eveniment"}
 	}
 
 	profile, err := qtx.GetOrganizerProfile(ctx, event.OrganizerID)
 	if err != nil || !organizer.CanSellTickets(profile) || !profile.StripeAccountID.Valid {
-		return db.Orders{}, nil, "", "", "", &checkoutRequestError{status: http.StatusConflict, message: "Organizatorul nu poate accepta plati pentru acest eveniment"}
+		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusConflict, message: "Organizatorul nu poate accepta plati pentru acest eveniment"}
 	}
 
 	keys := make([]string, 0, len(requested))
@@ -226,19 +241,19 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	for _, id := range keys {
 		var ticketTypeID pgtype.UUID
 		if err := ticketTypeID.Scan(id); err != nil || !ticketTypeID.Valid {
-			return db.Orders{}, nil, "", "", "", &checkoutRequestError{status: http.StatusBadRequest, message: "ID-ul tipului de bilet este invalid"}
+			return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusBadRequest, message: "ID-ul tipului de bilet este invalid"}
 		}
 
 		ticketType, err := qtx.GetTicketTypeForUpdate(ctx, ticketTypeID)
 		if err != nil || ticketType.EventID != eventID {
-			return db.Orders{}, nil, "", "", "", &checkoutRequestError{status: http.StatusNotFound, message: "Tipul de bilet nu apartine evenimentului"}
+			return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusNotFound, message: "Tipul de bilet nu apartine evenimentului"}
 		}
 		quantity := requested[id]
 		if ticketType.TicketsSold+quantity > ticketType.Capacity {
-			return db.Orders{}, nil, "", "", "", &checkoutRequestError{status: http.StatusConflict, message: "Nu mai exista suficiente bilete disponibile"}
+			return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusConflict, message: "Nu mai exista suficiente bilete disponibile"}
 		}
 		if now.Before(ticketType.StartSales.Time) || now.After(ticketType.EndSales.Time) {
-			return db.Orders{}, nil, "", "", "", &checkoutRequestError{status: http.StatusBadRequest, message: "Vanzarile pentru acest tip de bilet sunt inchise"}
+			return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusBadRequest, message: "Vanzarile pentru acest tip de bilet sunt inchise"}
 		}
 
 		totalAmount += int64(ticketType.PriceRon) * int64(quantity)
@@ -246,12 +261,12 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	}
 
 	if totalAmount <= 0 || totalAmount > int64(^uint32(0)>>1) {
-		return db.Orders{}, nil, "", "", "", &checkoutRequestError{status: http.StatusBadRequest, message: "Valoarea totala a comenzii este invalida"}
+		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusBadRequest, message: "Valoarea totala a comenzii este invalida"}
 	}
 
 	platformFeeBani := calculatePlatformFeeBani(totalAmount*100, totalTicketCount)
-	if platformFeeBani >= totalAmount*100 {
-		return db.Orders{}, nil, "", "", "", &checkoutRequestError{status: http.StatusBadRequest, message: "Valoarea biletelor trebuie sa depaseasca comisionul platformei"}
+	if event.OrganizerAbsorbsServiceFee && platformFeeBani >= totalAmount*100 {
+		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusBadRequest, message: "Valoarea biletelor trebuie sa depaseasca comisionul platformei"}
 	}
 
 	for _, item := range items {
@@ -259,7 +274,7 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 			ID:          item.ticketType.ID,
 			TicketsSold: item.quantity,
 		}); err != nil {
-			return db.Orders{}, nil, "", "", "", err
+			return db.Orders{}, nil, "", "", "", false, err
 		}
 	}
 
@@ -272,7 +287,7 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 		Status:          db.OrderStatusPending,
 	})
 	if err != nil {
-		return db.Orders{}, nil, "", "", "", err
+		return db.Orders{}, nil, "", "", "", false, err
 	}
 
 	for _, item := range items {
@@ -282,15 +297,15 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 			Quantity:     item.quantity,
 			UnitPriceRon: item.ticketType.PriceRon,
 		}); err != nil {
-			return db.Orders{}, nil, "", "", "", err
+			return db.Orders{}, nil, "", "", "", false, err
 		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return db.Orders{}, nil, "", "", "", err
+		return db.Orders{}, nil, "", "", "", false, err
 	}
 
-	return order, items, event.Title, common.UUIDToString(eventID), profile.StripeAccountID.String, nil
+	return order, items, event.Title, common.UUIDToString(eventID), profile.StripeAccountID.String, event.OrganizerAbsorbsServiceFee, nil
 }
 
 func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymentIntentID, orderID string) error {

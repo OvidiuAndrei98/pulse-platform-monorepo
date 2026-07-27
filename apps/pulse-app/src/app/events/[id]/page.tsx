@@ -23,6 +23,7 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
 import { ApiClient } from "@packages/api-client/src/Client";
+import { calculateServiceFeeRon, formatRon } from "@/features/events/serviceFee";
 
 export default function EventStandalonePage() {
   const { user } = useDataProvider();
@@ -76,14 +77,19 @@ export default function EventStandalonePage() {
     : undefined;
   const when = getWhenLabel(startDate, formattedDate);
   const ticketTypes = event.ticketTypes ?? [];
+  const isOwnEvent = user?.properties.id === event.organizerId;
   const ticketCount = ticketTypes.reduce(
     (count, ticket) => count + (quantities[ticket.id] ?? 0),
     0,
   );
-  const total = ticketTypes.reduce(
+  const ticketSubtotal = ticketTypes.reduce(
     (sum, ticket) => sum + (quantities[ticket.id] ?? 0) * ticket.priceRon,
     0,
   );
+  const serviceFee = event.organizerAbsorbsServiceFee
+    ? 0
+    : calculateServiceFeeRon(ticketSubtotal, ticketCount);
+  const total = ticketSubtotal + serviceFee;
 
   const changeQuantity = (ticketId: string, amount: number) => {
     setQuantities((current) => ({
@@ -121,6 +127,10 @@ export default function EventStandalonePage() {
   };
 
   const handleCheckout = async () => {
+    if (isOwnEvent) {
+      setCheckoutError("Nu poti cumpara bilete la propriul eveniment.");
+      return;
+    }
     if (ticketCount === 0 || isCheckingOut) return;
 
     const email = guestEmail.trim();
@@ -260,6 +270,17 @@ export default function EventStandalonePage() {
           )}
           {ticketTypes.length > 0 && (
             <>
+              <div className="mt-4 rounded-lg border border-white/10 bg-black/15 px-4 py-3 text-xs">
+                {ticketCount > 0 ? (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-muted-foreground"><span>Bilete</span><span>{formatRon(ticketSubtotal)}</span></div>
+                    <div className="flex justify-between text-muted-foreground"><span>{event.organizerAbsorbsServiceFee ? "Taxă de servicii suportată de organizator" : "Taxă de servicii (4% + 2,50 RON/bilet)"}</span><span>{event.organizerAbsorbsServiceFee ? "0 RON" : formatRon(serviceFee)}</span></div>
+                    <div className="flex justify-between border-t border-white/10 pt-1.5 text-sm font-semibold"><span>Total de plată</span><span>{formatRon(total)}</span></div>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">{event.organizerAbsorbsServiceFee ? "Preț final, fără taxe adăugate la checkout." : "Taxa de servicii se calculează înainte de plată."}</p>
+                )}
+              </div>
               <div className="mt-4">
                 <label className="text-sm font-semibold" htmlFor="ticket-email">
                   Email pentru bilete
@@ -278,18 +299,20 @@ export default function EventStandalonePage() {
               <button
                 type="button"
                 onClick={handleCheckout}
-                disabled={ticketCount === 0 || isCheckingOut}
+                disabled={ticketCount === 0 || isCheckingOut || isOwnEvent}
                 className="mt-4 flex h-12 w-full items-center justify-between rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <span className="inline-flex items-center gap-2">
                   <Ticket className="h-4 w-4" />
-                  {isCheckingOut
+                  {isOwnEvent
+                    ? "Evenimentul tau"
+                    : isCheckingOut
                     ? "Se pregateste plata..."
                     : ticketCount
                       ? `Cumpara ${ticketCount} bilete`
                       : "Alege biletele"}
                 </span>
-                {ticketCount > 0 && <span>{total} RON</span>}
+                {ticketCount > 0 && <span>{formatRon(total)}</span>}
               </button>
             </>
           )}

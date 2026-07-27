@@ -22,9 +22,11 @@ type HandlersConfig struct {
 	AdminMiddleware        func(http.Handler) http.Handler // RequireRole("admin")
 
 	// Auth
-	Register http.HandlerFunc
-	Activate http.HandlerFunc
-	Login    http.HandlerFunc
+	Register       http.HandlerFunc
+	Activate       http.HandlerFunc
+	Login          http.HandlerFunc
+	ForgotPassword http.HandlerFunc
+	ResetPassword  http.HandlerFunc
 
 	// Users
 	GetMe                    http.HandlerFunc
@@ -155,6 +157,8 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/login", cfg.Login)
 			r.Post("/register", cfg.Register)
+			r.Post("/forgot-password", cfg.ForgotPassword)
+			r.Post("/reset-password", cfg.ResetPassword)
 			if cfg.Activate != nil {
 				r.Get("/activate", cfg.Activate)
 			}

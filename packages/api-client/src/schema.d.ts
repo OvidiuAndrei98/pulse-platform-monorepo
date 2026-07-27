@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/auth/forgot-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trimite linkul de resetare a parolei */
+        post: operations["AuthOperations_forgotPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -32,6 +49,23 @@ export interface paths {
         put?: never;
         /** Înregistrare utilizator nou */
         post: operations["AuthOperations_register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reseteaza parola folosind tokenul primit pe email */
+        post: operations["AuthOperations_resetPassword"];
         delete?: never;
         options?: never;
         head?: never;
@@ -810,6 +844,7 @@ export interface components {
             locationName: string;
             city: string;
             vibe: string;
+            organizerAbsorbsServiceFee?: boolean;
             /** Format: decimal */
             latitude: number;
             /** Format: decimal */
@@ -864,6 +899,7 @@ export interface components {
             locationName: string;
             city: string;
             vibe: string;
+            organizerAbsorbsServiceFee: boolean;
             /** Format: decimal */
             latitude: number;
             /** Format: decimal */
@@ -916,6 +952,9 @@ export interface components {
             /** @enum {string} */
             status: "interested" | "going" | "has_ticket";
         };
+        MessageResponse: {
+            message: string;
+        };
         NotificationListResponse: {
             items: components["schemas"]["NotificationResponse"][];
             /** Format: int64 */
@@ -964,6 +1003,13 @@ export interface components {
             organizerAgreementAcceptedAt?: string;
             /** Format: date-time */
             createdAt: string;
+        };
+        PasswordResetPayload: {
+            token: string;
+            newPassword: string;
+        };
+        PasswordResetRequest: {
+            email: string;
         };
         PublicProfileResponse: {
             id: string;
@@ -1057,6 +1103,7 @@ export interface components {
             locationName: string;
             city: string;
             vibe: string;
+            organizerAbsorbsServiceFee?: boolean;
             /** Format: decimal */
             latitude: number;
             /** Format: decimal */
@@ -1141,6 +1188,11 @@ export interface components {
             startTime: string;
             /** Format: date-time */
             endTime: string;
+            /** Format: int32 */
+            priceRon: number;
+            organizerCompanyName: string;
+            organizerCui: string;
+            organizerFiscalAddress: string;
         };
         ValidationEventResponse: {
             id: string;
@@ -1169,6 +1221,30 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    AuthOperations_forgotPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetRequest"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
     AuthOperations_login: {
         parameters: {
             query?: never;
@@ -1215,6 +1291,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
+    AuthOperations_resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
                 };
             };
         };
@@ -2428,10 +2528,6 @@ export interface operations {
             content: {
                 "application/json": {
                     username?: string;
-                    email?: string;
-                    /** @enum {string} */
-                    role?: "user" | "organizer" | "admin";
-                    avatarUrl?: string;
                     bio?: string;
                 };
             };

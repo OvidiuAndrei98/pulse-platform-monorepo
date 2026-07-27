@@ -1,4 +1,4 @@
-import { Plus, Ticket as TicketIcon, Trash2 } from "lucide-react";
+import { Check, Plus, Ticket as TicketIcon, Trash2 } from "lucide-react";
 import { useFieldArray, UseFormReturn } from "react-hook-form";
 import { useEffect, useState } from "react";
 import { EventFormValues } from "@/app/dashboard/components/EventsForm";
@@ -12,6 +12,7 @@ export function TicketTypesSection({ form }: { form: UseFormReturn<EventFormValu
   const ticketTypes = form.watch("ticketTypes");
   const { errors } = form.formState;
   const [canAddTickets, setCanAddTickets] = useState(false);
+  const organizerAbsorbsServiceFee = form.watch("organizerAbsorbsServiceFee");
 
   useEffect(() => {
     if (!user) return;
@@ -33,6 +34,27 @@ export function TicketTypesSection({ form }: { form: UseFormReturn<EventFormValu
         </button>
       </div>
       {!canAddTickets && <p className="mt-2 text-[11px] text-amber-400/80">Activeaza Stripe din dashboard pentru a adauga tipuri de bilete.</p>}
+      <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-white/[0.08] bg-black/15 p-3.5 transition hover:border-primary/30">
+        <input
+          type="checkbox"
+          checked={organizerAbsorbsServiceFee}
+          onChange={(event) =>
+            form.setValue("organizerAbsorbsServiceFee", event.target.checked, {
+              shouldDirty: true,
+            })
+          }
+          className="sr-only"
+        />
+        <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded border transition ${organizerAbsorbsServiceFee ? "border-primary bg-primary text-primary-foreground" : "border-white/25 bg-white/[0.03]"}`}>
+          {organizerAbsorbsServiceFee && <Check className="h-3.5 w-3.5" />}
+        </span>
+        <span className="min-w-0">
+          <span className="block text-xs font-semibold">Absorb eu taxa de servicii</span>
+          <span className="mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">
+            Recomandat implicit: cumpărătorul plătește taxa de servicii de 4% + 2,50 RON pentru fiecare bilet. Activează opțiunea pentru un preț final, fără taxe adăugate la checkout.
+          </span>
+        </span>
+      </label>
       {errors.ticketTypes?.message && <p className="mt-2 text-xs font-medium text-red-400">{errors.ticketTypes.message}</p>}
       <div className="mt-4 space-y-3">
         {fields.map((field, index) => (

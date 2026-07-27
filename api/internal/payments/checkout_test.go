@@ -9,9 +9,9 @@ func TestCalculatePlatformFeeBani(t *testing.T) {
 		ticketCount int32
 		want        int64
 	}{
-		{name: "single ten ron ticket", totalBani: 1000, ticketCount: 1, want: 150},
-		{name: "round percentage up", totalBani: 999, ticketCount: 1, want: 150},
-		{name: "multiple tickets", totalBani: 2000, ticketCount: 2, want: 300},
+		{name: "single ten ron ticket", totalBani: 1000, ticketCount: 1, want: 290},
+		{name: "round percentage up", totalBani: 999, ticketCount: 1, want: 290},
+		{name: "multiple tickets", totalBani: 2000, ticketCount: 2, want: 580},
 	}
 
 	for _, test := range tests {

@@ -18,6 +18,7 @@ type CreateEventRequest struct {
 	LocationName  string            `json:"locationName"`
 	City          string            `json:"city"`
 	Vibe          string            `json:"vibe"`
+	OrganizerAbsorbsServiceFee bool  `json:"organizerAbsorbsServiceFee"`
 	Latitude      float64           `json:"latitude"`
 	Longitude     float64           `json:"longitude"`
 	StartTime     string            `json:"startTime"`
@@ -44,6 +45,7 @@ type EditEventRequest struct {
 	LocationName  string                `json:"locationName"`
 	City          string                `json:"city"`
 	Vibe          string                `json:"vibe"`
+	OrganizerAbsorbsServiceFee bool      `json:"organizerAbsorbsServiceFee"`
 	Latitude      float64               `json:"latitude"`
 	Longitude     float64               `json:"longitude"`
 	GooglePlaceID string                `json:"googlePlaceId"`

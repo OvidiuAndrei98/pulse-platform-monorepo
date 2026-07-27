@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { ArrowUpRight, Clock, MapPin } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, Clock, MapPin } from "lucide-react";
 import { Event } from "@/core/DataProvider";
 import { useEventDetails } from "@/components/EventDetailsSheet";
 import { EventStatusBadge } from "@/features/events/components/EventStatusBadge";
@@ -36,6 +36,11 @@ export function EventBrowseCard({
 
       <div className="absolute left-4 right-4 top-4 flex flex-wrap items-center gap-2">
         <EventStatusBadge event={event} />
+        {event.organizerAbsorbsServiceFee && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-primary/35 bg-primary/15 px-2 py-1 text-[10px] font-semibold text-primary backdrop-blur">
+            <CheckCircle2 className="h-3 w-3" /> Preț final
+          </span>
+        )}
       </div>
 
       <div className="absolute inset-x-0 bottom-0 p-5">

@@ -12,26 +12,27 @@ import (
 )
 
 const createEvent = `-- name: CreateEvent :one
-INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, latitude, longitude, start_time, end_time)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status
+INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, organizer_absorbs_service_fee, latitude, longitude, start_time, end_time)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status, organizer_absorbs_service_fee
 `
 
 type CreateEventParams struct {
-	OrganizerID   pgtype.UUID        `json:"organizer_id"`
-	Title         string             `json:"title"`
-	Description   pgtype.Text        `json:"description"`
-	Category      string             `json:"category"`
-	Status        string             `json:"status"`
-	BannerUrl     pgtype.Text        `json:"banner_url"`
-	GooglePlaceID string             `json:"google_place_id"`
-	LocationName  string             `json:"location_name"`
-	City          string             `json:"city"`
-	Vibe          string             `json:"vibe"`
-	Latitude      float64            `json:"latitude"`
-	Longitude     float64            `json:"longitude"`
-	StartTime     pgtype.Timestamptz `json:"start_time"`
-	EndTime       pgtype.Timestamptz `json:"end_time"`
+	OrganizerID                pgtype.UUID        `json:"organizer_id"`
+	Title                      string             `json:"title"`
+	Description                pgtype.Text        `json:"description"`
+	Category                   string             `json:"category"`
+	Status                     string             `json:"status"`
+	BannerUrl                  pgtype.Text        `json:"banner_url"`
+	GooglePlaceID              string             `json:"google_place_id"`
+	LocationName               string             `json:"location_name"`
+	City                       string             `json:"city"`
+	Vibe                       string             `json:"vibe"`
+	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
+	Latitude                   float64            `json:"latitude"`
+	Longitude                  float64            `json:"longitude"`
+	StartTime                  pgtype.Timestamptz `json:"start_time"`
+	EndTime                    pgtype.Timestamptz `json:"end_time"`
 }
 
 func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Events, error) {
@@ -46,6 +47,7 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 		arg.LocationName,
 		arg.City,
 		arg.Vibe,
+		arg.OrganizerAbsorbsServiceFee,
 		arg.Latitude,
 		arg.Longitude,
 		arg.StartTime,
@@ -71,6 +73,7 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 		&i.CreatedAt,
 		&i.GooglePlaceID,
 		&i.Status,
+		&i.OrganizerAbsorbsServiceFee,
 	)
 	return i, err
 }
@@ -95,29 +98,31 @@ SET title = $2,
     location_name = $8,
     city = $9,
     vibe = $10,
-    latitude = $11,
-    longitude = $12,
-    start_time = $13,
-    end_time = $14
+    organizer_absorbs_service_fee = $11,
+    latitude = $12,
+    longitude = $13,
+    start_time = $14,
+    end_time = $15
 WHERE id = $1
-RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status
+RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status, organizer_absorbs_service_fee
 `
 
 type EditEventParams struct {
-	ID            pgtype.UUID        `json:"id"`
-	Title         string             `json:"title"`
-	Description   pgtype.Text        `json:"description"`
-	Category      string             `json:"category"`
-	Status        string             `json:"status"`
-	BannerUrl     pgtype.Text        `json:"banner_url"`
-	GooglePlaceID string             `json:"google_place_id"`
-	LocationName  string             `json:"location_name"`
-	City          string             `json:"city"`
-	Vibe          string             `json:"vibe"`
-	Latitude      float64            `json:"latitude"`
-	Longitude     float64            `json:"longitude"`
-	StartTime     pgtype.Timestamptz `json:"start_time"`
-	EndTime       pgtype.Timestamptz `json:"end_time"`
+	ID                         pgtype.UUID        `json:"id"`
+	Title                      string             `json:"title"`
+	Description                pgtype.Text        `json:"description"`
+	Category                   string             `json:"category"`
+	Status                     string             `json:"status"`
+	BannerUrl                  pgtype.Text        `json:"banner_url"`
+	GooglePlaceID              string             `json:"google_place_id"`
+	LocationName               string             `json:"location_name"`
+	City                       string             `json:"city"`
+	Vibe                       string             `json:"vibe"`
+	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
+	Latitude                   float64            `json:"latitude"`
+	Longitude                  float64            `json:"longitude"`
+	StartTime                  pgtype.Timestamptz `json:"start_time"`
+	EndTime                    pgtype.Timestamptz `json:"end_time"`
 }
 
 func (q *Queries) EditEvent(ctx context.Context, arg EditEventParams) (Events, error) {
@@ -132,6 +137,7 @@ func (q *Queries) EditEvent(ctx context.Context, arg EditEventParams) (Events, e
 		arg.LocationName,
 		arg.City,
 		arg.Vibe,
+		arg.OrganizerAbsorbsServiceFee,
 		arg.Latitude,
 		arg.Longitude,
 		arg.StartTime,
@@ -157,6 +163,7 @@ func (q *Queries) EditEvent(ctx context.Context, arg EditEventParams) (Events, e
 		&i.CreatedAt,
 		&i.GooglePlaceID,
 		&i.Status,
+		&i.OrganizerAbsorbsServiceFee,
 	)
 	return i, err
 }
@@ -214,7 +221,7 @@ const getEventByID = `-- name: GetEventByID :one
 
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
+    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     -- Numărul total de check-ins (vizibil public)
@@ -267,27 +274,28 @@ type GetEventByIDParams struct {
 }
 
 type GetEventByIDRow struct {
-	ID               pgtype.UUID        `json:"id"`
-	OrganizerID      pgtype.UUID        `json:"organizer_id"`
-	Title            string             `json:"title"`
-	Description      pgtype.Text        `json:"description"`
-	Category         string             `json:"category"`
-	Status           string             `json:"status"`
-	BannerUrl        pgtype.Text        `json:"banner_url"`
-	GooglePlaceID    string             `json:"google_place_id"`
-	LocationName     string             `json:"location_name"`
-	City             string             `json:"city"`
-	Vibe             string             `json:"vibe"`
-	Latitude         float64            `json:"latitude"`
-	Longitude        float64            `json:"longitude"`
-	StartTime        pgtype.Timestamptz `json:"start_time"`
-	EndTime          pgtype.Timestamptz `json:"end_time"`
-	IsLive           pgtype.Bool        `json:"is_live"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-	TotalCheckIns    int64              `json:"total_check_ins"`
-	UserHasCheckedIn bool               `json:"user_has_checked_in"`
-	IsFavorited      bool               `json:"is_favorited"`
-	TicketTypes      interface{}        `json:"ticket_types"`
+	ID                         pgtype.UUID        `json:"id"`
+	OrganizerID                pgtype.UUID        `json:"organizer_id"`
+	Title                      string             `json:"title"`
+	Description                pgtype.Text        `json:"description"`
+	Category                   string             `json:"category"`
+	Status                     string             `json:"status"`
+	BannerUrl                  pgtype.Text        `json:"banner_url"`
+	GooglePlaceID              string             `json:"google_place_id"`
+	LocationName               string             `json:"location_name"`
+	City                       string             `json:"city"`
+	Vibe                       string             `json:"vibe"`
+	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
+	Latitude                   float64            `json:"latitude"`
+	Longitude                  float64            `json:"longitude"`
+	StartTime                  pgtype.Timestamptz `json:"start_time"`
+	EndTime                    pgtype.Timestamptz `json:"end_time"`
+	IsLive                     pgtype.Bool        `json:"is_live"`
+	CreatedAt                  pgtype.Timestamptz `json:"created_at"`
+	TotalCheckIns              int64              `json:"total_check_ins"`
+	UserHasCheckedIn           bool               `json:"user_has_checked_in"`
+	IsFavorited                bool               `json:"is_favorited"`
+	TicketTypes                interface{}        `json:"ticket_types"`
 }
 
 // RETURNING * va aduce status-ul modificat
@@ -306,6 +314,7 @@ func (q *Queries) GetEventByID(ctx context.Context, arg GetEventByIDParams) (Get
 		&i.LocationName,
 		&i.City,
 		&i.Vibe,
+		&i.OrganizerAbsorbsServiceFee,
 		&i.Latitude,
 		&i.Longitude,
 		&i.StartTime,
@@ -322,7 +331,7 @@ func (q *Queries) GetEventByID(ctx context.Context, arg GetEventByIDParams) (Get
 
 const getEventWithStats = `-- name: GetEventWithStats :one
 SELECT 
-    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status,
+    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status, e.organizer_absorbs_service_fee,
     
     (
         SELECT COUNT(*) 
@@ -383,31 +392,32 @@ WHERE e.id = $1 LIMIT 1
 `
 
 type GetEventWithStatsRow struct {
-	ID                pgtype.UUID        `json:"id"`
-	OrganizerID       pgtype.UUID        `json:"organizer_id"`
-	Title             string             `json:"title"`
-	Description       pgtype.Text        `json:"description"`
-	Category          string             `json:"category"`
-	BannerUrl         pgtype.Text        `json:"banner_url"`
-	LocationAddress   pgtype.Text        `json:"location_address"`
-	LocationName      string             `json:"location_name"`
-	City              string             `json:"city"`
-	Vibe              string             `json:"vibe"`
-	Latitude          float64            `json:"latitude"`
-	Longitude         float64            `json:"longitude"`
-	StartTime         pgtype.Timestamptz `json:"start_time"`
-	EndTime           pgtype.Timestamptz `json:"end_time"`
-	IsLive            pgtype.Bool        `json:"is_live"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	GooglePlaceID     string             `json:"google_place_id"`
-	Status            string             `json:"status"`
-	TotalCheckIns     int64              `json:"total_check_ins"`
-	TotalTicketsSold  int64              `json:"total_tickets_sold"`
-	TotalRevenueRon   int64              `json:"total_revenue_ron"`
-	InterestedCount   int64              `json:"interested_count"`
-	GoingCount        int32              `json:"going_count"`
-	TicketHolderCount int64              `json:"ticket_holder_count"`
-	TicketTypes       interface{}        `json:"ticket_types"`
+	ID                         pgtype.UUID        `json:"id"`
+	OrganizerID                pgtype.UUID        `json:"organizer_id"`
+	Title                      string             `json:"title"`
+	Description                pgtype.Text        `json:"description"`
+	Category                   string             `json:"category"`
+	BannerUrl                  pgtype.Text        `json:"banner_url"`
+	LocationAddress            pgtype.Text        `json:"location_address"`
+	LocationName               string             `json:"location_name"`
+	City                       string             `json:"city"`
+	Vibe                       string             `json:"vibe"`
+	Latitude                   float64            `json:"latitude"`
+	Longitude                  float64            `json:"longitude"`
+	StartTime                  pgtype.Timestamptz `json:"start_time"`
+	EndTime                    pgtype.Timestamptz `json:"end_time"`
+	IsLive                     pgtype.Bool        `json:"is_live"`
+	CreatedAt                  pgtype.Timestamptz `json:"created_at"`
+	GooglePlaceID              string             `json:"google_place_id"`
+	Status                     string             `json:"status"`
+	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
+	TotalCheckIns              int64              `json:"total_check_ins"`
+	TotalTicketsSold           int64              `json:"total_tickets_sold"`
+	TotalRevenueRon            int64              `json:"total_revenue_ron"`
+	InterestedCount            int64              `json:"interested_count"`
+	GoingCount                 int32              `json:"going_count"`
+	TicketHolderCount          int64              `json:"ticket_holder_count"`
+	TicketTypes                interface{}        `json:"ticket_types"`
 }
 
 func (q *Queries) GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEventWithStatsRow, error) {
@@ -432,6 +442,7 @@ func (q *Queries) GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEve
 		&i.CreatedAt,
 		&i.GooglePlaceID,
 		&i.Status,
+		&i.OrganizerAbsorbsServiceFee,
 		&i.TotalCheckIns,
 		&i.TotalTicketsSold,
 		&i.TotalRevenueRon,
@@ -567,7 +578,7 @@ func (q *Queries) GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAr
 const listEvents = `-- name: ListEvents :many
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
+    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     (
@@ -635,27 +646,28 @@ type ListEventsParams struct {
 }
 
 type ListEventsRow struct {
-	ID               pgtype.UUID        `json:"id"`
-	OrganizerID      pgtype.UUID        `json:"organizer_id"`
-	Title            string             `json:"title"`
-	Description      pgtype.Text        `json:"description"`
-	Category         string             `json:"category"`
-	Status           string             `json:"status"`
-	BannerUrl        pgtype.Text        `json:"banner_url"`
-	GooglePlaceID    string             `json:"google_place_id"`
-	LocationName     string             `json:"location_name"`
-	City             string             `json:"city"`
-	Vibe             string             `json:"vibe"`
-	Latitude         float64            `json:"latitude"`
-	Longitude        float64            `json:"longitude"`
-	StartTime        pgtype.Timestamptz `json:"start_time"`
-	EndTime          pgtype.Timestamptz `json:"end_time"`
-	IsLive           pgtype.Bool        `json:"is_live"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-	TotalCheckIns    int64              `json:"total_check_ins"`
-	UserHasCheckedIn bool               `json:"user_has_checked_in"`
-	IsFavorited      bool               `json:"is_favorited"`
-	TicketTypes      interface{}        `json:"ticket_types"`
+	ID                         pgtype.UUID        `json:"id"`
+	OrganizerID                pgtype.UUID        `json:"organizer_id"`
+	Title                      string             `json:"title"`
+	Description                pgtype.Text        `json:"description"`
+	Category                   string             `json:"category"`
+	Status                     string             `json:"status"`
+	BannerUrl                  pgtype.Text        `json:"banner_url"`
+	GooglePlaceID              string             `json:"google_place_id"`
+	LocationName               string             `json:"location_name"`
+	City                       string             `json:"city"`
+	Vibe                       string             `json:"vibe"`
+	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
+	Latitude                   float64            `json:"latitude"`
+	Longitude                  float64            `json:"longitude"`
+	StartTime                  pgtype.Timestamptz `json:"start_time"`
+	EndTime                    pgtype.Timestamptz `json:"end_time"`
+	IsLive                     pgtype.Bool        `json:"is_live"`
+	CreatedAt                  pgtype.Timestamptz `json:"created_at"`
+	TotalCheckIns              int64              `json:"total_check_ins"`
+	UserHasCheckedIn           bool               `json:"user_has_checked_in"`
+	IsFavorited                bool               `json:"is_favorited"`
+	TicketTypes                interface{}        `json:"ticket_types"`
 }
 
 func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error) {
@@ -691,6 +703,7 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 			&i.LocationName,
 			&i.City,
 			&i.Vibe,
+			&i.OrganizerAbsorbsServiceFee,
 			&i.Latitude,
 			&i.Longitude,
 			&i.StartTime,
@@ -714,7 +727,7 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 
 const listEventsWithStats = `-- name: ListEventsWithStats :many
 SELECT 
-    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status,
+    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status, e.organizer_absorbs_service_fee,
     (
         SELECT COUNT(*)::bigint 
         FROM check_ins 
@@ -754,31 +767,32 @@ ORDER BY e.start_time DESC
 `
 
 type ListEventsWithStatsRow struct {
-	ID                pgtype.UUID        `json:"id"`
-	OrganizerID       pgtype.UUID        `json:"organizer_id"`
-	Title             string             `json:"title"`
-	Description       pgtype.Text        `json:"description"`
-	Category          string             `json:"category"`
-	BannerUrl         pgtype.Text        `json:"banner_url"`
-	LocationAddress   pgtype.Text        `json:"location_address"`
-	LocationName      string             `json:"location_name"`
-	City              string             `json:"city"`
-	Vibe              string             `json:"vibe"`
-	Latitude          float64            `json:"latitude"`
-	Longitude         float64            `json:"longitude"`
-	StartTime         pgtype.Timestamptz `json:"start_time"`
-	EndTime           pgtype.Timestamptz `json:"end_time"`
-	IsLive            pgtype.Bool        `json:"is_live"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	GooglePlaceID     string             `json:"google_place_id"`
-	Status            string             `json:"status"`
-	TotalCheckIns     int64              `json:"total_check_ins"`
-	TotalTicketsSold  int64              `json:"total_tickets_sold"`
-	TotalRevenueRon   int64              `json:"total_revenue_ron"`
-	InterestedCount   int64              `json:"interested_count"`
-	GoingCount        int32              `json:"going_count"`
-	TicketHolderCount int64              `json:"ticket_holder_count"`
-	TicketTypes       interface{}        `json:"ticket_types"`
+	ID                         pgtype.UUID        `json:"id"`
+	OrganizerID                pgtype.UUID        `json:"organizer_id"`
+	Title                      string             `json:"title"`
+	Description                pgtype.Text        `json:"description"`
+	Category                   string             `json:"category"`
+	BannerUrl                  pgtype.Text        `json:"banner_url"`
+	LocationAddress            pgtype.Text        `json:"location_address"`
+	LocationName               string             `json:"location_name"`
+	City                       string             `json:"city"`
+	Vibe                       string             `json:"vibe"`
+	Latitude                   float64            `json:"latitude"`
+	Longitude                  float64            `json:"longitude"`
+	StartTime                  pgtype.Timestamptz `json:"start_time"`
+	EndTime                    pgtype.Timestamptz `json:"end_time"`
+	IsLive                     pgtype.Bool        `json:"is_live"`
+	CreatedAt                  pgtype.Timestamptz `json:"created_at"`
+	GooglePlaceID              string             `json:"google_place_id"`
+	Status                     string             `json:"status"`
+	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
+	TotalCheckIns              int64              `json:"total_check_ins"`
+	TotalTicketsSold           int64              `json:"total_tickets_sold"`
+	TotalRevenueRon            int64              `json:"total_revenue_ron"`
+	InterestedCount            int64              `json:"interested_count"`
+	GoingCount                 int32              `json:"going_count"`
+	TicketHolderCount          int64              `json:"ticket_holder_count"`
+	TicketTypes                interface{}        `json:"ticket_types"`
 }
 
 func (q *Queries) ListEventsWithStats(ctx context.Context, organizerID pgtype.UUID) ([]ListEventsWithStatsRow, error) {
@@ -809,6 +823,7 @@ func (q *Queries) ListEventsWithStats(ctx context.Context, organizerID pgtype.UU
 			&i.CreatedAt,
 			&i.GooglePlaceID,
 			&i.Status,
+			&i.OrganizerAbsorbsServiceFee,
 			&i.TotalCheckIns,
 			&i.TotalTicketsSold,
 			&i.TotalRevenueRon,

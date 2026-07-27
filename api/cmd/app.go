@@ -108,6 +108,7 @@ func (app *Application) BuildRouter() http.Handler {
 		os.Getenv("SMTP_USERNAME"),
 		os.Getenv("SMTP_PASSWORD"),
 		os.Getenv("PUBLIC_API_URL"),
+		os.Getenv("PUBLIC_APP_URL"),
 	)
 
 	// 1. Instanțiem modulele din internal cu dependențele necesare
@@ -142,9 +143,11 @@ func (app *Application) BuildRouter() http.Handler {
 		AdminMiddleware:        requireAdmin,
 
 		// Auth
-		Register: authHandler.HandleRegister,
-		Activate: authHandler.HandleActivate,
-		Login:    authHandler.Login,
+		Register:       authHandler.HandleRegister,
+		Activate:       authHandler.HandleActivate,
+		Login:          authHandler.Login,
+		ForgotPassword: authHandler.ForgotPassword,
+		ResetPassword:  authHandler.ResetPassword,
 
 		// Users
 		GetMe:                    usersHandler.HandleGetMe,

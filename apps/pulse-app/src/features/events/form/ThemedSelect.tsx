@@ -61,7 +61,7 @@ export function ThemedSelect({
         <div
           role="listbox"
           aria-label={placeholder}
-          className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 max-h-60 overflow-y-auto rounded-2xl border border-white/15 bg-[oklch(0.18_0.02_150_/_98%)] p-1.5 shadow-[0_18px_38px_rgba(0,0,0,0.45)] [scrollbar-color:rgba(255,255,255,0.16)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/15 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5"
+          className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 max-h-60 overflow-y-auto rounded-2xl border border-white/15 bg-[oklch(0.18_0.02_150_/_98%)] p-1.5 shadow-[0_18px_38px_rgba(0,0,0,0.45)]"
         >
           {options.map((option) => {
             const isSelected = option.value === value;

@@ -107,6 +107,7 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		LocationName:  req.LocationName,
 		City:          req.City,
 		Vibe:          req.Vibe,
+		OrganizerAbsorbsServiceFee: req.OrganizerAbsorbsServiceFee,
 		Latitude:      req.Latitude,
 		Longitude:     req.Longitude,
 		StartTime:     pgtype.Timestamptz{Time: startTime, Valid: true},
@@ -264,6 +265,7 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		BannerUrl:     bannerURL,
 		City:          req.City,
 		Vibe:          req.Vibe,
+		OrganizerAbsorbsServiceFee: req.OrganizerAbsorbsServiceFee,
 		// Adaugă restul câmpurilor din EditEventParams generat de sqlc
 	})
 	if err != nil {

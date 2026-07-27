@@ -1,10 +1,10 @@
 -- name: GetTicketTypesForEvent :many
-SELECT * FROM ticket_types 
+SELECT * FROM ticket_types
 WHERE event_id = $1 
 ORDER BY created_at ASC;
 
 -- name: GetTicketTypeForUpdate :one
-SELECT * FROM ticket_types 
+SELECT * FROM ticket_types
 WHERE id = $1 
 FOR UPDATE;
 
@@ -205,10 +205,17 @@ WHERE id = $1 AND is_validated = FALSE
 RETURNING validated_at;
 
 -- name: GetUserTickets :many
-SELECT t.*, tt.name as ticket_type_name, e.id as event_id, e.title as event_title, e.location_name, e.start_time, e.end_time
+SELECT t.*, tt.name AS ticket_type_name, e.id AS event_id, e.title AS event_title,
+       e.location_name, e.start_time, e.end_time,
+       COALESCE(oi.unit_price_ron, tt.price_ron) AS unit_price_ron,
+       COALESCE(op.company_name, '') AS organizer_company_name,
+       COALESCE(op.cui, '') AS organizer_cui,
+       COALESCE(op.fiscal_address, '') AS organizer_fiscal_address
 FROM tickets t
 JOIN ticket_types tt ON t.ticket_type_id = tt.id
 JOIN events e ON tt.event_id = e.id
+LEFT JOIN order_items oi ON oi.order_id = t.order_id AND oi.ticket_type_id = t.ticket_type_id
+LEFT JOIN organizer_profiles op ON op.user_id = e.organizer_id
 WHERE t.user_id = $1
 ORDER BY t.created_at DESC;
 

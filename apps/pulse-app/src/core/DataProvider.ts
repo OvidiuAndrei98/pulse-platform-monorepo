@@ -68,6 +68,24 @@ export class User {
     return updatedUser;
   }
 
+  async updateProfile(profile: { username: string; bio: string }): Promise<UserData> {
+    const updatedUser = await ApiClient.instance.put("/users/me", {
+      body: profile,
+    });
+    this._properties = updatedUser;
+    return updatedUser;
+  }
+
+  static async requestPasswordReset(email: string): Promise<void> {
+    await ApiClient.instance.post("/auth/forgot-password", { body: { email } });
+  }
+
+  static async resetPassword(token: string, newPassword: string): Promise<void> {
+    await ApiClient.instance.post("/auth/reset-password", {
+      body: { token, newPassword },
+    });
+  }
+
   async getOrganizerProfile(): Promise<OrganizerProfile | undefined> {
     try {
       const profile = await ApiClient.instance.get(

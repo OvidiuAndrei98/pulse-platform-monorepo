@@ -124,6 +124,19 @@ model NotificationResponse {
   createdAt: utcDateTime;
 }
 
+model PasswordResetRequest {
+  email: string;
+}
+
+model PasswordResetPayload {
+  token: string;
+  newPassword: string;
+}
+
+model MessageResponse {
+  message: string;
+}
+
 model NotificationListResponse {
   items: NotificationResponse[];
   unreadCount: int64;
@@ -141,6 +154,7 @@ model EventResponse {
   locationName: string;
   city: string;
   vibe: string;
+  organizerAbsorbsServiceFee: boolean;
   latitude: decimal;
   longitude: decimal;
   startTime: utcDateTime;
@@ -203,6 +217,10 @@ model UserTicketResponse {
   locationName: string;
   startTime: utcDateTime;
   endTime: utcDateTime;
+  priceRon: int32;
+  organizerCompanyName: string;
+  organizerCui: string;
+  organizerFiscalAddress: string;
 }
 
 // --- REQUEST BODY PAYLOADS ---
@@ -228,6 +246,7 @@ model CreateEventPayload {
   locationName: string;
   city: string;
   vibe: string;
+  organizerAbsorbsServiceFee?: boolean;
   latitude: decimal;
   longitude: decimal;
   startTime: utcDateTime;
@@ -246,6 +265,7 @@ model UpdateEventPayload {
   locationName: string;
   city: string;
   vibe: string;
+  organizerAbsorbsServiceFee?: boolean;
   latitude: decimal;
   longitude: decimal;
   startTime: utcDateTime;
@@ -402,6 +422,16 @@ interface AuthOperations {
     @statusCode statusCode: 200;
     token: string;
   };
+
+  @summary("Trimite linkul de resetare a parolei")
+  @post
+  @route("/forgot-password")
+  forgotPassword(@body payload: PasswordResetRequest): MessageResponse;
+
+  @summary("Reseteaza parola folosind tokenul primit pe email")
+  @post
+  @route("/reset-password")
+  resetPassword(@body payload: PasswordResetPayload): MessageResponse;
 }
 
 @route("/users")
@@ -417,9 +447,6 @@ interface UserOperations {
   updateMe(
     @body profile: {
       username?: string;
-      email?: string;
-      role?: "user" | "organizer" | "admin";
-      avatarUrl?: string;
       bio?: string;
     },
   ): User;

@@ -61,16 +61,20 @@ type TicketValidationResponse struct {
 }
 
 type UserTicketResponse struct {
-	ID             string `json:"id"`
-	EventID        string `json:"eventId"`
-	ValidationHash string `json:"validationHash"`
-	IsValidated    bool   `json:"isValidated"`
-	ValidatedAt    string `json:"validatedAt,omitempty"`
-	TicketTypeName string `json:"ticketTypeName"`
-	EventTitle     string `json:"eventTitle"`
-	LocationName   string `json:"locationName"`
-	StartTime      string `json:"startTime"`
-	EndTime        string `json:"endTime"`
+	ID                     string `json:"id"`
+	EventID                string `json:"eventId"`
+	ValidationHash         string `json:"validationHash"`
+	IsValidated            bool   `json:"isValidated"`
+	ValidatedAt            string `json:"validatedAt,omitempty"`
+	TicketTypeName         string `json:"ticketTypeName"`
+	EventTitle             string `json:"eventTitle"`
+	LocationName           string `json:"locationName"`
+	StartTime              string `json:"startTime"`
+	EndTime                string `json:"endTime"`
+	PriceRon               int32  `json:"priceRon"`
+	OrganizerCompanyName   string `json:"organizerCompanyName"`
+	OrganizerCui           string `json:"organizerCui"`
+	OrganizerFiscalAddress string `json:"organizerFiscalAddress"`
 }
 
 type UserOrderResponse struct {
@@ -184,16 +188,20 @@ func MapTicketValidationResponse(t db.GetTicketByHashRow) TicketValidationRespon
 
 func MapUserTicket(ticket db.GetUserTicketsRow) UserTicketResponse {
 	return UserTicketResponse{
-		ID:             common.UUIDToString(ticket.ID),
-		EventID:        common.UUIDToString(ticket.EventID),
-		ValidationHash: ticket.ValidationHash,
-		IsValidated:    ticket.IsValidated,
-		ValidatedAt:    common.TimestampToString(ticket.ValidatedAt),
-		TicketTypeName: ticket.TicketTypeName,
-		EventTitle:     ticket.EventTitle,
-		LocationName:   ticket.LocationName,
-		StartTime:      common.TimestampToString(ticket.StartTime),
-		EndTime:        common.TimestampToString(ticket.EndTime),
+		ID:                     common.UUIDToString(ticket.ID),
+		EventID:                common.UUIDToString(ticket.EventID),
+		ValidationHash:         ticket.ValidationHash,
+		IsValidated:            ticket.IsValidated,
+		ValidatedAt:            common.TimestampToString(ticket.ValidatedAt),
+		TicketTypeName:         ticket.TicketTypeName,
+		EventTitle:             ticket.EventTitle,
+		LocationName:           ticket.LocationName,
+		StartTime:              common.TimestampToString(ticket.StartTime),
+		EndTime:                common.TimestampToString(ticket.EndTime),
+		PriceRon:               ticket.UnitPriceRon,
+		OrganizerCompanyName:   ticket.OrganizerCompanyName,
+		OrganizerCui:           ticket.OrganizerCui,
+		OrganizerFiscalAddress: ticket.OrganizerFiscalAddress,
 	}
 }
 

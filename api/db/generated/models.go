@@ -150,24 +150,25 @@ type EventValidationStaff struct {
 }
 
 type Events struct {
-	ID              pgtype.UUID        `json:"id"`
-	OrganizerID     pgtype.UUID        `json:"organizer_id"`
-	Title           string             `json:"title"`
-	Description     pgtype.Text        `json:"description"`
-	Category        string             `json:"category"`
-	BannerUrl       pgtype.Text        `json:"banner_url"`
-	LocationAddress pgtype.Text        `json:"location_address"`
-	LocationName    string             `json:"location_name"`
-	City            string             `json:"city"`
-	Vibe            string             `json:"vibe"`
-	Latitude        float64            `json:"latitude"`
-	Longitude       float64            `json:"longitude"`
-	StartTime       pgtype.Timestamptz `json:"start_time"`
-	EndTime         pgtype.Timestamptz `json:"end_time"`
-	IsLive          pgtype.Bool        `json:"is_live"`
-	CreatedAt       pgtype.Timestamptz `json:"created_at"`
-	GooglePlaceID   string             `json:"google_place_id"`
-	Status          string             `json:"status"`
+	ID                         pgtype.UUID        `json:"id"`
+	OrganizerID                pgtype.UUID        `json:"organizer_id"`
+	Title                      string             `json:"title"`
+	Description                pgtype.Text        `json:"description"`
+	Category                   string             `json:"category"`
+	BannerUrl                  pgtype.Text        `json:"banner_url"`
+	LocationAddress            pgtype.Text        `json:"location_address"`
+	LocationName               string             `json:"location_name"`
+	City                       string             `json:"city"`
+	Vibe                       string             `json:"vibe"`
+	Latitude                   float64            `json:"latitude"`
+	Longitude                  float64            `json:"longitude"`
+	StartTime                  pgtype.Timestamptz `json:"start_time"`
+	EndTime                    pgtype.Timestamptz `json:"end_time"`
+	IsLive                     pgtype.Bool        `json:"is_live"`
+	CreatedAt                  pgtype.Timestamptz `json:"created_at"`
+	GooglePlaceID              string             `json:"google_place_id"`
+	Status                     string             `json:"status"`
+	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
 }
 
 type Friendships struct {

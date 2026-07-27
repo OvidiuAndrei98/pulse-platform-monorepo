@@ -20,9 +20,10 @@ type Mailer struct {
 	username     string
 	password     string
 	publicAPIURL string
+	publicAppURL string
 }
 
-func NewMailer(host, port, from, username, password, publicAPIURL string) *Mailer {
+func NewMailer(host, port, from, username, password, publicAPIURL, publicAppURL string) *Mailer {
 	return &Mailer{
 		smtpHost:     host,
 		smtpPort:     port,
@@ -30,6 +31,7 @@ func NewMailer(host, port, from, username, password, publicAPIURL string) *Maile
 		username:     username,
 		password:     password,
 		publicAPIURL: strings.TrimRight(publicAPIURL, "/"),
+		publicAppURL: strings.TrimRight(publicAppURL, "/"),
 	}
 }
 
@@ -66,7 +68,7 @@ func (m *Mailer) SendActivationEmail(ctx context.Context, toEmail, token string)
 
 func (m *Mailer) SendPasswordResetEmail(ctx context.Context, toEmail, token string) error {
 	// Modifică URL-ul pentru a bate spre endpoint-ul tău local de resetare a parolei
-	resetLink := fmt.Sprintf("%s/api/v1/auth/reset-password?token=%s", m.publicAPIURL, token)
+	resetLink := fmt.Sprintf("%s/reset-password?token=%s", m.publicAppURL, token)
 
 	headers := fmt.Sprintf(
 		"From: %s\r\nSubject: Reseteaza-ti parola Pulse\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=\"UTF-8\"\r\n\r\n",

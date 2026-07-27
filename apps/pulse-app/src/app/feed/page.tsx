@@ -141,7 +141,7 @@ export default function FeedPage() {
         )}
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-28 pt-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-28 pt-6">
         {!isOrganizer && !requestsLoading && requests.length > 0 && (
           <section>
             <h2 className="text-sm font-semibold">Cereri de prietenie</h2>

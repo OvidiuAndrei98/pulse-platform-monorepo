@@ -3,8 +3,8 @@ package organizer
 import (
 	"encoding/json"
 	"net"
-	"net/netip"
 	"net/http"
+	"net/netip"
 	"time"
 
 	db "pulse-api/db/generated"
@@ -28,12 +28,12 @@ func NewHandler(queries *db.Queries) *Handler {
 }
 
 type FinanceEventResponse struct {
-	EventID          string `json:"eventId"`
-	EventTitle       string `json:"eventTitle"`
-	StartTime        string `json:"startTime"`
-	GrossRevenueRon  int64  `json:"grossRevenueRon"`
-	PlatformFeeBani  int64  `json:"platformFeeBani"`
-	TicketsSold      int64  `json:"ticketsSold"`
+	EventID         string `json:"eventId"`
+	EventTitle      string `json:"eventTitle"`
+	StartTime       string `json:"startTime"`
+	GrossRevenueRon int64  `json:"grossRevenueRon"`
+	PlatformFeeBani int64  `json:"platformFeeBani"`
+	TicketsSold     int64  `json:"ticketsSold"`
 }
 
 func (h *Handler) HandleGetOrganizerFinance(w http.ResponseWriter, r *http.Request) {
@@ -127,13 +127,13 @@ func (h *Handler) HandleCreateOrganizerProfile(w http.ResponseWriter, r *http.Re
 	}
 
 	params := db.CreateOrganizerProfileParams{
-		UserID:             uuid,
-		Cui:                req.Cui,
-		CompanyName:        company.Name,
-		FiscalAddress:      company.Address,
-		IsVerified:         pgtype.Bool{Bool: company.IsActive, Valid: true},
-		VerifiedAt:         pgtype.Timestamptz{Time: time.Now(), Valid: true},
-		VerificationStatus: verificationStatus,
+		UserID:                       uuid,
+		Cui:                          req.Cui,
+		CompanyName:                  company.Name,
+		FiscalAddress:                company.Address,
+		IsVerified:                   pgtype.Bool{Bool: company.IsActive, Valid: true},
+		VerifiedAt:                   pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		VerificationStatus:           verificationStatus,
 		OrganizerAgreementVersion:    pgtype.Text{String: AgreementVersion, Valid: true},
 		OrganizerAgreementAcceptedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		OrganizerAgreementAcceptedIp: acceptedIP(r),

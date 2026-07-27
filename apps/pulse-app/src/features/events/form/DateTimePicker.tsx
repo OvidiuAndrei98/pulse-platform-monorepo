@@ -106,7 +106,7 @@ export function DateTimePicker({
       </button>
 
       {open && (
-        <div role="dialog" aria-label={placeholder} className="absolute left-0 top-[calc(100%+0.5rem)] z-40 max-h-[calc(100dvh-2rem)] w-[min(18.5rem,calc(100vw-2.5rem))] overflow-y-auto rounded-2xl border border-white/15 bg-[oklch(0.18_0.02_150_/_98%)] p-3 shadow-[0_20px_46px_rgba(0,0,0,0.5)] [scrollbar-color:rgba(255,255,255,0.16)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/15 [&::-webkit-scrollbar]:w-1.5">
+        <div role="dialog" aria-label={placeholder} className="absolute left-0 top-[calc(100%+0.5rem)] z-40 max-h-[calc(100dvh-2rem)] w-[min(18.5rem,calc(100vw-2.5rem))] overflow-y-auto rounded-2xl border border-white/15 bg-[oklch(0.18_0.02_150_/_98%)] p-3 shadow-[0_20px_46px_rgba(0,0,0,0.5)]">
           <div className="mb-2 flex items-center justify-between">
             <button type="button" onClick={() => setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground" aria-label="Luna anterioara"><ChevronLeft className="h-4 w-4" /></button>
             <p className="text-sm font-semibold capitalize">{new Intl.DateTimeFormat("ro-RO", { month: "long", year: "numeric" }).format(visibleMonth)}</p>

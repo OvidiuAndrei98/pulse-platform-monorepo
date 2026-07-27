@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin, Bookmark } from "lucide-react";
+import { MapPin, Bookmark, CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Event } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
@@ -99,6 +99,11 @@ export function EventCard({
               {formattedDate}
             </div>
           </div>
+          {event.organizerAbsorbsServiceFee && (
+            <span className="absolute bottom-2.5 left-2.5 inline-flex items-center gap-1 rounded-full border border-primary/35 bg-black/65 px-2 py-1 text-[10px] font-semibold text-primary backdrop-blur-md">
+              <CheckCircle2 className="h-3 w-3" /> Preț final
+            </span>
+          )}
         </div>
 
         {/* 2. CORPUL CARDULUI */}

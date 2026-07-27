@@ -6,6 +6,35 @@
   },
   "tags": [],
   "paths": {
+    "/auth/forgot-password": {
+      "post": {
+        "operationId": "AuthOperations_forgotPassword",
+        "summary": "Trimite linkul de resetare a parolei",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/login": {
       "post": {
         "operationId": "AuthOperations_login",
@@ -66,6 +95,35 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UserRegisterPayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "operationId": "AuthOperations_resetPassword",
+        "summary": "Reseteaza parola folosind tokenul primit pe email",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetPayload"
               }
             }
           }
@@ -1694,20 +1752,6 @@
                   "username": {
                     "type": "string"
                   },
-                  "email": {
-                    "type": "string"
-                  },
-                  "role": {
-                    "type": "string",
-                    "enum": [
-                      "user",
-                      "organizer",
-                      "admin"
-                    ]
-                  },
-                  "avatarUrl": {
-                    "type": "string"
-                  },
                   "bio": {
                     "type": "string"
                   }
@@ -1977,6 +2021,9 @@
           "vibe": {
             "type": "string"
           },
+          "organizerAbsorbsServiceFee": {
+            "type": "boolean"
+          },
           "latitude": {
             "type": "number",
             "format": "decimal"
@@ -2125,6 +2172,7 @@
           "locationName",
           "city",
           "vibe",
+          "organizerAbsorbsServiceFee",
           "latitude",
           "longitude",
           "startTime",
@@ -2167,6 +2215,9 @@
           },
           "vibe": {
             "type": "string"
+          },
+          "organizerAbsorbsServiceFee": {
+            "type": "boolean"
           },
           "latitude": {
             "type": "number",
@@ -2313,6 +2364,17 @@
               "going",
               "has_ticket"
             ]
+          }
+        }
+      },
+      "MessageResponse": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
           }
         }
       },
@@ -2477,6 +2539,32 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "PasswordResetPayload": {
+        "type": "object",
+        "required": [
+          "token",
+          "newPassword"
+        ],
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string"
+          }
+        }
+      },
+      "PasswordResetRequest": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
           }
         }
       },
@@ -2798,6 +2886,9 @@
           "vibe": {
             "type": "string"
           },
+          "organizerAbsorbsServiceFee": {
+            "type": "boolean"
+          },
           "latitude": {
             "type": "number",
             "format": "decimal"
@@ -3036,7 +3127,11 @@
           "eventTitle",
           "locationName",
           "startTime",
-          "endTime"
+          "endTime",
+          "priceRon",
+          "organizerCompanyName",
+          "organizerCui",
+          "organizerFiscalAddress"
         ],
         "properties": {
           "id": {
@@ -3071,6 +3166,19 @@
           "endTime": {
             "type": "string",
             "format": "date-time"
+          },
+          "priceRon": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "organizerCompanyName": {
+            "type": "string"
+          },
+          "organizerCui": {
+            "type": "string"
+          },
+          "organizerFiscalAddress": {
+            "type": "string"
           }
         }
       },

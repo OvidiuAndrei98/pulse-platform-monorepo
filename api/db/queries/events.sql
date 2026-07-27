@@ -8,7 +8,7 @@ WHERE is_live = true
 -- name: ListEvents :many
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
+    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     (
@@ -101,8 +101,8 @@ GROUP BY e.id
 ORDER BY e.start_time DESC;
 
 -- name: CreateEvent :one
-INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, latitude, longitude, start_time, end_time)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, organizer_absorbs_service_fee, latitude, longitude, start_time, end_time)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 RETURNING *; 
 
 -- name: EditEvent :one
@@ -116,17 +116,18 @@ SET title = $2,
     location_name = $8,
     city = $9,
     vibe = $10,
-    latitude = $11,
-    longitude = $12,
-    start_time = $13,
-    end_time = $14
+    organizer_absorbs_service_fee = $11,
+    latitude = $12,
+    longitude = $13,
+    start_time = $14,
+    end_time = $15
 WHERE id = $1
 RETURNING *; -- RETURNING * va aduce status-ul modificat
 
 -- name: GetEventByID :one
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time,
+    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     -- Numărul total de check-ins (vizibil public)

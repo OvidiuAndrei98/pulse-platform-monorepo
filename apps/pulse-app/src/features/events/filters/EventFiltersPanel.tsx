@@ -59,7 +59,7 @@ export function EventFiltersPanel({
           hidden: {},
           show: { transition: { staggerChildren: 0.05, delayChildren: 0.15 } },
         }}
-        className="flex-1 select-none space-y-6 overflow-y-auto px-6 pb-4 pt-5 [scrollbar-color:rgba(255,255,255,0.1)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5 hover:[&::-webkit-scrollbar-thumb]:bg-white/20"
+        className="flex-1 select-none space-y-6 overflow-y-auto px-6 pb-4 pt-5"
       >
         <FilterSection title="When">
           <div className="flex flex-wrap gap-2">

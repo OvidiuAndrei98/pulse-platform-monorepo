@@ -9,6 +9,7 @@ const hiddenPathPrefixes = [
   "/register",
   "/legal",
   "/organizers/agreement",
+  "/reset-password",
   "/scan",
   "/ticket-validation",
   "/dashboard",
