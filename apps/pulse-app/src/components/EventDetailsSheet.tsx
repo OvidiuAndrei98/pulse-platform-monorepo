@@ -4,15 +4,10 @@ import {
   createContext,
   useContext,
   useEffect,
-  useRef,
   useState,
-  type TouchEvent as ReactTouchEvent,
   type ReactNode,
 } from "react";
-import {
-  AnimatePresence,
-  motion,
-} from "framer-motion";
+import { motion } from "framer-motion";
 import { Calendar, Bookmark, Check, Share2, Ticket as TicketIcon } from "lucide-react";
 import Image from "next/image";
 import { Event } from "@/core/DataProvider";
@@ -25,6 +20,7 @@ import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { calculateServiceFeeRon, formatRon } from "@/features/events/serviceFee";
 import { formatEventDateTime } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 
 interface EventDetailsContextType {
   open: (event: Event) => void;
@@ -45,11 +41,7 @@ export function EventDetailsProvider({ children }: { children: ReactNode }) {
   return (
     <EventDetailsContext.Provider value={{ open, close, selectedEvent }}>
       {children}
-      <AnimatePresence>
-        {selectedEvent && (
-          <EventDetailsSheet event={selectedEvent} onClose={close} />
-        )}
-      </AnimatePresence>
+      <EventDetailsSheet event={selectedEvent} onClose={close} />
     </EventDetailsContext.Provider>
   );
 }
@@ -69,9 +61,10 @@ export interface EventDetailsSheetProps {
   onClose: () => void;
 }
 
-export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
+export function EventDetailsSheet({ event: activeEvent, onClose }: EventDetailsSheetProps) {
   const { t } = useTranslation();
   const { user } = useDataProvider();
+  const [displayedEvent, setDisplayedEvent] = useState<Event | null>(activeEvent);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [guestEmail, setGuestEmail] = useState("");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -80,54 +73,10 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
   const [favorited, setFavorited] = useState(false);
   const [shared, setShared] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [mobileOffset, setMobileOffset] = useState(0);
-  const [isPullingSheet, setIsPullingSheet] = useState(false);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const touchStartY = useRef<number | null>(null);
-  const mobileOffsetRef = useRef(0);
 
-  const setSheetOffset = (nextOffset: number) => {
-    mobileOffsetRef.current = nextOffset;
-    setMobileOffset(nextOffset);
-  };
-
-  const handleTouchStart = (touchEvent: ReactTouchEvent<HTMLDivElement>) => {
-    touchStartY.current = touchEvent.touches[0]?.clientY ?? null;
-    setIsPullingSheet(false);
-  };
-
-  const handleTouchMove = (touchEvent: ReactTouchEvent<HTMLDivElement>) => {
-    const startY = touchStartY.current;
-    const currentY = touchEvent.touches[0]?.clientY;
-    if (startY === null || currentY === undefined) return;
-
-    const distance = currentY - startY;
-    const pullActivationDistance = 36;
-    if (
-      distance <= pullActivationDistance ||
-      (contentRef.current?.scrollTop ?? 0) > 0
-    ) {
-      return;
-    }
-
-    touchEvent.preventDefault();
-    setIsPullingSheet(true);
-    setSheetOffset((distance - pullActivationDistance) * 0.82);
-  };
-
-  const handleTouchEnd = () => {
-    const shouldDismiss = mobileOffsetRef.current > 150;
-    touchStartY.current = null;
-    setIsPullingSheet(false);
-
-    if (shouldDismiss) {
-      setSheetOffset(window.innerHeight);
-      window.setTimeout(onClose, 220);
-      return;
-    }
-
-    setSheetOffset(0);
-  };
+  useEffect(() => {
+    if (activeEvent) setDisplayedEvent(activeEvent);
+  }, [activeEvent]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 768px)");
@@ -138,26 +87,22 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
     return () => mediaQuery.removeEventListener("change", updateViewport);
   }, []);
 
-  useEffect(() => {
-    setSheetOffset(0);
-  }, [event?.id]);
-
   // Resetăm biletele selectate de fiecare dată când se deschide un alt eveniment
   useEffect(() => {
-    if (event) {
+    if (activeEvent) {
       setQty({});
       setGuestEmail(user?.properties.email ?? "");
       setIsCheckingOut(false);
       setCheckoutError("");
       setPurchased(false);
-      setFavorited(Boolean(event.stats?.isFavorited));
+      setFavorited(Boolean(activeEvent.stats?.isFavorited));
       setShared(false);
     }
-  }, [event?.id]);
+  }, [activeEvent?.id]);
 
   // Lock body scroll și închidere pe tastă Escape
   useEffect(() => {
-    if (!event) return;
+    if (!displayedEvent) return;
 
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -167,9 +112,11 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
       document.body.style.overflow = "";
       window.removeEventListener("keydown", onKey);
     };
-  }, [event, onClose]);
+  }, [displayedEvent, onClose]);
 
-  if (!event) return null;
+  if (!displayedEvent) return null;
+
+  const event = displayedEvent;
 
   const ticketTypes = event.ticketTypes ?? [];
   const isOwnEvent = user?.properties.id === event.organizerId;
@@ -257,7 +204,7 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
 
   const sheetContent = (
     <>
-      <div ref={contentRef} className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+      <div className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
               <div className="relative">
                 <div className="relative h-48 w-full bg-muted md:h-72">
                   {event.bannerUrl && (
@@ -426,44 +373,18 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
 
   if (!isDesktop) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-end justify-center md:hidden">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 bg-black/75"
-        />
-        <motion.div
-          initial={{ y: "100%" }}
-          animate={{ y: 0 }}
-          exit={{ y: "100%" }}
-          transition={{ type: "spring", damping: 28, stiffness: 260 }}
-          className="relative h-[78svh] max-h-[42rem] w-full max-w-md"
-        >
-          <div
-            onClick={(clickEvent) => clickEvent.stopPropagation()}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handleTouchEnd}
-            className="relative flex h-full w-full flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-neutral-950 shadow-2xl"
-            style={{
-              transform: `translateY(${mobileOffset}px)`,
-              transition: isPullingSheet
-                ? "none"
-                : "transform 240ms cubic-bezier(0.22, 1, 0.36, 1)",
-              backgroundImage:
-                "linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0) 40%)",
-            }}
-          >
-            <div className="absolute left-0 right-0 top-0 z-20 flex h-10 cursor-grab items-center justify-center active:cursor-grabbing">
-              <div className="h-1.5 w-12 rounded-full bg-white/20" />
-            </div>
-            {sheetContent}
-          </div>
-        </motion.div>
-      </div>
+      <Drawer
+        open={Boolean(activeEvent)}
+        onOpenChange={(open) => !open && onClose()}
+        onAnimationEnd={(open) => !open && setDisplayedEvent(null)}
+        shouldScaleBackground={false}
+        closeThreshold={0.35}
+      >
+        <DrawerContent className="h-[78svh] max-h-[42rem] overflow-hidden rounded-t-3xl border-white/10 bg-neutral-950">
+          <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
+          {sheetContent}
+        </DrawerContent>
+      </Drawer>
     );
   }
 
