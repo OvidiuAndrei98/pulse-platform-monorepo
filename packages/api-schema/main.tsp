@@ -111,6 +111,24 @@ model SocialFeedItemResponse {
   organizerName?: string;
 }
 
+model NotificationResponse {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  eventId?: string;
+  actorId?: string;
+  actorUsername?: string;
+  actorAvatarUrl?: string;
+  isRead: boolean;
+  createdAt: utcDateTime;
+}
+
+model NotificationListResponse {
+  items: NotificationResponse[];
+  unreadCount: int64;
+}
+
 model EventResponse {
   id: string;
   organizerId: string;
@@ -425,6 +443,18 @@ interface UserOperations {
   getSavedEvents(): EventResponse[];
 }
 
+@route("/notifications")
+interface NotificationOperations {
+  @get
+  list(): NotificationListResponse;
+
+  @post
+  @route("/read-all")
+  markAllRead(): {
+    success: boolean;
+  };
+}
+
 @route("/profiles")
 interface ProfileOperations {
   @get
@@ -560,6 +590,14 @@ interface FriendOperations {
     },
   ): {
     @statusCode statusCode: 200;
+  };
+
+  @summary("Elimina un prieten")
+  @delete
+  @route("/{userId}")
+  removeFriend(@path userId: string): {
+    @statusCode statusCode: 200;
+    relationship: "none";
   };
 
   @post

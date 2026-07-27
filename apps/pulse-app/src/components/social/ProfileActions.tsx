@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Check, UserPlus } from "lucide-react";
+import { Check, UserMinus, UserPlus } from "lucide-react";
 import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
 
@@ -14,7 +14,7 @@ export function ProfileActions({
   profile: PublicProfile;
   onChange?: (update: Partial<PublicProfile>) => void;
 }) {
-  const { user } = useDataProvider();
+  const { user, isOrganizer } = useDataProvider();
 
   if (profile.relationship === "self") return null;
   if (!user) {
@@ -45,6 +45,8 @@ export function ProfileActions({
     );
   }
 
+  if (isOrganizer) return null;
+
   const connect = async () => {
     if (profile.relationship === "pending_received") {
       await ApiClient.instance.put("/friends/request/{userId}", { params: { path: { userId: profile.id } }, body: { status: "accepted" } });
@@ -57,10 +59,20 @@ export function ProfileActions({
     }
   };
 
-  const label = profile.relationship === "friends" ? "Prieteni" : profile.relationship === "pending_sent" ? "Cerere trimisa" : profile.relationship === "pending_received" ? "Accepta" : "Adauga prieten";
+  const removeFriend = async () => {
+    try {
+      await user.removeFriend(profile.id);
+      await updateFriendship("none");
+    } catch {
+      // The current state remains visible when the request fails.
+    }
+  };
+
+  const isFriend = profile.relationship === "friends";
+  const label = isFriend ? "Scoate din prieteni" : profile.relationship === "pending_sent" ? "Cerere trimisa" : profile.relationship === "pending_received" ? "Accepta" : "Adauga prieten";
   return (
-    <button type="button" disabled={profile.relationship === "friends" || profile.relationship === "pending_sent"} onClick={() => void connect()} className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition disabled:cursor-default ${profile.relationship === "friends" ? "border-primary/40 bg-primary/15 text-primary" : "border-white/15 text-foreground hover:border-primary/50"}`}>
-      {profile.relationship === "friends" ? <Check className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
+    <button type="button" disabled={profile.relationship === "pending_sent"} onClick={() => void (isFriend ? removeFriend() : connect())} className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition disabled:cursor-default ${isFriend ? "border-white/15 text-muted-foreground hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive" : "border-white/15 text-foreground hover:border-primary/50"}`}>
+      {isFriend ? <UserMinus className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
       {label}
     </button>
   );

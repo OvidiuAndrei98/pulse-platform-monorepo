@@ -353,6 +353,9 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
+	if err := h.queries.CreateTicketPurchaseNotification(ctx, order.ID); err != nil {
+		log.Printf("ticket purchase notification failed for order %s: %v", common.UUIDToString(order.ID), err)
+	}
 	h.deliverGuestTickets(order.ID)
 	return nil
 }

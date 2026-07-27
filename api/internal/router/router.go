@@ -27,14 +27,16 @@ type HandlersConfig struct {
 	Login    http.HandlerFunc
 
 	// Users
-	GetMe            http.HandlerFunc
-	UpdateMe         http.HandlerFunc
-	UploadUserAvatar http.HandlerFunc
-	CreateUser       http.HandlerFunc
-	GetUser          http.HandlerFunc
-	GetUserTickets   http.HandlerFunc
-	GetUserOrders    http.HandlerFunc
-	GetSavedEvents   http.HandlerFunc
+	GetMe                    http.HandlerFunc
+	UpdateMe                 http.HandlerFunc
+	UploadUserAvatar         http.HandlerFunc
+	CreateUser               http.HandlerFunc
+	GetUser                  http.HandlerFunc
+	GetUserTickets           http.HandlerFunc
+	GetUserOrders            http.HandlerFunc
+	GetSavedEvents           http.HandlerFunc
+	ListNotifications        http.HandlerFunc
+	MarkAllNotificationsRead http.HandlerFunc
 
 	// Events
 	CreateEvent             http.HandlerFunc
@@ -69,6 +71,7 @@ type HandlersConfig struct {
 	GetFriends             http.HandlerFunc
 	SendFriendRequest      http.HandlerFunc
 	RespondToFriendRequest http.HandlerFunc
+	RemoveFriend           http.HandlerFunc
 	GetFriendRequests      http.HandlerFunc
 	ConnectWithFriend      http.HandlerFunc
 	SearchProfiles         http.HandlerFunc
@@ -192,6 +195,11 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Get("/{id}", cfg.GetUser)
 			})
 
+			r.Route("/notifications", func(r chi.Router) {
+				r.Get("/", cfg.ListNotifications)
+				r.Post("/read-all", cfg.MarkAllNotificationsRead)
+			})
+
 			// --- INTERACȚIUNI EVENIMENTE (orice utilizator autentificat) ---
 			r.Post("/events/{id}/check-in", cfg.CreateCheckIn)
 			r.Post("/events/{id}/comments", cfg.AddComment)
@@ -205,6 +213,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Get("/", cfg.GetFriends)
 				r.Post("/request/{userId}", cfg.SendFriendRequest)
 				r.Put("/request/{userId}", cfg.RespondToFriendRequest)
+				r.Delete("/{userId}", cfg.RemoveFriend)
 				r.Post("/connect/{userId}", cfg.ConnectWithFriend)
 				r.Get("/requests", cfg.GetFriendRequests)
 			})

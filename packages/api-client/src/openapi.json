@@ -1347,6 +1347,89 @@
         }
       }
     },
+    "/friends/{userId}": {
+      "delete": {
+        "operationId": "FriendOperations_removeFriend",
+        "summary": "Elimina un prieten",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "relationship": {
+                      "type": "string",
+                      "enum": [
+                        "none"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "relationship"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "operationId": "NotificationOperations_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/read-all": {
+      "post": {
+        "operationId": "NotificationOperations_markAllRead",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/organizers/{userId}/follow": {
       "post": {
         "operationId": "OrganizerSocialOperations_follow",
@@ -2230,6 +2313,69 @@
               "going",
               "has_ticket"
             ]
+          }
+        }
+      },
+      "NotificationListResponse": {
+        "type": "object",
+        "required": [
+          "items",
+          "unreadCount"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationResponse"
+            }
+          },
+          "unreadCount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "NotificationResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "title",
+          "body",
+          "isRead",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "actorUsername": {
+            "type": "string"
+          },
+          "actorAvatarUrl": {
+            "type": "string"
+          },
+          "isRead": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

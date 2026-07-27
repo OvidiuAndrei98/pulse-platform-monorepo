@@ -19,11 +19,15 @@ export type EventAttendee = ReadableSchema<"EventAttendeeResponse">;
 export type OrganizerFinanceEvent = ReadableSchema<"OrganizerFinanceEventResponse">;
 export type OrganizerProfile = ReadableSchema<"OrganizerProfile">;
 export type ValidationEvent = ReadableSchema<"ValidationEventResponse">;
+export type SocialFeedItem = ReadableSchema<"SocialFeedItemResponse">;
+export type AppNotification = ReadableSchema<"NotificationResponse">;
+export type NotificationList = ReadableSchema<"NotificationListResponse">;
 
 let publicEventsCache: { data: Event[]; timestamp: number } | null = null;
 let publicEventsPromise: Promise<Event[]> | null = null;
 const PUBLIC_CACHE_TTL = 2 * 60 * 1000;
 const EVENT_FRIENDS_CACHE_TTL = 2 * 60 * 1000;
+const SOCIAL_CACHE_TTL = 60 * 1000;
 
 type CachedValue<T> = { data: T; timestamp: number };
 
@@ -31,6 +35,12 @@ const eventFriendsCache = new Map<string, CachedValue<EventAttendee[]>>();
 const eventFriendsPromises = new Map<string, Promise<EventAttendee[]>>();
 const publicProfileCache = new Map<string, CachedValue<PublicProfile>>();
 const publicProfilePromises = new Map<string, Promise<PublicProfile>>();
+const friendsCache = new Map<string, CachedValue<PublicProfile[]>>();
+const friendsPromises = new Map<string, Promise<PublicProfile[]>>();
+const socialFeedCache = new Map<string, CachedValue<SocialFeedItem[]>>();
+const socialFeedPromises = new Map<string, Promise<SocialFeedItem[]>>();
+const notificationCache = new Map<string, CachedValue<NotificationList>>();
+const notificationPromises = new Map<string, Promise<NotificationList>>();
 
 export class User {
   /**
@@ -122,6 +132,54 @@ export class User {
 
   async getValidationEvents(): Promise<ValidationEvent[]> {
     return ApiClient.instance.get("/dashboard/ticket-validation/events");
+  }
+
+  async getFriendRequests(): Promise<PublicProfile[]> {
+    return ApiClient.instance.get("/friends/requests");
+  }
+
+  async respondToFriendRequest(
+    profileId: string,
+    status: "accepted" | "declined",
+  ): Promise<void> {
+    await ApiClient.instance.put("/friends/request/{userId}", {
+      params: { path: { userId: profileId } },
+      body: { status },
+    });
+    friendsCache.delete(this._properties.id);
+  }
+
+  async removeFriend(profileId: string): Promise<void> {
+    await ApiClient.instance.delete("/friends/{userId}", {
+      params: { path: { userId: profileId } },
+    });
+
+    const cachedFriends = friendsCache.get(this._properties.id);
+    if (cachedFriends) {
+      friendsCache.set(this._properties.id, {
+        data: cachedFriends.data.filter((friend) => friend.id !== profileId),
+        timestamp: Date.now(),
+      });
+    }
+    socialFeedCache.delete(this._properties.id);
+  }
+
+  async markAllNotificationsRead(): Promise<void> {
+    await ApiClient.instance.post("/notifications/read-all");
+    const cached = notificationCache.get(this._properties.id);
+    if (cached) {
+      notificationCache.set(this._properties.id, {
+        data: {
+          ...cached.data,
+          unreadCount: 0,
+          items: cached.data.items.map((notification) => ({
+            ...notification,
+            isRead: true,
+          })),
+        },
+        timestamp: Date.now(),
+      });
+    }
   }
 
   private _organizerEvents?: Event[];
@@ -536,6 +594,273 @@ export class User {
     }, [userId, user, authLoading]);
 
     return { events, eventsLoading, eventsError };
+  }
+
+  static async getNotifications(
+    viewerId: string,
+    force = false,
+  ): Promise<NotificationList> {
+    const cached = notificationCache.get(viewerId);
+    if (!force && cached && Date.now() - cached.timestamp < SOCIAL_CACHE_TTL) {
+      return cached.data;
+    }
+
+    const pending = notificationPromises.get(viewerId);
+    if (!force && pending) return pending;
+
+    const request = ApiClient.instance
+      .get("/notifications")
+      .then((response) => {
+        const data = response as NotificationList;
+        notificationCache.set(viewerId, { data, timestamp: Date.now() });
+        return data;
+      })
+      .finally(() => {
+        notificationPromises.delete(viewerId);
+      });
+
+    notificationPromises.set(viewerId, request);
+    return request;
+  }
+
+  static useNotifications(user: User | undefined): {
+    notifications: readonly AppNotification[];
+    unreadCount: number;
+    notificationsLoading: boolean;
+    notificationsError?: Error;
+    refresh: () => Promise<void>;
+  } {
+    const viewerId = user?.properties.id;
+    const cached = viewerId ? notificationCache.get(viewerId) : undefined;
+    const [data, setData] = useState<NotificationList | undefined>(
+      () => cached?.data,
+    );
+    const [notificationsLoading, setNotificationsLoading] = useState(
+      () => Boolean(viewerId && !cached),
+    );
+    const [notificationsError, setNotificationsError] = useState<Error | undefined>();
+
+    const refresh = async () => {
+      if (!user) return;
+      setNotificationsLoading(true);
+      try {
+        const updated = await User.getNotifications(user.properties.id, true);
+        setData(updated);
+        setNotificationsError(undefined);
+      } catch (error) {
+        setNotificationsError(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      } finally {
+        setNotificationsLoading(false);
+      }
+    };
+
+    useEffect(() => {
+      if (!user) {
+        setData(undefined);
+        setNotificationsLoading(false);
+        setNotificationsError(undefined);
+        return;
+      }
+
+      let isMounted = true;
+      const currentCached = notificationCache.get(user.properties.id);
+      setData(currentCached?.data);
+      if (currentCached && Date.now() - currentCached.timestamp < SOCIAL_CACHE_TTL) {
+        setNotificationsLoading(false);
+        return;
+      }
+
+      setNotificationsLoading(true);
+      User.getNotifications(user.properties.id)
+        .then((response) => {
+          if (isMounted) {
+            setData(response);
+            setNotificationsError(undefined);
+          }
+        })
+        .catch((error) => {
+          if (isMounted) {
+            setNotificationsError(
+              error instanceof Error ? error : new Error(String(error)),
+            );
+          }
+        })
+        .finally(() => {
+          if (isMounted) setNotificationsLoading(false);
+        });
+
+      return () => {
+        isMounted = false;
+      };
+    }, [user, viewerId]);
+
+    return {
+      notifications: data?.items ?? [],
+      unreadCount: data?.unreadCount ?? 0,
+      notificationsLoading,
+      notificationsError,
+      refresh,
+    };
+  }
+
+  static async getFriends(viewerId: string): Promise<PublicProfile[]> {
+    const cached = friendsCache.get(viewerId);
+    if (cached && Date.now() - cached.timestamp < SOCIAL_CACHE_TTL) {
+      return cached.data;
+    }
+
+    const pending = friendsPromises.get(viewerId);
+    if (pending) return pending;
+
+    const request = ApiClient.instance
+      .get("/friends")
+      .then((friends) => {
+        const data = friends as PublicProfile[];
+        friendsCache.set(viewerId, { data, timestamp: Date.now() });
+        return data;
+      })
+      .finally(() => {
+        friendsPromises.delete(viewerId);
+      });
+
+    friendsPromises.set(viewerId, request);
+    return request;
+  }
+
+  static useFriends(user: User | undefined): {
+    friends: readonly PublicProfile[];
+    friendsLoading: boolean;
+    friendsError?: Error;
+  } {
+    const viewerId = user?.properties.id;
+    const cached = viewerId ? friendsCache.get(viewerId) : undefined;
+    const [friends, setFriends] = useState<readonly PublicProfile[]>(
+      () => cached?.data ?? [],
+    );
+    const [friendsLoading, setFriendsLoading] = useState(
+      () => Boolean(viewerId && !cached),
+    );
+    const [friendsError, setFriendsError] = useState<Error | undefined>();
+
+    useEffect(() => {
+      if (!user) {
+        setFriends([]);
+        setFriendsLoading(false);
+        setFriendsError(undefined);
+        return;
+      }
+
+      let isMounted = true;
+      const currentCached = friendsCache.get(user.properties.id);
+      setFriends(currentCached?.data ?? []);
+      if (currentCached && Date.now() - currentCached.timestamp < SOCIAL_CACHE_TTL) {
+        setFriendsLoading(false);
+        setFriendsError(undefined);
+        return;
+      }
+
+      setFriendsLoading(true);
+      setFriendsError(undefined);
+      User.getFriends(user.properties.id)
+        .then((data) => {
+          if (isMounted) setFriends(data);
+        })
+        .catch((error) => {
+          if (!isMounted) return;
+          setFriends([]);
+          setFriendsError(error instanceof Error ? error : new Error(String(error)));
+        })
+        .finally(() => {
+          if (isMounted) setFriendsLoading(false);
+        });
+
+      return () => {
+        isMounted = false;
+      };
+    }, [user, viewerId]);
+
+    return { friends, friendsLoading, friendsError };
+  }
+
+  static async getSocialFeed(viewerId: string): Promise<SocialFeedItem[]> {
+    const cached = socialFeedCache.get(viewerId);
+    if (cached && Date.now() - cached.timestamp < SOCIAL_CACHE_TTL) {
+      return cached.data;
+    }
+
+    const pending = socialFeedPromises.get(viewerId);
+    if (pending) return pending;
+
+    const request = ApiClient.instance
+      .get("/feed")
+      .then((items) => {
+        const data = items as SocialFeedItem[];
+        socialFeedCache.set(viewerId, { data, timestamp: Date.now() });
+        return data;
+      })
+      .finally(() => {
+        socialFeedPromises.delete(viewerId);
+      });
+
+    socialFeedPromises.set(viewerId, request);
+    return request;
+  }
+
+  static useSocialFeed(user: User | undefined): {
+    items: readonly SocialFeedItem[];
+    feedLoading: boolean;
+    feedError?: Error;
+  } {
+    const viewerId = user?.properties.id;
+    const cached = viewerId ? socialFeedCache.get(viewerId) : undefined;
+    const [items, setItems] = useState<readonly SocialFeedItem[]>(
+      () => cached?.data ?? [],
+    );
+    const [feedLoading, setFeedLoading] = useState(
+      () => Boolean(viewerId && !cached),
+    );
+    const [feedError, setFeedError] = useState<Error | undefined>();
+
+    useEffect(() => {
+      if (!user) {
+        setItems([]);
+        setFeedLoading(false);
+        setFeedError(undefined);
+        return;
+      }
+
+      let isMounted = true;
+      const currentCached = socialFeedCache.get(user.properties.id);
+      setItems(currentCached?.data ?? []);
+      if (currentCached && Date.now() - currentCached.timestamp < SOCIAL_CACHE_TTL) {
+        setFeedLoading(false);
+        setFeedError(undefined);
+        return;
+      }
+
+      setFeedLoading(true);
+      setFeedError(undefined);
+      User.getSocialFeed(user.properties.id)
+        .then((data) => {
+          if (isMounted) setItems(data);
+        })
+        .catch((error) => {
+          if (!isMounted) return;
+          setItems([]);
+          setFeedError(error instanceof Error ? error : new Error(String(error)));
+        })
+        .finally(() => {
+          if (isMounted) setFeedLoading(false);
+        });
+
+      return () => {
+        isMounted = false;
+      };
+    }, [user, viewerId]);
+
+    return { items, feedLoading, feedError };
   }
 
   static async getEventFriends(

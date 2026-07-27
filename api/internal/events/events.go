@@ -141,6 +141,11 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la salvarea tranzacției")
 		return
 	}
+	if newEvent.Status == "published" {
+		if err := h.Queries.CreateOrganizerEventNotifications(ctx, newEvent.ID); err != nil {
+			log.Printf("organizer event notification failed for event %s: %v", common.UUIDToString(newEvent.ID), err)
+		}
+	}
 
 	// Întoarcem evenimentul proaspăt creat mapat curat în DTO-ul de răspuns
 	router.RespondWithJSON(w, http.StatusCreated, (newEvent))
@@ -308,6 +313,11 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Commit(r.Context()); err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la finalizarea tranzactiei")
 		return
+	}
+	if existingEvent.Status != "published" && event.Status == "published" {
+		if err := h.Queries.CreateOrganizerEventNotifications(r.Context(), event.ID); err != nil {
+			log.Printf("organizer event notification failed for event %s: %v", idStr, err)
+		}
 	}
 
 	if previousBannerURL != event.BannerUrl.String {

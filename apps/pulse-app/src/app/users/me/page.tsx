@@ -258,7 +258,7 @@ export default function MePage() {
               </Link>
             )}
 
-            <ProfileConnectionQr />
+            {!isOrganizer && <ProfileConnectionQr />}
 
             {/* Securitatea pe Desktop */}
             <section className="hidden md:block">

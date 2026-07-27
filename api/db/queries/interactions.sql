@@ -105,7 +105,7 @@ FROM friendships f
 JOIN users u ON (f.friend_id = u.id AND f.user_id = $1) OR (f.user_id = u.id AND f.friend_id = $1)
 WHERE f.status = 'accepted';
 
--- name: CreateFriendRequest :exec
+-- name: CreateFriendRequest :execrows
 INSERT INTO friendships (user_id, friend_id, status)
 VALUES ($1, $2, 'pending')
 ON CONFLICT (user_id, friend_id)
@@ -144,6 +144,12 @@ WITH existing AS (
 INSERT INTO friendships (user_id, friend_id, status)
 SELECT $1, $2, 'accepted'
 WHERE NOT EXISTS (SELECT 1 FROM existing);
+
+-- name: RemoveFriend :execrows
+DELETE FROM friendships
+WHERE status = 'accepted'
+  AND ((user_id = $1 AND friend_id = $2)
+    OR (user_id = $2 AND friend_id = $1));
 
 -- Legacy queries retained until the old handlers can be removed in a dedicated cleanup.
 -- name: SendFriendRequest :exec

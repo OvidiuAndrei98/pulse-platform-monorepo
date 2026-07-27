@@ -176,6 +176,18 @@ type Friendships struct {
 	Status   pgtype.Text `json:"status"`
 }
 
+type Notifications struct {
+	ID        pgtype.UUID        `json:"id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	Type      string             `json:"type"`
+	Title     string             `json:"title"`
+	Body      string             `json:"body"`
+	EventID   pgtype.UUID        `json:"event_id"`
+	ActorID   pgtype.UUID        `json:"actor_id"`
+	ReadAt    pgtype.Timestamptz `json:"read_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type OrderItems struct {
 	ID           pgtype.UUID        `json:"id"`
 	OrderID      pgtype.UUID        `json:"order_id"`

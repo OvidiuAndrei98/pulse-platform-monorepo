@@ -204,7 +204,15 @@ WITH friend_ids AS (
     FROM event_rsvps r
     JOIN users u ON u.id = r.user_id
     JOIN events e ON e.id = r.event_id
-    WHERE r.user_id IN (SELECT user_id FROM friend_ids) AND r.status = 'going'
+    WHERE r.user_id IN (SELECT user_id FROM friend_ids)
+      AND r.status = 'going'
+      AND NOT EXISTS (
+          SELECT 1
+          FROM tickets t
+          JOIN orders o ON o.id = t.order_id AND o.status = 'completed'
+          JOIN ticket_types tt ON tt.id = t.ticket_type_id
+          WHERE t.user_id = r.user_id AND tt.event_id = r.event_id
+      )
 
     UNION ALL
 

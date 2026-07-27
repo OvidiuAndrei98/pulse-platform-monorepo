@@ -3,6 +3,7 @@ import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { DataProvider } from "@/core/DataProviderContext";
 import { BottomNav } from "@/components/BottomNav";
+import { GlobalNotifications } from "@/components/GlobalNotifications";
 
 const inter = Inter({
   variable: "--font-inter-sans",
@@ -66,6 +67,7 @@ export default function RootLayout({
           <DataProvider>
             {children}
             {modal}
+            <GlobalNotifications />
             <BottomNav />
           </DataProvider>
         </div>

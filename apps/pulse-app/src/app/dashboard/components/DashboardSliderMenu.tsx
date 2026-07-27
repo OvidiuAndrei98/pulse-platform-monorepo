@@ -14,6 +14,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { NotificationsPopover } from "@/components/NotificationsPopover";
 
 const organizerTabs = [
   {
@@ -46,7 +47,7 @@ function matchTab(pathname: string, tabs: readonly { href: string; label: string
 export function OrganizerHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isOrganizer } = useDataProvider();
+  const { isOrganizer, user, loading } = useDataProvider();
   const tabs = isOrganizer ? organizerTabs : validatorTabs;
   const active = matchTab(pathname, tabs);
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -79,28 +80,35 @@ export function OrganizerHeader() {
     <header className="sticky top-0 z-20 w-full border-b border-white/10 bg-background/60 backdrop-blur-xl">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-3 pb-2.5 pl-16 md:pl-6">
         {/* BREADCRUMB NAVIGATION */}
-        <nav
-          aria-label="Breadcrumb"
-          className="flex items-center gap-1.5 text-xs text-muted-foreground"
-        >
-          {crumbs.map((c, i) => (
-            <span key={i} className="flex items-center gap-1.5">
-              {i > 0 && <ChevronRight className="h-3.5 w-3.5 opacity-40" />}
-              {c.href && i < crumbs.length - 1 ? (
-                <Link
-                  href={c.href}
-                  className="rounded-lg px-2 py-0.5 transition hover:bg-white/5 hover:text-foreground"
-                >
-                  {c.label}
-                </Link>
-              ) : (
-                <span className="rounded-lg bg-white/5 px-2 py-0.5 font-semibold text-foreground">
-                  {c.label}
-                </span>
-              )}
-            </span>
-          ))}
-        </nav>
+        <div className="flex items-center justify-between gap-3">
+          <nav
+            aria-label="Breadcrumb"
+            className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
+          >
+            {crumbs.map((c, i) => (
+              <span key={i} className="flex min-w-0 items-center gap-1.5">
+                {i > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-40" />}
+                {c.href && i < crumbs.length - 1 ? (
+                  <Link
+                    href={c.href}
+                    className="truncate rounded-lg px-2 py-0.5 transition hover:bg-white/5 hover:text-foreground"
+                  >
+                    {c.label}
+                  </Link>
+                ) : (
+                  <span className="truncate rounded-lg bg-white/5 px-2 py-0.5 font-semibold text-foreground">
+                    {c.label}
+                  </span>
+                )}
+              </span>
+            ))}
+          </nav>
+          {!loading && user && (
+            <div className="relative h-10 w-10 shrink-0">
+              <NotificationsPopover />
+            </div>
+          )}
+        </div>
 
         {/* MOBILE TAB SLIDER (H-11 CONSISTENT, SLIDING INDICATOR) */}
         <div className="mt-3 -mx-4 overflow-hidden md:hidden">

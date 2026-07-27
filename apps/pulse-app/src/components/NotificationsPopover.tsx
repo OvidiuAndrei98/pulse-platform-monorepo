@@ -3,68 +3,39 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Bell,
-  X,
   Calendar,
   Heart,
   MessageCircle,
   Sparkles,
+  Ticket,
+  UserPlus,
+  UsersRound,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-
-type Notif = {
-  id: string;
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-  time: string;
-};
-
-const notifs: Notif[] = [
-  {
-    id: "1",
-    icon: <Sparkles className="h-4 w-4 text-primary" />,
-    title: "Neon Warehouse is live",
-    body: "The rave just started at Docks 7. Tap to join.",
-    time: "2m",
-  },
-  {
-    id: "2",
-    icon: <Calendar className="h-4 w-4 text-primary" />,
-    title: "Event reminder",
-    body: "Summer Fest starts in 3 hours at Central Park.",
-    time: "1h",
-  },
-  {
-    id: "3",
-    icon: <Heart className="h-4 w-4 text-primary" />,
-    title: "Alex liked your event",
-    body: "Retro Disco Night got a new fan.",
-    time: "3h",
-  },
-  {
-    id: "4",
-    icon: <MessageCircle className="h-4 w-4 text-primary" />,
-    title: "New message",
-    body: 'Mia: "Are you going tonight?"',
-    time: "5h",
-  },
-];
+import { useRouter } from "next/navigation";
+import { User, type AppNotification } from "@/core/DataProvider";
+import { useDataProvider } from "@/core/DataProviderContext";
 
 export function NotificationsPopover() {
+  const { user } = useDataProvider();
+  const router = useRouter();
+  const { notifications, notificationsLoading } = User.useNotifications(user);
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onKey = (event: KeyboardEvent) =>
+      event.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
-    const onClick = (e: MouseEvent | TouchEvent) => {
-      if (!wrapperRef.current?.contains(e.target as Node)) {
+    const onClick = (event: MouseEvent | TouchEvent) => {
+      if (!wrapperRef.current?.contains(event.target as Node)) {
         setOpen(false);
       }
     };
@@ -75,6 +46,15 @@ export function NotificationsPopover() {
       document.removeEventListener("touchstart", onClick);
     };
   }, [open]);
+
+  const openNotification = (notification: AppNotification) => {
+    setOpen(false);
+    if (notification.eventId) {
+      router.push(`/events/${notification.eventId}`);
+    } else if (notification.actorId) {
+      router.push(`/users/${notification.actorId}`);
+    }
+  };
 
   return (
     <div ref={wrapperRef} className="inline-flex items-center justify-center">
@@ -108,7 +88,7 @@ export function NotificationsPopover() {
             className="absolute right-0 top-0 z-[100] w-[min(20rem,calc(100vw-2.5rem))] origin-top-right overflow-hidden rounded-3xl border border-white/20 bg-[#141614]/95 md:bg-[#141614]/85 text-foreground md:backdrop-blur-xl transform-gpu"
             transition={{ type: "spring", stiffness: 220, damping: 26 }}
           >
-            {/* Sheen efect */}
+            {/* Sheen effect */}
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/[0.06] to-transparent"
@@ -144,35 +124,93 @@ export function NotificationsPopover() {
               }}
               className="relative mt-3 max-h-[60vh] space-y-1 overflow-y-auto px-2 pb-3"
             >
-              {notifs.map((n) => (
-                <motion.li
-                  key={n.id}
-                  variants={{
-                    hidden: { opacity: 0, y: 8 },
-                    show: { opacity: 1, y: 0 },
-                  }}
-                  className="flex gap-3 rounded-2xl px-3 py-3 hover:bg-white/5 transition-colors duration-150 transform-gpu"
-                >
-                  <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full border border-primary/30 bg-primary/10">
-                    {n.icon}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-sm font-medium">{n.title}</p>
-                      <span className="shrink-0 text-[11px] text-muted-foreground">
-                        {n.time}
-                      </span>
+              {notificationsLoading ? (
+                <li className="space-y-2 px-3 py-3">
+                  <div className="h-10 animate-pulse rounded-2xl bg-white/5" />
+                  <div className="h-10 animate-pulse rounded-2xl bg-white/5" />
+                </li>
+              ) : notifications.length === 0 ? (
+                <li className="px-3 py-8 text-center text-xs text-muted-foreground">
+                  No notifications yet.
+                </li>
+              ) : (
+                notifications.map((notification) => (
+                  <motion.li
+                    key={notification.id}
+                    variants={{
+                      hidden: { opacity: 0, y: 8 },
+                      show: { opacity: 1, y: 0 },
+                    }}
+                    onClick={() => openNotification(notification)}
+                    className={`flex cursor-pointer gap-3 rounded-2xl px-3 py-3 transition-colors duration-150 transform-gpu hover:bg-white/5 ${notification.isRead ? "" : "bg-primary/[0.05]"}`}
+                  >
+                    <NotificationIcon notification={notification} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-medium">
+                          {notification.title}
+                        </p>
+                        <span className="shrink-0 text-[11px] text-muted-foreground">
+                          {formatRelativeTime(notification.createdAt)}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {notification.body}
+                      </p>
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {n.body}
-                    </p>
-                  </div>
-                </motion.li>
-              ))}
+                    {!notification.isRead && (
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                    )}
+                  </motion.li>
+                ))
+              )}
             </motion.ul>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
+}
+
+function NotificationIcon({ notification }: { notification: AppNotification }) {
+  if (notification.actorAvatarUrl) {
+    return (
+      <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full border border-primary/30 bg-primary/10">
+        <img src={notification.actorAvatarUrl} alt="" className="h-full w-full object-cover" />
+      </div>
+    );
+  }
+
+  const Icon =
+    notification.type === "ticket_purchased"
+      ? Ticket
+      : notification.type === "organizer_event"
+        ? Calendar
+        : notification.type === "friend_request"
+          ? UserPlus
+          : notification.type === "friend_accepted"
+            ? UsersRound
+            : notification.type === "saved_event"
+              ? Heart
+              : notification.type === "message"
+                ? MessageCircle
+                : Sparkles;
+  return (
+    <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full border border-primary/30 bg-primary/10">
+      <Icon className="h-4 w-4 text-primary" />
+    </div>
+  );
+}
+
+function formatRelativeTime(value: string) {
+  const elapsed = Math.max(0, Date.now() - new Date(value).getTime());
+  const minutes = Math.floor(elapsed / 60000);
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return new Date(value).toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "short",
+  });
 }

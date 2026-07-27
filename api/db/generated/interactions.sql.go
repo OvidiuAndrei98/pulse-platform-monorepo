@@ -108,7 +108,7 @@ func (q *Queries) CreateCheckIn(ctx context.Context, arg CreateCheckInParams) (C
 	return i, err
 }
 
-const createFriendRequest = `-- name: CreateFriendRequest :exec
+const createFriendRequest = `-- name: CreateFriendRequest :execrows
 INSERT INTO friendships (user_id, friend_id, status)
 VALUES ($1, $2, 'pending')
 ON CONFLICT (user_id, friend_id)
@@ -121,9 +121,12 @@ type CreateFriendRequestParams struct {
 	FriendID pgtype.UUID `json:"friend_id"`
 }
 
-func (q *Queries) CreateFriendRequest(ctx context.Context, arg CreateFriendRequestParams) error {
-	_, err := q.db.Exec(ctx, createFriendRequest, arg.UserID, arg.FriendID)
-	return err
+func (q *Queries) CreateFriendRequest(ctx context.Context, arg CreateFriendRequestParams) (int64, error) {
+	result, err := q.db.Exec(ctx, createFriendRequest, arg.UserID, arg.FriendID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const declineFriendRequest = `-- name: DeclineFriendRequest :exec
@@ -402,6 +405,26 @@ func (q *Queries) ListFriendEventActivity(ctx context.Context, arg ListFriendEve
 		return nil, err
 	}
 	return items, nil
+}
+
+const removeFriend = `-- name: RemoveFriend :execrows
+DELETE FROM friendships
+WHERE status = 'accepted'
+  AND ((user_id = $1 AND friend_id = $2)
+    OR (user_id = $2 AND friend_id = $1))
+`
+
+type RemoveFriendParams struct {
+	UserID   pgtype.UUID `json:"user_id"`
+	FriendID pgtype.UUID `json:"friend_id"`
+}
+
+func (q *Queries) RemoveFriend(ctx context.Context, arg RemoveFriendParams) (int64, error) {
+	result, err := q.db.Exec(ctx, removeFriend, arg.UserID, arg.FriendID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const respondToFriendRequest = `-- name: RespondToFriendRequest :exec

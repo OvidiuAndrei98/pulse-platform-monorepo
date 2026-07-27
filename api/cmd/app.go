@@ -13,6 +13,7 @@ import (
 	"pulse-api/internal/email"
 	"pulse-api/internal/events"
 	"pulse-api/internal/interactions"
+	"pulse-api/internal/notifications"
 	"pulse-api/internal/organizer"
 	"pulse-api/internal/payments"
 	"pulse-api/internal/router"
@@ -114,6 +115,7 @@ func (app *Application) BuildRouter() http.Handler {
 	eventsHandler := events.NewHandler(app.Queries, app.Pool)
 	interactionsHandler := interactions.NewHandler(app.Queries)
 	usersHandler := users.NewHandler(app.Queries)
+	notificationsHandler := notifications.NewHandler(app.Queries)
 	authMiddleware := auth.AuthMiddleware
 	scannerAuthMiddleware := auth.ScannerAuthMiddleware
 	requireOrganizer := auth.RequireRole("organizer", "admin")
@@ -145,14 +147,16 @@ func (app *Application) BuildRouter() http.Handler {
 		Login:    authHandler.Login,
 
 		// Users
-		GetMe:            usersHandler.HandleGetMe,
-		UpdateMe:         usersHandler.HandleUpdateMe,
-		UploadUserAvatar: usersHandler.HandleUploadAvatar,
-		CreateUser:       usersHandler.HandleCreateUser,
-		GetUser:          usersHandler.HandleGetUser,
-		GetUserTickets:   ticketingHandler.HandleGetUserTickets,
-		GetUserOrders:    ticketingHandler.HandleGetUserOrders,
-		GetSavedEvents:   eventsHandler.HandleListSavedEvents,
+		GetMe:                    usersHandler.HandleGetMe,
+		UpdateMe:                 usersHandler.HandleUpdateMe,
+		UploadUserAvatar:         usersHandler.HandleUploadAvatar,
+		CreateUser:               usersHandler.HandleCreateUser,
+		GetUser:                  usersHandler.HandleGetUser,
+		GetUserTickets:           ticketingHandler.HandleGetUserTickets,
+		GetUserOrders:            ticketingHandler.HandleGetUserOrders,
+		GetSavedEvents:           eventsHandler.HandleListSavedEvents,
+		ListNotifications:        notificationsHandler.HandleList,
+		MarkAllNotificationsRead: notificationsHandler.HandleMarkAllRead,
 
 		// Events
 		CreateEvent:             eventsHandler.HandleCreateEvent,
@@ -187,6 +191,7 @@ func (app *Application) BuildRouter() http.Handler {
 		GetFriends:             interactionsHandler.HandleGetFriends,
 		SendFriendRequest:      interactionsHandler.HandleSendFriendRequest,
 		RespondToFriendRequest: interactionsHandler.HandleRespondToFriendRequest,
+		RemoveFriend:           interactionsHandler.HandleRemoveFriend,
 		GetFriendRequests:      interactionsHandler.HandleGetFriendRequests,
 		ConnectWithFriend:      interactionsHandler.HandleConnectWithFriend,
 		SearchProfiles:         interactionsHandler.HandleSearchProfiles,

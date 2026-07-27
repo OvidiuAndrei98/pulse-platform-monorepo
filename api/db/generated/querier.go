@@ -18,15 +18,19 @@ type Querier interface {
 	AssignGuestOrdersToUser(ctx context.Context, userID pgtype.UUID) error
 	AssignGuestTicketsToUser(ctx context.Context, userID pgtype.UUID) error
 	ConnectFriends(ctx context.Context, arg ConnectFriendsParams) error
+	CountUnreadNotifications(ctx context.Context, userID pgtype.UUID) (int64, error)
 	CreateCheckIn(ctx context.Context, arg CreateCheckInParams) (CheckIns, error)
 	CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrderParams) (Orders, error)
 	CreateEvent(ctx context.Context, arg CreateEventParams) (Events, error)
-	CreateFriendRequest(ctx context.Context, arg CreateFriendRequestParams) error
+	CreateFriendRequest(ctx context.Context, arg CreateFriendRequestParams) (int64, error)
+	CreateNotification(ctx context.Context, arg CreateNotificationParams) error
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (Orders, error)
 	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) error
+	CreateOrganizerEventNotifications(ctx context.Context, id pgtype.UUID) error
 	CreateOrganizerProfile(ctx context.Context, arg CreateOrganizerProfileParams) (OrganizerProfiles, error)
 	CreateScannerAccess(ctx context.Context, arg CreateScannerAccessParams) (CreateScannerAccessRow, error)
 	CreateTicket(ctx context.Context, arg CreateTicketParams) (Tickets, error)
+	CreateTicketPurchaseNotification(ctx context.Context, id pgtype.UUID) error
 	CreateTicketType(ctx context.Context, arg CreateTicketTypeParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (Users, error)
 	DeclineFriendRequest(ctx context.Context, arg DeclineFriendRequestParams) error
@@ -71,6 +75,7 @@ type Querier interface {
 	ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error)
 	ListEventsWithStats(ctx context.Context, organizerID pgtype.UUID) ([]ListEventsWithStatsRow, error)
 	ListFriendEventActivity(ctx context.Context, arg ListFriendEventActivityParams) ([]ListFriendEventActivityRow, error)
+	ListNotifications(ctx context.Context, arg ListNotificationsParams) ([]ListNotificationsRow, error)
 	ListOrderTicketEmailDetails(ctx context.Context, id pgtype.UUID) ([]ListOrderTicketEmailDetailsRow, error)
 	ListOrganizerFinanceEvents(ctx context.Context, organizerID pgtype.UUID) ([]ListOrganizerFinanceEventsRow, error)
 	ListSavedEvents(ctx context.Context, userID pgtype.UUID) ([]Events, error)
@@ -79,7 +84,9 @@ type Querier interface {
 	ListUserOrders(ctx context.Context, userID pgtype.UUID) ([]ListUserOrdersRow, error)
 	ListValidationEvents(ctx context.Context, organizerID pgtype.UUID) ([]ListValidationEventsRow, error)
 	ListValidationStaff(ctx context.Context, eventID pgtype.UUID) ([]ListValidationStaffRow, error)
+	MarkAllNotificationsRead(ctx context.Context, userID pgtype.UUID) error
 	MarkGuestTicketEmailSent(ctx context.Context, id pgtype.UUID) error
+	RemoveFriend(ctx context.Context, arg RemoveFriendParams) (int64, error)
 	RemoveSavedEvent(ctx context.Context, arg RemoveSavedEventParams) error
 	RemoveValidationStaff(ctx context.Context, arg RemoveValidationStaffParams) error
 	RespondToFriendRequest(ctx context.Context, arg RespondToFriendRequestParams) error

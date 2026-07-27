@@ -547,6 +547,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/friends/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Elimina un prieten */
+        delete: operations["FriendOperations_removeFriend"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["NotificationOperations_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["NotificationOperations_markAllRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/organizers/{userId}/follow": {
         parameters: {
             query?: never;
@@ -866,6 +915,24 @@ export interface components {
             avatarUrl?: string;
             /** @enum {string} */
             status: "interested" | "going" | "has_ticket";
+        };
+        NotificationListResponse: {
+            items: components["schemas"]["NotificationResponse"][];
+            /** Format: int64 */
+            unreadCount: number;
+        };
+        NotificationResponse: {
+            id: string;
+            type: string;
+            title: string;
+            body: string;
+            eventId?: string;
+            actorId?: string;
+            actorUsername?: string;
+            actorAvatarUrl?: string;
+            isRead: boolean;
+            /** Format: date-time */
+            createdAt: string;
         };
         OrganizerFinanceEventResponse: {
             eventId: string;
@@ -2090,6 +2157,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicProfileResponse"][];
+                };
+            };
+        };
+    };
+    FriendOperations_removeFriend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        relationship: "none";
+                    };
+                };
+            };
+        };
+    };
+    NotificationOperations_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationListResponse"];
+                };
+            };
+        };
+    };
+    NotificationOperations_markAllRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        success: boolean;
+                    };
                 };
             };
         };

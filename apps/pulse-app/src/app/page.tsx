@@ -3,7 +3,6 @@
 import { ArrowUpRight, Clock, MapPin } from "lucide-react";
 import Image from "next/image";
 import avatar from "../../public/vercel.svg";
-import { NotificationsPopover } from "@/components/NotificationsPopover";
 import { SearchPopover } from "@/components/SearchPopover";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { User, Event } from "@/core/DataProvider";
@@ -20,7 +19,7 @@ export default function Home() {
     <div className="relative min-h-screen overflow-hidden  text-foreground">
       <div className="relative z-10 pb-32">
         <div className="mx-auto max-w-7xl px-5 pt-10">
-          <div className="relative z-40 h-[40px] flex items-center justify-between">
+          <div className="relative z-40 h-[40px]">
             <div className="">
               {user && (
                 <p className="text-xl font-semibold leading-tight md:text-2xl">
@@ -31,7 +30,6 @@ export default function Home() {
                 Explore {liveEvents.length} events in Bucharest tonight
               </p>
             </div>
-            <NotificationsPopover />
           </div>
 
           <div className="relative mt-6 h-11">

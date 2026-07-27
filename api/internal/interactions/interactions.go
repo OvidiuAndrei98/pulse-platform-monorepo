@@ -583,6 +583,13 @@ func (h *Handler) HandleSendFriendRequest(w http.ResponseWriter, r *http.Request
 			router.RespondWithError(w, http.StatusInternalServerError, "Cererea nu a putut fi acceptata")
 			return
 		}
+		_ = h.Queries.CreateNotification(r.Context(), db.CreateNotificationParams{
+			UserID:  targetID,
+			Type:    "friend_accepted",
+			Title:   "Cerere de prietenie acceptata",
+			Body:    "Cererea ta de prietenie a fost acceptata.",
+			ActorID: viewerID,
+		})
 		router.RespondWithJSON(w, http.StatusOK, map[string]string{"relationship": "friends"})
 		return
 	}
@@ -590,9 +597,19 @@ func (h *Handler) HandleSendFriendRequest(w http.ResponseWriter, r *http.Request
 		router.RespondWithJSON(w, http.StatusOK, map[string]string{"relationship": relationship})
 		return
 	}
-	if err := h.Queries.CreateFriendRequest(r.Context(), db.CreateFriendRequestParams{UserID: viewerID, FriendID: targetID}); err != nil {
+	created, err := h.Queries.CreateFriendRequest(r.Context(), db.CreateFriendRequestParams{UserID: viewerID, FriendID: targetID})
+	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Cererea nu a putut fi trimisa")
 		return
+	}
+	if created > 0 {
+		_ = h.Queries.CreateNotification(r.Context(), db.CreateNotificationParams{
+			UserID:  targetID,
+			Type:    "friend_request",
+			Title:   "Cerere noua de prietenie",
+			Body:    "Ai primit o cerere noua de prietenie.",
+			ActorID: viewerID,
+		})
 	}
 	router.RespondWithJSON(w, http.StatusCreated, map[string]string{"relationship": "pending_sent"})
 }
@@ -631,6 +648,13 @@ func (h *Handler) HandleRespondToFriendRequest(w http.ResponseWriter, r *http.Re
 	relationship := "none"
 	if action.Status == "accepted" {
 		relationship = "friends"
+		_ = h.Queries.CreateNotification(r.Context(), db.CreateNotificationParams{
+			UserID:  requesterID,
+			Type:    "friend_accepted",
+			Title:   "Cerere de prietenie acceptata",
+			Body:    "Cererea ta de prietenie a fost acceptata.",
+			ActorID: viewerID,
+		})
 	}
 	router.RespondWithJSON(w, http.StatusOK, map[string]string{"relationship": relationship})
 }
@@ -647,6 +671,30 @@ func (h *Handler) HandleConnectWithFriend(w http.ResponseWriter, r *http.Request
 		return
 	}
 	router.RespondWithJSON(w, http.StatusOK, map[string]string{"relationship": "friends"})
+}
+
+func (h *Handler) HandleRemoveFriend(w http.ResponseWriter, r *http.Request) {
+	viewerID, ok := userIDFromRequest(r)
+	targetID, targetOK := profileIDFromRequest(r, "userId")
+	if !ok || !targetOK || viewerID == targetID {
+		router.RespondWithError(w, http.StatusBadRequest, "Utilizator invalid")
+		return
+	}
+
+	removed, err := h.Queries.RemoveFriend(r.Context(), db.RemoveFriendParams{
+		UserID:   viewerID,
+		FriendID: targetID,
+	})
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Prietenul nu a putut fi eliminat")
+		return
+	}
+	if removed == 0 {
+		router.RespondWithError(w, http.StatusNotFound, "Relatia de prietenie nu mai exista")
+		return
+	}
+
+	router.RespondWithJSON(w, http.StatusOK, map[string]string{"relationship": "none"})
 }
 
 func (h *Handler) HandleGetFriendRequests(w http.ResponseWriter, r *http.Request) {
