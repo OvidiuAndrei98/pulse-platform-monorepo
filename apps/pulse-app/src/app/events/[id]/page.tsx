@@ -23,6 +23,7 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
 import { ApiClient } from "@packages/api-client/src/Client";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { calculateServiceFeeRon, formatRon } from "@/features/events/serviceFee";
 
 export default function EventStandalonePage() {
@@ -294,6 +295,12 @@ export default function EventStandalonePage() {
                   placeholder="nume@email.ro"
                   className="mt-2 h-12 w-full rounded-lg border border-white/15 bg-surface/80 px-4 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/60"
                 />
+                {!user && (
+                  <GoogleSignInButton
+                    returnTo={`/events/${event.id}?checkout=1`}
+                    className="mt-3"
+                  />
+                )}
                 {checkoutError && <p className="mt-2 text-xs text-red-400">{checkoutError}</p>}
               </div>
               <button

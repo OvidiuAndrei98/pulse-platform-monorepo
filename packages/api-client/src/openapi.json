@@ -765,6 +765,26 @@
             "explode": false
           },
           {
+            "name": "startsAfter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "explode": false
+          },
+          {
+            "name": "startsBefore",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "explode": false
+          },
+          {
             "name": "isLive",
             "in": "query",
             "required": false,

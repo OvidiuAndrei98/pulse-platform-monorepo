@@ -16,6 +16,7 @@ import { ApiClient } from "@packages/api-client/src/Client";
 import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { calculateServiceFeeRon, formatRon } from "@/features/events/serviceFee";
 
 interface EventDetailsContextType {
@@ -309,6 +310,12 @@ export function EventDetailsSheet({ event, onClose }: EventDetailsSheetProps) {
                     placeholder="nume@email.ro"
                     className="mt-2 h-11 w-full rounded-lg border border-white/15 bg-white/5 px-3 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/60"
                   />
+                  {!user && (
+                    <GoogleSignInButton
+                      returnTo={`/events/${event.id}?checkout=1`}
+                      className="mt-3 h-10 text-xs"
+                    />
+                  )}
                   {checkoutError && <p className="mt-2 text-xs text-red-400">{checkoutError}</p>}
                 </section>
               </div>

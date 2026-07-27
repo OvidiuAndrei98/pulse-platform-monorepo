@@ -121,6 +121,39 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (Users, error
 	return i, err
 }
 
+const linkGoogleIdentity = `-- name: LinkGoogleIdentity :one
+UPDATE users
+SET google_id = $2,
+    avatar_url = COALESCE(NULLIF($3::TEXT, ''), avatar_url),
+    is_active = TRUE
+WHERE id = $1
+RETURNING id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id
+`
+
+type LinkGoogleIdentityParams struct {
+	ID        pgtype.UUID `json:"id"`
+	GoogleID  pgtype.Text `json:"google_id"`
+	AvatarUrl string      `json:"avatar_url"`
+}
+
+func (q *Queries) LinkGoogleIdentity(ctx context.Context, arg LinkGoogleIdentityParams) (Users, error) {
+	row := q.db.QueryRow(ctx, linkGoogleIdentity, arg.ID, arg.GoogleID, arg.AvatarUrl)
+	var i Users
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.PasswordHash,
+		&i.AvatarUrl,
+		&i.Role,
+		&i.Bio,
+		&i.CreatedAt,
+		&i.IsActive,
+		&i.GoogleID,
+	)
+	return i, err
+}
+
 const updateUserActivated = `-- name: UpdateUserActivated :exec
 UPDATE users
 SET is_active = true

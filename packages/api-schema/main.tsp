@@ -501,6 +501,8 @@ interface EventOperations {
     @query category?: string,
     @query city?: string,
     @query vibe?: string,
+    @query startsAfter?: utcDateTime,
+    @query startsBefore?: utcDateTime,
     @query isLive?: boolean,
     @query latMin?: decimal,
     @query latMax?: decimal,

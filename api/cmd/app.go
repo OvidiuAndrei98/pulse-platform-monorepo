@@ -113,6 +113,12 @@ func (app *Application) BuildRouter() http.Handler {
 
 	// 1. Instanțiem modulele din internal cu dependențele necesare
 	authHandler := auth.NewHandler(app.Queries, mailerService)
+	authHandler.ConfigureGoogleOAuth(auth.GoogleOAuthConfig{
+		ClientID:     os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
+		ClientSecret: os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
+		PublicAPIURL: os.Getenv("PUBLIC_API_URL"),
+		PublicAppURL: os.Getenv("PUBLIC_APP_URL"),
+	})
 	eventsHandler := events.NewHandler(app.Queries, app.Pool)
 	interactionsHandler := interactions.NewHandler(app.Queries)
 	usersHandler := users.NewHandler(app.Queries)
@@ -146,6 +152,8 @@ func (app *Application) BuildRouter() http.Handler {
 		Register:       authHandler.HandleRegister,
 		Activate:       authHandler.HandleActivate,
 		Login:          authHandler.Login,
+		GoogleLogin:    authHandler.HandleGoogleLogin,
+		GoogleCallback: authHandler.HandleGoogleCallback,
 		ForgotPassword: authHandler.ForgotPassword,
 		ResetPassword:  authHandler.ResetPassword,
 

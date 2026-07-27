@@ -1807,6 +1807,8 @@ export interface operations {
                 category?: string;
                 city?: string;
                 vibe?: string;
+                startsAfter?: string;
+                startsBefore?: string;
                 isLive?: boolean;
                 latMin?: number;
                 latMax?: number;

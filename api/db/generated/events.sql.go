@@ -622,27 +622,31 @@ FROM events e
 WHERE ($2::VARCHAR = '' OR $2 IS NULL OR e.category = ANY(string_to_array($2::VARCHAR, ',')))
   AND ($3::VARCHAR = '' OR $3 IS NULL OR e.city = $3)
   AND ($4::VARCHAR = '' OR $4 IS NULL OR e.vibe = ANY(string_to_array($4::VARCHAR, ',')))
+  AND ($5::TIMESTAMPTZ IS NULL OR e.end_time > $5)
+  AND ($6::TIMESTAMPTZ IS NULL OR e.start_time < $6)
   -- Filtre geolocație cu nume clare
-  AND ($5::FLOAT IS NULL OR e.latitude BETWEEN $5 AND $6)
-  AND ($7::FLOAT IS NULL OR e.longitude BETWEEN $7 AND $8)
+  AND ($7::FLOAT IS NULL OR e.latitude BETWEEN $7 AND $8)
+  AND ($9::FLOAT IS NULL OR e.longitude BETWEEN $9 AND $10)
   -- Filtru ID specific
-  AND ($9::UUID IS NULL OR e.id = $9)
+  AND ($11::UUID IS NULL OR e.id = $11)
 ORDER BY e.start_time DESC
-LIMIT $11 OFFSET $10
+LIMIT $13 OFFSET $12
 `
 
 type ListEventsParams struct {
-	UserID    pgtype.UUID   `json:"user_id"`
-	Category  string        `json:"category"`
-	City      string        `json:"city"`
-	Vibe      string        `json:"vibe"`
-	LatMin    pgtype.Float8 `json:"lat_min"`
-	LatMax    pgtype.Float8 `json:"lat_max"`
-	LonMin    pgtype.Float8 `json:"lon_min"`
-	LonMax    pgtype.Float8 `json:"lon_max"`
-	EventID   pgtype.UUID   `json:"event_id"`
-	ReqOffset int32         `json:"req_offset"`
-	ReqLimit  int32         `json:"req_limit"`
+	UserID       pgtype.UUID        `json:"user_id"`
+	Category     string             `json:"category"`
+	City         string             `json:"city"`
+	Vibe         string             `json:"vibe"`
+	StartsAfter  pgtype.Timestamptz `json:"starts_after"`
+	StartsBefore pgtype.Timestamptz `json:"starts_before"`
+	LatMin       pgtype.Float8      `json:"lat_min"`
+	LatMax       pgtype.Float8      `json:"lat_max"`
+	LonMin       pgtype.Float8      `json:"lon_min"`
+	LonMax       pgtype.Float8      `json:"lon_max"`
+	EventID      pgtype.UUID        `json:"event_id"`
+	ReqOffset    int32              `json:"req_offset"`
+	ReqLimit     int32              `json:"req_limit"`
 }
 
 type ListEventsRow struct {
@@ -676,6 +680,8 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 		arg.Category,
 		arg.City,
 		arg.Vibe,
+		arg.StartsAfter,
+		arg.StartsBefore,
 		arg.LatMin,
 		arg.LatMax,
 		arg.LonMin,

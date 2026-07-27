@@ -52,6 +52,8 @@ FROM events e
 WHERE (sqlc.arg(category)::VARCHAR = '' OR sqlc.arg(category) IS NULL OR e.category = ANY(string_to_array(sqlc.arg(category)::VARCHAR, ',')))
   AND (sqlc.arg(city)::VARCHAR = '' OR sqlc.arg(city) IS NULL OR e.city = sqlc.arg(city))
   AND (sqlc.arg(vibe)::VARCHAR = '' OR sqlc.arg(vibe) IS NULL OR e.vibe = ANY(string_to_array(sqlc.arg(vibe)::VARCHAR, ',')))
+  AND (sqlc.narg(starts_after)::TIMESTAMPTZ IS NULL OR e.end_time > sqlc.narg(starts_after))
+  AND (sqlc.narg(starts_before)::TIMESTAMPTZ IS NULL OR e.start_time < sqlc.narg(starts_before))
   -- Filtre geolocație cu nume clare
   AND (sqlc.narg(lat_min)::FLOAT IS NULL OR e.latitude BETWEEN sqlc.narg(lat_min) AND sqlc.narg(lat_max))
   AND (sqlc.narg(lon_min)::FLOAT IS NULL OR e.longitude BETWEEN sqlc.narg(lon_min) AND sqlc.narg(lon_max))

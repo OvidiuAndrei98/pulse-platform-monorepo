@@ -1185,6 +1185,8 @@ export class PublicEventsService {
     category?: string;
     city?: string;
     vibe?: string;
+    startsAfter?: string;
+    startsBefore?: string;
   }): Promise<Event[]> {
     try {
       const events = await ApiClient.instance.get("/events", {

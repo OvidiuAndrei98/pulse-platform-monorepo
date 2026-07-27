@@ -25,6 +25,8 @@ type HandlersConfig struct {
 	Register       http.HandlerFunc
 	Activate       http.HandlerFunc
 	Login          http.HandlerFunc
+	GoogleLogin    http.HandlerFunc
+	GoogleCallback http.HandlerFunc
 	ForgotPassword http.HandlerFunc
 	ResetPassword  http.HandlerFunc
 
@@ -156,6 +158,10 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 		// --- AUTH (Public) ---
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/login", cfg.Login)
+			if cfg.GoogleLogin != nil && cfg.GoogleCallback != nil {
+				r.Get("/google", cfg.GoogleLogin)
+				r.Get("/google/callback", cfg.GoogleCallback)
+			}
 			r.Post("/register", cfg.Register)
 			r.Post("/forgot-password", cfg.ForgotPassword)
 			r.Post("/reset-password", cfg.ResetPassword)

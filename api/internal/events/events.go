@@ -415,6 +415,12 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 	category := r.URL.Query().Get("category")
 	city := r.URL.Query().Get("city")
 	vibe := r.URL.Query().Get("vibe")
+	startsAfter, startsAfterErr := parseOptionalEventTime(r.URL.Query().Get("startsAfter"))
+	startsBefore, startsBeforeErr := parseOptionalEventTime(r.URL.Query().Get("startsBefore"))
+	if startsAfterErr != nil || startsBeforeErr != nil {
+		router.RespondWithError(w, http.StatusBadRequest, "Intervalul de timp este invalid")
+		return
+	}
 	pageStr := r.URL.Query().Get("page")
 
 	// Preluare parametri hartă (dacă există)
@@ -434,6 +440,8 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 		Category:  category,
 		City:      city,
 		Vibe:      vibe,
+		StartsAfter: startsAfter,
+		StartsBefore: startsBefore,
 		ReqLimit:  pageSize,
 		ReqOffset: page * pageSize,
 	}
@@ -470,6 +478,18 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 
 	}
 	router.RespondWithJSON(w, http.StatusOK, result)
+}
+
+func parseOptionalEventTime(value string) (pgtype.Timestamptz, error) {
+	if value == "" {
+		return pgtype.Timestamptz{}, nil
+	}
+
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		return pgtype.Timestamptz{}, err
+	}
+	return pgtype.Timestamptz{Time: parsed, Valid: true}, nil
 }
 
 func (h *Handler) HandleGetEventByID(w http.ResponseWriter, r *http.Request) {

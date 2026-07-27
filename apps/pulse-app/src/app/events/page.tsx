@@ -7,6 +7,7 @@ import { Event, PublicEventsService } from "@/core/DataProvider";
 import { cityCenters, defaultEventFilters } from "@/features/events/constants";
 import { EventBrowseCard } from "@/features/events/components/EventBrowseCard";
 import { EventViewToggle } from "@/features/events/components/EventViewToggle";
+import { getEventDateRange } from "@/features/events/dateFilters";
 import { Coordinates, EventFilters } from "@/features/events/types";
 
 const EventsMapLayout = dynamic(
@@ -35,8 +36,9 @@ export default function EventsPage() {
       category: filters.categories.join(",") || undefined,
       city: filters.city || undefined,
       vibe: filters.vibes.join(",") || undefined,
+      ...getEventDateRange(filters.date),
     }),
-    [filters.categories, filters.city, filters.vibes],
+    [filters.categories, filters.city, filters.date, filters.vibes],
   );
 
   useEffect(() => {

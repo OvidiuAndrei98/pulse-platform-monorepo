@@ -71,6 +71,7 @@ type Querier interface {
 	IncrementTicketsSold(ctx context.Context, arg IncrementTicketsSoldParams) error
 	InsertUserToken(ctx context.Context, arg InsertUserTokenParams) (UserTokens, error)
 	IsValidationStaffForEvent(ctx context.Context, arg IsValidationStaffForEventParams) (bool, error)
+	LinkGoogleIdentity(ctx context.Context, arg LinkGoogleIdentityParams) (Users, error)
 	ListEventAttendees(ctx context.Context, eventID pgtype.UUID) ([]ListEventAttendeesRow, error)
 	ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error)
 	ListEventsWithStats(ctx context.Context, organizerID pgtype.UUID) ([]ListEventsWithStatsRow, error)

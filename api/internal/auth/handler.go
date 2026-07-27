@@ -36,6 +36,7 @@ type EmailSender interface {
 type Handler struct {
 	Queries     *db.Queries
 	EmailSender EmailSender
+	googleOAuth GoogleOAuthConfig
 }
 
 func (h *Handler) claimGuestPurchases(ctx context.Context, userID pgtype.UUID) {
@@ -220,7 +221,16 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	h.claimGuestPurchases(r.Context(), user.ID)
 
-	// 4. GENERARE JWT TOKEN
+	tokenString, err := issueUserJWT(user)
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la generarea token-ului de autentificare")
+		return
+	}
+
+	router.RespondWithJSON(w, http.StatusOK, LoginResponse{Token: tokenString})
+}
+
+func issueUserJWT(user db.Users) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":  user.ID.String(),
 		"role": user.Role.String,
@@ -228,15 +238,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		"iat":  time.Now().Unix(),
 	})
 
-	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
-
-	tokenString, err := token.SignedString(jwtSecret)
-	if err != nil {
-		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la generarea token-ului de autentificare")
-		return
-	}
-
-	router.RespondWithJSON(w, http.StatusOK, LoginResponse{Token: tokenString})
+	return token.SignedString([]byte(os.Getenv("JWT_SECRET")))
 }
 
 type ForgotPasswordRequest struct {

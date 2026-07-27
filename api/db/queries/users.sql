@@ -12,6 +12,14 @@ SELECT * FROM users WHERE email = $1 LIMIT 1;
 -- name: GetUserByGoogleID :one
 SELECT * FROM users WHERE google_id = $1 LIMIT 1;
 
+-- name: LinkGoogleIdentity :one
+UPDATE users
+SET google_id = $2,
+    avatar_url = COALESCE(NULLIF(sqlc.arg(avatar_url)::TEXT, ''), avatar_url),
+    is_active = TRUE
+WHERE id = $1
+RETURNING *;
+
 -- name: UpdateUserActivation :exec
 UPDATE users SET is_active = $1 WHERE id = $2;
 
