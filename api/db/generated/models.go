@@ -295,15 +295,16 @@ type UserTokens struct {
 }
 
 type Users struct {
-	ID                pgtype.UUID        `json:"id"`
-	Username          string             `json:"username"`
-	Email             string             `json:"email"`
-	PasswordHash      pgtype.Text        `json:"password_hash"`
-	AvatarUrl         pgtype.Text        `json:"avatar_url"`
-	Role              pgtype.Text        `json:"role"`
-	Bio               pgtype.Text        `json:"bio"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	IsActive          pgtype.Bool        `json:"is_active"`
-	GoogleID          pgtype.Text        `json:"google_id"`
-	PreferredLanguage string             `json:"preferred_language"`
+	ID                     pgtype.UUID        `json:"id"`
+	Username               string             `json:"username"`
+	Email                  string             `json:"email"`
+	PasswordHash           pgtype.Text        `json:"password_hash"`
+	AvatarUrl              pgtype.Text        `json:"avatar_url"`
+	Role                   pgtype.Text        `json:"role"`
+	Bio                    pgtype.Text        `json:"bio"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	IsActive               pgtype.Bool        `json:"is_active"`
+	GoogleID               pgtype.Text        `json:"google_id"`
+	PreferredLanguage      string             `json:"preferred_language"`
+	ShowAttendancePublicly bool               `json:"show_attendance_publicly"`
 }

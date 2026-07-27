@@ -1195,6 +1195,7 @@ export interface components {
             role: "user" | "organizer" | "admin";
             avatarUrl?: string;
             bio?: string;
+            showAttendancePublicly: boolean;
             /** Format: date-time */
             createdAt: string;
         };
@@ -2609,6 +2610,7 @@ export interface operations {
                     bio?: string;
                     /** @enum {string} */
                     preferredLanguage?: "en" | "ro";
+                    showAttendancePublicly?: boolean;
                 };
             };
         };

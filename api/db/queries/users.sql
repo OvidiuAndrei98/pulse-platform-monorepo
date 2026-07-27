@@ -34,9 +34,10 @@ SET
     role       = COALESCE(NULLIF($4, ''), role),
     avatar_url = COALESCE(NULLIF($5, ''), avatar_url),
     bio        = COALESCE($6, bio),
-    preferred_language = COALESCE(NULLIF(sqlc.arg(preferred_language)::TEXT, ''), preferred_language)
+    preferred_language = COALESCE(NULLIF(sqlc.arg(preferred_language)::TEXT, ''), preferred_language),
+    show_attendance_publicly = COALESCE(sqlc.narg(show_attendance_publicly)::BOOLEAN, show_attendance_publicly)
 WHERE id = $1
-RETURNING id, username, email, role, avatar_url, bio, preferred_language, created_at;
+RETURNING id, username, email, role, avatar_url, bio, preferred_language, show_attendance_publicly, created_at;
 
 -- name: UpdateUserAvatar :one
 UPDATE users

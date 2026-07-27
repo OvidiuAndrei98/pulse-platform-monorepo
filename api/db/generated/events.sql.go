@@ -545,6 +545,7 @@ SELECT u.id, u.username, u.avatar_url
 FROM check_ins c
 JOIN users u ON c.user_id = u.id
 WHERE c.event_id = $1 
+  AND u.show_attendance_publicly = TRUE
   AND c.user_id IN (
       SELECT f.friend_id FROM friendships f WHERE f.user_id = $2 AND f.status = 'accepted'
       UNION

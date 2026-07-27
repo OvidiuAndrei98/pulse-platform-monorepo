@@ -20,6 +20,7 @@ model User {
   role: "user" | "organizer" | "admin";
   avatarUrl?: string;
   bio?: string;
+  showAttendancePublicly: boolean;
   createdAt: utcDateTime;
 }
 
@@ -484,6 +485,7 @@ interface UserOperations {
       username?: string;
       bio?: string;
       preferredLanguage?: "en" | "ro";
+      showAttendancePublicly?: boolean;
     },
   ): User;
 

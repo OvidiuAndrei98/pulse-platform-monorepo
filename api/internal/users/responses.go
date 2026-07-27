@@ -13,6 +13,7 @@ type UserResponse struct {
 	AvatarUrl         string `json:"avatarUrl,omitempty"`
 	Bio               string `json:"bio,omitempty"`
 	PreferredLanguage string `json:"preferredLanguage"`
+	ShowAttendancePublicly bool `json:"showAttendancePublicly"`
 	CreatedAt         string `json:"createdAt"`
 }
 
@@ -25,6 +26,7 @@ func MapUser(u db.Users) UserResponse {
 		AvatarUrl:         u.AvatarUrl.String,
 		Bio:               u.Bio.String,
 		PreferredLanguage: u.PreferredLanguage,
+		ShowAttendancePublicly: u.ShowAttendancePublicly,
 		CreatedAt:         common.TimestampToString(u.CreatedAt),
 	}
 }
@@ -50,6 +52,7 @@ func MapUpdateUserProfileRow(u db.UpdateUserProfileRow) UserResponse {
 		AvatarUrl:         u.AvatarUrl.String,
 		Bio:               u.Bio.String,
 		PreferredLanguage: u.PreferredLanguage,
+		ShowAttendancePublicly: u.ShowAttendancePublicly,
 		CreatedAt:         common.TimestampToString(u.CreatedAt),
 	}
 }

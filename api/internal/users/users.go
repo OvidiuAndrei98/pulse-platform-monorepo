@@ -43,9 +43,10 @@ func (h *Handler) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 }
 
 type UpdateMeRequest struct {
-	Username          string  `json:"username"`
-	Bio               *string `json:"bio"`
-	PreferredLanguage string  `json:"preferredLanguage"`
+	Username                 string  `json:"username"`
+	Bio                      *string `json:"bio"`
+	PreferredLanguage        string  `json:"preferredLanguage"`
+	ShowAttendancePublicly   *bool   `json:"showAttendancePublicly"`
 }
 
 func (h *Handler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
@@ -83,12 +84,17 @@ func (h *Handler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
 	if req.Bio != nil {
 		bio = pgtype.Text{String: *req.Bio, Valid: true}
 	}
+	showAttendancePublicly := pgtype.Bool{}
+	if req.ShowAttendancePublicly != nil {
+		showAttendancePublicly = pgtype.Bool{Bool: *req.ShowAttendancePublicly, Valid: true}
+	}
 
 	updated, err := h.Queries.UpdateUserProfile(r.Context(), db.UpdateUserProfileParams{
 		ID:                uuid,
 		Column2:           req.Username,
 		Bio:               bio,
 		PreferredLanguage: req.PreferredLanguage,
+		ShowAttendancePublicly: showAttendancePublicly,
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la actualizarea profilului")

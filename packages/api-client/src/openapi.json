@@ -1821,6 +1821,9 @@
                       "en",
                       "ro"
                     ]
+                  },
+                  "showAttendancePublicly": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -3192,6 +3195,7 @@
           "username",
           "email",
           "role",
+          "showAttendancePublicly",
           "createdAt"
         ],
         "properties": {
@@ -3217,6 +3221,9 @@
           },
           "bio": {
             "type": "string"
+          },
+          "showAttendancePublicly": {
+            "type": "boolean"
           },
           "createdAt": {
             "type": "string",

@@ -71,7 +71,7 @@ export class User {
     return updatedUser;
   }
 
-  async updateProfile(profile: { username?: string; bio?: string; preferredLanguage?: "en" | "ro" }): Promise<UserData> {
+  async updateProfile(profile: { username?: string; bio?: string; preferredLanguage?: "en" | "ro"; showAttendancePublicly?: boolean }): Promise<UserData> {
     const updatedUser = await ApiClient.instance.put("/users/me", {
       body: profile,
     });

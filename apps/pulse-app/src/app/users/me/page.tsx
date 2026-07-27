@@ -12,6 +12,7 @@ import { ProfileAvatarUpload } from "@/components/profile/ProfileAvatarUpload";
 import { PersonalDetailsForm } from "@/components/profile/PersonalDetailsForm";
 import { PasswordResetRequest } from "@/components/profile/PasswordResetRequest";
 import { LanguagePreferenceRow } from "@/components/profile/LanguagePreferenceRow";
+import { AttendancePrivacyRow } from "@/components/profile/AttendancePrivacyRow";
 import { useEventDetails } from "@/components/EventDetailsSheet";
 import {
   formatEventDate,
@@ -281,6 +282,7 @@ export default function MePage() {
                   </div>
                 </Row>
                 <LanguagePreferenceRow />
+                <AttendancePrivacyRow />
                 <Row
                   icon={Trash2}
                   label={t("userProfile.deleteAccount")}
@@ -580,6 +582,7 @@ export default function MePage() {
                     </div>
                   </Row>
                   <LanguagePreferenceRow />
+                  <AttendancePrivacyRow />
                   <Row
                     icon={Trash2}
                     label={t("userProfile.deleteAccount")}
