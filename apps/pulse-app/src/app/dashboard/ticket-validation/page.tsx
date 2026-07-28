@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
-  AlertTriangle,
   ChevronDown,
   ClipboardCheck,
   Copy,
@@ -98,7 +97,6 @@ export default function TicketValidationPage() {
   const [offlineSnapshot, setOfflineSnapshot] = useState<OfflineSnapshotResponse>();
   const [offlinePendingCount, setOfflinePendingCount] = useState(0);
   const [offlineConflicts, setOfflineConflicts] = useState<OfflineTicketScan[]>([]);
-  const [showOfflineConflicts, setShowOfflineConflicts] = useState(false);
   const [preparingOffline, setPreparingOffline] = useState(false);
   const [syncingOffline, setSyncingOffline] = useState(false);
   const selectedEventIdRef = useRef(selectedEventId);
@@ -148,7 +146,6 @@ export default function TicketValidationPage() {
 
   useEffect(() => {
     selectedEventIdRef.current = selectedEventId;
-    setShowOfflineConflicts(false);
   }, [selectedEventId]);
 
   const syncOfflineScans = async (eventId = selectedEventId) => {
@@ -610,24 +607,9 @@ export default function TicketValidationPage() {
           </div>
 
           {offlineConflicts.length > 0 && (
-            <div className="mt-3 rounded-lg border border-amber-400/25 bg-amber-400/[0.06] p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-amber-100">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" />
-                  <span className="truncate">{t("validation.offlineConflictsTitle", { count: offlineConflicts.length })}</span>
-                </div>
-                <button type="button" onClick={() => setShowOfflineConflicts((visible) => !visible)} className="shrink-0 text-xs font-semibold text-amber-200 underline-offset-2 hover:underline">
-                  {showOfflineConflicts ? t("validation.hideConflicts") : t("validation.viewConflicts")}
-                </button>
-              </div>
-              {showOfflineConflicts && <div className="mt-2 max-h-52 divide-y divide-amber-100/10 overflow-y-auto pr-1">
-                {offlineConflicts.map((scan) => (
-                  <div key={scan.clientScanId} className="flex items-center justify-between gap-3 py-2 text-xs">
-                    <div className="min-w-0"><p className="truncate font-semibold text-foreground">{scan.ticketType}</p><p className="text-muted-foreground">{formatEventDateTime(scan.scannedAt)}</p></div>
-                    <span className="shrink-0 text-right text-amber-200">{t(`validation.offlineConflict.${scan.serverStatus || "invalid"}`)}</span>
-                  </div>
-                ))}
-              </div>}
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-amber-400/25 bg-amber-400/[0.06] px-3 py-2.5 text-sm">
+              <span className="font-semibold text-amber-100">{t("validation.offlineConflictsTitle", { count: offlineConflicts.length })}</span>
+              <span className="text-xs text-amber-200">{t("validation.offlineConflictHint")}</span>
             </div>
           )}
 

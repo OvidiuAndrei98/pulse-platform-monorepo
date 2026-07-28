@@ -675,8 +675,7 @@ export const resources = {
         offlineUnprepared: "Prepare this event for offline validation first",
         offlineConflictsTitle_one: "{{count}} offline scan needs review",
         offlineConflictsTitle_other: "{{count}} offline scans need review",
-        viewConflicts: "View scans",
-        hideConflicts: "Hide scans",
+        offlineConflictHint: "Check-in not recorded",
         offlineConflict: {
           already_validated: "Already validated elsewhere",
           invalid: "Invalid ticket",
@@ -1503,8 +1502,7 @@ export const resources = {
         offlineUnprepared: "Pregateste mai intai acest eveniment pentru validare offline",
         offlineConflictsTitle_one: "{{count}} scanare offline necesita verificare",
         offlineConflictsTitle_other: "{{count}} scanari offline necesita verificare",
-        viewConflicts: "Vezi scanarile",
-        hideConflicts: "Ascunde scanarile",
+        offlineConflictHint: "Accesul nu a fost inregistrat",
         offlineConflict: {
           already_validated: "Validat deja pe alt dispozitiv",
           invalid: "Bilet invalid",
