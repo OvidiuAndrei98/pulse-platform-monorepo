@@ -673,6 +673,15 @@ export const resources = {
         offlineUnknown: "Ticket is not in the offline package",
         offlineExpired: "The offline package has expired",
         offlineUnprepared: "Prepare this event for offline validation first",
+        offlineConflictsTitle_one: "{{count}} offline scan needs review",
+        offlineConflictsTitle_other: "{{count}} offline scans need review",
+        viewConflicts: "View scans",
+        hideConflicts: "Hide scans",
+        offlineConflict: {
+          already_validated: "Already validated elsewhere",
+          invalid: "Invalid ticket",
+          wrong_event: "Different event",
+        },
       },
       organizerEvents: {
         title: "Events",
@@ -1492,6 +1501,15 @@ export const resources = {
         offlineUnknown: "Biletul nu este in pachetul offline",
         offlineExpired: "Pachetul offline a expirat",
         offlineUnprepared: "Pregateste mai intai acest eveniment pentru validare offline",
+        offlineConflictsTitle_one: "{{count}} scanare offline necesita verificare",
+        offlineConflictsTitle_other: "{{count}} scanari offline necesita verificare",
+        viewConflicts: "Vezi scanarile",
+        hideConflicts: "Ascunde scanarile",
+        offlineConflict: {
+          already_validated: "Validat deja pe alt dispozitiv",
+          invalid: "Bilet invalid",
+          wrong_event: "Apartine altui eveniment",
+        },
       },
       organizerEvents: {
         title: "Evenimente",

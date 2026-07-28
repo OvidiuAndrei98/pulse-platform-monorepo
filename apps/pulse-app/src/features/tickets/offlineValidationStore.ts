@@ -253,6 +253,18 @@ export async function getPendingOfflineScans(userId: string, eventId: string) {
   );
 }
 
+export async function getOfflineConflictScans(userId: string, eventId: string) {
+  const snapshot = await getOfflineSnapshot(userId, eventId);
+  if (!snapshot) return [];
+  const db = await getDb();
+  const scans = await db.getAllFromIndex(
+    "scans",
+    "by-cache-status",
+    IDBKeyRange.only([snapshot.cacheKey, "conflict"]),
+  );
+  return scans.sort((a, b) => b.scannedAt.localeCompare(a.scannedAt));
+}
+
 export type OfflineSyncResult = {
   clientScanId: string;
   status: "accepted" | "already_validated" | "invalid" | "wrong_event";

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
+  AlertTriangle,
   ChevronDown,
   ClipboardCheck,
   Copy,
@@ -32,14 +33,18 @@ import {
   clearExpiredOfflineData,
   clearOfflineEventData,
   getOfflineDeviceId,
+  getOfflineConflictScans,
   getOfflineValidationEvents,
   getOfflineValidationState,
   getPendingOfflineScans,
   recordOfflineTicketScan,
   saveOfflineSnapshot,
+  type OfflineTicketScan,
 } from "@/features/tickets/offlineValidationStore";
 
 const ORGANIZER_AGREEMENT_VERSION = "2026-07-27-glow";
+const apiHealthUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1")
+  .replace(/\/api\/v1\/?$/, "/health");
 
 type ValidationStaff = ReadableSchema<"ValidationStaffResponse">;
 type TicketValidation = ReadableSchema<"TicketValidationResponse">;
@@ -92,6 +97,8 @@ export default function TicketValidationPage() {
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
   const [offlineSnapshot, setOfflineSnapshot] = useState<OfflineSnapshotResponse>();
   const [offlinePendingCount, setOfflinePendingCount] = useState(0);
+  const [offlineConflicts, setOfflineConflicts] = useState<OfflineTicketScan[]>([]);
+  const [showOfflineConflicts, setShowOfflineConflicts] = useState(false);
   const [preparingOffline, setPreparingOffline] = useState(false);
   const [syncingOffline, setSyncingOffline] = useState(false);
   const selectedEventIdRef = useRef(selectedEventId);
@@ -101,23 +108,51 @@ export default function TicketValidationPage() {
     [events, selectedEventId],
   );
 
+  const refreshConnectionStatus = async () => {
+    if (!navigator.onLine) {
+      setIsOnline(false);
+      return false;
+    }
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 3_000);
+    try {
+      const response = await fetch(apiHealthUrl, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      setIsOnline(response.ok);
+      return response.ok;
+    } catch {
+      setIsOnline(false);
+      return false;
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  };
+
   const refreshOfflineState = async (eventId = selectedEventId) => {
     if (!user || !eventId) {
       setOfflineSnapshot(undefined);
       setOfflinePendingCount(0);
+      setOfflineConflicts([]);
       return;
     }
-    const state = await getOfflineValidationState(user.properties.id, eventId);
+    const [state, conflicts] = await Promise.all([
+      getOfflineValidationState(user.properties.id, eventId),
+      getOfflineConflictScans(user.properties.id, eventId),
+    ]);
     setOfflineSnapshot(state.snapshot);
     setOfflinePendingCount(state.pendingCount);
+    setOfflineConflicts(conflicts);
   };
 
   useEffect(() => {
     selectedEventIdRef.current = selectedEventId;
+    setShowOfflineConflicts(false);
   }, [selectedEventId]);
 
   const syncOfflineScans = async (eventId = selectedEventId) => {
-    if (!user || !eventId || !navigator.onLine) return;
+    if (!user || !eventId || !isOnline) return;
     const state = await getOfflineValidationState(user.properties.id, eventId);
     if (!state.snapshot || state.pendingCount === 0) return;
 
@@ -152,7 +187,7 @@ export default function TicketValidationPage() {
   };
 
   const prepareOffline = async () => {
-    if (!user || !selectedEventId || !navigator.onLine) return;
+    if (!user || !selectedEventId || !isOnline) return;
     setPreparingOffline(true);
     setError("");
     setNotice("");
@@ -301,9 +336,11 @@ export default function TicketValidationPage() {
   }, [selectedEventId, user?.properties.id]);
 
   useEffect(() => {
+    void refreshConnectionStatus();
     const goOnline = () => {
-      setIsOnline(true);
-      void syncOfflineScans();
+      void refreshConnectionStatus().then((connected) => {
+        if (connected) void syncOfflineScans();
+      });
     };
     const goOffline = () => setIsOnline(false);
     window.addEventListener("online", goOnline);
@@ -358,7 +395,7 @@ export default function TicketValidationPage() {
     setError("");
     setNotice("");
     setResult(undefined);
-    if (!navigator.onLine) {
+    if (!isOnline) {
       await validateOfflineTicket(hash);
       setValidating(false);
       return;
@@ -373,8 +410,8 @@ export default function TicketValidationPage() {
       );
       setResult(response);
       setValidationHash("");
-    } catch {
-      if (!navigator.onLine) {
+    } catch (scanError) {
+      if (!isOnline || scanError instanceof TypeError) {
         await validateOfflineTicket(hash);
       } else {
         setError(t("validation.invalidTicket"));
@@ -571,6 +608,28 @@ export default function TicketValidationPage() {
             </div>
             <p className="basis-full text-[11px] leading-4 text-muted-foreground">{t("validation.offlineHint")}</p>
           </div>
+
+          {offlineConflicts.length > 0 && (
+            <div className="mt-3 rounded-lg border border-amber-400/25 bg-amber-400/[0.06] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-amber-100">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" />
+                  <span className="truncate">{t("validation.offlineConflictsTitle", { count: offlineConflicts.length })}</span>
+                </div>
+                <button type="button" onClick={() => setShowOfflineConflicts((visible) => !visible)} className="shrink-0 text-xs font-semibold text-amber-200 underline-offset-2 hover:underline">
+                  {showOfflineConflicts ? t("validation.hideConflicts") : t("validation.viewConflicts")}
+                </button>
+              </div>
+              {showOfflineConflicts && <div className="mt-2 max-h-52 divide-y divide-amber-100/10 overflow-y-auto pr-1">
+                {offlineConflicts.map((scan) => (
+                  <div key={scan.clientScanId} className="flex items-center justify-between gap-3 py-2 text-xs">
+                    <div className="min-w-0"><p className="truncate font-semibold text-foreground">{scan.ticketType}</p><p className="text-muted-foreground">{formatEventDateTime(scan.scannedAt)}</p></div>
+                    <span className="shrink-0 text-right text-amber-200">{t(`validation.offlineConflict.${scan.serverStatus || "invalid"}`)}</span>
+                  </div>
+                ))}
+              </div>}
+            </div>
+          )}
 
           <form onSubmit={validateTicket} className="mt-4 space-y-3">
             <textarea value={validationHash} onChange={(event) => setValidationHash(event.target.value)} rows={3} placeholder={t("validation.pasteQr")} className="w-full resize-none rounded-lg border border-white/15 bg-white/5 p-3 font-mono text-xs outline-none transition placeholder:font-sans placeholder:text-sm focus:border-primary/60" />
