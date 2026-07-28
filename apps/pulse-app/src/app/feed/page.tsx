@@ -122,7 +122,7 @@ export default function FeedPage() {
         </p>
         <Link
           href="/login"
-          className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
+          className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
         >
           {t("social.signIn")}
         </Link>
@@ -135,7 +135,7 @@ export default function FeedPage() {
       {/* Header-ul paginii */}
       <header className="mb-4 space-y-3">
         <div className="flex items-center gap-2.5">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-primary/20 bg-primary/10 text-primary">
             <UsersRound className="h-4 w-4" />
           </span>
           <div>
@@ -169,7 +169,7 @@ export default function FeedPage() {
             {requests.map((request) => (
               <div
                 key={request.id}
-                className="flex items-center justify-between gap-2.5 rounded-xl border border-white/10 bg-neutral-900/60 p-2.5 backdrop-blur-md"
+                className="flex items-center justify-between gap-2.5 rounded-2xl border border-white/10 bg-neutral-900/60 p-3 backdrop-blur-md"
               >
                 <Link
                   href={`/users/${request.id}`}
@@ -190,7 +190,7 @@ export default function FeedPage() {
                   <button
                     type="button"
                     onClick={() => void respond(request.id, "accepted")}
-                    className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground transition active:scale-95"
+                    className="grid h-7 w-7 place-items-center rounded-full bg-primary text-primary-foreground transition active:scale-95"
                     aria-label={t("feed.acceptRequest", {
                       name: request.username,
                     })}
@@ -200,7 +200,7 @@ export default function FeedPage() {
                   <button
                     type="button"
                     onClick={() => void respond(request.id, "declined")}
-                    className="grid h-7 w-7 place-items-center rounded-lg border border-white/10 bg-white/5 text-muted-foreground transition active:scale-95"
+                    className="grid h-7 w-7 place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground transition active:scale-95"
                     aria-label={t("feed.declineRequest", {
                       name: request.username,
                     })}
@@ -232,8 +232,8 @@ export default function FeedPage() {
 
         {feedLoading ? (
           <div className="space-y-2.5">
-            <div className="h-28 animate-pulse rounded-xl border border-white/10 bg-white/[0.03]" />
-            <div className="h-28 animate-pulse rounded-xl border border-white/10 bg-white/[0.03]" />
+            <div className="h-28 animate-pulse rounded-3xl border border-white/10 bg-white/[0.03]" />
+            <div className="h-28 animate-pulse rounded-3xl border border-white/10 bg-white/[0.03]" />
           </div>
         ) : groupedItems.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.01] px-4 py-8 text-center">
@@ -265,7 +265,7 @@ export default function FeedPage() {
                     ),
                   )
                 }
-                className="mt-4 w-full rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs font-semibold text-muted-foreground transition active:scale-[0.99] hover:bg-white/10 hover:text-primary"
+                className="mt-4 w-full rounded-full border border-white/10 bg-white/5 py-2.5 text-xs font-semibold text-muted-foreground transition active:scale-[0.99] hover:bg-white/10 hover:text-primary"
               >
                 {t("feed.loadMore")}
               </button>
@@ -320,7 +320,7 @@ function FriendsRail({
       {!loading && friends.length > 0 && (
         <Link
           href="/users/me/friends"
-          className="flex h-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-3 text-xs font-semibold text-muted-foreground transition hover:bg-white/10 hover:text-primary"
+          className="flex h-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 px-3 text-xs font-semibold text-muted-foreground transition hover:bg-white/10 hover:text-primary"
         >
           {t("feed.seeAll", { count: friends.length })}
         </Link>
@@ -344,8 +344,12 @@ function FeedCard({ item }: { item: FeedGroup }) {
           ? t("feed.haveTickets")
           : t("feed.goingTo");
 
+  if (item.kind === "update") {
+    return <OrganizerUpdateFeedCard item={item} />;
+  }
+
   return (
-    <div className="group flex flex-col justify-between gap-2.5 rounded-xl border border-white/10 bg-neutral-900/40 p-3 transition hover:border-white/20 hover:bg-neutral-900/70 sm:flex-row sm:items-center">
+    <div className="group flex flex-col justify-between gap-2.5 rounded-3xl border border-white/10 bg-neutral-900/40 p-3.5 transition hover:border-white/20 hover:bg-neutral-900/70 sm:flex-row sm:items-center">
       {/* Informații actor & eveniment */}
       <div className="flex min-w-0 flex-1 items-start gap-3">
         <Link
@@ -364,7 +368,7 @@ function FeedCard({ item }: { item: FeedGroup }) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs leading-tight">
             <span className="font-semibold">
-              {item.kind === "organizer" || item.kind === "update"
+              {item.kind === "organizer"
                 ? item.organizerName || primaryActor.actorUsername
                 : actorSummary}
             </span>{" "}
@@ -377,12 +381,6 @@ function FeedCard({ item }: { item: FeedGroup }) {
           >
             {item.eventTitle}
           </Link>
-
-          {item.kind === "update" && item.organizerUpdateCaption && (
-            <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
-              {item.organizerUpdateCaption}
-            </p>
-          )}
 
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1 font-medium">
@@ -403,23 +401,82 @@ function FeedCard({ item }: { item: FeedGroup }) {
         </div>
       </div>
 
-      {item.kind === "update" && item.organizerUpdateImageUrl && (
-        <Link href={`/events/${item.eventId}`} className="order-first h-20 w-full shrink-0 overflow-hidden sm:order-none sm:w-28">
-          <img src={item.organizerUpdateImageUrl} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
-        </Link>
-      )}
-
       {/* Buton Bilet */}
       <div className="flex shrink-0 items-center justify-end sm:pl-2">
         <Link
           href={`/events/${item.eventId}`}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary transition active:scale-95 hover:bg-primary hover:text-primary-foreground"
+          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary transition active:scale-95 hover:bg-primary hover:text-primary-foreground"
         >
           <Ticket className="h-3.5 w-3.5" />
           <span>{t("feed.viewTickets")}</span>
         </Link>
       </div>
     </div>
+  );
+}
+
+function OrganizerUpdateFeedCard({ item }: { item: FeedGroup }) {
+  const { t } = useTranslation();
+  const actor = item.actors[0];
+
+  return (
+    <article className="group overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/40 transition hover:border-white/20 hover:bg-neutral-900/70 sm:grid sm:grid-cols-[12rem_minmax(0,1fr)]">
+      <Link
+        href={`/events/${item.eventId}`}
+        className="relative block aspect-[16/9] overflow-hidden sm:aspect-auto sm:min-h-36"
+      >
+        {item.organizerUpdateImageUrl ? (
+          <img
+            src={item.organizerUpdateImageUrl}
+            alt=""
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <div className="h-full w-full bg-white/[0.04]" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:to-black/30" />
+      </Link>
+
+      <div className="flex min-w-0 flex-col p-3.5 sm:p-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <Link href={`/users/${actor.actorId}`} className="shrink-0 transition active:scale-95">
+            <SocialAvatar
+              profile={{ username: actor.actorUsername, avatarUrl: actor.actorAvatarUrl }}
+              size="h-9 w-9"
+            />
+          </Link>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs leading-tight">
+              <span className="font-semibold">{item.organizerName || actor.actorUsername}</span>{" "}
+              <span className="text-muted-foreground">{t("feed.publishedUpdate")}</span>
+            </p>
+            <Link href={`/events/${item.eventId}`} className="mt-1 block truncate text-base font-bold text-primary transition hover:underline">
+              {item.eventTitle}
+            </Link>
+          </div>
+        </div>
+
+        {item.organizerUpdateCaption && (
+          <p className="mt-3 line-clamp-2 text-xs leading-5 text-muted-foreground">
+            {item.organizerUpdateCaption}
+          </p>
+        )}
+
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <span className="inline-flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+            <Calendar className="h-3.5 w-3.5 shrink-0 text-primary/80" />
+            <span className="truncate">{formatEventDate(item.eventStartTime)}</span>
+          </span>
+          <Link
+            href={`/events/${item.eventId}`}
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary transition active:scale-95 hover:bg-primary hover:text-primary-foreground"
+          >
+            <Ticket className="h-3.5 w-3.5" />
+            {t("feed.viewTickets")}
+          </Link>
+        </div>
+      </div>
+    </article>
   );
 }
 

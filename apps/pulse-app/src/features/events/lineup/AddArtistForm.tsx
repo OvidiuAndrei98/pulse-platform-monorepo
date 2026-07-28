@@ -74,7 +74,7 @@ export function AddArtistForm({ onAdd }: { onAdd: (artist: LineupArtistInput) =>
   };
 
   return (
-    <div className="rounded-lg border border-white/10 bg-black/15 p-3 sm:p-4">
+    <div className="border border-white/[0.08] bg-black/15 p-3.5 sm:p-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-semibold">{t("lineup.addArtist")}</p>
         <button type="button" onClick={() => { const nextMode = mode === "spotify" ? "manual" : "spotify"; setMode(nextMode); setResults([]); setQuery(""); setArtist(emptyArtist()); }} className="text-xs font-semibold text-primary transition hover:text-primary/80">

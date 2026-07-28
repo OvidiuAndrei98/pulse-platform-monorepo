@@ -53,14 +53,14 @@ export function EventFriendProfilePopup({
         role="dialog"
         aria-modal="true"
         aria-label={t("social.attendeeProfile", { name: displayName })}
-        className="relative w-full max-w-sm border border-white/15 bg-[#101311] p-5 text-foreground shadow-2xl"
+        className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/15 bg-[#101311] p-5 text-foreground shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <button
           type="button"
           onClick={onClose}
           aria-label={t("social.closeProfile")}
-          className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
+          className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-white/[0.03] text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
         >
           <X className="h-4 w-4" />
         </button>
@@ -96,7 +96,7 @@ export function EventFriendProfilePopup({
           </p>
         )}
 
-        <div className="mt-4 flex items-center gap-2 border-t border-white/10 pt-4 text-xs font-medium text-muted-foreground">
+        <div className="mt-5 flex items-center gap-2 rounded-2xl border border-white/10 bg-black/15 px-3 py-3 text-xs font-medium text-muted-foreground">
           {attendee.attendanceStatus === "has_ticket" ? (
             <>
               <Ticket className="h-4 w-4 text-primary" /> {t("social.hasTicketForEvent")}
@@ -107,6 +107,7 @@ export function EventFriendProfilePopup({
             </>
           )}
         </div>
+
       </section>
     </div>,
     document.body,

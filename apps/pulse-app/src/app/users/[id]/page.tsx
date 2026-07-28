@@ -92,7 +92,7 @@ export default function PublicProfilePage() {
   if (!loaded) {
     return (
       <main className="min-h-screen bg-background px-5 pt-12 text-foreground">
-        <div className="h-40 max-w-xl animate-pulse border border-white/10 bg-white/[0.035]" />
+        <div className="h-40 max-w-xl animate-pulse rounded-3xl border border-white/10 bg-white/[0.035]" />
       </main>
     );
   }
@@ -130,7 +130,7 @@ export default function PublicProfilePage() {
         <ArrowLeft className="h-4 w-4" /> {t("common.back")}
       </Link>
 
-      <section className="mt-6 border border-white/10 bg-white/[0.035] p-5 sm:p-7">
+      <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.035] p-5 sm:p-7">
         <div className="flex items-start gap-4">
           <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full border border-primary/35 bg-primary/10 text-xl font-semibold text-primary">
             {profile.avatarUrl ? (
@@ -176,7 +176,7 @@ export default function PublicProfilePage() {
           {socialHint}
         </div>
         {isOrganizer && (
-          <div className="mt-4 grid grid-cols-2 divide-x divide-white/10 border border-white/10 bg-black/10">
+          <div className="mt-4 grid grid-cols-2 divide-x divide-white/10 overflow-hidden rounded-2xl border border-white/10 bg-black/10">
             <div className="flex items-center gap-2.5 p-3">
               <Calendar className="h-4 w-4 shrink-0 text-primary" />
               <div>
@@ -255,7 +255,7 @@ function OrganizerEventSection({
           {[0, 1].map((index) => (
             <div
               key={index}
-              className="h-20 animate-pulse border border-white/10 bg-white/[0.035]"
+              className="h-20 animate-pulse rounded-2xl border border-white/10 bg-white/[0.035]"
             />
           ))}
         </div>
@@ -266,7 +266,7 @@ function OrganizerEventSection({
               key={event.id}
               type="button"
               onClick={() => onSelect(event)}
-              className="group flex w-full items-center gap-3 border border-white/10 bg-white/[0.025] p-3 text-left transition hover:border-primary/35 hover:bg-white/[0.05]"
+              className="group flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.025] p-3 text-left transition hover:border-primary/35 hover:bg-white/[0.05]"
             >
               <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-surface">
                 {event.bannerUrl ? (

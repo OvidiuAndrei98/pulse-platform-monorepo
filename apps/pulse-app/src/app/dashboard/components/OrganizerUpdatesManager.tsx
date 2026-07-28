@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useState } from "react";
-import { ImagePlus, LoaderCircle, Trash2 } from "lucide-react";
+import { ImagePlus, LoaderCircle, Megaphone, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { OrganizerEventUpdate, User } from "@/core/DataProvider";
@@ -79,15 +79,18 @@ export function OrganizerUpdatesManager({
   };
 
   return (
-    <section className="mt-8 border border-white/10 bg-white/[0.025] p-4 sm:p-5">
+    <section className="mt-8 rounded-3xl border border-white/[0.06] bg-white/[0.02] p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold">{t("organizerUpdates.manageTitle")}</h2>
-          <p className="mt-1 max-w-lg text-xs leading-5 text-muted-foreground">
-            {t("organizerUpdates.manageHint")}
-          </p>
+        <div className="flex min-w-0 items-start gap-2">
+          <Megaphone className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground/80">{t("organizerUpdates.manageTitle")}</h2>
+            <p className="mt-0.5 max-w-[500px] text-[11px] leading-5 text-muted-foreground/50">
+              {t("organizerUpdates.manageHint")}
+            </p>
+          </div>
         </div>
-        <span className="border border-primary/25 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
+        <span className="rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
           {t("organizerUpdates.activeCount", { count: activeCount })}
         </span>
       </div>

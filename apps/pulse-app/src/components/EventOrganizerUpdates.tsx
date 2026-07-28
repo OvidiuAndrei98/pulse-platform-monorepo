@@ -25,7 +25,7 @@ export function EventOrganizerUpdates({
         </h3>
         <div className="mt-3 flex gap-3 overflow-hidden">
           {[0, 1].map((item) => (
-            <div key={item} className="h-40 min-w-[10.5rem] animate-pulse bg-white/[0.05]" />
+            <div key={item} className="h-40 min-w-[10.5rem] animate-pulse rounded-2xl bg-white/[0.05]" />
           ))}
         </div>
       </section>
@@ -43,7 +43,7 @@ export function EventOrganizerUpdates({
         {updates.map((update) => (
           <article
             key={update.id}
-            className="group relative h-44 min-w-[12rem] snap-start overflow-hidden border border-white/10 bg-black sm:min-w-[14rem]"
+            className="group relative h-44 min-w-[12rem] snap-start overflow-hidden rounded-2xl border border-white/10 bg-black sm:min-w-[14rem]"
           >
             <img
               src={update.imageUrl}

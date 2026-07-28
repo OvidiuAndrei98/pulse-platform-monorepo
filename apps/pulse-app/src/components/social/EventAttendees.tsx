@@ -7,7 +7,11 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { EventFriendProfilePopup } from "@/components/social/EventFriendProfilePopup";
 import { useTranslation } from "react-i18next";
 
-export function EventAttendees({ eventId }: { eventId: string }) {
+export function EventAttendees({
+  eventId,
+}: {
+  eventId: string;
+}) {
   const { user } = useDataProvider();
   const { t } = useTranslation();
   const { friends } = User.useEventFriends(user, eventId);
