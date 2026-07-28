@@ -52,7 +52,7 @@ type CreatedScannerAccess = ReadableSchema<"CreateScannerAccessResponse">;
 type OfflineSnapshotResponse = ReadableSchema<"OfflineValidationSnapshotResponse">;
 type OfflineSyncResponse = ReadableSchema<"SyncOfflineTicketScansResponse">;
 type ScannerResult = TicketValidation | {
-  status: "offline_valid" | "offline_duplicate" | "offline_unknown" | "offline_expired" | "offline_unprepared";
+  status: "offline_valid" | "offline_duplicate" | "offline_unknown" | "offline_expired" | "offline_unprepared" | "invalid";
   ticketType?: string;
   eventTitle?: string;
 };
@@ -417,7 +417,7 @@ export default function TicketValidationPage() {
       if (!isOnline || scanError instanceof TypeError) {
         await validateOfflineTicket(hash);
       } else {
-        setError(t("validation.invalidTicket"));
+        setResult({ status: "invalid" });
       }
     } finally {
       setValidating(false);
@@ -604,8 +604,9 @@ export default function TicketValidationPage() {
           <div className="mt-5 rounded-lg border border-primary/25 bg-primary/[0.04] p-4 sm:p-5">
             <QrCameraScanner
               disabled={!selectedEventId || validating}
-              onScan={(value) => void submitValidationHash(value)}
+              onScan={submitValidationHash}
               fullScreen
+              continuous
               eventTitle={selectedEvent?.title}
               isOnline={isOnline}
               className="h-12 w-full rounded-lg border-0 bg-primary px-4 text-sm text-primary-foreground hover:bg-primary/90"
@@ -737,7 +738,8 @@ export default function TicketValidationPage() {
       scanResult.status === "offline_duplicate" ? t("validation.offlineDuplicate") :
       scanResult.status === "offline_unknown" ? t("validation.offlineUnknown") :
       scanResult.status === "offline_expired" ? t("validation.offlineExpired") :
-      scanResult.status === "offline_unprepared" ? t("validation.offlineUnprepared") : t("scanner.usedTicket");
+      scanResult.status === "offline_unprepared" ? t("validation.offlineUnprepared") :
+      scanResult.status === "invalid" ? t("validation.invalidTicket") : t("scanner.usedTicket");
 
     return <div role="status" className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[210] mx-auto max-w-md">
       <div className={`flex gap-3 rounded-xl border p-4 shadow-2xl backdrop-blur-xl ${accepted ? "border-primary/35 bg-[#102212]/95" : "border-amber-300/35 bg-[#2a2110]/95"}`}>

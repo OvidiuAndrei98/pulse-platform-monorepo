@@ -7,8 +7,9 @@ import { useTranslation } from "react-i18next";
 
 type QrCameraScannerProps = {
   disabled?: boolean;
-  onScan: (value: string) => void;
+  onScan: (value: string) => void | Promise<void>;
   fullScreen?: boolean;
+  continuous?: boolean;
   eventTitle?: string;
   isOnline?: boolean;
   className?: string;
@@ -18,6 +19,7 @@ export function QrCameraScanner({
   disabled,
   onScan,
   fullScreen = false,
+  continuous = false,
   eventTitle,
   isOnline,
   className = "",
@@ -26,6 +28,8 @@ export function QrCameraScanner({
   const scannerId = `qr-scanner-${useId().replace(/:/g, "")}`;
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const hasScannedRef = useRef(false);
+  const processingScanRef = useRef(false);
+  const lastScannedValueRef = useRef("");
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
@@ -52,6 +56,8 @@ export function QrCameraScanner({
     setStarting(true);
     setError("");
     hasScannedRef.current = false;
+    processingScanRef.current = false;
+    lastScannedValueRef.current = "";
     try {
       const { Html5Qrcode } = await import("html5-qrcode");
       const scanner = new Html5Qrcode(scannerId, { verbose: false });
@@ -60,10 +66,27 @@ export function QrCameraScanner({
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 230, height: 230 } },
         (decodedText) => {
-          if (hasScannedRef.current) return;
+          if (
+            processingScanRef.current ||
+            (!continuous && hasScannedRef.current) ||
+            (continuous && lastScannedValueRef.current === decodedText)
+          ) return;
+
           hasScannedRef.current = true;
-          void stopScanner();
-          onScan(decodedText);
+          processingScanRef.current = true;
+          lastScannedValueRef.current = decodedText;
+          if (!continuous) void stopScanner();
+
+          void Promise.resolve(onScan(decodedText)).finally(() => {
+            processingScanRef.current = false;
+            if (continuous) {
+              window.setTimeout(() => {
+                if (lastScannedValueRef.current === decodedText) {
+                  lastScannedValueRef.current = "";
+                }
+              }, 1_500);
+            }
+          });
         },
         () => undefined,
       );
