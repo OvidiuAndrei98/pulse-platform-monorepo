@@ -60,6 +60,7 @@ type HandlersConfig struct {
 	StripeConnectWebhook    http.HandlerFunc
 	CreateStripeAccountLink http.HandlerFunc
 	GetStripeAccountStatus  http.HandlerFunc
+	CreateStripeLoginLink   http.HandlerFunc
 	GetEventSocial          http.HandlerFunc
 	UpdateEventRsvp         http.HandlerFunc
 	DeleteEventRsvp         http.HandlerFunc
@@ -279,6 +280,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Post("/dashboard/organizer/agreement", cfg.AcceptOrganizerAgreement)
 				r.Post("/dashboard/stripe/account-link", cfg.CreateStripeAccountLink)
 				r.Get("/dashboard/stripe/status", cfg.GetStripeAccountStatus)
+				r.Post("/dashboard/stripe/login-link", cfg.CreateStripeLoginLink)
 
 			})
 

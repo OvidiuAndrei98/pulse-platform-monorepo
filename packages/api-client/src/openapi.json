@@ -438,6 +438,25 @@
         }
       }
     },
+    "/dashboard/stripe/login-link": {
+      "post": {
+        "operationId": "DashboardOperations_createStripeLoginLink",
+        "summary": "Creeaza un link temporar catre Stripe Express Dashboard al organizatorului curent",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StripeAccountLinkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/dashboard/stripe/status": {
       "get": {
         "operationId": "DashboardOperations_getStripeAccountStatus",

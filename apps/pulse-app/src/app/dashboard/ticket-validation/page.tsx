@@ -348,6 +348,12 @@ export default function TicketValidationPage() {
     };
   }, [selectedEventId, user?.properties.id]);
 
+  useEffect(() => {
+    if (!result) return;
+    const timeout = window.setTimeout(() => setResult(undefined), 4_500);
+    return () => window.clearTimeout(timeout);
+  }, [result]);
+
   const submitCompany = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!user || !cui.trim() || !companyName.trim() || !agreementAccepted) return;
@@ -517,10 +523,16 @@ export default function TicketValidationPage() {
   return (
     <main className="min-h-screen pb-20 text-foreground">
       <div className="mx-auto max-w-5xl space-y-6 px-4 pt-7 sm:px-6 sm:pt-9">
-        <header className="space-y-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">{t("validation.eventAccess")}</p>
-          <h1 className="text-2xl font-bold sm:text-3xl">{t("validation.title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("validation.subtitle")}</p>
+        <header className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">{t("validation.eventAccess")}</p>
+            <h1 className="text-2xl font-bold sm:text-3xl">{t("validation.title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("validation.subtitle")}</p>
+          </div>
+          <span className={`mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${isOnline ? "border-primary/35 bg-primary/10 text-primary" : "border-amber-300/35 bg-amber-300/10 text-amber-200"}`}>
+            {isOnline ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+            {isOnline ? t("validation.online") : t("validation.offline")}
+          </span>
         </header>
 
         <section className="rounded-xl border border-primary/25 bg-primary/[0.04] p-5">
@@ -585,25 +597,46 @@ export default function TicketValidationPage() {
 
         <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
           <div className="flex items-start gap-3">
-            <ScanLine className="mt-0.5 h-5 w-5 text-primary" />
-            <div><h2 className="text-base font-semibold">{t("validation.verifyTicket")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("validation.ticketHint")}</p></div>
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><ScanLine className="h-5 w-5" /></div>
+            <div className="min-w-0"><h2 className="text-base font-semibold">{t("validation.verifyTicket")}</h2><p className="mt-1 text-sm text-muted-foreground">{selectedEvent ? selectedEvent.title : t("validation.ticketHint")}</p></div>
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/15 p-3">
-            <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-              {isOnline ? <Wifi className="h-4 w-4 shrink-0 text-primary" /> : <WifiOff className="h-4 w-4 shrink-0 text-amber-300" />}
-              <span>{isOnline ? t("validation.online") : t("validation.offline")}</span>
-              {offlineSnapshot && <span className="truncate text-foreground/80">{t("validation.offlineReady", { count: offlineSnapshot.ticketCount })}</span>}
-              {offlinePendingCount > 0 && <span className="font-semibold text-amber-200">{t("validation.offlinePending", { count: offlinePendingCount })}</span>}
+          <div className="mt-5 rounded-lg border border-primary/25 bg-primary/[0.04] p-4 sm:p-5">
+            <QrCameraScanner
+              disabled={!selectedEventId || validating}
+              onScan={(value) => void submitValidationHash(value)}
+              fullScreen
+              eventTitle={selectedEvent?.title}
+              isOnline={isOnline}
+              className="h-12 w-full rounded-lg border-0 bg-primary px-4 text-sm text-primary-foreground hover:bg-primary/90"
+            />
+            <p className="mt-3 text-center text-xs text-muted-foreground">{t("validation.cameraHint")}</p>
+          </div>
+
+          <details className="group mt-4 rounded-lg border border-white/10 bg-black/10">
+            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-muted-foreground transition hover:text-foreground">{t("validation.enterCodeManually")}</summary>
+            <form onSubmit={validateTicket} className="space-y-3 border-t border-white/10 p-4">
+              <textarea value={validationHash} onChange={(event) => setValidationHash(event.target.value)} rows={3} placeholder={t("validation.pasteQr")} className="w-full resize-none rounded-lg border border-white/15 bg-white/5 p-3 font-mono text-xs outline-none transition placeholder:font-sans placeholder:text-sm focus:border-primary/60" />
+              <button type="submit" disabled={!selectedEventId || !validationHash.trim() || validating} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-primary/35 bg-primary/10 px-4 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50 sm:w-auto">
+                {validating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
+                {validating ? t("scanner.validating") : t("scanner.validate")}
+              </button>
+            </form>
+          </details>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
+            <div className="min-w-0 text-xs text-muted-foreground">
+              {offlineSnapshot && <span>{t("validation.offlineReady", { count: offlineSnapshot.ticketCount })}</span>}
+              {offlinePendingCount > 0 && <span className="ml-2 font-semibold text-amber-200">{t("validation.offlinePending", { count: offlinePendingCount })}</span>}
+              {!offlineSnapshot && <span>{t("validation.offlineHint")}</span>}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               {offlineSnapshot && <button type="button" onClick={() => void removeOfflineData()} className="h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-muted-foreground transition hover:bg-white/5">{t("validation.offlineRemove")}</button>}
               <button type="button" onClick={() => void (offlinePendingCount ? syncOfflineScans() : prepareOffline())} disabled={!selectedEventId || !isOnline || preparingOffline || syncingOffline} className="inline-flex h-9 items-center gap-2 rounded-lg border border-primary/35 bg-primary/10 px-3 text-xs font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50">
                 {preparingOffline || syncingOffline ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : offlinePendingCount ? <RefreshCw className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
                 {offlinePendingCount ? t("validation.syncNow") : t("validation.prepareOffline")}
               </button>
             </div>
-            <p className="basis-full text-[11px] leading-4 text-muted-foreground">{t("validation.offlineHint")}</p>
           </div>
 
           {offlineConflicts.length > 0 && (
@@ -613,28 +646,6 @@ export default function TicketValidationPage() {
             </div>
           )}
 
-          <form onSubmit={validateTicket} className="mt-4 space-y-3">
-            <textarea value={validationHash} onChange={(event) => setValidationHash(event.target.value)} rows={3} placeholder={t("validation.pasteQr")} className="w-full resize-none rounded-lg border border-white/15 bg-white/5 p-3 font-mono text-xs outline-none transition placeholder:font-sans placeholder:text-sm focus:border-primary/60" />
-            <QrCameraScanner disabled={!selectedEventId || validating} onScan={(value) => void submitValidationHash(value)} />
-            <button type="submit" disabled={!selectedEventId || !validationHash.trim() || validating} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50 sm:w-auto">
-              {validating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
-              {validating ? t("scanner.validating") : t("scanner.validate")}
-            </button>
-          </form>
-
-          {result && (
-            <div className={`mt-5 flex gap-3 rounded-lg border p-4 ${result.status === "valid" || result.status === "offline_valid" ? "border-primary/30 bg-primary/10" : "border-amber-400/30 bg-amber-400/10"}`}>
-              {result.status === "valid" || result.status === "offline_valid" ? <CheckCircle2 className="mt-0.5 h-5 w-5 text-primary" /> : <XCircle className="mt-0.5 h-5 w-5 text-amber-300" />}
-              <div><p className="text-sm font-semibold">{
-                result.status === "valid" ? t("scanner.validTicket") :
-                result.status === "offline_valid" ? t("validation.offlineValid") :
-                result.status === "offline_duplicate" ? t("validation.offlineDuplicate") :
-                result.status === "offline_unknown" ? t("validation.offlineUnknown") :
-                result.status === "offline_expired" ? t("validation.offlineExpired") :
-                result.status === "offline_unprepared" ? t("validation.offlineUnprepared") : t("scanner.usedTicket")
-              }</p>{result.ticketType && <p className="mt-1 text-xs text-muted-foreground">{result.ticketType} - {result.eventTitle}</p>}</div>
-            </div>
-          )}
         </section>
 
         {selectedEvent?.canManage && (
@@ -715,6 +726,24 @@ export default function TicketValidationPage() {
         {notice && <p className="text-sm text-primary">{notice}</p>}
         {error && <p className="text-sm text-red-400">{error}</p>}
       </div>
+      {result && <ScannerResultToast result={result} />}
     </main>
   );
+
+  function ScannerResultToast({ result: scanResult }: { result: ScannerResult }) {
+    const accepted = scanResult.status === "valid" || scanResult.status === "offline_valid";
+    const title = scanResult.status === "valid" ? t("scanner.validTicket") :
+      scanResult.status === "offline_valid" ? t("validation.offlineValid") :
+      scanResult.status === "offline_duplicate" ? t("validation.offlineDuplicate") :
+      scanResult.status === "offline_unknown" ? t("validation.offlineUnknown") :
+      scanResult.status === "offline_expired" ? t("validation.offlineExpired") :
+      scanResult.status === "offline_unprepared" ? t("validation.offlineUnprepared") : t("scanner.usedTicket");
+
+    return <div role="status" className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[210] mx-auto max-w-md">
+      <div className={`flex gap-3 rounded-xl border p-4 shadow-2xl backdrop-blur-xl ${accepted ? "border-primary/35 bg-[#102212]/95" : "border-amber-300/35 bg-[#2a2110]/95"}`}>
+        {accepted ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" /> : <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />}
+        <div className="min-w-0"><p className="text-sm font-semibold">{title}</p>{scanResult.ticketType && <p className="mt-1 truncate text-xs text-white/65">{scanResult.ticketType} - {scanResult.eventTitle}</p>}</div>
+      </div>
+    </div>;
+  }
 }

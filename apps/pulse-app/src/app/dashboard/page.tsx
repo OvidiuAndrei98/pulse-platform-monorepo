@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Building2, Calendar, CheckCircle2, CreditCard, MapPin, Plus, QrCode, RefreshCw } from "lucide-react";
+import { Building2, Calendar, CheckCircle2, CreditCard, ExternalLink, MapPin, Plus, QrCode, RefreshCw } from "lucide-react";
 import { OrganizerProfile, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { formatEventDateShort } from "@/features/events/dateFormat";
@@ -51,6 +51,19 @@ export default function OrganizerDashboard() {
       window.location.assign(url);
     } catch {
       setError(t("dashboard.stripeSetupFailed"));
+      setStripeLoading(false);
+    }
+  };
+
+  const openStripeDashboard = async () => {
+    if (!user) return;
+    setStripeLoading(true);
+    setError("");
+    try {
+      const { url } = await user.createStripeDashboardLoginLink();
+      window.location.assign(url);
+    } catch {
+      setError(t("dashboard.stripeDashboardFailed"));
       setStripeLoading(false);
     }
   };
@@ -139,13 +152,37 @@ export default function OrganizerDashboard() {
                       <RefreshCw className={`h-4 w-4 ${stripeLoading ? "animate-spin" : ""}`} />
                     </button>
                   )}
+                  {profile?.stripeAccountId && (
+                    <button
+                      type="button"
+                      onClick={openStripeDashboard}
+                      disabled={stripeLoading}
+                      className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/15 px-3 text-xs font-semibold transition hover:bg-white/5 disabled:opacity-50"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      {t("dashboard.openStripeDashboard")}
+                    </button>
+                  )}
                   <button type="button" onClick={startStripeOnboarding} disabled={stripeLoading} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50">
                     <CreditCard className="h-4 w-4" />
                     {profile?.stripeAccountId ? t("dashboard.continueStripe") : t("dashboard.connectStripe")}
                   </button>
                 </div>
               )}
-              {stripeReady && <CheckCircle2 className="h-5 w-5 text-primary" />}
+              {stripeReady && (
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-primary" />
+                  <button
+                    type="button"
+                    onClick={openStripeDashboard}
+                    disabled={stripeLoading}
+                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/15 px-3 text-xs font-semibold transition hover:bg-white/5 disabled:opacity-50"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    {t("dashboard.openStripeDashboard")}
+                  </button>
+                </div>
+              )}
             </div>
           </section>
         )}

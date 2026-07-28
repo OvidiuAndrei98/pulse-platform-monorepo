@@ -147,6 +147,10 @@ export class User {
     return ApiClient.instance.get("/dashboard/stripe/status");
   }
 
+  async createStripeDashboardLoginLink(): Promise<{ url: string }> {
+    return ApiClient.instance.post("/dashboard/stripe/login-link");
+  }
+
   async getOrganizerFinance(): Promise<OrganizerFinanceEvent[]> {
     return ApiClient.instance.get("/dashboard/finance");
   }

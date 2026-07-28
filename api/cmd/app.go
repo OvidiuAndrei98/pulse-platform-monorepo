@@ -192,6 +192,7 @@ func (app *Application) BuildRouter() http.Handler {
 		StripeConnectWebhook:    stripeConnectWebhookHandler.HandleStripeConnectWebhook,
 		CreateStripeAccountLink: stripeConnectHandler.HandleCreateAccountLink,
 		GetStripeAccountStatus:  stripeConnectHandler.HandleGetAccountStatus,
+		CreateStripeLoginLink:   stripeConnectHandler.HandleCreateDashboardLoginLink,
 		GetEventSocial:          interactionsHandler.HandleGetEventSocial,
 		UpdateEventRsvp:         interactionsHandler.HandleUpdateEventRsvp,
 		DeleteEventRsvp:         interactionsHandler.HandleDeleteEventRsvp,

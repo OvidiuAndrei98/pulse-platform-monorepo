@@ -211,6 +211,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/stripe/login-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creeaza un link temporar catre Stripe Express Dashboard al organizatorului curent */
+        post: operations["DashboardOperations_createStripeLoginLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/stripe/status": {
         parameters: {
             query?: never;
@@ -1678,6 +1695,26 @@ export interface operations {
         };
     };
     DashboardOperations_createStripeAccountLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StripeAccountLinkResponse"];
+                };
+            };
+        };
+    };
+    DashboardOperations_createStripeLoginLink: {
         parameters: {
             query?: never;
             header?: never;

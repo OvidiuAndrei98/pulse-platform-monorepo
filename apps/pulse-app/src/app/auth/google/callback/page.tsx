@@ -1,18 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { LoaderCircle } from "lucide-react";
-import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
 
 export default function GoogleAuthCallbackPage() {
   const { t } = useTranslation();
-  const router = useRouter();
-  const { reloadSession } = useDataProvider();
   const [error, setError] = useState("");
+  const hasStarted = useRef(false);
 
   useEffect(() => {
+    if (hasStarted.current) return;
+    hasStarted.current = true;
+
     const complete = async () => {
       const params = new URLSearchParams(window.location.hash.slice(1));
       const token = params.get("token");
@@ -27,17 +27,13 @@ export default function GoogleAuthCallbackPage() {
       }
 
       localStorage.setItem("pulse_token", token);
-      try {
-        await reloadSession();
-        router.replace(safeReturnTo);
-      } catch {
-        localStorage.removeItem("pulse_token");
-        setError(t("auth.googleLoadFailed"));
-      }
+      window.location.replace(
+        getUserRoleFromToken(token) === "organizer" ? "/dashboard" : safeReturnTo,
+      );
     };
 
     void complete();
-  }, [reloadSession, router, t]);
+  }, [t]);
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-5 text-foreground">
@@ -53,4 +49,15 @@ export default function GoogleAuthCallbackPage() {
       </div>
     </main>
   );
+}
+
+function getUserRoleFromToken(token: string): string | undefined {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return undefined;
+    const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    return (JSON.parse(decoded) as { role?: string }).role;
+  } catch {
+    return undefined;
+  }
 }

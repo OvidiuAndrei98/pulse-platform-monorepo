@@ -139,6 +139,30 @@ func (h *ConnectHandler) HandleGetAccountStatus(w http.ResponseWriter, r *http.R
 	router.RespondWithJSON(w, http.StatusOK, organizer.MapOrganizerProfile(profile))
 }
 
+// HandleCreateDashboardLoginLink creates a short-lived, single-use Stripe Express
+// Dashboard link for the currently authenticated organizer.
+func (h *ConnectHandler) HandleCreateDashboardLoginLink(w http.ResponseWriter, r *http.Request) {
+	_, profile, ok := h.getVerifiedOrganizerProfile(w, r)
+	if !ok {
+		return
+	}
+
+	if !profile.StripeAccountID.Valid || profile.StripeAccountID.String == "" {
+		router.RespondWithError(w, http.StatusConflict, "Conecteaza mai intai contul Stripe")
+		return
+	}
+
+	link, err := h.client.V1LoginLinks.Create(r.Context(), &stripe.LoginLinkCreateParams{
+		Account: stripe.String(profile.StripeAccountID.String),
+	})
+	if err != nil {
+		router.RespondWithError(w, http.StatusBadGateway, "Dashboardul Stripe nu a putut fi deschis")
+		return
+	}
+
+	router.RespondWithJSON(w, http.StatusOK, ConnectAccountLinkResponse{URL: link.URL})
+}
+
 func (h *ConnectHandler) getVerifiedOrganizerProfile(w http.ResponseWriter, r *http.Request) (pgtype.UUID, db.OrganizerProfiles, bool) {
 	userIDString, err := auth.GetUserIDFromContext(r.Context())
 	if err != nil {

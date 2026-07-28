@@ -782,6 +782,11 @@ interface DashboardOperations {
   @route("/stripe/status")
   getStripeAccountStatus(): OrganizerProfile;
 
+  @summary("Creeaza un link temporar catre Stripe Express Dashboard al organizatorului curent")
+  @post
+  @route("/stripe/login-link")
+  createStripeLoginLink(): StripeAccountLinkResponse;
+
   @summary("Creare eveniment nou (doar Organizatori/Admini)")
   @post
   @route("/events")

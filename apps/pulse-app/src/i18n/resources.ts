@@ -328,6 +328,7 @@ export const resources = {
         startingCamera: "Starting camera...",
         stopCamera: "Stop camera",
         scanQr: "Scan QR",
+        cameraHint: "Align the ticket QR code inside the frame.",
       },
       ticketPdf: {
         preparingTitle: "Preparing ticket...",
@@ -483,6 +484,7 @@ export const resources = {
         overview: "Your company, earnings, and events at a glance.",
         paymentsStatusFailed: "The payment status could not be updated.",
         stripeSetupFailed: "Stripe setup could not be started.",
+        stripeDashboardFailed: "The Stripe Dashboard could not be opened.",
         companyMissing: "Company not set up",
         companyVerified: "Tax ID {{cui}} - verified",
         companyRequired:
@@ -498,6 +500,7 @@ export const resources = {
         refreshStripe: "Refresh Stripe status",
         continueStripe: "Continue Stripe",
         connectStripe: "Connect Stripe",
+        openStripeDashboard: "Open Stripe Dashboard",
         recentEvents: "Recent events",
         recentEventsHint: "Quick access to recently created events.",
         noEvents: "You have not created an event yet.",
@@ -607,6 +610,8 @@ export const resources = {
         verifyTicket: "Validate a ticket",
         ticketHint:
           "Choose an event and enter or paste the secure code from its QR.",
+        cameraHint: "The scanner opens full screen for a faster check-in.",
+        enterCodeManually: "Enter code manually",
         pasteQr: "Paste or enter the QR code",
         validationTeam: "Validation team",
         staffHint: "Added accounts can only validate tickets for {{event}}.",
@@ -1144,6 +1149,7 @@ export const resources = {
         startingCamera: "Se porneste camera...",
         stopCamera: "Opreste camera",
         scanQr: "Scaneaza QR",
+        cameraHint: "Aliniaza codul QR al biletului in interiorul chenarului.",
       },
       ticketPdf: {
         preparingTitle: "Se pregateste biletul...",
@@ -1305,6 +1311,7 @@ export const resources = {
         overview: "Starea firmei, a incasarilor si a evenimentelor tale.",
         paymentsStatusFailed: "Starea platilor nu a putut fi actualizata.",
         stripeSetupFailed: "Configurarea Stripe nu a putut fi pornita.",
+        stripeDashboardFailed: "Dashboardul Stripe nu a putut fi deschis.",
         companyMissing: "Firma nu este configurata",
         companyVerified: "CUI {{cui}} - verificat",
         companyRequired:
@@ -1320,6 +1327,7 @@ export const resources = {
         refreshStripe: "Actualizeaza starea Stripe",
         continueStripe: "Continua Stripe",
         connectStripe: "Conecteaza Stripe",
+        openStripeDashboard: "Deschide dashboardul Stripe",
         recentEvents: "Ultimele evenimente",
         recentEventsHint: "Acces rapid la evenimentele create recent.",
         noEvents: "Nu ai creat niciun eveniment inca.",
@@ -1432,6 +1440,8 @@ export const resources = {
         verifyTicket: "Verifica un bilet",
         ticketHint:
           "Alege evenimentul si introdu sau lipeste codul securizat din QR.",
+        cameraHint: "Scannerul se deschide pe tot ecranul pentru validare mai rapida.",
+        enterCodeManually: "Introdu codul manual",
         pasteQr: "Lipeste sau introdu codul QR",
         validationTeam: "Echipa de validare",
         staffHint:
