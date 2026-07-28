@@ -7,6 +7,7 @@ import { GlobalNotifications } from "@/components/GlobalNotifications";
 import { I18nProvider } from "@/components/I18nProvider";
 import { EventDetailsProvider } from "@/components/EventDetailsSheet";
 import { OfflineScannerServiceWorker } from "@/components/OfflineScannerServiceWorker";
+import { ToastProvider } from "@/components/ToastProvider";
 
 const inter = Inter({
   variable: "--font-inter-sans",
@@ -74,6 +75,7 @@ export default function RootLayout({
                 {modal}
               </EventDetailsProvider>
               <GlobalNotifications />
+              <ToastProvider />
               <BottomNav />
               <OfflineScannerServiceWorker />
             </DataProvider>

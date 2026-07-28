@@ -23,6 +23,7 @@ export type OrganizerFinanceEvent = ReadableSchema<"OrganizerFinanceEventRespons
 export type OrganizerProfile = ReadableSchema<"OrganizerProfile">;
 export type ValidationEvent = ReadableSchema<"ValidationEventResponse">;
 export type SocialFeedItem = ReadableSchema<"SocialFeedItemResponse">;
+export type OrganizerEventUpdate = ReadableSchema<"OrganizerEventUpdateResponse">;
 export type AppNotification = ReadableSchema<"NotificationResponse">;
 export type NotificationList = ReadableSchema<"NotificationListResponse">;
 
@@ -44,6 +45,63 @@ const socialFeedCache = new Map<string, CachedValue<SocialFeedItem[]>>();
 const socialFeedPromises = new Map<string, Promise<SocialFeedItem[]>>();
 const notificationCache = new Map<string, CachedValue<NotificationList>>();
 const notificationPromises = new Map<string, Promise<NotificationList>>();
+const eventUpdatesCache = new Map<string, CachedValue<OrganizerEventUpdate[]>>();
+const eventUpdatesPromises = new Map<string, Promise<OrganizerEventUpdate[]>>();
+const organizerUpdatesCache = new Map<string, CachedValue<OrganizerEventUpdate[]>>();
+const organizerUpdatesPromises = new Map<string, Promise<OrganizerEventUpdate[]>>();
+
+function markNotificationReadInList(
+  list: NotificationList,
+  notificationId: string,
+): NotificationList {
+  const notification = list.items.find((item) => item.id === notificationId);
+  if (!notification || notification.isRead) return list;
+
+  return {
+    ...list,
+    unreadCount: Math.max(0, list.unreadCount - 1),
+    items: list.items.map((item) =>
+      item.id === notificationId ? { ...item, isRead: true } : item,
+    ),
+  };
+}
+
+function useOrganizerUpdatesCache(
+  key: string,
+  getUpdates: (id: string) => Promise<OrganizerEventUpdate[]>,
+  cache: Map<string, CachedValue<OrganizerEventUpdate[]>>,
+): { updates: readonly OrganizerEventUpdate[]; updatesLoading: boolean } {
+  const cached = cache.get(key);
+  const [updates, setUpdates] = useState<readonly OrganizerEventUpdate[]>(
+    () => cached?.data ?? [],
+  );
+  const [updatesLoading, setUpdatesLoading] = useState(() => !cached);
+
+  useEffect(() => {
+    if (!key) {
+      setUpdates([]);
+      setUpdatesLoading(false);
+      return;
+    }
+    let active = true;
+    const current = cache.get(key);
+    setUpdates(current?.data ?? []);
+    if (current && Date.now() - current.timestamp < SOCIAL_CACHE_TTL) {
+      setUpdatesLoading(false);
+      return;
+    }
+    setUpdatesLoading(true);
+    getUpdates(key)
+      .then((data) => active && setUpdates(data))
+      .catch(() => active && setUpdates([]))
+      .finally(() => active && setUpdatesLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [cache, getUpdates, key]);
+
+  return { updates, updatesLoading };
+}
 
 export class User {
   /**
@@ -202,6 +260,19 @@ export class User {
             isRead: true,
           })),
         },
+        timestamp: Date.now(),
+      });
+    }
+  }
+
+  async markNotificationRead(notificationId: string): Promise<void> {
+    await ApiClient.instance.post("/notifications/{id}/read", {
+      params: { path: { id: notificationId } },
+    });
+    const cached = notificationCache.get(this._properties.id);
+    if (cached) {
+      notificationCache.set(this._properties.id, {
+        data: markNotificationReadInList(cached.data, notificationId),
         timestamp: Date.now(),
       });
     }
@@ -621,6 +692,33 @@ export class User {
     return { events, eventsLoading, eventsError };
   }
 
+  async uploadOrganizerUpdateImage(file: File): Promise<{ url: string }> {
+    return ApiClient.instance.uploadOrganizerUpdateImage(file);
+  }
+
+  async createEventUpdate(
+    eventId: string,
+    payload: WritableSchema<"CreateOrganizerEventUpdatePayload">,
+  ): Promise<OrganizerEventUpdate> {
+    const update = await ApiClient.instance.post("/dashboard/events/{id}/updates", {
+      params: { path: { id: eventId } },
+      body: payload,
+    });
+    eventUpdatesCache.delete(eventId);
+    organizerUpdatesCache.delete(this._properties.id);
+    socialFeedCache.clear();
+    return update;
+  }
+
+  async deleteEventUpdate(eventId: string, updateId: string): Promise<void> {
+    await ApiClient.instance.delete("/dashboard/events/{id}/updates/{updateId}", {
+      params: { path: { id: eventId, updateId } },
+    });
+    eventUpdatesCache.delete(eventId);
+    organizerUpdatesCache.delete(this._properties.id);
+    socialFeedCache.clear();
+  }
+
   static async getNotifications(
     viewerId: string,
     force = false,
@@ -654,6 +752,7 @@ export class User {
     notificationsLoading: boolean;
     notificationsError?: Error;
     refresh: () => Promise<void>;
+    markRead: (notificationId: string) => void;
   } {
     const viewerId = user?.properties.id;
     const cached = viewerId ? notificationCache.get(viewerId) : undefined;
@@ -721,12 +820,29 @@ export class User {
       };
     }, [user, viewerId]);
 
+    const markRead = (notificationId: string) => {
+      if (!user) return;
+      setData((current) => {
+        if (!current) return current;
+        const updated = markNotificationReadInList(current, notificationId);
+        notificationCache.set(user.properties.id, {
+          data: updated,
+          timestamp: Date.now(),
+        });
+        return updated;
+      });
+      void user.markNotificationRead(notificationId).catch(() => {
+        void refresh();
+      });
+    };
+
     return {
       notifications: data?.items ?? [],
       unreadCount: data?.unreadCount ?? 0,
       notificationsLoading,
       notificationsError,
       refresh,
+      markRead,
     };
   }
 
@@ -886,6 +1002,54 @@ export class User {
     }, [user, viewerId]);
 
     return { items, feedLoading, feedError };
+  }
+
+  static async getEventUpdates(eventId: string): Promise<OrganizerEventUpdate[]> {
+    const cached = eventUpdatesCache.get(eventId);
+    if (cached && Date.now() - cached.timestamp < SOCIAL_CACHE_TTL) return cached.data;
+    const pending = eventUpdatesPromises.get(eventId);
+    if (pending) return pending;
+    const request = ApiClient.instance
+      .get("/events/{id}/updates", { params: { path: { id: eventId } } })
+      .then((updates) => {
+        const data = updates as OrganizerEventUpdate[];
+        eventUpdatesCache.set(eventId, { data, timestamp: Date.now() });
+        return data;
+      })
+      .finally(() => eventUpdatesPromises.delete(eventId));
+    eventUpdatesPromises.set(eventId, request);
+    return request;
+  }
+
+  static async getOrganizerUpdates(organizerId: string): Promise<OrganizerEventUpdate[]> {
+    const cached = organizerUpdatesCache.get(organizerId);
+    if (cached && Date.now() - cached.timestamp < SOCIAL_CACHE_TTL) return cached.data;
+    const pending = organizerUpdatesPromises.get(organizerId);
+    if (pending) return pending;
+    const request = ApiClient.instance
+      .get("/organizers/{id}/updates", { params: { path: { id: organizerId } } })
+      .then((updates) => {
+        const data = updates as OrganizerEventUpdate[];
+        organizerUpdatesCache.set(organizerId, { data, timestamp: Date.now() });
+        return data;
+      })
+      .finally(() => organizerUpdatesPromises.delete(organizerId));
+    organizerUpdatesPromises.set(organizerId, request);
+    return request;
+  }
+
+  static useEventUpdates(eventId: string): {
+    updates: readonly OrganizerEventUpdate[];
+    updatesLoading: boolean;
+  } {
+    return useOrganizerUpdatesCache(eventId, User.getEventUpdates, eventUpdatesCache);
+  }
+
+  static useOrganizerUpdates(organizerId: string): {
+    updates: readonly OrganizerEventUpdate[];
+    updatesLoading: boolean;
+  } {
+    return useOrganizerUpdatesCache(organizerId, User.getOrganizerUpdates, organizerUpdatesCache);
   }
 
   static async getEventFriends(

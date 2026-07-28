@@ -15,6 +15,7 @@ import { EventBrowseCard } from "@/features/events/components/EventBrowseCard";
 import { EventViewToggle } from "@/features/events/components/EventViewToggle";
 import { getEventDateRange } from "@/features/events/dateFilters";
 import { Coordinates, EventFilters } from "@/features/events/types";
+import { EventCardSkeleton, PageLoadingState } from "@/components/ui/loading";
 
 const eventsFiltersStorageKey = "glow.events.filters";
 
@@ -25,7 +26,11 @@ const EventsMapLayout = dynamic(
     ),
   {
     ssr: false,
-    loading: () => <div className="h-dvh bg-black lg:h-[calc(100dvh-200px)]" />,
+    loading: () => (
+      <div className="h-dvh bg-black lg:h-[calc(100dvh-200px)]">
+        <PageLoadingState className="min-h-full" />
+      </div>
+    ),
   },
 );
 
@@ -69,7 +74,13 @@ function getStoredFilters(
 
 export default function EventsPage() {
   return (
-    <Suspense fallback={<div className="h-dvh bg-background" />}>
+    <Suspense
+      fallback={
+        <div className="h-dvh bg-background">
+          <PageLoadingState className="min-h-full" />
+        </div>
+      }
+    >
       <EventsPageContent />
     </Suspense>
   );
@@ -167,10 +178,7 @@ function EventsPageContent() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {eventsLoading
                   ? Array.from({ length: 6 }, (_, index) => (
-                      <div
-                        key={index}
-                        className="event-card h-56 animate-pulse border border-white/10 bg-white/[0.04]"
-                      />
+                      <EventCardSkeleton key={index} />
                     ))
                   : events.map((event) => (
                       <EventBrowseCard

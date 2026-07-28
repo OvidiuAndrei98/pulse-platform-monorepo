@@ -156,6 +156,16 @@ type EventScannerAccess struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type EventUpdates struct {
+	ID          pgtype.UUID        `json:"id"`
+	EventID     pgtype.UUID        `json:"event_id"`
+	OrganizerID pgtype.UUID        `json:"organizer_id"`
+	ImageUrl    string             `json:"image_url"`
+	Caption     pgtype.Text        `json:"caption"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+}
+
 type EventValidationStaff struct {
 	EventID   pgtype.UUID        `json:"event_id"`
 	UserID    pgtype.UUID        `json:"user_id"`

@@ -9,6 +9,7 @@ import { TicketQrCode } from "@/components/tickets/TicketQrCode";
 import { TicketPdfButton } from "@/components/tickets/TicketPdfButton";
 import { formatEventDate } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
+import { Skeleton } from "@/components/ui/loading";
 
 type UserTicket = ReadableSchema<"UserTicketResponse">;
 type UserOrder = ReadableSchema<"UserOrderResponse">;
@@ -64,8 +65,16 @@ export default function DashboardPurchasesPage() {
 
         {loading ? (
           <div className="mt-6 space-y-3">
-            <div className="h-24 animate-pulse rounded-lg border border-white/10 bg-white/[0.03]" />
-            <div className="h-24 animate-pulse rounded-lg border border-white/10 bg-white/[0.03]" />
+            {Array.from({ length: 3 }, (_, index) => (
+              <div
+                key={index}
+                className="space-y-3 rounded-lg border border-white/10 bg-white/[0.03] p-4"
+              >
+                <Skeleton className="h-4 w-2/5 rounded-full" />
+                <Skeleton className="h-3 w-4/5 rounded-full" />
+                <Skeleton className="h-3 w-1/3 rounded-full" />
+              </div>
+            ))}
           </div>
         ) : tab === "tickets" ? (
           <TicketsList tickets={tickets} onOpen={setOpenTicket} />

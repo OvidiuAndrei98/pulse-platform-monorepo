@@ -25,6 +25,7 @@ import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
 import { EventLineup } from "@/features/events/lineup/EventLineup";
 import { EventOrganizerProfile } from "@/components/EventOrganizerProfile";
+import { EventOrganizerUpdates } from "@/components/EventOrganizerUpdates";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import {
   calculateServiceFeeRon,
@@ -357,6 +358,8 @@ export function EventDetailsSheet({
             organizerId={event.organizerId}
             onOpen={viewOrganizerProfile}
           />
+
+          <EventOrganizerUpdates eventId={event.id} />
 
           <EventLineup artists={event.lineup} />
 

@@ -235,8 +235,41 @@ export class ApiClient {
       }
       throw new ApiError(
         response.status,
-        errorData.title || "Error",
-        errorData.detail,
+        errorData.error || errorData.title || "Error",
+        errorData.detail || errorData.error,
+      );
+    }
+
+    return response.json();
+  }
+
+  public async uploadOrganizerUpdateImage(file: File): Promise<{ url: string }> {
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      "Content-Type": file.type,
+    };
+
+    if (this.config.getAccessToken) {
+      const token = this.config.getAccessToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await fetch(
+      new URL(`${this.config.apiRoot}/dashboard/uploads/organizer-update`).toString(),
+      { method: "POST", headers, body: file },
+    );
+
+    if (!response.ok) {
+      let errorData: any = {};
+      try {
+        errorData = await response.json();
+      } catch {
+        errorData = { title: response.statusText };
+      }
+      throw new ApiError(
+        response.status,
+        errorData.error || errorData.title || "Error",
+        errorData.detail || errorData.error,
       );
     }
 

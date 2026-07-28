@@ -10,6 +10,7 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { TicketQrCode } from "@/components/tickets/TicketQrCode";
 import { formatEventDate } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
+import { Skeleton } from "@/components/ui/loading";
 
 type UserTicket = ReadableSchema<"UserTicketResponse">;
 type TicketTab = "active" | "used" | "expired";
@@ -90,7 +91,23 @@ export default function TicketsPage() {
       </div>
 
       {pending ? (
-        <div className="mt-6 h-56 animate-pulse rounded-lg border border-white/10 bg-white/[0.03]" />
+        <div className="mt-6 space-y-5">
+          {Array.from({ length: 2 }, (_, index) => (
+            <section
+              key={index}
+              className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.025]"
+            >
+              <div className="space-y-3 border-b border-white/10 p-4">
+                <Skeleton className="h-5 w-1/2 rounded-lg" />
+                <Skeleton className="h-3 w-4/5 rounded-full" />
+              </div>
+              <div className="space-y-3 p-4">
+                <Skeleton className="h-14 w-full rounded-lg" />
+                <Skeleton className="h-14 w-full rounded-lg" />
+              </div>
+            </section>
+          ))}
+        </div>
       ) : selectedTickets.length === 0 ? (
         <div className="mt-7 rounded-lg border border-dashed border-white/15 px-5 py-12 text-center">
           <Ticket className="mx-auto h-6 w-6 text-primary" />

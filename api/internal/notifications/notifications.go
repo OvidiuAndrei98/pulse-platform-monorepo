@@ -8,6 +8,7 @@ import (
 	"pulse-api/internal/common"
 	"pulse-api/internal/router"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -103,5 +104,29 @@ func (h *Handler) HandleMarkAllRead(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusInternalServerError, "Notificarile nu au putut fi actualizate")
 		return
 	}
+	router.RespondWithJSON(w, http.StatusOK, map[string]bool{"success": true})
+}
+
+func (h *Handler) HandleMarkRead(w http.ResponseWriter, r *http.Request) {
+	userID, ok := userIDFromRequest(r)
+	if !ok {
+		router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat")
+		return
+	}
+
+	var notificationID pgtype.UUID
+	if err := notificationID.Scan(chi.URLParam(r, "id")); err != nil || !notificationID.Valid {
+		router.RespondWithError(w, http.StatusBadRequest, "ID notificare invalid")
+		return
+	}
+
+	if err := h.Queries.MarkNotificationRead(r.Context(), db.MarkNotificationReadParams{
+		ID:     notificationID,
+		UserID: userID,
+	}); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Notificarea nu a putut fi actualizata")
+		return
+	}
+
 	router.RespondWithJSON(w, http.StatusOK, map[string]bool{"success": true})
 }

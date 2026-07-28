@@ -23,7 +23,7 @@ export function NotificationsPopover() {
   const { user } = useDataProvider();
   const { t } = useTranslation();
   const router = useRouter();
-  const { notifications, notificationsLoading } = User.useNotifications(user);
+  const { notifications, notificationsLoading, unreadCount, markRead } = User.useNotifications(user);
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -51,6 +51,7 @@ export function NotificationsPopover() {
   }, [open]);
 
   const openNotification = (notification: AppNotification) => {
+    if (!notification.isRead) markRead(notification.id);
     setOpen(false);
     if (notification.eventId) {
       router.push(`/events/${notification.eventId}`);
@@ -77,7 +78,7 @@ export function NotificationsPopover() {
               className="relative grid place-items-center"
             >
               <Bell className="h-4 w-4" strokeWidth={2.2} />
-              <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-primary" />
+              {unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-primary" />}
             </motion.span>
           </motion.button>
         )}

@@ -57,3 +57,8 @@ WHERE user_id = $1 AND read_at IS NULL;
 UPDATE notifications
 SET read_at = CURRENT_TIMESTAMP
 WHERE user_id = $1 AND read_at IS NULL;
+
+-- name: MarkNotificationRead :exec
+UPDATE notifications
+SET read_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND user_id = $2 AND read_at IS NULL;

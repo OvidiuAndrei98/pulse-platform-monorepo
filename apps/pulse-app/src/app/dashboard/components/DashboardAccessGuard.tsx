@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
+import { PageLoadingState } from "@/components/ui/loading";
 
 export function DashboardAccessGuard({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
@@ -48,7 +49,7 @@ export function DashboardAccessGuard({ children }: { children: React.ReactNode }
   }, [isOrganizer, loading, pathname, router, user]);
 
   if (loading || checkingAccess) {
-    return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">{t("dashboardNav.checkingAccess")}</div>;
+    return <PageLoadingState label={t("dashboardNav.checkingAccess")} className="min-h-screen" />;
   }
 
   return <>{children}</>;

@@ -132,7 +132,7 @@ model EventAttendeeResponse extends PublicProfileResponse {
 }
 
 model SocialFeedItemResponse {
-  activityType: "friend_ticket" | "friend_going" | "organizer_event";
+  activityType: "friend_ticket" | "friend_going" | "organizer_event" | "organizer_update";
   occurredAt: utcDateTime;
   actorId: string;
   actorUsername: string;
@@ -142,6 +142,25 @@ model SocialFeedItemResponse {
   eventBannerUrl?: string;
   eventStartTime: utcDateTime;
   organizerName?: string;
+  organizerUpdateId?: string;
+  organizerUpdateImageUrl?: string;
+  organizerUpdateCaption?: string;
+}
+
+model OrganizerEventUpdateResponse {
+  id: string;
+  eventId: string;
+  organizerId: string;
+  eventTitle: string;
+  imageUrl: string;
+  caption?: string;
+  createdAt: utcDateTime;
+  expiresAt: utcDateTime;
+}
+
+model CreateOrganizerEventUpdatePayload {
+  imageUrl: string;
+  caption?: string;
 }
 
 model NotificationResponse {
@@ -559,6 +578,12 @@ interface NotificationOperations {
   markAllRead(): {
     success: boolean;
   };
+
+  @post
+  @route("/{id}/read")
+  markRead(@path id: string): {
+    success: boolean;
+  };
 }
 
 @route("/profiles")
@@ -744,6 +769,20 @@ interface OrganizerSocialOperations {
   };
 }
 
+@route("/organizers")
+interface OrganizerUpdatePublicOperations {
+  @get
+  @route("/{id}/updates")
+  listActiveUpdates(@path id: string): OrganizerEventUpdateResponse[];
+}
+
+@route("/events")
+interface EventUpdatePublicOperations {
+  @get
+  @route("/{id}/updates")
+  listActiveUpdates(@path id: string): OrganizerEventUpdateResponse[];
+}
+
 @route("/feed")
 interface FeedOperations {
   @get
@@ -814,6 +853,26 @@ interface DashboardOperations {
   @route("/events/{id}")
   @summary("Șterge un eveniment (doar Organizatori/Admini)")
   deleteEvent(@path id: string): {
+    @statusCode statusCode: 204;
+  };
+
+  @get
+  @route("/events/{id}/updates")
+  getEventUpdates(@path id: string): OrganizerEventUpdateResponse[];
+
+  @post
+  @route("/events/{id}/updates")
+  createEventUpdate(
+    @path id: string,
+    @body payload: CreateOrganizerEventUpdatePayload,
+  ): {
+    @statusCode statusCode: 201;
+    @body response: OrganizerEventUpdateResponse;
+  };
+
+  @delete
+  @route("/events/{id}/updates/{updateId}")
+  deleteEventUpdate(@path id: string, @path updateId: string): {
     @statusCode statusCode: 204;
   };
 

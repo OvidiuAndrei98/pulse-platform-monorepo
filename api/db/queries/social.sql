@@ -95,7 +95,9 @@ WITH friend_ids AS (
            MAX(o.created_at) AS occurred_at,
            u.id AS actor_id, u.username AS actor_username, u.avatar_url AS actor_avatar_url,
            e.id AS event_id, e.title AS event_title, e.banner_url AS event_banner_url,
-           e.start_time AS event_start_time, ''::text AS organizer_name
+           e.start_time AS event_start_time, ''::text AS organizer_name,
+           NULL::uuid AS organizer_update_id, ''::text AS organizer_update_image_url,
+           ''::text AS organizer_update_caption
     FROM tickets t
     JOIN orders o ON o.id = t.order_id AND o.status = 'completed'
     JOIN ticket_types tt ON tt.id = t.ticket_type_id
@@ -110,7 +112,9 @@ WITH friend_ids AS (
            r.updated_at AS occurred_at,
            u.id AS actor_id, u.username AS actor_username, u.avatar_url AS actor_avatar_url,
            e.id AS event_id, e.title AS event_title, e.banner_url AS event_banner_url,
-           e.start_time AS event_start_time, ''::text AS organizer_name
+           e.start_time AS event_start_time, ''::text AS organizer_name,
+           NULL::uuid AS organizer_update_id, ''::text AS organizer_update_image_url,
+           ''::text AS organizer_update_caption
     FROM event_rsvps r
     JOIN users u ON u.id = r.user_id AND u.show_attendance_publicly = TRUE
     JOIN events e ON e.id = r.event_id
@@ -130,9 +134,28 @@ WITH friend_ids AS (
            e.created_at AS occurred_at,
            u.id AS actor_id, u.username AS actor_username, u.avatar_url AS actor_avatar_url,
            e.id AS event_id, e.title AS event_title, e.banner_url AS event_banner_url,
-           e.start_time AS event_start_time, op.company_name AS organizer_name
+           e.start_time AS event_start_time, op.company_name AS organizer_name,
+           NULL::uuid AS organizer_update_id, ''::text AS organizer_update_image_url,
+           ''::text AS organizer_update_caption
     FROM organizer_follows follows
     JOIN events e ON e.organizer_id = follows.organizer_id AND e.status = 'published'
+    JOIN users u ON u.id = follows.organizer_id
+    LEFT JOIN organizer_profiles op ON op.user_id = u.id
+    WHERE follows.follower_id = $1
+
+    UNION ALL
+
+    SELECT 'organizer_update'::text AS activity_type,
+           eu.created_at AS occurred_at,
+           u.id AS actor_id, u.username AS actor_username, u.avatar_url AS actor_avatar_url,
+           e.id AS event_id, e.title AS event_title, e.banner_url AS event_banner_url,
+           e.start_time AS event_start_time, op.company_name AS organizer_name,
+           eu.id AS organizer_update_id, eu.image_url AS organizer_update_image_url,
+           COALESCE(eu.caption, '')::text AS organizer_update_caption
+    FROM organizer_follows follows
+    JOIN event_updates eu ON eu.organizer_id = follows.organizer_id
+        AND eu.expires_at > CURRENT_TIMESTAMP
+    JOIN events e ON e.id = eu.event_id AND e.status = 'published'
     JOIN users u ON u.id = follows.organizer_id
     LEFT JOIN organizer_profiles op ON op.user_id = u.id
     WHERE follows.follower_id = $1

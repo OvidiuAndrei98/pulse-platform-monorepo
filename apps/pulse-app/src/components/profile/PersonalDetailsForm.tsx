@@ -2,15 +2,16 @@
 
 import { Check, Loader2 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
-import { User } from "@/core/DataProvider";
+import { User, UserData } from "@/core/DataProvider";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 export function PersonalDetailsForm({
   user,
   onSaved,
 }: {
   user: User;
-  onSaved?: () => Promise<void> | void;
+  onSaved?: (updatedUser: UserData) => Promise<void> | void;
 }) {
   const { t } = useTranslation();
   const [username, setUsername] = useState(user.properties.username);
@@ -27,19 +28,28 @@ export function PersonalDetailsForm({
     event.preventDefault();
     const trimmedUsername = username.trim();
     if (trimmedUsername.length < 3) {
-      setError(t("profile.displayNameTooShort"));
+      const message = t("profile.displayNameTooShort");
+      setError(message);
+      toast.error(message);
       return;
     }
 
     setState("saving");
     setError(undefined);
     try {
-      await user.updateProfile({ username: trimmedUsername, bio: bio.trim() });
-      await onSaved?.();
+      const updatedUser = await user.updateProfile({
+        username: trimmedUsername,
+        bio: bio.trim(),
+      });
+      await onSaved?.(updatedUser);
       setState("saved");
+      toast.success(t("profile.updateSuccess"));
       window.setTimeout(() => setState("idle"), 1600);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t("profile.updateFailed"));
+      const message =
+        cause instanceof Error ? cause.message : t("profile.updateFailed");
+      setError(message);
+      toast.error(message);
       setState("idle");
     }
   };

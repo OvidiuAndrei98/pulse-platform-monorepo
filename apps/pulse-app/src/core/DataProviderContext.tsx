@@ -16,6 +16,7 @@ import {
   clearAllOfflineValidationData,
   hasPreparedOfflineValidationForUser,
 } from "@/features/tickets/offlineValidationStore";
+import { PageLoadingState } from "@/components/ui/loading";
 
 const offlineSessionKey = "pulse_offline_session";
 
@@ -67,6 +68,7 @@ interface DataProviderContextProps {
   logout: () => void;
   getToken: () => string | null;
   reloadSession: () => Promise<void>;
+  updateSessionUser: (updatedUser: UserData) => void;
 }
 
 const DataProviderContext = createContext<DataProviderContextProps | undefined>(
@@ -158,8 +160,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         await initializeSession();
       } catch (err) {
-        setError(err instanceof Error ? err : new Error(t("common.loginFailed")));
+        const loginError =
+          err instanceof Error ? err : new Error(t("common.loginFailed"));
+        setError(loginError);
         setLoading(false);
+        throw loginError;
       }
     },
     [initializeSession, t],
@@ -179,6 +184,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const getToken = useCallback((): string | null => {
     return getStoredToken();
+  }, []);
+
+  const updateSessionUser = useCallback((updatedUser: UserData) => {
+    setUser(new User(updatedUser));
+    storeOfflineSession(updatedUser);
   }, []);
 
   const register = useCallback(
@@ -209,6 +219,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       getToken,
       register,
       reloadSession: initializeSession,
+      updateSessionUser,
     }),
     [
       user,
@@ -219,15 +230,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       getToken,
       register,
       initializeSession,
+      updateSessionUser,
     ],
   );
 
   if (isProtectedRoute && loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <span>{t("common.loading")}</span>
-      </div>
-    );
+    return <PageLoadingState label={t("common.loading")} className="min-h-screen" />;
   }
 
   return (

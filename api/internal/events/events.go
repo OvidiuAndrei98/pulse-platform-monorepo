@@ -374,8 +374,47 @@ func (h *Handler) HandleDeleteEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.Queries.DeleteEvent(r.Context(), eventUUID); err != nil {
+	tx, err := h.DB.Begin(r.Context())
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la pornirea tranzactiei")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	qtx := h.Queries.WithTx(tx)
+	completedOrders, err := qtx.CountCompletedOrdersForEvent(r.Context(), eventUUID)
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Vanzarile evenimentului nu au putut fi verificate")
+		return
+	}
+	if completedOrders > 0 {
+		router.RespondWithError(w, http.StatusConflict, "Evenimentele cu bilete vandute nu pot fi sterse")
+		return
+	}
+
+	orders, err := qtx.CountEventOrders(r.Context(), eventUUID)
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Comenzile evenimentului nu au putut fi verificate")
+		return
+	}
+	if orders > 0 {
+		router.RespondWithError(w, http.StatusConflict, "Evenimentul are comenzi de bilete si nu poate fi sters")
+		return
+	}
+
+	if existingEvent.Status == "published" {
+		if err := qtx.SetEventStatus(r.Context(), db.SetEventStatusParams{ID: eventUUID, Status: "draft"}); err != nil {
+			router.RespondWithError(w, http.StatusInternalServerError, "Evenimentul nu a putut fi mutat in draft inainte de stergere")
+			return
+		}
+	}
+
+	if err := qtx.DeleteEvent(r.Context(), eventUUID); err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la ștergerea evenimentului")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la finalizarea stergerii evenimentului")
 		return
 	}
 	if err := deleteManagedEventBanner(r.Context(), existingEvent.BannerUrl.String); err != nil {

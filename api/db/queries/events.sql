@@ -328,6 +328,21 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 -- name: DeleteEvent :exec
 DELETE FROM events WHERE id = $1;
 
+-- name: CountCompletedOrdersForEvent :one
+SELECT COUNT(*)::bigint
+FROM orders
+WHERE event_id = $1 AND status = 'completed';
+
+-- name: CountEventOrders :one
+SELECT COUNT(*)::bigint
+FROM orders
+WHERE event_id = $1;
+
+-- name: SetEventStatus :exec
+UPDATE events
+SET status = $2
+WHERE id = $1;
+
 -- name: GetCommentsForEvent :many
 SELECT c.id, c.content, c.created_at, u.username, u.avatar_url
 FROM comments c

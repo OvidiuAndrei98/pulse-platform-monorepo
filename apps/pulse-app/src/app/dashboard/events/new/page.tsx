@@ -6,6 +6,8 @@ import { ArrowLeft } from "lucide-react";
 import { CreateEventPayload } from "@/core/DataProvider";
 import EventForm from "../../components/EventsForm";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 interface DraftTicket {
   startSales: string;
@@ -18,6 +20,7 @@ interface DraftTicket {
 
 export default function NewEventPage() {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const { user } = useDataProvider();
 
@@ -26,12 +29,15 @@ export default function NewEventPage() {
     data: Omit<CreateEventPayload, "status"> & { ticketTypes: DraftTicket[] },
   ) => {
     try {
-      await user?.handleCreateEvent({
+      if (!user) return;
+      await user.handleCreateEvent({
         ...data,
         status: status,
       });
+      toast.success(t("eventForm.eventCreated"));
       router.push("/dashboard/events");
     } catch (error) {
+      toast.error(t("eventForm.eventCreateFailed"));
       console.error("Eroare la salvarea evenimentului:", error);
     }
   };
@@ -48,7 +54,7 @@ export default function NewEventPage() {
 
         <div className="mt-4 flex items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            {"Eveniment nou"}
+            {t("eventForm.createEvent")}
           </h1>
         </div>
 

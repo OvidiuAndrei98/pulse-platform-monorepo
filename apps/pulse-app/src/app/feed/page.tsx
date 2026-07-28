@@ -24,13 +24,16 @@ const INITIAL_VISIBLE_ITEMS = 8;
 const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 type FeedGroup = {
-  kind: "friends" | "organizer";
+  kind: "friends" | "organizer" | "update";
   eventId: string;
   eventTitle: string;
   eventBannerUrl?: string;
   eventStartTime: string;
   occurredAt: string;
   organizerName?: string;
+  organizerUpdateId?: string;
+  organizerUpdateImageUrl?: string;
+  organizerUpdateCaption?: string;
   actors: SocialFeedItem[];
   ticketActors: SocialFeedItem[];
   goingActors: SocialFeedItem[];
@@ -91,6 +94,7 @@ export default function FeedPage() {
           .filter(
             (item) =>
               item.activityType !== "organizer_event" &&
+              item.activityType !== "organizer_update" &&
               Date.now() - new Date(item.occurredAt).getTime() <
                 ACTIVITY_WINDOW_MS,
           )
@@ -330,7 +334,9 @@ function FeedCard({ item }: { item: FeedGroup }) {
   const primaryActor = item.actors[0];
   const actorSummary = actorLabel(item.actors, t);
   const copy =
-    item.kind === "organizer"
+    item.kind === "update"
+      ? t("feed.publishedUpdate")
+      : item.kind === "organizer"
       ? t("feed.publishedEvent")
       : item.ticketActors.length > 0 && item.goingActors.length > 0
         ? t("feed.gettingReady")
@@ -358,7 +364,7 @@ function FeedCard({ item }: { item: FeedGroup }) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs leading-tight">
             <span className="font-semibold">
-              {item.kind === "organizer"
+              {item.kind === "organizer" || item.kind === "update"
                 ? item.organizerName || primaryActor.actorUsername
                 : actorSummary}
             </span>{" "}
@@ -371,6 +377,12 @@ function FeedCard({ item }: { item: FeedGroup }) {
           >
             {item.eventTitle}
           </Link>
+
+          {item.kind === "update" && item.organizerUpdateCaption && (
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+              {item.organizerUpdateCaption}
+            </p>
+          )}
 
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1 font-medium">
@@ -391,6 +403,12 @@ function FeedCard({ item }: { item: FeedGroup }) {
         </div>
       </div>
 
+      {item.kind === "update" && item.organizerUpdateImageUrl && (
+        <Link href={`/events/${item.eventId}`} className="order-first h-20 w-full shrink-0 overflow-hidden sm:order-none sm:w-28">
+          <img src={item.organizerUpdateImageUrl} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+        </Link>
+      )}
+
       {/* Buton Bilet */}
       <div className="flex shrink-0 items-center justify-end sm:pl-2">
         <Link
@@ -409,9 +427,15 @@ function groupFeedItems(items: readonly SocialFeedItem[]): FeedGroup[] {
   const canonicalFriends = new Map<string, SocialFeedItem>();
   const organizerItems: SocialFeedItem[] = [];
 
+  const updateItems: SocialFeedItem[] = [];
+
   for (const item of items) {
     if (item.activityType === "organizer_event") {
       organizerItems.push(item);
+      continue;
+    }
+    if (item.activityType === "organizer_update") {
+      updateItems.push(item);
       continue;
     }
 
@@ -452,6 +476,13 @@ function groupFeedItems(items: readonly SocialFeedItem[]): FeedGroup[] {
     groups.set(key, group);
   }
 
+  for (const item of updateItems) {
+    const key = `update:${item.organizerUpdateId}`;
+    const group = createGroup("update", item);
+    group.actors.push(item);
+    groups.set(key, group);
+  }
+
   return [...groups.values()]
     .map((group) => ({
       ...group,
@@ -475,6 +506,9 @@ function createGroup(kind: FeedGroup["kind"], item: SocialFeedItem): FeedGroup {
     eventStartTime: item.eventStartTime,
     occurredAt: item.occurredAt,
     organizerName: item.organizerName,
+    organizerUpdateId: item.organizerUpdateId,
+    organizerUpdateImageUrl: item.organizerUpdateImageUrl,
+    organizerUpdateCaption: item.organizerUpdateCaption,
     actors: [],
     ticketActors: [],
     goingActors: [],

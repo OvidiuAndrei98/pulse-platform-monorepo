@@ -24,6 +24,7 @@ import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
 import { EventLineup } from "@/features/events/lineup/EventLineup";
 import { EventOrganizerProfile } from "@/components/EventOrganizerProfile";
+import { EventOrganizerUpdates } from "@/components/EventOrganizerUpdates";
 import { ApiClient } from "@packages/api-client/src/Client";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { calculateServiceFeeRon, formatRon } from "@/features/events/serviceFee";
@@ -32,6 +33,7 @@ import {
   formatEventTime,
 } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
+import { EventDetailsSkeleton } from "@/components/ui/loading";
 
 export default function EventStandalonePage() {
   const { user } = useDataProvider();
@@ -65,7 +67,7 @@ export default function EventStandalonePage() {
     fetchEvent();
   }, [params.id]);
 
-  if (loading) return <div className="min-h-screen bg-background" />;
+  if (loading) return <EventDetailsSkeleton label={t("common.loading")} />;
   if (!event) notFound();
 
   const formattedDate = formatEventDate(event.startTime);
@@ -239,6 +241,7 @@ export default function EventStandalonePage() {
 
         <div className="pt-7 sm:pt-8">
           <EventOrganizerProfile organizerId={event.organizerId} />
+          <EventOrganizerUpdates eventId={event.id} />
         </div>
 
         <EventLineup artists={event.lineup} />

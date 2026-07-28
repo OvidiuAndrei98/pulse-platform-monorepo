@@ -13,7 +13,7 @@ import { useTranslation } from "react-i18next";
 
 export default function ProfilePage() {
   const { t } = useTranslation();
-  const { user, reloadSession } = useDataProvider();
+  const { user, updateSessionUser } = useDataProvider();
   const [organizerProfile, setOrganizerProfile] = useState<OrganizerProfile>();
   const [profileLoading, setProfileLoading] = useState(true);
 
@@ -62,7 +62,7 @@ export default function ProfilePage() {
               <ProfileAvatarUpload
                 user={user}
                 size="medium"
-                onUploaded={() => void reloadSession()}
+                onUploaded={updateSessionUser}
               />
             ) : (
               <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
@@ -113,7 +113,7 @@ export default function ProfilePage() {
               icon={UserIcon}
             >
               {user && (
-                <PersonalDetailsForm user={user} onSaved={reloadSession} />
+                <PersonalDetailsForm user={user} onSaved={updateSessionUser} />
               )}
             </Section>
             <Section

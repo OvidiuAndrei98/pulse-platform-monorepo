@@ -1,4 +1,5 @@
 import { AlertTriangle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export function DeleteEventDialog({
   onCancel,
@@ -7,6 +8,8 @@ export function DeleteEventDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 animate-in fade-in duration-200 md:bg-black/70 md:backdrop-blur-sm transform-gpu">
       <div className="w-full max-w-sm space-y-4 rounded-3xl border border-white/10 bg-neutral-900 p-6 shadow-2xl">
@@ -15,12 +18,11 @@ export function DeleteEventDialog({
             <AlertTriangle className="h-6 w-6" />
           </div>
           <h3 className="text-lg font-semibold text-white">
-            Stergi evenimentul?
+            {t("eventForm.deleteDialogTitle")}
           </h3>
         </div>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Aceasta actiune este ireversibila si va elimina toate datele si
-          biletele asociate.
+          {t("eventForm.deleteDialogHint")}
         </p>
         <div className="flex gap-2 pt-2">
           <button
@@ -28,14 +30,14 @@ export function DeleteEventDialog({
             onClick={onCancel}
             className="flex-1 rounded-full border border-white/10 bg-white/5 py-2.5 text-xs font-semibold text-white transition hover:bg-white/10 active:scale-95"
           >
-            Anuleaza
+            {t("common.cancel")}
           </button>
           <button
             type="button"
             onClick={onConfirm}
             className="flex-1 rounded-full bg-red-600 py-2.5 text-xs font-semibold text-white transition hover:bg-red-700 active:scale-95"
           >
-            Da, sterge
+            {t("eventForm.confirmDelete")}
           </button>
         </div>
       </div>

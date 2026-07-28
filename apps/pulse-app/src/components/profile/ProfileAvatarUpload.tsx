@@ -2,8 +2,9 @@
 
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { Camera, Loader2, UserRound } from "lucide-react";
-import type { User as PulseUser } from "@/core/DataProvider";
+import type { User as PulseUser, UserData } from "@/core/DataProvider";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 
@@ -11,7 +12,7 @@ type ProfileAvatarUploadProps = {
   user: PulseUser;
   size?: "large" | "medium";
   showBadge?: boolean;
-  onUploaded?: () => void;
+  onUploaded?: (updatedUser: UserData) => Promise<void> | void;
 };
 
 export function ProfileAvatarUpload({
@@ -50,9 +51,12 @@ export function ProfileAvatarUpload({
     try {
       const updatedUser = await user.uploadAvatar(file);
       setAvatarUrl(updatedUser.avatarUrl);
-      onUploaded?.();
+      await onUploaded?.(updatedUser);
+      toast.success(t("profile.avatarUpdated"));
     } catch {
-      setError(t("profile.imageUploadFailed"));
+      const message = t("profile.imageUploadFailed");
+      setError(message);
+      toast.error(message);
     } finally {
       setUploading(false);
     }

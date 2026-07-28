@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, ClipboardCheck, Loader2, MapPin, ScanLine, ShieldAlert, Ticket, XCircle } from "lucide-react";
 import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
 import { useTranslation } from "react-i18next";
+import { PageLoadingState } from "@/components/ui/loading";
 
 type ScannerSession = {
   sessionToken: string;
@@ -114,7 +115,7 @@ export default function ScanPage() {
   };
 
   if (loading) {
-    return <main className="grid min-h-screen place-items-center bg-background text-foreground"><Loader2 className="h-6 w-6 animate-spin text-primary" /></main>;
+    return <PageLoadingState label={t("common.loading")} className="min-h-screen" />;
   }
 
   if (!session) {

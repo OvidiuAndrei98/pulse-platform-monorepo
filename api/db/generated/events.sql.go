@@ -11,6 +11,32 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countCompletedOrdersForEvent = `-- name: CountCompletedOrdersForEvent :one
+SELECT COUNT(*)::bigint
+FROM orders
+WHERE event_id = $1 AND status = 'completed'
+`
+
+func (q *Queries) CountCompletedOrdersForEvent(ctx context.Context, eventID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countCompletedOrdersForEvent, eventID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const countEventOrders = `-- name: CountEventOrders :one
+SELECT COUNT(*)::bigint
+FROM orders
+WHERE event_id = $1
+`
+
+func (q *Queries) CountEventOrders(ctx context.Context, eventID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countEventOrders, eventID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createEvent = `-- name: CreateEvent :one
 INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, organizer_absorbs_service_fee, latitude, longitude, start_time, end_time)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
@@ -980,4 +1006,20 @@ func (q *Queries) ListEventsWithStats(ctx context.Context, organizerID pgtype.UU
 		return nil, err
 	}
 	return items, nil
+}
+
+const setEventStatus = `-- name: SetEventStatus :exec
+UPDATE events
+SET status = $2
+WHERE id = $1
+`
+
+type SetEventStatusParams struct {
+	ID     pgtype.UUID `json:"id"`
+	Status string      `json:"status"`
+}
+
+func (q *Queries) SetEventStatus(ctx context.Context, arg SetEventStatusParams) error {
+	_, err := q.db.Exec(ctx, setEventStatus, arg.ID, arg.Status)
+	return err
 }

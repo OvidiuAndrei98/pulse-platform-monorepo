@@ -126,6 +126,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/events/{id}/updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DashboardOperations_getEventUpdates"];
+        put?: never;
+        post: operations["DashboardOperations_createEventUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/events/{id}/updates/{updateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["DashboardOperations_deleteEventUpdate"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/finance": {
         parameters: {
             query?: never;
@@ -546,6 +578,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{id}/updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["EventUpdatePublicOperations_listActiveUpdates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/feed": {
         parameters: {
             query?: never;
@@ -673,6 +721,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["NotificationOperations_markAllRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["NotificationOperations_markRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizers/{id}/updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["OrganizerUpdatePublicOperations_listActiveUpdates"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -944,6 +1024,10 @@ export interface components {
             ticketTypes?: components["schemas"]["CreateTicketTypePayload"][];
             lineup?: components["schemas"]["ArtistInput"][];
         };
+        CreateOrganizerEventUpdatePayload: {
+            imageUrl: string;
+            caption?: string;
+        };
         CreateScannerAccessPayload: {
             label: string;
             /** Format: date-time */
@@ -1094,6 +1178,18 @@ export interface components {
             ticketCount: number;
             tickets: components["schemas"]["OfflineTicketSnapshot"][];
         };
+        OrganizerEventUpdateResponse: {
+            id: string;
+            eventId: string;
+            organizerId: string;
+            eventTitle: string;
+            imageUrl: string;
+            caption?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
         OrganizerFinanceEventResponse: {
             eventId: string;
             eventTitle: string;
@@ -1175,7 +1271,7 @@ export interface components {
         };
         SocialFeedItemResponse: {
             /** @enum {string} */
-            activityType: "friend_ticket" | "friend_going" | "organizer_event";
+            activityType: "friend_ticket" | "friend_going" | "organizer_event" | "organizer_update";
             /** Format: date-time */
             occurredAt: string;
             actorId: string;
@@ -1187,6 +1283,9 @@ export interface components {
             /** Format: date-time */
             eventStartTime: string;
             organizerName?: string;
+            organizerUpdateId?: string;
+            organizerUpdateImageUrl?: string;
+            organizerUpdateCaption?: string;
         };
         SpotifyArtistResponse: {
             id: string;
@@ -1601,6 +1700,75 @@ export interface operations {
                         status: "success";
                     };
                 };
+            };
+        };
+    };
+    DashboardOperations_getEventUpdates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizerEventUpdateResponse"][];
+                };
+            };
+        };
+    };
+    DashboardOperations_createEventUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOrganizerEventUpdatePayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded and a new resource has been created as a result. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizerEventUpdateResponse"];
+                };
+            };
+        };
+    };
+    DashboardOperations_deleteEventUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                updateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -2416,6 +2584,28 @@ export interface operations {
             };
         };
     };
+    EventUpdatePublicOperations_listActiveUpdates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizerEventUpdateResponse"][];
+                };
+            };
+        };
+    };
     FeedOperations_list: {
         parameters: {
             query?: never;
@@ -2611,6 +2801,52 @@ export interface operations {
                     "application/json": {
                         success: boolean;
                     };
+                };
+            };
+        };
+    };
+    NotificationOperations_markRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        success: boolean;
+                    };
+                };
+            };
+        };
+    };
+    OrganizerUpdatePublicOperations_listActiveUpdates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizerEventUpdateResponse"][];
                 };
             };
         };

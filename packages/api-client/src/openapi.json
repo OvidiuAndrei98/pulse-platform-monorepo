@@ -311,6 +311,99 @@
         }
       }
     },
+    "/dashboard/events/{id}/updates": {
+      "get": {
+        "operationId": "DashboardOperations_getEventUpdates",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizerEventUpdateResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "DashboardOperations_createEventUpdate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The request has succeeded and a new resource has been created as a result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizerEventUpdateResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrganizerEventUpdatePayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/events/{id}/updates/{updateId}": {
+      "delete": {
+        "operationId": "DashboardOperations_deleteEventUpdate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "updateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      }
+    },
     "/dashboard/finance": {
       "get": {
         "operationId": "DashboardOperations_getFinance",
@@ -1432,6 +1525,36 @@
         }
       }
     },
+    "/events/{id}/updates": {
+      "get": {
+        "operationId": "EventUpdatePublicOperations_listActiveUpdates",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizerEventUpdateResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/feed": {
       "get": {
         "operationId": "FeedOperations_list",
@@ -1673,6 +1796,71 @@
                   "required": [
                     "success"
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/{id}/read": {
+      "post": {
+        "operationId": "NotificationOperations_markRead",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizers/{id}/updates": {
+      "get": {
+        "operationId": "OrganizerUpdatePublicOperations_listActiveUpdates",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizerEventUpdateResponse"
+                  }
                 }
               }
             }
@@ -2368,6 +2556,20 @@
           }
         }
       },
+      "CreateOrganizerEventUpdatePayload": {
+        "type": "object",
+        "required": [
+          "imageUrl"
+        ],
+        "properties": {
+          "imageUrl": {
+            "type": "string"
+          },
+          "caption": {
+            "type": "string"
+          }
+        }
+      },
       "CreateScannerAccessPayload": {
         "type": "object",
         "required": [
@@ -2875,6 +3077,46 @@
           }
         }
       },
+      "OrganizerEventUpdateResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "eventId",
+          "organizerId",
+          "eventTitle",
+          "imageUrl",
+          "createdAt",
+          "expiresAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "organizerId": {
+            "type": "string"
+          },
+          "eventTitle": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "caption": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "OrganizerFinanceEventResponse": {
         "type": "object",
         "required": [
@@ -3156,7 +3398,8 @@
             "enum": [
               "friend_ticket",
               "friend_going",
-              "organizer_event"
+              "organizer_event",
+              "organizer_update"
             ]
           },
           "occurredAt": {
@@ -3186,6 +3429,15 @@
             "format": "date-time"
           },
           "organizerName": {
+            "type": "string"
+          },
+          "organizerUpdateId": {
+            "type": "string"
+          },
+          "organizerUpdateImageUrl": {
+            "type": "string"
+          },
+          "organizerUpdateCaption": {
             "type": "string"
           }
         }

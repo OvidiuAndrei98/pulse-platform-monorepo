@@ -81,7 +81,7 @@ export function OrganizerHeader() {
   if (isEventDetail) crumbs.push({ label: "dashboardNav.details" });
 
   return (
-    <header className="sticky top-0 z-20 w-full border-b border-white/10 bg-background/60 backdrop-blur-xl">
+    <header className="sticky top-0 z-20 w-full border-b border-white/10 bg-[#0b0e0c]/94 backdrop-blur-xl md:bg-background/60">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-3 pb-2.5 pl-16 md:pl-6">
         {/* BREADCRUMB NAVIGATION */}
         <div className="flex items-center justify-between gap-3">

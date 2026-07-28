@@ -7,13 +7,15 @@ import { ArrowRight, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { useTranslation } from "react-i18next";
+import { ApiError } from "@packages/api-client/src/Client";
 
 export default function LoginPage() {
   const { t } = useTranslation();
-  const { login, loading, error, user } = useDataProvider();
+  const { login, loading, user } = useDataProvider();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
   const [returnTo] = useState(() => {
     if (typeof window === "undefined") return "";
     const value = new URLSearchParams(window.location.search).get("returnTo") || "";
@@ -36,7 +38,18 @@ export default function LoginPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    await login(email, password);
+    setLoginError("");
+    try {
+      await login(email, password);
+    } catch (cause) {
+      const message =
+        cause instanceof ApiError && cause.status === 401
+          ? t("auth.invalidCredentials")
+          : cause instanceof ApiError && cause.status === 403
+            ? t("auth.accountInactive")
+            : t("common.loginFailed");
+      setLoginError(message);
+    }
   };
 
   return (
@@ -99,9 +112,9 @@ export default function LoginPage() {
           </label>
         </div>
 
-        {error && (
-          <p className="mt-4 border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300">
-            {error.message}
+        {loginError && (
+          <p role="alert" className="mt-4 text-sm text-red-400">
+            {loginError}
           </p>
         )}
 

@@ -58,16 +58,19 @@ type EventAttendeeResponse struct {
 }
 
 type SocialFeedItemResponse struct {
-	ActivityType   string `json:"activityType"`
-	OccurredAt     string `json:"occurredAt"`
-	ActorID        string `json:"actorId"`
-	ActorUsername  string `json:"actorUsername"`
-	ActorAvatarURL string `json:"actorAvatarUrl,omitempty"`
-	EventID        string `json:"eventId"`
-	EventTitle     string `json:"eventTitle"`
-	EventBannerURL string `json:"eventBannerUrl,omitempty"`
-	EventStartTime string `json:"eventStartTime"`
-	OrganizerName  string `json:"organizerName,omitempty"`
+	ActivityType            string `json:"activityType"`
+	OccurredAt              string `json:"occurredAt"`
+	ActorID                 string `json:"actorId"`
+	ActorUsername           string `json:"actorUsername"`
+	ActorAvatarURL          string `json:"actorAvatarUrl,omitempty"`
+	EventID                 string `json:"eventId"`
+	EventTitle              string `json:"eventTitle"`
+	EventBannerURL          string `json:"eventBannerUrl,omitempty"`
+	EventStartTime          string `json:"eventStartTime"`
+	OrganizerName           string `json:"organizerName,omitempty"`
+	OrganizerUpdateID       string `json:"organizerUpdateId,omitempty"`
+	OrganizerUpdateImageURL string `json:"organizerUpdateImageUrl,omitempty"`
+	OrganizerUpdateCaption  string `json:"organizerUpdateCaption,omitempty"`
 }
 
 // 1. CHECK-INS
@@ -801,6 +804,8 @@ func (h *Handler) HandleGetSocialFeed(w http.ResponseWriter, r *http.Request) {
 			ActorID: item.ActorID.String(), ActorUsername: item.ActorUsername, ActorAvatarURL: item.ActorAvatarUrl.String,
 			EventID: item.EventID.String(), EventTitle: item.EventTitle, EventBannerURL: item.EventBannerUrl.String,
 			EventStartTime: common.TimestampToString(item.EventStartTime), OrganizerName: item.OrganizerName,
+			OrganizerUpdateID: item.OrganizerUpdateID.String(), OrganizerUpdateImageURL: item.OrganizerUpdateImageUrl,
+			OrganizerUpdateCaption: item.OrganizerUpdateCaption,
 		})
 	}
 	router.RespondWithJSON(w, http.StatusOK, response)

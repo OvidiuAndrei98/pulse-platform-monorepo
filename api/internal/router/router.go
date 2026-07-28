@@ -42,28 +42,34 @@ type HandlersConfig struct {
 	GetSavedEvents           http.HandlerFunc
 	ListNotifications        http.HandlerFunc
 	MarkAllNotificationsRead http.HandlerFunc
+	MarkNotificationRead     http.HandlerFunc
 
 	// Events
-	CreateEvent             http.HandlerFunc
-	ListEvents              http.HandlerFunc
-	GetEventByID            http.HandlerFunc
-	GetEventWithStats       http.HandlerFunc
-	GetLiveEventsInArea     http.HandlerFunc
-	DeleteEvent             http.HandlerFunc
-	EditEvent               http.HandlerFunc
-	ListEventsWithStats     http.HandlerFunc
-	UploadEventBanner       http.HandlerFunc
-	GetEventBanner          http.HandlerFunc
-	SaveEvent               http.HandlerFunc
-	RemoveSavedEvent        http.HandlerFunc
-	StripeWebhook           http.HandlerFunc
-	StripeConnectWebhook    http.HandlerFunc
-	CreateStripeAccountLink http.HandlerFunc
-	GetStripeAccountStatus  http.HandlerFunc
-	CreateStripeLoginLink   http.HandlerFunc
-	GetEventSocial          http.HandlerFunc
-	UpdateEventRsvp         http.HandlerFunc
-	DeleteEventRsvp         http.HandlerFunc
+	CreateEvent                http.HandlerFunc
+	ListEvents                 http.HandlerFunc
+	GetEventByID               http.HandlerFunc
+	GetEventWithStats          http.HandlerFunc
+	GetLiveEventsInArea        http.HandlerFunc
+	DeleteEvent                http.HandlerFunc
+	EditEvent                  http.HandlerFunc
+	ListEventsWithStats        http.HandlerFunc
+	UploadEventBanner          http.HandlerFunc
+	UploadOrganizerUpdateImage http.HandlerFunc
+	GetEventBanner             http.HandlerFunc
+	GetEventUpdates            http.HandlerFunc
+	GetOrganizerUpdates        http.HandlerFunc
+	CreateEventUpdate          http.HandlerFunc
+	DeleteEventUpdate          http.HandlerFunc
+	SaveEvent                  http.HandlerFunc
+	RemoveSavedEvent           http.HandlerFunc
+	StripeWebhook              http.HandlerFunc
+	StripeConnectWebhook       http.HandlerFunc
+	CreateStripeAccountLink    http.HandlerFunc
+	GetStripeAccountStatus     http.HandlerFunc
+	CreateStripeLoginLink      http.HandlerFunc
+	GetEventSocial             http.HandlerFunc
+	UpdateEventRsvp            http.HandlerFunc
+	DeleteEventRsvp            http.HandlerFunc
 
 	// Interactions / Checkins
 	CreateCheckIn http.HandlerFunc
@@ -190,10 +196,12 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			r.With(optionalAuthMiddleware).Get("/{id}", cfg.GetEventByID)
 			r.With(optionalAuthMiddleware).Get("/{id}/social", cfg.GetEventSocial)
 			r.With(optionalAuthMiddleware).Get("/{id}/attendees", cfg.GetEventAttendees)
+			r.Get("/{id}/updates", cfg.GetEventUpdates)
 			r.Get("/{id}/comments", cfg.GetComments)
 			r.Get("/{id}/ticket-types", cfg.GetEventTicketTypes)
 			r.With(optionalAuthMiddleware).Post("/{id}/tickets/purchase", cfg.PurchaseTickets)
 		})
+		r.Get("/organizers/{id}/updates", cfg.GetOrganizerUpdates)
 
 		// --- RUTE PROTEJATE: Utilizatori autentificați ---
 		r.Group(func(r chi.Router) {
@@ -216,6 +224,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			r.Route("/notifications", func(r chi.Router) {
 				r.Get("/", cfg.ListNotifications)
 				r.Post("/read-all", cfg.MarkAllNotificationsRead)
+				r.Post("/{id}/read", cfg.MarkNotificationRead)
 			})
 
 			// --- INTERACȚIUNI EVENIMENTE (orice utilizator autentificat) ---
@@ -262,6 +271,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 
 				// --- ORGANIZER DASHBOARD ---
 				r.Post("/dashboard/uploads/event-banner", cfg.UploadEventBanner)
+				r.Post("/dashboard/uploads/organizer-update", cfg.UploadOrganizerUpdateImage)
 				r.Route("/dashboard/events", func(r chi.Router) {
 					r.Get("/", cfg.ListEventsWithStats)
 					r.Post("/", cfg.CreateEvent)
@@ -271,6 +281,9 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 					r.Post("/{id}", cfg.EditEvent)
 					r.Get("/{id}", cfg.GetEventWithStats)
 					r.Post("/{id}/ticket-types", cfg.CreateTicketType)
+					r.Get("/{id}/updates", cfg.GetEventUpdates)
+					r.Post("/{id}/updates", cfg.CreateEventUpdate)
+					r.Delete("/{id}/updates/{updateId}", cfg.DeleteEventUpdate)
 				})
 
 				// --- ORGANIZER PROFILE ---

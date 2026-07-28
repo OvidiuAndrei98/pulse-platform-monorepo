@@ -168,3 +168,19 @@ func (q *Queries) MarkAllNotificationsRead(ctx context.Context, userID pgtype.UU
 	_, err := q.db.Exec(ctx, markAllNotificationsRead, userID)
 	return err
 }
+
+const markNotificationRead = `-- name: MarkNotificationRead :exec
+UPDATE notifications
+SET read_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND user_id = $2 AND read_at IS NULL
+`
+
+type MarkNotificationReadParams struct {
+	ID     pgtype.UUID `json:"id"`
+	UserID pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) MarkNotificationRead(ctx context.Context, arg MarkNotificationReadParams) error {
+	_, err := q.db.Exec(ctx, markNotificationRead, arg.ID, arg.UserID)
+	return err
+}

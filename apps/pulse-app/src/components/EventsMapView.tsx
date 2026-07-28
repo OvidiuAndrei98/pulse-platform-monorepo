@@ -16,6 +16,7 @@ import { eventMapStyles } from "@/features/events/map/eventMapStyles";
 import { useEventDetails } from "@/components/EventDetailsSheet";
 import { Coordinates } from "@/features/events/types";
 import { useTranslation } from "react-i18next";
+import { Skeleton } from "@/components/ui/loading";
 
 import "leaflet/dist/leaflet.css";
 
@@ -106,10 +107,13 @@ export function EventsMapView({
 
   if (!isMounted) {
     return (
-      <div
-        className={`grid w-full place-items-center bg-background/50 ${mapSize}`}
-      >
-        <p className="text-sm text-muted-foreground">{t("eventMap.loading")}</p>
+      <div className={`relative w-full overflow-hidden bg-black ${mapSize}`}>
+        <Skeleton className="absolute inset-0 opacity-40" />
+        <div className="absolute right-4 top-4 flex flex-col gap-2">
+          <Skeleton className="h-10 w-10 rounded-lg bg-white/10" />
+          <Skeleton className="h-10 w-10 rounded-lg bg-white/10" />
+        </div>
+        <span className="sr-only">{t("eventMap.loading")}</span>
       </div>
     );
   }

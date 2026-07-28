@@ -7,6 +7,7 @@ import { ArrowLeft, BadgeCheck, Calendar, MapPin, Ticket, UsersRound } from "luc
 import { useTranslation } from "react-i18next";
 import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
 import { Event, PublicEventsService } from "@/core/DataProvider";
+import { EventOrganizerUpdates } from "@/components/EventOrganizerUpdates";
 import { ProfileActions } from "@/components/social/ProfileActions";
 import { useEventDetails } from "@/components/EventDetailsSheet";
 import { formatEventDateShort } from "@/features/events/dateFormat";
@@ -200,6 +201,7 @@ export default function PublicProfilePage() {
 
       {isOrganizer && (
         <div className="mt-10 space-y-10">
+          <EventOrganizerUpdates organizerId={profile.id} />
           <OrganizerEventSection
             title={t("publicProfile.upcomingEvents")}
             emptyLabel={t("publicProfile.noUpcomingEvents")}

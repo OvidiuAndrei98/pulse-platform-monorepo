@@ -23,6 +23,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { useTranslation } from "react-i18next";
+import { PageLoadingState } from "@/components/ui/loading";
 import {
   QrCode,
   Ticket,
@@ -100,7 +101,7 @@ function groupTicketsByEvent(tickets: TicketData[]) {
 export default function MePage() {
   const { t } = useTranslation();
   const { open: openEventDetails } = useEventDetails();
-  const { user, loading, logout, isOrganizer, reloadSession } =
+  const { user, loading, logout, isOrganizer, updateSessionUser } =
     useDataProvider();
   const router = useRouter();
   const [tab, setTab] = useState<"active" | "history">("active");
@@ -184,13 +185,7 @@ export default function MePage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
-        <div className="flex items-center gap-2 text-sm text-zinc-500">
-          <span className="animate-pulse">{t("common.loading")}</span>
-        </div>
-      </div>
-    );
+    return <PageLoadingState label={t("common.loading")} className="min-h-screen" />;
   }
 
   if (!user) return null;
@@ -214,7 +209,7 @@ export default function MePage() {
             <header className="flex items-center gap-4">
               <ProfileAvatarUpload
                 user={user}
-                onUploaded={() => void reloadSession()}
+                onUploaded={updateSessionUser}
               />
               <div className="min-w-0 flex-1">
                 <h1 className="truncate text-2xl font-semibold tracking-tight">
@@ -268,7 +263,7 @@ export default function MePage() {
                   onClick={() => toggleRow("details-desktop")}
                 >
                   <div className="pt-2">
-                    <PersonalDetailsForm user={user} onSaved={reloadSession} />
+                    <PersonalDetailsForm user={user} onSaved={updateSessionUser} />
                   </div>
                 </Row>
                 <Row
@@ -567,7 +562,7 @@ export default function MePage() {
                     <div className="pt-2">
                       <PersonalDetailsForm
                         user={user}
-                        onSaved={reloadSession}
+                        onSaved={updateSessionUser}
                       />
                     </div>
                   </Row>

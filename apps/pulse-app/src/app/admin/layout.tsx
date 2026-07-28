@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { PageLoadingState } from "@/components/ui/loading";
 
 export default function AdminLayout({
   children,
@@ -18,7 +19,8 @@ export default function AdminLayout({
     }
   }, [loading, user, isAdmin, router]);
 
-  if (loading || !user || !isAdmin) return null;
+  if (loading) return <PageLoadingState className="min-h-screen" />;
+  if (!user || !isAdmin) return null;
 
   return <>{children}</>;
 }

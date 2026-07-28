@@ -13,6 +13,9 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { ApiError } from "@packages/api-client/src/Client";
+import { OrganizerUpdatesManager } from "../../components/OrganizerUpdatesManager";
 
 export default function EditEventPage() {
   const { t } = useTranslation();
@@ -43,18 +46,28 @@ export default function EditEventPage() {
 
   const handleSave = async (data: UpdateEventPayload) => {
     try {
-      await user?.handleUpdateEvent(eventId, data);
+      if (!user) return;
+      await user.handleUpdateEvent(eventId, data);
+      toast.success(t("eventForm.eventSaved"));
       router.push("/dashboard/events");
     } catch (error) {
+      toast.error(t("eventForm.eventSaveFailed"));
       console.error("Eroare la salvarea evenimentului:", error);
     }
   };
 
   const handleDelete = async () => {
     try {
-      await user?.handleDeleteEvent(eventId);
+      if (!user) return;
+      await user.handleDeleteEvent(eventId);
+      toast.success(t("eventForm.eventDeleted"));
       router.push("/dashboard/events");
     } catch (error) {
+      toast.error(
+        error instanceof ApiError && error.status === 409
+          ? t("eventForm.deleteBlocked")
+          : t("eventForm.eventDeleteFailed"),
+      );
       console.error("Eroare la ștergerea evenimentului:", error);
     }
   };
@@ -75,14 +88,17 @@ export default function EditEventPage() {
           </h1>
         </div>
 
-        {loading ? <div className="mt-6 h-[34rem] animate-pulse rounded-lg border border-white/10 bg-white/[0.03]" /> : event ? <EventForm
-          onSubmit={(data) => handleSave(data)}
-          initialValues={{
-            ...event,
-            status: event.status === "published" ? "published" : "draft",
-          }}
-          onDelete={handleDelete}
-        /> : <p className="mt-6 text-sm text-muted-foreground">{t("eventForm.loadFailed")}</p>}
+        {loading ? <div className="mt-6 h-[34rem] animate-pulse rounded-lg border border-white/10 bg-white/[0.03]" /> : event ? <>
+          <EventForm
+            onSubmit={(data) => handleSave(data)}
+            initialValues={{
+              ...event,
+              status: event.status === "published" ? "published" : "draft",
+            }}
+            onDelete={handleDelete}
+          />
+          <OrganizerUpdatesManager eventId={event.id} status={event.status} endTime={event.endTime} />
+        </> : <p className="mt-6 text-sm text-muted-foreground">{t("eventForm.loadFailed")}</p>}
       </div>
     </div>
   );

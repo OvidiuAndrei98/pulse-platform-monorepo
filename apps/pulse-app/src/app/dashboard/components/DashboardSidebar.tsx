@@ -181,7 +181,7 @@ export function OrganizerSidebar() {
         type="button"
         aria-label={t("dashboardNav.openMenu")}
         onClick={() => setOpen(true)}
-        className="fixed left-4 top-3.5 z-40 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-background/40 text-foreground backdrop-blur-md transition hover:bg-background/60 active:scale-95 md:hidden"
+        className="fixed left-4 top-3.5 z-40 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-[#0b0e0c]/92 text-foreground backdrop-blur-md transition hover:bg-[#151a16] active:scale-95 md:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -189,7 +189,7 @@ export function OrganizerSidebar() {
       {/* MOBILE DRAWER */}
       <AnimatePresence>
         {open && (
-          <div className="fixed inset-0 z-50 md:hidden">
+          <div className="fixed inset-0 z-[90] md:hidden">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -213,7 +213,7 @@ export function OrganizerSidebar() {
                 if (info.offset.x < -60 || info.velocity.x < -300)
                   setOpen(false);
               }}
-              className="absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r border-white/10 bg-background/80 backdrop-blur-2xl shadow-2xl"
+              className="absolute inset-y-0 left-0 w-72 max-w-[85vw] border-r border-white/10 bg-[#090c0a]/97 backdrop-blur-2xl shadow-2xl"
             >
               <button
                 type="button"
