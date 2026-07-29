@@ -21,6 +21,7 @@ export function EventFriendProfilePopup({
 }) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState<PublicProfile | null>(attendee);
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -51,11 +52,25 @@ export function EventFriendProfilePopup({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
+  useEffect(() => {
+    // Vaul disables pointer events for body siblings while a drawer is open.
+    // Rendering inside its content keeps this small dialog interactive on mobile.
+    const activeDrawer = document.querySelector<HTMLElement>("[data-vaul-drawer]");
+    setPortalTarget(activeDrawer ?? document.body);
+  }, []);
+
+  if (!portalTarget) return null;
+
+  const isInsideDrawer = portalTarget !== document.body;
+
   return createPortal(
     <div
-      className="fixed inset-0 z-[1000] grid touch-none place-items-center bg-black/65 p-5 backdrop-blur-sm"
+      className={`${isInsideDrawer ? "absolute" : "fixed"} inset-0 z-[1000] grid touch-none place-items-center bg-black/65 p-5 backdrop-blur-sm`}
       role="presentation"
       onPointerDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+      onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
@@ -73,6 +88,7 @@ export function EventFriendProfilePopup({
             event.stopPropagation();
             onClose();
           }}
+          onClick={onClose}
           aria-label={t("social.closeProfile")}
           className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-white/[0.03] text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
         >
