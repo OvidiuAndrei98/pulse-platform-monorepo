@@ -1,0 +1,37 @@
+flowchart LR
+    guest[Guest]
+    user[User]
+    organizer[Organizer]
+    validator[Ticket validator]
+
+    web["Pulse App\nNext.js on Vercel"]
+    alb["AWS Application Load Balancer\npulse-api.code-lab.ro"]
+    api["Pulse API\nGo on ECS Fargate"]
+    db[("PostgreSQL\nAWS RDS")]
+    s3[("S3 media bucket\nevents, avatars, organizer-updates")]
+
+    stripe["Stripe + Stripe Connect"]
+    google["Google OAuth + Maps Places"]
+    spotify["Spotify Web API"]
+    resend["Resend email"]
+
+    guest -->|browse and guest checkout| web
+    user -->|events, social graph, tickets| web
+    organizer -->|dashboard, events, payouts| web
+    validator -->|ticket validation and offline sync| web
+
+    web -->|HTTPS /api/v1| alb
+    alb -->|HTTP 8080| api
+    api -->|SQL| db
+    api -->|media objects| s3
+    api <-->|checkout, Connect, webhooks| stripe
+    api <-->|OAuth, place validation| google
+    api -->|artist search| spotify
+    api -->|activation, reset, ticket email| resend
+
+    classDef internal fill:#17351e,stroke:#7ff05a,color:#ffffff
+    classDef external fill:#242424,stroke:#a0a0a0,color:#ffffff
+    classDef actor fill:#111111,stroke:#7ff05a,color:#ffffff
+    class web,alb,api,db,s3 internal
+    class stripe,google,spotify,resend external
+    class guest,user,organizer,validator actor

@@ -1043,7 +1043,9 @@ SELECT e.id, e.title, e.start_time, e.end_time, e.status, e.location_name,
 FROM events e
 LEFT JOIN event_validation_staff staff
        ON staff.event_id = e.id AND staff.user_id = $1
-WHERE e.organizer_id = $1 OR staff.user_id IS NOT NULL
+WHERE (e.organizer_id = $1 OR staff.user_id IS NOT NULL)
+  AND e.status = 'published'
+  AND e.end_time > NOW()
 ORDER BY e.start_time DESC
 `
 

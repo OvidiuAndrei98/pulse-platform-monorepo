@@ -1,0 +1,30 @@
+flowchart TB
+    client["Pulse App\nNext.js client"] --> api["Pulse API\n/api/v1"]
+
+    api --> public["Public discovery\nGET /events, /events/map, /events/{id}\nGET /profiles, /spotify/search"]
+    api --> auth["Authentication\n/auth/register, login, activate\nGoogle OAuth, password reset"]
+    api --> account["Account and social\n/users/me, /friends, /organizers/{id}/follow\n/feed, /notifications"]
+    api --> events["Event interaction\nRSVP, favorite, attendees, comments\npublic organizer updates"]
+    api --> organizer["Organizer dashboard\n/dashboard/events, ticket types, media uploads\nfinance, profile, Stripe Connect"]
+    api --> checkout["Ticketing and payments\n/events/{id}/tickets/purchase\n/stripe/webhook, /stripe/connect/webhook"]
+    api --> validation["Ticket validation\n/dashboard/ticket-validation\nstaff, quick access, offline snapshot and sync"]
+
+    public --> eventsModule["events + interactions"]
+    auth --> authModule["auth + users"]
+    account --> socialModule["users + interactions + notifications"]
+    events --> eventsModule
+    organizer --> organizerModule["events + organizer + payments"]
+    checkout --> paymentsModule["payments + tickets"]
+    validation --> ticketsModule["tickets"]
+
+    eventsModule --> database[(PostgreSQL)]
+    authModule --> database
+    socialModule --> database
+    organizerModule --> database
+    paymentsModule --> database
+    ticketsModule --> database
+
+    classDef boundary fill:#17351e,stroke:#7ff05a,color:#ffffff
+    classDef module fill:#161616,stroke:#6c6c6c,color:#ffffff
+    class api,public,auth,account,events,organizer,checkout,validation boundary
+    class eventsModule,authModule,socialModule,organizerModule,paymentsModule,ticketsModule module

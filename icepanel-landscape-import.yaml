@@ -1,0 +1,258 @@
+# yaml-language-server: $schema=https://api.icepanel.io/v1/schemas/LandscapeImportData
+#
+# Glow architecture model for IcePanel.
+# Import from an IcePanel landscape with: Import model -> File upload.
+# This file deliberately does not use prune, so existing IcePanel objects remain safe.
+
+namespace: glow-platform
+
+tagGroups:
+  - id: tag-group-boundary
+    name: Boundary
+    icon: globe
+  - id: tag-group-runtime
+    name: Runtime
+    icon: server
+
+tags:
+  - id: tag-internal
+    name: Internal
+    color: green
+    groupId: tag-group-boundary
+  - id: tag-external
+    name: External
+    color: orange
+    groupId: tag-group-boundary
+  - id: tag-aws
+    name: AWS
+    color: yellow
+    groupId: tag-group-runtime
+  - id: tag-web
+    name: Web
+    color: blue
+    groupId: tag-group-runtime
+
+modelObjects:
+  - id: domain-glow
+    name: Glow platform
+    type: domain
+
+  - id: actor-guest
+    name: Guest
+    type: actor
+    parentId: domain-glow
+    tagIds: [tag-external]
+  - id: actor-user
+    name: User
+    type: actor
+    parentId: domain-glow
+    tagIds: [tag-external]
+  - id: actor-organizer
+    name: Organizer
+    type: actor
+    parentId: domain-glow
+    tagIds: [tag-external]
+  - id: actor-ticket-validator
+    name: Ticket validator
+    type: actor
+    parentId: domain-glow
+    tagIds: [tag-external]
+
+  - id: system-glow
+    name: Glow
+    type: system
+    parentId: domain-glow
+    tagIds: [tag-internal]
+
+  - id: system-stripe
+    name: Stripe and Stripe Connect
+    type: system
+    parentId: domain-glow
+    tagIds: [tag-external]
+  - id: system-google
+    name: Google OAuth and Maps Places
+    type: system
+    parentId: domain-glow
+    tagIds: [tag-external]
+  - id: system-spotify
+    name: Spotify Web API
+    type: system
+    parentId: domain-glow
+    tagIds: [tag-external]
+  - id: system-resend
+    name: Resend
+    type: system
+    parentId: domain-glow
+    tagIds: [tag-external]
+
+  - id: app-pulse-web
+    name: Pulse App
+    type: app
+    parentId: system-glow
+    tagIds: [tag-internal, tag-web]
+  - id: app-pulse-api
+    name: Pulse API
+    type: app
+    parentId: system-glow
+    tagIds: [tag-internal, tag-aws]
+  - id: app-application-load-balancer
+    name: Application Load Balancer
+    type: app
+    parentId: system-glow
+    tagIds: [tag-internal, tag-aws]
+  - id: store-pulse-postgresql
+    name: Pulse PostgreSQL database
+    type: store
+    parentId: system-glow
+    tagIds: [tag-internal, tag-aws]
+  - id: store-pulse-media
+    name: Pulse media bucket
+    type: store
+    parentId: system-glow
+    tagIds: [tag-internal, tag-aws]
+
+  - id: component-public-discovery
+    name: Public discovery
+    type: component
+    parentId: app-pulse-api
+    tagIds: [tag-internal]
+  - id: component-authentication
+    name: Authentication
+    type: component
+    parentId: app-pulse-api
+    tagIds: [tag-internal]
+  - id: component-account-social
+    name: Account and social
+    type: component
+    parentId: app-pulse-api
+    tagIds: [tag-internal]
+  - id: component-event-interactions
+    name: Event interactions
+    type: component
+    parentId: app-pulse-api
+    tagIds: [tag-internal]
+  - id: component-organizer-dashboard
+    name: Organizer dashboard
+    type: component
+    parentId: app-pulse-api
+    tagIds: [tag-internal]
+  - id: component-ticketing-payments
+    name: Ticketing and payments
+    type: component
+    parentId: app-pulse-api
+    tagIds: [tag-internal]
+  - id: component-ticket-validation
+    name: Ticket validation
+    type: component
+    parentId: app-pulse-api
+    tagIds: [tag-internal]
+  - id: component-notifications
+    name: Notifications
+    type: component
+    parentId: app-pulse-api
+    tagIds: [tag-internal]
+
+modelConnections:
+  - id: conn-guest-web
+    name: Browses events and uses guest checkout via HTTPS
+    direction: outgoing
+    originId: actor-guest
+    targetId: app-pulse-web
+  - id: conn-user-web
+    name: Discovers events, social activity and tickets via HTTPS
+    direction: outgoing
+    originId: actor-user
+    targetId: app-pulse-web
+  - id: conn-organizer-web
+    name: Manages events, sales and payouts via HTTPS
+    direction: outgoing
+    originId: actor-organizer
+    targetId: app-pulse-web
+  - id: conn-validator-web
+    name: Validates tickets and syncs offline scans via HTTPS
+    direction: outgoing
+    originId: actor-ticket-validator
+    targetId: app-pulse-web
+
+  - id: conn-web-alb
+    name: Calls the Glow REST API over HTTPS
+    direction: outgoing
+    originId: app-pulse-web
+    targetId: app-application-load-balancer
+  - id: conn-alb-api
+    name: Forwards requests on port 8080
+    direction: outgoing
+    originId: app-application-load-balancer
+    targetId: app-pulse-api
+  - id: conn-api-db
+    name: Reads and writes platform data using SQL
+    direction: outgoing
+    originId: app-pulse-api
+    targetId: store-pulse-postgresql
+  - id: conn-api-media
+    name: Stores and serves event, profile and update media
+    direction: outgoing
+    originId: app-pulse-api
+    targetId: store-pulse-media
+
+  - id: conn-api-stripe
+    name: Creates Connect onboarding and Checkout sessions; receives webhooks
+    direction: outgoing
+    originId: component-ticketing-payments
+    targetId: system-stripe
+  - id: conn-auth-google
+    name: Authenticates users with OAuth
+    direction: outgoing
+    originId: component-authentication
+    targetId: system-google
+  - id: conn-discovery-google
+    name: Resolves event locations using Places
+    direction: outgoing
+    originId: component-public-discovery
+    targetId: system-google
+  - id: conn-discovery-spotify
+    name: Searches artists for event lineups
+    direction: outgoing
+    originId: component-public-discovery
+    targetId: system-spotify
+  - id: conn-notifications-resend
+    name: Sends activation, reset and ticket emails
+    direction: outgoing
+    originId: component-notifications
+    targetId: system-resend
+
+  - id: conn-auth-db
+    name: Reads users, sessions and authentication data
+    direction: outgoing
+    originId: component-authentication
+    targetId: store-pulse-postgresql
+  - id: conn-social-db
+    name: Reads and writes profiles, friends, follows and feed data
+    direction: outgoing
+    originId: component-account-social
+    targetId: store-pulse-postgresql
+  - id: conn-events-db
+    name: Reads and writes events, RSVPs, favorites and updates
+    direction: outgoing
+    originId: component-event-interactions
+    targetId: store-pulse-postgresql
+  - id: conn-organizer-db
+    name: Manages organizer profiles, events and finances
+    direction: outgoing
+    originId: component-organizer-dashboard
+    targetId: store-pulse-postgresql
+  - id: conn-payments-db
+    name: Persists orders, tickets, payments and fees
+    direction: outgoing
+    originId: component-ticketing-payments
+    targetId: store-pulse-postgresql
+  - id: conn-validation-db
+    name: Reads tickets and records check-ins and offline scan audits
+    direction: outgoing
+    originId: component-ticket-validation
+    targetId: store-pulse-postgresql
+  - id: conn-notifications-db
+    name: Persists in-app notifications
+    direction: outgoing
+    originId: component-notifications
+    targetId: store-pulse-postgresql

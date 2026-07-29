@@ -1,5 +1,28 @@
-const CACHE_NAME = "glow-offline-scanner-v2";
+const CACHE_NAME = "glow-offline-scanner-v3";
 const SCANNER_ROUTE = "/dashboard/ticket-validation";
+
+async function putInCache(request, response) {
+  if (!response || !response.ok) return response;
+  const cache = await caches.open(CACHE_NAME);
+  await cache.put(request, response.clone());
+  return response;
+}
+
+async function fetchAndCache(request) {
+  const response = await fetch(request);
+  return putInCache(request, response);
+}
+
+async function cacheScannerShell(assets) {
+  const cache = await caches.open(CACHE_NAME);
+  const requests = [SCANNER_ROUTE, "/manifest.json", ...assets];
+  await Promise.allSettled(
+    requests.map(async (request) => {
+      const response = await fetch(request, { cache: "reload" });
+      if (response.ok) await cache.put(request, response);
+    }),
+  );
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
@@ -30,11 +53,7 @@ self.addEventListener("message", (event) => {
         }
       })
     : [];
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll([SCANNER_ROUTE, "/manifest.json", ...assets]).catch(() => undefined),
-    ),
-  );
+  event.waitUntil(cacheScannerShell(assets));
 });
 
 self.addEventListener("fetch", (event) => {
@@ -43,26 +62,25 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
 
-  const isScannerRequest =
-    url.pathname === SCANNER_ROUTE ||
-    url.pathname.startsWith("/_next/") ||
-    url.pathname === "/manifest.json";
-  if (!isScannerRequest) return;
+  const isScannerPage = url.pathname === SCANNER_ROUTE;
+  const isNextAsset = url.pathname.startsWith("/_next/");
+  const isManifest = url.pathname === "/manifest.json";
+  if (!isScannerPage && !isNextAsset && !isManifest) return;
 
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (response.ok) {
-          const copy = response.clone();
-          void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-        }
-        return response;
-      })
-      .catch(async () => {
-        const cached = await caches.match(request);
-        if (cached) return cached;
-        if (request.mode === "navigate") return caches.match(SCANNER_ROUTE);
-        return Response.error();
-      }),
-  );
+  if (request.mode === "navigate" && isScannerPage) {
+    const refresh = fetchAndCache(request).catch(() => undefined);
+    event.waitUntil(refresh);
+    event.respondWith(
+      caches.match(SCANNER_ROUTE).then(async (cached) =>
+        cached || await refresh || await caches.match(SCANNER_ROUTE) || Response.error(),
+      ),
+    );
+    return;
+  }
+
+  if (isNextAsset || isManifest) {
+    event.respondWith(
+      caches.match(request).then((cached) => cached || fetchAndCache(request).catch(() => Response.error())),
+    );
+  }
 });

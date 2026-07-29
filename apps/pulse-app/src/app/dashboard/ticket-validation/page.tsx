@@ -63,6 +63,10 @@ function toDateTimeLocal(value: string) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function isValidationEventActive(event: ValidationEvent) {
+  return event.status === "published" && new Date(event.endTime).getTime() > Date.now();
+}
+
 export default function TicketValidationPage() {
   const { user } = useDataProvider();
   const { t } = useTranslation();
@@ -200,12 +204,10 @@ export default function TicketValidationPage() {
           .getEntriesByType("resource")
           .map((entry) => entry.name)
           .filter((url) => url.startsWith(window.location.origin + "/_next/"));
-        const cache = await caches.open("glow-offline-scanner-v2");
+        const cache = await caches.open("glow-offline-scanner-v3");
         const pageResponse = await fetch("/dashboard/ticket-validation", { cache: "reload" });
-        if (pageResponse.ok) {
-          await cache.put("/dashboard/ticket-validation", pageResponse.clone());
-        }
-        await Promise.all(
+        if (pageResponse.ok) await cache.put("/dashboard/ticket-validation", pageResponse.clone());
+        await Promise.allSettled(
           assets.map(async (url) => {
             const response = await fetch(url, { cache: "reload" });
             if (response.ok) await cache.put(url, response);
@@ -272,14 +274,16 @@ export default function TicketValidationPage() {
       try {
         const response = await currentUser.getValidationEvents();
         if (cancelled) return;
-        setEvents(response);
-        setSelectedEventId((current) => current || response[0]?.id || "");
+        const activeEvents = response.filter(isValidationEventActive);
+        setEvents(activeEvents);
+        setSelectedEventId((current) => activeEvents.some((event) => event.id === current) ? current : activeEvents[0]?.id || "");
       } catch {
         const offlineEvents = await getOfflineValidationEvents(currentUser.properties.id);
         if (cancelled) return;
-        if (offlineEvents.length) {
-          setEvents(offlineEvents);
-          setSelectedEventId((current) => current || offlineEvents[0].id);
+        const activeOfflineEvents = offlineEvents.filter(isValidationEventActive);
+        if (activeOfflineEvents.length) {
+          setEvents(activeOfflineEvents);
+          setSelectedEventId((current) => activeOfflineEvents.some((event) => event.id === current) ? current : activeOfflineEvents[0].id);
         } else {
           setError(t("validation.eventsLoadFailed"));
         }
