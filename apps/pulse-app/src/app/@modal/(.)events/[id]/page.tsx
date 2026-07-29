@@ -14,6 +14,12 @@ export default function EventModalPage() {
 
   const handleClose = () => router.back();
 
+  const handleOpenOrganizerProfile = (organizerId: string, returnTo: string) => {
+    router.replace(
+      `/users/${organizerId}?returnTo=${encodeURIComponent(returnTo)}`,
+    );
+  };
+
   useEffect(() => {
     async function fetchEvent() {
       try {
@@ -42,5 +48,11 @@ export default function EventModalPage() {
   }
   if (!event) return null;
 
-  return <EventDetailsSheet event={event} onClose={handleClose} />;
+  return (
+    <EventDetailsSheet
+      event={event}
+      onClose={handleClose}
+      onOpenOrganizerProfile={handleOpenOrganizerProfile}
+    />
+  );
 }

@@ -87,11 +87,13 @@ export function useEventDetails() {
 export interface EventDetailsSheetProps {
   event: Event | null;
   onClose: () => void;
+  onOpenOrganizerProfile?: (organizerId: string, returnTo: string) => void;
 }
 
 export function EventDetailsSheet({
   event: activeEvent,
   onClose,
+  onOpenOrganizerProfile,
 }: EventDetailsSheetProps) {
   const { t } = useTranslation();
   const { user } = useDataProvider();
@@ -282,12 +284,19 @@ export function EventDetailsSheet({
     returnUrl.searchParams.set("eventId", event.id);
     const returnTo = `${returnUrl.pathname}${returnUrl.search}${returnUrl.hash}`;
 
+    if (onOpenOrganizerProfile) {
+      onOpenOrganizerProfile(event.organizerId, returnTo);
+      return;
+    }
+
     // Keep this event in the current history entry so browser Back restores it.
     window.history.replaceState(window.history.state, "", returnTo);
     handleClose(false);
-    router.push(
-      `/users/${event.organizerId}?returnTo=${encodeURIComponent(returnTo)}`,
-    );
+    window.requestAnimationFrame(() => {
+      router.push(
+        `/users/${event.organizerId}?returnTo=${encodeURIComponent(returnTo)}`,
+      );
+    });
   };
 
   const sheetContent = (
