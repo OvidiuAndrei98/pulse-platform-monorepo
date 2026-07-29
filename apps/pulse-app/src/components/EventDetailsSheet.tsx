@@ -332,7 +332,7 @@ export function EventDetailsSheet({
     <>
       <div className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-y-none touch-pan-y">
         <div className="relative">
-          <div className="relative h-56 w-full overflow-hidden bg-neutral-900 md:h-72">
+          <div className="relative h-56 w-full overflow-hidden bg-neutral-950 md:h-72">
             {event.bannerUrl && (
               <Image
                 src={event.bannerUrl}
@@ -345,7 +345,7 @@ export function EventDetailsSheet({
             )}
 
             <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80" />
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
           </div>
 
           <div className="absolute left-4 right-4 top-10 md:top-6 flex flex-wrap items-center gap-2">
@@ -459,34 +459,36 @@ export function EventDetailsSheet({
             </section>
           )}
 
-          {!isFinished && <section>
-            <label
-              className="block text-sm font-semibold text-foreground/90"
-              htmlFor="checkout-email"
-            >
-              {t("eventSheet.emailForTickets")}
-            </label>
-            <input
-              id="checkout-email"
-              type="email"
-              autoComplete="email"
-              value={guestEmail}
-              onChange={(event) => setGuestEmail(event.target.value)}
-              placeholder={t("checkout.emailPlaceholder")}
-              className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/60 focus:bg-white/[0.07]"
-            />
-            {!user && (
-              <GoogleSignInButton
-                returnTo={`/events/${event.id}?checkout=1`}
-                className="mt-3 h-10 text-xs rounded-xl"
+          {!isFinished && (
+            <section>
+              <label
+                className="block text-sm font-semibold text-foreground/90"
+                htmlFor="checkout-email"
+              >
+                {t("eventSheet.emailForTickets")}
+              </label>
+              <input
+                id="checkout-email"
+                type="email"
+                autoComplete="email"
+                value={guestEmail}
+                onChange={(event) => setGuestEmail(event.target.value)}
+                placeholder={t("checkout.emailPlaceholder")}
+                className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/60 focus:bg-white/[0.07]"
               />
-            )}
-            {checkoutError && (
-              <p className="mt-2 text-xs font-medium text-red-400">
-                {checkoutError}
-              </p>
-            )}
-          </section>}
+              {!user && (
+                <GoogleSignInButton
+                  returnTo={`/events/${event.id}?checkout=1`}
+                  className="mt-3 h-10 text-xs rounded-xl"
+                />
+              )}
+              {checkoutError && (
+                <p className="mt-2 text-xs font-medium text-red-400">
+                  {checkoutError}
+                </p>
+              )}
+            </section>
+          )}
         </div>
       </div>
 
@@ -540,11 +542,14 @@ export function EventDetailsSheet({
         shouldScaleBackground={false}
         closeThreshold={0.35}
       >
-        <DrawerContent className="h-[82svh] max-h-[46rem] overflow-hidden rounded-t-[32px] border-none bg-neutral-950 p-0 touch-none [&>div:first-child]:hidden">
+        <DrawerContent className="h-[82svh] max-h-[46rem] overflow-hidden rounded-t-[32px] border-none bg-black p-0 touch-none [&>div:first-child]:hidden">
           <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-10 items-start justify-center pt-2.5 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
-            <div className="h-1.5 w-12 rounded-full border border-white/20 bg-white/60 shadow-sm backdrop-blur-md" />
+
+          {/* HANDLE OPTIMIZAT: Randat hardware direct (translate-z-0), fara efecte de blur care cauzeaza delay */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-8 items-center justify-center bg-gradient-to-b from-black/60 to-transparent transform-gpu translate-z-0">
+            <div className="h-1.5 w-12 rounded-full bg-white/70 shadow-sm" />
           </div>
+
           {sheetContent}
         </DrawerContent>
       </Drawer>
