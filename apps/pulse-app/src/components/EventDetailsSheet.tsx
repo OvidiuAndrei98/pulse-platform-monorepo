@@ -48,11 +48,21 @@ const EventDetailsContext = createContext<EventDetailsContextType | undefined>(
 export function EventDetailsProvider({ children }: { children: ReactNode }) {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const pathname = usePathname();
+  const router = useRouter();
+  const suppressEventRestoreRef = useRef(false);
 
   const open = (event: Event) => setSelectedEvent(event);
   const close = () => setSelectedEvent(null);
 
+  const openOrganizerProfile = (organizerId: string, returnTo: string) => {
+    suppressEventRestoreRef.current = true;
+    window.history.replaceState(window.history.state, "", returnTo);
+    setSelectedEvent(null);
+    router.push(`/users/${organizerId}?returnTo=${encodeURIComponent(returnTo)}`);
+  };
+
   useEffect(() => {
+    if (suppressEventRestoreRef.current) return;
     const eventId = new URLSearchParams(window.location.search).get("eventId");
     if (!eventId || selectedEvent?.id === eventId) return;
 
@@ -66,10 +76,20 @@ export function EventDetailsProvider({ children }: { children: ReactNode }) {
     };
   }, [pathname, selectedEvent?.id]);
 
+  useEffect(() => {
+    if (pathname?.startsWith("/users/")) {
+      suppressEventRestoreRef.current = false;
+    }
+  }, [pathname]);
+
   return (
     <EventDetailsContext.Provider value={{ open, close, selectedEvent }}>
       {children}
-      <EventDetailsSheet event={selectedEvent} onClose={close} />
+      <EventDetailsSheet
+        event={selectedEvent}
+        onClose={close}
+        onOpenOrganizerProfile={openOrganizerProfile}
+      />
     </EventDetailsContext.Provider>
   );
 }
@@ -98,8 +118,6 @@ export function EventDetailsSheet({
   const { t } = useTranslation();
   const { user } = useDataProvider();
   const router = useRouter();
-  const activeEventRef = useRef<Event | null>(activeEvent);
-  activeEventRef.current = activeEvent;
   const [displayedEvent, setDisplayedEvent] = useState<Event | null>(
     activeEvent,
   );
@@ -128,8 +146,19 @@ export function EventDetailsSheet({
   };
 
   useEffect(() => {
-    if (activeEvent) setDisplayedEvent(activeEvent);
-  }, [activeEvent]);
+    if (activeEvent) {
+      setDisplayedEvent(activeEvent);
+      return;
+    }
+
+    if (isDesktop) {
+      setDisplayedEvent(null);
+      return;
+    }
+
+    const closeTimer = window.setTimeout(() => setDisplayedEvent(null), 350);
+    return () => window.clearTimeout(closeTimer);
+  }, [activeEvent, isDesktop]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 768px)");
@@ -508,9 +537,6 @@ export function EventDetailsSheet({
       <Drawer
         open={Boolean(activeEvent)}
         onOpenChange={(open) => !open && handleClose()}
-        onAnimationEnd={(open) => {
-          if (!open && !activeEventRef.current) setDisplayedEvent(null);
-        }}
         shouldScaleBackground={false}
         closeThreshold={0.35}
       >

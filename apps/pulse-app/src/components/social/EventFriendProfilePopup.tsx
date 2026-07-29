@@ -43,22 +43,36 @@ export function EventFriendProfilePopup({
       ? displayedProfile.organizerName || displayedProfile.username
       : displayedProfile.username;
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
   return createPortal(
     <div
-      className="fixed inset-0 z-[200] grid place-items-center bg-black/65 p-5 backdrop-blur-sm"
+      className="fixed inset-0 z-[1000] grid touch-none place-items-center bg-black/65 p-5 backdrop-blur-sm"
       role="presentation"
-      onClick={onClose}
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
       <section
         role="dialog"
         aria-modal="true"
         aria-label={t("social.attendeeProfile", { name: displayName })}
-        className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/15 bg-[#101311] p-5 text-foreground shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
+        className="relative w-full max-w-sm touch-auto overflow-hidden rounded-3xl border border-white/15 bg-[#101311] p-5 text-foreground shadow-2xl"
+        onPointerDown={(event) => event.stopPropagation()}
       >
         <button
           type="button"
-          onClick={onClose}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onClose();
+          }}
           aria-label={t("social.closeProfile")}
           className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-white/[0.03] text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
         >
