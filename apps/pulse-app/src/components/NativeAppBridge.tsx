@@ -21,6 +21,8 @@ export function NativeAppBridge() {
   useEffect(() => {
     if (!isNativePlatform()) return;
 
+    document.documentElement.classList.add("capacitor-native");
+
     const listener = App.addListener("appUrlOpen", async ({ url }) => {
       const target = new URL(url);
       if (target.protocol === "glow:" && target.hostname === "auth" && target.pathname === "/google/callback") {
@@ -43,6 +45,7 @@ export function NativeAppBridge() {
 
     return () => {
       void listener.then((handle) => handle.remove());
+      document.documentElement.classList.remove("capacitor-native");
     };
   }, []);
 

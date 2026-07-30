@@ -214,3 +214,15 @@ html.native-barcode-scanner-active body,
 html.native-barcode-scanner-active body > div {
   background: transparent !important;
 }
+
+/* The Capacitor WebView extends below iPhone system bars. Keep ordinary pages safe. */
+html.capacitor-native {
+  --native-safe-top: env(safe-area-inset-top, 0px);
+  --native-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html.capacitor-native body {
+  min-height: 100dvh;
+  padding-top: var(--native-safe-top);
+  padding-bottom: var(--native-safe-bottom);
+}

@@ -3,6 +3,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const config: CapacitorConfig = {
   appId: "ro.codelab.glow",
   appName: "Glow",
+  backgroundColor: "#0b0c0e",
   // Bootstrap release: the native shell loads the deployed app while we keep
   // the existing Next SSR and intercepting-route architecture intact.
   webDir: "public",

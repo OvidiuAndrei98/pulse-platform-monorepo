@@ -160,12 +160,15 @@ export function QrCameraScanner({
         () => undefined,
       );
       setRunning(true);
-    } catch {
+    } catch (caughtError) {
       scannerRef.current = null;
       await nativeListenerRef.current?.remove();
       nativeListenerRef.current = null;
       if (isNative) document.documentElement.classList.remove("native-barcode-scanner-active");
-      setError(t("qr.cameraFailed"));
+      const nativePluginUnavailable = isNative && /not implemented|not supported|unavailable|plugin/i.test(
+        caughtError instanceof Error ? caughtError.message : "",
+      );
+      setError(t(nativePluginUnavailable ? "qr.nativeScannerUnavailable" : "qr.cameraFailed"));
     } finally {
       setStarting(false);
     }
@@ -224,7 +227,7 @@ export function QrCameraScanner({
         {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : running ? <X className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
         {starting ? t("qr.startingCamera") : running ? t("qr.stopCamera") : t("qr.scanQr")}
       </button>
-      {!fullScreen && error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="mx-auto max-w-md text-xs text-red-400">{error}</p>}
       {scannerOverlay}
     </div>
   );
