@@ -208,3 +208,9 @@ div.leaflet-popup.event-preview-popup .leaflet-popup-tip-container {
   height: 0 !important;
   background: transparent !important;
 }
+
+html.native-barcode-scanner-active,
+html.native-barcode-scanner-active body,
+html.native-barcode-scanner-active body > div {
+  background: transparent !important;
+}

@@ -8,6 +8,9 @@ import { I18nProvider } from "@/components/I18nProvider";
 import { EventDetailsProvider } from "@/components/EventDetailsSheet";
 import { OfflineScannerServiceWorker } from "@/components/OfflineScannerServiceWorker";
 import { ToastProvider } from "@/components/ToastProvider";
+import { NativeAppBridge } from "@/components/NativeAppBridge";
+
+export const dynamic = "force-dynamic";
 
 const inter = Inter({
   variable: "--font-inter-sans",
@@ -78,6 +81,7 @@ export default function RootLayout({
               <ToastProvider />
               <BottomNav />
               <OfflineScannerServiceWorker />
+              <NativeAppBridge />
             </DataProvider>
           </I18nProvider>
         </div>

@@ -26,6 +26,12 @@ type GoogleOAuthConfig struct {
 	ClientSecret string
 	PublicAPIURL string
 	PublicAppURL string
+	MobileAppScheme string
+}
+
+type googleOAuthState struct {
+	ReturnTo string `json:"returnTo"`
+	Mobile   bool   `json:"mobile"`
 }
 
 type googleTokenResponse struct {
@@ -56,7 +62,15 @@ func (h *Handler) HandleGoogleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	returnTo := safeReturnTo(r.URL.Query().Get("returnTo"))
-	encodedReturnTo := base64.RawURLEncoding.EncodeToString([]byte(returnTo))
+	statePayload, err := json.Marshal(googleOAuthState{
+		ReturnTo: returnTo,
+		Mobile:   r.URL.Query().Get("client") == "mobile",
+	})
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Nu s-a putut porni autentificarea Google")
+		return
+	}
+	encodedState := base64.RawURLEncoding.EncodeToString(statePayload)
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     googleStateCookie,
@@ -74,7 +88,7 @@ func (h *Handler) HandleGoogleLogin(w http.ResponseWriter, r *http.Request) {
 	query.Set("redirect_uri", h.googleRedirectURI())
 	query.Set("response_type", "code")
 	query.Set("scope", "openid email profile")
-	query.Set("state", state+"."+encodedReturnTo)
+	query.Set("state", state+"."+encodedState)
 	query.Set("prompt", "select_account")
 	authorizeURL.RawQuery = query.Encode()
 	http.Redirect(w, r, authorizeURL.String(), http.StatusFound)
@@ -94,12 +108,17 @@ func (h *Handler) HandleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, &http.Cookie{Name: googleStateCookie, Value: "", Path: "/api/v1/auth/google/callback", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode})
 
-	returnToBytes, err := base64.RawURLEncoding.DecodeString(stateParts[1])
+	stateBytes, err := base64.RawURLEncoding.DecodeString(stateParts[1])
 	if err != nil {
 		router.RespondWithError(w, http.StatusBadRequest, "Destinatia de autentificare este invalida")
 		return
 	}
-	returnTo := safeReturnTo(string(returnToBytes))
+	var oauthState googleOAuthState
+	if err := json.Unmarshal(stateBytes, &oauthState); err != nil {
+		router.RespondWithError(w, http.StatusBadRequest, "Destinatia de autentificare este invalida")
+		return
+	}
+	returnTo := safeReturnTo(oauthState.ReturnTo)
 	code := r.URL.Query().Get("code")
 	if code == "" {
 		router.RespondWithError(w, http.StatusBadRequest, "Google nu a returnat un cod de autentificare")
@@ -123,7 +142,15 @@ func (h *Handler) HandleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	redirectURL := strings.TrimRight(h.googleOAuth.PublicAppURL, "/") + "/auth/google/callback#token=" + url.QueryEscape(token) + "&returnTo=" + url.QueryEscape(returnTo)
+	callbackBase := strings.TrimRight(h.googleOAuth.PublicAppURL, "/") + "/auth/google/callback"
+	if oauthState.Mobile {
+		scheme := strings.TrimSuffix(h.googleOAuth.MobileAppScheme, "://")
+		if scheme == "" {
+			scheme = "glow"
+		}
+		callbackBase = scheme + "://auth/google/callback"
+	}
+	redirectURL := callbackBase + "#token=" + url.QueryEscape(token) + "&returnTo=" + url.QueryEscape(returnTo)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 

@@ -3,6 +3,18 @@ import { AgreementAcceptance } from "@/components/organizer/AgreementAcceptance"
 import { LegalDocument } from "@/features/legal/LegalDocument";
 
 export default function OrganizerAgreementPage() {
+  if (process.env.CAPACITOR_BUILD === "true") {
+    return (
+      <main className="mx-auto min-h-screen w-full max-w-3xl px-5 pb-32 pt-12 text-foreground sm:px-7 sm:pt-16">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Glow</p>
+        <h1 className="mt-3 text-3xl font-semibold">Organizer agreement</h1>
+        <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">
+          Complete your organizer agreement from the web dashboard before creating paid events.
+        </p>
+      </main>
+    );
+  }
+
   return <LegalDocument
       eyebrow="Pentru organizatori"
       title="Acord pentru organizatori"

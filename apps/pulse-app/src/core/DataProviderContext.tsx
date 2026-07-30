@@ -17,31 +17,15 @@ import {
   hasPreparedOfflineValidationForUser,
 } from "@/features/tickets/offlineValidationStore";
 import { PageLoadingState } from "@/components/ui/loading";
-
-const offlineSessionKey = "pulse_offline_session";
-
-const getStoredToken = (): string | null => {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem("pulse_token");
-  }
-  return null;
-};
-
-const getOfflineSession = (): UserData | undefined => {
-  if (typeof window === "undefined") return undefined;
-  try {
-    const stored = localStorage.getItem(offlineSessionKey);
-    return stored ? (JSON.parse(stored) as UserData) : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-const storeOfflineSession = (user: UserData) => {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(offlineSessionKey, JSON.stringify(user));
-  }
-};
+import {
+  clearAccessToken,
+  clearOfflineSession,
+  getAccessTokenSync,
+  hydrateAccessToken,
+  readOfflineSession,
+  saveAccessToken,
+  saveOfflineSession,
+} from "@/lib/native/sessionStorage";
 
 const isNetworkFailure = (error: unknown) =>
   error instanceof TypeError ||
@@ -49,7 +33,7 @@ const isNetworkFailure = (error: unknown) =>
 
 ApiClient.configure({
   apiRoot: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1",
-  getAccessToken: getStoredToken,
+  getAccessToken: getAccessTokenSync,
 });
 
 interface DataProviderContextProps {
@@ -94,7 +78,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     setError(null);
 
-    const token = getStoredToken();
+    const token = await hydrateAccessToken();
     if (!token) {
       setUser(undefined);
       setLoading(false);
@@ -105,12 +89,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const userData = await ApiClient.instance.get("/users/me");
 
       setUser(new User(userData));
-      storeOfflineSession(userData);
+      await saveOfflineSession(userData);
       if (userData.preferredLanguage === "en" || userData.preferredLanguage === "ro") {
         await i18n.changeLanguage(userData.preferredLanguage);
       }
     } catch (err) {
-      const cachedSession = getOfflineSession();
+      const cachedSession = await readOfflineSession<UserData>();
       const canUseOfflineSession =
         Boolean(cachedSession) &&
         (typeof navigator === "undefined" || !navigator.onLine || isNetworkFailure(err)) &&
@@ -125,10 +109,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           : new Error(t("common.sessionFailed")),
       );
       setUser(undefined);
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("pulse_token");
-        localStorage.removeItem(offlineSessionKey);
-      }
+      await Promise.all([clearAccessToken(), clearOfflineSession()]);
     } finally {
       setLoading(false);
     }
@@ -154,9 +135,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           body: { email, password },
         });
 
-        if (typeof window !== "undefined") {
-          localStorage.setItem("pulse_token", response.token);
-        }
+        await saveAccessToken(response.token);
 
         await initializeSession();
       } catch (err) {
@@ -172,10 +151,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     void clearAllOfflineValidationData();
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("pulse_token");
-      localStorage.removeItem(offlineSessionKey);
-    }
+    void Promise.all([clearAccessToken(), clearOfflineSession()]);
     setUser(undefined);
     if (isProtectedRoute) {
       router.push("/login");
@@ -183,12 +159,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [isProtectedRoute, router]);
 
   const getToken = useCallback((): string | null => {
-    return getStoredToken();
+    return getAccessTokenSync();
   }, []);
 
   const updateSessionUser = useCallback((updatedUser: UserData) => {
     setUser(new User(updatedUser));
-    storeOfflineSession(updatedUser);
+    void saveOfflineSession(updatedUser);
   }, []);
 
   const register = useCallback(

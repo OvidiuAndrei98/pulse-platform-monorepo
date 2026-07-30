@@ -2,8 +2,15 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { Html5Qrcode } from "html5-qrcode";
+import {
+  BarcodeFormat,
+  BarcodeScanner,
+  LensFacing,
+} from "@capacitor-mlkit/barcode-scanning";
+import type { PluginListenerHandle } from "@capacitor/core";
 import { Camera, Loader2, ScanLine, Wifi, WifiOff, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { isNativePlatform } from "@/lib/native/platform";
 
 type QrCameraScannerProps = {
   disabled?: boolean;
@@ -27,14 +34,29 @@ export function QrCameraScanner({
   const { t } = useTranslation();
   const scannerId = `qr-scanner-${useId().replace(/:/g, "")}`;
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const nativeListenerRef = useRef<PluginListenerHandle | null>(null);
   const hasScannedRef = useRef(false);
   const processingScanRef = useRef(false);
   const lastScannedValueRef = useRef("");
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
+  const isNative = isNativePlatform();
 
   const stopScanner = async () => {
+    if (isNative) {
+      try {
+        await BarcodeScanner.stopScan();
+      } catch {
+        // The scanner can already be stopped when the app is backgrounded.
+      }
+      await nativeListenerRef.current?.remove();
+      nativeListenerRef.current = null;
+      document.documentElement.classList.remove("native-barcode-scanner-active");
+      setRunning(false);
+      return;
+    }
+
     const scanner = scannerRef.current;
     scannerRef.current = null;
     if (!scanner) return;
@@ -59,6 +81,53 @@ export function QrCameraScanner({
     processingScanRef.current = false;
     lastScannedValueRef.current = "";
     try {
+      if (isNative) {
+        const supported = await BarcodeScanner.isSupported();
+        if (!supported.supported) throw new Error("Barcode scanning is not supported");
+
+        const permission = await BarcodeScanner.checkPermissions();
+        const granted = permission.camera === "granted"
+          ? permission
+          : await BarcodeScanner.requestPermissions();
+        if (granted.camera !== "granted") throw new Error("Camera permission was not granted");
+
+        nativeListenerRef.current = await BarcodeScanner.addListener(
+          "barcodesScanned",
+          ({ barcodes }) => {
+            const decodedText = barcodes[0]?.rawValue ?? barcodes[0]?.displayValue;
+            if (
+              !decodedText ||
+              processingScanRef.current ||
+              (!continuous && hasScannedRef.current) ||
+              (continuous && lastScannedValueRef.current === decodedText)
+            ) return;
+
+            hasScannedRef.current = true;
+            processingScanRef.current = true;
+            lastScannedValueRef.current = decodedText;
+            if (!continuous) void stopScanner();
+
+            void Promise.resolve(onScan(decodedText)).finally(() => {
+              processingScanRef.current = false;
+              if (continuous) {
+                window.setTimeout(() => {
+                  if (lastScannedValueRef.current === decodedText) {
+                    lastScannedValueRef.current = "";
+                  }
+                }, 1_500);
+              }
+            });
+          },
+        );
+        document.documentElement.classList.add("native-barcode-scanner-active");
+        await BarcodeScanner.startScan({
+          formats: [BarcodeFormat.QrCode],
+          lensFacing: LensFacing.Back,
+        });
+        setRunning(true);
+        return;
+      }
+
       const { Html5Qrcode } = await import("html5-qrcode");
       const scanner = new Html5Qrcode(scannerId, { verbose: false });
       scannerRef.current = scanner;
@@ -93,6 +162,9 @@ export function QrCameraScanner({
       setRunning(true);
     } catch {
       scannerRef.current = null;
+      await nativeListenerRef.current?.remove();
+      nativeListenerRef.current = null;
+      if (isNative) document.documentElement.classList.remove("native-barcode-scanner-active");
       setError(t("qr.cameraFailed"));
     } finally {
       setStarting(false);
@@ -122,7 +194,7 @@ export function QrCameraScanner({
         </button>
       </div>
 
-      <div className="relative h-full w-full bg-black [&_video]:h-full [&_video]:w-full [&_video]:object-cover">
+      <div className={`relative h-full w-full ${isNative ? "bg-transparent" : "bg-black [&_video]:h-full [&_video]:w-full [&_video]:object-cover"}`}>
         <div id={scannerId} className="h-full w-full" />
         <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/20">
           <div className="relative h-[min(70vw,18rem)] w-[min(70vw,18rem)] max-h-[52dvh] max-w-[80vw]">

@@ -118,7 +118,12 @@ type HandlersConfig struct {
 }
 
 func SetupRouter(cfg HandlersConfig) http.Handler {
-	allowedOrigins := []string{"http://localhost:3000"}
+	allowedOrigins := []string{
+		"http://localhost:3000",
+		"http://localhost",
+		"https://localhost",
+		"capacitor://localhost",
+	}
 
 	if configuredOrigins := os.Getenv("CORS_ALLOWED_ORIGINS"); configuredOrigins != "" {
 		for _, origin := range strings.Split(configuredOrigins, ",") {

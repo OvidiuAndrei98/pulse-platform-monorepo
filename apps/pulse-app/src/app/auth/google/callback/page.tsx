@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { saveAccessToken } from "@/lib/native/sessionStorage";
 
 export default function GoogleAuthCallbackPage() {
   const { t } = useTranslation();
@@ -26,7 +27,7 @@ export default function GoogleAuthCallbackPage() {
         return;
       }
 
-      localStorage.setItem("pulse_token", token);
+      await saveAccessToken(token);
       window.location.replace(
         getUserRoleFromToken(token) === "organizer" ? "/dashboard" : safeReturnTo,
       );

@@ -119,6 +119,7 @@ func (app *Application) BuildRouter() http.Handler {
 		ClientSecret: os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
 		PublicAPIURL: os.Getenv("PUBLIC_API_URL"),
 		PublicAppURL: os.Getenv("PUBLIC_APP_URL"),
+		MobileAppScheme: os.Getenv("MOBILE_APP_SCHEME"),
 	})
 	eventsHandler := events.NewHandler(app.Queries, app.Pool)
 	interactionsHandler := interactions.NewHandler(app.Queries)
