@@ -23,6 +23,7 @@
     "@capacitor/network": "^8.0.1",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/push-notifications": "^8.1.2",
+    "@capacitor/share": "8.0.1",
     "@hookform/resolvers": "^5.4.0",
     "@packages/api-client": "workspace:*",
     "framer-motion": "^12.42.2",

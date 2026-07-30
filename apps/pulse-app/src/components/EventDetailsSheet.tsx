@@ -33,6 +33,7 @@ import {
 } from "@/features/events/serviceFee";
 import { formatEventDateTime } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
+import { shareEvent } from "@/lib/native/share";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 
 interface EventDetailsContextType {
@@ -227,27 +228,12 @@ export function EventDetailsSheet({
     }));
 
   const handleShare = async () => {
-    const url = new URL(
-      `/events/${event.id}`,
-      window.location.origin,
-    ).toString();
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: event.title,
-          text: event.description,
-          url,
-        });
-      } else {
-        await navigator.clipboard.writeText(url);
-        setShared(true);
-        window.setTimeout(() => setShared(false), 1800);
-      }
-    } catch (error) {
-      if ((error as DOMException).name === "AbortError") return;
-      await navigator.clipboard.writeText(url);
+      await shareEvent(event);
       setShared(true);
       window.setTimeout(() => setShared(false), 1800);
+    } catch (error) {
+      if ((error as DOMException).name === "AbortError") return;
     }
   };
 

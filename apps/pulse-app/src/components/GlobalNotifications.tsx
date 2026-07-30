@@ -13,6 +13,7 @@ const hiddenPathPrefixes = [
   "/scan",
   "/ticket-validation",
   "/dashboard",
+  "/events",
 ];
 
 export function GlobalNotifications() {
@@ -28,7 +29,7 @@ export function GlobalNotifications() {
   }
 
   return (
-    <div className="absolute right-5 top-[calc(var(--native-safe-top)+1.25rem)] z-[90] sm:right-7 sm:top-6">
+    <div className="absolute right-5 top-[calc(var(--native-safe-top)+0.75rem)] z-[90] sm:right-7 sm:top-6">
       <NotificationsPopover />
     </div>
   );

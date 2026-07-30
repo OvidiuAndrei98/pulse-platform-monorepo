@@ -17,6 +17,7 @@ import { useEventDetails } from "@/components/EventDetailsSheet";
 import { Coordinates } from "@/features/events/types";
 import { useTranslation } from "react-i18next";
 import { Skeleton } from "@/components/ui/loading";
+import { requestCurrentLocation } from "@/lib/native/location";
 
 import "leaflet/dist/leaflet.css";
 
@@ -74,20 +75,13 @@ export function EventsMapView({
   };
 
   useEffect(() => {
-    if (!navigator.geolocation || !navigator.permissions) return;
     let cancelled = false;
-    navigator.permissions
-      .query({ name: "geolocation" })
-      .then((permission) => {
-        if (permission.state !== "granted" || cancelled) return;
-        navigator.geolocation.getCurrentPosition(
-          ({ coords }) =>
-            !cancelled &&
-            handleUserLocation([coords.latitude, coords.longitude]),
-          () => undefined,
-          { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 },
-        );
-      })
+    requestCurrentLocation({
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 20_000,
+    })
+      .then((location) => !cancelled && handleUserLocation(location))
       .catch(() => undefined);
     return () => {
       cancelled = true;

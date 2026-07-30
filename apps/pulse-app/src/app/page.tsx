@@ -8,6 +8,7 @@ import { HomeEventCarousel } from "@/features/events/home/HomeEventCarousel";
 import { Coordinates } from "@/features/events/types";
 import { getDistanceKm } from "@/features/events/utils";
 import { useTranslation } from "react-i18next";
+import { requestCurrentLocation } from "@/lib/native/location";
 
 const guestNames = [
   "Party Crasher",
@@ -52,22 +53,17 @@ export default function Home() {
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
 
   useEffect(() => {
-    if (eventsLoading || !navigator.geolocation) return;
+    if (eventsLoading) return;
 
     let active = true;
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        if (active) setUserLocation([coords.latitude, coords.longitude]);
-      },
-      () => {
-        // Nearby events stay hidden when the browser does not grant location.
-      },
-      {
-        enableHighAccuracy: false,
-        maximumAge: 5 * 60 * 1000,
-        timeout: 8_000,
-      },
-    );
+    requestCurrentLocation({
+      enableHighAccuracy: false,
+      maximumAge: 5 * 60 * 1000,
+      timeout: 8_000,
+    })
+      .then((location) => active && setUserLocation(location))
+      // Nearby events stay hidden when the user does not grant location.
+      .catch(() => undefined);
 
     return () => {
       active = false;

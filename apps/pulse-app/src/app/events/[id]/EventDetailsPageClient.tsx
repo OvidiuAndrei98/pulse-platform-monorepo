@@ -33,6 +33,7 @@ import {
   formatEventTime,
 } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
+import { shareEvent as shareNativeEvent } from "@/lib/native/share";
 import { EventDetailsSkeleton } from "@/components/ui/loading";
 
 export default function EventStandalonePage() {
@@ -100,11 +101,7 @@ export default function EventStandalonePage() {
 
   const shareEvent = async () => {
     try {
-      if (navigator.share) {
-        await navigator.share({ title: event.title, url: window.location.href });
-      } else {
-        await navigator.clipboard.writeText(window.location.href);
-      }
+      await shareNativeEvent(event);
       setShared(true);
       window.setTimeout(() => setShared(false), 1800);
     } catch (error) {

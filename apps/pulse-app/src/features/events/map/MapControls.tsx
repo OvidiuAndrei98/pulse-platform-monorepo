@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { LocateFixed, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
 import { useMap } from "react-leaflet";
 import { Coordinates } from "@/features/events/types";
+import { requestCurrentLocation } from "@/lib/native/location";
 
 export function MapControls({
   onLocate,
@@ -16,37 +17,19 @@ export function MapControls({
 }) {
   const map = useMap();
   const [locating, setLocating] = useState(false);
-  const locationWatch = useRef<number | null>(null);
-  const locationTimeout = useRef<number | null>(null);
-
-  const stopLocating = () => {
-    if (locationWatch.current !== null) {
-      navigator.geolocation.clearWatch(locationWatch.current);
-      locationWatch.current = null;
-    }
-    if (locationTimeout.current !== null) {
-      window.clearTimeout(locationTimeout.current);
-      locationTimeout.current = null;
-    }
-    setLocating(false);
-  };
-
-  useEffect(() => stopLocating, []);
-
-  const handleRecenter = () => {
-    if (!navigator.geolocation) return;
-
-    stopLocating();
+  const handleRecenter = async () => {
     setLocating(true);
-    locationWatch.current = navigator.geolocation.watchPosition(
-      ({ coords }) => {
-        onLocate([coords.latitude, coords.longitude]);
-        if (coords.accuracy <= 80) stopLocating();
-      },
-      stopLocating,
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 },
-    );
-    locationTimeout.current = window.setTimeout(stopLocating, 20_000);
+    try {
+      onLocate(
+        await requestCurrentLocation({
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 20_000,
+        }),
+      );
+    } finally {
+      setLocating(false);
+    }
   };
 
   // Clasa reutilizabilă pentru container sticlă + shadow optimizat
@@ -89,7 +72,7 @@ export function MapControls({
         type="button"
         onClick={(event) => {
           event.stopPropagation();
-          handleRecenter();
+          void handleRecenter();
         }}
         aria-label="Find my location"
         title="Find my location"

@@ -8,6 +8,7 @@ import { User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { formatEventDateShort } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
+import { routeForPlatform } from "@/lib/native/navigation";
 
 type Filter = "all" | "published" | "draft";
 
@@ -164,7 +165,7 @@ export default function EventsListPage() {
             return (
               <Link
                 key={e.id}
-                href={`/dashboard/events/${e.id}`}
+                href={routeForPlatform(`/dashboard/events/${e.id}`)}
                 className="event-card group flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-4 sm:p-5 transition hover:border-white/20 hover:bg-white/[0.08] lg:grid lg:grid-cols-[minmax(0,1fr)_17.5rem_minmax(12rem,0.72fr)] lg:items-center lg:gap-5"
               >
                 {/* Top Half on Mobile / Left Side on Desktop */}

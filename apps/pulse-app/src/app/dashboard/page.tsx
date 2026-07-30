@@ -7,6 +7,7 @@ import { OrganizerProfile, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { formatEventDateShort } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
+import { routeForPlatform } from "@/lib/native/navigation";
 
 export default function OrganizerDashboard() {
   const { user } = useDataProvider();
@@ -197,7 +198,7 @@ export default function OrganizerDashboard() {
           ) : events.length ? (
             <div className="grid gap-3 sm:grid-cols-2">
               {events.slice(0, 4).map((event) => (
-                <Link key={event.id} href={`/dashboard/events/${event.id}`} className="group flex min-w-0 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 transition hover:border-white/20 hover:bg-white/[0.06]">
+                <Link key={event.id} href={routeForPlatform(`/dashboard/events/${event.id}`)} className="group flex min-w-0 items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 transition hover:border-white/20 hover:bg-white/[0.06]">
                   <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md bg-white/5">{event.bannerUrl && <img src={event.bannerUrl} alt="" className="h-full w-full object-cover transition group-hover:scale-105" />}</div>
                   <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold group-hover:text-primary">{event.title}</p><p className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground"><Calendar className="h-3 w-3 shrink-0" />{formatEventDateShort(event.startTime)}</p><p className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground"><MapPin className="h-3 w-3 shrink-0" />{event.locationName}</p></div>
                 </Link>
