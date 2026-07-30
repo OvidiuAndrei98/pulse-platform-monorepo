@@ -1,4 +1,5 @@
 import { Geolocation } from "@capacitor/geolocation";
+import type { PermissionStatus } from "@capacitor/geolocation";
 import { isNativePlatform } from "@/lib/native/platform";
 import type { Coordinates } from "@/features/events/types";
 
@@ -8,16 +9,29 @@ type LocationOptions = {
   timeout?: number;
 };
 
+let nativePermissionRequest: Promise<PermissionStatus> | null = null;
+
+async function requestNativeLocationPermission() {
+  const current = await Geolocation.checkPermissions();
+  if (current.location === "granted" || current.location === "denied") {
+    return current;
+  }
+
+  if (!nativePermissionRequest) {
+    nativePermissionRequest = Geolocation.requestPermissions({
+      permissions: ["location"],
+    }).finally(() => {
+      nativePermissionRequest = null;
+    });
+  }
+  return nativePermissionRequest;
+}
+
 export async function requestCurrentLocation(
   options: LocationOptions = {},
 ): Promise<Coordinates> {
   if (isNativePlatform()) {
-    let permission = await Geolocation.checkPermissions();
-    if (permission.location !== "granted") {
-      permission = await Geolocation.requestPermissions({
-        permissions: ["location"],
-      });
-    }
+    const permission = await requestNativeLocationPermission();
     if (permission.location !== "granted") {
       throw new Error("Location permission was not granted");
     }
