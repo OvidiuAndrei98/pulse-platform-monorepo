@@ -238,3 +238,17 @@ html.capacitor-native body {
   padding-top: var(--native-safe-top);
   padding-bottom: var(--native-safe-bottom);
 }
+
+/* Keep the iPhone status-bar/notch area visually stable, independent of the
+   page background beneath the WebView. */
+html.capacitor-native body::before {
+  position: fixed;
+  z-index: 1000;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--native-safe-top);
+  content: "";
+  pointer-events: none;
+  background: #0b0e0c;
+}

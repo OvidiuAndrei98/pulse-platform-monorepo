@@ -23,6 +23,7 @@ export function GlobalNotifications() {
   if (
     loading ||
     !user ||
+    pathname === "/" ||
     hiddenPathPrefixes.some((prefix) => pathname?.startsWith(prefix))
   ) {
     return null;
