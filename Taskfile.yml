@@ -68,7 +68,7 @@ tasks:
     desc: "Compilează absolut tot proiectul pentru producție"
     deps: [codegen, db:up]
     cmds:
-      - task: build:backend:lambda
+      - task: build:backend:local
       - task: build:frontend
 
   db:up:
