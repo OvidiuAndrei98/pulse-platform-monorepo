@@ -28,7 +28,7 @@ export function GlobalNotifications() {
   }
 
   return (
-    <div className="fixed right-5 top-5 z-[90] sm:right-7 sm:top-6">
+    <div className="fixed right-5 top-[calc(var(--native-safe-top)+1.25rem)] z-[90] sm:right-7 sm:top-6">
       <NotificationsPopover />
     </div>
   );

@@ -181,7 +181,7 @@ export function OrganizerSidebar() {
         type="button"
         aria-label={t("dashboardNav.openMenu")}
         onClick={() => setOpen(true)}
-        className="fixed left-4 top-[calc(env(safe-area-inset-top)+0.875rem)] z-40 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-[#0b0e0c]/92 text-foreground backdrop-blur-md transition hover:bg-[#151a16] active:scale-95 md:top-3.5"
+        className="fixed left-4 top-[calc(var(--native-safe-top)+0.875rem)] z-40 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-[#0b0e0c]/92 text-foreground backdrop-blur-md transition hover:bg-[#151a16] active:scale-95 md:top-3.5"
       >
         <Menu className="h-5 w-5" />
       </button>

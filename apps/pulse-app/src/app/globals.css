@@ -48,6 +48,8 @@
 
 :root {
   --radius: 0.375rem;
+  --native-safe-top: 0px;
+  --native-safe-bottom: 0px;
 
   /* Dark neon-green theme */
   --background: oklch(0.16 0.02 150);
@@ -213,6 +215,16 @@ html.native-barcode-scanner-active,
 html.native-barcode-scanner-active body,
 html.native-barcode-scanner-active body > div {
   background: transparent !important;
+}
+
+/* ML Kit renders its camera behind the WebView. Hide the page, not the scanner UI. */
+body.barcode-scanner-active {
+  visibility: hidden;
+  background: transparent !important;
+}
+
+body.barcode-scanner-active .native-barcode-scanner-ui {
+  visibility: visible;
 }
 
 /* The Capacitor WebView extends below iPhone system bars. Keep ordinary pages safe. */

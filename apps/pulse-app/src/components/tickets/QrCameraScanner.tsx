@@ -38,10 +38,16 @@ export function QrCameraScanner({
   const hasScannedRef = useRef(false);
   const processingScanRef = useRef(false);
   const lastScannedValueRef = useRef("");
+  const lastScannedAtRef = useRef(0);
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
   const isNative = isNativePlatform();
+
+  const setNativeScannerActive = (active: boolean) => {
+    document.documentElement.classList.toggle("native-barcode-scanner-active", active);
+    document.body.classList.toggle("barcode-scanner-active", active);
+  };
 
   const stopScanner = async () => {
     if (isNative) {
@@ -52,7 +58,7 @@ export function QrCameraScanner({
       }
       await nativeListenerRef.current?.remove();
       nativeListenerRef.current = null;
-      document.documentElement.classList.remove("native-barcode-scanner-active");
+      setNativeScannerActive(false);
       setRunning(false);
       return;
     }
@@ -80,6 +86,7 @@ export function QrCameraScanner({
     hasScannedRef.current = false;
     processingScanRef.current = false;
     lastScannedValueRef.current = "";
+    lastScannedAtRef.current = 0;
     try {
       if (isNative) {
         const supported = await BarcodeScanner.isSupported();
@@ -99,27 +106,23 @@ export function QrCameraScanner({
               !decodedText ||
               processingScanRef.current ||
               (!continuous && hasScannedRef.current) ||
-              (continuous && lastScannedValueRef.current === decodedText)
+              (continuous &&
+                lastScannedValueRef.current === decodedText &&
+                Date.now() - lastScannedAtRef.current < 6_000)
             ) return;
 
             hasScannedRef.current = true;
             processingScanRef.current = true;
             lastScannedValueRef.current = decodedText;
+            lastScannedAtRef.current = Date.now();
             if (!continuous) void stopScanner();
 
             void Promise.resolve(onScan(decodedText)).finally(() => {
               processingScanRef.current = false;
-              if (continuous) {
-                window.setTimeout(() => {
-                  if (lastScannedValueRef.current === decodedText) {
-                    lastScannedValueRef.current = "";
-                  }
-                }, 1_500);
-              }
             });
           },
         );
-        document.documentElement.classList.add("native-barcode-scanner-active");
+        setNativeScannerActive(true);
         await BarcodeScanner.startScan({
           formats: [BarcodeFormat.QrCode],
           lensFacing: LensFacing.Back,
@@ -138,23 +141,19 @@ export function QrCameraScanner({
           if (
             processingScanRef.current ||
             (!continuous && hasScannedRef.current) ||
-            (continuous && lastScannedValueRef.current === decodedText)
+            (continuous &&
+              lastScannedValueRef.current === decodedText &&
+              Date.now() - lastScannedAtRef.current < 6_000)
           ) return;
 
           hasScannedRef.current = true;
           processingScanRef.current = true;
           lastScannedValueRef.current = decodedText;
+          lastScannedAtRef.current = Date.now();
           if (!continuous) void stopScanner();
 
           void Promise.resolve(onScan(decodedText)).finally(() => {
             processingScanRef.current = false;
-            if (continuous) {
-              window.setTimeout(() => {
-                if (lastScannedValueRef.current === decodedText) {
-                  lastScannedValueRef.current = "";
-                }
-              }, 1_500);
-            }
           });
         },
         () => undefined,
@@ -164,7 +163,7 @@ export function QrCameraScanner({
       scannerRef.current = null;
       await nativeListenerRef.current?.remove();
       nativeListenerRef.current = null;
-      if (isNative) document.documentElement.classList.remove("native-barcode-scanner-active");
+      if (isNative) setNativeScannerActive(false);
       const nativePluginUnavailable = isNative && /not implemented|not supported|unavailable|plugin/i.test(
         caughtError instanceof Error ? caughtError.message : "",
       );
@@ -177,7 +176,7 @@ export function QrCameraScanner({
   useEffect(() => () => { void stopScanner(); }, []);
 
   const scannerOverlay = fullScreen && (starting || running) ? (
-    <div className="fixed inset-0 z-[200] bg-black text-white">
+    <div className="native-barcode-scanner-ui fixed inset-0 z-[200] bg-black text-white">
       <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 bg-gradient-to-b from-black/90 via-black/55 to-transparent px-5 pb-16 pt-[max(1.25rem,env(safe-area-inset-top))]">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-xs font-semibold text-white/75">
