@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { saveAccessToken } from "@/lib/native/sessionStorage";
+import { useDataProvider } from "@/core/DataProviderContext";
 
 export default function GoogleAuthCallbackPage() {
   const { t } = useTranslation();
+  const router = useRouter();
+  const { reloadSession } = useDataProvider();
   const [error, setError] = useState("");
   const hasStarted = useRef(false);
 
@@ -28,13 +32,14 @@ export default function GoogleAuthCallbackPage() {
       }
 
       await saveAccessToken(token);
-      window.location.replace(
+      await reloadSession();
+      router.replace(
         getUserRoleFromToken(token) === "organizer" ? "/dashboard" : safeReturnTo,
       );
     };
 
     void complete();
-  }, [t]);
+  }, [reloadSession, router, t]);
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-5 text-foreground">

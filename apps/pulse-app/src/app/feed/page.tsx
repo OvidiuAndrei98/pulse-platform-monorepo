@@ -18,6 +18,7 @@ import {
 import { useDataProvider } from "@/core/DataProviderContext";
 import { SocialAvatar } from "@/components/social/SocialAvatar";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
+import { useEventDetails } from "@/components/EventDetailsSheet";
 import { formatEventDate } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 
@@ -335,6 +336,8 @@ function FriendsRail({
 
 function FeedCard({ item }: { item: FeedGroup }) {
   const { t } = useTranslation();
+  const { open } = useEventDetails();
+  const [openingEvent, setOpeningEvent] = useState(false);
   const primaryActor = item.actors[0];
   const actorSummary = actorLabel(item.actors, t);
   const copy =
@@ -352,13 +355,35 @@ function FeedCard({ item }: { item: FeedGroup }) {
     return <OrganizerUpdateFeedCard item={item} />;
   }
 
+  const openEvent = async () => {
+    if (openingEvent) return;
+    setOpeningEvent(true);
+    try {
+      open(await User.getPublicEventById(item.eventId));
+    } finally {
+      setOpeningEvent(false);
+    }
+  };
+
   return (
-    <div className="group flex flex-col justify-between gap-2.5 rounded-3xl border border-white/10 bg-neutral-900/40 p-3.5 transition hover:border-white/20 hover:bg-neutral-900/70 sm:flex-row sm:items-center">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => void openEvent()}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          void openEvent();
+        }
+      }}
+      className="group flex cursor-pointer flex-col justify-between gap-2.5 rounded-3xl border border-white/10 bg-neutral-900/40 p-3.5 transition hover:border-white/20 hover:bg-neutral-900/70 sm:flex-row sm:items-center"
+    >
       {/* Informații actor & eveniment */}
       <div className="flex min-w-0 flex-1 items-start gap-3">
         <Link
           href={`/users/${primaryActor.actorId}`}
           className="shrink-0 transition active:scale-95"
+          onClick={(event) => event.stopPropagation()}
         >
           <SocialAvatar
             profile={{
@@ -379,12 +404,16 @@ function FeedCard({ item }: { item: FeedGroup }) {
             <span className="text-muted-foreground">{copy}</span>
           </p>
 
-          <Link
-            href={`/events/${item.eventId}`}
-            className="mt-0.5 block truncate text-sm font-bold text-primary transition hover:underline"
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              void openEvent();
+            }}
+            className="mt-0.5 block max-w-full truncate text-left text-sm font-bold text-primary transition hover:underline"
           >
             {item.eventTitle}
-          </Link>
+          </button>
 
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1 font-medium">
@@ -407,13 +436,18 @@ function FeedCard({ item }: { item: FeedGroup }) {
 
       {/* Buton Bilet */}
       <div className="flex shrink-0 items-center justify-end sm:pl-2">
-        <Link
-          href={`/events/${item.eventId}`}
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            void openEvent();
+          }}
+          disabled={openingEvent}
           className="inline-flex h-8 items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary transition active:scale-95 hover:bg-primary hover:text-primary-foreground"
         >
           <Ticket className="h-3.5 w-3.5" />
           <span>{t("feed.viewTickets")}</span>
-        </Link>
+        </button>
       </div>
     </div>
   );
@@ -421,14 +455,34 @@ function FeedCard({ item }: { item: FeedGroup }) {
 
 function OrganizerUpdateFeedCard({ item }: { item: FeedGroup }) {
   const { t } = useTranslation();
+  const { open } = useEventDetails();
+  const [openingEvent, setOpeningEvent] = useState(false);
   const actor = item.actors[0];
 
+  const openEvent = async () => {
+    if (openingEvent) return;
+    setOpeningEvent(true);
+    try {
+      open(await User.getPublicEventById(item.eventId));
+    } finally {
+      setOpeningEvent(false);
+    }
+  };
+
   return (
-    <article className="group overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/40 transition hover:border-white/20 hover:bg-neutral-900/70 sm:grid sm:grid-cols-[12rem_minmax(0,1fr)]">
-      <Link
-        href={`/events/${item.eventId}`}
-        className="relative block aspect-[16/9] overflow-hidden sm:aspect-auto sm:min-h-36"
-      >
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={() => void openEvent()}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          void openEvent();
+        }
+      }}
+      className="group cursor-pointer overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/40 transition hover:border-white/20 hover:bg-neutral-900/70 sm:grid sm:grid-cols-[12rem_minmax(0,1fr)]"
+    >
+      <div className="relative block aspect-[16/9] overflow-hidden sm:aspect-auto sm:min-h-36">
         {item.organizerUpdateImageUrl ? (
           <img
             src={item.organizerUpdateImageUrl}
@@ -439,11 +493,11 @@ function OrganizerUpdateFeedCard({ item }: { item: FeedGroup }) {
           <div className="h-full w-full bg-white/[0.04]" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:to-black/30" />
-      </Link>
+      </div>
 
       <div className="flex min-w-0 flex-col p-3.5 sm:p-4">
         <div className="flex min-w-0 items-start gap-3">
-          <Link href={`/users/${actor.actorId}`} className="shrink-0 transition active:scale-95">
+          <Link href={`/users/${actor.actorId}`} onClick={(event) => event.stopPropagation()} className="shrink-0 transition active:scale-95">
             <SocialAvatar
               profile={{ username: actor.actorUsername, avatarUrl: actor.actorAvatarUrl }}
               size="h-9 w-9"
@@ -454,9 +508,16 @@ function OrganizerUpdateFeedCard({ item }: { item: FeedGroup }) {
               <span className="font-semibold">{item.organizerName || actor.actorUsername}</span>{" "}
               <span className="text-muted-foreground">{t("feed.publishedUpdate")}</span>
             </p>
-            <Link href={`/events/${item.eventId}`} className="mt-1 block truncate text-base font-bold text-primary transition hover:underline">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                void openEvent();
+              }}
+              className="mt-1 block max-w-full truncate text-left text-base font-bold text-primary transition hover:underline"
+            >
               {item.eventTitle}
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -471,13 +532,18 @@ function OrganizerUpdateFeedCard({ item }: { item: FeedGroup }) {
             <Calendar className="h-3.5 w-3.5 shrink-0 text-primary/80" />
             <span className="truncate">{formatEventDate(item.eventStartTime)}</span>
           </span>
-          <Link
-            href={`/events/${item.eventId}`}
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              void openEvent();
+            }}
+            disabled={openingEvent}
             className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary transition active:scale-95 hover:bg-primary hover:text-primary-foreground"
           >
             <Ticket className="h-3.5 w-3.5" />
             {t("feed.viewTickets")}
-          </Link>
+          </button>
         </div>
       </div>
     </article>

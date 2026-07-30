@@ -4,13 +4,15 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Calendar, ChevronLeft, ChevronRight, CircleCheck, Clock3, MapPin, QrCode, Ticket } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, CircleCheck, Clock3, MapPin, QrCode, Ticket, X } from "lucide-react";
 import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { TicketQrCode } from "@/components/tickets/TicketQrCode";
+import { TicketPdfButton } from "@/components/tickets/TicketPdfButton";
 import { formatEventDate } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 import { Skeleton } from "@/components/ui/loading";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 
 type UserTicket = ReadableSchema<"UserTicketResponse">;
 type TicketTab = "active" | "used" | "expired";
@@ -148,12 +150,64 @@ function TicketEventGroup({ tickets, tab, onOpen }: { tickets: UserTicket[]; tab
 
 function TicketPreview({ ticket, onClose }: { ticket: UserTicket; onClose: () => void }) {
   const { t } = useTranslation();
-  return <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center" onClick={onClose}>
-    <div className="w-full max-w-sm rounded-xl border border-white/15 bg-[#101311] p-5" onClick={(event) => event.stopPropagation()}>
-      <button type="button" onClick={onClose} className="ml-auto block text-xs text-muted-foreground hover:text-white">{t("tickets.close")}</button>
-      <p className="mt-2 text-sm font-semibold">{ticket.eventTitle}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{ticket.ticketTypeName}</p>
-      <div className="mt-5 flex justify-center bg-white p-4"><TicketQrCode value={ticket.validationHash} size={220} /></div>
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 768px)");
+    const update = () => setIsDesktop(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  const content = (
+    <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-8 pt-5 md:px-6 md:pt-6">
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label={t("tickets.close")}
+        className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground transition hover:bg-white/10 hover:text-white"
+      >
+        <X className="h-4 w-4" />
+      </button>
+      <div className="pr-10">
+        <p className="text-sm font-semibold">{ticket.eventTitle}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{ticket.ticketTypeName}</p>
+      </div>
+      <div className="mt-5 flex justify-center rounded-2xl bg-white p-4 shadow-xl">
+        <TicketQrCode value={ticket.validationHash} size={220} />
+      </div>
+      <div className="mt-5 space-y-3 border-y border-white/10 py-4 text-sm text-muted-foreground">
+        <span className="flex items-center gap-2"><Calendar className="h-4 w-4 shrink-0" />{formatEventDate(ticket.startTime)}</span>
+        <a href={`https://maps.google.com/?q=${encodeURIComponent(ticket.locationName)}`} target="_blank" rel="noreferrer" className="flex items-start gap-2 text-primary hover:underline"><MapPin className="mt-0.5 h-4 w-4 shrink-0" />{ticket.locationName}</a>
+      </div>
+      <TicketPdfButton ticket={ticket} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-xs font-medium text-white transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-60" />
     </div>
-  </div>;
+  );
+
+  if (!isDesktop) {
+    return (
+      <Drawer open onOpenChange={(open) => !open && onClose()} shouldScaleBackground={false}>
+        <DrawerContent className="h-[min(84svh,46rem)] border-white/10 bg-neutral-950 p-0">
+          <DrawerTitle className="sr-only">{ticket.eventTitle}</DrawerTitle>
+          {content}
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] hidden bg-black/70 backdrop-blur-sm md:block" onClick={onClose}>
+      <motion.aside
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        transition={{ type: "spring", damping: 28, stiffness: 260 }}
+        onClick={(event) => event.stopPropagation()}
+        className="relative ml-auto flex h-full w-full max-w-md flex-col border-l border-white/10 bg-neutral-950 shadow-2xl"
+        style={{ backgroundImage: "linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0) 40%)" }}
+      >
+        {content}
+      </motion.aside>
+    </div>
+  );
 }

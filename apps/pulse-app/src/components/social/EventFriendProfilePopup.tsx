@@ -67,11 +67,16 @@ export function EventFriendProfilePopup({
     <div
       className={`${isInsideDrawer ? "absolute" : "fixed"} inset-0 z-[1000] grid touch-none place-items-center bg-black/65 p-5 backdrop-blur-sm`}
       role="presentation"
-      onPointerDown={(event) => {
+      onPointerDownCapture={(event) => {
         if (event.target === event.currentTarget) onClose();
+        event.stopPropagation();
       }}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+      }}
+      onClickCapture={(event) => event.stopPropagation()}
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        event.stopPropagation();
       }}
     >
       <section
