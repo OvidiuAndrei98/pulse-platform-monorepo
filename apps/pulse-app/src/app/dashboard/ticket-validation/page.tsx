@@ -613,6 +613,7 @@ export default function TicketValidationPage() {
               continuous
               eventTitle={selectedEvent?.title}
               isOnline={isOnline}
+              scanFeedback={result ? <ScannerResultFeedback result={result} /> : undefined}
               className="h-12 w-full rounded-lg border-0 bg-primary px-4 text-sm text-primary-foreground hover:bg-primary/90"
             />
             <p className="mt-3 text-center text-xs text-muted-foreground">{t("validation.cameraHint")}</p>
@@ -735,7 +736,7 @@ export default function TicketValidationPage() {
     </main>
   );
 
-  function ScannerResultToast({ result: scanResult }: { result: ScannerResult }) {
+  function ScannerResultFeedback({ result: scanResult }: { result: ScannerResult }) {
     const accepted = scanResult.status === "valid" || scanResult.status === "offline_valid";
     const title = scanResult.status === "valid" ? t("scanner.validTicket") :
       scanResult.status === "offline_valid" ? t("validation.offlineValid") :
@@ -745,11 +746,15 @@ export default function TicketValidationPage() {
       scanResult.status === "offline_unprepared" ? t("validation.offlineUnprepared") :
       scanResult.status === "invalid" ? t("validation.invalidTicket") : t("scanner.usedTicket");
 
-    return <div role="status" className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[210] mx-auto max-w-md">
-      <div className={`flex gap-3 rounded-xl border p-4 shadow-2xl backdrop-blur-xl ${accepted ? "border-primary/35 bg-[#102212]/95" : "border-amber-300/35 bg-[#2a2110]/95"}`}>
+    return <div role="status" className={`flex gap-3 rounded-xl border p-4 shadow-2xl backdrop-blur-xl ${accepted ? "border-primary/35 bg-[#102212]/95" : "border-amber-300/35 bg-[#2a2110]/95"}`}>
         {accepted ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" /> : <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />}
         <div className="min-w-0"><p className="text-sm font-semibold">{title}</p>{scanResult.ticketType && <p className="mt-1 truncate text-xs text-white/65">{scanResult.ticketType} - {scanResult.eventTitle}</p>}</div>
-      </div>
+    </div>;
+  }
+
+  function ScannerResultToast({ result: scanResult }: { result: ScannerResult }) {
+    return <div className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[210] mx-auto max-w-md">
+      <ScannerResultFeedback result={scanResult} />
     </div>;
   }
 }

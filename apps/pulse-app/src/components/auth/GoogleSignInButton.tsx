@@ -3,6 +3,7 @@
 import { useTranslation } from "react-i18next";
 import { Browser } from "@capacitor/browser";
 import { isNativePlatform } from "@/lib/native/platform";
+import { apiRoot } from "@/core/apiRoot";
 
 export function GoogleSignInButton({
   returnTo,
@@ -13,8 +14,6 @@ export function GoogleSignInButton({
 }) {
   const { t } = useTranslation();
   const startGoogleLogin = async () => {
-    const apiRoot =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
     const url = new URL(`${apiRoot}/auth/google`);
     if (returnTo) url.searchParams.set("returnTo", returnTo);
     if (isNativePlatform()) {

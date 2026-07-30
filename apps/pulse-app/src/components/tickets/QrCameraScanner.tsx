@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import type { Html5Qrcode } from "html5-qrcode";
 import {
   BarcodeFormat,
@@ -19,6 +19,7 @@ type QrCameraScannerProps = {
   continuous?: boolean;
   eventTitle?: string;
   isOnline?: boolean;
+  scanFeedback?: ReactNode;
   className?: string;
 };
 
@@ -29,6 +30,7 @@ export function QrCameraScanner({
   continuous = false,
   eventTitle,
   isOnline,
+  scanFeedback,
   className = "",
 }: QrCameraScannerProps) {
   const { t } = useTranslation();
@@ -209,7 +211,9 @@ export function QrCameraScanner({
       </div>
 
       <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/95 via-black/75 to-transparent px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-16 text-center">
-        {starting ? (
+        {isNative && scanFeedback ? (
+          <div className="mx-auto max-w-md text-left">{scanFeedback}</div>
+        ) : starting ? (
           <p className="inline-flex items-center gap-2 text-sm font-semibold"><Loader2 className="h-4 w-4 animate-spin text-primary" />{t("qr.startingCamera")}</p>
         ) : (
           <p className="text-sm font-medium text-white/80">{t("qr.cameraHint")}</p>

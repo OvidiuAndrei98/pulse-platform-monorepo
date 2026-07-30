@@ -11,6 +11,7 @@ import React, {
 import { usePathname, useRouter } from "next/navigation";
 import { ApiClient } from "@packages/api-client/src/Client";
 import { User, UserData } from "./DataProvider";
+import { apiRoot } from "./apiRoot";
 import { useTranslation } from "react-i18next";
 import {
   clearAllOfflineValidationData,
@@ -31,7 +32,7 @@ const isNetworkFailure = (error: unknown) =>
   (error instanceof Error && /network|fetch|offline/i.test(error.message));
 
 ApiClient.configure({
-  apiRoot: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1",
+  apiRoot,
   getAccessToken: getAccessTokenSync,
 });
 
