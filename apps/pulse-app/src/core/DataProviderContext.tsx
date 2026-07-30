@@ -14,7 +14,6 @@ import { User, UserData } from "./DataProvider";
 import { useTranslation } from "react-i18next";
 import {
   clearAllOfflineValidationData,
-  hasPreparedOfflineValidationForUser,
 } from "@/features/tickets/offlineValidationStore";
 import { PageLoadingState } from "@/components/ui/loading";
 import {
@@ -97,8 +96,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const cachedSession = await readOfflineSession<UserData>();
       const canUseOfflineSession =
         Boolean(cachedSession) &&
-        (typeof navigator === "undefined" || !navigator.onLine || isNetworkFailure(err)) &&
-        await hasPreparedOfflineValidationForUser(cachedSession!.id);
+        (typeof navigator === "undefined" || !navigator.onLine || isNetworkFailure(err));
       if (canUseOfflineSession && cachedSession) {
         setUser(new User(cachedSession));
         return;
