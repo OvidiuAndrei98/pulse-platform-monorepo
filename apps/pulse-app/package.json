@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "cross-env NODE_ENV=development next dev -p 3000",
     "build": "cross-env NODE_ENV=production next build",
-    "build:mobile": "cross-env NODE_ENV=production next build",
+    "build:mobile": "cross-env NODE_ENV=production CAPACITOR_BUILD=true next build",
     "cap:sync": "cap sync",
     "cap:android": "cap open android",
     "cap:ios": "cap open ios",

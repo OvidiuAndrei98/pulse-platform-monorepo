@@ -140,6 +140,6 @@ export function EventFriendProfilePopup({
 
       </section>
     </div>,
-    document.body,
+    portalTarget,
   );
 }

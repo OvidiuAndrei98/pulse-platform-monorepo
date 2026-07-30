@@ -10,8 +10,6 @@ import { OfflineScannerServiceWorker } from "@/components/OfflineScannerServiceW
 import { ToastProvider } from "@/components/ToastProvider";
 import { NativeAppBridge } from "@/components/NativeAppBridge";
 
-export const dynamic = "force-dynamic";
-
 const inter = Inter({
   variable: "--font-inter-sans",
   subsets: ["latin"],
@@ -44,10 +42,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({
   children,
-  modal,
 }: Readonly<{
   children: React.ReactNode;
-  modal?: React.ReactNode;
 }>) {
   return (
     <html
@@ -76,7 +72,6 @@ export default function RootLayout({
             <DataProvider>
               <EventDetailsProvider>
                 {children}
-                {modal}
               </EventDetailsProvider>
               <GlobalNotifications />
               <ToastProvider />

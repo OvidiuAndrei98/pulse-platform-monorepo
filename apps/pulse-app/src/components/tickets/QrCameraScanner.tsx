@@ -176,7 +176,7 @@ export function QrCameraScanner({
   useEffect(() => () => { void stopScanner(); }, []);
 
   const scannerOverlay = fullScreen && (starting || running) ? (
-    <div className="native-barcode-scanner-ui fixed inset-0 z-[200] bg-black text-white">
+    <div className={`native-barcode-scanner-ui fixed inset-0 z-[200] text-white ${isNative ? "bg-transparent" : "bg-black"}`}>
       <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 bg-gradient-to-b from-black/90 via-black/55 to-transparent px-5 pb-16 pt-[max(1.25rem,env(safe-area-inset-top))]">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-xs font-semibold text-white/75">
