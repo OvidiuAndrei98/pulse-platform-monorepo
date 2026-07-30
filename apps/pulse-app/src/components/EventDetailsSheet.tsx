@@ -64,6 +64,9 @@ export function EventDetailsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (suppressEventRestoreRef.current) return;
+    // Mobile static routes use eventId for dashboard editing too. Only the
+    // public discovery route may restore the Event Details sheet from it.
+    if (pathname !== "/events") return;
     const eventId = new URLSearchParams(window.location.search).get("eventId");
     if (!eventId || selectedEvent?.id === eventId) return;
 
