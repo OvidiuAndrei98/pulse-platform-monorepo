@@ -17,6 +17,7 @@ import {
 } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { SocialAvatar } from "@/components/social/SocialAvatar";
+import { NotificationsPopover } from "@/components/NotificationsPopover";
 import { formatEventDate } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 
@@ -134,20 +135,23 @@ export default function FeedPage() {
     <main className="w-full px-3 pb-24 pt-4 text-foreground sm:px-6 mx-auto max-w-7xl ">
       {/* Header-ul paginii */}
       <header className="mb-4 space-y-3">
-        <div className="flex items-center gap-2.5">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-primary/20 bg-primary/10 text-primary">
-            <UsersRound className="h-4 w-4" />
-          </span>
-          <div>
-            <h1 className="text-lg font-bold tracking-tight">
-              {t("feed.title")}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              {isOrganizer
-                ? t("feed.followedOrganizers")
-                : t("feed.friendsAndOrganizers")}
-            </p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-primary/20 bg-primary/10 text-primary">
+              <UsersRound className="h-4 w-4" />
+            </span>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight">
+                {t("feed.title")}
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                {isOrganizer
+                  ? t("feed.followedOrganizers")
+                  : t("feed.friendsAndOrganizers")}
+              </p>
+            </div>
           </div>
+          {user && <NotificationsPopover />}
         </div>
 
         {!isOrganizer && (

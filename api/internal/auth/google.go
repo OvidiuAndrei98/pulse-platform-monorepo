@@ -22,10 +22,10 @@ import (
 const googleStateCookie = "pulse_google_oauth_state"
 
 type GoogleOAuthConfig struct {
-	ClientID     string
-	ClientSecret string
-	PublicAPIURL string
-	PublicAppURL string
+	ClientID        string
+	ClientSecret    string
+	PublicAPIURL    string
+	PublicAppURL    string
 	MobileAppScheme string
 }
 
@@ -144,11 +144,7 @@ func (h *Handler) HandleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 
 	callbackBase := strings.TrimRight(h.googleOAuth.PublicAppURL, "/") + "/auth/google/callback"
 	if oauthState.Mobile {
-		scheme := strings.TrimSuffix(h.googleOAuth.MobileAppScheme, "://")
-		if scheme == "" {
-			scheme = "glow"
-		}
-		callbackBase = scheme + "://auth/google/callback"
+		callbackBase = normalizedMobileAppScheme(h.googleOAuth.MobileAppScheme) + "://auth/google/callback"
 	}
 	redirectURL := callbackBase + "#token=" + url.QueryEscape(token) + "&returnTo=" + url.QueryEscape(returnTo)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
@@ -261,6 +257,25 @@ func safeReturnTo(value string) string {
 		return "/users/me"
 	}
 	return value
+}
+
+func normalizedMobileAppScheme(value string) string {
+	scheme := strings.ToLower(strings.TrimSpace(value))
+	if separator := strings.Index(scheme, ":"); separator >= 0 {
+		scheme = scheme[:separator]
+	}
+	if scheme == "" {
+		return "glow"
+	}
+	for _, character := range scheme {
+		if (character >= 'a' && character <= 'z') ||
+			(character >= '0' && character <= '9') ||
+			character == '+' || character == '-' || character == '.' {
+			continue
+		}
+		return "glow"
+	}
+	return scheme
 }
 
 func googleUsername(profile googleProfile) string {

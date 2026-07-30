@@ -14,6 +14,7 @@ const hiddenPathPrefixes = [
   "/ticket-validation",
   "/dashboard",
   "/events",
+  "/feed",
 ];
 
 export function GlobalNotifications() {

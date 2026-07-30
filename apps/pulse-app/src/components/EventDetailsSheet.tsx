@@ -86,6 +86,13 @@ export function EventDetailsProvider({ children }: { children: ReactNode }) {
     }
   }, [pathname]);
 
+  useEffect(() => {
+    // Dashboard event IDs identify editor records, never public event sheets.
+    if (pathname?.startsWith("/dashboard")) {
+      setSelectedEvent(null);
+    }
+  }, [pathname]);
+
   return (
     <EventDetailsContext.Provider value={{ open, close, selectedEvent }}>
       {children}
