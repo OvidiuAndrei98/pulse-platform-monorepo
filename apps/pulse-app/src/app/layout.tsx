@@ -68,7 +68,7 @@ export default function RootLayout({
         </div>
 
         {/* Conținut */}
-        <div id="native-app-surface" className="relative z-10">
+        <div className="relative z-10">
           <I18nProvider>
             <DataProvider>
               <EventDetailsProvider>
