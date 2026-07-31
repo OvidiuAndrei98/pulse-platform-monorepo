@@ -7,6 +7,7 @@ import { isNativePlatform } from "@/lib/native/platform";
 
 const SWIPE_DISTANCE = 88;
 const HORIZONTAL_BIAS = 1.4;
+const BACK_EDGE_WIDTH = 36;
 
 type SwipeStart = {
   x: number;
@@ -112,8 +113,10 @@ export function NativeNavigationGestures() {
         return;
       }
 
-      // Requested direction: left goes back, right goes forward.
-      navigate(deltaX < 0 ? "back" : "forward");
+      // Native navigation convention: begin at the left edge and swipe right
+      // to go back. A left swipe advances through the main navigation tabs.
+      if (deltaX > 0 && start.x > BACK_EDGE_WIDTH) return;
+      navigate(deltaX > 0 ? "back" : "forward");
     };
 
     window.addEventListener("touchstart", onTouchStart, { capture: true, passive: true });
