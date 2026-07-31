@@ -34,6 +34,7 @@ import {
 import { formatEventDateTime } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 import { shareEvent } from "@/lib/native/share";
+import { routeForPlatform } from "@/lib/native/navigation";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 
 interface EventDetailsContextType {
@@ -59,7 +60,11 @@ export function EventDetailsProvider({ children }: { children: ReactNode }) {
     suppressEventRestoreRef.current = true;
     window.history.replaceState(window.history.state, "", returnTo);
     setSelectedEvent(null);
-    router.push(`/users/${organizerId}?returnTo=${encodeURIComponent(returnTo)}`);
+    router.push(
+      routeForPlatform(
+        `/users/${organizerId}?returnTo=${encodeURIComponent(returnTo)}`,
+      ),
+    );
   };
 
   useEffect(() => {
@@ -301,7 +306,7 @@ export function EventDetailsSheet({
 
   const viewOrganizerEvents = () => {
     handleClose();
-    router.push(`/users/${event.organizerId}`);
+    router.push(routeForPlatform(`/users/${event.organizerId}`));
   };
 
   const viewOrganizerProfile = () => {
@@ -319,7 +324,9 @@ export function EventDetailsSheet({
     handleClose(false);
     window.requestAnimationFrame(() => {
       router.push(
-        `/users/${event.organizerId}?returnTo=${encodeURIComponent(returnTo)}`,
+        routeForPlatform(
+          `/users/${event.organizerId}?returnTo=${encodeURIComponent(returnTo)}`,
+        ),
       );
     });
   };

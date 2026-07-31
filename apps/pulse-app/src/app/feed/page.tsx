@@ -20,6 +20,7 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { SocialAvatar } from "@/components/social/SocialAvatar";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
 import { useEventDetails } from "@/components/EventDetailsSheet";
+import { routeForPlatform } from "@/lib/native/navigation";
 import { formatEventDate } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 
@@ -178,7 +179,7 @@ export default function FeedPage() {
                 className="flex items-center justify-between gap-2.5 rounded-2xl border border-white/10 bg-neutral-900/60 p-3 backdrop-blur-md"
               >
                 <Link
-                  href={`/users/${request.id}`}
+                  href={routeForPlatform(`/users/${request.id}`)}
                   className="flex min-w-0 flex-1 items-center gap-2.5"
                 >
                   <SocialAvatar profile={request} size="h-9 w-9" />
@@ -314,7 +315,7 @@ function FriendsRail({
           return (
             <Link
               key={friend.id}
-              href={`/users/${friend.id}`}
+            href={routeForPlatform(`/users/${friend.id}`)}
               className="group flex w-[68px] shrink-0 flex-col items-center gap-1.5 text-center focus:outline-none"
               title={t("feed.viewProfile", { name: friend.username })}
             >
@@ -402,7 +403,7 @@ function FeedCard({ item }: { item: FeedGroup }) {
       {/* Informații actor & eveniment */}
       <div className="flex min-w-0 flex-1 items-start gap-3">
         <Link
-          href={`/users/${primaryActor.actorId}`}
+          href={routeForPlatform(`/users/${primaryActor.actorId}`)}
           className="shrink-0 transition active:scale-95"
           onClick={(event) => event.stopPropagation()}
         >
@@ -519,7 +520,7 @@ function OrganizerUpdateFeedCard({ item }: { item: FeedGroup }) {
       <div className="flex min-w-0 flex-col p-3.5 sm:p-4">
         <div className="flex min-w-0 items-start gap-3">
           <Link
-            href={`/users/${actor.actorId}`}
+            href={routeForPlatform(`/users/${actor.actorId}`)}
             onClick={(event) => event.stopPropagation()}
             className="shrink-0 transition active:scale-95"
           >

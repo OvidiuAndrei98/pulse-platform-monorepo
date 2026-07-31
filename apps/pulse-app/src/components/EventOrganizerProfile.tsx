@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { type PublicProfile, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { routeForPlatform } from "@/lib/native/navigation";
 
 export function EventOrganizerProfile({
   organizerId,
@@ -36,7 +37,7 @@ export function EventOrganizerProfile({
       onOpen();
       return;
     }
-    router.push(`/users/${organizerId}`);
+    router.push(routeForPlatform(`/users/${organizerId}`));
   };
 
   return (
