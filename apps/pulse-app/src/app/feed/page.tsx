@@ -9,6 +9,7 @@ import {
   UsersRound,
   X,
   Calendar,
+  ChevronRight,
 } from "lucide-react";
 import {
   type PublicProfile,
@@ -281,7 +282,6 @@ export default function FeedPage() {
     </main>
   );
 }
-
 function FriendsRail({
   friends,
   loading,
@@ -292,42 +292,63 @@ function FriendsRail({
   activeFriendIds: Set<string>;
 }) {
   const { t } = useTranslation();
+
   return (
-    <div className="-mx-3 flex items-center gap-2 overflow-x-auto px-3 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6">
+    <div className="-mx-3 flex items-start gap-3 overflow-x-auto px-3 py-2 scrollbar-none sm:-mx-6 sm:px-6 after:w-4 after:shrink-0 sm:after:w-6">
       {loading ? (
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           {[...Array(6)].map((_, i) => (
             <div
               key={i}
-              className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-white/5"
-            />
+              className="flex w-[68px] shrink-0 flex-col items-center gap-2"
+            >
+              <div className="h-12 w-12 animate-pulse rounded-full bg-white/5" />
+              <div className="h-3 w-12 animate-pulse rounded bg-white/5" />
+            </div>
           ))}
         </div>
       ) : (
-        friends.slice(0, 15).map((friend) => (
-          <Link
-            key={friend.id}
-            href={`/users/${friend.id}`}
-            className="group flex w-11 shrink-0 flex-col items-center gap-1 text-center"
-            title={t("feed.viewProfile", { name: friend.username })}
-          >
-            <SocialAvatar
-              profile={friend}
-              size="h-10 w-10"
-              active={activeFriendIds.has(friend.id)}
-            />
-            <span className="w-full truncate text-[10px] text-muted-foreground transition group-hover:text-foreground">
-              {friend.username}
-            </span>
-          </Link>
-        ))
+        friends.slice(0, 15).map((friend) => {
+          const isActive = activeFriendIds.has(friend.id);
+
+          return (
+            <Link
+              key={friend.id}
+              href={`/users/${friend.id}`}
+              className="group flex w-[68px] shrink-0 flex-col items-center gap-1.5 text-center focus:outline-none"
+              title={t("feed.viewProfile", { name: friend.username })}
+            >
+              {/* Cerc Avatar */}
+              <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
+                <SocialAvatar
+                  profile={friend}
+                  size="h-12 w-12"
+                  active={isActive}
+                />
+              </div>
+
+              {/* Text curat pe 1 singur rând - fără despărțiri urâte de litere */}
+              <span className="w-full truncate text-[11px] font-medium leading-tight text-zinc-300 transition-colors group-hover:text-white">
+                {friend.username}
+              </span>
+            </Link>
+          );
+        })
       )}
+
+      {/* BUTONUL „VEZI TOT” - Aliniere perfectă pe 1 rând */}
       {!loading && friends.length > 0 && (
         <Link
           href="/users/me/friends"
-          className="flex h-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 px-3 text-xs font-semibold text-muted-foreground transition hover:bg-white/10 hover:text-primary"
+          className="group flex w-[68px] shrink-0 flex-col items-center gap-1.5 text-center focus:outline-none"
         >
-          {t("feed.seeAll", { count: friends.length })}
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 transition duration-200 group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary">
+            <ChevronRight className="h-5 w-5 text-zinc-400 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+          </div>
+
+          <span className="w-full truncate text-[11px] font-semibold leading-tight text-zinc-400 transition-colors group-hover:text-primary">
+            {t("feed.seeAll", { count: friends.length })}
+          </span>
         </Link>
       )}
     </div>
@@ -344,12 +365,12 @@ function FeedCard({ item }: { item: FeedGroup }) {
     item.kind === "update"
       ? t("feed.publishedUpdate")
       : item.kind === "organizer"
-      ? t("feed.publishedEvent")
-      : item.ticketActors.length > 0 && item.goingActors.length > 0
-        ? t("feed.gettingReady")
-        : item.ticketActors.length > 0
-          ? t("feed.haveTickets")
-          : t("feed.goingTo");
+        ? t("feed.publishedEvent")
+        : item.ticketActors.length > 0 && item.goingActors.length > 0
+          ? t("feed.gettingReady")
+          : item.ticketActors.length > 0
+            ? t("feed.haveTickets")
+            : t("feed.goingTo");
 
   if (item.kind === "update") {
     return <OrganizerUpdateFeedCard item={item} />;
@@ -497,16 +518,27 @@ function OrganizerUpdateFeedCard({ item }: { item: FeedGroup }) {
 
       <div className="flex min-w-0 flex-col p-3.5 sm:p-4">
         <div className="flex min-w-0 items-start gap-3">
-          <Link href={`/users/${actor.actorId}`} onClick={(event) => event.stopPropagation()} className="shrink-0 transition active:scale-95">
+          <Link
+            href={`/users/${actor.actorId}`}
+            onClick={(event) => event.stopPropagation()}
+            className="shrink-0 transition active:scale-95"
+          >
             <SocialAvatar
-              profile={{ username: actor.actorUsername, avatarUrl: actor.actorAvatarUrl }}
+              profile={{
+                username: actor.actorUsername,
+                avatarUrl: actor.actorAvatarUrl,
+              }}
               size="h-9 w-9"
             />
           </Link>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs leading-tight">
-              <span className="font-semibold">{item.organizerName || actor.actorUsername}</span>{" "}
-              <span className="text-muted-foreground">{t("feed.publishedUpdate")}</span>
+              <span className="font-semibold">
+                {item.organizerName || actor.actorUsername}
+              </span>{" "}
+              <span className="text-muted-foreground">
+                {t("feed.publishedUpdate")}
+              </span>
             </p>
             <button
               type="button"
@@ -530,7 +562,9 @@ function OrganizerUpdateFeedCard({ item }: { item: FeedGroup }) {
         <div className="mt-3 flex items-center justify-between gap-3">
           <span className="inline-flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
             <Calendar className="h-3.5 w-3.5 shrink-0 text-primary/80" />
-            <span className="truncate">{formatEventDate(item.eventStartTime)}</span>
+            <span className="truncate">
+              {formatEventDate(item.eventStartTime)}
+            </span>
           </span>
           <button
             type="button"

@@ -134,15 +134,22 @@ export default function Home() {
     <div className="relative min-h-screen overflow-hidden text-foreground">
       <div className="relative z-10 pb-32">
         <div className="mx-auto max-w-7xl px-5 pt-10">
-          <div className="relative z-40 flex items-start justify-between gap-4">
+          <div className="relative z-40 flex items-center justify-between gap-4">
             <div>
               <p className="text-xl font-semibold leading-tight md:text-2xl">
                 {loading ? (
-                  <span className="inline-flex items-center gap-2" aria-label={t("common.loading")}>
+                  <span
+                    className="inline-flex items-center gap-2"
+                    aria-label={t("common.loading")}
+                  >
                     {t("common.loading")}
                     <span className="h-5 w-36 animate-pulse rounded-full bg-white/[0.08] md:h-6" />
                   </span>
-                ) : t("home.hello", { name: user?.properties.username || guestName })}
+                ) : (
+                  t("home.hello", {
+                    name: user?.properties.username || guestName,
+                  })
+                )}
               </p>
               <p className="mt-1 text-sm text-muted-foreground md:text-base">
                 {t("home.exploreTonight", { count: tonightEvents.length })}

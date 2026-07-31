@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CircleMarker, MapContainer, TileLayer } from "react-leaflet";
+import L from "leaflet";
+import { Marker, MapContainer, TileLayer } from "react-leaflet";
 import { Event } from "@/core/DataProvider";
 import {
   MapBoundsObserver,
@@ -60,6 +61,17 @@ export function EventsMapView({
   useEffect(() => {
     if (userLocationProp) setUserLocation(userLocationProp);
   }, [userLocationProp]);
+
+  // Instantiem iconita in useMemo doar pe client pentru a evita erorile de appendChild / SSR
+  const userLocationIcon = useMemo(() => {
+    if (!isMounted || typeof window === "undefined") return null;
+    return L.divIcon({
+      className: "custom-user-location-marker",
+      html: `<div class="user-location-dot"></div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+    });
+  }, [isMounted]);
 
   const selectedId = selectedIdProp !== undefined ? selectedIdProp : internalId;
   const setSelectedId = (id: string | null) => {
@@ -158,18 +170,15 @@ export function EventsMapView({
           isFullView={isFullView}
           onToggleFullView={onToggleFullView}
         />
-        {userLocation && (
-          <CircleMarker
-            center={userLocation}
-            radius={9}
-            pathOptions={{
-              color: "#ffffff",
-              weight: 2,
-              fillColor: "#84cc16",
-              fillOpacity: 1,
-            }}
+
+        {userLocation && userLocationIcon && (
+          <Marker
+            position={userLocation}
+            icon={userLocationIcon}
+            interactive={false}
           />
         )}
+
         <EventMapMarkers
           events={events}
           selectedId={selectedId}
@@ -183,14 +192,29 @@ export function EventsMapView({
           />
         )}
       </MapContainer>
+
       <style jsx global>
         {eventMapStyles}
       </style>
+      <style jsx global>{`
+        .custom-user-location-marker {
+          background: transparent !important;
+          border: none !important;
+        }
+        .user-location-dot {
+          width: 18px;
+          height: 18px;
+          background-color: #84cc16;
+          border: 2px solid #ffffff;
+          border-radius: 50%;
+          box-shadow: 0 0 12px rgba(132, 204, 22, 0.6);
+          margin: 3px;
+        }
+      `}</style>
+
       {!events.length && (
         <div className="pointer-events-none absolute inset-0 z-[1000] grid place-items-center bg-black/80 md:bg-background/50 md:backdrop-blur-sm">
-          <p className="text-sm text-muted-foreground">
-            {t("events.noMatch")}
-          </p>
+          <p className="text-sm text-muted-foreground">{t("events.noMatch")}</p>
         </div>
       )}
     </div>
