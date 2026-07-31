@@ -35,6 +35,7 @@ import { formatEventDateTime } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 import { shareEvent } from "@/lib/native/share";
 import { routeForPlatform } from "@/lib/native/navigation";
+import { isNativePlatform } from "@/lib/native/platform";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 
 interface EventDetailsContextType {
@@ -60,11 +61,14 @@ export function EventDetailsProvider({ children }: { children: ReactNode }) {
     suppressEventRestoreRef.current = true;
     window.history.replaceState(window.history.state, "", returnTo);
     setSelectedEvent(null);
-    router.push(
-      routeForPlatform(
-        `/users/${organizerId}?returnTo=${encodeURIComponent(returnTo)}`,
-      ),
+    const destination = routeForPlatform(
+      `/users/${organizerId}?returnTo=${encodeURIComponent(returnTo)}`,
     );
+    if (isNativePlatform()) {
+      window.location.assign(destination);
+      return;
+    }
+    router.push(destination);
   };
 
   useEffect(() => {
@@ -306,7 +310,12 @@ export function EventDetailsSheet({
 
   const viewOrganizerEvents = () => {
     handleClose();
-    router.push(routeForPlatform(`/users/${event.organizerId}`));
+    const destination = routeForPlatform(`/users/${event.organizerId}`);
+    if (isNativePlatform()) {
+      window.location.assign(destination);
+      return;
+    }
+    router.push(destination);
   };
 
   const viewOrganizerProfile = () => {
@@ -323,11 +332,14 @@ export function EventDetailsSheet({
     window.history.replaceState(window.history.state, "", returnTo);
     handleClose(false);
     window.requestAnimationFrame(() => {
-      router.push(
-        routeForPlatform(
-          `/users/${event.organizerId}?returnTo=${encodeURIComponent(returnTo)}`,
-        ),
+      const destination = routeForPlatform(
+        `/users/${event.organizerId}?returnTo=${encodeURIComponent(returnTo)}`,
       );
+      if (isNativePlatform()) {
+        window.location.assign(destination);
+        return;
+      }
+      router.push(destination);
     });
   };
 

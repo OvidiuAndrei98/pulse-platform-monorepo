@@ -21,7 +21,11 @@ export function EventFriendProfilePopup({
 }) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState<PublicProfile | null>(attendee);
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -52,28 +56,19 @@ export function EventFriendProfilePopup({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
-  useEffect(() => {
-    // Vaul disables pointer events for body siblings while a drawer is open.
-    // Rendering inside its content keeps this small dialog interactive on mobile.
-    const activeDrawer = document.querySelector<HTMLElement>("[data-vaul-drawer]");
-    setPortalTarget(activeDrawer ?? document.body);
-  }, []);
-
-  if (!portalTarget) return null;
-
-  const isInsideDrawer = portalTarget !== document.body;
+  if (!isMounted) return null;
 
   return createPortal(
     <div
-      className={`${isInsideDrawer ? "absolute" : "fixed"} inset-0 z-[1000] grid touch-none place-items-center bg-black/65 p-5 backdrop-blur-sm`}
+      className="fixed inset-0 z-[10000] grid touch-none place-items-center bg-black/65 p-5 backdrop-blur-sm"
       role="presentation"
-      onPointerDown={(event) => {
-        event.stopPropagation();
-      }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
         event.stopPropagation();
       }}
+      onPointerDown={(event) => event.stopPropagation()}
     >
       <section
         role="dialog"
@@ -137,6 +132,6 @@ export function EventFriendProfilePopup({
 
       </section>
     </div>,
-    portalTarget,
+    document.body,
   );
 }

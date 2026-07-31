@@ -87,21 +87,23 @@ export function NativeNavigationGestures() {
       }, 450);
     };
 
-    const onPointerDown = (event: PointerEvent) => {
-      if (!event.isPrimary || event.pointerType !== "touch" || isGestureExempt(event.target)) {
+    const onTouchStart = (event: TouchEvent) => {
+      const touch = event.touches.item(0);
+      if (!touch || event.touches.length !== 1 || isGestureExempt(event.target)) {
         startRef.current = null;
         return;
       }
-      startRef.current = { x: event.clientX, y: event.clientY, target: event.target };
+      startRef.current = { x: touch.clientX, y: touch.clientY, target: event.target };
     };
 
-    const onPointerUp = (event: PointerEvent) => {
+    const onTouchEnd = (event: TouchEvent) => {
       const start = startRef.current;
       startRef.current = null;
-      if (!start || !event.isPrimary || event.pointerType !== "touch") return;
+      const touch = event.changedTouches.item(0);
+      if (!start || !touch) return;
 
-      const deltaX = event.clientX - start.x;
-      const deltaY = event.clientY - start.y;
+      const deltaX = touch.clientX - start.x;
+      const deltaY = touch.clientY - start.y;
       if (
         Math.abs(deltaX) < SWIPE_DISTANCE ||
         Math.abs(deltaX) < Math.abs(deltaY) * HORIZONTAL_BIAS ||
@@ -114,11 +116,11 @@ export function NativeNavigationGestures() {
       navigate(deltaX < 0 ? "back" : "forward");
     };
 
-    window.addEventListener("pointerdown", onPointerDown, true);
-    window.addEventListener("pointerup", onPointerUp, true);
+    window.addEventListener("touchstart", onTouchStart, { capture: true, passive: true });
+    window.addEventListener("touchend", onTouchEnd, { capture: true, passive: true });
     return () => {
-      window.removeEventListener("pointerdown", onPointerDown, true);
-      window.removeEventListener("pointerup", onPointerUp, true);
+      window.removeEventListener("touchstart", onTouchStart, true);
+      window.removeEventListener("touchend", onTouchEnd, true);
     };
   }, [isOrganizer, pathname, router]);
 
