@@ -15,6 +15,7 @@ import {
   Check,
   Share2,
   Ticket as TicketIcon,
+  CheckCircle2,
 } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -59,7 +60,9 @@ export function EventDetailsProvider({ children }: { children: ReactNode }) {
     suppressEventRestoreRef.current = true;
     window.history.replaceState(window.history.state, "", returnTo);
     setSelectedEvent(null);
-    router.push(`/users/${organizerId}?returnTo=${encodeURIComponent(returnTo)}`);
+    router.push(
+      `/users/${organizerId}?returnTo=${encodeURIComponent(returnTo)}`,
+    );
   };
 
   useEffect(() => {
@@ -327,8 +330,9 @@ export function EventDetailsSheet({
   const sheetContent = (
     <>
       <div className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-y-none touch-pan-y">
+        {/* HEADER CU IMAGINE SI OVERLAY */}
         <div className="relative">
-          <div className="relative h-56 w-full overflow-hidden bg-neutral-950 md:h-72">
+          <div className="relative h-64 w-full overflow-hidden bg-neutral-950 md:h-72">
             {event.bannerUrl && (
               <Image
                 src={event.bannerUrl}
@@ -340,11 +344,12 @@ export function EventDetailsSheet({
               />
             )}
 
-            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/95" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#050505]/95 via-[#050505]/40 to-transparent" />
           </div>
 
-          <div className="absolute left-4 right-4 top-10 md:top-6 flex flex-wrap items-center gap-2">
+          {/* BADGES (LIVE / DATA / COMPLET) */}
+          <div className="absolute left-4 right-4 top-10 md:top-6 flex flex-wrap items-center gap-2 z-10">
             {isFinished ? (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/45 px-3 py-1 text-[11px] font-medium text-white/80 backdrop-blur-md shadow-lg">
                 {t("eventSheet.eventCompleted")}
@@ -365,38 +370,46 @@ export function EventDetailsSheet({
             )}
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 p-5 md:p-6">
+          {/* TITLU + CATEGORIE + ORGANIZATOR MINIMALIST SUB TITLU */}
+          <div className="absolute inset-x-0 bottom-0 p-5 md:p-6 z-10">
             <p className="text-xs font-semibold tracking-wider uppercase text-primary">
               {event.category}
             </p>
             <h2 className="mt-1 text-2xl font-bold leading-tight md:text-3xl tracking-tight text-white drop-shadow-sm">
               {event.title}
             </h2>
+
+            {/* ORGANIZATOR INTEGRAT DYNAMIC DIRECT SUB TITLU */}
+            <div className="mt-2.5">
+              <EventOrganizerProfile
+                organizerId={event.organizerId}
+                onOpen={viewOrganizerProfile}
+              />
+            </div>
           </div>
         </div>
 
-        <div className="space-y-6 px-5 pb-8 pt-4 md:px-6">
+        {/* CONTINUT PRINCIPAL */}
+        <div className="space-y-6 px-5 pb-8 pt-5 md:px-6">
           <EventSocialProof eventId={event.id} />
           <EventAttendees eventId={event.id} />
 
+          {/* DESPRE EVENIMENT (Formatat corect) */}
           <section>
             <h3 className="text-sm font-semibold text-foreground/90">
               {t("eventSheet.about")}
             </h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-2 text-sm leading-relaxed text-zinc-300 whitespace-pre-line">
               {event.description || t("eventSheet.noDescription")}
             </p>
           </section>
 
-          <EventOrganizerProfile
-            organizerId={event.organizerId}
-            onOpen={viewOrganizerProfile}
-          />
-
           <EventOrganizerUpdates eventId={event.id} />
 
+          {/* LINEUP */}
           <EventLineup artists={event.lineup} />
 
+          {/* SECTIUNE BILETE */}
           {ticketTypes.length > 0 && (
             <section>
               <h3 className="text-sm font-semibold text-foreground/90">
@@ -409,8 +422,8 @@ export function EventDetailsSheet({
                     className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 transition-colors hover:bg-white/[0.05]"
                   >
                     <div>
-                      <p className="text-sm font-medium">{t.name}</p>
-                      <p className="text-xs font-semibold text-primary/90 mt-0.5">
+                      <p className="text-sm font-medium text-white">{t.name}</p>
+                      <p className="mt-0.5 text-xs font-semibold text-primary">
                         {t.priceRon} RON
                       </p>
                     </div>
@@ -423,7 +436,7 @@ export function EventDetailsSheet({
                       >
                         -
                       </button>
-                      <span className="w-5 text-center text-sm font-semibold">
+                      <span className="w-5 text-center text-sm font-semibold text-white">
                         {qty[t.id] ?? 0}
                       </span>
                       <button
@@ -438,6 +451,7 @@ export function EventDetailsSheet({
                   </div>
                 ))}
               </div>
+
               {isFinished ? (
                 <p className="mt-3 text-xs text-muted-foreground">
                   {t("eventSheet.eventCompleted")}
@@ -455,6 +469,7 @@ export function EventDetailsSheet({
             </section>
           )}
 
+          {/* FORMULAR EMAIL CHECKOUT */}
           {!isFinished && (
             <section>
               <label
@@ -488,6 +503,7 @@ export function EventDetailsSheet({
         </div>
       </div>
 
+      {/* BOTTOM BAR / ACTIONS */}
       <div className="relative z-10 flex items-center gap-2.5 border-t border-white/10 bg-background/80 px-4 py-3.5 backdrop-blur-xl md:bg-background/60">
         {user && (
           <button
@@ -498,7 +514,11 @@ export function EventDetailsSheet({
                 ? t("eventSheet.removeFavorite")
                 : t("eventSheet.addFavorite")
             }
-            className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition-all active:scale-95 ${favorited ? "border-primary/40 bg-primary/20 text-primary" : "border-white/10 bg-white/5 hover:bg-white/10"}`}
+            className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition-all active:scale-95 ${
+              favorited
+                ? "border-primary/40 bg-primary/20 text-primary"
+                : "border-white/10 bg-white/5 hover:bg-white/10"
+            }`}
           >
             <Bookmark
               className={`h-4 w-4 ${favorited ? "fill-current" : ""}`}
@@ -529,7 +549,6 @@ export function EventDetailsSheet({
       </div>
     </>
   );
-
   if (!isDesktop) {
     return (
       <Drawer
@@ -538,7 +557,7 @@ export function EventDetailsSheet({
         shouldScaleBackground={false}
         closeThreshold={0.35}
       >
-        <DrawerContent className="h-[82svh] max-h-[46rem] overflow-hidden rounded-t-[32px] border-none bg-black p-0 touch-none [&>div:first-child]:hidden">
+        <DrawerContent className="h-[82svh] max-h-[46rem] overflow-hidden rounded-t-4xl border-none bg-[#050505] p-0 touch-none [&>div:first-child]:hidden">
           <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
 
           {/* HANDLE OPTIMIZAT: Randat hardware direct (translate-z-0), fara efecte de blur care cauzeaza delay */}

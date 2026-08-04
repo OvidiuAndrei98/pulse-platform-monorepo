@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BadgeCheck, ChevronRight, UserRound } from "lucide-react";
+import { BadgeCheck, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { type PublicProfile, User } from "@/core/DataProvider";
@@ -40,46 +40,43 @@ export function EventOrganizerProfile({
   };
 
   return (
-    <section>
-      <h3 className="text-sm font-semibold text-foreground/90">
-        {t("eventSheet.organizer")}
-      </h3>
-      <button
-        type="button"
-        onClick={openProfile}
-        className="mt-3 flex w-full items-center gap-3 border border-white/10 bg-white/[0.03] p-3 text-left transition hover:border-primary/35 hover:bg-white/[0.055]"
-      >
-        <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full border border-primary/30 bg-primary/10 text-primary">
-          {organizer?.avatarUrl ? (
-            <img
-              src={organizer.avatarUrl}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          ) : organizer ? (
-            organizer.username.slice(0, 1).toUpperCase()
-          ) : (
-            <UserRound className="h-4 w-4" />
+    <button
+      type="button"
+      onClick={openProfile}
+      className="group flex items-center gap-2.5 text-left transition-opacity hover:opacity-85 focus:outline-none"
+    >
+      {/* Avatar mic si curat */}
+      <div className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white/10 text-[11px] font-bold text-white shadow-sm">
+        {organizer?.avatarUrl ? (
+          <img
+            src={organizer.avatarUrl}
+            alt=""
+            className="h-full w-full object-cover"
+          />
+        ) : organizer ? (
+          organizer.username.slice(0, 1).toUpperCase()
+        ) : (
+          <UserRound className="h-3.5 w-3.5 text-white/70" />
+        )}
+      </div>
+
+      {/* Text inline discret */}
+      <div className="flex items-center gap-1.5 text-xs">
+        <span className="text-zinc-400 font-normal">Organizat de</span>
+        <span className="font-semibold text-white group-hover:underline underline-offset-2 flex items-center gap-1">
+          {organizer?.organizerName ||
+            organizer?.username ||
+            t("eventSheet.organizer")}
+          {organizer?.organizerVerified && (
+            <BadgeCheck className="h-3.5 w-3.5 text-primary shrink-0" />
           )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <p className="truncate text-sm font-semibold">
-              {organizer?.organizerName || organizer?.username || t("eventSheet.organizer")}
-            </p>
-            {organizer?.organizerVerified && (
-              <BadgeCheck className="h-4 w-4 shrink-0 text-primary" />
-            )}
-          </div>
-          {organizer && (
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              @{organizer.username}
-            </p>
-          )}
-        </div>
-        <span className="sr-only">{t("eventSheet.viewOrganizerProfile")}</span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-      </button>
-    </section>
+        </span>
+        {organizer?.username && (
+          <span className="text-zinc-500 font-normal hidden sm:inline">
+            (@{organizer.username})
+          </span>
+        )}
+      </div>
+    </button>
   );
 }

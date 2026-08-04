@@ -11,7 +11,7 @@ export function EventLineup({ artists }: { artists?: readonly Artist[] }) {
 
   return (
     <section aria-label={t("lineup.aria")} className="pt-7 sm:pt-8">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+      <p className="text-sm font-semibold text-foreground/90">
         {t("lineup.title")}
       </p>
       <div className="mt-3 flex flex-col gap-2">

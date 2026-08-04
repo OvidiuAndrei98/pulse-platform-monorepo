@@ -23,11 +23,18 @@ export function EventCard({
   onBookmark,
   live,
 }: EventCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useDataProvider();
   const { open } = useEventDetails();
   const [favorited, setFavorited] = useState(Boolean(event.stats?.isFavorited));
+
   const formattedDate = formatEventDateShort(event.startTime);
+
+  // Formatăm ora scurt (ex: 22:00) pentru când evenimentul este LIVE
+  const formattedTime = new Date(event.startTime).toLocaleTimeString(
+    i18n.language || "ro",
+    { hour: "2-digit", minute: "2-digit" },
+  );
 
   useEffect(
     () => setFavorited(Boolean(event.stats?.isFavorited)),
@@ -60,7 +67,7 @@ export function EventCard({
           open(event);
         }
       }}
-      className={`group relative w-[260px] shrink-0 cursor-pointer rounded-[24px] border border-white/10 bg-[#121217]/40 p-2 shadow-2xl transition-all duration-200 hover:border-white/20 hover:bg-[#121217]/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${className}`}
+      className={`group relative w-[260px] shrink-0 cursor-pointer rounded-[24px] border border-white/10 bg-[#121217]/60 p-2 shadow-none transition-all duration-200 hover:border-white/20 hover:bg-[#121217]/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${className}`}
     >
       <div className="block">
         {/* 1. CONTAINER IMAGINE */}
@@ -73,14 +80,14 @@ export function EventCard({
             className="transform-gpu object-cover transition-transform duration-300 will-change-transform group-hover:scale-105"
           />
 
-          {/* Overlays / Gradientul tau original peste poza */}
+          {/* Overlays */}
           <div className="absolute inset-0 bg-black/20" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
 
-          {/* BADGES HEADER (Peste imagine) */}
-          <div className="absolute left-2.5 right-2.5 top-2.5 flex items-start justify-between z-10">
+          {/* BADGES HEADER */}
+          <div className="absolute left-2.5 right-2.5 top-2.5 z-10 flex items-start justify-between">
             {live ? (
-              <div className="inline-flex h-6 items-center gap-1.5 rounded-full border border-red-500/30 bg-black/60 px-2.5 backdrop-blur-md shadow-lg">
+              <div className="inline-flex h-6 items-center gap-1.5 rounded-full border border-red-500/30 bg-black/60 px-2.5 backdrop-blur-md">
                 <span className="relative flex h-2 w-2 shrink-0">
                   <span className="absolute inset-0 animate-ping rounded-full bg-red-500 opacity-75" />
                   <span className="relative h-2 w-2 rounded-full bg-red-500" />
@@ -93,8 +100,9 @@ export function EventCard({
               <div />
             )}
 
-            <div className="rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white/90 backdrop-blur-md shadow-lg">
-              {formattedDate}
+            {/* Dacă e LIVE afișăm ORA, altfel afișăm DATA */}
+            <div className="rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white/90 backdrop-blur-md">
+              {live ? formattedTime : formattedDate}
             </div>
           </div>
           {event.organizerAbsorbsServiceFee && (
@@ -105,25 +113,12 @@ export function EventCard({
         </div>
 
         {/* 2. CORPUL CARDULUI */}
-        <div className="mt-3 p-1 space-y-2.5">
-          {/* Titlu - Capitalized & Crisp */}
-          <h3 className="truncate text-base font-bold tracking-tight text-white capitalize">
-            {event.title.toLowerCase()}
-          </h3>
-
-          {/* Rândul 2: Category + Social Preview + Bookmark */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              {/* Category Pill */}
-              <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-zinc-300">
-                {event.category || t("events.generalCategory")}
-              </span>
-
-              {/* Friends Avatars / Counter */}
-              <EventFriendsPreview eventId={event.id} />
-            </div>
-
-            {/* Bookmark Button */}
+        <div className="mt-1 space-y-2 p-1">
+          {/* Titlu */}
+          <div className="flex items-center justify-between">
+            <h3 className="truncate text-base font-bold tracking-tight text-white capitalize">
+              {event.title.toLowerCase()}
+            </h3>
             <button
               type="button"
               onClick={(e) => {
@@ -136,7 +131,7 @@ export function EventCard({
                   ? t("eventSheet.removeFavorite")
                   : t("eventSheet.addFavorite")
               }
-              className={`p-1 transition-transform active:scale-90 ${
+              className={`py-1 pl-1 transition-transform active:scale-90 ${
                 favorited ? "text-primary" : "text-zinc-400 hover:text-white"
               }`}
             >
@@ -146,8 +141,19 @@ export function EventCard({
             </button>
           </div>
 
+          {/* Rândul 2: Category + Social Preview */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="inline-flex h-6 shrink-0 items-center rounded-full border border-white/10 bg-white/5 px-2.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-300">
+                {event.category || t("events.generalCategory")}
+              </span>
+
+              <EventFriendsPreview eventId={event.id} />
+            </div>
+          </div>
+
           {/* Rândul 3: Locația */}
-          <div className="flex items-center gap-1.5 text-xs text-zinc-300/80 pt-0.5">
+          <div className="flex items-center gap-1.5 pt-0.5 text-xs text-zinc-300/80">
             <MapPin className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
             <span className="truncate">
               {event.locationName || t("events.locationUnknown")}
