@@ -8,7 +8,9 @@ export function routeForPlatform(path: string) {
   if (eventMatch) return `/events?eventId=${encodeURIComponent(eventMatch[1])}${url.search ? `&${url.search.slice(1)}` : ""}`;
 
   const profileMatch = url.pathname.match(/^\/users\/([^/]+)$/);
-  if (profileMatch && profileMatch[1] !== "me") return `/profiles?userId=${encodeURIComponent(profileMatch[1])}`;
+  if (profileMatch && profileMatch[1] !== "me") {
+    return `/profiles?userId=${encodeURIComponent(profileMatch[1])}${url.search ? `&${url.search.slice(1)}` : ""}`;
+  }
 
   const editEventMatch = url.pathname.match(/^\/dashboard\/events\/([^/]+)$/);
   if (editEventMatch && editEventMatch[1] !== "new") return `/dashboard/events/edit?eventId=${encodeURIComponent(editEventMatch[1])}`;

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Check,
   Ticket,
@@ -20,6 +21,8 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { SocialAvatar } from "@/components/social/SocialAvatar";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
 import { useEventDetails } from "@/components/EventDetailsSheet";
+import { routeForPlatform } from "@/lib/native/navigation";
+import { isNativePlatform } from "@/lib/native/platform";
 import { formatEventDate } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 
@@ -41,6 +44,39 @@ type FeedGroup = {
   ticketActors: SocialFeedItem[];
   goingActors: SocialFeedItem[];
 };
+
+function ProfileLink({
+  profileId,
+  children,
+  className,
+  title,
+  stopPropagation = false,
+}: {
+  profileId: string;
+  children: ReactNode;
+  className?: string;
+  title?: string;
+  stopPropagation?: boolean;
+}) {
+  const router = useRouter();
+
+  return (
+    <Link
+      href={`/users/${profileId}`}
+      className={className}
+      title={title}
+      onClick={(event) => {
+        if (stopPropagation) event.stopPropagation();
+        if (!isNativePlatform()) return;
+
+        event.preventDefault();
+        router.push(routeForPlatform(`/users/${profileId}`));
+      }}
+    >
+      {children}
+    </Link>
+  );
+}
 
 export default function FeedPage() {
   const { user, loading, isOrganizer } = useDataProvider();
@@ -177,8 +213,8 @@ export default function FeedPage() {
                 key={request.id}
                 className="flex items-center justify-between gap-2.5 rounded-2xl border border-white/10 bg-neutral-900/60 p-3 backdrop-blur-md"
               >
-                <Link
-                  href={`/users/${request.id}`}
+                <ProfileLink
+                  profileId={request.id}
                   className="flex min-w-0 flex-1 items-center gap-2.5"
                 >
                   <SocialAvatar profile={request} size="h-9 w-9" />
@@ -190,7 +226,7 @@ export default function FeedPage() {
                       {t("feed.wantsToConnect")}
                     </p>
                   </div>
-                </Link>
+                </ProfileLink>
 
                 <div className="flex items-center gap-1.5">
                   <button
@@ -312,9 +348,9 @@ function FriendsRail({
           const isActive = activeFriendIds.has(friend.id);
 
           return (
-            <Link
+            <ProfileLink
               key={friend.id}
-              href={`/users/${friend.id}`}
+              profileId={friend.id}
               className="group flex w-[68px] shrink-0 flex-col items-center gap-1.5 text-center focus:outline-none"
               title={t("feed.viewProfile", { name: friend.username })}
             >
@@ -331,7 +367,7 @@ function FriendsRail({
               <span className="w-full truncate text-[11px] font-medium leading-tight text-zinc-300 transition-colors group-hover:text-white">
                 {friend.username}
               </span>
-            </Link>
+            </ProfileLink>
           );
         })
       )}
@@ -401,10 +437,10 @@ function FeedCard({ item }: { item: FeedGroup }) {
     >
       {/* Informații actor & eveniment */}
       <div className="flex min-w-0 flex-1 items-start gap-3">
-        <Link
-          href={`/users/${primaryActor.actorId}`}
+        <ProfileLink
+          profileId={primaryActor.actorId}
           className="shrink-0 transition active:scale-95"
-          onClick={(event) => event.stopPropagation()}
+          stopPropagation
         >
           <SocialAvatar
             profile={{
@@ -413,7 +449,7 @@ function FeedCard({ item }: { item: FeedGroup }) {
             }}
             size="h-9 w-9"
           />
-        </Link>
+        </ProfileLink>
 
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs leading-tight">
@@ -518,9 +554,9 @@ function OrganizerUpdateFeedCard({ item }: { item: FeedGroup }) {
 
       <div className="flex min-w-0 flex-col p-3.5 sm:p-4">
         <div className="flex min-w-0 items-start gap-3">
-          <Link
-            href={`/users/${actor.actorId}`}
-            onClick={(event) => event.stopPropagation()}
+          <ProfileLink
+            profileId={actor.actorId}
+            stopPropagation
             className="shrink-0 transition active:scale-95"
           >
             <SocialAvatar
@@ -530,7 +566,7 @@ function OrganizerUpdateFeedCard({ item }: { item: FeedGroup }) {
               }}
               size="h-9 w-9"
             />
-          </Link>
+          </ProfileLink>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs leading-tight">
               <span className="font-semibold">

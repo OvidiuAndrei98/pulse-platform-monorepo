@@ -9,6 +9,7 @@ import { EventDetailsProvider } from "@/components/EventDetailsSheet";
 import { OfflineScannerServiceWorker } from "@/components/OfflineScannerServiceWorker";
 import { ToastProvider } from "@/components/ToastProvider";
 import { NativeAppBridge } from "@/components/NativeAppBridge";
+import { NativeNavigationGestures } from "@/components/NativeNavigationGestures";
 
 const inter = Inter({
   variable: "--font-inter-sans",
@@ -78,6 +79,7 @@ export default function RootLayout({
               <BottomNav />
               <OfflineScannerServiceWorker />
               <NativeAppBridge />
+              <NativeNavigationGestures />
             </DataProvider>
           </I18nProvider>
         </div>

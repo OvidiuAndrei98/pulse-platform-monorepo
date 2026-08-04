@@ -67,13 +67,10 @@ export function EventFriendProfilePopup({
     <div
       className={`${isInsideDrawer ? "absolute" : "fixed"} inset-0 z-[1000] grid touch-none place-items-center bg-black/65 p-5 backdrop-blur-sm`}
       role="presentation"
-      onPointerDownCapture={(event) => {
-        event.stopPropagation();
-      }}
       onPointerDown={(event) => {
         event.stopPropagation();
       }}
-      onClickCapture={(event) => {
+      onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
         event.stopPropagation();
       }}
@@ -84,14 +81,10 @@ export function EventFriendProfilePopup({
         aria-label={t("social.attendeeProfile", { name: displayName })}
         className="relative w-full max-w-sm touch-auto overflow-hidden rounded-3xl border border-white/15 bg-[#101311] p-5 text-foreground shadow-2xl"
         onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
       >
         <button
           type="button"
-          onPointerDown={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onClose();
-          }}
           onClick={onClose}
           aria-label={t("social.closeProfile")}
           className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-white/[0.03] text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
