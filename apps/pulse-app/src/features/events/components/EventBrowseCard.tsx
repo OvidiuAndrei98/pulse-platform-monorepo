@@ -6,7 +6,10 @@ import { useEventDetails } from "@/components/EventDetailsSheet";
 import { EventStatusBadge } from "@/features/events/components/EventStatusBadge";
 import { Coordinates } from "@/features/events/types";
 import { formatDistance, getDistanceKm } from "@/features/events/utils";
-import { formatEventDateShort, formatEventTime } from "@/features/events/dateFormat";
+import {
+  formatEventDateShort,
+  formatEventTime,
+} from "@/features/events/dateFormat";
 import { EventFriendsPreview } from "@/components/social/EventFriendsPreview";
 
 export function EventBrowseCard({
@@ -27,7 +30,7 @@ export function EventBrowseCard({
       type="button"
       onClick={() => open(event)}
       data-event-card
-      className="event-card group relative block w-full overflow-hidden rounded-3xl border border-white/10 bg-black text-left transition-all duration-300 hover:border-white/20 active:scale-[0.99]"
+      className="event-card group relative block w-full overflow-hidden rounded-[26px] border border-white/10 bg-black text-left transition-all duration-300 hover:border-white/20 active:scale-[0.99]"
     >
       <div className="relative h-64 w-full overflow-hidden">
         <Image
@@ -84,7 +87,10 @@ export function EventBrowseCard({
             </span>
           )}
         </div>
-        <EventFriendsPreview eventId={event.id} className="mt-3 border-t border-white/15 pt-3" />
+        <EventFriendsPreview
+          eventId={event.id}
+          className="mt-3 border-t border-white/15 pt-3"
+        />
       </div>
     </button>
   );

@@ -51,7 +51,7 @@ export function ProfileConnectionQr() {
   };
 
   return (
-    <section className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+    <section className="rounded-[26px] border border-white/10 bg-white/[0.03] p-4">
       {/* Layout adaptativ vertical (flex-col) care trece pe orizontal doar pe ecrane mari (xl:flex-row) */}
       <div className="flex flex-col items-start gap-4 xl:flex-row xl:items-center xl:justify-between">
         {/* Container Iconita + Text */}

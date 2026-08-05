@@ -185,7 +185,9 @@ export default function MePage() {
   };
 
   if (loading) {
-    return <PageLoadingState label={t("common.loading")} className="min-h-screen" />;
+    return (
+      <PageLoadingState label={t("common.loading")} className="min-h-screen" />
+    );
   }
 
   if (!user) return null;
@@ -207,10 +209,7 @@ export default function MePage() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-12 items-start">
           <div className="md:col-span-4 md:sticky md:top-16 space-y-6">
             <header className="flex items-center gap-4">
-              <ProfileAvatarUpload
-                user={user}
-                onUploaded={updateSessionUser}
-              />
+              <ProfileAvatarUpload user={user} onUploaded={updateSessionUser} />
               <div className="min-w-0 flex-1">
                 <h1 className="truncate text-2xl font-semibold tracking-tight">
                   {user.properties.username}
@@ -228,7 +227,7 @@ export default function MePage() {
             {!isOrganizer && validationEvents.length > 0 && (
               <Link
                 href="/ticket-validation"
-                className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 p-4 text-left transition hover:bg-primary/15"
+                className="flex items-center gap-3 rounded-[26px] border border-primary/30 bg-primary/10 p-4 text-left transition hover:bg-primary/15"
               >
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
                   <QrCode className="h-5 w-5" />
@@ -254,7 +253,7 @@ export default function MePage() {
               <h2 className="mb-3 text-lg font-semibold">
                 {t("userProfile.accountSecurity")}
               </h2>
-              <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+              <div className="overflow-hidden rounded-[26px] border border-white/10 bg-white/5">
                 <Row
                   icon={User}
                   label={t("userProfile.personalDetails")}
@@ -263,7 +262,10 @@ export default function MePage() {
                   onClick={() => toggleRow("details-desktop")}
                 >
                   <div className="pt-2">
-                    <PersonalDetailsForm user={user} onSaved={updateSessionUser} />
+                    <PersonalDetailsForm
+                      user={user}
+                      onSaved={updateSessionUser}
+                    />
                   </div>
                 </Row>
                 <Row
@@ -298,7 +300,7 @@ export default function MePage() {
             </section>
 
             <button
-              className="hidden md:flex mountaineer w-full items-center justify-center gap-2 rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3.5 text-sm font-semibold text-red-400 transition hover:bg-red-500/15"
+              className="hidden md:flex mountaineer w-full items-center justify-center gap-2 rounded-[26px] border border-red-500/25 bg-red-500/10 px-4 py-3.5 text-sm font-semibold text-red-400 transition hover:bg-red-500/15"
               onClick={handleLogout}
             >
               <LogOut className="h-4 w-4" /> {t("userProfile.logout")}
@@ -306,7 +308,7 @@ export default function MePage() {
           </div>
 
           <div className="md:col-span-8 space-y-8">
-            <section className="md:border md:border-white/5 md:bg-white/[0.01] md:p-6 md:rounded-3xl">
+            <section className="md:border md:border-white/5 md:bg-white/[0.01] md:p-6 md:rounded-[26px]">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
                   <Bookmark className="h-4 w-4 text-primary" />{" "}
@@ -358,28 +360,78 @@ export default function MePage() {
                 </div>
               )}
             </section>
-            <section className="md:border md:border-white/5 md:bg-white/[0.01] md:p-6 md:rounded-3xl">
+            <section className="md:border md:border-white/5 md:bg-white/[0.01] md:p-6 md:rounded-[26px]">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-lg font-semibold">
                   {t("userProfile.ticketsOrders")}
                 </h2>
-                <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1 md:hidden">
-                  <TabBtn
-                    active={tab === "active"}
+
+                {/* TAB-URI CU ANIMAȚIE SLIDE & BADGE DE CONTRAST */}
+                <div className="relative flex rounded-full border border-white/10 bg-white/5 p-1 md:hidden">
+                  {/* TAB 1: ACTIVE */}
+                  <button
+                    type="button"
                     onClick={() => setTab("active")}
+                    className={`relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors duration-200 z-10 ${
+                      tab === "active"
+                        ? "text-black"
+                        : "text-zinc-400 hover:text-white"
+                    }`}
                   >
-                    <Ticket className="h-3.5 w-3.5" /> {t("userProfile.active")}
-                    <span className="ml-1 rounded-full bg-primary/20 px-1.5 text-[10px] text-primary">
-                      {activeTickets.length}
+                    {tab === "active" && (
+                      <motion.div
+                        layoutId="activeTabPill"
+                        className="absolute inset-0 rounded-full bg-primary"
+                        transition={{
+                          type: "spring",
+                          stiffness: 400,
+                          damping: 30,
+                        }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      <Ticket className="h-3.5 w-3.5" />
+                      {t("userProfile.active")}
+
+                      {/* Badge cu contrast dinamic */}
+                      <span
+                        className={`ml-1 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold transition-all duration-200 ${
+                          tab === "active"
+                            ? "bg-black/90 text-primary" // Fundal inchis pe pastila verde neon
+                            : "bg-primary/20 text-primary" // Fundal translucid cand tabul e inactiv
+                        }`}
+                      >
+                        {activeTickets.length}
+                      </span>
                     </span>
-                  </TabBtn>
-                  <TabBtn
-                    active={tab === "history"}
+                  </button>
+
+                  {/* TAB 2: HISTORY */}
+                  <button
+                    type="button"
                     onClick={() => setTab("history")}
+                    className={`relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors duration-200 z-10 ${
+                      tab === "history"
+                        ? "text-black"
+                        : "text-zinc-400 hover:text-white"
+                    }`}
                   >
-                    <Receipt className="h-3.5 w-3.5" />{" "}
-                    {t("userProfile.history")}
-                  </TabBtn>
+                    {tab === "history" && (
+                      <motion.div
+                        layoutId="activeTabPill"
+                        className="absolute inset-0 rounded-full bg-primary"
+                        transition={{
+                          type: "spring",
+                          stiffness: 400,
+                          damping: 30,
+                        }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      <Receipt className="h-3.5 w-3.5" />
+                      {t("userProfile.history")}
+                    </span>
+                  </button>
                 </div>
               </div>
 
@@ -402,7 +454,7 @@ export default function MePage() {
                       </div>
                       <Link
                         href="/users/me/tickets"
-                        className="mt-3 flex items-center justify-between border border-white/10 px-4 py-3 text-sm font-semibold transition hover:border-primary/50"
+                        className="mt-3 flex items-center justify-between border border-white/10 px-4 py-3 text-sm font-semibold transition hover:border-primary/50 rounded-[26px]"
                       >
                         <span>{t("userProfile.viewAllTickets")}</span>
                         <ChevronRight className="h-4 w-4 text-primary" />
@@ -415,9 +467,9 @@ export default function MePage() {
                   <>
                     <Link
                       href="/users/me/invoices"
-                      className="flex items-center gap-3 border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-primary/50 rounded-lg"
+                      className="flex items-center gap-3 border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:border-primary/50 rounded-[26px]"
                     >
-                      <span className="grid h-9 w-9 place-items-center bg-primary/10 text-primary">
+                      <span className="grid h-9 w-9 place-items-center bg-primary/10 text-primary rounded-2xl">
                         <Receipt className="h-4 w-4" />
                       </span>
                       <span className="min-w-0 flex-1">
@@ -551,7 +603,7 @@ export default function MePage() {
                 <h2 className="mb-3 text-lg font-semibold">
                   {t("userProfile.accountSecurity")}
                 </h2>
-                <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+                <div className="overflow-hidden rounded-[26px] border border-white/10 bg-white/5">
                   <Row
                     icon={User}
                     label={t("userProfile.personalDetails")}
@@ -602,7 +654,7 @@ export default function MePage() {
               <h2 className="mb-3 text-lg font-semibold md:text-sm md:font-medium md:text-muted-foreground">
                 {t("userProfile.supportLegal")}
               </h2>
-              <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+              <div className="overflow-hidden rounded-[26px] border border-white/10 bg-white/5">
                 <Row
                   icon={ChevronRight}
                   label={t("userProfile.helpSupport")}
