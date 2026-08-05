@@ -50,6 +50,39 @@ const eventUpdatesPromises = new Map<string, Promise<OrganizerEventUpdate[]>>();
 const organizerUpdatesCache = new Map<string, CachedValue<OrganizerEventUpdate[]>>();
 const organizerUpdatesPromises = new Map<string, Promise<OrganizerEventUpdate[]>>();
 
+function deleteKeysWithPrefix<T>(map: Map<string, T>, prefix: string): void {
+  for (const key of map.keys()) {
+    if (key.startsWith(prefix)) map.delete(key);
+  }
+}
+
+/**
+ * Removes all module-level data tied to an authenticated session.
+ * Public, session-independent event caches are intentionally preserved.
+ */
+export function clearSessionCaches(userId: string): void {
+  if (!userId) return;
+
+  friendsCache.delete(userId);
+  friendsPromises.delete(userId);
+  socialFeedCache.delete(userId);
+  socialFeedPromises.delete(userId);
+  notificationCache.delete(userId);
+  notificationPromises.delete(userId);
+
+  // These caches use `${viewerId}:${resourceId}` as their key.
+  const viewerPrefix = `${userId}:`;
+  deleteKeysWithPrefix(eventFriendsCache, viewerPrefix);
+  deleteKeysWithPrefix(eventFriendsPromises, viewerPrefix);
+  deleteKeysWithPrefix(publicProfileCache, viewerPrefix);
+  deleteKeysWithPrefix(publicProfilePromises, viewerPrefix);
+
+  // Organizer updates are public, but clearing the current organizer's entry
+  // prevents a new session from inheriting locally stale mutations.
+  organizerUpdatesCache.delete(userId);
+  organizerUpdatesPromises.delete(userId);
+}
+
 function markNotificationReadInList(
   list: NotificationList,
   notificationId: string,

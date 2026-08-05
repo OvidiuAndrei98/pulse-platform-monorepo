@@ -10,7 +10,13 @@ import { useDataProvider } from "@/core/DataProviderContext";
 type EventSocial = ReadableSchema<"EventSocialResponse">;
 type RsvpStatus = "interested" | "going";
 
-export function EventSocialProof({ eventId }: { eventId: string }) {
+export function EventSocialProof({
+  eventId,
+  className = "",
+}: {
+  eventId: string;
+  className?: string;
+}) {
   const { user } = useDataProvider();
   const { t } = useTranslation();
   const [social, setSocial] = useState<EventSocial | null>(null);
@@ -51,8 +57,10 @@ export function EventSocialProof({ eventId }: { eventId: string }) {
     }
   };
 
+  const containerClass = className || "border-y border-white/10 py-4";
+
   if (!social) {
-    return <div className="h-20 animate-pulse border border-white/10 bg-white/[0.035]" />;
+    return <div className={`h-20 animate-pulse border border-white/10 bg-white/[0.035] ${containerClass}`} />;
   }
 
   const isTicketHolder = social.currentUserStatus === "has_ticket";
@@ -62,7 +70,7 @@ export function EventSocialProof({ eventId }: { eventId: string }) {
       : social.ticketsSoldCount + social.manualGoingCount;
 
   return (
-    <section className="border-y border-white/10 py-4">
+    <section className={containerClass}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <UsersRound className="h-4 w-4 text-primary" />

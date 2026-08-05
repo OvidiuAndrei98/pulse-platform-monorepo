@@ -373,6 +373,7 @@ export const resources = {
         selectTickets: "Select tickets",
       },
       eventPage: {
+        organizedBy: "Organized by",
         locationAt: "At {{location}}",
         time: "Time",
         until: "Until {{time}}",
@@ -1232,6 +1233,7 @@ export const resources = {
         selectTickets: "Selecteaza bilete",
       },
       eventPage: {
+        organizedBy: "Organizat de",
         locationAt: "La {{location}}",
         time: "Ora",
         until: "Pana la {{time}}",

@@ -63,7 +63,7 @@ export function EventOrganizerProfile({
 
       {/* Text inline discret */}
       <div className="flex items-center gap-1.5 text-xs">
-        <span className="text-zinc-400 font-normal">Organizat de</span>
+        <span className="text-zinc-400 font-normal">{t("eventPage.organizedBy")}</span>
         <span className="font-semibold text-white group-hover:underline underline-offset-2 flex items-center gap-1">
           {organizer?.organizerName ||
             organizer?.username ||

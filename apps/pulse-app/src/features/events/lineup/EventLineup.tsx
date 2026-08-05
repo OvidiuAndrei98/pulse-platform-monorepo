@@ -10,7 +10,7 @@ export function EventLineup({ artists }: { artists?: readonly Artist[] }) {
   if (!artists?.length) return null;
 
   return (
-    <section aria-label={t("lineup.aria")} className="pt-7 sm:pt-8">
+    <section aria-label={t("lineup.aria")} className="pt-2">
       <p className="text-sm font-semibold text-foreground/90">
         {t("lineup.title")}
       </p>

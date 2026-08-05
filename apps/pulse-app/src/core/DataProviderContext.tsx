@@ -10,7 +10,7 @@ import React, {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ApiClient } from "@packages/api-client/src/Client";
-import { User, UserData } from "./DataProvider";
+import { clearSessionCaches, User, UserData } from "./DataProvider";
 import { apiRoot } from "./apiRoot";
 import { useTranslation } from "react-i18next";
 import {
@@ -149,13 +149,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(() => {
+    if (user) clearSessionCaches(user.properties.id);
     void clearAllOfflineValidationData();
     void Promise.all([clearAccessToken(), clearOfflineSession()]);
     setUser(undefined);
     if (isProtectedRoute) {
       router.push("/login");
     }
-  }, [isProtectedRoute, router]);
+  }, [isProtectedRoute, router, user]);
 
   const getToken = useCallback((): string | null => {
     return getAccessTokenSync();
