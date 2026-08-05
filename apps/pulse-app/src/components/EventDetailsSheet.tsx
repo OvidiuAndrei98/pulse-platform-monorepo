@@ -586,7 +586,7 @@ export function EventDetailsSheet({
         exit={{ y: 24, opacity: 0 }}
         transition={{ type: "spring", damping: 28, stiffness: 260 }}
         onClick={(clickEvent) => clickEvent.stopPropagation()}
-        className="relative z-10 flex h-[min(88vh,49rem)] w-[calc(100%-1.5rem)] max-w-2xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-neutral-950 text-foreground shadow-2xl backdrop-blur-xl cursor-default"
+        className="relative z-10 flex h-[min(88vh,49rem)] w-[calc(100%-1.5rem)] max-w-2xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#050505] text-foreground shadow-2xl backdrop-blur-xl cursor-default"
       >
         {sheetContent}
       </motion.div>

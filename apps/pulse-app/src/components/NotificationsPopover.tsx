@@ -23,7 +23,8 @@ export function NotificationsPopover() {
   const { user } = useDataProvider();
   const { t } = useTranslation();
   const router = useRouter();
-  const { notifications, notificationsLoading, unreadCount, markRead } = User.useNotifications(user);
+  const { notifications, notificationsLoading, unreadCount, markRead } =
+    User.useNotifications(user);
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -78,7 +79,9 @@ export function NotificationsPopover() {
               className="relative grid place-items-center"
             >
               <Bell className="h-4 w-4" strokeWidth={2.2} />
-              {unreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-primary" />}
+              {unreadCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-primary" />
+              )}
             </motion.span>
           </motion.button>
         )}
@@ -89,7 +92,7 @@ export function NotificationsPopover() {
           <motion.div
             key="panel"
             layoutId="notif-morph"
-            className="absolute right-0 top-0 z-[100] w-[min(20rem,calc(100vw-2.5rem))] origin-top-right overflow-hidden rounded-3xl border border-white/20 bg-[#141614]/95 md:bg-[#141614]/85 text-foreground md:backdrop-blur-xl transform-gpu"
+            className="absolute right-0 top-0 z-[100] w-[min(20rem,calc(100vw-2.5rem))] origin-top-right overflow-hidden rounded-[26px] border border-white/20 bg-[#141614]/95 md:bg-[#141614]/85 text-foreground md:backdrop-blur-xl transform-gpu"
             transition={{ type: "spring", stiffness: 220, damping: 26 }}
           >
             {/* Sheen effect */}
@@ -104,7 +107,9 @@ export function NotificationsPopover() {
                 className="flex items-center gap-2"
               >
                 <Bell className="h-4 w-4 text-primary" strokeWidth={2.2} />
-                <span className="text-sm font-semibold">{t("notifications.title")}</span>
+                <span className="text-sm font-semibold">
+                  {t("notifications.title")}
+                </span>
               </motion.div>
               <button
                 type="button"
@@ -180,7 +185,11 @@ function NotificationIcon({ notification }: { notification: AppNotification }) {
   if (notification.actorAvatarUrl) {
     return (
       <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full border border-primary/30 bg-primary/10">
-        <img src={notification.actorAvatarUrl} alt="" className="h-full w-full object-cover" />
+        <img
+          src={notification.actorAvatarUrl}
+          alt=""
+          className="h-full w-full object-cover"
+        />
       </div>
     );
   }
@@ -206,17 +215,31 @@ function NotificationIcon({ notification }: { notification: AppNotification }) {
   );
 }
 
-function notificationText(notification: AppNotification, t: (key: string, options?: Record<string, unknown>) => string) {
+function notificationText(
+  notification: AppNotification,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
   if (notification.type === "organizer_event") {
-    return { title: t("notifications.organizerEventTitle"), body: t("notifications.organizerEventBody", { name: notification.actorUsername || "Glow" }) };
+    return {
+      title: t("notifications.organizerEventTitle"),
+      body: t("notifications.organizerEventBody", {
+        name: notification.actorUsername || "Glow",
+      }),
+    };
   }
   if (notification.type === "ticket_purchased") {
-    return { title: t("notifications.ticketPurchasedTitle"), body: t("notifications.ticketPurchasedBody") };
+    return {
+      title: t("notifications.ticketPurchasedTitle"),
+      body: t("notifications.ticketPurchasedBody"),
+    };
   }
   return { title: notification.title, body: notification.body };
 }
 
-function formatRelativeTime(value: string, t: (key: string, options?: Record<string, unknown>) => string) {
+function formatRelativeTime(
+  value: string,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
   const elapsed = Math.max(0, Date.now() - new Date(value).getTime());
   const minutes = Math.floor(elapsed / 60000);
   if (minutes < 1) return t("notifications.now");

@@ -120,11 +120,6 @@
   }
 }
 
-/* Event cards remain the primary rounded objects in the interface. */
-.event-card {
-  border-radius: 1.25rem;
-}
-
 /* Backdrop filters force expensive offscreen rendering on mobile GPUs. */
 @media (max-width: 767px) {
   [class*="backdrop-blur"] {
