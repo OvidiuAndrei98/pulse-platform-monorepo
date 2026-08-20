@@ -532,6 +532,7 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 
 	dbEvents, err := h.Queries.ListEvents(r.Context(), params)
 	if err != nil {
+		log.Printf("ListEvents query failed: %v", err)
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la listare")
 		return
 	}

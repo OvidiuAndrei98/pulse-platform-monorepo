@@ -207,15 +207,18 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.Queries.GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
+		log.Printf("Login user lookup failed: %v", err)
 		router.RespondWithError(w, http.StatusUnauthorized, "Email sau parolă incorectă")
 		return
 	}
 
 	if !user.IsActive.Bool {
+		log.Print("Login rejected: account inactive")
 		router.RespondWithError(w, http.StatusForbidden, "Contul nu este activat. Te rugăm să îți verifici email-ul.")
 		return
 	}
 	if !CheckPasswordHash(req.Password, user.PasswordHash.String) {
+		log.Print("Login rejected: invalid password")
 		router.RespondWithError(w, http.StatusUnauthorized, "Email sau parolă incorectă")
 		return
 	}
@@ -223,6 +226,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	tokenString, err := issueUserJWT(user)
 	if err != nil {
+		log.Printf("Login token creation failed: %v", err)
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la generarea token-ului de autentificare")
 		return
 	}
