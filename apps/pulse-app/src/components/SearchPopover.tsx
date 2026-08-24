@@ -1,11 +1,21 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Search, X, Calendar, ArrowUpRight, BadgeCheck, UserRound } from "lucide-react";
+import {
+  Search,
+  X,
+  Calendar,
+  ArrowUpRight,
+  BadgeCheck,
+  UserRound,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Event } from "@/core/DataProvider";
-import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
+import {
+  ApiClient,
+  type ReadableSchema,
+} from "@packages/api-client/src/Client";
 import { useTranslation } from "react-i18next";
 
 interface SearchPopoverProps {
@@ -63,7 +73,8 @@ export function SearchPopover({ events }: SearchPopoverProps) {
       return;
     }
     const timer = window.setTimeout(() => {
-      ApiClient.instance.get("/profiles/search", { params: { query: { q } } })
+      ApiClient.instance
+        .get("/profiles/search", { params: { query: { q } } })
         .then((data) => setProfiles(data as PublicProfile[]))
         .catch(() => setProfiles([]));
     }, 180);
@@ -92,7 +103,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
             type="button"
             aria-label={t("search.open")}
             onClick={() => setOpen(true)}
-            className="absolute inset-x-0 top-0 flex h-11 items-center gap-2 overflow-hidden rounded-full border border-border bg-surface/90 px-4 text-left text-foreground backdrop-blur-lg transform-gpu md:bg-surface/70 md:backdrop-blur-md"
+            className="absolute inset-x-0 top-0 flex h-11 items-center gap-2 overflow-hidden rounded-full border border-white/10  bg-[#0d0d10]  px-4 text-left text-foreground backdrop-blur-lg transform-gpu md:bg-surface/70 md:backdrop-blur-md"
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
           >
             <motion.span layout className="flex items-center gap-2">
@@ -143,14 +154,20 @@ export function SearchPopover({ events }: SearchPopoverProps) {
 
               {/* Contorizăm înălțimea independent pentru a opri trepidațiile (dansul) listei la filtrare */}
               <div className="max-h-[60vh] overflow-y-auto px-2 pb-3 pt-3">
-                <Section title={t("search.events")} count={matchedEvents?.length ?? 0}>
+                <Section
+                  title={t("search.events")}
+                  count={matchedEvents?.length ?? 0}
+                >
                   {matchedEvents?.map((e) => (
                     <ResultRow
                       key={e.id}
                       icon={Calendar}
                       title={e.title}
                       meta={`${e.category} · ${e.locationName}`}
-                      onClick={() => { router.push(`/events/${e.id}`); setOpen(false); }}
+                      onClick={() => {
+                        router.push(`/events/${e.id}`);
+                        setOpen(false);
+                      }}
                     />
                   ))}
                   {matchedEvents?.length === 0 && (
@@ -160,17 +177,39 @@ export function SearchPopover({ events }: SearchPopoverProps) {
                   )}
                 </Section>
                 {q.length >= 2 && (
-                  <Section title={t("search.peopleAndOrganizers")} count={profiles.length}>
+                  <Section
+                    title={t("search.peopleAndOrganizers")}
+                    count={profiles.length}
+                  >
                     {profiles.map((profile) => (
                       <ResultRow
                         key={profile.id}
-                        icon={profile.role === "organizer" ? BadgeCheck : UserRound}
-                        title={profile.role === "organizer" ? profile.organizerName || profile.username : `@${profile.username}`}
-                        meta={profile.role === "organizer" ? t("search.organizerMeta", { username: profile.username }) : profile.bio || t("search.publicProfile")}
-                        onClick={() => { router.push(`/users/${profile.id}`); setOpen(false); }}
+                        icon={
+                          profile.role === "organizer" ? BadgeCheck : UserRound
+                        }
+                        title={
+                          profile.role === "organizer"
+                            ? profile.organizerName || profile.username
+                            : `@${profile.username}`
+                        }
+                        meta={
+                          profile.role === "organizer"
+                            ? t("search.organizerMeta", {
+                                username: profile.username,
+                              })
+                            : profile.bio || t("search.publicProfile")
+                        }
+                        onClick={() => {
+                          router.push(`/users/${profile.id}`);
+                          setOpen(false);
+                        }}
                       />
                     ))}
-                    {profiles.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">{t("search.noProfiles")}</p>}
+                    {profiles.length === 0 && (
+                      <p className="px-3 py-2 text-xs text-muted-foreground">
+                        {t("search.noProfiles")}
+                      </p>
+                    )}
                   </Section>
                 )}
               </div>
