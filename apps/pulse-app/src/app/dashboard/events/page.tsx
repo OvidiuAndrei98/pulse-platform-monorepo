@@ -46,7 +46,7 @@ export default function EventsListPage() {
   ] as const;
 
   return (
-    <div className="w-full text-foreground pb-20">
+    <div className="w-full text-foreground">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-6 sm:pt-8 space-y-5 sm:space-y-6">
         {/* HEADER SECTION */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

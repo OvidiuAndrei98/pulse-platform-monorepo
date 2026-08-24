@@ -83,7 +83,7 @@ export default function FinancePage() {
   }, [salesPageCount]);
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-28 pt-7 text-foreground sm:px-6 sm:pt-9">
+    <main className="mx-auto max-w-5xl px-4 pt-7 text-foreground sm:px-6 sm:pt-9">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-2 text-primary">

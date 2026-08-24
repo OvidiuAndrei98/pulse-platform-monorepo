@@ -175,7 +175,7 @@ function EventsPageContent() {
           <>
             <div className="mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain">
               <div className="mx-auto w-full max-w-7xl px-5 pb-28">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-4 lg:grid-cols-3">
                 {eventsLoading
                   ? Array.from({ length: 6 }, (_, index) => (
                       <EventCardSkeleton key={index} />

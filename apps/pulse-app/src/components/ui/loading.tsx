@@ -54,15 +54,24 @@ export function EventCardSkeleton({ className }: { className?: string }) {
     <div
       aria-hidden="true"
       className={classes(
-        "event-card relative h-64 overflow-hidden border rounded-[26px] border-white/10 bg-white/[0.035]",
+        "event-card",
         className,
       )}
     >
-      <Skeleton className="absolute inset-0 opacity-60" />
-      <div className="absolute inset-x-5 bottom-5 space-y-3">
-        <Skeleton className="h-3 w-16 rounded-full bg-white/10" />
-        <Skeleton className="h-6 w-3/5 rounded-lg bg-white/10" />
-        <Skeleton className="h-3 w-4/5 rounded-full bg-white/10" />
+      <div className="aspect-square overflow-hidden rounded-[20px] border border-white/10 bg-white/[0.035] sm:hidden">
+        <Skeleton className="h-full w-full opacity-60" />
+      </div>
+      <div className="mt-2 space-y-2 px-1 sm:hidden">
+        <Skeleton className="h-4 w-3/4 rounded-md" />
+        <Skeleton className="h-3 w-full rounded-full" />
+      </div>
+      <div className="relative hidden h-64 overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.035] sm:block">
+        <Skeleton className="absolute inset-0 opacity-60" />
+        <div className="absolute inset-x-5 bottom-5 space-y-3">
+          <Skeleton className="h-3 w-16 rounded-full bg-white/10" />
+          <Skeleton className="h-6 w-3/5 rounded-lg bg-white/10" />
+          <Skeleton className="h-3 w-4/5 rounded-full bg-white/10" />
+        </div>
       </div>
     </div>
   );

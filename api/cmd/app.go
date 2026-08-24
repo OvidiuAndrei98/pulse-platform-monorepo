@@ -115,10 +115,10 @@ func (app *Application) BuildRouter() http.Handler {
 	// 1. Instanțiem modulele din internal cu dependențele necesare
 	authHandler := auth.NewHandler(app.Queries, mailerService)
 	authHandler.ConfigureGoogleOAuth(auth.GoogleOAuthConfig{
-		ClientID:     os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
-		ClientSecret: os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
-		PublicAPIURL: os.Getenv("PUBLIC_API_URL"),
-		PublicAppURL: os.Getenv("PUBLIC_APP_URL"),
+		ClientID:        os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
+		ClientSecret:    os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
+		PublicAPIURL:    os.Getenv("PUBLIC_API_URL"),
+		PublicAppURL:    os.Getenv("PUBLIC_APP_URL"),
 		MobileAppScheme: os.Getenv("MOBILE_APP_SCHEME"),
 	})
 	eventsHandler := events.NewHandler(app.Queries, app.Pool)
@@ -238,6 +238,7 @@ func (app *Application) BuildRouter() http.Handler {
 		PurchaseTickets:       stripeCheckoutHandler.HandleCreateCheckout,
 		ValidateTicket:        ticketingHandler.HandleValidateTicket,
 		ListValidationEvents:  ticketingHandler.HandleListValidationEvents,
+		ListMyValidationScans: ticketingHandler.HandleListMyValidationScans,
 		ListValidationStaff:   ticketingHandler.HandleListValidationStaff,
 		AddValidationStaff:    ticketingHandler.HandleAddValidationStaff,
 		RemoveValidationStaff: ticketingHandler.HandleRemoveValidationStaff,
@@ -252,4 +253,8 @@ func (app *Application) BuildRouter() http.Handler {
 
 	// 3. Generăm routerul decuplat din internal/router folosind SetupRouter
 	return router.SetupRouter(cfg)
+}
+
+func (app *Application) StartEventExpiryWorker(ctx context.Context) {
+	events.NewHandler(app.Queries, app.Pool).StartEventExpiryWorker(ctx)
 }

@@ -17,7 +17,7 @@ export default function OrganizerLayout({
     <DashboardAccessGuard>
       <div className="min-h-screen ">
         <OrganizerSidebar />
-        <div className="md:pl-60">
+        <div className="pb-[calc(var(--native-safe-bottom)+7.5rem)] md:pb-0 md:pl-60">
           <OrganizerHeader />
           {children}
         </div>

@@ -8,9 +8,11 @@ import { apiRoot } from "@/core/apiRoot";
 export function GoogleSignInButton({
   returnTo,
   className = "",
+  variant = "default",
 }: {
   returnTo?: string;
   className?: string;
+  variant?: "default" | "light";
 }) {
   const { t } = useTranslation();
   const startGoogleLogin = async () => {
@@ -28,7 +30,11 @@ export function GoogleSignInButton({
     <button
       type="button"
       onClick={() => void startGoogleLogin()}
-      className={`flex h-12 w-full items-center justify-center gap-3 rounded-lg border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold text-foreground transition hover:border-white/25 hover:bg-white/[0.08] ${className}`}
+      className={`flex h-14 w-full items-center justify-center gap-3 px-4 text-sm font-semibold transition ${
+        variant === "light"
+          ? "rounded-xl bg-white text-black shadow-[0_12px_32px_rgba(0,0,0,0.22)] hover:bg-white/90"
+          : "rounded-2xl bg-white/[0.055] text-foreground hover:bg-white/[0.09]"
+      } ${className}`}
     >
       <span className="grid h-5 w-5 place-items-center rounded-full bg-white text-xs font-bold text-black">
         G

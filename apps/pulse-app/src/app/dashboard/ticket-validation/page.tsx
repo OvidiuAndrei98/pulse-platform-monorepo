@@ -15,6 +15,8 @@ import {
   Trash2,
   UserRoundCheck,
   UsersRound,
+  History,
+  Settings2,
   Download,
   RefreshCw,
   Wifi,
@@ -51,6 +53,10 @@ type ScannerAccess = ReadableSchema<"ScannerAccessResponse">;
 type CreatedScannerAccess = ReadableSchema<"CreateScannerAccessResponse">;
 type OfflineSnapshotResponse = ReadableSchema<"OfflineValidationSnapshotResponse">;
 type OfflineSyncResponse = ReadableSchema<"SyncOfflineTicketScansResponse">;
+type ValidationScanHistoryResponse = {
+  totalScans: number;
+  scans: Array<{ ticketId: string; ticketType: string; validatedAt: string }>;
+};
 type ScannerResult = TicketValidation | {
   status: "offline_valid" | "offline_duplicate" | "offline_unknown" | "offline_expired" | "offline_unprepared" | "invalid";
   ticketType?: string;
@@ -81,6 +87,7 @@ export default function TicketValidationPage() {
   const [eventsLoading, setEventsLoading] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState("");
   const [eventMenuOpen, setEventMenuOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"scan" | "management">("scan");
   const [validationHash, setValidationHash] = useState("");
   const [validating, setValidating] = useState(false);
   const [result, setResult] = useState<ScannerResult>();
@@ -103,12 +110,33 @@ export default function TicketValidationPage() {
   const [offlineConflicts, setOfflineConflicts] = useState<OfflineTicketScan[]>([]);
   const [preparingOffline, setPreparingOffline] = useState(false);
   const [syncingOffline, setSyncingOffline] = useState(false);
+  const [scanHistory, setScanHistory] = useState<ValidationScanHistoryResponse>({ totalScans: 0, scans: [] });
+  const [scanHistoryLoading, setScanHistoryLoading] = useState(false);
   const selectedEventIdRef = useRef(selectedEventId);
 
   const selectedEvent = useMemo(
     () => events.find((event) => event.id === selectedEventId),
     [events, selectedEventId],
   );
+
+  const loadScanHistory = async (eventId = selectedEventId) => {
+    if (!eventId) {
+      setScanHistory({ totalScans: 0, scans: [] });
+      return;
+    }
+    setScanHistoryLoading(true);
+    try {
+      const response = await ApiClient.instance.get(
+        "/dashboard/ticket-validation/events/{id}/my-scans" as never,
+        { params: { path: { id: eventId } } } as never,
+      ) as ValidationScanHistoryResponse;
+      if (selectedEventIdRef.current === eventId) setScanHistory(response);
+    } catch {
+      if (selectedEventIdRef.current === eventId) setScanHistory({ totalScans: 0, scans: [] });
+    } finally {
+      if (selectedEventIdRef.current === eventId) setScanHistoryLoading(false);
+    }
+  };
 
   const refreshConnectionStatus = async () => {
     if (!navigator.onLine) {
@@ -178,6 +206,7 @@ export default function TicketValidationPage() {
       ) as OfflineSyncResponse;
       await applyOfflineSyncResults(user.properties.id, eventId, response.results);
       await refreshOfflineState(eventId);
+      await loadScanHistory(eventId);
       const conflicts = response.results.filter((item) => item.status !== "accepted").length;
       setNotice(conflicts ? t("validation.offlineSyncConflicts", { count: conflicts }) : t("validation.offlineSyncComplete"));
     } catch {
@@ -337,6 +366,10 @@ export default function TicketValidationPage() {
   }, [selectedEventId, user?.properties.id]);
 
   useEffect(() => {
+    void loadScanHistory();
+  }, [selectedEventId, user?.properties.id]);
+
+  useEffect(() => {
     void refreshConnectionStatus();
     const goOnline = () => {
       void refreshConnectionStatus().then((connected) => {
@@ -417,6 +450,7 @@ export default function TicketValidationPage() {
       );
       setResult(response);
       setValidationHash("");
+      void loadScanHistory(selectedEventId);
     } catch (scanError) {
       if (!isOnline || scanError instanceof TypeError) {
         await validateOfflineTicket(hash);
@@ -525,7 +559,7 @@ export default function TicketValidationPage() {
   const companyReady = profile?.verificationStatus === "approved";
 
   return (
-    <main className="min-h-screen pb-20 text-foreground">
+    <main className="min-h-screen text-foreground">
       <div className="mx-auto max-w-5xl space-y-6 px-4 pt-7 sm:px-6 sm:pt-9">
         <header className="flex items-start justify-between gap-4">
           <div className="space-y-1">
@@ -562,7 +596,24 @@ export default function TicketValidationPage() {
           <p className="mt-3 text-xs text-muted-foreground">{t("validation.scopeHint")}</p>
         </section>
 
-        {isOrganizer && (profileLoading ? (
+        <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-white/[0.03] p-1.5">
+          <button
+            type="button"
+            onClick={() => setActiveTab("scan")}
+            className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition ${activeTab === "scan" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"}`}
+          >
+            <ScanLine className="h-4 w-4" /> {t("validation.scanTab")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("management")}
+            className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition ${activeTab === "management" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"}`}
+          >
+            <Settings2 className="h-4 w-4" /> {t("validation.managementTab")}
+          </button>
+        </div>
+
+        {activeTab === "management" && isOrganizer && (profileLoading ? (
           <div className="h-28 animate-pulse rounded-xl border border-white/10 bg-white/5" />
         ) : !companyReady ? (
           <section className="rounded-xl border border-amber-400/25 bg-amber-400/[0.04] p-5 sm:p-6">
@@ -599,7 +650,7 @@ export default function TicketValidationPage() {
           </section>
         ))}
 
-        <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
+        {activeTab === "scan" && <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
           <div className="flex items-start gap-3">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><ScanLine className="h-5 w-5" /></div>
             <div className="min-w-0"><h2 className="text-base font-semibold">{t("validation.verifyTicket")}</h2><p className="mt-1 text-sm text-muted-foreground">{selectedEvent ? selectedEvent.title : t("validation.ticketHint")}</p></div>
@@ -652,9 +703,31 @@ export default function TicketValidationPage() {
             </div>
           )}
 
-        </section>
+          <section className="mt-5 rounded-xl border border-white/10 bg-black/15 p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">{t("validation.yourScans")}</p>
+                <h2 className="mt-1 text-3xl font-bold">{scanHistoryLoading ? "–" : scanHistory.totalScans}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{t("validation.scansForEvent")}</p>
+              </div>
+              <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary"><History className="h-5 w-5" /></div>
+            </div>
+            <div className="mt-4 divide-y divide-white/10 rounded-lg border border-white/10">
+              {scanHistoryLoading ? (
+                <div className="flex h-16 items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+              ) : scanHistory.scans.length ? scanHistory.scans.map((scan) => (
+                <div key={scan.ticketId} className="flex items-center justify-between gap-3 px-3 py-3">
+                  <div className="min-w-0"><p className="truncate text-sm font-semibold">{scan.ticketType}</p><p className="mt-0.5 text-xs text-muted-foreground">{formatEventDateTime(scan.validatedAt)}</p></div>
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                </div>
+              )) : (
+                <p className="px-3 py-4 text-sm text-muted-foreground">{t("validation.noScansYet")}</p>
+              )}
+            </div>
+          </section>
+        </section>}
 
-        {selectedEvent?.canManage && (
+        {activeTab === "management" && selectedEvent?.canManage && (
           <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
             <div className="flex items-start gap-3">
               <UsersRound className="mt-0.5 h-5 w-5 text-primary" />
@@ -685,7 +758,7 @@ export default function TicketValidationPage() {
           </section>
         )}
 
-        {selectedEvent?.canManage && (
+        {activeTab === "management" && selectedEvent?.canManage && (
           <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
             <div className="flex items-start gap-3">
               <Link2 className="mt-0.5 h-5 w-5 text-primary" />

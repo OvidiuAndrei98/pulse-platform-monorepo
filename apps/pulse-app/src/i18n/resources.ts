@@ -56,7 +56,7 @@ export const resources = {
         resetFilters: "Reset filters",
         viewEvent: "View event",
         liveNow: "Live now",
-        finalPrice: "Final price",
+        finalPrice: "Tax free",
         generalCategory: "General",
         locationUnknown: "Location not specified",
       },
@@ -82,6 +82,9 @@ export const resources = {
       auth: {
         account: "Your account",
         welcomeBack: "Welcome back",
+        tagline: "Your night, in one place.",
+        loginHero: "Find the moments worth going out for.",
+        continueWithEmail: "Continue with email",
         loginHint:
           "Sign in to access your tickets, saved events, and friends' activity.",
         email: "Email",
@@ -495,6 +498,7 @@ export const resources = {
       error: { somethingWrong: "Something went wrong.", tryAgain: "Try again" },
       dashboardNav: {
         dashboard: "Dashboard",
+        backToDashboard: "Back to dashboard",
         profile: "Profile",
         ticketValidation: "Ticket validation",
         finance: "Finance",
@@ -623,6 +627,11 @@ export const resources = {
         title: "Ticket validation",
         subtitle:
           "Check entry and manage accounts that can validate each event.",
+        scanTab: "Scan",
+        managementTab: "Management",
+        yourScans: "Your scans",
+        scansForEvent: "tickets checked for this event",
+        noScansYet: "No tickets scanned by you yet.",
         configureEvent: "Configure event",
         loadingEvents: "Loading events...",
         chooseEvent: "Choose event",
@@ -919,7 +928,7 @@ export const resources = {
         resetFilters: "Reseteaza filtrele",
         viewEvent: "Vezi evenimentul",
         liveNow: "Live acum",
-        finalPrice: "Pret final",
+        finalPrice: "Tax free",
         generalCategory: "General",
         locationUnknown: "Locatie neprecizata",
       },
@@ -945,6 +954,9 @@ export const resources = {
       auth: {
         account: "Contul tau",
         welcomeBack: "Bine ai revenit",
+        tagline: "Noaptea ta, într-un singur loc.",
+        loginHero: "Descoperă momentele pentru care merită să ieși.",
+        continueWithEmail: "Continuă cu email",
         loginHint:
           "Conecteaza-te pentru biletele tale, evenimentele salvate si activitatea prietenilor.",
         email: "Email",
@@ -1365,6 +1377,7 @@ export const resources = {
       },
       dashboardNav: {
         dashboard: "Dashboard",
+        backToDashboard: "Inapoi la dashboard",
         profile: "Profil",
         ticketValidation: "Validare bilete",
         finance: "Finante",
@@ -1496,6 +1509,11 @@ export const resources = {
         title: "Validare bilete",
         subtitle:
           "Verifica intrarea si gestioneaza conturile care pot valida pentru fiecare eveniment.",
+        scanTab: "Scanare",
+        managementTab: "Management",
+        yourScans: "Scanarile tale",
+        scansForEvent: "bilete validate pentru acest eveniment",
+        noScansYet: "Nu ai scanat inca niciun bilet.",
         configureEvent: "Configurezi evenimentul",
         loadingEvents: "Se incarca evenimentele...",
         chooseEvent: "Alege evenimentul",

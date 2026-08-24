@@ -93,7 +93,7 @@ export default function OrganizerDashboard() {
   const agreementCurrent = profile?.organizerAgreementVersion === "2026-07-27";
 
   return (
-    <main className="min-h-screen pb-20 text-foreground">
+    <main className="min-h-screen text-foreground">
       <div className="mx-auto max-w-5xl space-y-6 px-4 pt-7 sm:px-6 sm:pt-9">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-1">

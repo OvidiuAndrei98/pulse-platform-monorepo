@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { DataProvider } from "@/core/DataProviderContext";
-import { BottomNav } from "@/components/BottomNav";
+import { BottomNavGate } from "@/components/BottomNav";
 import { GlobalNotifications } from "@/components/GlobalNotifications";
 import { I18nProvider } from "@/components/I18nProvider";
 import { EventDetailsProvider } from "@/components/EventDetailsSheet";
@@ -61,7 +61,7 @@ export default function RootLayout({
               <EventDetailsProvider>{children}</EventDetailsProvider>
               <GlobalNotifications />
               <ToastProvider />
-              <BottomNav />
+              <BottomNavGate />
               <OfflineScannerServiceWorker />
               <NativeAppBridge />
               <NativeNavigationGestures />

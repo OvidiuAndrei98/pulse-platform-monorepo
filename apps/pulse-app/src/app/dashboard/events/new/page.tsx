@@ -43,13 +43,13 @@ export default function NewEventPage() {
   };
 
   return (
-    <div className="relative min-h-screen  pb-40 text-foreground antialiased">
+    <div className="relative min-h-screen text-foreground antialiased">
       <div className="mx-auto max-w-3xl px-5 pt-8">
         <Link
           href="/dashboard/events"
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
-          <ArrowLeft className="h-3.5 w-3.5" /> Înapoi la dashboard
+          <ArrowLeft className="h-3.5 w-3.5" /> {t("dashboardNav.backToDashboard")}
         </Link>
 
         <div className="mt-4 flex items-center justify-between gap-3">

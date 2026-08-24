@@ -33,6 +33,35 @@ func NewHandler(queries *db.Queries, db *pgxpool.Pool) *Handler {
 	}
 }
 
+// StartEventExpiryWorker keeps persisted event status in sync with end_time.
+// Multiple API tasks can run this safely because the update is idempotent.
+func (h *Handler) StartEventExpiryWorker(ctx context.Context) {
+	expireEvents := func() {
+		runCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		if _, err := h.DB.Exec(runCtx, `
+			UPDATE events
+			SET status = 'draft', is_live = FALSE
+			WHERE status = 'published' AND end_time <= CURRENT_TIMESTAMP`); err != nil {
+			log.Printf("event expiry worker: %v", err)
+		}
+	}
+
+	go func() {
+		expireEvents()
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				expireEvents()
+			}
+		}
+	}()
+}
+
 // HandleCreateEvent - Creare atomică folosind structura curată de Request
 func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

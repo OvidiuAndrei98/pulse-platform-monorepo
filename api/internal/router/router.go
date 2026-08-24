@@ -105,6 +105,7 @@ type HandlersConfig struct {
 	PurchaseTickets       http.HandlerFunc
 	ValidateTicket        http.HandlerFunc
 	ListValidationEvents  http.HandlerFunc
+	ListMyValidationScans http.HandlerFunc
 	ListValidationStaff   http.HandlerFunc
 	AddValidationStaff    http.HandlerFunc
 	RemoveValidationStaff http.HandlerFunc
@@ -257,6 +258,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			// Organizatorii isi gestioneaza echipa, iar conturile invitate valideaza doar evenimentele atribuite.
 			r.Route("/dashboard/ticket-validation", func(r chi.Router) {
 				r.Get("/events", cfg.ListValidationEvents)
+				r.Get("/events/{id}/my-scans", cfg.ListMyValidationScans)
 				r.Get("/events/{id}/staff", cfg.ListValidationStaff)
 				r.Post("/events/{id}/staff", cfg.AddValidationStaff)
 				r.Delete("/events/{id}/staff/{userId}", cfg.RemoveValidationStaff)

@@ -50,7 +50,7 @@ export default function DashboardPurchasesPage() {
   }, [user]);
 
   return (
-    <main className="min-h-screen pb-20 text-foreground">
+    <main className="min-h-screen text-foreground">
       <div className="mx-auto max-w-5xl px-4 pt-7 sm:px-6 sm:pt-9">
         <header>
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">{t("purchases.eyebrow")}</p>

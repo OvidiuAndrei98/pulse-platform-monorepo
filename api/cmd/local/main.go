@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,6 +16,7 @@ func main() {
 		log.Fatalf("Eroare la inițializarea bazei de date: %v", err)
 	}
 	defer coreApp.Pool.Close()
+	coreApp.StartEventExpiryWorker(context.Background())
 
 	// Citim routerul comun
 	router := coreApp.BuildRouter()

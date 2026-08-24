@@ -13,7 +13,15 @@ type NavItem = {
   label: string;
 };
 
-export function BottomNav() {
+export function BottomNavGate() {
+  const pathname = usePathname();
+
+  if (pathname === "/login" || pathname === "/register") return null;
+
+  return <BottomNav />;
+}
+
+function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
   const { isOrganizer } = useDataProvider();
@@ -32,7 +40,6 @@ export function BottomNav() {
   ];
 
   const getCurrentIndexFromPath = () => {
-    if (pathname === "/login" || pathname === "/register") return 3;
     const foundIndex = items.findIndex((item) => item.url === pathname);
     if (foundIndex !== -1) return foundIndex;
     if (

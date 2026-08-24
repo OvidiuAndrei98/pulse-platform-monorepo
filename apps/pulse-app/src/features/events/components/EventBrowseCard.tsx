@@ -30,19 +30,66 @@ export function EventBrowseCard({
       type="button"
       onClick={() => open(event)}
       data-event-card
-      className="event-card group relative block w-full overflow-hidden rounded-[26px] border border-white/10 bg-black text-left transition-all duration-300 hover:border-white/20 active:scale-[0.99]"
+      className="event-card group block w-full text-left transition-all duration-300 active:scale-[0.99] sm:relative sm:overflow-hidden sm:rounded-[26px] sm:border sm:border-white/10 sm:bg-black sm:hover:border-white/20"
     >
-      <div className="relative h-64 w-full overflow-hidden">
-        <Image
-          src={event.bannerUrl || "/images/events/default.jpg"}
-          alt={event.title}
-          fill
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-        <div className="absolute inset-0 bg-black/15" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-transparent" />
+      <div className="sm:hidden">
+        <div className="relative aspect-square w-full overflow-hidden rounded-[20px] border border-white/10 bg-black">
+          <Image
+            src={event.bannerUrl || "/images/events/default.jpg"}
+            alt={event.title}
+            fill
+            sizes="(max-width: 639px) 50vw, 33vw"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-black/15" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/20" />
+
+          <div className="absolute left-2.5 right-2.5 top-2.5 flex items-start justify-between gap-2">
+            <span className="rounded-full border border-white/15 bg-black/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-md">
+              {event.category || t("events.generalCategory")}
+            </span>
+            {event.isLive && (
+              <span className="rounded-full border border-red-500/40 bg-red-500/20 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-red-400 backdrop-blur-md">
+                <span className="relative mr-1 inline-flex h-1.5 w-1.5">
+                  <span className="absolute inset-0 animate-ping rounded-full bg-red-400 opacity-75" />
+                  <span className="relative h-1.5 w-1.5 rounded-full bg-red-400" />
+                </span>
+                Live
+              </span>
+            )}
+          </div>
+
+          <span className="absolute bottom-2.5 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-white/15 bg-black/60 px-2.5 py-1 text-[10px] font-semibold text-white/90 backdrop-blur-md">
+            <Calendar className="h-3 w-3 text-primary" />
+            {formatEventDateShort(event.startTime)} · {formatEventTime(event.startTime)}
+          </span>
+        </div>
+
+        <div className="mt-2 px-1">
+          <h3 className="truncate text-sm font-bold leading-tight text-white">
+            {event.title}
+          </h3>
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-zinc-400">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <span className="truncate">
+              {event.locationName || t("events.locationUnknown")}
+            </span>
+          </p>
+        </div>
       </div>
+
+      <div className="hidden sm:block">
+        <div className="relative h-64 w-full overflow-hidden">
+          <Image
+            src={event.bannerUrl || "/images/events/default.jpg"}
+            alt={event.title}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-black/15" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-transparent" />
+        </div>
 
       <div className="absolute left-4 right-4 top-4 flex items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -91,6 +138,7 @@ export function EventBrowseCard({
           eventId={event.id}
           className="mt-3 border-t border-white/15 pt-3"
         />
+      </div>
       </div>
     </button>
   );

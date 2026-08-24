@@ -60,6 +60,17 @@ type TicketValidationResponse struct {
 	ValidatedAt string `json:"validatedAt"`
 }
 
+type ValidationScanHistoryItem struct {
+	TicketID    string `json:"ticketId"`
+	TicketType  string `json:"ticketType"`
+	ValidatedAt string `json:"validatedAt"`
+}
+
+type ValidationScanHistoryResponse struct {
+	TotalScans int64                       `json:"totalScans"`
+	Scans      []ValidationScanHistoryItem `json:"scans"`
+}
+
 type UserTicketResponse struct {
 	ID                     string `json:"id"`
 	EventID                string `json:"eventId"`

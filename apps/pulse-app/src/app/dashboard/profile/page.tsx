@@ -42,7 +42,7 @@ export default function ProfilePage() {
   }, [user]);
 
   return (
-    <div className="w-full pb-20 text-foreground">
+    <div className="w-full text-foreground">
       <div className="mx-auto max-w-3xl space-y-6 px-4 pt-8 sm:px-6">
         <div className="space-y-1">
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
