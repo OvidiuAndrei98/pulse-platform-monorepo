@@ -25,8 +25,8 @@ export const resources = {
       },
       home: {
         hello: "Hello, {{name}}",
-        exploreTonight_one: "Explore {{count}} event tonight",
-        exploreTonight_other: "Explore {{count}} events tonight",
+        exploreTonight_one: "TONIGHT · {{count}} EVENTS",
+        exploreTonight_other: "TONIGHT · {{count}} EVENTS",
         tonight: "Tonight",
         tonightForYou: "Tonight for you",
         friendsGoing: "Friends are going",
@@ -392,7 +392,8 @@ export const resources = {
         directions: "Open directions in Google Maps",
         open: "Open",
         cannotBuyOwn: "You cannot buy tickets for your own event.",
-        eventCompleted: "This event has ended. Tickets are no longer available.",
+        eventCompleted:
+          "This event has ended. Tickets are no longer available.",
         viewOrganizerEvents: "View organizer events",
       },
       checkoutSuccess: {
@@ -442,9 +443,11 @@ export const resources = {
         title: "From the organizer",
         expires: "Expires at {{time}}",
         manageTitle: "Event updates",
-        manageHint: "Publish up to 3 image updates across your active events. Each update is visible for 24 hours.",
+        manageHint:
+          "Publish up to 3 image updates across your active events. Each update is visible for 24 hours.",
         activeCount: "{{count}} active",
-        unavailable: "Updates can only be published for a published event that has not ended.",
+        unavailable:
+          "Updates can only be published for a published event that has not ended.",
         selectImage: "Select JPEG, PNG or WebP image (max. 2 MB)",
         captionPlaceholder: "Add a short caption (optional)",
         publish: "Publish update",
@@ -1020,7 +1023,8 @@ export const resources = {
         attendancePrivacy: "Confidentialitatea participarii",
         attendanceVisible: "Altii pot vedea la ce evenimente participi.",
         attendanceHidden: "Participarea ta este ascunsa pentru toata lumea.",
-        privacyUpdateFailed: "Setarea de confidentialitate nu a putut fi actualizata.",
+        privacyUpdateFailed:
+          "Setarea de confidentialitate nu a putut fi actualizata.",
         saving: "Se salveaza...",
         saved: "Salvat",
         saveChanges: "Salveaza modificarile",
@@ -1254,7 +1258,8 @@ export const resources = {
         directions: "Deschide traseul in Google Maps",
         open: "Deschide",
         cannotBuyOwn: "Nu poti cumpara bilete la propriul eveniment.",
-        eventCompleted: "Acest eveniment s-a incheiat. Biletele nu mai sunt disponibile.",
+        eventCompleted:
+          "Acest eveniment s-a incheiat. Biletele nu mai sunt disponibile.",
         viewOrganizerEvents: "Vezi evenimentele organizatorului",
       },
       checkoutSuccess: {
@@ -1305,9 +1310,11 @@ export const resources = {
         title: "De la organizator",
         expires: "Expira la {{time}}",
         manageTitle: "Update-uri eveniment",
-        manageHint: "Poti publica cel mult 3 update-uri cu imagini pentru toate evenimentele active. Fiecare ramane vizibil 24 de ore.",
+        manageHint:
+          "Poti publica cel mult 3 update-uri cu imagini pentru toate evenimentele active. Fiecare ramane vizibil 24 de ore.",
         activeCount: "{{count}} active",
-        unavailable: "Update-urile pot fi publicate doar pentru un eveniment publicat, care nu s-a incheiat.",
+        unavailable:
+          "Update-urile pot fi publicate doar pentru un eveniment publicat, care nu s-a incheiat.",
         selectImage: "Selecteaza imagine JPEG, PNG sau WebP (max. 2 MB)",
         captionPlaceholder: "Adauga un text scurt (optional)",
         publish: "Publica update",
@@ -1506,7 +1513,8 @@ export const resources = {
         verifyTicket: "Verifica un bilet",
         ticketHint:
           "Alege evenimentul si introdu sau lipeste codul securizat din QR.",
-        cameraHint: "Scannerul se deschide pe tot ecranul pentru validare mai rapida.",
+        cameraHint:
+          "Scannerul se deschide pe tot ecranul pentru validare mai rapida.",
         enterCodeManually: "Introdu codul manual",
         pasteQr: "Lipeste sau introdu codul QR",
         validationTeam: "Echipa de validare",
@@ -1568,16 +1576,22 @@ export const resources = {
         offlineRemoved: "Datele offline au fost sterse de pe acest dispozitiv.",
         offlineRemove: "Sterge datele",
         offlineSyncComplete: "Scanarile offline au fost sincronizate.",
-        offlineSyncConflicts_one: "{{count}} scanare necesita verificare dupa sincronizare.",
-        offlineSyncConflicts_other: "{{count}} scanari necesita verificare dupa sincronizare.",
-        offlineSyncFailed: "Scanarile offline nu au putut fi sincronizate inca.",
+        offlineSyncConflicts_one:
+          "{{count}} scanare necesita verificare dupa sincronizare.",
+        offlineSyncConflicts_other:
+          "{{count}} scanari necesita verificare dupa sincronizare.",
+        offlineSyncFailed:
+          "Scanarile offline nu au putut fi sincronizate inca.",
         offlineValid: "Bilet acceptat offline",
         offlineDuplicate: "Bilet scanat deja pe acest dispozitiv",
         offlineUnknown: "Biletul nu este in pachetul offline",
         offlineExpired: "Pachetul offline a expirat",
-        offlineUnprepared: "Pregateste mai intai acest eveniment pentru validare offline",
-        offlineConflictsTitle_one: "{{count}} scanare offline necesita verificare",
-        offlineConflictsTitle_other: "{{count}} scanari offline necesita verificare",
+        offlineUnprepared:
+          "Pregateste mai intai acest eveniment pentru validare offline",
+        offlineConflictsTitle_one:
+          "{{count}} scanare offline necesita verificare",
+        offlineConflictsTitle_other:
+          "{{count}} scanari offline necesita verificare",
         offlineConflictHint: "Accesul nu a fost inregistrat",
         offlineConflict: {
           already_validated: "Validat deja pe alt dispozitiv",

@@ -508,7 +508,7 @@ export function EventDetailsSheet({
       </div>
 
       {/* BOTTOM BAR / ACTIONS */}
-      <div className="relative z-10 flex items-center gap-2.5 bg-linear-to-b from-black/0 via-black/70 to-black px-4 pt-3 pb-7">
+      <div className="relative z-10 flex items-center gap-2.5 bg-linear-to-b from-black/10 via-black/70 to-black px-4 pt-3 pb-7">
         {user && (
           <button
             type="button"

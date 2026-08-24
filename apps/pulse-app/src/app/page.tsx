@@ -151,7 +151,7 @@ export default function Home() {
                   })
                 )}
               </p>
-              <p className="mt-1 text-sm text-muted-foreground md:text-base">
+              <p className="mt-1 text-sm text-primary md:text-base">
                 {t("home.exploreTonight", { count: tonightEvents.length })}
               </p>
             </div>
