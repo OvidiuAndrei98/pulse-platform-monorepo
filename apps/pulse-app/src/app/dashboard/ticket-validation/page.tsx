@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   CheckCircle2,
   ChevronDown,
@@ -22,6 +23,7 @@ import {
   Wifi,
   WifiOff,
   XCircle,
+  X,
 } from "lucide-react";
 import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
@@ -112,6 +114,7 @@ export default function TicketValidationPage() {
   const [syncingOffline, setSyncingOffline] = useState(false);
   const [scanHistory, setScanHistory] = useState<ValidationScanHistoryResponse>({ totalScans: 0, scans: [] });
   const [scanHistoryLoading, setScanHistoryLoading] = useState(false);
+  const [scanHistoryOpen, setScanHistoryOpen] = useState(false);
   const selectedEventIdRef = useRef(selectedEventId);
 
   const selectedEvent = useMemo(
@@ -710,20 +713,16 @@ export default function TicketValidationPage() {
                 <h2 className="mt-1 text-3xl font-bold">{scanHistoryLoading ? "–" : scanHistory.totalScans}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">{t("validation.scansForEvent")}</p>
               </div>
-              <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary"><History className="h-5 w-5" /></div>
+              <button
+                type="button"
+                onClick={() => setScanHistoryOpen(true)}
+                aria-label={t("validation.openScanHistory")}
+                className="grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary transition hover:bg-primary hover:text-primary-foreground active:scale-95"
+              >
+                <History className="h-5 w-5" />
+              </button>
             </div>
-            <div className="mt-4 divide-y divide-white/10 rounded-lg border border-white/10">
-              {scanHistoryLoading ? (
-                <div className="flex h-16 items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-              ) : scanHistory.scans.length ? scanHistory.scans.map((scan) => (
-                <div key={scan.ticketId} className="flex items-center justify-between gap-3 px-3 py-3">
-                  <div className="min-w-0"><p className="truncate text-sm font-semibold">{scan.ticketType}</p><p className="mt-0.5 text-xs text-muted-foreground">{formatEventDateTime(scan.validatedAt)}</p></div>
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
-                </div>
-              )) : (
-                <p className="px-3 py-4 text-sm text-muted-foreground">{t("validation.noScansYet")}</p>
-              )}
-            </div>
+            <p className="mt-4 text-xs text-muted-foreground">{t("validation.scanHistoryHint")}</p>
           </section>
         </section>}
 
@@ -805,6 +804,77 @@ export default function TicketValidationPage() {
         {notice && <p className="text-sm text-primary">{notice}</p>}
         {error && <p className="text-sm text-red-400">{error}</p>}
       </div>
+      <AnimatePresence>
+        {scanHistoryOpen && (
+          <>
+            <motion.button
+              type="button"
+              aria-label={t("common.close")}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setScanHistoryOpen(false)}
+              className="fixed inset-0 z-[220] bg-black/65 backdrop-blur-sm"
+            />
+            <motion.aside
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("validation.scanHistory")}
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 320, damping: 34 }}
+              className="fixed inset-y-0 right-0 z-[221] flex w-full max-w-md flex-col border-l border-white/10 bg-[#0b0e0c] shadow-2xl"
+            >
+              <header className="flex items-start justify-between gap-4 border-b border-white/10 px-5 pb-5 pt-[max(1.25rem,calc(var(--native-safe-top)+1rem))]">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">{t("validation.yourScans")}</p>
+                  <h2 className="mt-1 text-xl font-bold">{t("validation.scanHistory")}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">{t("validation.scansForEvent")}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setScanHistoryOpen(false)}
+                  aria-label={t("common.close")}
+                  className="grid h-10 w-10 place-items-center rounded-lg border border-white/10 text-muted-foreground transition hover:bg-white/5 hover:text-foreground"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </header>
+
+              <div className="border-b border-white/10 px-5 py-5">
+                <div className="rounded-xl border border-primary/25 bg-primary/[0.06] p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">{t("validation.totalScans")}</p>
+                  <p className="mt-1 text-4xl font-bold">{scanHistoryLoading ? "–" : scanHistory.totalScans}</p>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 pb-[max(1.5rem,calc(var(--native-safe-bottom)+1rem))]">
+                {scanHistoryLoading ? (
+                  <div className="flex h-32 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+                ) : scanHistory.scans.length ? (
+                  <div className="space-y-3">
+                    {scanHistory.scans.map((scan) => (
+                      <article key={scan.ticketId} className="rounded-xl border border-white/10 bg-white/[0.035] p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold">{scan.ticketType}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{formatEventDateTime(scan.validatedAt)}</p>
+                          </div>
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                        </div>
+                        <p className="mt-3 truncate font-mono text-[11px] text-muted-foreground">{t("validation.ticketId", { id: scan.ticketId })}</p>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-white/15 px-4 py-8 text-center text-sm text-muted-foreground">{t("validation.noScansYet")}</div>
+                )}
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
       {result && <ScannerResultToast result={result} />}
     </main>
   );
