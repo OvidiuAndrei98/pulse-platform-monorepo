@@ -52,11 +52,8 @@ export function EventFriendsPreview({
   );
 
   return (
-    <div
-      className={`inline-flex items-center gap-1.5 self-center ${className}`}
-    >
+    <div className={`inline-flex items-center gap-1.5 ${className}`}>
       {visibleFriends.length > 0 ? (
-        /* Am scos py-0.5 care impingea totul si am folosit inline-flex items-center */
         <div className="inline-flex items-center -space-x-2">
           {visibleFriends.map((friend) => (
             <div
@@ -84,10 +81,10 @@ export function EventFriendsPreview({
         </span>
       )}
 
-      {/* translate-y-[1px] coboara fontul cu fix 1px pentru aliniere optica perfecta */}
+      {/* Aliniere matematică: h-6 + flex items-center fixează linia de text la centrul cercurilor */}
       {remainingAttendees > 0 && (
-        <span className="inline-block translate-y-[1px] whitespace-nowrap text-center text-[11px] font-semibold leading-none text-zinc-300">
-          + {remainingAttendees}
+        <span className="inline-flex h-6 items-center whitespace-nowrap text-[11px] font-semibold text-zinc-300">
+          +{remainingAttendees}
         </span>
       )}
     </div>

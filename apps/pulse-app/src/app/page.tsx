@@ -132,7 +132,7 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen overflow-hidden text-foreground">
-      <div className="relative z-10 pb-32">
+      <div className="relative z-10 pb-[110px]">
         <div className="mx-auto max-w-7xl px-5 pt-10">
           <div className="relative z-40 flex items-center justify-between gap-4">
             <div>
@@ -224,22 +224,63 @@ export default function Home() {
 function HomeLoadingState() {
   return (
     <div className="mx-auto mt-9 max-w-7xl px-5">
-      <div className="h-5 w-24 animate-pulse bg-white/[0.08]" />
+      {/* SECTION 1 */}
+      <div className="h-5 w-24 animate-pulse rounded-md bg-white/[0.08]" />
+
       <div className="mt-4 flex gap-4 overflow-hidden">
         {[0, 1, 2, 3].map((item) => (
           <div
             key={item}
-            className="h-[22rem] w-[260px] shrink-0 animate-pulse rounded-[24px] border border-white/10 bg-white/[0.035]"
-          />
+            className="w-[260px] shrink-0 animate-pulse rounded-[26px] border border-white/10 bg-[#121217]/60 p-2"
+          >
+            {/* Imagine */}
+            <div className="aspect-[4/3] w-full overflow-hidden rounded-[18px] bg-white/[0.06]" />
+
+            {/* Corp */}
+            <div className="mt-1 space-y-2 p-1">
+              {/* Titlu */}
+              <div className="h-5 w-3/4 rounded-md bg-white/[0.08]" />
+
+              {/* Categorie */}
+              <div className="h-6 w-20 rounded-full bg-white/[0.06]" />
+
+              {/* Locație */}
+              <div className="flex items-center gap-1.5 pt-0.5">
+                <div className="h-3.5 w-3.5 shrink-0 rounded-full bg-white/[0.06]" />
+                <div className="h-3.5 w-32 rounded-md bg-white/[0.06]" />
+              </div>
+            </div>
+          </div>
         ))}
       </div>
-      <div className="mt-9 h-5 w-28 animate-pulse bg-white/[0.08]" />
+
+      {/* SECTION 2 */}
+      <div className="mt-9 h-5 w-28 animate-pulse rounded-md bg-white/[0.08]" />
+
       <div className="mt-4 flex gap-4 overflow-hidden">
         {[0, 1, 2, 3].map((item) => (
           <div
             key={item}
-            className="h-[22rem] w-[260px] shrink-0 animate-pulse rounded-[24px] border border-white/10 bg-white/[0.035]"
-          />
+            className="w-[260px] shrink-0 animate-pulse rounded-[26px] border border-white/10 bg-[#121217]/60 p-2"
+          >
+            {/* Imagine */}
+            <div className="aspect-[4/3] w-full overflow-hidden rounded-[18px] bg-white/[0.06]" />
+
+            {/* Corp */}
+            <div className="mt-1 space-y-2 p-1">
+              {/* Titlu */}
+              <div className="h-5 w-3/4 rounded-md bg-white/[0.08]" />
+
+              {/* Categorie */}
+              <div className="h-6 w-20 rounded-full bg-white/[0.06]" />
+
+              {/* Locație */}
+              <div className="flex items-center gap-1.5 pt-0.5">
+                <div className="h-3.5 w-3.5 shrink-0 rounded-full bg-white/[0.06]" />
+                <div className="h-3.5 w-28 rounded-md bg-white/[0.06]" />
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     </div>

@@ -54,7 +54,7 @@ export function EventCardSkeleton({ className }: { className?: string }) {
     <div
       aria-hidden="true"
       className={classes(
-        "event-card relative h-64 overflow-hidden border border-white/10 bg-white/[0.035]",
+        "event-card relative h-64 overflow-hidden border rounded-[26px] border-white/10 bg-white/[0.035]",
         className,
       )}
     >
