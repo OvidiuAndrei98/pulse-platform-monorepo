@@ -53,7 +53,7 @@ export function HomeEventCarousel({
           </div>
           <Link
             href={seeAllHref}
-            className="ml-1 inline-flex h-8 items-center rounded-full border border-white/10 px-3 text-xs font-semibold text-muted-foreground transition hover:border-primary/35 hover:text-primary"
+            className="ml-1 inline-flex h-8 items-center rounded-full    text-xs font-semibold text-primary transition-opacity hover:opacity-80"
           >
             {t("common.seeAll")}
           </Link>
@@ -66,7 +66,11 @@ export function HomeEventCarousel({
           className="mx-auto mt-4 flex max-w-7xl snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-5 pb-2 scroll-pl-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {events.map((event) => (
-            <EventCard key={event.id} event={event} live={live || event.isLive} />
+            <EventCard
+              key={event.id}
+              event={event}
+              live={live || event.isLive}
+            />
           ))}
         </div>
       ) : (

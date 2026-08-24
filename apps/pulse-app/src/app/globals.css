@@ -65,7 +65,7 @@
   --popover-foreground: oklch(0.98 0.01 120);
 
   /* Neon green accent */
-  --primary: oklch(0.88 0.22 135);
+  --primary: #ff0044;
   --primary-foreground: oklch(0.18 0.02 150);
 
   --secondary: oklch(0.28 0.02 150);
@@ -122,7 +122,16 @@
 
 /* Backdrop filters force expensive offscreen rendering on mobile GPUs. */
 @media (max-width: 767px) {
-  [class*="backdrop-blur"] {
+  /* Limităm blur-ul la maxim 8px pe mobil pentru a preveni căderile de frame-uri */
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl {
+    -webkit-backdrop-filter: blur(8px) !important;
+    backdrop-filter: blur(8px) !important;
+  }
+
+  /* Dezactivăm blur-ul DOAR pe elemente mari care se mișcă la scroll (carduri/liste) */
+  .no-mobile-blur {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
