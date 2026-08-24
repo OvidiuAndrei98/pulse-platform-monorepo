@@ -67,7 +67,7 @@ export function EventCard({
           open(event);
         }
       }}
-      className={`group relative w-[260px] shrink-0 cursor-pointer rounded-[26px] border border-white/10 bg-[#121217]/60 p-2 shadow-none transition-all duration-200 hover:border-white/20 hover:bg-[#121217]/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${className}`}
+      className={`group relative w-[260px] shrink-0 cursor-pointer rounded-[26px] border border-white/10 bg-gradient-to-b from-[#111115] via-[#0d0d10] to-[#08080a] p-2 shadow-none transition-all duration-200 hover:border-white/20 hover:from-[#16161c] hover:to-[#0c0c0f] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${className}`}
     >
       <div className="block">
         {/* 1. CONTAINER IMAGINE */}

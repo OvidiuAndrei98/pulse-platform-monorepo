@@ -348,7 +348,7 @@ export function EventDetailsSheet({
               />
             )}
 
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/95" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-transparent to-black/95" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#050505]/95 via-[#050505]/40 to-transparent" />
           </div>
 
@@ -508,7 +508,7 @@ export function EventDetailsSheet({
       </div>
 
       {/* BOTTOM BAR / ACTIONS */}
-      <div className="relative z-10 flex items-center gap-2.5 border-t border-white/10 bg-background/80 px-4 py-3.5 backdrop-blur-xl md:bg-background/60">
+      <div className="relative z-10 flex items-center gap-2.5 bg-linear-to-b from-black/0 via-black/70 to-black px-4 pt-3 pb-7">
         {user && (
           <button
             type="button"
@@ -518,7 +518,7 @@ export function EventDetailsSheet({
                 ? t("eventSheet.removeFavorite")
                 : t("eventSheet.addFavorite")
             }
-            className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition-all active:scale-95 ${
+            className={`grid h-11 w-11 shrink-0 place-items-center rounded-full border transition-all active:scale-95 ${
               favorited
                 ? "border-primary/40 bg-primary/20 text-primary"
                 : "border-white/10 bg-white/5 hover:bg-white/10"
@@ -533,7 +533,7 @@ export function EventDetailsSheet({
           type="button"
           onClick={handleShare}
           aria-label={shared ? t("checkout.copiedLink") : t("eventSheet.share")}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 transition-all active:scale-95 hover:bg-white/10"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/10 bg-white/5 transition-all active:scale-95 hover:bg-white/10"
         >
           {shared ? (
             <Check className="h-4 w-4 text-primary" />
@@ -545,7 +545,7 @@ export function EventDetailsSheet({
           type="button"
           disabled={!isFinished && (count === 0 || purchased || isOwnEvent)}
           onClick={isFinished ? viewOrganizerEvents : handleCheckout}
-          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:opacity-90 disabled:opacity-40 disabled:shadow-none"
+          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:opacity-90 disabled:opacity-40 disabled:shadow-none"
         >
           <TicketIcon className="h-4 w-4" />
           {checkoutLabel}

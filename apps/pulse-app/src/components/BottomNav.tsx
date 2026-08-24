@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect, useTransition } from "react";
 import { motion } from "motion/react";
-import { Home, Map, UsersRound, User } from "lucide-react";
+import { Home, Ticket, User, Map, UsersRound } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
@@ -21,12 +21,12 @@ export function BottomNav() {
   const [, startTransition] = useTransition();
 
   const items: NavItem[] = [
-    { icon: Home, label: t("nav.home"), url: "/" },
-    { icon: Map, label: t("nav.map"), url: "/events" },
-    { icon: UsersRound, label: t("nav.feed"), url: "/feed" },
+    { icon: Home, label: t("nav.home", "Home"), url: "/" },
+    { icon: Map, label: t("nav.map", "Events"), url: "/events" },
+    { icon: UsersRound, label: t("nav.feed", "Feed"), url: "/feed" },
     {
       icon: User,
-      label: t("nav.profile"),
+      label: t("nav.profile", "Profile"),
       url: isOrganizer ? "/dashboard" : "/users/me",
     },
   ];
@@ -60,13 +60,20 @@ export function BottomNav() {
     setActiveIndex(idx);
 
     startTransition(() => {
-      router.push(url);
+      router.push(url, { scroll: false });
     });
   };
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-5 z-50 flex justify-center px-4">
-      <div className="pointer-events-auto w-[min(100%,320px)] rounded-full border border-white/10 bg-[#121217]/90 p-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.8)] backdrop-blur-md">
+      {/* 
+        Trecere insesizabilă (Smooth Gradient):
+        - `from-[#18181f]/40` sus
+        - `via-[#141419]/52` la mijloc (tranziție extrem de lină)
+        - `to-[#0d0d12]/65` jos
+        - `shadow-[inset_0_-8px_16px_rgba(0,0,0,0.35)]`: creează umbră naturală în bază
+      */}
+      <div className="pointer-events-auto relative w-[min(100%,360px)] rounded-full border border-white/15 bg-gradient-to-b from-[#18181f]/40 via-[#141419]/52 to-[#0d0d12]/65 p-2 shadow-[0_12px_32px_rgba(0,0,0,0.6),inset_0_-8px_16px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
         <div className="relative flex h-12 w-full items-center justify-between">
           {items.map((item, idx) => {
             const Icon = item.icon;
@@ -76,34 +83,32 @@ export function BottomNav() {
               <button
                 key={item.url}
                 onClick={() => handleTabClick(idx, item.url)}
-                className="relative flex h-full flex-1 items-center justify-center outline-none"
+                className="relative flex h-full flex-1 flex-col items-center justify-center gap-[2px] outline-none"
               >
-                {/* Capsulă animată dinamic cu culoarea primary */}
+                {/* Capsula roz magenta care îmbracă ICONIȚA + TEXTUL */}
                 {isActive && (
                   <motion.div
                     layoutId="activeTabCapsule"
-                    className="absolute inset-0 rounded-full border border-primary/40 bg-primary/15 shadow-[0_0_15px_var(--primary,#FF0044)]"
-                    style={{
-                      // Glow dinamic folosind variabila CSS de primary
-                      boxShadow: "0 0 15px hsl(var(--primary) / 0.35)",
-                    }}
+                    layoutDependency={activeIndex}
+                    className="absolute inset-0 rounded-full border border-primary/60 bg-primary/38 shadow-[0_0_12px_rgba(225,29,72,0.4)] backdrop-blur-sm"
                     transition={{
                       type: "spring",
-                      stiffness: 400,
-                      damping: 30,
+                      stiffness: 380,
+                      damping: 28,
                     }}
                   />
                 )}
 
+                {/* Iconița */}
                 <Icon
-                  strokeWidth={isActive ? 2.3 : 1.7}
+                  strokeWidth={isActive ? 2.2 : 1.6}
                   className={
                     "relative z-10 h-5 w-5 transition-colors duration-150 " +
-                    (isActive
-                      ? "text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)]"
-                      : "text-zinc-400")
+                    (isActive ? "text-primary" : "text-zinc-400")
                   }
                 />
+
+                {/* Textul de sub iconiță */}
               </button>
             );
           })}
