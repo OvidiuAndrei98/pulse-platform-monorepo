@@ -543,9 +543,14 @@ export const resources = {
         continueStripe: "Continue Stripe",
         connectStripe: "Connect Stripe",
         openStripeDashboard: "Open Stripe Dashboard",
+        nextEvent: "Next event",
+        nextEvents: "Next events",
+        nextEventsHint: "Your upcoming events, ordered by date.",
         recentEvents: "Recent events",
-        recentEventsHint: "Quick access to recently created events.",
+        recentEventsHint: "A preview of your most recently finished events.",
         noEvents: "You have not created an event yet.",
+        noUpcomingEvents: "You have no upcoming events.",
+        noRecentEvents: "You have no finished events yet.",
         addEvent: "Add event",
       },
       tickets: {
@@ -622,6 +627,8 @@ export const resources = {
       agreement: {
         error:
           "Complete your company details in verification first. The agreement will be recorded together with the verification request.",
+        companyDetailsFirst:
+          "Complete your company details in verification first. You will accept this agreement there together with the verification request.",
         signIn: "Sign in with an organizer account to accept the agreement.",
         title: "Accept the agreement",
         hint: "Acceptance is saved with the document version, date, and IP address. It is required before connecting Stripe and selling tickets.",
@@ -656,6 +663,8 @@ export const resources = {
         companyHint:
           "Your company must be approved before publishing events or selling tickets.",
         companyPending: "Your request is being verified.",
+        companyApproved: "Company verified successfully.",
+        verifyAgain: "Check again",
         cui: "Tax ID",
         companyName: "Company name",
         verify: "Verify",
@@ -1435,9 +1444,14 @@ export const resources = {
         continueStripe: "Continua Stripe",
         connectStripe: "Conecteaza Stripe",
         openStripeDashboard: "Deschide dashboardul Stripe",
+        nextEvent: "Urmatorul eveniment",
+        nextEvents: "Evenimente urmatoare",
+        nextEventsHint: "Evenimentele tale viitoare, in ordinea datei.",
         recentEvents: "Ultimele evenimente",
-        recentEventsHint: "Acces rapid la evenimentele create recent.",
+        recentEventsHint: "Un preview cu cele mai recente evenimente finalizate.",
         noEvents: "Nu ai creat niciun eveniment inca.",
+        noUpcomingEvents: "Nu ai niciun eveniment viitor.",
+        noRecentEvents: "Nu ai inca evenimente finalizate.",
         addEvent: "Adauga eveniment",
       },
       tickets: {
@@ -1516,6 +1530,8 @@ export const resources = {
       agreement: {
         error:
           "Completeaza mai intai datele firmei in sectiunea de verificare. Acordul va fi inregistrat odata cu cererea de verificare.",
+        companyDetailsFirst:
+          "Completeaza mai intai datele firmei in sectiunea de verificare. Acolo vei accepta acordul odata cu cererea de verificare.",
         signIn:
           "Conecteaza-te cu un cont de organizator pentru a accepta acordul.",
         title: "Accepta acordul",
@@ -1551,6 +1567,8 @@ export const resources = {
         companyHint:
           "Firma trebuie aprobata inainte sa publici evenimente sau sa vinzi bilete.",
         companyPending: "Cererea este in curs de verificare.",
+        companyApproved: "Firma a fost verificata cu succes.",
+        verifyAgain: "Verifica din nou",
         cui: "CUI / CIF",
         companyName: "Denumire firma",
         verify: "Verifica",

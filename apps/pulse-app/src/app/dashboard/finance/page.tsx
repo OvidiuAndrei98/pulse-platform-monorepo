@@ -8,6 +8,8 @@ import {
   CircleDollarSign,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
+  Loader2,
   ReceiptText,
   Ticket,
   WalletCards,
@@ -35,6 +37,9 @@ export default function FinancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [salesPage, setSalesPage] = useState(1);
+  const [stripeReady, setStripeReady] = useState(false);
+  const [stripeDashboardLoading, setStripeDashboardLoading] = useState(false);
+  const [stripeDashboardError, setStripeDashboardError] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -59,6 +64,40 @@ export default function FinancePage() {
       active = false;
     };
   }, [t, user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let active = true;
+    void user
+      .getOrganizerProfile()
+      .then((profile) => {
+        if (active) {
+          setStripeReady(Boolean(profile?.verificationStatus === "approved" && profile?.stripeChargesEnabled && profile?.stripePayoutsEnabled));
+        }
+      })
+      .catch(() => {
+        if (active) setStripeReady(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  const openStripeDashboard = async () => {
+    if (!user) return;
+
+    setStripeDashboardLoading(true);
+    setStripeDashboardError("");
+    try {
+      const { url } = await user.createStripeDashboardLoginLink();
+      window.location.assign(url);
+    } catch {
+      setStripeDashboardError(t("dashboard.stripeDashboardFailed"));
+      setStripeDashboardLoading(false);
+    }
+  };
 
   const totals = useMemo(
     () =>
@@ -95,7 +134,24 @@ export default function FinancePage() {
 	            Vanzari confirmate, comisioane Glow si documentele tale de comision.
           </p>
         </div>
+        {stripeReady && (
+          <button
+            type="button"
+            onClick={openStripeDashboard}
+            disabled={stripeDashboardLoading}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/15 px-3 text-xs font-semibold transition hover:bg-white/5 disabled:opacity-50"
+          >
+            {stripeDashboardLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+            {t("dashboard.openStripeDashboard")}
+          </button>
+        )}
       </header>
+
+      {stripeDashboardError && (
+        <p className="mt-4 border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {stripeDashboardError}
+        </p>
+      )}
 
       {loading ? (
         <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

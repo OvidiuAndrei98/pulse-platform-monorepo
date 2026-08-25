@@ -45,7 +45,7 @@ import {
   type OfflineTicketScan,
 } from "@/features/tickets/offlineValidationStore";
 
-const ORGANIZER_AGREEMENT_VERSION = "2026-07-27-glow";
+const ORGANIZER_AGREEMENT_VERSION = "2026-07-27";
 const apiHealthUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1")
   .replace(/\/api\/v1\/?$/, "/health");
 
@@ -400,13 +400,22 @@ export default function TicketValidationPage() {
     setSubmittingProfile(true);
     setError("");
     try {
-      setProfile(await user.updateOrganizerProfile(cui.trim(), companyName.trim(), ORGANIZER_AGREEMENT_VERSION));
-      setNotice(t("validation.companySubmitted"));
+      const updatedProfile = await user.updateOrganizerProfile(cui.trim(), companyName.trim(), ORGANIZER_AGREEMENT_VERSION);
+      setProfile(updatedProfile);
+      setNotice(updatedProfile.verificationStatus === "approved" ? t("validation.companyApproved") : t("validation.companySubmitted"));
     } catch {
       setError(t("validation.companyFailed"));
     } finally {
       setSubmittingProfile(false);
     }
+  };
+
+  const retryCompanyVerification = () => {
+    setCui(profile?.cui || "");
+    setCompanyName(profile?.companyName || "");
+    setProfile(undefined);
+    setError("");
+    setNotice("");
   };
 
   const validateOfflineTicket = async (hash: string) => {
@@ -574,7 +583,10 @@ export default function TicketValidationPage() {
               </div>
             </div>
             {profile?.verificationStatus === "pending" ? (
-              <p className="mt-5 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-sm text-amber-200">{t("validation.companyPending")}</p>
+              <div className="mt-5 flex flex-col gap-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-amber-200">{t("validation.companyPending")}</p>
+                <button type="button" onClick={retryCompanyVerification} className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-amber-300/30 px-3 text-xs font-semibold text-amber-100 transition hover:bg-amber-300/10">{t("validation.verifyAgain")}</button>
+              </div>
             ) : (
               <form onSubmit={submitCompany} className="mt-6 space-y-3">
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">
@@ -666,7 +678,10 @@ export default function TicketValidationPage() {
               </div>
             </div>
             {profile?.verificationStatus === "pending" ? (
-              <p className="mt-5 text-sm text-amber-200">{t("validation.companyPending")}</p>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-amber-200">{t("validation.companyPending")}</p>
+                <button type="button" onClick={retryCompanyVerification} className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-amber-300/30 px-3 text-xs font-semibold text-amber-100 transition hover:bg-amber-300/10">{t("validation.verifyAgain")}</button>
+              </div>
             ) : (
               <form onSubmit={submitCompany} className="mt-5 space-y-3">
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">

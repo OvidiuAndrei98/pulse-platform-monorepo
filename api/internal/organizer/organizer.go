@@ -113,7 +113,7 @@ func (h *Handler) HandleCreateOrganizerProfile(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// 3. Interogare API Proxy ANAF
+	// 3. Interogare ICA pentru verificarea CUI din surse oficiale
 	company, err := anaf.Lookup(ctx, req.Cui, req.CompanyName)
 	if err != nil {
 		router.RespondWithError(w, http.StatusBadRequest, "Failed to lookup company: "+err.Error())
@@ -123,7 +123,9 @@ func (h *Handler) HandleCreateOrganizerProfile(w http.ResponseWriter, r *http.Re
 	verificationStatus := db.VerificationStatusTypeApproved
 
 	if !company.IsActive {
-		verificationStatus = db.VerificationStatusTypePending
+		// There is no asynchronous verification worker. An inactive company must be
+		// rejected so the organizer can correct the CUI instead of being stuck pending.
+		verificationStatus = db.VerificationStatusTypeRejected
 	}
 
 	params := db.CreateOrganizerProfileParams{
