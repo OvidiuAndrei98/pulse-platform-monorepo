@@ -80,7 +80,7 @@ function BottomNav() {
         - `to-[#0d0d12]/65` jos
         - `shadow-[inset_0_-8px_16px_rgba(0,0,0,0.35)]`: creează umbră naturală în bază
       */}
-      <div className="pointer-events-auto relative w-[min(100%,360px)] rounded-full border border-white/15 bg-gradient-to-b from-[#18181f]/40 via-[#141419]/52 to-[#0d0d12]/65 p-2 shadow-[0_12px_32px_rgba(0,0,0,0.6),inset_0_-8px_16px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+      <div className="pointer-events-auto relative w-[min(100%,360px)] rounded-full border border-white/10 bg-gradient-to-b from-[#18181f]/40 via-[#141419]/52 to-[#0d0d12]/65 p-2 shadow-[0_12px_32px_rgba(0,0,0,0.6),inset_0_-8px_16px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
         <div className="relative flex h-12 w-full items-center justify-between">
           {items.map((item, idx) => {
             const Icon = item.icon;
