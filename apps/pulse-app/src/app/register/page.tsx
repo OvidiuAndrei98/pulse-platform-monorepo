@@ -23,14 +23,22 @@ export default function RegisterPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [isOrganizer, setIsOrganizer] = useState(false);
   const [state, setState] = useState<RegistrationState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setState("loading");
     setErrorMessage("");
+
+    if (password !== passwordConfirmation) {
+      setState("error");
+      setErrorMessage(t("auth.passwordsMismatch"));
+      return;
+    }
+
+    setState("loading");
 
     try {
       await register(username, email, password, isOrganizer);
@@ -57,7 +65,7 @@ export default function RegisterPage() {
         </p>
         <Link
           href="/login"
-          className="mt-7 inline-flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition hover:bg-primary/90"
+          className="mt-7 inline-flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:bg-primary/90"
         >
           {t("auth.goToLogin")} <ArrowRight className="h-4 w-4" />
         </Link>
@@ -127,6 +135,20 @@ export default function RegisterPage() {
             />
           </Field>
 
+          <Field label={t("auth.confirmPassword")} icon={LockKeyhole}>
+            <input
+              id="password-confirmation"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={6}
+              value={passwordConfirmation}
+              onChange={(inputEvent) => setPasswordConfirmation(inputEvent.target.value)}
+              className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/45"
+              placeholder={t("auth.confirmPassword")}
+            />
+          </Field>
+
           <label className={`flex cursor-pointer items-start gap-3 rounded-2xl p-4 backdrop-blur-md transition ${isOrganizer ? "bg-primary/20 ring-1 ring-primary/60" : "bg-black/35 ring-1 ring-white/15 hover:bg-black/50"}`}>
             <input
               type="checkbox"
@@ -157,7 +179,7 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={state === "loading" || loading}
-          className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {state === "loading" ? t("auth.creatingAccount") : t("auth.createAccount")}
           {state !== "loading" && <ArrowRight className="h-4 w-4" />}

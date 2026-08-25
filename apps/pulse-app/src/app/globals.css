@@ -114,6 +114,7 @@
   html,
   body {
     color: var(--color-foreground);
+    color-scheme: dark;
     -webkit-font-smoothing: antialiased;
     font-family: var(--font-sans);
   }
@@ -131,7 +132,6 @@
     caret-color: var(--foreground) !important;
     -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
     box-shadow: 0 0 0 1000px transparent inset !important;
-    transition: background-color 9999s ease-out 0s;
   }
 
   input:-moz-autofill,

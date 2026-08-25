@@ -176,7 +176,7 @@ export class User {
 
   static async resetPassword(token: string, newPassword: string): Promise<void> {
     await ApiClient.instance.post("/auth/reset-password", {
-      body: { token, newPassword },
+      body: { token, new_password: newPassword } as never,
     });
   }
 

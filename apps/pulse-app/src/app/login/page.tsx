@@ -56,20 +56,16 @@ export default function LoginPage() {
 
   return (
     <main className="relative min-h-dvh overflow-hidden bg-black text-white">
-      {!showEmailForm && (
-        <>
-          <Image
-            src="/party-event.png"
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover object-center md:!left-auto md:!right-0 md:!w-1/2"
-          />
-          <div className="absolute inset-0 bg-black/45 md:left-auto md:right-0 md:w-1/2" />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.2)_0%,rgba(0,0,0,0.08)_36%,rgba(0,0,0,0.88)_100%)] md:left-auto md:right-0 md:w-1/2" />
-        </>
-      )}
+      <Image
+        src="/party-event.png"
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className={`object-cover object-center md:!left-auto md:!right-0 md:!w-1/2 ${showEmailForm ? "hidden md:block" : ""}`}
+      />
+      <div className={`absolute inset-0 bg-black/45 md:left-auto md:right-0 md:w-1/2 ${showEmailForm ? "hidden md:block" : ""}`} />
+      <div className={`absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.2)_0%,rgba(0,0,0,0.08)_36%,rgba(0,0,0,0.88)_100%)] md:left-auto md:right-0 md:w-1/2 ${showEmailForm ? "hidden md:block" : ""}`} />
       <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-[max(2rem,calc(var(--native-safe-bottom)+1.5rem))] pt-[max(1.5rem,calc(var(--native-safe-top)+1rem))] sm:px-7 md:mx-0 md:w-1/2 md:max-w-none md:px-16 md:py-10 lg:px-24">
         {showEmailForm ? (
           <button
@@ -111,7 +107,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setShowEmailForm(true)}
-              className="mt-3 flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition hover:bg-primary/90"
+              className="mt-3 flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:bg-primary/90"
             >
               <Mail className="h-5 w-5" />
               {t("auth.continueWithEmail")}
@@ -158,6 +154,12 @@ export default function LoginPage() {
           </label>
         </div>
 
+        {showEmailForm && (
+          <Link href="/forgot-password" className="mt-3 block w-fit text-sm font-semibold text-primary transition hover:text-primary/80">
+            {t("auth.forgotPassword")}
+          </Link>
+        )}
+
         {showEmailForm && loginError && (
           <p role="alert" className="mt-5 rounded-2xl bg-red-500/20 px-4 py-3 text-sm text-red-100 backdrop-blur-md">
             {loginError}
@@ -167,7 +169,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className={`mt-6 h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 ${showEmailForm ? "flex" : "hidden"}`}
+          className={`mt-6 h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 ${showEmailForm ? "flex" : "hidden"}`}
         >
           {loading ? t("auth.signingIn") : t("auth.signIn")}
           {!loading && <ArrowRight className="h-4 w-4" />}
