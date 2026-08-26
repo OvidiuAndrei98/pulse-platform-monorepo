@@ -90,7 +90,7 @@ export default function TicketsPage() {
   );
 
   return (
-    <main className="mx-auto min-h-screen max-w-3xl px-5 pb-32 pt-10 text-foreground sm:px-7">
+    <main className="app-page-spacing mx-auto min-h-screen max-w-3xl text-foreground">
       <Link
         href="/users/me"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-primary"

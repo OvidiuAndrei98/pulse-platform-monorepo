@@ -133,8 +133,18 @@ export default function Home() {
   return (
     <div className="relative min-h-screen overflow-hidden text-foreground">
       <div className="relative z-10 pb-[110px]">
-        <div className="mx-auto max-w-7xl px-5 pt-10">
+        <div className="app-page-gutter mx-auto max-w-7xl pt-[max(1.5rem,var(--native-safe-top))] md:pt-8">
           <div className="relative z-40 flex items-center justify-between gap-4">
+            <span className="text-lg font-black uppercase tracking-[0.22em] text-foreground">
+              PULSE<span className="text-primary">.</span>
+            </span>
+            <div className="flex items-center gap-2">
+              {user && <NotificationsPopover />}
+              <SearchPopover events={events as Event[]} />
+            </div>
+          </div>
+
+          <div className="relative z-30 mt-7 flex items-end justify-between gap-4">
             <div>
               <p className="text-xl font-semibold leading-tight md:text-2xl">
                 {loading ? (
@@ -155,18 +165,13 @@ export default function Home() {
                 {t("home.exploreTonight", { count: tonightEvents.length })}
               </p>
             </div>
-            {user && <NotificationsPopover />}
-          </div>
-
-          <div className="relative mt-6 h-11">
-            <SearchPopover events={events as Event[]} />
           </div>
         </div>
 
         {eventsLoading ? (
           <HomeLoadingState />
         ) : eventsError ? (
-          <p className="mx-auto mt-9 max-w-7xl px-5 text-sm text-muted-foreground">
+          <p className="app-page-gutter mx-auto mt-9 max-w-7xl text-sm text-muted-foreground">
             {t("home.eventsUnavailable")}
           </p>
         ) : (
@@ -223,7 +228,7 @@ export default function Home() {
 
 function HomeLoadingState() {
   return (
-    <div className="mx-auto mt-9 max-w-7xl px-5">
+    <div className="app-page-gutter mx-auto mt-9 max-w-7xl">
       {/* SECTION 1 */}
       <div className="h-5 w-24 animate-pulse rounded-md bg-white/[0.08]" />
 

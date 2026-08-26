@@ -49,3 +49,11 @@ RETURNING *;
 UPDATE users
 SET is_active = true
 WHERE id = $1;
+-- name: ListHiddenEventCategories :many
+SELECT category FROM user_hidden_event_categories WHERE user_id = $1 ORDER BY category;
+
+-- name: HideEventCategory :exec
+INSERT INTO user_hidden_event_categories (user_id, category) VALUES ($1, UPPER($2)) ON CONFLICT DO NOTHING;
+
+-- name: ShowEventCategory :exec
+DELETE FROM user_hidden_event_categories WHERE user_id = $1 AND category = UPPER($2);

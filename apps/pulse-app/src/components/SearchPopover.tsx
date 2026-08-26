@@ -1,67 +1,38 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  Search,
-  X,
-  Calendar,
-  ArrowUpRight,
-  BadgeCheck,
-  UserRound,
-} from "lucide-react";
+import { Search, X, ArrowUpRight, BadgeCheck, UserRound } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Event } from "@/core/DataProvider";
-import {
-  ApiClient,
-  type ReadableSchema,
-} from "@packages/api-client/src/Client";
+import { formatEventDateShort, formatEventTime } from "@/features/events/dateFormat";
+import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
 import { useTranslation } from "react-i18next";
 
-interface SearchPopoverProps {
-  events?: Event[];
-}
-
+interface SearchPopoverProps { events?: Event[]; }
 type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 
 export function SearchPopover({ events }: SearchPopoverProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [profiles, setProfiles] = useState<PublicProfile[]>([]);
-  const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { t } = useTranslation();
 
-  // Închidere la tasta Escape
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
-  // Focus automat pe input când se deschide popover-ul
-  useEffect(() => {
-    if (!open) return;
-    const timer = setTimeout(() => inputRef.current?.focus(), 50);
-    return () => clearTimeout(timer);
-  }, [open]);
-
-  // Închidere la click în afara componentei
-  useEffect(() => {
-    if (!open) return;
-    const onClick = (e: MouseEvent | TouchEvent) => {
-      if (!wrapperRef.current) return;
-      if (!wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("touchstart", onClick);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 250);
+    const onKeyDown = (event: KeyboardEvent) => event.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("touchstart", onClick);
+      document.body.style.overflow = previousOverflow;
+      window.clearTimeout(focusTimer);
+      window.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);
 
@@ -81,193 +52,146 @@ export function SearchPopover({ events }: SearchPopoverProps) {
     return () => window.clearTimeout(timer);
   }, [open, q]);
 
-  // Filtrare evenimente
   const matchedEvents = useMemo(() => {
-    if (!q) return events?.slice(0, 4) ?? [];
-    return events?.filter(
-      (e) =>
-        e.title.toLowerCase().includes(q) ||
-        e.locationName.toLowerCase().includes(q) ||
-        e.category.toLowerCase().includes(q) ||
-        e.id.toLowerCase().includes(q),
+    if (!q) return [];
+    return events?.filter((event) =>
+      event.title.toLowerCase().includes(q) ||
+      event.locationName.toLowerCase().includes(q) ||
+      event.category.toLowerCase().includes(q) ||
+      event.id.toLowerCase().includes(q),
     );
   }, [q, events]);
 
-  return (
-    <div ref={wrapperRef} className="relative z-30 h-11 w-full">
-      <AnimatePresence>
-        {!open && (
+  const recommendedEvents = useMemo(() => {
+    const now = Date.now();
+    return [...(events ?? [])]
+      .filter((event) => new Date(event.endTime).getTime() > now)
+      .sort((first, second) =>
+        Number(Boolean(second.stats?.isFavorited)) - Number(Boolean(first.stats?.isFavorited)) ||
+        (second.stats?.goingCount ?? 0) - (first.stats?.goingCount ?? 0) ||
+        new Date(first.startTime).getTime() - new Date(second.startTime).getTime(),
+      )
+      .slice(0, 6);
+  }, [events]);
+
+  const navigate = (href: string) => {
+    router.push(href);
+    setOpen(false);
+  };
+
+  const drawer = (
+    <AnimatePresence>
+      {open && (
+        <div className="fixed inset-0 z-[200]">
           <motion.button
-            key="search-btn"
-            layoutId="search-morph"
             type="button"
-            aria-label={t("search.open")}
-            onClick={() => setOpen(true)}
-            className="absolute inset-x-0 top-0 flex h-11 items-center gap-2 overflow-hidden rounded-full border border-white/10  bg-[#0d0d10]  px-4 text-left text-foreground backdrop-blur-lg transform-gpu md:bg-surface/70 md:backdrop-blur-md"
-            transition={{ type: "spring", stiffness: 260, damping: 28 }}
-          >
-            <motion.span layout className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                {t("search.placeholder")}
-              </span>
-            </motion.span>
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {open && (
+            aria-label={t("search.close")}
+            className="absolute inset-0 h-full w-full cursor-default bg-black/70 backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }} onClick={() => setOpen(false)}
+          />
           <motion.div
-            key="search-panel"
-            layoutId="search-morph"
-            className="absolute left-0 right-0 top-0 z-50 overflow-hidden rounded-3xl border border-white/20 bg-[#141614]/90 text-foreground backdrop-blur-xl transform-gpu md:bg-[#141614]/45"
-            transition={{ type: "spring", stiffness: 260, damping: 28 }}
+            role="dialog" aria-modal="true" aria-label={t("search.open")}
+            className="absolute inset-y-0 right-0 flex w-full flex-col overflow-hidden border-l border-white/10 bg-[#0d0e0d] shadow-[-24px_0_70px_rgba(0,0,0,0.45)] md:w-[46vw] md:min-w-[480px] md:max-w-[680px]"
+            initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+            transition={{ type: "spring", stiffness: 285, damping: 31, mass: 0.9 }}
           >
-            {/* Efect subtil de sticlă (sheen) */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/[0.06] to-transparent"
-            />
+            <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_0%,rgba(255,0,68,0.12),transparent_38%)]" />
+            <header className="relative flex items-center justify-between border-b border-white/[0.08] px-5 pb-5 pt-[max(1.25rem,var(--native-safe-top))] md:px-8 md:pt-8">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">Pulse</p>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight">{t("search.open")}</h2>
+              </div>
+              <button type="button" aria-label={t("search.close")} onClick={() => setOpen(false)} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.05] transition hover:border-white/20 hover:bg-white/10 active:scale-95">
+                <X className="h-5 w-5" />
+              </button>
+            </header>
 
-            <div className="relative">
-              <motion.div layout className="flex items-center gap-2 px-4 pt-4">
-                <Search className="h-4 w-4 text-primary" />
-
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={t("search.placeholder")}
-                  className="h-10 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                />
-                <button
-                  type="button"
-                  aria-label={t("search.close")}
-                  onClick={() => setOpen(false)}
-                  className="grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/5 transition-colors hover:bg-white/10"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </motion.div>
-
-              {/* Contorizăm înălțimea independent pentru a opri trepidațiile (dansul) listei la filtrare */}
-              <div className="max-h-[60vh] overflow-y-auto px-2 pb-3 pt-3">
-                <Section
-                  title={t("search.events")}
-                  count={matchedEvents?.length ?? 0}
-                >
-                  {matchedEvents?.map((e) => (
-                    <ResultRow
-                      key={e.id}
-                      icon={Calendar}
-                      title={e.title}
-                      meta={`${e.category} · ${e.locationName}`}
-                      onClick={() => {
-                        router.push(`/events/${e.id}`);
-                        setOpen(false);
-                      }}
-                    />
-                  ))}
-                  {matchedEvents?.length === 0 && (
-                    <p className="px-3 py-2 text-xs text-muted-foreground">
-                      {t("search.noEvents")}
-                    </p>
-                  )}
-                </Section>
-                {q.length >= 2 && (
-                  <Section
-                    title={t("search.peopleAndOrganizers")}
-                    count={profiles.length}
-                  >
-                    {profiles.map((profile) => (
-                      <ResultRow
-                        key={profile.id}
-                        icon={
-                          profile.role === "organizer" ? BadgeCheck : UserRound
-                        }
-                        title={
-                          profile.role === "organizer"
-                            ? profile.organizerName || profile.username
-                            : `@${profile.username}`
-                        }
-                        meta={
-                          profile.role === "organizer"
-                            ? t("search.organizerMeta", {
-                                username: profile.username,
-                              })
-                            : profile.bio || t("search.publicProfile")
-                        }
-                        onClick={() => {
-                          router.push(`/users/${profile.id}`);
-                          setOpen(false);
-                        }}
-                      />
-                    ))}
-                    {profiles.length === 0 && (
-                      <p className="px-3 py-2 text-xs text-muted-foreground">
-                        {t("search.noProfiles")}
-                      </p>
-                    )}
-                  </Section>
+            <div className="relative px-5 pt-5 md:px-8 md:pt-7">
+              <div className="flex h-14 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.055] px-4 transition focus-within:border-primary/50 focus-within:bg-white/[0.07]">
+                <Search className="h-5 w-5 shrink-0 text-primary" />
+                <input ref={inputRef} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("search.placeholder")} className="h-full min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground" />
+                {query && (
+                  <button type="button" onClick={() => setQuery("")} aria-label={t("search.close")} className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-muted-foreground hover:text-foreground">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 )}
               </div>
             </div>
+
+            <div className="relative min-h-0 flex-1 overflow-y-auto px-3 pb-[max(2rem,var(--native-safe-bottom))] pt-3 md:px-6">
+              {!q ? (
+                <Section title={t("search.recommended")} count={recommendedEvents.length}>
+                  {recommendedEvents.map((event) => (
+                    <RecommendationRow key={event.id} event={event} onClick={() => navigate(`/events/${event.id}`)} />
+                  ))}
+                  {recommendedEvents.length === 0 && <Empty>{t("search.noEvents")}</Empty>}
+                </Section>
+              ) : (
+                <Section title={t("search.events")} count={matchedEvents?.length ?? 0}>
+                  {matchedEvents?.map((event) => (
+                    <RecommendationRow key={event.id} event={event} onClick={() => navigate(`/events/${event.id}`)} />
+                  ))}
+                  {matchedEvents?.length === 0 && <Empty>{t("search.noEvents")}</Empty>}
+                </Section>
+              )}
+              {q.length >= 2 && (
+                <Section title={t("search.peopleAndOrganizers")} count={profiles.length}>
+                  {profiles.map((profile) => (
+                    <ResultRow key={profile.id} icon={profile.role === "organizer" ? BadgeCheck : UserRound} title={profile.role === "organizer" ? profile.organizerName || profile.username : `@${profile.username}`} meta={profile.role === "organizer" ? t("search.organizerMeta", { username: profile.username }) : profile.bio || t("search.publicProfile")} onClick={() => navigate(`/users/${profile.id}`)} />
+                  ))}
+                  {profiles.length === 0 && <Empty>{t("search.noProfiles")}</Empty>}
+                </Section>
+              )}
+            </div>
           </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+
+  return (
+    <>
+      <button type="button" aria-label={t("search.open")} aria-expanded={open} onClick={() => setOpen(true)} className="group flex h-11 items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3.5 text-sm text-muted-foreground transition hover:border-white/20 hover:bg-white/[0.08] hover:text-foreground active:scale-95 md:px-4">
+        <Search className="h-[18px] w-[18px] transition-colors group-hover:text-primary" />
+        <span className="hidden sm:inline">{t("search.open")}</span>
+      </button>
+      {typeof document !== "undefined" && createPortal(drawer, document.body)}
+    </>
   );
 }
 
-function Section({
-  title,
-  count,
-  children,
-}: {
-  title: string;
-  count: number;
-  children: React.ReactNode;
-}) {
+function Empty({ children }: { children: React.ReactNode }) {
+  return <p className="px-3 py-5 text-sm text-muted-foreground">{children}</p>;
+}
+
+function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
+  return <section className="mt-3"><div className="flex items-center justify-between px-3 py-3"><span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</span><span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-muted-foreground">{count}</span></div><div className="space-y-1">{children}</div></section>;
+}
+
+function ResultRow({ icon: Icon, title, meta, onClick }: { icon: React.ComponentType<{ className?: string }>; title: string; meta: string; onClick: () => void }) {
   return (
-    <div className="mt-2">
-      <div className="flex items-center justify-between px-3 py-2">
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {title}
-        </span>
-        <span className="text-[11px] text-muted-foreground">{count}</span>
-      </div>
-      <div className="space-y-1">{children}</div>
-    </div>
+    <button type="button" onClick={onClick} className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-white/[0.06] active:scale-[0.99]">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/10"><Icon className="h-[18px] w-[18px] text-primary" /></span>
+      <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{title}</p><p className="mt-0.5 truncate text-xs text-muted-foreground">{meta}</p></div>
+      <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-foreground" />
+    </button>
   );
 }
 
-function ResultRow({
-  icon: Icon,
-  title,
-  meta,
-  onClick,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  meta: string;
-  onClick: () => void;
-}) {
+function RecommendationRow({ event, onClick }: { event: Event; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition hover:bg-white/5 active:scale-[0.99] transform-gpu"
-    >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10">
-        <Icon className="h-4 w-4 text-primary" />
+    <button type="button" onClick={onClick} className="group flex w-full items-center gap-3 border-b border-white/[0.07] px-3 py-3 text-left transition last:border-b-0 hover:bg-white/[0.05] active:scale-[0.99]">
+      <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/[0.06] shadow-lg">
+        <Image src={event.bannerUrl || "/party-event.png"} alt="" fill sizes="56px" className="object-cover transition duration-300 group-hover:scale-105" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{title}</p>
-        <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
+        <p className="truncate text-sm font-semibold tracking-wide text-foreground">{event.title}</p>
+        <p className="mt-1 truncate text-xs text-muted-foreground">
+          {event.locationName} · {formatEventDateShort(event.startTime)} | {formatEventTime(event.startTime)}
+        </p>
       </div>
-      <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100" />
     </button>
   );
 }

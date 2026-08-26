@@ -51,7 +51,7 @@ export default function DashboardPurchasesPage() {
 
   return (
     <main className="min-h-screen text-foreground">
-      <div className="mx-auto max-w-5xl px-4 pt-7 sm:px-6 sm:pt-9">
+      <div className="app-page-spacing mx-auto max-w-5xl">
         <header>
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">{t("purchases.eyebrow")}</p>
           <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{t("purchases.title")}</h1>

@@ -5,16 +5,23 @@ import { useTranslation } from "react-i18next";
 import type { UseFormReturn } from "react-hook-form";
 import type { EventFormValues } from "@/app/dashboard/components/EventsForm";
 import { AddArtistForm, type LineupArtistInput } from "./AddArtistForm";
+import { TimePicker } from "@/features/events/form/DateTimePicker";
 
 export function LineupSection({ form }: { form: UseFormReturn<EventFormValues> }) {
   const { t } = useTranslation();
   const lineup = form.watch("lineup") ?? [];
   const update = (index: number, patch: Partial<LineupArtistInput>) => {
+    const nextLineup = lineup.map((artist, artistIndex) =>
+      artistIndex === index ? { ...artist, ...patch } : artist,
+    );
+    if (patch.performanceTime !== undefined) {
+      nextLineup.sort((first, second) =>
+        (first.performanceTime || "99:99").localeCompare(second.performanceTime || "99:99"),
+      );
+    }
     form.setValue(
       "lineup",
-      lineup.map((artist, artistIndex) =>
-        artistIndex === index ? { ...artist, ...patch } : artist,
-      ),
+      nextLineup,
       { shouldDirty: true },
     );
   };
@@ -46,7 +53,7 @@ export function LineupSection({ form }: { form: UseFormReturn<EventFormValues> }
               <p className="truncate text-sm font-semibold">{artist.name}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <input value={artist.stage} onChange={(event) => update(index, { stage: event.target.value })} placeholder={t("lineup.stage")} className="h-8 min-w-0 max-w-28 rounded-md border border-white/[0.1] bg-black/15 px-2 text-xs outline-none focus:border-primary/60" />
-                <input value={artist.performanceTime} onChange={(event) => update(index, { performanceTime: event.target.value })} placeholder={t("lineup.time")} className="h-8 min-w-0 max-w-24 rounded-md border border-white/[0.1] bg-black/15 px-2 text-xs outline-none focus:border-primary/60" />
+                <div className="w-28"><TimePicker compact value={artist.performanceTime} onChange={(performanceTime) => update(index, { performanceTime })} /></div>
                 <label className="inline-flex h-8 items-center gap-1.5 rounded-md border border-white/[0.1] bg-black/15 px-2 text-xs"><input type="checkbox" checked={artist.isHeadliner} onChange={(event) => update(index, { isHeadliner: event.target.checked })} className="accent-primary" /> {t("lineup.headliner")}</label>
               </div>
             </div>

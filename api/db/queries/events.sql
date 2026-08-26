@@ -80,6 +80,10 @@ WHERE (sqlc.arg(category)::VARCHAR = '' OR sqlc.arg(category) IS NULL OR e.categ
   AND (sqlc.narg(event_id)::UUID IS NULL OR e.id = sqlc.narg(event_id))
   -- Filtru organizator pentru profilul public
   AND (sqlc.narg(organizer_id)::UUID IS NULL OR e.organizer_id = sqlc.narg(organizer_id))
+  AND NOT EXISTS (
+      SELECT 1 FROM user_hidden_event_categories hidden
+      WHERE hidden.user_id = sqlc.arg(user_id) AND hidden.category = UPPER(e.category)
+  )
   AND e.status = 'published'
 ORDER BY e.start_time DESC
 LIMIT sqlc.arg(req_limit) OFFSET sqlc.arg(req_offset);
@@ -144,8 +148,8 @@ GROUP BY e.id
 ORDER BY e.start_time DESC;
 
 -- name: CreateEvent :one
-INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, organizer_absorbs_service_fee, latitude, longitude, start_time, end_time)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, organizer_absorbs_service_fee, latitude, longitude, start_time, end_time, publish_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 RETURNING *; 
 
 -- name: EditEvent :one
@@ -163,7 +167,8 @@ SET title = $2,
     latitude = $12,
     longitude = $13,
     start_time = $14,
-    end_time = $15
+    end_time = $15,
+    publish_at = $16
 WHERE id = $1
 RETURNING *; -- RETURNING * va aduce status-ul modificat
 

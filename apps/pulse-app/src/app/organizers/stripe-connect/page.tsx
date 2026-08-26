@@ -11,7 +11,7 @@ export default function StripeConnectPage() {
     { icon: CreditCard, title: t("stripeConnect.stepStripeTitle"), text: t("stripeConnect.stepStripeText") },
     { icon: WalletCards, title: t("stripeConnect.stepSalesTitle"), text: t("stripeConnect.stepSalesText") },
   ];
-  return <main className="mx-auto min-h-screen max-w-3xl px-5 pb-32 pt-12 text-foreground sm:px-7 sm:pt-16">
+  return <main className="app-page-spacing mx-auto min-h-screen max-w-3xl text-foreground">
     <Link href="/" className="text-xs font-semibold text-primary transition hover:opacity-80">Glow</Link>
     <header className="mt-7 border-b border-white/10 pb-8"><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">{t("stripeConnect.eyebrow")}</p><h1 className="mt-2 text-3xl font-semibold sm:text-4xl">{t("stripeConnect.title")}</h1><p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">{t("stripeConnect.intro")}</p></header>
     <section className="grid gap-px overflow-hidden border border-white/10 bg-white/10 sm:grid-cols-3">{steps.map(({ icon: Icon, title, text }) => <article key={title} className="bg-[#101311] p-5"><span className="grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary"><Icon className="h-5 w-5" /></span><h2 className="mt-5 text-sm font-semibold">{title}</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">{text}</p></article>)}</section>

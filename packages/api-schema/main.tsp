@@ -211,6 +211,7 @@ model EventResponse {
   longitude: decimal;
   startTime: utcDateTime;
   endTime: utcDateTime;
+  publishAt?: utcDateTime;
   isLive: boolean;
   createdAt: utcDateTime;
 
@@ -304,7 +305,8 @@ model CreateEventPayload {
   longitude: decimal;
   startTime: utcDateTime;
   endTime: utcDateTime;
-  status: "draft" | "published";
+  status: "draft" | "scheduled" | "published";
+  publishAt?: utcDateTime;
   ticketTypes?: CreateTicketTypePayload[];
   lineup?: ArtistInput[];
 }
@@ -324,9 +326,44 @@ model UpdateEventPayload {
   longitude: decimal;
   startTime: utcDateTime;
   endTime: utcDateTime;
-  status: "draft" | "published";
+  status: "draft" | "scheduled" | "published";
+  publishAt?: utcDateTime;
   ticketTypes?: UpdateTicketTypePayload[];
   lineup?: ArtistInput[];
+}
+
+model CreateInvitationPayload {
+  label: string;
+  ticketTypeId?: string;
+}
+
+model CreatePromoCodePayload {
+  code: string;
+  discountPercent: int32;
+  maxRedemptions?: int32;
+  startsAt?: utcDateTime;
+  endsAt?: utcDateTime;
+}
+
+model PromoCodeResponse {
+  id: string;
+  code: string;
+  discountPercent: int32;
+  maxRedemptions?: int32;
+  redemptionsCount: int32;
+  startsAt?: utcDateTime;
+  endsAt?: utcDateTime;
+  active: boolean;
+  createdAt: utcDateTime;
+}
+
+model InvitationTicketResponse {
+  id: string;
+  label: string;
+  validationHash: string;
+  ticketType?: string;
+  status: "active" | "used" | "revoked";
+  createdAt?: utcDateTime;
 }
 
 model SubmitOrganizerProfilePayload {
@@ -380,6 +417,7 @@ model CheckoutTicketItemPayload {
 model CreateCheckoutSessionPayload {
   email: string;
   items: CheckoutTicketItemPayload[];
+  promoCode?: string;
 }
 
 model CheckoutSessionResponse {
@@ -566,6 +604,22 @@ interface UserOperations {
   @get
   @route("/me/saved-events")
   getSavedEvents(): EventResponse[];
+
+  @get
+  @route("/me/hidden-categories")
+  listHiddenCategories(): string[];
+
+  @post
+  @route("/me/hidden-categories")
+  hideEventCategory(@body payload: { category: string }): {
+    @statusCode statusCode: 204;
+  };
+
+  @delete
+  @route("/me/hidden-categories/{category}")
+  showEventCategory(@path category: string): {
+    @statusCode statusCode: 204;
+  };
 }
 
 @route("/notifications")
@@ -887,6 +941,46 @@ interface DashboardOperations {
     @body response: {
       status: "success";
     };
+  };
+
+  @get
+  @route("/events/{id}/invitations")
+  listInvitations(@path id: string): InvitationTicketResponse[];
+
+  @post
+  @route("/events/{id}/invitations")
+  createInvitation(@path id: string, @body payload: CreateInvitationPayload): {
+    @statusCode statusCode: 201;
+    @body response: InvitationTicketResponse;
+  };
+
+  @delete
+  @route("/events/{id}/invitations/{invitationId}")
+  revokeInvitation(@path id: string, @path invitationId: string): {
+    @statusCode statusCode: 204;
+  };
+
+  @delete
+  @route("/events/{id}/invitations/{invitationId}/permanent")
+  deleteInvitation(@path id: string, @path invitationId: string): {
+    @statusCode statusCode: 204;
+  };
+
+  @get
+  @route("/events/{id}/promo-codes")
+  listPromoCodes(@path id: string): PromoCodeResponse[];
+
+  @post
+  @route("/events/{id}/promo-codes")
+  createPromoCode(@path id: string, @body payload: CreatePromoCodePayload): {
+    @statusCode statusCode: 201;
+    @body response: { id: string };
+  };
+
+  @delete
+  @route("/events/{id}/promo-codes/{promoId}")
+  deactivatePromoCode(@path id: string, @path promoId: string): {
+    @statusCode statusCode: 204;
   };
 
 }

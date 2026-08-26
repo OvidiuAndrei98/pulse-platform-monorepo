@@ -43,6 +43,9 @@ type HandlersConfig struct {
 	ListNotifications        http.HandlerFunc
 	MarkAllNotificationsRead http.HandlerFunc
 	MarkNotificationRead     http.HandlerFunc
+	ListHiddenCategories     http.HandlerFunc
+	HideEventCategory        http.HandlerFunc
+	ShowEventCategory        http.HandlerFunc
 
 	// Events
 	CreateEvent                http.HandlerFunc
@@ -70,6 +73,9 @@ type HandlersConfig struct {
 	GetEventSocial             http.HandlerFunc
 	UpdateEventRsvp            http.HandlerFunc
 	DeleteEventRsvp            http.HandlerFunc
+	ListPromoCodes             http.HandlerFunc
+	CreatePromoCode            http.HandlerFunc
+	DeactivatePromoCode        http.HandlerFunc
 
 	// Interactions / Checkins
 	CreateCheckIn http.HandlerFunc
@@ -114,6 +120,10 @@ type HandlersConfig struct {
 	RevokeScannerAccess   http.HandlerFunc
 	CreateScannerSession  http.HandlerFunc
 	QuickValidateTicket   http.HandlerFunc
+	CreateInvitation      http.HandlerFunc
+	ListInvitations       http.HandlerFunc
+	RevokeInvitation      http.HandlerFunc
+	DeleteInvitation      http.HandlerFunc
 	CreateOfflineSnapshot http.HandlerFunc
 	SyncOfflineScans      http.HandlerFunc
 }
@@ -224,6 +234,9 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Get("/me/tickets", cfg.GetUserTickets)
 				r.Get("/me/orders", cfg.GetUserOrders)
 				r.Get("/me/saved-events", cfg.GetSavedEvents)
+				r.Get("/me/hidden-categories", cfg.ListHiddenCategories)
+				r.Post("/me/hidden-categories", cfg.HideEventCategory)
+				r.Delete("/me/hidden-categories/{category}", cfg.ShowEventCategory)
 				r.Get("/{id}", cfg.GetUser)
 			})
 
@@ -288,6 +301,13 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 					r.Post("/{id}", cfg.EditEvent)
 					r.Get("/{id}", cfg.GetEventWithStats)
 					r.Post("/{id}/ticket-types", cfg.CreateTicketType)
+					r.Get("/{id}/invitations", cfg.ListInvitations)
+					r.Post("/{id}/invitations", cfg.CreateInvitation)
+					r.Delete("/{id}/invitations/{invitationId}", cfg.RevokeInvitation)
+					r.Delete("/{id}/invitations/{invitationId}/permanent", cfg.DeleteInvitation)
+					r.Get("/{id}/promo-codes", cfg.ListPromoCodes)
+					r.Post("/{id}/promo-codes", cfg.CreatePromoCode)
+					r.Delete("/{id}/promo-codes/{promoId}", cfg.DeactivatePromoCode)
 					r.Get("/{id}/updates", cfg.GetEventUpdates)
 					r.Post("/{id}/updates", cfg.CreateEventUpdate)
 					r.Delete("/{id}/updates/{updateId}", cfg.DeleteEventUpdate)

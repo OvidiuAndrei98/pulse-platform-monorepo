@@ -176,6 +176,9 @@ func (app *Application) BuildRouter() http.Handler {
 		ListNotifications:        notificationsHandler.HandleList,
 		MarkAllNotificationsRead: notificationsHandler.HandleMarkAllRead,
 		MarkNotificationRead:     notificationsHandler.HandleMarkRead,
+		ListHiddenCategories:     usersHandler.HandleListHiddenCategories,
+		HideEventCategory:        usersHandler.HandleHideCategory,
+		ShowEventCategory:        usersHandler.HandleShowCategory,
 
 		// Events
 		CreateEvent:                eventsHandler.HandleCreateEvent,
@@ -203,6 +206,9 @@ func (app *Application) BuildRouter() http.Handler {
 		GetEventSocial:             interactionsHandler.HandleGetEventSocial,
 		UpdateEventRsvp:            interactionsHandler.HandleUpdateEventRsvp,
 		DeleteEventRsvp:            interactionsHandler.HandleDeleteEventRsvp,
+		ListPromoCodes:             eventsHandler.HandleListPromoCodes,
+		CreatePromoCode:            eventsHandler.HandleCreatePromoCode,
+		DeactivatePromoCode:        eventsHandler.HandleDeactivatePromoCode,
 
 		// Interactions / Checkins
 		CreateCheckIn: interactionsHandler.HandleCreateCheckIn,
@@ -247,6 +253,10 @@ func (app *Application) BuildRouter() http.Handler {
 		RevokeScannerAccess:   ticketingHandler.HandleRevokeScannerAccess,
 		CreateScannerSession:  ticketingHandler.HandleCreateScannerSession,
 		QuickValidateTicket:   ticketingHandler.HandleQuickValidateTicket,
+		CreateInvitation:      ticketingHandler.HandleCreateInvitation,
+		ListInvitations:       ticketingHandler.HandleListInvitations,
+		RevokeInvitation:      ticketingHandler.HandleRevokeInvitation,
+		DeleteInvitation:      ticketingHandler.HandleDeleteInvitation,
 		CreateOfflineSnapshot: ticketingHandler.HandleCreateOfflineSnapshot,
 		SyncOfflineScans:      ticketingHandler.HandleSyncOfflineScans,
 	}

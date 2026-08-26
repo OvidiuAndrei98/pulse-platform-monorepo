@@ -89,7 +89,7 @@ export default function OrganizerDashboard() {
 
   return (
     <main className="min-h-screen text-foreground">
-      <div className="mx-auto max-w-5xl space-y-6 px-4 pt-7 sm:px-6 sm:pt-9">
+      <div className="app-page-spacing mx-auto max-w-5xl space-y-6">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-1">
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">{t("dashboardNav.organizer")}</p>

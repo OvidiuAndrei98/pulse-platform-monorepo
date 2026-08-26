@@ -80,6 +80,40 @@ export interface ClientConfiguration {
   getAccessToken?: () => string | null | undefined;
 }
 
+async function asWebP(
+  file: File,
+  maxDimension: number,
+  quality = 0.86,
+): Promise<File> {
+  if (file.type === "image/webp") return file;
+
+  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+  try {
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Imaginea nu a putut fi procesata.");
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (result) => result ? resolve(result) : reject(new Error("Conversia WebP a esuat.")),
+        "image/webp",
+        quality,
+      );
+    });
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "image";
+    return new File([blob], `${baseName}.webp`, {
+      type: "image/webp",
+      lastModified: file.lastModified,
+    });
+  } finally {
+    bitmap.close();
+  }
+}
+
 export class ApiClient {
   private static shared: ApiClient | null = null;
   private config: ClientConfiguration;
@@ -207,6 +241,7 @@ export class ApiClient {
   }
 
   public async uploadEventBanner(file: File): Promise<{ url: string }> {
+    file = await asWebP(file, 1920);
     const headers: Record<string, string> = {
       Accept: "application/json",
       "Content-Type": file.type,
@@ -244,6 +279,7 @@ export class ApiClient {
   }
 
   public async uploadOrganizerUpdateImage(file: File): Promise<{ url: string }> {
+    file = await asWebP(file, 1600);
     const headers: Record<string, string> = {
       Accept: "application/json",
       "Content-Type": file.type,
@@ -279,6 +315,7 @@ export class ApiClient {
   public async uploadProfileAvatar(
     file: File,
   ): Promise<ReadableSchema<"User">> {
+    file = await asWebP(file, 1024, 0.84);
     const headers: Record<string, string> = {
       Accept: "application/json",
       "Content-Type": file.type,

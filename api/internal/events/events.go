@@ -33,16 +33,55 @@ func NewHandler(queries *db.Queries, db *pgxpool.Pool) *Handler {
 	}
 }
 
-// StartEventExpiryWorker keeps persisted event status in sync with end_time.
+func publicationParams(status string, raw *string) (string, pgtype.Timestamptz, error) {
+	if status != "draft" && status != "scheduled" && status != "published" {
+		return "", pgtype.Timestamptz{}, fmt.Errorf("status invalid")
+	}
+	if status != "scheduled" {
+		return status, pgtype.Timestamptz{}, nil
+	}
+	if raw == nil || *raw == "" {
+		return "", pgtype.Timestamptz{}, fmt.Errorf("data publicarii este obligatorie")
+	}
+	publishAt, err := time.Parse(time.RFC3339, *raw)
+	if err != nil || !publishAt.After(time.Now()) {
+		return "", pgtype.Timestamptz{}, fmt.Errorf("data publicarii trebuie sa fie in viitor")
+	}
+	return status, pgtype.Timestamptz{Time: publishAt, Valid: true}, nil
+}
+
+// StartEventExpiryWorker publishes scheduled events and archives ended events.
 // Multiple API tasks can run this safely because the update is idempotent.
 func (h *Handler) StartEventExpiryWorker(ctx context.Context) {
 	expireEvents := func() {
 		runCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
+		rows, err := h.DB.Query(runCtx, `
+			UPDATE events
+			SET status = 'published', publish_at = NULL
+			WHERE status = 'scheduled' AND publish_at <= CURRENT_TIMESTAMP
+			RETURNING id`)
+		if err != nil {
+			log.Printf("scheduled publishing worker: %v", err)
+		} else {
+			publishedIDs := make([]pgtype.UUID, 0)
+			for rows.Next() {
+				var eventID pgtype.UUID
+				if rows.Scan(&eventID) == nil {
+					publishedIDs = append(publishedIDs, eventID)
+				}
+			}
+			rows.Close()
+			for _, eventID := range publishedIDs {
+				if err := h.Queries.CreateOrganizerEventNotifications(runCtx, eventID); err != nil {
+					log.Printf("scheduled event notification failed: %v", err)
+				}
+			}
+		}
 		if _, err := h.DB.Exec(runCtx, `
 			UPDATE events
-			SET status = 'draft', is_live = FALSE
-			WHERE status = 'published' AND end_time <= CURRENT_TIMESTAMP`); err != nil {
+			SET status = 'completed', is_live = FALSE
+			WHERE status IN ('draft', 'scheduled', 'published') AND end_time <= CURRENT_TIMESTAMP`); err != nil {
 			log.Printf("event expiry worker: %v", err)
 		}
 	}
@@ -106,6 +145,11 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusBadRequest, "Vibe is required")
 		return
 	}
+	status, publishAt, err := publicationParams(req.Status, req.PublishAt)
+	if err != nil {
+		router.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	if apiKey := os.Getenv("GOOGLE_MAPS_API_KEY"); apiKey != "" {
 		if err := validateGooglePlaceID(ctx, req.GooglePlaceId, apiKey); err != nil {
@@ -114,8 +158,12 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	startTime, _ := time.Parse(time.RFC3339, req.StartTime)
-	endTime, _ := time.Parse(time.RFC3339, req.EndTime)
+	startTime, startErr := time.Parse(time.RFC3339, req.StartTime)
+	endTime, endErr := time.Parse(time.RFC3339, req.EndTime)
+	if startErr != nil || endErr != nil || !endTime.After(startTime) {
+		router.RespondWithError(w, http.StatusBadRequest, "Intervalul evenimentului este invalid")
+		return
+	}
 
 	tx, err := h.DB.Begin(ctx)
 	if err != nil {
@@ -141,7 +189,8 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		Longitude:                  req.Longitude,
 		StartTime:                  pgtype.Timestamptz{Time: startTime, Valid: true},
 		EndTime:                    pgtype.Timestamptz{Time: endTime, Valid: true},
-		Status:                     req.Status,
+		Status:                     status,
+		PublishAt:                  publishAt,
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la crearea evenimentului: "+err.Error())
@@ -227,6 +276,10 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusForbidden, "Nu ai permisiunea sa modifici acest eveniment")
 		return
 	}
+	if existingEvent.Status == "completed" || existingEvent.EndTime.Time.Before(time.Now()) {
+		router.RespondWithError(w, http.StatusConflict, "Evenimentele incheiate nu mai pot fi modificate. Foloseste evenimentul ca template.")
+		return
+	}
 
 	var organizerUUID pgtype.UUID
 	if err := organizerUUID.Scan(userID); err != nil || !organizerUUID.Valid {
@@ -275,6 +328,11 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusBadRequest, "Data endTime invalida")
 		return
 	}
+	status, publishAt, err := publicationParams(req.Status, req.PublishAt)
+	if err != nil {
+		router.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	tx, err := h.DB.Begin(r.Context())
 	if err != nil {
@@ -301,7 +359,8 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		Longitude:                  req.Longitude,
 		GooglePlaceID:              googlePlaceID,
 		Description:                pgtype.Text{String: req.Description, Valid: true},
-		Status:                     req.Status,
+		Status:                     status,
+		PublishAt:                  publishAt,
 		BannerUrl:                  bannerURL,
 		City:                       req.City,
 		Vibe:                       req.Vibe,

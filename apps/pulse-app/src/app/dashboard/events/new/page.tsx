@@ -7,6 +7,8 @@ import { CreateEventPayload } from "@/core/DataProvider";
 import EventForm from "../../components/EventsForm";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
+import { useEffect, useState } from "react";
+import type { EventFormValues } from "../../components/EventsForm";
 import { toast } from "sonner";
 
 interface DraftTicket {
@@ -23,16 +25,22 @@ export default function NewEventPage() {
   const { t } = useTranslation();
 
   const { user } = useDataProvider();
+  const [template, setTemplate] = useState<Partial<EventFormValues>>();
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem("pulse:event-template");
+    if (!raw) return;
+    sessionStorage.removeItem("pulse:event-template");
+    try { setTemplate(JSON.parse(raw) as Partial<EventFormValues>); } catch { setTemplate(undefined); }
+  }, []);
 
   const handleSave = async (
-    status: "draft" | "published",
-    data: Omit<CreateEventPayload, "status"> & { ticketTypes: DraftTicket[] },
+    data: CreateEventPayload & { ticketTypes: DraftTicket[] },
   ) => {
     try {
       if (!user) return;
       await user.handleCreateEvent({
         ...data,
-        status: status,
       });
       toast.success(t("eventForm.eventCreated"));
       router.push("/dashboard/events");
@@ -44,7 +52,7 @@ export default function NewEventPage() {
 
   return (
     <div className="relative min-h-screen text-foreground antialiased">
-      <div className="mx-auto max-w-3xl px-5 pt-8">
+      <div className="app-page-spacing mx-auto max-w-3xl">
         <Link
           href="/dashboard/events"
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -58,7 +66,7 @@ export default function NewEventPage() {
           </h1>
         </div>
 
-        <EventForm onSubmit={(data) => handleSave("published", data)} />
+        <EventForm initialValues={template} onSubmit={handleSave} />
       </div>
     </div>
   );

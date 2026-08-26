@@ -82,6 +82,7 @@ type Querier interface {
 	GetUserByID(ctx context.Context, id pgtype.UUID) (Users, error)
 	GetUserTickets(ctx context.Context, userID pgtype.UUID) ([]GetUserTicketsRow, error)
 	GetUserTokenByHash(ctx context.Context, arg GetUserTokenByHashParams) (UserTokens, error)
+	HideEventCategory(ctx context.Context, arg HideEventCategoryParams) error
 	IncrementTicketsSold(ctx context.Context, arg IncrementTicketsSoldParams) error
 	InsertUserToken(ctx context.Context, arg InsertUserTokenParams) (UserTokens, error)
 	IsValidationStaffForEvent(ctx context.Context, arg IsValidationStaffForEventParams) (bool, error)
@@ -92,6 +93,7 @@ type Querier interface {
 	ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error)
 	ListEventsWithStats(ctx context.Context, organizerID pgtype.UUID) ([]ListEventsWithStatsRow, error)
 	ListFriendEventActivity(ctx context.Context, arg ListFriendEventActivityParams) ([]ListFriendEventActivityRow, error)
+	ListHiddenEventCategories(ctx context.Context, userID pgtype.UUID) ([]string, error)
 	ListNotifications(ctx context.Context, arg ListNotificationsParams) ([]ListNotificationsRow, error)
 	ListOfflineValidationTickets(ctx context.Context, eventID pgtype.UUID) ([]ListOfflineValidationTicketsRow, error)
 	ListOrderTicketEmailDetails(ctx context.Context, id pgtype.UUID) ([]ListOrderTicketEmailDetailsRow, error)
@@ -117,6 +119,7 @@ type Querier interface {
 	SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error
 	SetEventStatus(ctx context.Context, arg SetEventStatusParams) error
 	SetOrganizerStripeAccount(ctx context.Context, arg SetOrganizerStripeAccountParams) (OrganizerProfiles, error)
+	ShowEventCategory(ctx context.Context, arg ShowEventCategoryParams) error
 	UnfollowOrganizer(ctx context.Context, arg UnfollowOrganizerParams) error
 	UpdateOrderCheckoutSession(ctx context.Context, arg UpdateOrderCheckoutSessionParams) error
 	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error

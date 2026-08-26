@@ -13,6 +13,7 @@ import { PersonalDetailsForm } from "@/components/profile/PersonalDetailsForm";
 import { PasswordResetRequest } from "@/components/profile/PasswordResetRequest";
 import { LanguagePreferenceRow } from "@/components/profile/LanguagePreferenceRow";
 import { AttendancePrivacyRow } from "@/components/profile/AttendancePrivacyRow";
+import { HiddenEventCategories } from "@/components/profile/HiddenEventCategories";
 import { useEventDetails } from "@/components/EventDetailsSheet";
 import {
   formatEventDate,
@@ -205,7 +206,7 @@ export default function MePage() {
 
   return (
     <div className="relative min-h-screen w-full pb-40 text-foreground overflow-y-auto">
-      <div className="mx-auto max-w-md px-5 pt-10 md:max-w-7xl md:px-8 md:pt-16">
+      <div className="app-page-gutter mx-auto max-w-md pt-10 md:max-w-7xl md:pt-16">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-12 items-start">
           <div className="md:col-span-4 md:sticky md:top-16 space-y-6">
             <header className="flex items-center gap-4">
@@ -247,6 +248,8 @@ export default function MePage() {
             )}
 
             {!isOrganizer && <ProfileConnectionQr />}
+
+            {!isOrganizer && <HiddenEventCategories />}
 
             {/* Securitatea pe Desktop */}
             <section className="hidden md:block">

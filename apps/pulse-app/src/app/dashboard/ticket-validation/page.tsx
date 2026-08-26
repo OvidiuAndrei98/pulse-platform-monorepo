@@ -573,7 +573,7 @@ export default function TicketValidationPage() {
   if (isOrganizer && !profileLoading && !companyReady) {
     return (
       <main className="text-foreground">
-        <div className="mx-auto max-w-2xl px-4 pt-7 sm:px-6 sm:pt-12">
+        <div className="app-page-spacing mx-auto max-w-2xl">
           <section className="rounded-xl border border-amber-400/25 bg-amber-400/[0.04] p-5 sm:p-6">
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 h-5 w-5 text-amber-300" />
@@ -613,7 +613,7 @@ export default function TicketValidationPage() {
 
   return (
     <main className="min-h-screen text-foreground">
-      <div className="mx-auto max-w-5xl space-y-6 px-4 pt-7 sm:px-6 sm:pt-9">
+      <div className="app-page-spacing mx-auto max-w-5xl space-y-6">
         <header className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">{t("validation.eventAccess")}</p>

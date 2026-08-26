@@ -34,6 +34,7 @@ type CreateEventRequest struct {
 	StartTime                  string            `json:"startTime"`
 	EndTime                    string            `json:"endTime"`
 	Status                     string            `json:"status"`
+	PublishAt                  *string           `json:"publishAt,omitempty"`
 	TicketTypes                []TicketTypeInput `json:"ticketTypes"`
 	Lineup                     []ArtistInput     `json:"lineup"`
 }
@@ -62,6 +63,7 @@ type EditEventRequest struct {
 	GooglePlaceID              string                `json:"googlePlaceId"`
 	Description                string                `json:"description"`
 	Status                     string                `json:"status"`
+	PublishAt                  *string               `json:"publishAt,omitempty"`
 	BannerURL                  *string               `json:"bannerUrl,omitempty"`
 	TicketTypes                []EditTicketTypeInput `json:"ticketTypes"`
 	Lineup                     *[]ArtistInput        `json:"lineup"`

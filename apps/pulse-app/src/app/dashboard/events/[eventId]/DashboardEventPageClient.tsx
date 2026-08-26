@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import {
-  CreateEventPayload,
   Event,
   UpdateEventPayload,
 } from "@/core/DataProvider";
@@ -16,6 +15,8 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ApiError } from "@packages/api-client/src/Client";
 import { OrganizerUpdatesManager } from "../../components/OrganizerUpdatesManager";
+import { InvitationManager } from "../../components/InvitationManager";
+import { PromoCodeManager } from "../../components/PromoCodeManager";
 
 export default function EditEventPage() {
   const { t } = useTranslation();
@@ -77,9 +78,30 @@ export default function EditEventPage() {
     }
   };
 
+  const useAsTemplate = () => {
+    if (!event) return;
+    const duration = Math.max(60 * 60 * 1000, new Date(event.endTime).getTime() - new Date(event.startTime).getTime());
+    const start = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const end = new Date(start.getTime() + duration);
+    sessionStorage.setItem("pulse:event-template", JSON.stringify({
+      ...event,
+      id: undefined,
+      status: "draft",
+      publishAt: undefined,
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+      stats: undefined,
+      ticketTypes: event.ticketTypes.map(({ id: _id, ticketsSold: _sold, ...ticket }) => ({ ...ticket, startSales: new Date().toISOString(), endSales: start.toISOString() })),
+      lineup: event.lineup.map(({ id: _id, ...artist }) => artist),
+    }));
+    router.push("/dashboard/events/new?template=1");
+  };
+
+  const completed = event?.status === "completed" || Boolean(event && new Date(event.endTime).getTime() <= Date.now());
+
   return (
     <div className="relative min-h-screen bg-background pb-40 text-foreground antialiased">
-      <div className="mx-auto max-w-3xl px-5 pt-8">
+      <div className="app-page-spacing mx-auto max-w-3xl">
         <Link
           href="/dashboard/events"
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -93,15 +115,22 @@ export default function EditEventPage() {
           </h1>
         </div>
 
-        {loading ? <div className="mt-6 h-[34rem] animate-pulse rounded-lg border border-white/10 bg-white/[0.03]" /> : event ? <>
+        {loading ? <div className="mt-6 h-[34rem] animate-pulse rounded-lg border border-white/10 bg-white/[0.03]" /> : event && completed ? <>
+            <div className="my-5 rounded-2xl border border-primary/20 bg-primary/[0.06] px-4 py-3"><p className="text-xs font-bold uppercase tracking-wider text-primary">{t("organizerEvents.completed")}</p><p className="mt-1 text-sm text-muted-foreground">{t("eventForm.completedReadOnly")}</p></div>
+            <EventForm onSubmit={() => undefined} initialValues={{ ...event, status: "completed" }} readOnly onUseAsTemplate={useAsTemplate} />
+            <InvitationManager event={event} readOnly />
+            <PromoCodeManager event={event} readOnly />
+          </> : event ? <>
           <EventForm
             onSubmit={(data) => handleSave(data)}
             initialValues={{
               ...event,
-              status: event.status === "published" ? "published" : "draft",
+              status: event.status === "published" || event.status === "scheduled" ? event.status : "draft",
             }}
             onDelete={handleDelete}
           />
+          <InvitationManager event={event} />
+          <PromoCodeManager event={event} />
           <OrganizerUpdatesManager eventId={event.id} status={event.status} endTime={event.endTime} />
         </> : <p className="mt-6 text-sm text-muted-foreground">{t("eventForm.loadFailed")}</p>}
       </div>

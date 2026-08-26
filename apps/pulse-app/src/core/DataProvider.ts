@@ -14,6 +14,9 @@ export type UpdateEventPayload = WritableSchema<"UpdateEventPayload">;
 export type TicketTier = ReadableSchema<"TicketTypeResponse">;
 export type Artist = ReadableSchema<"Artist">;
 export type ArtistInput = WritableSchema<"ArtistInput">;
+export type InvitationTicket = { id: string; label: string; validationHash: string; ticketType?: string; status: "active" | "used" | "revoked"; createdAt?: string };
+export type PromoCode = ReadableSchema<"PromoCodeResponse">;
+export type CreatePromoCode = WritableSchema<"CreatePromoCodePayload">;
 export type SpotifyArtist = ReadableSchema<"SpotifyArtistResponse">;
 export type CreateTicketTierPayload = WritableSchema<"CreateTicketTypePayload">;
 export type Event = ReadableSchema<"EventResponse">;
@@ -723,6 +726,50 @@ export class User {
     }, [userId, user, authLoading]);
 
     return { events, eventsLoading, eventsError };
+  }
+
+  async listHiddenCategories(): Promise<string[]> {
+    return ApiClient.instance.get("/users/me/hidden-categories");
+  }
+
+  async hideEventCategory(category: string): Promise<void> {
+    await ApiClient.instance.post("/users/me/hidden-categories", { body: { category } });
+    this._events = undefined;
+    await this._getEvents();
+  }
+
+  async showEventCategory(category: string): Promise<void> {
+    await ApiClient.instance.delete("/users/me/hidden-categories/{category}", { params: { path: { category } } });
+    this._events = undefined;
+    await this._getEvents();
+  }
+
+  async listInvitations(eventId: string): Promise<InvitationTicket[]> {
+    return ApiClient.instance.get("/dashboard/events/{id}/invitations", { params: { path: { id: eventId } } });
+  }
+
+  async createInvitation(eventId: string, payload: { label: string; ticketTypeId?: string }): Promise<InvitationTicket> {
+    return ApiClient.instance.post("/dashboard/events/{id}/invitations", { params: { path: { id: eventId } }, body: payload });
+  }
+
+  async revokeInvitation(eventId: string, invitationId: string): Promise<void> {
+    await ApiClient.instance.delete("/dashboard/events/{id}/invitations/{invitationId}", { params: { path: { id: eventId, invitationId } } });
+  }
+
+  async deleteInvitation(eventId: string, invitationId: string): Promise<void> {
+    await ApiClient.instance.delete("/dashboard/events/{id}/invitations/{invitationId}/permanent", { params: { path: { id: eventId, invitationId } } });
+  }
+
+  async listPromoCodes(eventId: string): Promise<PromoCode[]> {
+    return ApiClient.instance.get("/dashboard/events/{id}/promo-codes", { params: { path: { id: eventId } } });
+  }
+
+  async createPromoCode(eventId: string, payload: CreatePromoCode): Promise<void> {
+    await ApiClient.instance.post("/dashboard/events/{id}/promo-codes", { params: { path: { id: eventId } }, body: payload });
+  }
+
+  async deactivatePromoCode(eventId: string, promoId: string): Promise<void> {
+    await ApiClient.instance.delete("/dashboard/events/{id}/promo-codes/{promoId}", { params: { path: { id: eventId, promoId } } });
   }
 
   async uploadOrganizerUpdateImage(file: File): Promise<{ url: string }> {

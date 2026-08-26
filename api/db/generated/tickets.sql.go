@@ -84,18 +84,20 @@ func (q *Queries) CompleteOfflineTicketValidation(ctx context.Context, arg Compl
 }
 
 const createCheckoutOrder = `-- name: CreateCheckoutOrder :one
-INSERT INTO orders (user_id, event_id, email, total_amount, platform_fee_bani, status)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at
+INSERT INTO orders (user_id, event_id, email, total_amount, platform_fee_bani, status, promo_code_id, discount_amount_ron)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron
 `
 
 type CreateCheckoutOrderParams struct {
-	UserID          pgtype.UUID `json:"user_id"`
-	EventID         pgtype.UUID `json:"event_id"`
-	Email           string      `json:"email"`
-	TotalAmount     int32       `json:"total_amount"`
-	PlatformFeeBani int32       `json:"platform_fee_bani"`
-	Status          OrderStatus `json:"status"`
+	UserID            pgtype.UUID `json:"user_id"`
+	EventID           pgtype.UUID `json:"event_id"`
+	Email             string      `json:"email"`
+	TotalAmount       int32       `json:"total_amount"`
+	PlatformFeeBani   int32       `json:"platform_fee_bani"`
+	Status            OrderStatus `json:"status"`
+	PromoCodeID       pgtype.UUID `json:"promo_code_id"`
+	DiscountAmountRon int32       `json:"discount_amount_ron"`
 }
 
 func (q *Queries) CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrderParams) (Orders, error) {
@@ -106,6 +108,8 @@ func (q *Queries) CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrd
 		arg.TotalAmount,
 		arg.PlatformFeeBani,
 		arg.Status,
+		arg.PromoCodeID,
+		arg.DiscountAmountRon,
 	)
 	var i Orders
 	err := row.Scan(
@@ -120,6 +124,8 @@ func (q *Queries) CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrd
 		&i.StripeCheckoutSessionID,
 		&i.PlatformFeeBani,
 		&i.TicketEmailSentAt,
+		&i.PromoCodeID,
+		&i.DiscountAmountRon,
 	)
 	return i, err
 }
@@ -194,7 +200,7 @@ func (q *Queries) CreateOfflineValidationSnapshot(ctx context.Context, arg Creat
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO orders (user_id, event_id, email, total_amount, stripe_payment_intent_id, status)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at
+RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron
 `
 
 type CreateOrderParams struct {
@@ -228,6 +234,8 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.StripeCheckoutSessionID,
 		&i.PlatformFeeBani,
 		&i.TicketEmailSentAt,
+		&i.PromoCodeID,
+		&i.DiscountAmountRon,
 	)
 	return i, err
 }
@@ -451,7 +459,7 @@ func (q *Queries) GetOfflineValidationSnapshotForSync(ctx context.Context, arg G
 }
 
 const getOrderForUpdate = `-- name: GetOrderForUpdate :one
-SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at FROM orders
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron FROM orders
 WHERE id = $1
 FOR UPDATE
 `
@@ -471,6 +479,8 @@ func (q *Queries) GetOrderForUpdate(ctx context.Context, id pgtype.UUID) (Orders
 		&i.StripeCheckoutSessionID,
 		&i.PlatformFeeBani,
 		&i.TicketEmailSentAt,
+		&i.PromoCodeID,
+		&i.DiscountAmountRon,
 	)
 	return i, err
 }

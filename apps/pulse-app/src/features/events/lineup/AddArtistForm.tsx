@@ -4,6 +4,7 @@ import { Check, ImageUp, Music2, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PublicEventsService, type SpotifyArtist } from "@/core/DataProvider";
+import { TimePicker } from "@/features/events/form/DateTimePicker";
 
 export type LineupArtistInput = {
   id?: string;
@@ -105,7 +106,7 @@ export function AddArtistForm({ onAdd }: { onAdd: (artist: LineupArtistInput) =>
           <Field label={t("lineup.artistName")} value={artist.name} onChange={(name) => setArtist((current) => ({ ...current, name }))} required />
           <div className="grid gap-1 text-xs font-medium text-muted-foreground"><Field label={t("lineup.imageUrl")} value={artist.imageUrl} onChange={(imageUrl) => setArtist((current) => ({ ...current, imageUrl }))} placeholder="https://..." /><label className="inline-flex h-8 w-fit cursor-pointer items-center gap-1.5 text-xs font-semibold text-primary transition hover:text-primary/80"><ImageUp className="h-3.5 w-3.5" />{uploading ? t("lineup.uploading") : t("lineup.uploadImage")}<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={uploading} onChange={(event) => uploadImage(event.target.files?.[0])} /></label></div>
           <Field label={t("lineup.stage")} value={artist.stage} onChange={(stage) => setArtist((current) => ({ ...current, stage }))} placeholder="Main stage" />
-          <Field label={t("lineup.time")} value={artist.performanceTime} onChange={(performanceTime) => setArtist((current) => ({ ...current, performanceTime }))} placeholder="01:00 AM" />
+          <label className="grid gap-1 text-xs font-medium text-muted-foreground">{t("lineup.time")}<TimePicker value={artist.performanceTime} onChange={(performanceTime) => setArtist((current) => ({ ...current, performanceTime }))} /></label>
           {mode === "manual" && <Field label={t("lineup.spotifyProfile")} value={artist.spotifyUrl} onChange={(spotifyUrl) => setArtist((current) => ({ ...current, spotifyUrl }))} placeholder="https://open.spotify.com/..." />}
           <label className="flex h-11 items-center gap-2 rounded-md border border-white/10 bg-background px-3 text-sm font-medium"><input type="checkbox" checked={artist.isHeadliner} onChange={(event) => setArtist((current) => ({ ...current, isHeadliner: event.target.checked }))} className="h-4 w-4 accent-primary" />{t("lineup.headliner")}</label>
         </div>

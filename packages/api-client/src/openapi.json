@@ -262,6 +262,228 @@
         }
       }
     },
+    "/dashboard/events/{id}/invitations": {
+      "get": {
+        "operationId": "DashboardOperations_listInvitations",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationTicketResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "DashboardOperations_createInvitation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The request has succeeded and a new resource has been created as a result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationTicketResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvitationPayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/events/{id}/invitations/{invitationId}": {
+      "delete": {
+        "operationId": "DashboardOperations_revokeInvitation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      }
+    },
+    "/dashboard/events/{id}/invitations/{invitationId}/permanent": {
+      "delete": {
+        "operationId": "DashboardOperations_deleteInvitation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      }
+    },
+    "/dashboard/events/{id}/promo-codes": {
+      "get": {
+        "operationId": "DashboardOperations_listPromoCodes",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PromoCodeResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "DashboardOperations_createPromoCode",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The request has succeeded and a new resource has been created as a result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePromoCodePayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/events/{id}/promo-codes/{promoId}": {
+      "delete": {
+        "operationId": "DashboardOperations_deactivatePromoCode",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "promoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      }
+    },
     "/dashboard/events/{id}/ticket-types": {
       "post": {
         "operationId": "DashboardOperations_createTicketType",
@@ -2202,6 +2424,74 @@
         }
       }
     },
+    "/users/me/hidden-categories": {
+      "get": {
+        "operationId": "UserOperations_listHiddenCategories",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "UserOperations_hideEventCategory",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "category"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me/hidden-categories/{category}": {
+      "delete": {
+        "operationId": "UserOperations_showEventCategory",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      }
+    },
     "/users/me/orders": {
       "get": {
         "operationId": "UserOperations_getUserOrders",
@@ -2473,6 +2763,9 @@
             "items": {
               "$ref": "#/components/schemas/CheckoutTicketItemPayload"
             }
+          },
+          "promoCode": {
+            "type": "string"
           }
         }
       },
@@ -2539,8 +2832,13 @@
             "type": "string",
             "enum": [
               "draft",
+              "scheduled",
               "published"
             ]
+          },
+          "publishAt": {
+            "type": "string",
+            "format": "date-time"
           },
           "ticketTypes": {
             "type": "array",
@@ -2556,6 +2854,20 @@
           }
         }
       },
+      "CreateInvitationPayload": {
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "ticketTypeId": {
+            "type": "string"
+          }
+        }
+      },
       "CreateOrganizerEventUpdatePayload": {
         "type": "object",
         "required": [
@@ -2567,6 +2879,34 @@
           },
           "caption": {
             "type": "string"
+          }
+        }
+      },
+      "CreatePromoCodePayload": {
+        "type": "object",
+        "required": [
+          "code",
+          "discountPercent"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "discountPercent": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxRedemptions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -2751,6 +3091,10 @@
             "type": "string",
             "format": "date-time"
           },
+          "publishAt": {
+            "type": "string",
+            "format": "date-time"
+          },
           "isLive": {
             "type": "boolean"
           },
@@ -2886,6 +3230,41 @@
               "going",
               "has_ticket"
             ]
+          }
+        }
+      },
+      "InvitationTicketResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "validationHash",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "validationHash": {
+            "type": "string"
+          },
+          "ticketType": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "used",
+              "revoked"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -3241,6 +3620,52 @@
         "properties": {
           "email": {
             "type": "string"
+          }
+        }
+      },
+      "PromoCodeResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "discountPercent",
+          "redemptionsCount",
+          "active",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "discountPercent": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxRedemptions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "redemptionsCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -3679,8 +4104,13 @@
             "type": "string",
             "enum": [
               "draft",
+              "scheduled",
               "published"
             ]
+          },
+          "publishAt": {
+            "type": "string",
+            "format": "date-time"
           },
           "ticketTypes": {
             "type": "array",

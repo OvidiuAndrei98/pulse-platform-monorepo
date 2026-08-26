@@ -21,7 +21,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Event, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
-import { ApiClient } from "@packages/api-client/src/Client";
+import { ApiClient, ApiError } from "@packages/api-client/src/Client";
 import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
 import { EventLineup } from "@/features/events/lineup/EventLineup";
@@ -139,6 +139,7 @@ export function EventDetailsSheet({
   );
   const [qty, setQty] = useState<Record<string, number>>({});
   const [guestEmail, setGuestEmail] = useState("");
+  const [promoCode, setPromoCode] = useState("");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [purchased, setPurchased] = useState(false);
@@ -189,6 +190,7 @@ export function EventDetailsSheet({
     if (activeEvent) {
       setQty({});
       setGuestEmail(user?.properties.email ?? "");
+      setPromoCode("");
       setIsCheckingOut(false);
       setCheckoutError("");
       setPurchased(false);
@@ -293,12 +295,13 @@ export function EventDetailsSheet({
                 ticketTypeId: ticket.id,
                 quantity: qty[ticket.id] ?? 0,
               })),
+            promoCode: promoCode.trim() || undefined,
           },
         },
       );
       window.location.assign(checkout.checkoutUrl);
-    } catch {
-      setCheckoutError(t("eventSheet.purchaseError"));
+    } catch (error) {
+      setCheckoutError(error instanceof ApiError ? (error.detail || error.title) : t("eventSheet.purchaseError"));
       setIsCheckingOut(false);
       setPurchased(false);
     }
@@ -491,6 +494,8 @@ export function EventDetailsSheet({
                 placeholder={t("checkout.emailPlaceholder")}
                 className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/60 focus:bg-white/[0.07]"
               />
+              <label className="mt-4 block text-sm font-semibold text-foreground/90" htmlFor="checkout-promo">{t("checkout.promoCode")}</label>
+              <input id="checkout-promo" value={promoCode} onChange={(inputEvent) => setPromoCode(inputEvent.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))} placeholder={t("checkout.promoPlaceholder")} className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm font-semibold uppercase tracking-wide outline-none transition placeholder:text-muted-foreground focus:border-primary/60 focus:bg-white/[0.07]" />
               {!user && (
                 <GoogleSignInButton
                   returnTo={`/events/${event.id}?checkout=1`}

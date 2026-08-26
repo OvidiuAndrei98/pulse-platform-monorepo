@@ -863,10 +863,27 @@ func (h *Handler) HandleCreateOfflineSnapshot(w http.ResponseWriter, r *http.Req
 		router.RespondWithError(w, http.StatusInternalServerError, "Biletele pentru validare offline nu au putut fi incarcate")
 		return
 	}
+	responseTickets := make([]OfflineTicketSnapshot, 0, len(tickets))
+	for _, ticket := range tickets {
+		responseTickets = append(responseTickets, OfflineTicketSnapshot{TicketID: common.UUIDToString(ticket.ID), ValidationHash: ticket.ValidationHash, TicketType: ticket.TicketTypeName})
+	}
+	invitationRows, err := h.DB.Query(ctx, `SELECT i.id,i.validation_hash,COALESCE(tt.name,'Invitatie') FROM invitation_tickets i LEFT JOIN ticket_types tt ON tt.id=i.ticket_type_id WHERE i.event_id=$1 AND i.revoked_at IS NULL AND i.validated_at IS NULL`, eventID)
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Invitatiile offline nu au putut fi incarcate")
+		return
+	}
+	defer invitationRows.Close()
+	for invitationRows.Next() {
+		var id pgtype.UUID
+		var hash, kind string
+		if invitationRows.Scan(&id, &hash, &kind) == nil {
+			responseTickets = append(responseTickets, OfflineTicketSnapshot{TicketID: common.UUIDToString(id), ValidationHash: hash, TicketType: kind})
+		}
+	}
 	snapshot, err := h.Queries.CreateOfflineValidationSnapshot(ctx, db.CreateOfflineValidationSnapshotParams{
 		EventID:         eventID,
 		CreatedByUserID: userID,
-		TicketCount:     int32(len(tickets)),
+		TicketCount:     int32(len(responseTickets)),
 		ExpiresAt:       event.EndTime,
 	})
 	if err != nil {
@@ -874,14 +891,6 @@ func (h *Handler) HandleCreateOfflineSnapshot(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	responseTickets := make([]OfflineTicketSnapshot, 0, len(tickets))
-	for _, ticket := range tickets {
-		responseTickets = append(responseTickets, OfflineTicketSnapshot{
-			TicketID:       common.UUIDToString(ticket.ID),
-			ValidationHash: ticket.ValidationHash,
-			TicketType:     ticket.TicketTypeName,
-		})
-	}
 	router.RespondWithJSON(w, http.StatusOK, OfflineValidationSnapshotResponse{
 		SnapshotID:  common.UUIDToString(snapshot.ID),
 		EventID:     common.UUIDToString(eventID),
@@ -949,6 +958,22 @@ func (h *Handler) syncOfflineTicketScan(ctx context.Context, eventID, userID, sn
 	}
 
 	result := OfflineTicketSyncResult{ClientScanID: scan.ClientScanID}
+	if invitation, handled, invitationErr := h.validateInvitation(ctx, eventID, strings.TrimSpace(scan.ValidationHash)); invitationErr != nil {
+		return OfflineTicketSyncResult{}, invitationErr
+	} else if handled {
+		result.Status, _ = invitation["status"].(string)
+		result.TicketType, _ = invitation["ticketType"].(string)
+		if result.Status == "valid" {
+			result.Status = "accepted"
+		}
+		if err := qtx.CompleteOfflineTicketValidation(ctx, db.CompleteOfflineTicketValidationParams{ID: auditID, Result: result.Status}); err != nil {
+			return OfflineTicketSyncResult{}, err
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return OfflineTicketSyncResult{}, err
+		}
+		return result, nil
+	}
 	validationHash, validHash := parseValidationHash(scan.ValidationHash)
 	if !validHash {
 		result.Status = "invalid"
@@ -1185,6 +1210,14 @@ func (h *Handler) HandleValidateTicket(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := hex.DecodeString(req.ValidationHash); err != nil {
 		router.RespondWithError(w, http.StatusBadRequest, "Codul biletului este invalid")
+		return
+	}
+
+	if invitation, handled, err := h.validateInvitation(ctx, eventID, req.ValidationHash); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Invitatia nu a putut fi validata")
+		return
+	} else if handled {
+		router.RespondWithJSON(w, http.StatusOK, invitation)
 		return
 	}
 

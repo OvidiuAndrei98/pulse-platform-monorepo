@@ -3,7 +3,6 @@ import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { DataProvider } from "@/core/DataProviderContext";
 import { BottomNavGate } from "@/components/BottomNav";
-import { GlobalNotifications } from "@/components/GlobalNotifications";
 import { I18nProvider } from "@/components/I18nProvider";
 import { EventDetailsProvider } from "@/components/EventDetailsSheet";
 import { OfflineScannerServiceWorker } from "@/components/OfflineScannerServiceWorker";
@@ -59,7 +58,6 @@ export default function RootLayout({
           <I18nProvider>
             <DataProvider>
               <EventDetailsProvider>{children}</EventDetailsProvider>
-              <GlobalNotifications />
               <ToastProvider />
               <BottomNavGate />
               <OfflineScannerServiceWorker />

@@ -129,6 +129,20 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (Users, error
 	return i, err
 }
 
+const hideEventCategory = `-- name: HideEventCategory :exec
+INSERT INTO user_hidden_event_categories (user_id, category) VALUES ($1, UPPER($2)) ON CONFLICT DO NOTHING
+`
+
+type HideEventCategoryParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	Upper  interface{} `json:"upper"`
+}
+
+func (q *Queries) HideEventCategory(ctx context.Context, arg HideEventCategoryParams) error {
+	_, err := q.db.Exec(ctx, hideEventCategory, arg.UserID, arg.Upper)
+	return err
+}
+
 const linkGoogleIdentity = `-- name: LinkGoogleIdentity :one
 UPDATE users
 SET google_id = $2,
@@ -162,6 +176,44 @@ func (q *Queries) LinkGoogleIdentity(ctx context.Context, arg LinkGoogleIdentity
 		&i.ShowAttendancePublicly,
 	)
 	return i, err
+}
+
+const listHiddenEventCategories = `-- name: ListHiddenEventCategories :many
+SELECT category FROM user_hidden_event_categories WHERE user_id = $1 ORDER BY category
+`
+
+func (q *Queries) ListHiddenEventCategories(ctx context.Context, userID pgtype.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, listHiddenEventCategories, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var category string
+		if err := rows.Scan(&category); err != nil {
+			return nil, err
+		}
+		items = append(items, category)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const showEventCategory = `-- name: ShowEventCategory :exec
+DELETE FROM user_hidden_event_categories WHERE user_id = $1 AND category = UPPER($2)
+`
+
+type ShowEventCategoryParams struct {
+	UserID pgtype.UUID `json:"user_id"`
+	Upper  interface{} `json:"upper"`
+}
+
+func (q *Queries) ShowEventCategory(ctx context.Context, arg ShowEventCategoryParams) error {
+	_, err := q.db.Exec(ctx, showEventCategory, arg.UserID, arg.Upper)
+	return err
 }
 
 const updateUserActivated = `-- name: UpdateUserActivated :exec

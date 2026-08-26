@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, BadgeCheck, Calendar, MapPin, Ticket, UsersRound } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, BadgeCheck, Calendar, MapPin, Share2, Ticket, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
 import { Event, PublicEventsService } from "@/core/DataProvider";
 import { EventOrganizerUpdates } from "@/components/EventOrganizerUpdates";
 import { ProfileActions } from "@/components/social/ProfileActions";
 import { useEventDetails } from "@/components/EventDetailsSheet";
-import { formatEventDateShort } from "@/features/events/dateFormat";
+import { formatEventDateShort, formatEventTime } from "@/features/events/dateFormat";
 
 type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 
@@ -96,7 +96,7 @@ export default function PublicProfilePage() {
 
   if (!loaded) {
     return (
-      <main className="min-h-screen bg-background px-5 pt-12 text-foreground">
+      <main className="app-page-spacing min-h-screen bg-background text-foreground">
         <div className="h-40 max-w-xl animate-pulse rounded-3xl border border-white/10 bg-white/[0.035]" />
       </main>
     );
@@ -104,7 +104,7 @@ export default function PublicProfilePage() {
 
   if (!profile) {
     return (
-      <main className="min-h-screen bg-background px-5 pt-12 text-foreground">
+      <main className="app-page-spacing min-h-screen bg-background text-foreground">
         <Link
           href={returnTo}
           className="inline-flex h-9 items-center gap-2 text-xs font-semibold text-muted-foreground"
@@ -126,8 +126,25 @@ export default function PublicProfilePage() {
       ? t("publicProfile.connected")
       : t("publicProfile.connectHint");
 
+  if (isOrganizer) {
+    return (
+      <OrganizerProfilePage
+        profile={profile}
+        returnTo={returnTo}
+        upcomingEvents={upcomingEvents}
+        pastEvents={pastEvents}
+        eventsLoaded={eventsLoaded}
+        eventsFailed={eventsFailed}
+        onProfileChange={(update) =>
+          setProfile((current) => current ? { ...current, ...update } : current)
+        }
+        onSelectEvent={openEventDetails}
+      />
+    );
+  }
+
   return (
-    <main className="mx-auto min-h-screen max-w-2xl px-5 pb-32 pt-10 text-foreground sm:px-7">
+    <main className="app-page-spacing mx-auto min-h-screen max-w-2xl text-foreground">
       <Link
         href={returnTo}
         className="inline-flex h-9 items-center gap-2 text-xs font-semibold text-muted-foreground"
@@ -229,6 +246,150 @@ export default function PublicProfilePage() {
         </div>
       )}
     </main>
+  );
+}
+
+function OrganizerProfilePage({
+  profile,
+  returnTo,
+  upcomingEvents,
+  pastEvents,
+  eventsLoaded,
+  eventsFailed,
+  onProfileChange,
+  onSelectEvent,
+}: {
+  profile: PublicProfile;
+  returnTo: string;
+  upcomingEvents: Event[];
+  pastEvents: Event[];
+  eventsLoaded: boolean;
+  eventsFailed: boolean;
+  onProfileChange: (update: Partial<PublicProfile>) => void;
+  onSelectEvent: (event: Event) => void;
+}) {
+  const { t } = useTranslation();
+  const featuredEvent = upcomingEvents[0] ?? pastEvents[0];
+  const heroImage = featuredEvent?.bannerUrl || profile.avatarUrl;
+  const location = featuredEvent?.locationName;
+
+  const shareProfile = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      await navigator.share({ title: profile.organizerName || profile.username, url }).catch(() => undefined);
+      return;
+    }
+    await navigator.clipboard?.writeText(url).catch(() => undefined);
+  };
+
+  return (
+    <main className="min-h-screen bg-[#080908] pb-32 text-foreground">
+      <section className="relative min-h-[31rem] overflow-hidden md:min-h-[36rem]">
+        {heroImage ? (
+          <>
+            <img src={heroImage} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-55 blur-2xl" />
+            <img src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover md:object-contain" />
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_15%,rgba(255,0,68,0.25),transparent_45%)]" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/10 to-[#080908]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent" />
+
+        <div className="app-page-gutter relative mx-auto flex max-w-6xl items-center justify-between pt-[max(1.5rem,var(--native-safe-top))]">
+          <Link href={returnTo} aria-label={t("common.back")} className="grid h-12 w-12 place-items-center rounded-full border border-white/20 bg-black/35 text-white backdrop-blur-md transition hover:bg-black/55 active:scale-95">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <button type="button" onClick={() => void shareProfile()} aria-label={t("publicProfile.share")} className="grid h-12 w-12 place-items-center rounded-full border border-white/20 bg-black/35 text-white backdrop-blur-md transition hover:bg-black/55 active:scale-95">
+            <Share2 className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="app-page-gutter absolute inset-x-0 bottom-5 mx-auto max-w-6xl md:bottom-8">
+          <div className="md:flex md:items-end md:justify-between md:gap-8">
+            <div className="flex min-w-0 items-end gap-3 sm:gap-4">
+              <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/25 bg-black/45 text-xl font-black shadow-2xl backdrop-blur-md sm:h-20 sm:w-20 md:h-24 md:w-24 md:text-2xl">
+                {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" /> : profile.username.slice(0, 1).toUpperCase()}
+              </div>
+              <div className="min-w-0 pb-1">
+                {location && <p className="mb-1.5 truncate text-[10px] font-bold uppercase tracking-[0.16em] text-primary sm:mb-2 sm:text-[11px] md:text-xs">{location}</p>}
+                <div className="flex min-w-0 items-center gap-2">
+                  <h1 className="min-w-0 truncate text-[clamp(1.65rem,8vw,2.5rem)] font-black leading-none tracking-tight text-white md:text-5xl">{profile.organizerName || profile.username}</h1>
+                  {profile.organizerVerified && <BadgeCheck className="h-5 w-5 shrink-0 text-primary md:h-7 md:w-7" />}
+                </div>
+                <p className="mt-1.5 truncate text-xs text-white/65 sm:text-sm">@{profile.username} · {t("publicProfile.followers", { count: profile.followerCount })}</p>
+              </div>
+            </div>
+            <div className="hidden w-[32rem] shrink-0 md:block">
+              <OrganizerActionBar profile={profile} onProfileChange={onProfileChange} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="app-page-gutter mx-auto max-w-6xl">
+        <div className="md:hidden">
+          <OrganizerActionBar profile={profile} onProfileChange={onProfileChange} />
+        </div>
+
+        <div className="mt-12 space-y-14">
+          <PosterEventSection title={t("publicProfile.upcomingEvents")} events={upcomingEvents} loading={!eventsLoaded} emptyLabel={t("publicProfile.noUpcomingEvents")} onSelect={onSelectEvent} />
+          <EventOrganizerUpdates organizerId={profile.id} />
+
+          <section>
+            <h2 className="text-2xl font-bold tracking-tight">{t("publicProfile.aboutOrganizer")}</h2>
+            {profile.bio ? <p className="mt-5 max-w-2xl whitespace-pre-line text-sm leading-7 text-white/65">{profile.bio}</p> : <p className="mt-5 text-sm text-muted-foreground">{t("publicProfile.noBio")}</p>}
+          </section>
+
+          <PosterEventSection title={t("publicProfile.pastEvents")} events={pastEvents} loading={!eventsLoaded} emptyLabel={eventsFailed ? t("publicProfile.eventsLoadFailed") : t("publicProfile.noPastEvents")} onSelect={onSelectEvent} completed />
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function PosterEventSection({ title, events, loading, emptyLabel, completed = false, onSelect }: { title: string; events: Event[]; loading: boolean; emptyLabel: string; completed?: boolean; onSelect: (event: Event) => void }) {
+  return (
+    <section>
+      <div className="flex items-end justify-between">
+        <h2 className="text-2xl font-bold tracking-tight md:text-3xl">{title}</h2>
+        {!loading && <span className="text-xs font-semibold text-primary">{events.length}</span>}
+      </div>
+      {loading ? (
+        <div className="mt-5 flex gap-4 overflow-hidden">{[0, 1, 2].map((item) => <div key={item} className="aspect-[3/4] w-40 shrink-0 animate-pulse rounded-2xl bg-white/[0.05] md:w-52" />)}</div>
+      ) : events.length ? (
+        <div className="-mx-5 mt-5 flex snap-x gap-4 overflow-x-auto px-5 pb-3 [scrollbar-width:none] sm:-mx-8 sm:px-8 [&::-webkit-scrollbar]:hidden">
+          {events.map((event) => (
+            <button key={event.id} type="button" onClick={() => onSelect(event)} className="group w-40 shrink-0 snap-start text-left md:w-52">
+              <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-white/[0.05]">
+                {event.bannerUrl ? <img src={event.bannerUrl} alt="" className={`h-full w-full object-cover transition duration-500 group-hover:scale-105 ${completed ? "opacity-75" : ""}`} /> : null}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+                <span className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/50 opacity-0 backdrop-blur transition group-hover:opacity-100"><ArrowUpRight className="h-4 w-4" /></span>
+              </div>
+              <p className="mt-3 text-xs font-medium uppercase tracking-wide text-white/45">{formatEventDateShort(event.startTime)} · {formatEventTime(event.startTime)}</p>
+              <h3 className="mt-1 truncate text-sm font-bold md:text-base">{event.title}</h3>
+            </button>
+          ))}
+        </div>
+      ) : <p className="mt-5 text-sm text-muted-foreground">{emptyLabel}</p>}
+    </section>
+  );
+}
+
+function StatPill({ icon: Icon, value, label }: { icon: React.ComponentType<{ className?: string }>; value: number; label: string }) {
+  return <div className="flex h-14 items-center justify-center gap-2 rounded-full bg-white/[0.06] px-2 sm:h-16"><Icon className="h-4 w-4 shrink-0 text-primary" /><div className="min-w-0"><p className="text-sm font-bold leading-none sm:text-base">{value}</p><p className="mt-1 truncate text-[10px] text-muted-foreground sm:text-xs">{label}</p></div></div>;
+}
+
+function OrganizerActionBar({ profile, onProfileChange }: { profile: PublicProfile; onProfileChange: (update: Partial<PublicProfile>) => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      <div className="[&>a]:h-14 [&>a]:w-full [&>a]:justify-center [&>a]:border-white/10 [&>a]:bg-white/[0.06] [&>a]:px-2 [&>button]:h-14 [&>button]:w-full [&>button]:justify-center [&>button]:border-white/10 [&>button]:bg-white/[0.06] [&>button]:px-2 sm:[&>a]:h-16 sm:[&>button]:h-16">
+        <ProfileActions profile={profile} onChange={onProfileChange} />
+      </div>
+      <StatPill icon={Calendar} value={profile.eventCount} label={t("publicProfile.eventsShort")} />
+      <StatPill icon={Ticket} value={profile.ticketsSoldCount} label={t("publicProfile.ticketsShort")} />
+    </div>
   );
 }
 

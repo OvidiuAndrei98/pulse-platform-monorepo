@@ -24,7 +24,7 @@ import { EventAttendees } from "@/components/social/EventAttendees";
 import { EventLineup } from "@/features/events/lineup/EventLineup";
 import { EventOrganizerProfile } from "@/components/EventOrganizerProfile";
 import { EventOrganizerUpdates } from "@/components/EventOrganizerUpdates";
-import { ApiClient } from "@packages/api-client/src/Client";
+import { ApiClient, ApiError } from "@packages/api-client/src/Client";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { calculateServiceFeeRon, formatRon } from "@/features/events/serviceFee";
 import { formatEventDate, formatEventTime } from "@/features/events/dateFormat";
@@ -41,6 +41,7 @@ export default function EventStandalonePage() {
   const [shared, setShared] = useState(false);
   const [favorite, setFavorite] = useState(false);
   const [guestEmail, setGuestEmail] = useState("");
+  const [promoCode, setPromoCode] = useState("");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const params = useParams<{ id: string }>();
@@ -150,11 +151,12 @@ export default function EventStandalonePage() {
               ticketTypeId: ticket.id,
               quantity: quantities[ticket.id] ?? 0,
             })),
+          promoCode: promoCode.trim() || undefined,
         },
       });
       window.location.assign(checkout.checkoutUrl);
-    } catch {
-      setCheckoutError(t("eventSheet.purchaseError"));
+    } catch (error) {
+      setCheckoutError(error instanceof ApiError ? (error.detail || error.title) : t("eventSheet.purchaseError"));
       setIsCheckingOut(false);
     }
   };
@@ -174,7 +176,7 @@ export default function EventStandalonePage() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#090b0a]/5 via-[#090b0a]/45 to-[#090b0a]/90" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 pb-12 pt-5 sm:px-8 sm:pt-8 lg:px-10">
+      <div className="app-page-gutter relative z-10 mx-auto max-w-7xl pb-12 pt-5 sm:pt-8">
         <header className="flex items-center justify-between gap-4">
           <Link
             href="/events"
@@ -386,6 +388,8 @@ export default function EventStandalonePage() {
                       placeholder={t("checkout.emailPlaceholder")}
                       className="mt-2 h-11 w-full rounded-xl border border-white/15 bg-white/[0.035] px-3.5 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-primary/60"
                     />
+                    <label className="mt-4 block text-xs font-semibold text-white" htmlFor="promo-code">{t("checkout.promoCode")}</label>
+                    <input id="promo-code" value={promoCode} onChange={(inputEvent) => setPromoCode(inputEvent.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))} placeholder={t("checkout.promoPlaceholder")} className="mt-2 h-11 w-full rounded-xl border border-white/15 bg-white/[0.035] px-3.5 text-sm font-semibold uppercase tracking-wide text-white outline-none transition placeholder:text-white/35 focus:border-primary/60" />
                     {!user && (
                       <GoogleSignInButton returnTo={`/events/${event.id}?checkout=1`} className="mt-3" />
                     )}

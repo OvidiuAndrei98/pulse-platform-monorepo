@@ -28,8 +28,8 @@ VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: CreateCheckoutOrder :one
-INSERT INTO orders (user_id, event_id, email, total_amount, platform_fee_bani, status)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO orders (user_id, event_id, email, total_amount, platform_fee_bani, status, promo_code_id, discount_amount_ron)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING *;
 
 -- name: ListOrganizerFinanceEvents :many

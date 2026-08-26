@@ -143,6 +143,30 @@
   }
 }
 
+@layer components {
+  /* Shared spacing for standard app pages. Full-bleed and immersive screens
+     keep their own layout and use this class on their inner content instead. */
+  .app-page-gutter {
+    padding-inline: 1.25rem !important;
+  }
+
+  .app-page-spacing {
+    padding-inline: 1.25rem !important;
+    padding-top: max(2.5rem, calc(var(--native-safe-top) + 1.5rem)) !important;
+    padding-bottom: max(8rem, calc(var(--native-safe-bottom) + 7rem)) !important;
+  }
+
+  @media (min-width: 640px) {
+    .app-page-gutter {
+      padding-inline: 1.75rem !important;
+    }
+
+    .app-page-spacing {
+      padding-inline: 1.75rem !important;
+    }
+  }
+}
+
 /* Backdrop filters force expensive offscreen rendering on mobile GPUs. */
 @media (max-width: 767px) {
   /* Limităm blur-ul la maxim 8px pe mobil pentru a preveni căderile de frame-uri */

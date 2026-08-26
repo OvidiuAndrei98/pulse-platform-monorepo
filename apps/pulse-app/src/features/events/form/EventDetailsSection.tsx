@@ -28,6 +28,7 @@ export function EventDetailsSection({
     formState: { errors },
   } = form;
   const currentStatus = watch("status");
+  const statuses = currentStatus === "completed" ? (["completed"] as const) : (["draft", "scheduled", "published"] as const);
   const locationName = watch("locationName");
 
   return (
@@ -77,20 +78,30 @@ export function EventDetailsSection({
           <input type="hidden" {...register("vibe")} />
         </FormField>
         <FormField label={t("eventForm.eventStatus")}>
-          <div className="grid h-[42px] grid-cols-2 gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] p-1">
-            {(["draft", "published"] as const).map((status) => (
+          <div className={`grid h-[42px] gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1 ${currentStatus === "completed" ? "grid-cols-1" : "grid-cols-3"}`}>
+            {statuses.map((status) => (
               <button
                 key={status}
                 type="button"
                 onClick={() => setValue("status", status)}
                 className={`rounded-full text-xs font-medium transition ${currentStatus === status ? (status === "published" ? "bg-primary text-primary-foreground" : "bg-white/10 text-white") : "text-muted-foreground hover:text-white"}`}
               >
-                {status === "draft" ? t("eventForm.draft") : t("eventForm.published")}
+                {status === "completed" ? t("organizerEvents.completed") : t(`eventForm.${status}`)}
               </button>
             ))}
           </div>
         </FormField>
       </div>
+      {currentStatus === "scheduled" && (
+        <FormField label={t("eventForm.publishAt")} error={errors.publishAt?.message}>
+          <DateTimePicker
+            value={watch("publishAt") || ""}
+            onChange={(publishAt) => setValue("publishAt", publishAt, { shouldValidate: true, shouldDirty: true })}
+            placeholder={t("eventForm.choosePublishTime")}
+          />
+          <input type="hidden" {...register("publishAt")} />
+        </FormField>
+      )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormField label={t("eventForm.startDate")} error={errors.startTime?.message}>
           <DateTimePicker

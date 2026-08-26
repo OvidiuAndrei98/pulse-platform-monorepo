@@ -15,7 +15,6 @@ import {
   WalletCards,
 } from "lucide-react";
 import { useDataProvider } from "@/core/DataProviderContext";
-import { NotificationsPopover } from "@/components/NotificationsPopover";
 import { useTranslation } from "react-i18next";
 
 const organizerTabs = [
@@ -51,7 +50,7 @@ export function OrganizerHeader() {
   const { t } = useTranslation();
   const pathname = usePathname();
   const router = useRouter();
-  const { isOrganizer, user, loading } = useDataProvider();
+  const { isOrganizer } = useDataProvider();
   const tabs = isOrganizer ? organizerTabs : validatorTabs;
   const active = matchTab(pathname, tabs);
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -82,7 +81,7 @@ export function OrganizerHeader() {
 
   return (
     <header className="sticky top-0 z-20 -mt-[var(--native-safe-top)] w-full border-b border-white/10 bg-[#0b0e0c] pt-[var(--native-safe-top)] md:mt-0 md:pt-0 md:bg-background/60 md:backdrop-blur-xl">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-3 pb-2.5 pl-16 md:pl-6">
+      <div className="app-page-gutter mx-auto max-w-5xl pb-2.5 pt-3">
         {/* BREADCRUMB NAVIGATION */}
         <div className="flex items-center justify-between gap-3">
           <nav
@@ -107,11 +106,6 @@ export function OrganizerHeader() {
               </span>
             ))}
           </nav>
-          {!loading && user && (
-            <div className="relative h-10 w-10 shrink-0">
-              <NotificationsPopover />
-            </div>
-          )}
         </div>
 
         {/* MOBILE TAB SLIDER (H-11 CONSISTENT, SLIDING INDICATOR) */}

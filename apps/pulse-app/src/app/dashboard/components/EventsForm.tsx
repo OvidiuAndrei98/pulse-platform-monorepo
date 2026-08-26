@@ -5,7 +5,7 @@ import Script from "next/script";
 import { Resolver, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Trash2 } from "lucide-react";
+import { Copy, Trash2 } from "lucide-react";
 import { eventCategories } from "@/core/mappers";
 import { DeleteEventDialog } from "@/features/events/form/DeleteEventDialog";
 import { EventDetailsSection } from "@/features/events/form/EventDetailsSection";
@@ -49,11 +49,13 @@ export const eventFormSchema = z.object({
   googlePlaceId: z.string(),
   description: z.string().min(10, i18n.t("formValidation.descriptionShort")),
   bannerUrl: z.string().url(i18n.t("formValidation.invalidUrl")).optional().or(z.literal("").transform(() => undefined)),
-  status: z.enum(["draft", "published"]).default("draft"),
+  status: z.enum(["draft", "scheduled", "published", "completed"]).default("draft"),
+  publishAt: z.string().optional(),
   organizerAbsorbsServiceFee: z.boolean().default(false),
   ticketTypes: z.array(ticketTypeSchema),
   lineup: z.array(lineupArtistSchema).default([]),
-}).refine((data) => new Date(data.endTime) > new Date(data.startTime), { message: i18n.t("formValidation.endAfterStart"), path: ["endTime"] });
+}).refine((data) => new Date(data.endTime) > new Date(data.startTime), { message: i18n.t("formValidation.endAfterStart"), path: ["endTime"] })
+  .refine((data) => data.status !== "scheduled" || Boolean(data.publishAt && new Date(data.publishAt) > new Date()), { message: i18n.t("formValidation.publishTimeFuture"), path: ["publishAt"] });
 
 export type EventFormValues = z.infer<typeof eventFormSchema>;
 
@@ -65,6 +67,8 @@ type EventFormProps = {
   };
   onSubmit: (data: any) => void;
   onDelete?: () => void;
+  readOnly?: boolean;
+  onUseAsTemplate?: () => void;
 };
 
 const formatToDatetimeLocal = (value?: string) => {
@@ -90,13 +94,14 @@ function getDefaultValues(values?: EventFormProps["initialValues"]): EventFormVa
     description: values?.description || "",
     bannerUrl: values?.bannerUrl || undefined,
     status: values?.status || "draft",
+    publishAt: formatToDatetimeLocal(values?.publishAt),
     organizerAbsorbsServiceFee: values?.organizerAbsorbsServiceFee ?? false,
     ticketTypes: values?.ticketTypes?.map((ticket) => ({ id: ticket.id, name: ticket.name || "", priceRon: ticket.priceRon ?? 0, capacity: ticket.capacity ?? 100, description: ticket.description || "", ticketsSold: ticket.ticketsSold ?? 0, startSales: formatToDatetimeLocal(ticket.startSales), endSales: formatToDatetimeLocal(ticket.endSales) })) || [],
     lineup: values?.lineup?.map((artist) => ({ id: artist.id, name: artist.name || "", imageUrl: artist.imageUrl || "", stage: artist.stage || "", performanceTime: artist.performanceTime || "", spotifyUrl: artist.spotifyUrl || "", isHeadliner: artist.isHeadliner ?? false, source: artist.source || "MANUAL" })) || [],
   };
 }
 
-export default function EventForm({ initialValues, onSubmit, onDelete }: EventFormProps) {
+export default function EventForm({ initialValues, onSubmit, onDelete, readOnly = false, onUseAsTemplate }: EventFormProps) {
   const { t } = useTranslation();
   const [mapsReady, setMapsReady] = useState(() => typeof window !== "undefined" && Boolean(window.google?.maps?.places));
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -119,6 +124,7 @@ export default function EventForm({ initialValues, onSubmit, onDelete }: EventFo
       ...data,
       startTime: formatToISO(data.startTime),
       endTime: formatToISO(data.endTime),
+      publishAt: data.status === "scheduled" && data.publishAt ? formatToISO(data.publishAt) : undefined,
       ticketTypes: data.ticketTypes.map(({ ticketsSold, ...ticket }) => ({ ...ticket, startSales: formatToISO(ticket.startSales), endSales: formatToISO(ticket.endSales) })),
       lineup: data.lineup.map(({ id: _id, ...artist }) => artist),
     });
@@ -128,12 +134,14 @@ export default function EventForm({ initialValues, onSubmit, onDelete }: EventFo
     <>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
         <Script id="google-maps-places" src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`} strategy="afterInteractive" onLoad={() => setMapsReady(true)} onReady={() => setMapsReady(true)} />
-        <EventDetailsSection form={form} mapsReady={mapsReady} />
-        <LineupSection form={form} />
-        <TicketTypesSection form={form} />
+        <fieldset disabled={readOnly} className="space-y-6 [&_button:disabled]:cursor-not-allowed [&_button:disabled]:opacity-70 [&_input:disabled]:cursor-not-allowed [&_textarea:disabled]:cursor-not-allowed">
+          <EventDetailsSection form={form} mapsReady={mapsReady} />
+          <LineupSection form={form} />
+          <TicketTypesSection form={form} />
+        </fieldset>
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          {isEditMode && <button type="button" onClick={() => setShowDeleteModal(true)} className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-5 text-sm font-semibold text-red-400 transition hover:bg-red-500/20 active:scale-[0.99]"><Trash2 className="h-4 w-4" /> {t("eventForm.deleteEvent")}</button>}
-          <button type="submit" className="inline-flex h-12 flex-1 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-black shadow-sm transition hover:opacity-95 active:scale-[0.99]">{isEditMode ? t("eventForm.saveChanges") : t("eventForm.createEvent")}</button>
+          {!readOnly && onDelete && <button type="button" onClick={() => setShowDeleteModal(true)} className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-5 text-sm font-semibold text-red-400 transition hover:bg-red-500/20 active:scale-[0.99]"><Trash2 className="h-4 w-4" /> {t("eventForm.deleteEvent")}</button>}
+          {readOnly ? <button type="button" onClick={onUseAsTemplate} className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:brightness-110 active:scale-[0.99]"><Copy className="h-4 w-4" />{t("eventForm.useAsTemplate")}</button> : <button type="submit" className="inline-flex h-12 flex-1 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-black shadow-sm transition hover:opacity-95 active:scale-[0.99]">{onDelete ? t("eventForm.saveChanges") : t("eventForm.createEvent")}</button>}
         </div>
       </form>
       {showDeleteModal && <DeleteEventDialog onCancel={() => setShowDeleteModal(false)} onConfirm={() => { setShowDeleteModal(false); onDelete?.(); }} />}

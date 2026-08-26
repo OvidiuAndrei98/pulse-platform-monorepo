@@ -28,7 +28,7 @@ export function HomeEventCarousel({
 
   return (
     <section className="mt-9">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5">
+      <div className="app-page-gutter mx-auto flex max-w-7xl items-center justify-between gap-4">
         <h2 className="text-base font-semibold md:text-lg">{title}</h2>
         <div className="flex items-center gap-1.5">
           <div className="hidden items-center gap-1 sm:flex">
@@ -63,7 +63,7 @@ export function HomeEventCarousel({
       {events.length ? (
         <div
           ref={railRef}
-          className="mx-auto mt-4 flex max-w-7xl snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-5 pb-2 scroll-pl-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="app-page-gutter mx-auto mt-4 flex max-w-7xl snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2 scroll-pl-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {events.map((event) => (
             <EventCard
@@ -74,7 +74,7 @@ export function HomeEventCarousel({
           ))}
         </div>
       ) : (
-        <div className="mx-auto mt-4 max-w-7xl px-5">
+        <div className="app-page-gutter mx-auto mt-4 max-w-7xl">
           <div className="border border-dashed border-white/15 px-4 py-5 text-sm text-muted-foreground">
             {emptyMessage}
           </div>

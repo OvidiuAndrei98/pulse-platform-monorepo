@@ -9,13 +9,17 @@ export function EventLineup({ artists }: { artists?: readonly Artist[] }) {
   const { t } = useTranslation();
   if (!artists?.length) return null;
 
+  const orderedArtists = [...artists].sort((first, second) =>
+    (first.performanceTime || "99:99").localeCompare(second.performanceTime || "99:99"),
+  );
+
   return (
     <section aria-label={t("lineup.aria")} className="pt-2">
       <p className="text-sm font-semibold text-foreground/90">
         {t("lineup.title")}
       </p>
       <div className="mt-3 flex flex-col gap-2">
-        {artists.map((artist) => (
+        {orderedArtists.map((artist) => (
           <div
             key={artist.id}
             className={`flex min-h-16 items-center gap-3 p-2 rounded-xl overflow-hidden ${

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, Search, Calendar, MapPin, Ticket, Euro, Heart, UsersRound } from "lucide-react";
+import { Plus, Search, Calendar, MapPin, Ticket, Euro, Heart, UsersRound, Clock3 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { User } from "@/core/DataProvider";
@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { useEventDetails } from "@/components/EventDetailsSheet";
 
-type Filter = "all" | "published" | "draft";
+type Filter = "all" | "published" | "scheduled" | "draft" | "completed";
 
 function EventRowSkeleton() {
   return (
@@ -32,8 +32,11 @@ export default function EventsListPage() {
 
   const filtered = useMemo(() => {
     return (events || []).filter((e) => {
-      if (filter === "published" && e.status !== "published") return false;
-      if (filter === "draft" && e.status !== "draft") return false;
+      const completed = e.status === "completed" || new Date(e.endTime).getTime() <= Date.now();
+      if (filter === "published" && (completed || e.status !== "published")) return false;
+      if (filter === "scheduled" && (completed || e.status !== "scheduled")) return false;
+      if (filter === "draft" && (completed || e.status !== "draft")) return false;
+      if (filter === "completed" && !completed) return false;
       if (q && !e.title.toLowerCase().includes(q.toLowerCase())) return false;
       return true;
     });
@@ -42,12 +45,14 @@ export default function EventsListPage() {
   const filterOptions = [
     { id: "all", label: t("organizerEvents.all") },
     { id: "published", label: t("organizerEvents.published") },
+    { id: "scheduled", label: t("organizerEvents.scheduled") },
     { id: "draft", label: t("organizerEvents.draft") },
+    { id: "completed", label: t("organizerEvents.completed") },
   ] as const;
 
   return (
     <div className="w-full text-foreground">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 pt-6 sm:pt-8 space-y-5 sm:space-y-6">
+      <div className="app-page-spacing mx-auto max-w-5xl space-y-5 sm:space-y-6">
         {/* HEADER SECTION */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
@@ -87,14 +92,14 @@ export default function EventsListPage() {
           </div>
 
           {/* SEGMENTED CONTROL */}
-          <div className="relative flex h-11 w-full sm:w-auto items-center rounded-full border border-white/10 bg-white/5 p-1 shrink-0">
+          <div className="relative grid h-11 w-full shrink-0 grid-cols-5 items-center rounded-full border border-white/10 bg-white/5 p-1 sm:flex sm:w-auto">
             {filterOptions.map((f) => {
               const isActive = filter === f.id;
               return (
                 <button
                   key={f.id}
                   onClick={() => setFilter(f.id)}
-                  className="relative flex-1 sm:flex-none flex h-full items-center justify-center px-4 text-xs font-semibold transition-colors duration-200 z-10"
+                  className="relative z-10 flex h-full min-w-0 items-center justify-center px-0.5 text-[10px] font-semibold leading-none transition-colors duration-200 sm:flex-none sm:px-4 sm:text-xs"
                   style={{
                     color: isActive
                       ? "var(--primary-foreground)"
@@ -112,7 +117,7 @@ export default function EventsListPage() {
                       }}
                     />
                   )}
-                  <span className="relative z-10">{f.label}</span>
+                  <span className="relative z-10 whitespace-nowrap">{f.label}</span>
                 </button>
               );
             })}
@@ -191,10 +196,12 @@ export default function EventsListPage() {
                           "inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0 " +
                           (e.status === "published"
                             ? "bg-primary/15 text-primary"
+                            : e.status === "scheduled"
+                              ? "bg-amber-400/15 text-amber-300"
                             : "bg-white/10 text-muted-foreground")
                         }
                       >
-                        {e.status === "published" ? t("organizerEvents.published") : t("organizerEvents.draft")}
+                        {e.status === "completed" || new Date(e.endTime).getTime() <= Date.now() ? t("organizerEvents.completed") : e.status === "published" ? t("organizerEvents.published") : e.status === "scheduled" ? t("organizerEvents.scheduled") : t("organizerEvents.draft")}
                       </span>
                       <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
                         {e.category}
@@ -217,6 +224,9 @@ export default function EventsListPage() {
                         <span className="truncate">{e.locationName}</span>
                       </span>
                     </div>
+                    {e.status === "scheduled" && e.publishAt && (
+                      <p className="flex items-center gap-1.5 text-[11px] text-amber-300/90"><Clock3 className="h-3.5 w-3.5" />{t("organizerEvents.publishesAt", { date: new Date(e.publishAt).toLocaleString(i18n.language) })}</p>
+                    )}
 
                     <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/10 pt-3 text-[11px] text-muted-foreground lg:hidden">
                       <span className="inline-flex items-center gap-1"><UsersRound className="h-3.5 w-3.5 text-primary" /> {t("organizerEvents.going", { count: attendanceCount })}</span>

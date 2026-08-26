@@ -78,23 +78,25 @@ export function ProfileAvatarUpload({
         title={t("profile.changeAvatar")}
         className={`group relative grid ${dimensions} overflow-visible rounded-full bg-white/5 ring-2 ring-primary/40 transition hover:ring-primary/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-wait`}
       >
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt={t("profile.profilePhotoOf", {
-              name: user.properties.username,
-            })}
-            className="h-full w-full rounded-full object-cover"
-          />
-        ) : (
-          <UserRound className="m-auto h-1/2 w-1/2 text-muted-foreground" />
-        )}
-        <span className="absolute inset-0 grid place-items-center rounded-full bg-background/65 opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
-          {uploading ? (
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        <span className="absolute inset-0 grid overflow-hidden rounded-full [clip-path:circle(50%)]">
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={t("profile.profilePhotoOf", {
+                name: user.properties.username,
+              })}
+              className="h-full w-full object-cover"
+            />
           ) : (
-            <Camera className="h-5 w-5 text-foreground" />
+            <UserRound className="m-auto h-1/2 w-1/2 text-muted-foreground" />
           )}
+          <span className="absolute inset-0 grid place-items-center bg-background/65 opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+            {uploading ? (
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            ) : (
+              <Camera className="h-5 w-5 text-foreground" />
+            )}
+          </span>
         </span>
         <span className="z-10 absolute bottom-0 right-0 grid h-7 w-7 place-items-center rounded-full border border-background bg-primary text-primary-foreground shadow-sm">
           {uploading ? (

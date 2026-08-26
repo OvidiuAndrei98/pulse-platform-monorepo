@@ -58,6 +58,7 @@ type EventResponse struct {
 	Longitude                  float64              `json:"longitude"`
 	StartTime                  time.Time            `json:"startTime"`
 	EndTime                    time.Time            `json:"endTime"`
+	PublishAt                  *time.Time           `json:"publishAt,omitempty"`
 	IsLive                     bool                 `json:"isLive"`
 	CreatedAt                  time.Time            `json:"createdAt"`
 	TicketTypes                []TicketTypeResponse `json:"ticketTypes"`
@@ -209,6 +210,10 @@ func MapFromDBListEventsWithStats(row db.ListEventsWithStatsRow) EventResponse {
 	interested := row.InterestedCount
 	going := int64(row.GoingCount)
 	ticketHolders := row.TicketHolderCount
+	var publishAt *time.Time
+	if row.PublishAt.Valid {
+		publishAt = &row.PublishAt.Time
+	}
 
 	return EventResponse{
 		ID:                         common.UUIDToString(row.ID),
@@ -227,6 +232,7 @@ func MapFromDBListEventsWithStats(row db.ListEventsWithStatsRow) EventResponse {
 		Longitude:                  row.Longitude,
 		StartTime:                  row.StartTime.Time,
 		EndTime:                    row.EndTime.Time,
+		PublishAt:                  publishAt,
 		IsLive:                     common.PgBoolToBool(row.IsLive),
 		CreatedAt:                  row.CreatedAt.Time,
 		TicketTypes:                tickets,
@@ -291,6 +297,10 @@ func MapFromDBGetEventWithStats(row db.GetEventWithStatsRow) EventResponse {
 	interested := row.InterestedCount
 	going := int64(row.GoingCount)
 	ticketHolders := row.TicketHolderCount
+	var publishAt *time.Time
+	if row.PublishAt.Valid {
+		publishAt = &row.PublishAt.Time
+	}
 
 	return EventResponse{
 		ID:                         common.UUIDToString(row.ID),
@@ -309,6 +319,7 @@ func MapFromDBGetEventWithStats(row db.GetEventWithStatsRow) EventResponse {
 		Longitude:                  row.Longitude,
 		StartTime:                  row.StartTime.Time,
 		EndTime:                    row.EndTime.Time,
+		PublishAt:                  publishAt,
 		IsLive:                     common.PgBoolToBool(row.IsLive),
 		CreatedAt:                  row.CreatedAt.Time,
 		TicketTypes:                tickets,

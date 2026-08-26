@@ -40,7 +40,7 @@ export default function FriendsPage() {
 
   if (isOrganizer) {
     return (
-      <main className="mx-auto min-h-screen max-w-2xl px-5 pb-32 pt-10 text-foreground sm:px-7">
+      <main className="app-page-spacing mx-auto min-h-screen max-w-2xl text-foreground">
         <Link
           href="/dashboard"
           className="inline-flex h-9 items-center gap-2 text-xs font-semibold text-muted-foreground transition hover:text-primary"
@@ -58,7 +58,7 @@ export default function FriendsPage() {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-2xl px-5 pb-32 pt-10 text-foreground sm:px-7">
+    <main className="app-page-spacing mx-auto min-h-screen max-w-2xl text-foreground">
       <Link
         href="/feed"
         className="inline-flex h-9 items-center gap-2 text-xs font-semibold text-muted-foreground transition hover:text-primary"

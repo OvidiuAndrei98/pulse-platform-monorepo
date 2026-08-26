@@ -193,12 +193,25 @@ type Events struct {
 	GooglePlaceID              string             `json:"google_place_id"`
 	Status                     string             `json:"status"`
 	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
+	PublishAt                  pgtype.Timestamptz `json:"publish_at"`
 }
 
 type Friendships struct {
 	UserID   pgtype.UUID `json:"user_id"`
 	FriendID pgtype.UUID `json:"friend_id"`
 	Status   pgtype.Text `json:"status"`
+}
+
+type InvitationTickets struct {
+	ID             pgtype.UUID        `json:"id"`
+	EventID        pgtype.UUID        `json:"event_id"`
+	TicketTypeID   pgtype.UUID        `json:"ticket_type_id"`
+	CreatedBy      pgtype.UUID        `json:"created_by"`
+	Label          string             `json:"label"`
+	ValidationHash string             `json:"validation_hash"`
+	ValidatedAt    pgtype.Timestamptz `json:"validated_at"`
+	RevokedAt      pgtype.Timestamptz `json:"revoked_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
 type Notifications struct {
@@ -259,6 +272,8 @@ type Orders struct {
 	StripeCheckoutSessionID pgtype.Text        `json:"stripe_checkout_session_id"`
 	PlatformFeeBani         int32              `json:"platform_fee_bani"`
 	TicketEmailSentAt       pgtype.Timestamptz `json:"ticket_email_sent_at"`
+	PromoCodeID             pgtype.UUID        `json:"promo_code_id"`
+	DiscountAmountRon       int32              `json:"discount_amount_ron"`
 }
 
 type OrganizerFollows struct {
@@ -285,6 +300,19 @@ type OrganizerProfiles struct {
 	OrganizerAgreementVersion    pgtype.Text            `json:"organizer_agreement_version"`
 	OrganizerAgreementAcceptedAt pgtype.Timestamptz     `json:"organizer_agreement_accepted_at"`
 	OrganizerAgreementAcceptedIp *netip.Addr            `json:"organizer_agreement_accepted_ip"`
+}
+
+type PromoCodes struct {
+	ID               pgtype.UUID        `json:"id"`
+	EventID          pgtype.UUID        `json:"event_id"`
+	Code             string             `json:"code"`
+	DiscountPercent  int32              `json:"discount_percent"`
+	MaxRedemptions   pgtype.Int4        `json:"max_redemptions"`
+	RedemptionsCount int32              `json:"redemptions_count"`
+	StartsAt         pgtype.Timestamptz `json:"starts_at"`
+	EndsAt           pgtype.Timestamptz `json:"ends_at"`
+	Active           bool               `json:"active"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 }
 
 type SavedEvents struct {
@@ -318,6 +346,12 @@ type Tickets struct {
 	CreatedAt                  pgtype.Timestamptz `json:"created_at"`
 	ValidatedByUserID          pgtype.UUID        `json:"validated_by_user_id"`
 	ValidatedByScannerAccessID pgtype.UUID        `json:"validated_by_scanner_access_id"`
+}
+
+type UserHiddenEventCategories struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	Category  string             `json:"category"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type UserTokens struct {

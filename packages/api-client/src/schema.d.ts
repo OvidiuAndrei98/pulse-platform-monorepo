@@ -109,6 +109,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/events/{id}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DashboardOperations_listInvitations"];
+        put?: never;
+        post: operations["DashboardOperations_createInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/events/{id}/invitations/{invitationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["DashboardOperations_revokeInvitation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/events/{id}/invitations/{invitationId}/permanent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["DashboardOperations_deleteInvitation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/events/{id}/promo-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DashboardOperations_listPromoCodes"];
+        put?: never;
+        post: operations["DashboardOperations_createPromoCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/events/{id}/promo-codes/{promoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["DashboardOperations_deactivatePromoCode"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/events/{id}/ticket-types": {
         parameters: {
             query?: never;
@@ -890,6 +970,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/hidden-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["UserOperations_listHiddenCategories"];
+        put?: never;
+        post: operations["UserOperations_hideEventCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/hidden-categories/{category}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["UserOperations_showEventCategory"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/me/orders": {
         parameters: {
             query?: never;
@@ -1000,6 +1112,7 @@ export interface components {
         CreateCheckoutSessionPayload: {
             email: string;
             items: components["schemas"]["CheckoutTicketItemPayload"][];
+            promoCode?: string;
         };
         CreateEventPayload: {
             title: string;
@@ -1020,13 +1133,30 @@ export interface components {
             /** Format: date-time */
             endTime: string;
             /** @enum {string} */
-            status: "draft" | "published";
+            status: "draft" | "scheduled" | "published";
+            /** Format: date-time */
+            publishAt?: string;
             ticketTypes?: components["schemas"]["CreateTicketTypePayload"][];
             lineup?: components["schemas"]["ArtistInput"][];
+        };
+        CreateInvitationPayload: {
+            label: string;
+            ticketTypeId?: string;
         };
         CreateOrganizerEventUpdatePayload: {
             imageUrl: string;
             caption?: string;
+        };
+        CreatePromoCodePayload: {
+            code: string;
+            /** Format: int32 */
+            discountPercent: number;
+            /** Format: int32 */
+            maxRedemptions?: number;
+            /** Format: date-time */
+            startsAt?: string;
+            /** Format: date-time */
+            endsAt?: string;
         };
         CreateScannerAccessPayload: {
             label: string;
@@ -1079,6 +1209,8 @@ export interface components {
             startTime: string;
             /** Format: date-time */
             endTime: string;
+            /** Format: date-time */
+            publishAt?: string;
             isLive: boolean;
             /** Format: date-time */
             createdAt: string;
@@ -1123,6 +1255,16 @@ export interface components {
             avatarUrl?: string;
             /** @enum {string} */
             status: "interested" | "going" | "has_ticket";
+        };
+        InvitationTicketResponse: {
+            id: string;
+            label: string;
+            validationHash: string;
+            ticketType?: string;
+            /** @enum {string} */
+            status: "active" | "used" | "revoked";
+            /** Format: date-time */
+            createdAt?: string;
         };
         MessageResponse: {
             message: string;
@@ -1227,6 +1369,23 @@ export interface components {
         };
         PasswordResetRequest: {
             email: string;
+        };
+        PromoCodeResponse: {
+            id: string;
+            code: string;
+            /** Format: int32 */
+            discountPercent: number;
+            /** Format: int32 */
+            maxRedemptions?: number;
+            /** Format: int32 */
+            redemptionsCount: number;
+            /** Format: date-time */
+            startsAt?: string;
+            /** Format: date-time */
+            endsAt?: string;
+            active: boolean;
+            /** Format: date-time */
+            createdAt: string;
         };
         PublicProfileResponse: {
             id: string;
@@ -1354,7 +1513,9 @@ export interface components {
             /** Format: date-time */
             endTime: string;
             /** @enum {string} */
-            status: "draft" | "published";
+            status: "draft" | "scheduled" | "published";
+            /** Format: date-time */
+            publishAt?: string;
             ticketTypes?: components["schemas"]["UpdateTicketTypePayload"][];
             lineup?: components["schemas"]["ArtistInput"][];
         };
@@ -1660,6 +1821,167 @@ export interface operations {
             header?: never;
             path: {
                 id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DashboardOperations_listInvitations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationTicketResponse"][];
+                };
+            };
+        };
+    };
+    DashboardOperations_createInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInvitationPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded and a new resource has been created as a result. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationTicketResponse"];
+                };
+            };
+        };
+    };
+    DashboardOperations_revokeInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                invitationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DashboardOperations_deleteInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                invitationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DashboardOperations_listPromoCodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoCodeResponse"][];
+                };
+            };
+        };
+    };
+    DashboardOperations_createPromoCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePromoCodePayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded and a new resource has been created as a result. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                    };
+                };
+            };
+        };
+    };
+    DashboardOperations_deactivatePromoCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                promoId: string;
             };
             cookie?: never;
         };
@@ -3109,6 +3431,70 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["User"];
                 };
+            };
+        };
+    };
+    UserOperations_listHiddenCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+        };
+    };
+    UserOperations_hideEventCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    category: string;
+                };
+            };
+        };
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UserOperations_showEventCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                category: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

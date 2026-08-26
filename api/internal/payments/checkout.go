@@ -49,8 +49,9 @@ type CheckoutItemRequest struct {
 }
 
 type CreateCheckoutRequest struct {
-	Email string                `json:"email"`
-	Items []CheckoutItemRequest `json:"items"`
+	Email     string                `json:"email"`
+	Items     []CheckoutItemRequest `json:"items"`
+	PromoCode string                `json:"promoCode"`
 }
 
 type CreateCheckoutResponse struct {
@@ -61,6 +62,7 @@ type CreateCheckoutResponse struct {
 type checkoutItem struct {
 	ticketType db.TicketTypes
 	quantity   int32
+	unitPrice  int32
 }
 
 func NewCheckoutHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, appURL string, mailer *email.Mailer) *CheckoutHandler {
@@ -121,7 +123,7 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	order, checkoutItems, eventTitle, eventIDString, organizerStripeAccount, organizerAbsorbsServiceFee, err := h.reserveOrder(r.Context(), eventID, userID, req.Email, items, totalTicketCount)
+	order, checkoutItems, eventTitle, eventIDString, organizerStripeAccount, organizerAbsorbsServiceFee, err := h.reserveOrder(r.Context(), eventID, userID, req.Email, items, totalTicketCount, req.PromoCode)
 	if err != nil {
 		var requestError *checkoutRequestError
 		if errors.As(err, &requestError) {
@@ -164,7 +166,7 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 			Quantity: stripe.Int64(int64(item.quantity)),
 			PriceData: &stripe.CheckoutSessionCreateLineItemPriceDataParams{
 				Currency:   stripe.String("ron"),
-				UnitAmount: stripe.Int64(int64(item.ticketType.PriceRon) * 100),
+				UnitAmount: stripe.Int64(int64(item.unitPrice) * 100),
 				ProductData: &stripe.CheckoutSessionCreateLineItemPriceDataProductDataParams{
 					Name: stripe.String(fmt.Sprintf("%s - %s", eventTitle, item.ticketType.Name)),
 				},
@@ -205,7 +207,7 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	})
 }
 
-func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgtype.UUID, email string, requested map[string]int32, totalTicketCount int32) (db.Orders, []checkoutItem, string, string, string, bool, error) {
+func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgtype.UUID, email string, requested map[string]int32, totalTicketCount int32, rawPromoCode string) (db.Orders, []checkoutItem, string, string, string, bool, error) {
 	tx, err := h.db.Begin(ctx)
 	if err != nil {
 		return db.Orders{}, nil, "", "", "", false, err
@@ -236,7 +238,7 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	sort.Strings(keys)
 
 	items := make([]checkoutItem, 0, len(keys))
-	var totalAmount int64
+	var originalAmount int64
 	now := time.Now()
 	for _, id := range keys {
 		var ticketTypeID pgtype.UUID
@@ -256,8 +258,35 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 			return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusBadRequest, message: "Vanzarile pentru acest tip de bilet sunt inchise"}
 		}
 
-		totalAmount += int64(ticketType.PriceRon) * int64(quantity)
-		items = append(items, checkoutItem{ticketType: ticketType, quantity: quantity})
+		originalAmount += int64(ticketType.PriceRon) * int64(quantity)
+		items = append(items, checkoutItem{ticketType: ticketType, quantity: quantity, unitPrice: ticketType.PriceRon})
+	}
+
+	promoCode := strings.ToUpper(strings.TrimSpace(rawPromoCode))
+	var promoCodeID pgtype.UUID
+	var discountPercent int32
+	if promoCode != "" {
+		err := tx.QueryRow(ctx, `
+			SELECT id, discount_percent FROM promo_codes
+			WHERE event_id=$1 AND code=$2 AND active=TRUE
+			  AND (starts_at IS NULL OR starts_at <= CURRENT_TIMESTAMP)
+			  AND (ends_at IS NULL OR ends_at > CURRENT_TIMESTAMP)
+			  AND (max_redemptions IS NULL OR redemptions_count < max_redemptions)
+			FOR UPDATE`, eventID, promoCode).Scan(&promoCodeID, &discountPercent)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusBadRequest, message: "Codul promo este invalid, expirat sau epuizat"}
+		}
+		if err != nil {
+			return db.Orders{}, nil, "", "", "", false, err
+		}
+	}
+
+	var totalAmount int64
+	for index := range items {
+		if discountPercent > 0 {
+			items[index].unitPrice = max(1, (items[index].ticketType.PriceRon*(100-discountPercent)+50)/100)
+		}
+		totalAmount += int64(items[index].unitPrice) * int64(items[index].quantity)
 	}
 
 	if totalAmount <= 0 || totalAmount > int64(^uint32(0)>>1) {
@@ -279,12 +308,14 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	}
 
 	order, err := qtx.CreateCheckoutOrder(ctx, db.CreateCheckoutOrderParams{
-		UserID:          userID,
-		EventID:         eventID,
-		Email:           email,
-		TotalAmount:     int32(totalAmount),
-		PlatformFeeBani: int32(platformFeeBani),
-		Status:          db.OrderStatusPending,
+		UserID:            userID,
+		EventID:           eventID,
+		Email:             email,
+		TotalAmount:       int32(totalAmount),
+		PlatformFeeBani:   int32(platformFeeBani),
+		Status:            db.OrderStatusPending,
+		PromoCodeID:       promoCodeID,
+		DiscountAmountRon: int32(originalAmount - totalAmount),
 	})
 	if err != nil {
 		return db.Orders{}, nil, "", "", "", false, err
@@ -295,8 +326,13 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 			OrderID:      order.ID,
 			TicketTypeID: item.ticketType.ID,
 			Quantity:     item.quantity,
-			UnitPriceRon: item.ticketType.PriceRon,
+			UnitPriceRon: item.unitPrice,
 		}); err != nil {
+			return db.Orders{}, nil, "", "", "", false, err
+		}
+	}
+	if promoCodeID.Valid {
+		if _, err := tx.Exec(ctx, `UPDATE promo_codes SET redemptions_count=redemptions_count+1 WHERE id=$1`, promoCodeID); err != nil {
 			return db.Orders{}, nil, "", "", "", false, err
 		}
 	}
@@ -433,6 +469,11 @@ func (h *CheckoutHandler) failOrder(ctx context.Context, orderID pgtype.UUID, pa
 	}
 	if order.Status != db.OrderStatusPending {
 		return tx.Commit(ctx)
+	}
+	if order.PromoCodeID.Valid {
+		if _, err := tx.Exec(ctx, `UPDATE promo_codes SET redemptions_count=GREATEST(0,redemptions_count-1) WHERE id=$1`, order.PromoCodeID); err != nil {
+			return err
+		}
 	}
 
 	items, err := qtx.GetOrderItems(ctx, order.ID)

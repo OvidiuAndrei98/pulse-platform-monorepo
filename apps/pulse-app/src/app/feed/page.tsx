@@ -19,7 +19,6 @@ import {
 } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { SocialAvatar } from "@/components/social/SocialAvatar";
-import { NotificationsPopover } from "@/components/NotificationsPopover";
 import { useEventDetails } from "@/components/EventDetailsSheet";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { isNativePlatform } from "@/lib/native/platform";
@@ -154,7 +153,7 @@ export default function FeedPage() {
 
   if (!loading && !user) {
     return (
-      <main className="w-full px-4 pt-10 text-foreground ">
+      <main className="app-page-spacing w-full text-foreground">
         <h1 className="text-xl font-bold">{t("feed.title")}</h1>
         <p className="mt-2 text-xs text-muted-foreground">
           {t("feed.signInHint")}
@@ -170,7 +169,7 @@ export default function FeedPage() {
   }
 
   return (
-    <main className="w-full px-3 pb-24 pt-4 text-foreground sm:px-6 mx-auto max-w-7xl ">
+    <main className="app-page-spacing mx-auto w-full max-w-7xl text-foreground">
       {/* Header-ul paginii */}
       <header className="mb-4 space-y-3">
         <div className="flex items-start justify-between gap-3">
@@ -189,7 +188,6 @@ export default function FeedPage() {
               </p>
             </div>
           </div>
-          {user && <NotificationsPopover />}
         </div>
 
         {!isOrganizer && (
