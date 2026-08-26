@@ -15,7 +15,6 @@ import {
   Check,
   Share2,
   Ticket as TicketIcon,
-  CheckCircle2,
 } from "lucide-react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";

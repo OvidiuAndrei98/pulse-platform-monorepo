@@ -51,8 +51,7 @@
   --native-safe-top: 0px;
   --native-safe-bottom: 0px;
 
-  /* Dark neon-green theme */
-  --background: oklch(0.16 0.02 150);
+  --background: oklch(0% 0 0);
   --foreground: oklch(0.98 0.01 120);
 
   --surface: oklch(0.22 0.02 150);
