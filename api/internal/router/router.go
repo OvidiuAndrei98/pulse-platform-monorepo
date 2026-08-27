@@ -1,6 +1,8 @@
 package router
 
 import (
+	"context"
+	"log"
 	"net/http"
 	"time"
 
@@ -14,6 +16,9 @@ import (
 
 // HandlersConfig colectează toate funcțiile HTTP și middleware-urile necesare.
 type HandlersConfig struct {
+	// HealthCheck verifies critical dependencies before the load balancer accepts the task.
+	HealthCheck func(context.Context) error
+
 	// Middleware-uri de autentificare și autorizare
 	AuthMiddleware         func(http.Handler) http.Handler
 	OptionalAuthMiddleware func(http.Handler) http.Handler
@@ -163,6 +168,19 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 	}))
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		if cfg.HealthCheck != nil {
+			ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+			defer cancel()
+			if err := cfg.HealthCheck(ctx); err != nil {
+				log.Printf("health check failed: %v", err)
+				RespondWithJSON(w, http.StatusServiceUnavailable, map[string]string{
+					"status": "unhealthy",
+					"time":   time.Now().Format(time.RFC3339),
+				})
+				return
+			}
+		}
+
 		RespondWithJSON(w, http.StatusOK, map[string]string{
 			"status": "healthy",
 			"time":   time.Now().Format(time.RFC3339),

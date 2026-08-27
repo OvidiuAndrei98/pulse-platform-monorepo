@@ -147,6 +147,8 @@ func (app *Application) BuildRouter() http.Handler {
 
 	// 2. Mapăm funcțiile în noua structură de configurare din router
 	cfg := router.HandlersConfig{
+		HealthCheck: app.Pool.Ping,
+
 		// Middleware-uri
 		AuthMiddleware:         authMiddleware,
 		OptionalAuthMiddleware: auth.OptionalAuthMiddleware,
