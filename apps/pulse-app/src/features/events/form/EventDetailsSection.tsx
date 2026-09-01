@@ -28,7 +28,10 @@ export function EventDetailsSection({
     formState: { errors },
   } = form;
   const currentStatus = watch("status");
-  const statuses = currentStatus === "completed" ? (["completed"] as const) : (["draft", "scheduled", "published"] as const);
+  const statuses =
+    currentStatus === "completed"
+      ? (["completed"] as const)
+      : (["draft", "scheduled", "published"] as const);
   const locationName = watch("locationName");
 
   return (
@@ -36,6 +39,18 @@ export function EventDetailsSection({
       <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground/80">
         <Calendar className="h-4 w-4 text-primary" /> {t("eventForm.details")}
       </h2>
+      <FormField label={t("eventForm.image")} error={errors.bannerUrl?.message}>
+        <EventBannerUpload
+          value={watch("bannerUrl")}
+          onChange={(bannerUrl) =>
+            setValue("bannerUrl", bannerUrl ?? "", {
+              shouldValidate: true,
+              shouldDirty: true,
+            })
+          }
+        />
+        <input type="hidden" {...register("bannerUrl")} />
+      </FormField>
       <FormField label={t("eventForm.title")} error={errors.title?.message}>
         <input
           {...register("title")}
@@ -44,7 +59,10 @@ export function EventDetailsSection({
         />
       </FormField>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <FormField label={t("eventForm.category")} error={errors.category?.message}>
+        <FormField
+          label={t("eventForm.category")}
+          error={errors.category?.message}
+        >
           <ThemedSelect
             value={watch("category")}
             options={eventCategories.map((category) => ({
@@ -78,7 +96,9 @@ export function EventDetailsSection({
           <input type="hidden" {...register("vibe")} />
         </FormField>
         <FormField label={t("eventForm.eventStatus")}>
-          <div className={`grid h-[42px] gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1 ${currentStatus === "completed" ? "grid-cols-1" : "grid-cols-3"}`}>
+          <div
+            className={`grid h-[42px] gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1 ${currentStatus === "completed" ? "grid-cols-1" : "grid-cols-3"}`}
+          >
             {statuses.map((status) => (
               <button
                 key={status}
@@ -86,24 +106,37 @@ export function EventDetailsSection({
                 onClick={() => setValue("status", status)}
                 className={`rounded-full text-xs font-medium transition ${currentStatus === status ? (status === "published" ? "bg-primary text-primary-foreground" : "bg-white/10 text-white") : "text-muted-foreground hover:text-white"}`}
               >
-                {status === "completed" ? t("organizerEvents.completed") : t(`eventForm.${status}`)}
+                {status === "completed"
+                  ? t("organizerEvents.completed")
+                  : t(`eventForm.${status}`)}
               </button>
             ))}
           </div>
         </FormField>
       </div>
       {currentStatus === "scheduled" && (
-        <FormField label={t("eventForm.publishAt")} error={errors.publishAt?.message}>
+        <FormField
+          label={t("eventForm.publishAt")}
+          error={errors.publishAt?.message}
+        >
           <DateTimePicker
             value={watch("publishAt") || ""}
-            onChange={(publishAt) => setValue("publishAt", publishAt, { shouldValidate: true, shouldDirty: true })}
+            onChange={(publishAt) =>
+              setValue("publishAt", publishAt, {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
+            }
             placeholder={t("eventForm.choosePublishTime")}
           />
           <input type="hidden" {...register("publishAt")} />
         </FormField>
       )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FormField label={t("eventForm.startDate")} error={errors.startTime?.message}>
+        <FormField
+          label={t("eventForm.startDate")}
+          error={errors.startTime?.message}
+        >
           <DateTimePicker
             value={watch("startTime")}
             onChange={(startTime) =>
@@ -116,7 +149,10 @@ export function EventDetailsSection({
           />
           <input type="hidden" {...register("startTime")} />
         </FormField>
-        <FormField label={t("eventForm.endDate")} error={errors.endTime?.message}>
+        <FormField
+          label={t("eventForm.endDate")}
+          error={errors.endTime?.message}
+        >
           <DateTimePicker
             value={watch("endTime")}
             onChange={(endTime) =>
@@ -131,7 +167,10 @@ export function EventDetailsSection({
         </FormField>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_13rem]">
-        <FormField label={t("eventForm.venue")} error={errors.locationName?.message}>
+        <FormField
+          label={t("eventForm.venue")}
+          error={errors.locationName?.message}
+        >
           <div className="relative">
             <MapPin
               aria-hidden
@@ -141,7 +180,10 @@ export function EventDetailsSection({
               ready={mapsReady}
               value={locationName}
               onChange={(value) => {
-                setValue("locationName", value, { shouldDirty: true, shouldValidate: true });
+                setValue("locationName", value, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
                 setValue("googlePlaceId", "", { shouldDirty: true });
               }}
               className={`${eventInputClass} pl-10`}
@@ -176,25 +218,16 @@ export function EventDetailsSection({
           <input type="hidden" {...register("city")} />
         </FormField>
       </div>
-      <FormField label={t("eventForm.description")} error={errors.description?.message}>
+      <FormField
+        label={t("eventForm.description")}
+        error={errors.description?.message}
+      >
         <textarea
           {...register("description")}
           placeholder={t("eventForm.descriptionPlaceholder")}
           rows={4}
-          className="w-full resize-none rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-sm outline-none placeholder:text-muted-foreground/40 focus:border-primary/30 focus:bg-white/[0.04]"
+          className="w-full  rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-sm outline-none placeholder:text-muted-foreground/40 focus:border-primary/30 focus:bg-white/[0.04]"
         />
-      </FormField>
-      <FormField label={t("eventForm.image")} error={errors.bannerUrl?.message}>
-        <EventBannerUpload
-          value={watch("bannerUrl")}
-          onChange={(bannerUrl) =>
-            setValue("bannerUrl", bannerUrl ?? "", {
-              shouldValidate: true,
-              shouldDirty: true,
-            })
-          }
-        />
-        <input type="hidden" {...register("bannerUrl")} />
       </FormField>
     </section>
   );

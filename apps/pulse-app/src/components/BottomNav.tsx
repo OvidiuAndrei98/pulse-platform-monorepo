@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect, useTransition } from "react";
 import { motion } from "motion/react";
-import { Home, Ticket, User, Map, UsersRound } from "lucide-react";
+import { Home, Map, UsersRound, UserRound } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
@@ -33,7 +33,7 @@ function BottomNav() {
     { icon: Map, label: t("nav.map", "Events"), url: "/events" },
     { icon: UsersRound, label: t("nav.feed", "Feed"), url: "/feed" },
     {
-      icon: User,
+      icon: UserRound,
       label: t("nav.profile", "Profile"),
       url: isOrganizer ? "/dashboard" : "/users/me",
     },

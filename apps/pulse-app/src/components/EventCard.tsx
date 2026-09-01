@@ -67,7 +67,7 @@ export function EventCard({
           open(event);
         }
       }}
-      className={`group relative w-[260px] shrink-0 cursor-pointer rounded-[26px] border border-white/10 bg-gradient-to-b from-[#111115] via-[#0d0d10] to-[#08080a] p-2 shadow-none transition-all duration-200 hover:border-white/20 hover:from-[#16161c] hover:to-[#0c0c0f] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${className}`}
+      className={`group relative w-[260px] shrink-0 cursor-pointer rounded-[26px] border border-white/10 bg-gradient-to-b from-[#060606] via-[#090909] to-[#060606] p-2 shadow-none transition-all duration-200 hover:border-white/20 hover:from-[#16161c] hover:to-[#0c0c0f] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${className}`}
     >
       <div className="block">
         {/* 1. CONTAINER IMAGINE */}
@@ -100,8 +100,8 @@ export function EventCard({
               <div />
             )}
 
-            {/* Dacă e LIVE afișăm ORA, altfel afișăm DATA */}
-            <div className="rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white/90 backdrop-blur-md">
+            {/* Capsulei cu Ora/Data i s-au aplicat exact aceleași clase de dimensiune: h-6, inline-flex, items-center */}
+            <div className="inline-flex h-6 items-center rounded-full border border-white/10 bg-black/60 px-2.5 text-[10px] font-semibold text-white/90 backdrop-blur-md">
               {live ? formattedTime : formattedDate}
             </div>
           </div>

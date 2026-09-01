@@ -91,12 +91,14 @@ export const resources = {
         password: "Password",
         forgotPassword: "Forgot password?",
         forgotPasswordTitle: "Reset your password",
-        forgotPasswordHint: "Enter your email and we'll send you a secure link to choose a new password.",
+        forgotPasswordHint:
+          "Enter your email and we'll send you a secure link to choose a new password.",
         sendResetLink: "Send reset link",
         sendingResetLink: "Sending link...",
         resetLinkSent: "Check your email",
         resetLinkSentHint: "We sent a reset link to {{email}}.",
-        resetRequestFailed: "The reset link could not be sent. Please try again.",
+        resetRequestFailed:
+          "The reset link could not be sent. Please try again.",
         passwordPlaceholder: "Enter your password",
         emailPlaceholder: "name@email.com",
         promoCode: "Promo code (optional)",
@@ -230,9 +232,9 @@ export const resources = {
         ticketPurchasedBody: "Your tickets are ready in your account.",
       },
       search: {
-        open: "Search events",
+        open: "Search",
         recommended: "Recommended for you",
-        placeholder: "Search events, places...",
+        placeholder: "Search events, organizers, and people...",
         close: "Close search",
         events: "Events",
         peopleAndOrganizers: "People and organizers",
@@ -873,7 +875,8 @@ export const resources = {
         eventDeleteFailed: "The event could not be deleted.",
         deleteBlocked:
           "This event has ticket orders or sales and cannot be deleted.",
-        completedReadOnly: "This event has ended and is read-only. Create a new independent event from it to reuse the setup.",
+        completedReadOnly:
+          "This event has ended and is read-only. Create a new independent event from it to reuse the setup.",
         useAsTemplate: "Use as template",
       },
       formValidation: {
@@ -1004,12 +1007,14 @@ export const resources = {
         password: "Parola",
         forgotPassword: "Ai uitat parola?",
         forgotPasswordTitle: "Reseteaza parola",
-        forgotPasswordHint: "Introdu emailul si iti trimitem un link securizat pentru alegerea unei parole noi.",
+        forgotPasswordHint:
+          "Introdu emailul si iti trimitem un link securizat pentru alegerea unei parole noi.",
         sendResetLink: "Trimite linkul de resetare",
         sendingResetLink: "Se trimite linkul...",
         resetLinkSent: "Verifica emailul",
         resetLinkSentHint: "Am trimis un link de resetare la {{email}}.",
-        resetRequestFailed: "Linkul de resetare nu a putut fi trimis. Incearca din nou.",
+        resetRequestFailed:
+          "Linkul de resetare nu a putut fi trimis. Incearca din nou.",
         passwordPlaceholder: "Introdu parola",
         emailPlaceholder: "nume@email.ro",
         promoCode: "Cod promo (optional)",
@@ -1477,7 +1482,8 @@ export const resources = {
         nextEvents: "Evenimente urmatoare",
         nextEventsHint: "Evenimentele tale viitoare, in ordinea datei.",
         recentEvents: "Ultimele evenimente",
-        recentEventsHint: "Un preview cu cele mai recente evenimente finalizate.",
+        recentEventsHint:
+          "Un preview cu cele mai recente evenimente finalizate.",
         noEvents: "Nu ai creat niciun eveniment inca.",
         noUpcomingEvents: "Nu ai niciun eveniment viitor.",
         noRecentEvents: "Nu ai inca evenimente finalizate.",
@@ -1806,7 +1812,8 @@ export const resources = {
         eventDeleteFailed: "Evenimentul nu a putut fi sters.",
         deleteBlocked:
           "Evenimentul are comenzi sau vanzari de bilete si nu poate fi sters.",
-        completedReadOnly: "Evenimentul s-a incheiat si nu mai poate fi modificat. Creeaza un eveniment nou si independent pentru a refolosi configurarea.",
+        completedReadOnly:
+          "Evenimentul s-a incheiat si nu mai poate fi modificat. Creeaza un eveniment nou si independent pentru a refolosi configurarea.",
         useAsTemplate: "Foloseste ca template",
       },
       formValidation: {

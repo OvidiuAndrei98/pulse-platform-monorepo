@@ -1,7 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Building2, KeyRound, User as UserIcon } from "lucide-react";
+import {
+  ArrowUpRight,
+  Building2,
+  KeyRound,
+  User as UserIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { OrganizerProfile } from "@/core/DataProvider";
@@ -42,7 +47,7 @@ export default function ProfilePage() {
   }, [user]);
 
   return (
-    <div className="w-full text-foreground">
+    <div className="w-full text-foreground pb-[110px]">
       <div className="app-page-spacing mx-auto max-w-3xl space-y-6">
         <div className="space-y-1">
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
@@ -82,37 +87,50 @@ export default function ProfilePage() {
 
           <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
-            <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-lg ${organizerProfile?.verificationStatus === "approved" ? "bg-primary/15 text-primary" : "bg-amber-400/10 text-amber-300"}`}>
-              <Building2 className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              {profileLoading ? (
-                <><span className="mb-2 block h-4 w-32 animate-pulse bg-white/10" /><span className="block h-3 w-48 animate-pulse bg-white/[0.06]" /></>
-              ) : (
-                <>
-                  <p className="truncate text-sm font-semibold">{organizerProfile?.companyName || t("dashboard.companyMissing")}</p>
-                  <p className={`mt-1 text-xs ${organizerProfile?.verificationStatus === "approved" ? "text-primary" : "text-muted-foreground"}`}>
-                    {organizerProfile?.verificationStatus === "approved"
-                      ? t("dashboard.companyVerified", { cui: organizerProfile.cui })
-                      : organizerProfile?.verificationStatus === "pending"
-                        ? t("organizerProfile.companyPending")
-                        : organizerProfile?.verificationStatus === "rejected"
-                          ? t("organizerProfile.companyRejected")
-                          : t("dashboard.companyRequired")}
-                  </p>
-                </>
-              )}
-            </div>
-            </div>
-            {!profileLoading && organizerProfile?.verificationStatus !== "approved" && (
-              <Link
-                href="/dashboard/ticket-validation"
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-primary/35 px-3 text-xs font-semibold text-primary transition hover:bg-primary/10"
+              <div
+                className={`grid h-11 w-11 shrink-0 place-items-center rounded-lg ${organizerProfile?.verificationStatus === "approved" ? "bg-primary/15 text-primary" : "bg-amber-400/10 text-amber-300"}`}
               >
-                {t("organizerProfile.configureCompany")}
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </Link>
-            )}
+                <Building2 className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                {profileLoading ? (
+                  <>
+                    <span className="mb-2 block h-4 w-32 animate-pulse bg-white/10" />
+                    <span className="block h-3 w-48 animate-pulse bg-white/[0.06]" />
+                  </>
+                ) : (
+                  <>
+                    <p className="truncate text-sm font-semibold">
+                      {organizerProfile?.companyName ||
+                        t("dashboard.companyMissing")}
+                    </p>
+                    <p
+                      className={`mt-1 text-xs ${organizerProfile?.verificationStatus === "approved" ? "text-primary" : "text-muted-foreground"}`}
+                    >
+                      {organizerProfile?.verificationStatus === "approved"
+                        ? t("dashboard.companyVerified", {
+                            cui: organizerProfile.cui,
+                          })
+                        : organizerProfile?.verificationStatus === "pending"
+                          ? t("organizerProfile.companyPending")
+                          : organizerProfile?.verificationStatus === "rejected"
+                            ? t("organizerProfile.companyRejected")
+                            : t("dashboard.companyRequired")}
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+            {!profileLoading &&
+              organizerProfile?.verificationStatus !== "approved" && (
+                <Link
+                  href="/dashboard/ticket-validation"
+                  className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-primary/35 px-3 text-xs font-semibold text-primary transition hover:bg-primary/10"
+                >
+                  {t("organizerProfile.configureCompany")}
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </Link>
+              )}
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">

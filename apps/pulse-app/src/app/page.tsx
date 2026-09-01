@@ -135,8 +135,8 @@ export default function Home() {
       <div className="relative z-10 pb-[110px]">
         <div className="app-page-gutter mx-auto max-w-7xl pt-[max(1.5rem,var(--native-safe-top))] md:pt-8">
           <div className="relative z-40 flex items-center justify-between gap-4">
-            <span className="text-lg font-black uppercase tracking-[0.22em] text-foreground">
-              PULSE<span className="text-primary">.</span>
+            <span className="text-lg font-black uppercase tracking-[0.10em] text-foreground">
+              SPOTTR<span className="text-primary">.</span>
             </span>
             <div className="flex items-center gap-2">
               {user && <NotificationsPopover />}

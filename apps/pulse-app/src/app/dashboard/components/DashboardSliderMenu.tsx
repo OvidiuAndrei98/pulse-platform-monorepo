@@ -25,21 +25,47 @@ const organizerTabs = [
     icon: LayoutDashboard,
     exact: true,
   },
-  { href: "/dashboard/profile", label: "dashboardNav.profile", icon: User },
-  { href: "/dashboard/ticket-validation", label: "dashboardNav.ticketValidation", icon: QrCode },
-  { href: "/dashboard/finance", label: "dashboardNav.finance", icon: WalletCards },
-  { href: "/dashboard/purchases", label: "dashboardNav.purchases", icon: Ticket },
+  {
+    href: "/dashboard/ticket-validation",
+    label: "dashboardNav.ticketValidation",
+    icon: QrCode,
+  },
   { href: "/dashboard/events", label: "dashboardNav.events", icon: Calendar },
   { href: "/dashboard/events/new", label: "dashboardNav.newEvent", icon: Plus },
-    { href: "/logout", label: "dashboardNav.logout", icon: LogOut },
+  {
+    href: "/dashboard/finance",
+    label: "dashboardNav.finance",
+    icon: WalletCards,
+  },
+  { href: "/dashboard/profile", label: "dashboardNav.profile", icon: User },
+
+  {
+    href: "/dashboard/purchases",
+    label: "dashboardNav.purchases",
+    icon: Ticket,
+  },
+
+  { href: "/logout", label: "dashboardNav.logout", icon: LogOut },
 ] as const;
 
 const validatorTabs = [
   { href: "/users/me", label: "dashboardNav.profile", icon: User, exact: true },
-  { href: "/dashboard/ticket-validation", label: "dashboardNav.ticketValidation", icon: QrCode },
+  {
+    href: "/dashboard/ticket-validation",
+    label: "dashboardNav.ticketValidation",
+    icon: QrCode,
+  },
 ] as const;
 
-function matchTab(pathname: string, tabs: readonly { href: string; label: string; icon: typeof User; exact?: boolean }[]) {
+function matchTab(
+  pathname: string,
+  tabs: readonly {
+    href: string;
+    label: string;
+    icon: typeof User;
+    exact?: boolean;
+  }[],
+) {
   const sorted = [...tabs].sort((a, b) => b.href.length - a.href.length);
   return sorted.find((t) =>
     "exact" in t && t.exact
@@ -71,7 +97,9 @@ export function OrganizerHeader() {
   }, [tabs.length]);
 
   const isEventDetail =
-    isOrganizer && /^\/dashboard\/events\/[^/]+$/.test(pathname) && !pathname.endsWith("/new");
+    isOrganizer &&
+    /^\/dashboard\/events\/[^/]+$/.test(pathname) &&
+    !pathname.endsWith("/new");
   const crumbs: { label: string; href?: string }[] = isOrganizer
     ? [{ label: "dashboardNav.dashboard", href: "/dashboard" }]
     : [{ label: "dashboardNav.profile", href: "/users/me" }];
@@ -85,10 +113,10 @@ export function OrganizerHeader() {
   const handleLogout = async () => {
     logout();
     router.push("/login");
-  }
+  };
 
   return (
-    <header className="sticky top-0 z-20 -mt-[var(--native-safe-top)] w-full border-b border-white/10 bg-[#0b0e0c] pt-[var(--native-safe-top)] md:mt-0 md:pt-0 md:bg-background/60 md:backdrop-blur-xl">
+    <header className="sticky top-0 z-20 -mt-[var(--native-safe-top)] w-full border-b border-white/10 bg-black pt-[var(--native-safe-top)] md:mt-0 md:pt-0 md:bg-background/60 md:backdrop-blur-xl">
       <div className="app-page-gutter mx-auto max-w-5xl pb-2.5 pt-3">
         {/* BREADCRUMB NAVIGATION */}
         <div className="flex items-center justify-between gap-3">
@@ -98,7 +126,9 @@ export function OrganizerHeader() {
           >
             {crumbs.map((c, i) => (
               <span key={i} className="flex min-w-0 items-center gap-1.5">
-                {i > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-40" />}
+                {i > 0 && (
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-40" />
+                )}
                 {c.href && i < crumbs.length - 1 ? (
                   <Link
                     href={c.href}
@@ -136,9 +166,9 @@ export function OrganizerHeader() {
                   type="button"
                   onTap={() => {
                     if (tab.href === "/logout") {
-                     handleLogout();
+                      handleLogout();
                     } else {
-                       router.push(tab.href)
+                      router.push(tab.href);
                     }
                   }}
                   className="relative flex h-9 shrink-0 select-none items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 text-xs font-semibold transition-colors duration-200"

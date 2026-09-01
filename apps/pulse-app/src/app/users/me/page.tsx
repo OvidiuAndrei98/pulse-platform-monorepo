@@ -205,7 +205,7 @@ export default function MePage() {
   };
 
   return (
-    <div className="relative min-h-screen w-full pb-40 text-foreground overflow-y-auto">
+    <div className="relative min-h-screen w-full pb-[110px] text-foreground overflow-y-auto">
       <div className="app-page-gutter mx-auto max-w-md pt-10 md:max-w-7xl md:pt-16">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-12 items-start">
           <div className="md:col-span-4 md:sticky md:top-16 space-y-6">

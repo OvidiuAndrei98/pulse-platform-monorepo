@@ -152,7 +152,6 @@
   .app-page-spacing {
     padding-inline: 1.25rem !important;
     padding-top: max(2.5rem, calc(var(--native-safe-top) + 1.5rem)) !important;
-    padding-bottom: max(8rem, calc(var(--native-safe-bottom) + 7rem)) !important;
   }
 
   @media (min-width: 640px) {

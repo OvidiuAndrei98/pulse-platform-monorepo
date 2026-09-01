@@ -31,7 +31,11 @@ export default function NewEventPage() {
     const raw = sessionStorage.getItem("pulse:event-template");
     if (!raw) return;
     sessionStorage.removeItem("pulse:event-template");
-    try { setTemplate(JSON.parse(raw) as Partial<EventFormValues>); } catch { setTemplate(undefined); }
+    try {
+      setTemplate(JSON.parse(raw) as Partial<EventFormValues>);
+    } catch {
+      setTemplate(undefined);
+    }
   }, []);
 
   const handleSave = async (
@@ -51,13 +55,14 @@ export default function NewEventPage() {
   };
 
   return (
-    <div className="relative min-h-screen text-foreground antialiased">
+    <div className="relative min-h-screen text-foreground antialiased pb-[110px]">
       <div className="app-page-spacing mx-auto max-w-3xl">
         <Link
           href="/dashboard/events"
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
-          <ArrowLeft className="h-3.5 w-3.5" /> {t("dashboardNav.backToDashboard")}
+          <ArrowLeft className="h-3.5 w-3.5" />{" "}
+          {t("dashboardNav.backToDashboard")}
         </Link>
 
         <div className="mt-4 flex items-center justify-between gap-3">

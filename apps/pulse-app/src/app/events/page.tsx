@@ -53,7 +53,11 @@ function getStoredFilters(
       window.sessionStorage.getItem(eventsFiltersStorageKey) ?? "null",
     ) as Partial<EventFilters> | null;
 
-    if (!stored || !Array.isArray(stored.categories) || !Array.isArray(stored.vibes)) {
+    if (
+      !stored ||
+      !Array.isArray(stored.categories) ||
+      !Array.isArray(stored.vibes)
+    ) {
       return { ...defaultEventFilters, date: requestedDate };
     }
 
@@ -113,24 +117,24 @@ function EventsPageContent() {
   }, [hasDateInUrl, requestedDate]);
 
   useEffect(() => {
-    window.sessionStorage.setItem(eventsFiltersStorageKey, JSON.stringify(filters));
+    window.sessionStorage.setItem(
+      eventsFiltersStorageKey,
+      JSON.stringify(filters),
+    );
   }, [filters]);
 
-  const eventQuery = useMemo(
-    () => {
-      const dateRange = getEventDateRange(filters.date);
+  const eventQuery = useMemo(() => {
+    const dateRange = getEventDateRange(filters.date);
 
-      return {
-        category: filters.categories.join(",") || undefined,
-        city: filters.city || undefined,
-        vibe: filters.vibes.join(",") || undefined,
-        ...dateRange,
-        // Discovery should never surface events that have already ended.
-        startsAfter: dateRange.startsAfter ?? new Date().toISOString(),
-      };
-    },
-    [filters.categories, filters.city, filters.date, filters.vibes],
-  );
+    return {
+      category: filters.categories.join(",") || undefined,
+      city: filters.city || undefined,
+      vibe: filters.vibes.join(",") || undefined,
+      ...dateRange,
+      // Discovery should never surface events that have already ended.
+      startsAfter: dateRange.startsAfter ?? new Date().toISOString(),
+    };
+  }, [filters.categories, filters.city, filters.date, filters.vibes]);
 
   useEffect(() => {
     let active = true;
@@ -154,7 +158,7 @@ function EventsPageContent() {
   }, [eventQuery]);
 
   return (
-    <div className="relative h-dvh overflow-hidden overscroll-none text-foreground">
+    <div className="relative h-dvh overflow-hidden overscroll-none text-foreground pb-[110px]">
       <div
         className={`relative h-full ${
           view === "map"
@@ -162,7 +166,9 @@ function EventsPageContent() {
             : "flex flex-col"
         }`}
       >
-        <div className={`relative z-20 flex flex-wrap items-start justify-between gap-3 sm:items-center ${view === "list" ? "app-page-gutter mx-auto w-full max-w-7xl pt-10" : ""}`}>
+        <div
+          className={`relative z-20 flex flex-wrap items-start justify-between gap-3 sm:items-center ${view === "list" ? "app-page-gutter mx-auto w-full max-w-7xl pt-10" : ""}`}
+        >
           <div
             className={`flex  items-center gap-2 sm:w-auto ${view === "map" ? "pointer-events-auto" : ""}`}
           >
@@ -175,38 +181,36 @@ function EventsPageContent() {
           <>
             <div className="mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain">
               <div className="app-page-gutter mx-auto w-full max-w-7xl pb-28">
-              <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-4 lg:grid-cols-3">
-                {eventsLoading
-                  ? Array.from({ length: 6 }, (_, index) => (
-                      <EventCardSkeleton key={index} />
-                    ))
-                  : events.map((event) => (
-                      <EventBrowseCard
-                        key={event.id}
-                        event={event}
-                        userLocation={userLocation}
-                      />
-                    ))}
-              </div>
-              {!eventsLoading && !events.length && (
-                <div className="mx-auto mt-12 max-w-md border border-dashed border-white/15 px-5 py-10 text-center">
-                  <p className="text-sm font-medium">
-                    {t("events.noMatch")}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t("events.tryAnother")}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFilters({ ...defaultEventFilters, distance: 50 })
-                    }
-                    className="mt-3 text-sm font-medium text-primary"
-                  >
-                    {t("events.resetFilters")}
-                  </button>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-4 lg:grid-cols-3">
+                  {eventsLoading
+                    ? Array.from({ length: 6 }, (_, index) => (
+                        <EventCardSkeleton key={index} />
+                      ))
+                    : events.map((event) => (
+                        <EventBrowseCard
+                          key={event.id}
+                          event={event}
+                          userLocation={userLocation}
+                        />
+                      ))}
                 </div>
-              )}
+                {!eventsLoading && !events.length && (
+                  <div className="mx-auto mt-12 max-w-md border border-dashed border-white/15 px-5 py-10 text-center">
+                    <p className="text-sm font-medium">{t("events.noMatch")}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t("events.tryAnother")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFilters({ ...defaultEventFilters, distance: 50 })
+                      }
+                      className="mt-3 text-sm font-medium text-primary"
+                    >
+                      {t("events.resetFilters")}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </>

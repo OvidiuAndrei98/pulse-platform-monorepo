@@ -27,7 +27,7 @@ export function HomeEventCarousel({
   };
 
   return (
-    <section className="mt-9">
+    <section className="mt-4">
       <div className="app-page-gutter mx-auto flex max-w-7xl items-center justify-between gap-4">
         <h2 className="text-base font-semibold md:text-lg">{title}</h2>
         <div className="flex items-center gap-1.5">
