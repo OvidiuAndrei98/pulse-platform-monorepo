@@ -13,12 +13,18 @@ export function HomeEventCarousel({
   live = false,
   emptyMessage,
   seeAllHref = "/events",
+  promoted = false,
+  onEventOpen,
+  onEventVisible,
 }: {
   title: string;
   events: readonly Event[];
   live?: boolean;
   emptyMessage: string;
   seeAllHref?: string;
+  promoted?: boolean;
+  onEventOpen?: (event: Event) => void;
+  onEventVisible?: (event: Event) => void;
 }) {
   const { t } = useTranslation();
   const railRef = useRef<HTMLDivElement>(null);
@@ -70,6 +76,9 @@ export function HomeEventCarousel({
               key={event.id}
               event={event}
               live={live || event.isLive}
+              promoted={promoted}
+              onOpen={() => onEventOpen?.(event)}
+              onVisible={() => onEventVisible?.(event)}
             />
           ))}
         </div>

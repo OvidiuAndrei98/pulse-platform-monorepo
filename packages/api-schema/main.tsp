@@ -357,6 +357,50 @@ model PromoCodeResponse {
   createdAt: utcDateTime;
 }
 
+model PromotionPlanResponse {
+  id: "one_day" | "thu_sat" | "full_week";
+  name: string;
+  description: string;
+  amountRon: int32;
+  days: int32;
+}
+
+model CreatePromotionCheckoutPayload {
+  eventId: string;
+  plan: "one_day" | "thu_sat" | "full_week";
+  startDate: string;
+}
+
+model PromotionCheckoutResponse {
+  checkoutUrl: string;
+  campaignId: string;
+}
+
+model PromotionCampaignResponse {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  plan: "one_day" | "thu_sat" | "full_week";
+  status: "pending_payment" | "scheduled" | "active" | "completed" | "cancelled";
+  startsAt: utcDateTime;
+  endsAt: utcDateTime;
+  amountRon: int32;
+  impressionsCount: int64;
+  clicksCount: int64;
+  ctr: decimal;
+  createdAt: utcDateTime;
+}
+
+model PromotedEventResponse {
+  campaignId: string;
+  event: EventResponse;
+}
+
+model TrackPromotionMetricPayload {
+  metric: "impression" | "click";
+  viewerKey: string;
+}
+
 model InvitationTicketResponse {
   id: string;
   label: string;
@@ -843,8 +887,36 @@ interface FeedOperations {
   list(): SocialFeedItemResponse[];
 }
 
+@route("/promotions")
+interface PromotionPublicOperations {
+  @get
+  @route("/active")
+  listActive(): PromotedEventResponse[];
+
+  @post
+  @route("/{id}/track")
+  track(@path id: string, @body payload: TrackPromotionMetricPayload): {
+    @statusCode statusCode: 204;
+  };
+}
+
 @route("/dashboard")
 interface DashboardOperations {
+  @get
+  @route("/promotions/plans")
+  listPromotionPlans(): PromotionPlanResponse[];
+
+  @get
+  @route("/promotions")
+  listPromotionCampaigns(): PromotionCampaignResponse[];
+
+  @post
+  @route("/promotions/checkout")
+  createPromotionCheckout(@body payload: CreatePromotionCheckoutPayload): {
+    @statusCode statusCode: 201;
+    @body response: PromotionCheckoutResponse;
+  };
+
   @get
   @route("/finance")
   @summary("Situația financiară a evenimentelor organizatorului, bazată pe comenzi finalizate")

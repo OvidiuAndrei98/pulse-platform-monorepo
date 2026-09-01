@@ -19,7 +19,7 @@ func TestStripeWebhookAcceptsValidSignature(t *testing.T) {
 	req.Header.Set("Stripe-Signature", signedPayload.Header)
 	response := httptest.NewRecorder()
 
-	NewWebhookHandler(secret, nil).HandleStripeWebhook(response, req)
+	NewWebhookHandler(secret, nil, nil).HandleStripeWebhook(response, req)
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, response.Code)
@@ -31,7 +31,7 @@ func TestStripeWebhookRejectsInvalidSignature(t *testing.T) {
 	req.Header.Set("Stripe-Signature", "invalid")
 	response := httptest.NewRecorder()
 
-	NewWebhookHandler("whsec_test_secret", nil).HandleStripeWebhook(response, req)
+	NewWebhookHandler("whsec_test_secret", nil, nil).HandleStripeWebhook(response, req)
 
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, response.Code)

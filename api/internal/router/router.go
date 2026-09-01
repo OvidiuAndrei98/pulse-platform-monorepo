@@ -81,6 +81,11 @@ type HandlersConfig struct {
 	ListPromoCodes             http.HandlerFunc
 	CreatePromoCode            http.HandlerFunc
 	DeactivatePromoCode        http.HandlerFunc
+	ListPromotionPlans         http.HandlerFunc
+	CreatePromotionCheckout    http.HandlerFunc
+	ListPromotionCampaigns     http.HandlerFunc
+	ListActivePromotions       http.HandlerFunc
+	TrackPromotionMetric       http.HandlerFunc
 
 	// Interactions / Checkins
 	CreateCheckIn http.HandlerFunc
@@ -235,6 +240,8 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			r.Get("/{id}/ticket-types", cfg.GetEventTicketTypes)
 			r.With(optionalAuthMiddleware).Post("/{id}/tickets/purchase", cfg.PurchaseTickets)
 		})
+		r.With(optionalAuthMiddleware).Get("/promotions/active", cfg.ListActivePromotions)
+		r.With(optionalAuthMiddleware).Post("/promotions/{id}/track", cfg.TrackPromotionMetric)
 		r.Get("/organizers/{id}/updates", cfg.GetOrganizerUpdates)
 
 		// --- RUTE PROTEJATE: Utilizatori autentificați ---
@@ -333,6 +340,9 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 
 				// --- ORGANIZER PROFILE ---
 				r.Get("/dashboard/finance", cfg.GetOrganizerFinance)
+				r.Get("/dashboard/promotions/plans", cfg.ListPromotionPlans)
+				r.Get("/dashboard/promotions", cfg.ListPromotionCampaigns)
+				r.Post("/dashboard/promotions/checkout", cfg.CreatePromotionCheckout)
 				r.Post("/dashboard/organizer/profile", cfg.CreateOrganizerProfile)
 				r.Get("/dashboard/organizer/profile/{id}", cfg.GetOrganizerProfile)
 				r.Post("/dashboard/organizer/agreement", cfg.AcceptOrganizerAgreement)

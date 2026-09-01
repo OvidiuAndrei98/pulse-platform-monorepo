@@ -306,6 +306,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/promotions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DashboardOperations_listPromotionCampaigns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/promotions/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DashboardOperations_createPromotionCheckout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/promotions/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DashboardOperations_listPromotionPlans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/stripe/account-link": {
         parameters: {
             query?: never;
@@ -887,6 +935,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/promotions/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PromotionPublicOperations_listActive"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/promotions/{id}/track": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["PromotionPublicOperations_track"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/spotify/search": {
         parameters: {
             query?: never;
@@ -1158,6 +1238,12 @@ export interface components {
             /** Format: date-time */
             endsAt?: string;
         };
+        CreatePromotionCheckoutPayload: {
+            eventId: string;
+            /** @enum {string} */
+            plan: "one_day" | "thu_sat" | "full_week";
+            startDate: string;
+        };
         CreateScannerAccessPayload: {
             label: string;
             /** Format: date-time */
@@ -1387,6 +1473,47 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
+        PromotedEventResponse: {
+            campaignId: string;
+            event: components["schemas"]["EventResponse"];
+        };
+        PromotionCampaignResponse: {
+            id: string;
+            eventId: string;
+            eventTitle: string;
+            /** @enum {string} */
+            plan: "one_day" | "thu_sat" | "full_week";
+            /** @enum {string} */
+            status: "pending_payment" | "scheduled" | "active" | "completed" | "cancelled";
+            /** Format: date-time */
+            startsAt: string;
+            /** Format: date-time */
+            endsAt: string;
+            /** Format: int32 */
+            amountRon: number;
+            /** Format: int64 */
+            impressionsCount: number;
+            /** Format: int64 */
+            clicksCount: number;
+            /** Format: decimal */
+            ctr: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        PromotionCheckoutResponse: {
+            checkoutUrl: string;
+            campaignId: string;
+        };
+        PromotionPlanResponse: {
+            /** @enum {string} */
+            id: "one_day" | "thu_sat" | "full_week";
+            name: string;
+            description: string;
+            /** Format: int32 */
+            amountRon: number;
+            /** Format: int32 */
+            days: number;
+        };
         PublicProfileResponse: {
             id: string;
             username: string;
@@ -1492,6 +1619,11 @@ export interface components {
             eventTitle: string;
             /** Format: date-time */
             validatedAt: string;
+        };
+        TrackPromotionMetricPayload: {
+            /** @enum {string} */
+            metric: "impression" | "click";
+            viewerKey: string;
         };
         UpdateEventPayload: {
             id: string;
@@ -2180,6 +2312,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrganizerProfile"];
+                };
+            };
+        };
+    };
+    DashboardOperations_listPromotionCampaigns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionCampaignResponse"][];
+                };
+            };
+        };
+    };
+    DashboardOperations_createPromotionCheckout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePromotionCheckoutPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded and a new resource has been created as a result. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionCheckoutResponse"];
+                };
+            };
+        };
+    };
+    DashboardOperations_listPromotionPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionPlanResponse"][];
                 };
             };
         };
@@ -3262,6 +3458,50 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PublicProfileResponse"];
                 };
+            };
+        };
+    };
+    PromotionPublicOperations_listActive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotedEventResponse"][];
+                };
+            };
+        };
+    };
+    PromotionPublicOperations_track: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrackPromotionMetricPayload"];
+            };
+        };
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

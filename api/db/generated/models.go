@@ -56,6 +56,94 @@ func (ns NullOrderStatus) Value() (driver.Value, error) {
 	return string(ns.OrderStatus), nil
 }
 
+type PromotionPlan string
+
+const (
+	PromotionPlanOneDay   PromotionPlan = "one_day"
+	PromotionPlanThuSat   PromotionPlan = "thu_sat"
+	PromotionPlanFullWeek PromotionPlan = "full_week"
+)
+
+func (e *PromotionPlan) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PromotionPlan(s)
+	case string:
+		*e = PromotionPlan(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PromotionPlan: %T", src)
+	}
+	return nil
+}
+
+type NullPromotionPlan struct {
+	PromotionPlan PromotionPlan `json:"promotion_plan"`
+	Valid         bool          `json:"valid"` // Valid is true if PromotionPlan is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPromotionPlan) Scan(value interface{}) error {
+	if value == nil {
+		ns.PromotionPlan, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PromotionPlan.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPromotionPlan) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PromotionPlan), nil
+}
+
+type PromotionStatus string
+
+const (
+	PromotionStatusPendingPayment PromotionStatus = "pending_payment"
+	PromotionStatusScheduled      PromotionStatus = "scheduled"
+	PromotionStatusActive         PromotionStatus = "active"
+	PromotionStatusCompleted      PromotionStatus = "completed"
+	PromotionStatusCancelled      PromotionStatus = "cancelled"
+)
+
+func (e *PromotionStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PromotionStatus(s)
+	case string:
+		*e = PromotionStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PromotionStatus: %T", src)
+	}
+	return nil
+}
+
+type NullPromotionStatus struct {
+	PromotionStatus PromotionStatus `json:"promotion_status"`
+	Valid           bool            `json:"valid"` // Valid is true if PromotionStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPromotionStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.PromotionStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PromotionStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPromotionStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PromotionStatus), nil
+}
+
 type VerificationStatusType string
 
 const (
@@ -313,6 +401,32 @@ type PromoCodes struct {
 	EndsAt           pgtype.Timestamptz `json:"ends_at"`
 	Active           bool               `json:"active"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+}
+
+type PromotionCampaigns struct {
+	ID                      pgtype.UUID        `json:"id"`
+	EventID                 pgtype.UUID        `json:"event_id"`
+	OrganizerID             pgtype.UUID        `json:"organizer_id"`
+	Plan                    PromotionPlan      `json:"plan"`
+	Status                  PromotionStatus    `json:"status"`
+	StartsAt                pgtype.Timestamptz `json:"starts_at"`
+	EndsAt                  pgtype.Timestamptz `json:"ends_at"`
+	AmountBani              int32              `json:"amount_bani"`
+	ImpressionsCount        int64              `json:"impressions_count"`
+	ClicksCount             int64              `json:"clicks_count"`
+	StripeCheckoutSessionID pgtype.Text        `json:"stripe_checkout_session_id"`
+	StripePaymentIntentID   pgtype.Text        `json:"stripe_payment_intent_id"`
+	PaidAt                  pgtype.Timestamptz `json:"paid_at"`
+	CreatedAt               pgtype.Timestamptz `json:"created_at"`
+}
+
+type PromotionMetricEvents struct {
+	ID         pgtype.UUID        `json:"id"`
+	CampaignID pgtype.UUID        `json:"campaign_id"`
+	UserID     pgtype.UUID        `json:"user_id"`
+	ViewerKey  string             `json:"viewer_key"`
+	Metric     string             `json:"metric"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 }
 
 type SavedEvents struct {

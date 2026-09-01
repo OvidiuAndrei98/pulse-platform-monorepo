@@ -734,6 +734,76 @@
         }
       }
     },
+    "/dashboard/promotions": {
+      "get": {
+        "operationId": "DashboardOperations_listPromotionCampaigns",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PromotionCampaignResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/promotions/checkout": {
+      "post": {
+        "operationId": "DashboardOperations_createPromotionCheckout",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "The request has succeeded and a new resource has been created as a result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionCheckoutResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePromotionCheckoutPayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/promotions/plans": {
+      "get": {
+        "operationId": "DashboardOperations_listPromotionPlans",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PromotionPlanResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/dashboard/stripe/account-link": {
       "post": {
         "operationId": "DashboardOperations_createStripeAccountLink",
@@ -2216,6 +2286,57 @@
         }
       }
     },
+    "/promotions/active": {
+      "get": {
+        "operationId": "PromotionPublicOperations_listActive",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PromotedEventResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/promotions/{id}/track": {
+      "post": {
+        "operationId": "PromotionPublicOperations_track",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrackPromotionMetricPayload"
+              }
+            }
+          }
+        }
+      }
+    },
     "/spotify/search": {
       "get": {
         "operationId": "SpotifyOperations_searchArtists",
@@ -2907,6 +3028,30 @@
           "endsAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "CreatePromotionCheckoutPayload": {
+        "type": "object",
+        "required": [
+          "eventId",
+          "plan",
+          "startDate"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "plan": {
+            "type": "string",
+            "enum": [
+              "one_day",
+              "thu_sat",
+              "full_week"
+            ]
+          },
+          "startDate": {
+            "type": "string"
           }
         }
       },
@@ -3669,6 +3814,144 @@
           }
         }
       },
+      "PromotedEventResponse": {
+        "type": "object",
+        "required": [
+          "campaignId",
+          "event"
+        ],
+        "properties": {
+          "campaignId": {
+            "type": "string"
+          },
+          "event": {
+            "$ref": "#/components/schemas/EventResponse"
+          }
+        }
+      },
+      "PromotionCampaignResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "eventId",
+          "eventTitle",
+          "plan",
+          "status",
+          "startsAt",
+          "endsAt",
+          "amountRon",
+          "impressionsCount",
+          "clicksCount",
+          "ctr",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "eventTitle": {
+            "type": "string"
+          },
+          "plan": {
+            "type": "string",
+            "enum": [
+              "one_day",
+              "thu_sat",
+              "full_week"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_payment",
+              "scheduled",
+              "active",
+              "completed",
+              "cancelled"
+            ]
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "amountRon": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "impressionsCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "clicksCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ctr": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PromotionCheckoutResponse": {
+        "type": "object",
+        "required": [
+          "checkoutUrl",
+          "campaignId"
+        ],
+        "properties": {
+          "checkoutUrl": {
+            "type": "string"
+          },
+          "campaignId": {
+            "type": "string"
+          }
+        }
+      },
+      "PromotionPlanResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "amountRon",
+          "days"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "one_day",
+              "thu_sat",
+              "full_week"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "amountRon": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "days": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "PublicProfileResponse": {
         "type": "object",
         "required": [
@@ -4034,6 +4317,25 @@
           "validatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "TrackPromotionMetricPayload": {
+        "type": "object",
+        "required": [
+          "metric",
+          "viewerKey"
+        ],
+        "properties": {
+          "metric": {
+            "type": "string",
+            "enum": [
+              "impression",
+              "click"
+            ]
+          },
+          "viewerKey": {
+            "type": "string"
           }
         }
       },

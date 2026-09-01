@@ -17,6 +17,9 @@ export type ArtistInput = WritableSchema<"ArtistInput">;
 export type InvitationTicket = { id: string; label: string; validationHash: string; ticketType?: string; status: "active" | "used" | "revoked"; createdAt?: string };
 export type PromoCode = ReadableSchema<"PromoCodeResponse">;
 export type CreatePromoCode = WritableSchema<"CreatePromoCodePayload">;
+export type PromotionPlan = ReadableSchema<"PromotionPlanResponse">;
+export type PromotionCampaign = ReadableSchema<"PromotionCampaignResponse">;
+export type PromotedEvent = ReadableSchema<"PromotedEventResponse">;
 export type SpotifyArtist = ReadableSchema<"SpotifyArtistResponse">;
 export type CreateTicketTierPayload = WritableSchema<"CreateTicketTypePayload">;
 export type Event = ReadableSchema<"EventResponse">;
@@ -772,6 +775,18 @@ export class User {
     await ApiClient.instance.delete("/dashboard/events/{id}/promo-codes/{promoId}", { params: { path: { id: eventId, promoId } } });
   }
 
+  async listPromotionPlans(): Promise<PromotionPlan[]> {
+    return ApiClient.instance.get("/dashboard/promotions/plans");
+  }
+
+  async listPromotionCampaigns(): Promise<PromotionCampaign[]> {
+    return ApiClient.instance.get("/dashboard/promotions");
+  }
+
+  async createPromotionCheckout(payload: WritableSchema<"CreatePromotionCheckoutPayload">): Promise<ReadableSchema<"PromotionCheckoutResponse">> {
+    return ApiClient.instance.post("/dashboard/promotions/checkout", { body: payload });
+  }
+
   async uploadOrganizerUpdateImage(file: File): Promise<{ url: string }> {
     return ApiClient.instance.uploadOrganizerUpdateImage(file);
   }
@@ -1429,6 +1444,17 @@ export class User {
 // }
 
 export class PublicEventsService {
+  static async getPromotedEvents(): Promise<PromotedEvent[]> {
+    return ApiClient.instance.get("/promotions/active");
+  }
+
+  static async trackPromotion(campaignId: string, metric: "impression" | "click", viewerKey: string): Promise<void> {
+    await ApiClient.instance.post("/promotions/{id}/track", {
+      params: { path: { id: campaignId } },
+      body: { metric, viewerKey },
+    });
+  }
+
   static async uploadArtistImage(file: File): Promise<{ url: string }> {
     return ApiClient.instance.uploadEventBanner(file);
   }

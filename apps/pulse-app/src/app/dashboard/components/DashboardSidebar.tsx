@@ -13,6 +13,7 @@ import {
   WalletCards,
   Ticket,
   LogOut,
+  Megaphone,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -35,6 +36,7 @@ const organizerItems = [
   { href: "/dashboard/finance", label: "Finante", icon: WalletCards },
   { href: "/dashboard/purchases", label: "Biletea", icon: Ticket },
   { href: "/dashboard/events", label: "Evenimente", icon: Calendar },
+  { href: "/dashboard/promotions", label: "Promovare", icon: Megaphone },
 ] as const;
 
 const validatorItems = [
@@ -59,6 +61,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
     "/dashboard/finance": t("dashboardNav.finance"),
     "/dashboard/purchases": t("dashboardNav.purchases"),
     "/dashboard/events": t("dashboardNav.events"),
+    "/dashboard/promotions": t("dashboardNav.promotions"),
     "/users/me": t("dashboardNav.profile"),
   })[href] ?? href;
 

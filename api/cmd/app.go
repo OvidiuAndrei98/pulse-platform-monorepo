@@ -16,6 +16,7 @@ import (
 	"pulse-api/internal/notifications"
 	"pulse-api/internal/organizer"
 	"pulse-api/internal/payments"
+	"pulse-api/internal/promotions"
 	"pulse-api/internal/router"
 	"pulse-api/internal/spotify"
 	"pulse-api/internal/tickets"
@@ -132,7 +133,8 @@ func (app *Application) BuildRouter() http.Handler {
 	organizerHandler := organizer.NewHandler(app.Queries)
 	ticketingHandler := tickets.NewHandler(app.Queries, app.Pool, os.Getenv("PUBLIC_APP_URL"))
 	stripeCheckoutHandler := payments.NewCheckoutHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), mailerService)
-	stripeWebhookHandler := payments.NewWebhookHandler(os.Getenv("STRIPE_WEBHOOK_SECRET"), stripeCheckoutHandler)
+	promotionHandler := promotions.NewHandler(app.Queries, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"))
+	stripeWebhookHandler := payments.NewWebhookHandler(os.Getenv("STRIPE_WEBHOOK_SECRET"), stripeCheckoutHandler, promotionHandler)
 	stripeConnectWebhookHandler := payments.NewConnectWebhookHandler(app.Queries, os.Getenv("STRIPE_CONNECT_WEBHOOK_SECRET"))
 	stripeConnectHandler := payments.NewConnectHandler(
 		app.Queries,
@@ -211,6 +213,11 @@ func (app *Application) BuildRouter() http.Handler {
 		ListPromoCodes:             eventsHandler.HandleListPromoCodes,
 		CreatePromoCode:            eventsHandler.HandleCreatePromoCode,
 		DeactivatePromoCode:        eventsHandler.HandleDeactivatePromoCode,
+		ListPromotionPlans:         promotionHandler.HandleListPlans,
+		CreatePromotionCheckout:    promotionHandler.HandleCreateCheckout,
+		ListPromotionCampaigns:     promotionHandler.HandleListCampaigns,
+		ListActivePromotions:       promotionHandler.HandleListActive,
+		TrackPromotionMetric:       promotionHandler.HandleTrackMetric,
 
 		// Interactions / Checkins
 		CreateCheckIn: interactionsHandler.HandleCreateCheckIn,

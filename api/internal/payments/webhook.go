@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"pulse-api/internal/promotions"
 
 	"github.com/stripe/stripe-go/v85"
 	"github.com/stripe/stripe-go/v85/webhook"
@@ -15,10 +16,11 @@ const maxWebhookBodyBytes = 1 << 20
 type WebhookHandler struct {
 	webhookSecret string
 	checkout      *CheckoutHandler
+	promotions    *promotions.Handler
 }
 
-func NewWebhookHandler(webhookSecret string, checkout *CheckoutHandler) *WebhookHandler {
-	return &WebhookHandler{webhookSecret: webhookSecret, checkout: checkout}
+func NewWebhookHandler(webhookSecret string, checkout *CheckoutHandler, promotionHandler *promotions.Handler) *WebhookHandler {
+	return &WebhookHandler{webhookSecret: webhookSecret, checkout: checkout, promotions: promotionHandler}
 }
 
 func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Request) {
@@ -66,6 +68,15 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 		if session.PaymentIntent != nil {
 			paymentIntentID = session.PaymentIntent.ID
 		}
+		if campaignID := session.Metadata["pulse_promotion_campaign_id"]; campaignID != "" {
+			if h.promotions == nil || h.promotions.FulfillCampaign(r.Context(), campaignID, session.ID, paymentIntentID) != nil {
+				log.Printf("Stripe promotion fulfillment failed: session=%s campaign=%s", session.ID, campaignID)
+				http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
+				return
+			}
+			log.Printf("Stripe promotion fulfilled: session=%s campaign=%s", session.ID, campaignID)
+			break
+		}
 		if err := h.checkout.FulfillCheckout(r.Context(), session.ID, paymentIntentID, session.Metadata["pulse_order_id"]); err != nil {
 			log.Printf("Stripe checkout fulfillment failed: session=%s err=%v", session.ID, err)
 			http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
@@ -74,7 +85,17 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 		log.Printf("Stripe checkout fulfilled: session=%s", session.ID)
 	case "checkout.session.expired":
 		var session stripe.CheckoutSession
-		if event.Data != nil && json.Unmarshal(event.Data.Raw, &session) == nil && h.checkout != nil {
+		if event.Data != nil && json.Unmarshal(event.Data.Raw, &session) == nil {
+			if campaignID := session.Metadata["pulse_promotion_campaign_id"]; campaignID != "" && h.promotions != nil {
+				if err := h.promotions.CancelCampaign(r.Context(), campaignID); err != nil {
+					http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
+					return
+				}
+				break
+			}
+			if h.checkout == nil {
+				break
+			}
 			if err := h.checkout.FailCheckout(r.Context(), session.Metadata["pulse_order_id"], ""); err != nil {
 				log.Printf("Stripe checkout release failed: session=%s err=%v", session.ID, err)
 				http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
@@ -84,7 +105,17 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 		log.Printf("Stripe checkout expired: id=%s", event.ID)
 	case "payment_intent.payment_failed":
 		var paymentIntent stripe.PaymentIntent
-		if event.Data != nil && json.Unmarshal(event.Data.Raw, &paymentIntent) == nil && h.checkout != nil {
+		if event.Data != nil && json.Unmarshal(event.Data.Raw, &paymentIntent) == nil {
+			if campaignID := paymentIntent.Metadata["pulse_promotion_campaign_id"]; campaignID != "" && h.promotions != nil {
+				if err := h.promotions.CancelCampaign(r.Context(), campaignID); err != nil {
+					http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
+					return
+				}
+				break
+			}
+			if h.checkout == nil {
+				break
+			}
 			if err := h.checkout.FailCheckout(r.Context(), paymentIntent.Metadata["pulse_order_id"], paymentIntent.ID); err != nil {
 				log.Printf("Stripe payment failure release failed: payment_intent=%s err=%v", paymentIntent.ID, err)
 				http.Error(w, "Webhook processing failed", http.StatusInternalServerError)

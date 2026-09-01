@@ -14,6 +14,7 @@ import {
   Ticket,
   WalletCards,
   LogOut,
+  Megaphone,
 } from "lucide-react";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
@@ -31,6 +32,7 @@ const organizerTabs = [
     icon: QrCode,
   },
   { href: "/dashboard/events", label: "dashboardNav.events", icon: Calendar },
+  { href: "/dashboard/promotions", label: "dashboardNav.promotions", icon: Megaphone },
   { href: "/dashboard/events/new", label: "dashboardNav.newEvent", icon: Plus },
   {
     href: "/dashboard/finance",
