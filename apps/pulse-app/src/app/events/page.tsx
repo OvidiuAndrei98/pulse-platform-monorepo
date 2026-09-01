@@ -158,7 +158,7 @@ function EventsPageContent() {
   }, [eventQuery]);
 
   return (
-    <div className="relative h-dvh overflow-hidden overscroll-none text-foreground pb-[110px]">
+    <div className="relative h-dvh overflow-hidden overscroll-none text-foreground">
       <div
         className={`relative h-full ${
           view === "map"
