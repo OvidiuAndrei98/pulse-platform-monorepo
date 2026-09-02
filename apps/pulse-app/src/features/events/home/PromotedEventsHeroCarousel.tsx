@@ -7,7 +7,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useEventDetails } from "@/components/EventDetailsSheet";
 import type { PromotedEvent } from "@/core/DataProvider";
-import { formatEventDateShort, formatEventTime } from "@/features/events/dateFormat";
+import {
+  formatEventDateShort,
+  formatEventTime,
+} from "@/features/events/dateFormat";
 
 interface PromotedEventsHeroCarouselProps {
   items: readonly PromotedEvent[];
@@ -31,18 +34,26 @@ export function PromotedEventsHeroCarousel({
   const [paused, setPaused] = useState(false);
   const [visible, setVisible] = useState(false);
 
-  const goTo = useCallback((index: number) => {
-    if (!items.length) return;
-    setActiveIndex((index + items.length) % items.length);
-  }, [items.length]);
+  const goTo = useCallback(
+    (index: number) => {
+      if (!items.length) return;
+      setActiveIndex((index + items.length) % items.length);
+    },
+    [items.length],
+  );
 
   useEffect(() => {
-    setActiveIndex((current) => Math.min(current, Math.max(0, items.length - 1)));
+    setActiveIndex((current) =>
+      Math.min(current, Math.max(0, items.length - 1)),
+    );
   }, [items.length]);
 
   useEffect(() => {
     if (paused || items.length < 2) return;
-    const timer = window.setInterval(() => goTo(activeIndex + 1), autoPlayInterval);
+    const timer = window.setInterval(
+      () => goTo(activeIndex + 1),
+      autoPlayInterval,
+    );
     return () => window.clearInterval(timer);
   }, [activeIndex, autoPlayInterval, goTo, items.length, paused]);
 
@@ -50,7 +61,10 @@ export function PromotedEventsHeroCarousel({
     const hero = heroRef.current;
     if (!hero) return;
     const observer = new IntersectionObserver(
-      ([entry]) => setVisible(Boolean(entry?.isIntersecting && entry.intersectionRatio >= 0.4)),
+      ([entry]) =>
+        setVisible(
+          Boolean(entry?.isIntersecting && entry.intersectionRatio >= 0.4),
+        ),
       { threshold: [0.4] },
     );
     observer.observe(hero);
@@ -84,18 +98,12 @@ export function PromotedEventsHeroCarousel({
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={(focusEvent) => {
-        if (!focusEvent.currentTarget.contains(focusEvent.relatedTarget)) setPaused(false);
+        if (!focusEvent.currentTarget.contains(focusEvent.relatedTarget))
+          setPaused(false);
       }}
     >
-      <div className="app-page-gutter mx-auto mb-4 flex max-w-7xl items-center justify-between gap-4">
-        <h2 className="text-base font-semibold md:text-lg">{t("promotions.recommended")}</h2>
-        <span className="text-xs font-semibold tabular-nums text-muted-foreground">
-          {activeIndex + 1} / {items.length}
-        </span>
-      </div>
-
       <div ref={heroRef} className="app-page-gutter mx-auto max-w-7xl">
-        <div className="group relative overflow-hidden rounded-[26px] border border-white/10 bg-[#101014] shadow-2xl shadow-black/30 md:rounded-[32px]">
+        <div className="group relative overflow-hidden rounded-[26px]  bg-[#101014] shadow-2xl shadow-black/30 md:rounded-[32px]">
           <button
             type="button"
             onClick={openEvent}
@@ -107,7 +115,12 @@ export function PromotedEventsHeroCarousel({
               const startX = touchStartXRef.current;
               const endX = touchEvent.changedTouches[0]?.clientX;
               touchStartXRef.current = null;
-              if (startX == null || endX == null || Math.abs(startX - endX) < 45) return;
+              if (
+                startX == null ||
+                endX == null ||
+                Math.abs(startX - endX) < 45
+              )
+                return;
               suppressClickRef.current = true;
               goTo(activeIndex + (startX > endX ? 1 : -1));
             }}
@@ -138,7 +151,8 @@ export function PromotedEventsHeroCarousel({
             <div className="absolute inset-0 z-10 flex flex-col justify-between p-4 sm:p-6 md:p-8">
               <div className="flex items-start justify-end gap-3">
                 <span className="rounded-full border border-white/15 bg-black/55 px-3 py-2 text-xs font-semibold text-white backdrop-blur-md sm:text-sm">
-                  {formatEventDateShort(event.startTime)} · {formatEventTime(event.startTime)}
+                  {formatEventDateShort(event.startTime)} ·{" "}
+                  {formatEventTime(event.startTime)}
                 </span>
               </div>
 
@@ -151,13 +165,14 @@ export function PromotedEventsHeroCarousel({
                 </h3>
                 <p className="mt-3 flex items-center gap-1.5 truncate text-sm text-white/75 sm:text-base">
                   <MapPin className="h-4 w-4 shrink-0 text-primary" />
-                  {event.locationName}{event.city ? ` · ${event.city}` : ""}
+                  {event.locationName}
+                  {event.city ? ` · ${event.city}` : ""}
                 </p>
               </div>
             </div>
           </button>
 
-          {items.length > 1 && (
+          {/* {items.length > 1 && (
             <>
               <button
                 type="button"
@@ -176,11 +191,11 @@ export function PromotedEventsHeroCarousel({
                 <ChevronRight className="h-5 w-5" />
               </button>
             </>
-          )}
+          )} */}
         </div>
       </div>
 
-      {items.length > 1 && (
+      {/* {items.length > 1 && (
         <div className="mt-3 flex items-center justify-center gap-1.5">
           {items.map((item, index) => (
             <button
@@ -193,7 +208,7 @@ export function PromotedEventsHeroCarousel({
             />
           ))}
         </div>
-      )}
+      )} */}
     </section>
   );
 }

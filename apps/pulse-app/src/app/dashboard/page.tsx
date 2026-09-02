@@ -7,6 +7,7 @@ import {
   Calendar,
   CreditCard,
   MapPin,
+  Megaphone,
   Plus,
   RefreshCw,
 } from "lucide-react";
@@ -121,15 +122,7 @@ export default function OrganizerDashboard() {
               {t("dashboard.overview")}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/dashboard/events/new"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
-            >
-              <Plus className="h-4 w-4" />
-              {t("dashboardNav.newEvent")}
-            </Link>
-          </div>
+          <div className="flex items-center gap-2"></div>
         </header>
 
         {eventsLoading ? (
@@ -168,7 +161,21 @@ export default function OrganizerDashboard() {
             </div>
           </Link>
         ) : null}
-
+        <div className="w-full flex gap-3 justify-between">
+          <Link
+            href="/dashboard/events/new"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" />
+            {t("dashboardNav.newEvent")}
+          </Link>
+          <Link
+            href="/dashboard/promotions"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-primary transition hover:opacity-90"
+          >
+            <Megaphone className="h-4 w-4" /> {t("dashboardNav.newPromotion")}
+          </Link>
+        </div>
         {loading ? (
           <div className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
             <div className="flex items-center gap-3 p-5">

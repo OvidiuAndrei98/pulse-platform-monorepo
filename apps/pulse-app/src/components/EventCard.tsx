@@ -49,11 +49,14 @@ export function EventCard({
   );
   useEffect(() => {
     if (!onVisible || !cardRef.current) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry?.isIntersecting || entry.intersectionRatio < 0.4) return;
-      onVisible();
-      observer.disconnect();
-    }, { threshold: [0.4] });
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting || entry.intersectionRatio < 0.4) return;
+        onVisible();
+        observer.disconnect();
+      },
+      { threshold: [0.4] },
+    );
     observer.observe(cardRef.current);
     return () => observer.disconnect();
   }, [event.id, onVisible]);
@@ -89,7 +92,7 @@ export function EventCard({
           openEvent();
         }
       }}
-      className={`group relative w-[260px] shrink-0 cursor-pointer rounded-[26px] border border-white/10 bg-gradient-to-b from-[#060606] via-[#090909] to-[#060606] p-2 shadow-none transition-all duration-200 hover:border-white/20 hover:from-[#16161c] hover:to-[#0c0c0f] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${className}`}
+      className={`group relative w-[220px] md:w-[260px] shrink-0 cursor-pointer rounded-[26px] border border-white/5 bg-gradient-to-b from-[#060606] via-[#090909] to-[#060606] p-2 shadow-none transition-all duration-200 hover:border-white/20 hover:from-[#16161c] hover:to-[#0c0c0f] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${className}`}
     >
       <div className="block">
         {/* 1. CONTAINER IMAGINE */}
@@ -119,8 +122,15 @@ export function EventCard({
                 </span>
               </div>
             ) : promoted ? (
-              <div className="inline-flex h-6 items-center gap-1.5 rounded-full border border-primary/30 bg-black/65 px-2.5 text-primary backdrop-blur-md"><Megaphone className="h-3 w-3" /><span className="text-[10px] font-bold uppercase tracking-wider">{t("promotions.sponsored")}</span></div>
-            ) : <div />}
+              <div className="inline-flex h-6 items-center gap-1.5 rounded-full border border-primary/30 bg-black/65 px-2.5 text-primary backdrop-blur-md">
+                <Megaphone className="h-3 w-3" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">
+                  {t("promotions.sponsored")}
+                </span>
+              </div>
+            ) : (
+              <div />
+            )}
 
             {/* Capsulei cu Ora/Data i s-au aplicat exact aceleași clase de dimensiune: h-6, inline-flex, items-center */}
             <div className="inline-flex h-6 items-center rounded-full border border-white/10 bg-black/60 px-2.5 text-[10px] font-semibold text-white/90 backdrop-blur-md">
