@@ -10,7 +10,8 @@
     "cap:android": "cap open android",
     "cap:ios": "cap open ios",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "i18n:audit": "node scripts/i18n-audit.cjs"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.0",

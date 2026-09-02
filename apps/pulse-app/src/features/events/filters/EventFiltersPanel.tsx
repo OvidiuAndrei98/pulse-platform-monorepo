@@ -100,9 +100,9 @@ export function EventFiltersPanel({
             ))}
           </div>
         </FilterSection>
-        <FilterSection title={`${t("filters.distance")} · ${filters.distance} km`}>
+        <FilterSection title={`${t("filters.distance")} · ${t("filters.distanceValue", { distance: filters.distance })}`}>
           <input type="range" min={1} max={50} value={filters.distance} onChange={(event) => onChange({ ...filters, distance: Number(event.target.value) })} className="w-full accent-[hsl(var(--primary))]" style={{ accentColor: "oklch(0.88 0.22 135)" }} />
-          <div className="mt-1 flex justify-between text-[11px] text-muted-foreground"><span>1 km</span><span>50 km</span></div>
+          <div className="mt-1 flex justify-between text-[11px] text-muted-foreground"><span>{t("filters.distanceValue", { distance: 1 })}</span><span>{t("filters.distanceValue", { distance: 50 })}</span></div>
         </FilterSection>
       </motion.div>
       <div className="relative flex items-center gap-3 border-t border-white/10 px-6 py-4">

@@ -7,8 +7,12 @@ export const eventMapStyles = `
   .event-map-pin--selected .event-map-pin__icon, .event-map-pin--live:not(.event-map-pin--selected) .event-map-pin__icon { color: #08130d; }
   .event-map-pin--live:not(.event-map-pin--selected) .event-map-pin__shape { border-color: rgba(206, 255, 142, 0.95); background: var(--primary, #a3e635); box-shadow: 0 0 0 4px rgba(163, 230, 53, 0.1), 0 9px 20px rgba(0, 0, 0, 0.48); }
   .event-map-pin__pulse { position: absolute; z-index: 0; height: 29px; width: 29px; border: 1px solid rgba(190, 242, 100, 0.85); border-radius: 999px; background: rgba(163, 230, 53, 0.14); animation: live-pin-pulse 2.4s ease-out infinite; }
+  .event-map-cluster { position: relative; display: grid; place-items: center; border: 1px solid rgba(206, 255, 142, 0.9); border-radius: 999px; background: rgba(12, 24, 18, 0.96); color: var(--primary, #a3e635); box-shadow: 0 0 0 6px rgba(163, 230, 53, 0.13), 0 10px 24px rgba(0, 0, 0, 0.5); font-size: 13px; font-weight: 800; line-height: 1; transition: border-color 160ms ease, background 160ms ease, color 160ms ease; }
+  .event-map-cluster::after { position: absolute; inset: -7px; content: ""; border: 1px solid rgba(163, 230, 53, 0.2); border-radius: inherit; }
+  .leaflet-marker-icon:hover .event-map-cluster { border-color: var(--primary, #a3e635); background: var(--primary, #a3e635); color: #08130d; }
   @keyframes live-pin-pulse { 0% { transform: scale(0.9); opacity: 0.55; } 70%, 100% { transform: scale(1.8); opacity: 0; } }
-  .leaflet-control-attribution, .leaflet-bottom.leaflet-right { display: none !important; }
+  .leaflet-control-attribution { border-radius: 8px 0 0 0; background: rgba(3, 6, 4, 0.72) !important; color: rgba(255, 255, 255, 0.55); font-size: 9px; backdrop-filter: blur(8px); }
+  .leaflet-control-attribution a { color: rgba(206, 255, 142, 0.78); }
   .leaflet-container { background: #030604 !important; }
   .event-preview-popup.leaflet-popup { margin-bottom: 18px; }
   .event-preview-popup .leaflet-popup-content-wrapper { overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 16px; background: oklch(0.16 0.02 150 / 94%); box-shadow: 0 18px 35px rgba(0, 0, 0, 0.4); }

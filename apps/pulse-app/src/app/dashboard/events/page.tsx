@@ -81,9 +81,10 @@ export default function EventsListPage() {
               {t("organizerEvents.title")}
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground">
-              {(events || []).length} total ·{" "}
-              {(events || []).filter((e) => e.status === "published").length}{" "}
-              {t("organizerEvents.published")}
+              {t("organizerEvents.total", {
+                total: (events || []).length,
+                published: (events || []).filter((e) => e.status === "published").length,
+              })}
             </p>
           </div>
 

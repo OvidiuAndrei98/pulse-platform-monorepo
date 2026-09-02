@@ -517,8 +517,7 @@ export default function MePage() {
               <div className="hidden md:grid md:grid-cols-1 md:gap-6">
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                    <Ticket className="h-4 w-4" /> Active Tickets (
-                    {activeTickets.length})
+                    <Ticket className="h-4 w-4" /> {t("userProfile.activeTickets", { count: activeTickets.length })}
                   </h3>
                   {ticketsLoading ? (
                     <div className="grid grid-cols-2 gap-3">
@@ -682,7 +681,7 @@ export default function MePage() {
             </button>
 
             <p className="text-center text-[10px] text-muted-foreground/60 md:text-left">
-              Glow · v1.0.0
+              SPOTTR · v1.0.0
             </p>
           </div>
         </div>

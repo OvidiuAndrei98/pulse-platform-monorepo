@@ -145,8 +145,8 @@ WHERE campaign.status = 'active'
       WHERE hidden.user_id = $1
         AND hidden.category = UPPER(event.category)
   )
-ORDER BY campaign.impressions_count ASC, campaign.created_at ASC
-LIMIT 8
+ORDER BY RANDOM()
+LIMIT 5
 `
 
 type ListActivePromotionCampaignEventsRow struct {

@@ -224,9 +224,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 export function useDataProvider() {
   const context = useContext(DataProviderContext);
   if (!context) {
-    throw new Error(
-      "useDataProvider trebuie folosit în interiorul unui DataProvider",
-    );
+    throw new Error("DATA_PROVIDER_MISSING");
   }
   return context;
 }

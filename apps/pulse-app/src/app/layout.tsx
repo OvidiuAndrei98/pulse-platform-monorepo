@@ -9,6 +9,7 @@ import { OfflineScannerServiceWorker } from "@/components/OfflineScannerServiceW
 import { ToastProvider } from "@/components/ToastProvider";
 import { NativeAppBridge } from "@/components/NativeAppBridge";
 import { NativeNavigationGestures } from "@/components/NativeNavigationGestures";
+import { resources } from "@/i18n/resources";
 
 const inter = Inter({
   variable: "--font-inter-sans",
@@ -21,13 +22,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Glow",
-  description: "Glow Event Platform",
+  title: resources.en.translation.metadata.appTitle,
+  description: resources.en.translation.metadata.appDescription,
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Glow",
+    title: resources.en.translation.metadata.appTitle,
   },
 };
 

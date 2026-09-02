@@ -54,7 +54,7 @@ export function EventBrowseCard({
                   <span className="absolute inset-0 animate-ping rounded-full bg-red-400 opacity-75" />
                   <span className="relative h-1.5 w-1.5 rounded-full bg-red-400" />
                 </span>
-                Live
+                {t("events.liveNow")}
               </span>
             )}
           </div>

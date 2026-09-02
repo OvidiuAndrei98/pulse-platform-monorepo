@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { defaultEventFilters } from "@/features/events/constants";
 import { EventFilters } from "@/features/events/types";
@@ -14,6 +15,7 @@ type FiltersSheetProps = {
 };
 
 export function FiltersSheet({ value, onChange }: FiltersSheetProps = {}) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [filters, setFilters] = useState<EventFilters>(
     value ?? defaultEventFilters,
@@ -54,7 +56,7 @@ export function FiltersSheet({ value, onChange }: FiltersSheetProps = {}) {
             key="filter-btn"
             layoutId="filter-morph"
             type="button"
-            aria-label="Filters"
+            aria-label={t("common.filters")}
             onClick={() => setOpen(true)}
             className="group grid h-[44px] w-[44px] shrink-0 place-items-center overflow-hidden rounded-full border border-white/10 md:backdrop-blur-md bg-[#121418]/85 md:bg-white/[0.06] text-white/70 shadow-lg transition-colors hover:text-white transform-gpu"
             transition={{ type: "spring", stiffness: 260, damping: 28 }}

@@ -27,7 +27,7 @@ export function LegalDocument({
   const { t } = useTranslation();
   return (
     <main className="mx-auto min-h-screen w-full max-w-3xl px-5 pb-32 pt-12 text-foreground sm:px-7 sm:pt-16">
-      <Link href="/" className="text-xs font-semibold text-primary transition hover:opacity-80">Glow</Link>
+      <Link href="/" className="text-xs font-semibold text-primary transition hover:opacity-80">SPOTTR</Link>
       <header className="mt-7 border-b border-white/10 pb-7">
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
         <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">{title}</h1>

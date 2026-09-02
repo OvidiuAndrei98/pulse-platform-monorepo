@@ -5,6 +5,7 @@ import { SearchPopover } from "@/components/SearchPopover";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { User, Event, PublicEventsService, type PromotedEvent } from "@/core/DataProvider";
 import { HomeEventCarousel } from "@/features/events/home/HomeEventCarousel";
+import { PromotedEventsHeroCarousel } from "@/features/events/home/PromotedEventsHeroCarousel";
 import { Coordinates } from "@/features/events/types";
 import { getDistanceKm } from "@/features/events/utils";
 import { useTranslation } from "react-i18next";
@@ -182,6 +183,20 @@ export default function Home() {
           </div>
         </div>
 
+        {promotedEvents.length > 0 && (
+          <PromotedEventsHeroCarousel
+            items={promotedEvents}
+            onEventOpen={(campaign) => {
+              const viewerKey = sessionStorage.getItem("pulse:promotion-viewer");
+              if (viewerKey) void PublicEventsService.trackPromotion(campaign.campaignId, "click", viewerKey);
+            }}
+            onEventVisible={(campaign) => {
+              const viewerKey = sessionStorage.getItem("pulse:promotion-viewer");
+              if (viewerKey) void PublicEventsService.trackPromotion(campaign.campaignId, "impression", viewerKey);
+            }}
+          />
+        )}
+
         {eventsLoading ? (
           <HomeLoadingState />
         ) : eventsError ? (
@@ -197,24 +212,6 @@ export default function Home() {
                 live
                 emptyMessage=""
                 seeAllHref="/events?date=Tonight"
-              />
-            )}
-            {promotedEvents.length > 0 && (
-              <HomeEventCarousel
-                title={t("promotions.recommended")}
-                events={promotedEvents.map((item) => item.event)}
-                promoted
-                emptyMessage=""
-                onEventOpen={(selectedEvent) => {
-                  const campaign = promotedEvents.find((item) => item.event.id === selectedEvent.id);
-                  const viewerKey = sessionStorage.getItem("pulse:promotion-viewer");
-                  if (campaign && viewerKey) void PublicEventsService.trackPromotion(campaign.campaignId, "click", viewerKey);
-                }}
-                onEventVisible={(visibleEvent) => {
-                  const campaign = promotedEvents.find((item) => item.event.id === visibleEvent.id);
-                  const viewerKey = sessionStorage.getItem("pulse:promotion-viewer");
-                  if (campaign && viewerKey) void PublicEventsService.trackPromotion(campaign.campaignId, "impression", viewerKey);
-                }}
               />
             )}
             {tonightForYou.length > 0 && (

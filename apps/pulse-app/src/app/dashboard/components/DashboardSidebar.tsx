@@ -23,27 +23,27 @@ import { useTranslation } from "react-i18next";
 const organizerItems = [
   {
     href: "/dashboard",
-    label: "Dashboard",
+    label: "dashboardNav.dashboard",
     icon: LayoutDashboard,
     exact: true,
   },
-  { href: "/dashboard/profile", label: "Profil", icon: User },
+  { href: "/dashboard/profile", label: "dashboardNav.profile", icon: User },
   {
     href: "/dashboard/ticket-validation",
-    label: "Validare bilete",
+    label: "dashboardNav.ticketValidation",
     icon: QrCode,
   },
-  { href: "/dashboard/finance", label: "Finante", icon: WalletCards },
-  { href: "/dashboard/purchases", label: "Biletea", icon: Ticket },
-  { href: "/dashboard/events", label: "Evenimente", icon: Calendar },
-  { href: "/dashboard/promotions", label: "Promovare", icon: Megaphone },
+  { href: "/dashboard/finance", label: "dashboardNav.finance", icon: WalletCards },
+  { href: "/dashboard/purchases", label: "dashboardNav.purchases", icon: Ticket },
+  { href: "/dashboard/events", label: "dashboardNav.events", icon: Calendar },
+  { href: "/dashboard/promotions", label: "dashboardNav.promotions", icon: Megaphone },
 ] as const;
 
 const validatorItems = [
-  { href: "/users/me", label: "Profil", icon: User, exact: true },
+  { href: "/users/me", label: "dashboardNav.profile", icon: User, exact: true },
   {
     href: "/dashboard/ticket-validation",
-    label: "Validare bilete",
+    label: "dashboardNav.ticketValidation",
     icon: QrCode,
   },
 ] as const;
@@ -54,16 +54,6 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const { isOrganizer, logout } = useDataProvider();
   const { t } = useTranslation();
   const items = isOrganizer ? organizerItems : validatorItems;
-  const labelFor = (href: string) => ({
-    "/dashboard": t("dashboardNav.dashboard"),
-    "/dashboard/profile": t("dashboardNav.profile"),
-    "/dashboard/ticket-validation": t("dashboardNav.ticketValidation"),
-    "/dashboard/finance": t("dashboardNav.finance"),
-    "/dashboard/purchases": t("dashboardNav.purchases"),
-    "/dashboard/events": t("dashboardNav.events"),
-    "/dashboard/promotions": t("dashboardNav.promotions"),
-    "/users/me": t("dashboardNav.profile"),
-  })[href] ?? href;
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return pathname === href;
@@ -82,7 +72,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       <div>
         <div className="px-5 pt-8 pb-6">
           <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">
-            Eventify
+            SPOTTR
           </p>
           <h2 className="mt-1 text-lg font-bold tracking-tight text-foreground">
             {isOrganizer ? t("dashboardNav.organizer") : t("dashboardNav.ticketValidation")}
@@ -115,7 +105,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                 )}
 
                 <Icon className="relative z-10 h-4 w-4 shrink-0" />
-                <span className="relative z-10">{labelFor(it.href)}</span>
+                <span className="relative z-10">{t(it.label)}</span>
               </Link>
             );
           })}
@@ -146,7 +136,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
           <LogOut className="h-4 w-4" />
           {t("dashboardNav.logout")}
         </button>
-        © {new Date().getFullYear()} Eventify. All rights reserved.
+        © {new Date().getFullYear()} SPOTTR. {t("dashboardNav.copyright")}
       </div>
     </div>
   );
@@ -220,7 +210,7 @@ export function OrganizerSidebar() {
             >
               <button
                 type="button"
-                aria-label="Închide meniul"
+                aria-label={t("dashboardNav.closeMenu")}
                 onClick={() => setOpen(false)}
                 className="absolute right-3.5 top-3.5 flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-background/50 text-muted-foreground backdrop-blur-md transition hover:text-foreground active:scale-95 z-20"
               >

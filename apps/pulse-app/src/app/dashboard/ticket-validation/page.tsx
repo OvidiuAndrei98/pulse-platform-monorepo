@@ -1265,7 +1265,7 @@ export default function TicketValidationPage() {
                 ) : (
                   <Link2 className="h-4 w-4" />
                 )}
-                Genereaza link
+                {t("validation.createLink")}
               </button>
             </form>
 

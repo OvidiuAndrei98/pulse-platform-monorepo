@@ -80,7 +80,7 @@ export default function ProfilePage() {
                   t("organizerProfile.userFallback")}
               </p>
               <p className="truncate text-xs text-muted-foreground">
-                {user?.properties.email || "email@exemplu.com"}
+                {user?.properties.email || t("common.email")}
               </p>
             </div>
           </div>

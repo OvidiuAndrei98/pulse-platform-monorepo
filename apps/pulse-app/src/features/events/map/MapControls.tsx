@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { LocateFixed, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
 import { useMap } from "react-leaflet";
 import { Coordinates } from "@/features/events/types";
@@ -15,6 +16,7 @@ export function MapControls({
   isFullView?: boolean;
   onToggleFullView?: () => void;
 }) {
+  const { t } = useTranslation();
   const map = useMap();
   const [locating, setLocating] = useState(false);
   const handleRecenter = async () => {
@@ -48,7 +50,7 @@ export function MapControls({
             event.stopPropagation();
             map.zoomIn();
           }}
-          aria-label="Zoom in"
+          aria-label={t("mapControls.zoomIn")}
           className="grid h-9 w-9 place-items-center transition-colors hover:bg-white/10 hover:text-white active:bg-white/20"
         >
           <Plus className="h-4 w-4" />
@@ -60,7 +62,7 @@ export function MapControls({
             event.stopPropagation();
             map.zoomOut();
           }}
-          aria-label="Zoom out"
+          aria-label={t("mapControls.zoomOut")}
           className="grid h-9 w-9 place-items-center transition-colors hover:bg-white/10 hover:text-white active:bg-white/20"
         >
           <Minus className="h-4 w-4" />
@@ -74,8 +76,8 @@ export function MapControls({
           event.stopPropagation();
           void handleRecenter();
         }}
-        aria-label="Find my location"
-        title="Find my location"
+        aria-label={t("mapControls.findMyLocation")}
+        title={t("mapControls.findMyLocation")}
         disabled={locating}
         className={`grid h-9 w-9 place-items-center rounded-2xl text-white/70 transition-colors hover:bg-white/10 hover:text-white active:bg-white/20 disabled:opacity-60 ${glassClasses}`}
       >
@@ -92,8 +94,8 @@ export function MapControls({
             event.stopPropagation();
             onToggleFullView();
           }}
-          aria-label={isFullView ? "Show event list" : "Hide event list"}
-          title={isFullView ? "Show event list" : "Full map view"}
+          aria-label={t(isFullView ? "mapControls.showEventList" : "mapControls.hideEventList")}
+          title={t(isFullView ? "mapControls.showEventList" : "mapControls.fullMapView")}
           className={`hidden h-9 w-9 place-items-center rounded-2xl text-white/70 transition-colors hover:bg-white/10 hover:text-white active:bg-white/20 lg:grid ${glassClasses}`}
         >
           {isFullView ? (

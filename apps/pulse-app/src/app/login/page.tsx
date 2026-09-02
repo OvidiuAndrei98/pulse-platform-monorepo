@@ -104,7 +104,7 @@ export default function LoginPage() {
           <span className="mb-5 grid h-16 w-16 place-items-center rounded-full bg-white text-black shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
             <Moon className="h-9 w-9 fill-current" />
           </span>
-          <p className="text-5xl font-semibold tracking-[-0.06em]">Glow</p>
+          <p className="text-5xl font-semibold tracking-[-0.06em]">SPOTTR</p>
           <p className="mt-3 text-lg font-medium text-white/90">
             {t("auth.tagline")}
           </p>

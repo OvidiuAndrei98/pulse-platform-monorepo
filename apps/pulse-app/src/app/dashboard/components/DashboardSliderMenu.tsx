@@ -123,7 +123,7 @@ export function OrganizerHeader() {
         {/* BREADCRUMB NAVIGATION */}
         <div className="flex items-center justify-between gap-3">
           <nav
-            aria-label="Breadcrumb"
+            aria-label={t("dashboardNav.breadcrumb")}
             className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
           >
             {crumbs.map((c, i) => (

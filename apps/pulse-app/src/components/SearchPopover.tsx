@@ -128,7 +128,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
             <header className="relative flex items-center justify-between border-b border-white/[0.08] px-5 pb-5 pt-[max(1.25rem,var(--native-safe-top))] md:px-8 md:pt-8">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">
-                  Pulse
+                  SPOTTR
                 </p>
                 <h2 className="mt-1 text-xl font-semibold tracking-tight">
                   {t("search.open")}

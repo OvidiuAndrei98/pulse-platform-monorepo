@@ -14,7 +14,7 @@ export default function GlobalError({
       <body className="grid min-h-screen place-items-center bg-[#07100a] px-5 text-white">
         <main className="w-full max-w-sm text-center">
           <p className="text-xs font-semibold uppercase tracking-wide text-lime-300">
-            Glow
+            SPOTTR
           </p>
           <h1 className="mt-3 text-2xl font-semibold">{t("error.somethingWrong")}</h1>
           <button

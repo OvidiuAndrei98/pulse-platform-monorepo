@@ -5,6 +5,7 @@ import { Coordinates } from "@/features/events/types";
 import { formatDistance, getDistanceKm } from "@/features/events/utils";
 import { EventStatusBadge } from "@/features/events/components/EventStatusBadge";
 import { formatEventTime } from "@/features/events/dateFormat";
+import { useTranslation } from "react-i18next";
 
 export function EventMapSidebar({
   events,
@@ -19,12 +20,13 @@ export function EventMapSidebar({
   onSelect: (id: string) => void;
   onOpen: (event: Event) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <aside className="hidden lg:block">
       <div className="h-[calc(100dvh-200px)] space-y-2.5 overflow-y-auto pr-1">
         {events.length === 0 && (
           <p className="p-2 text-sm text-zinc-400">
-            No events match your filters.
+            {t("events.noMatch")}
           </p>
         )}
         {events.map((event) => {
@@ -79,7 +81,7 @@ export function EventMapSidebar({
                 <div className="mt-2 flex items-center gap-2">
                   {/* Badge Categorie */}
                   <span className="inline-flex h-6 items-center rounded-full border border-white/10 bg-white/10 px-2 text-[10px] font-semibold uppercase leading-none text-zinc-200 md:backdrop-blur-sm">
-                    {event.category || "General"}
+                    {event.category || t("events.generalCategory")}
                   </span>
 
                   {/* Badge Live Status */}

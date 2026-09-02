@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 export interface PlaceResult {
   placeId: string;
@@ -30,9 +31,11 @@ export function PlacesAutocomplete({
   value,
   onChange,
   ready,
-  placeholder = "Caută locația evenimentului...",
+  placeholder,
   className,
 }: PlacesAutocompleteProps) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("common.locationSearchPlaceholder");
   const inputRef = useRef<HTMLInputElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const autocompleteRef = useRef<any>(null);
@@ -79,7 +82,7 @@ export function PlacesAutocomplete({
       type="text"
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      placeholder={placeholder}
+      placeholder={resolvedPlaceholder}
       className={className}
       autoComplete="off"
     />

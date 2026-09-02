@@ -142,7 +142,7 @@ export default function FinancePage() {
             {t("finance.title")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Vanzari confirmate, comisioane Glow si documentele tale de comision.
+            {t("finance.subtitle")}
           </p>
         </div>
         {stripeReady && (

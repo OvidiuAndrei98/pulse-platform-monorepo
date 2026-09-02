@@ -184,6 +184,11 @@ func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusForbidden, "Nu poti promova acest eveniment")
 		return
 	}
+	organizer, err := h.queries.GetUserByID(r.Context(), organizerID)
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Datele organizatorului nu au putut fi incarcate")
+		return
+	}
 	if event.Status != "published" || event.EndTime.Time.Before(endsAt) {
 		router.RespondWithError(w, http.StatusConflict, "Evenimentul trebuie sa fie publicat si activ pe intreaga perioada aleasa")
 		return
@@ -214,10 +219,11 @@ func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
 		Mode:               stripe.String("payment"),
 		SuccessURL:         stripe.String(h.appURL + "/dashboard/promotions?payment=success"),
 		CancelURL:          stripe.String(h.appURL + "/dashboard/promotions?payment=cancelled"),
+		CustomerEmail:      stripe.String(organizer.Email),
 		ExpiresAt:          stripe.Int64(time.Now().Add(promotionCheckoutExpiration).Unix()),
 		PaymentMethodTypes: []*string{stripe.String("card")},
 		Metadata:           map[string]string{"pulse_promotion_campaign_id": campaignIDString},
-		PaymentIntentData:  &stripe.CheckoutSessionCreatePaymentIntentDataParams{Metadata: map[string]string{"pulse_promotion_campaign_id": campaignIDString}},
+		PaymentIntentData:  &stripe.CheckoutSessionCreatePaymentIntentDataParams{Metadata: map[string]string{"pulse_promotion_campaign_id": campaignIDString}, ReceiptEmail: stripe.String(organizer.Email)},
 		LineItems:          []*stripe.CheckoutSessionCreateLineItemParams{{Quantity: stripe.Int64(1), PriceData: &stripe.CheckoutSessionCreateLineItemPriceDataParams{Currency: stripe.String("ron"), UnitAmount: stripe.Int64(int64(plan.AmountRon) * 100), ProductData: &stripe.CheckoutSessionCreateLineItemPriceDataProductDataParams{Name: stripe.String("Promovare Pulse - " + plan.Name), Description: stripe.String(event.Title)}}}},
 	}
 	params.SetIdempotencyKey("pulse-promotion-" + campaignIDString)
@@ -307,6 +313,7 @@ func (h *Handler) HandleListCampaigns(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleListActive(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	h.refreshStatuses(r.Context())
 	userID, _ := authenticatedUserID(r.Context())
 	rows, err := h.queries.ListActivePromotionCampaignEvents(r.Context(), userID)

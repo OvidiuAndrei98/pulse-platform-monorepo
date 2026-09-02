@@ -95,8 +95,8 @@ WHERE campaign.status = 'active'
       WHERE hidden.user_id = sqlc.arg(user_id)
         AND hidden.category = UPPER(event.category)
   )
-ORDER BY campaign.impressions_count ASC, campaign.created_at ASC
-LIMIT 8;
+ORDER BY RANDOM()
+LIMIT 5;
 
 -- name: RecordPromotionImpression :exec
 WITH inserted_metric AS (

@@ -36,7 +36,7 @@ function escapeHtml(value: string) {
 
 async function openTicketPdf(ticket: PrintableTicket, t: (key: string, options?: Record<string, unknown>) => string, language: string) {
   const printWindow = window.open("", "_blank", "popup,width=760,height=900");
-  if (!printWindow) throw new Error("Print popup blocked");
+  if (!printWindow) throw new Error("PRINT_POPUP_BLOCKED");
 
   printWindow.document.write(`<!doctype html><title>${escapeHtml(t("ticketPdf.preparingTitle"))}</title><body style="margin:0;background:#101311"></body>`);
   printWindow.document.close();

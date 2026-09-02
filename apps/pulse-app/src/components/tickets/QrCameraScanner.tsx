@@ -92,13 +92,13 @@ export function QrCameraScanner({
     try {
       if (isNative) {
         const supported = await BarcodeScanner.isSupported();
-        if (!supported.supported) throw new Error("Barcode scanning is not supported");
+        if (!supported.supported) throw new Error("BARCODE_SCANNING_UNSUPPORTED");
 
         const permission = await BarcodeScanner.checkPermissions();
         const granted = permission.camera === "granted"
           ? permission
           : await BarcodeScanner.requestPermissions();
-        if (granted.camera !== "granted") throw new Error("Camera permission was not granted");
+        if (granted.camera !== "granted") throw new Error("CAMERA_PERMISSION_DENIED");
 
         nativeListenerRef.current = await BarcodeScanner.addListener(
           "barcodesScanned",
@@ -166,7 +166,7 @@ export function QrCameraScanner({
       await nativeListenerRef.current?.remove();
       nativeListenerRef.current = null;
       if (isNative) setNativeScannerActive(false);
-      const nativePluginUnavailable = isNative && /not implemented|not supported|unavailable|plugin/i.test(
+      const nativePluginUnavailable = isNative && /BARCODE_SCANNING_UNSUPPORTED|not implemented|not supported|unavailable|plugin/i.test(
         caughtError instanceof Error ? caughtError.message : "",
       );
       setError(t(nativePluginUnavailable ? "qr.nativeScannerUnavailable" : "qr.cameraFailed"));

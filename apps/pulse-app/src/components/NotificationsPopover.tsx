@@ -223,7 +223,7 @@ function notificationText(
     return {
       title: t("notifications.organizerEventTitle"),
       body: t("notifications.organizerEventBody", {
-        name: notification.actorUsername || "Glow",
+        name: notification.actorUsername || "SPOTTR",
       }),
     };
   }

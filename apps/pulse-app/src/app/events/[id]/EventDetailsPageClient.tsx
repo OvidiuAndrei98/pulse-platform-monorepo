@@ -388,8 +388,8 @@ export default function EventStandalonePage() {
                       placeholder={t("checkout.emailPlaceholder")}
                       className="mt-2 h-11 w-full rounded-xl border border-white/15 bg-white/[0.035] px-3.5 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-primary/60"
                     />
-                    <label className="mt-4 block text-xs font-semibold text-white" htmlFor="promo-code">{t("checkout.promoCode")}</label>
-                    <input id="promo-code" value={promoCode} onChange={(inputEvent) => setPromoCode(inputEvent.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))} placeholder={t("checkout.promoPlaceholder")} className="mt-2 h-11 w-full rounded-xl border border-white/15 bg-white/[0.035] px-3.5 text-sm font-semibold uppercase tracking-wide text-white outline-none transition placeholder:text-white/35 focus:border-primary/60" />
+                    <label className="mt-4 block text-xs font-semibold text-white" htmlFor="promo-code">{t("auth.promoCode")}</label>
+                    <input id="promo-code" value={promoCode} onChange={(inputEvent) => setPromoCode(inputEvent.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))} placeholder={t("auth.promoPlaceholder")} className="mt-2 h-11 w-full rounded-xl border border-white/15 bg-white/[0.035] px-3.5 text-sm font-semibold uppercase tracking-wide text-white outline-none transition placeholder:text-white/35 focus:border-primary/60" />
                     {!user && (
                       <GoogleSignInButton returnTo={`/events/${event.id}?checkout=1`} className="mt-3" />
                     )}

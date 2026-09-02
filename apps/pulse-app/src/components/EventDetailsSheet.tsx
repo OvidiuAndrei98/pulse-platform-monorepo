@@ -112,9 +112,7 @@ export function EventDetailsProvider({ children }: { children: ReactNode }) {
 export function useEventDetails() {
   const context = useContext(EventDetailsContext);
   if (!context) {
-    throw new Error(
-      "useEventDetails must be used within an EventDetailsProvider",
-    );
+    throw new Error("EVENT_DETAILS_PROVIDER_MISSING");
   }
   return context;
 }
@@ -493,8 +491,8 @@ export function EventDetailsSheet({
                 placeholder={t("checkout.emailPlaceholder")}
                 className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/60 focus:bg-white/[0.07]"
               />
-              <label className="mt-4 block text-sm font-semibold text-foreground/90" htmlFor="checkout-promo">{t("checkout.promoCode")}</label>
-              <input id="checkout-promo" value={promoCode} onChange={(inputEvent) => setPromoCode(inputEvent.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))} placeholder={t("checkout.promoPlaceholder")} className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm font-semibold uppercase tracking-wide outline-none transition placeholder:text-muted-foreground focus:border-primary/60 focus:bg-white/[0.07]" />
+              <label className="mt-4 block text-sm font-semibold text-foreground/90" htmlFor="checkout-promo">{t("auth.promoCode")}</label>
+              <input id="checkout-promo" value={promoCode} onChange={(inputEvent) => setPromoCode(inputEvent.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))} placeholder={t("auth.promoPlaceholder")} className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm font-semibold uppercase tracking-wide outline-none transition placeholder:text-muted-foreground focus:border-primary/60 focus:bg-white/[0.07]" />
               {!user && (
                 <GoogleSignInButton
                   returnTo={`/events/${event.id}?checkout=1`}
@@ -617,8 +615,8 @@ function CheckoutPriceSummary({
     return (
       <p className="mt-3 text-xs text-muted-foreground">
         {organizerAbsorbsServiceFee
-          ? "Preț final, fără taxe adăugate la checkout."
-          : "Taxa de servicii se calculează înainte de plată."}
+          ? t("checkout.finalPrice")
+          : t("checkout.feeBeforePayment")}
       </p>
     );
   }
@@ -632,8 +630,8 @@ function CheckoutPriceSummary({
       <div className="flex justify-between text-muted-foreground">
         <span>
           {organizerAbsorbsServiceFee
-            ? "Taxă de servicii suportată de organizator"
-            : "Taxă de servicii (4% + 2,50 RON/bilet)"}
+            ? t("checkout.organizerFee")
+            : t("checkout.serviceFee")}
         </span>
         <span>
           {organizerAbsorbsServiceFee ? "0 RON" : formatRon(serviceFee)}

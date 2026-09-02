@@ -33,7 +33,7 @@ export async function requestCurrentLocation(
   if (isNativePlatform()) {
     const permission = await requestNativeLocationPermission();
     if (permission.location !== "granted") {
-      throw new Error("Location permission was not granted");
+      throw new Error("LOCATION_PERMISSION_DENIED");
     }
 
     const position = await Geolocation.getCurrentPosition({
@@ -46,7 +46,7 @@ export async function requestCurrentLocation(
 
   return new Promise<Coordinates>((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error("Geolocation is not supported"));
+      reject(new Error("GEOLOCATION_UNSUPPORTED"));
       return;
     }
     navigator.geolocation.getCurrentPosition(

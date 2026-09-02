@@ -22,6 +22,11 @@ import { requestCurrentLocation } from "@/lib/native/location";
 
 import "leaflet/dist/leaflet.css";
 
+const cartoBasemapKey = process.env.NEXT_PUBLIC_CARTO_BASEMAP_KEY?.trim();
+const cartoTileUrl = `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png${
+  cartoBasemapKey ? `?key=${encodeURIComponent(cartoBasemapKey)}` : ""
+}`;
+
 export function EventsMapView({
   events,
   selectedId: selectedIdProp,
@@ -138,7 +143,7 @@ export function EventsMapView({
         center={[44.4323, 26.1063]}
         zoom={12}
         zoomControl={false}
-        attributionControl={false}
+        attributionControl
         dragging
         touchZoom
         className="z-0 h-full w-full touch-none bg-black transform-gpu"
@@ -146,8 +151,10 @@ export function EventsMapView({
       >
         <TileLayer
           noWrap={true}
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          maxZoom={19}
+          url={cartoTileUrl}
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          subdomains="abcd"
+          maxZoom={20}
           keepBuffer={6}
           updateWhenIdle={false}
           updateWhenZooming={false}

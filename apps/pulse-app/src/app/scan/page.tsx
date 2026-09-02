@@ -27,7 +27,7 @@ const scannerSessionKey = "pulse_scanner_session";
 
 async function readJson(response: Response) {
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || "Sesiunea de scanare nu este disponibila.");
+  if (!response.ok) throw new Error(body.error || "");
   return body;
 }
 
@@ -70,7 +70,7 @@ export default function ScanPage() {
         window.history.replaceState({}, "", "/scan");
         setSession(created);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Linkul de scanare este invalid.");
+        setError(err instanceof Error && err.message ? err.message : t("scanner.invalidLink"));
       } finally {
         setLoading(false);
       }
@@ -98,7 +98,7 @@ export default function ScanPage() {
       setResult(validated);
       setValidationHash("");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Biletul nu a putut fi validat.";
+      const message = err instanceof Error && err.message ? err.message : t("scanner.validationFailed");
       setError(message);
       if (message.toLowerCase().includes("acces") || message.toLowerCase().includes("sesiun")) {
         window.sessionStorage.removeItem(scannerSessionKey);
