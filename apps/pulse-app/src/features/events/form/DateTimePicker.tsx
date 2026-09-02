@@ -24,7 +24,45 @@ export function DateTimePicker({ value, onChange, placeholder }: { value: string
   const adjustTime = (part: "hours" | "minutes", delta: number) => { const limit = part === "hours" ? 24 : 60; const current = part === "hours" ? selectedDate.getHours() : selectedDate.getMinutes(); const next = (current + delta + limit) % limit; updateTime(String(part === "hours" ? next : selectedDate.getHours()).padStart(2, "0"), String(part === "minutes" ? next : selectedDate.getMinutes()).padStart(2, "0")); };
   const buttonLabel = value ? new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(selectedDate) : displayPlaceholder;
 
-  return <div ref={rootRef} className="relative"><button type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className={`flex w-full items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 text-left text-sm outline-none transition focus:border-primary/30 focus:bg-white/[0.04] ${value ? "text-foreground" : "text-muted-foreground/40"}`}><CalendarDays className="h-4 w-4 shrink-0 text-primary" /><span className="min-w-0 flex-1 truncate">{buttonLabel}</span><Clock className="h-4 w-4 shrink-0 text-muted-foreground" /></button>{open && <div role="dialog" aria-label={displayPlaceholder} className="fixed inset-x-5 bottom-[calc(var(--native-safe-bottom)+6.5rem)] z-[120] max-h-[calc(100dvh-var(--native-safe-top)-8rem)] w-auto overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-[oklch(0.18_0.02_150_/_98%)] p-3 shadow-[0_20px_46px_rgba(0,0,0,0.5)] md:absolute md:inset-x-auto md:bottom-auto md:left-0 md:top-[calc(100%+0.5rem)] md:z-40 md:max-h-[calc(100dvh-2rem)] md:w-[min(18.5rem,calc(100vw-2.5rem))]"><div className="mb-2 flex items-center justify-between"><button type="button" onClick={() => setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground" aria-label={t("datePicker.previousMonth")}><ChevronLeft className="h-4 w-4" /></button><p className="text-sm font-semibold capitalize">{new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(visibleMonth)}</p><button type="button" onClick={() => setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground" aria-label={t("datePicker.nextMonth")}><ChevronRight className="h-4 w-4" /></button></div><div className="grid grid-cols-7 gap-1 text-center">{weekdayLabels.map((day, index) => <span key={`${day}-${index}`} className="pb-0.5 text-[9px] font-semibold uppercase text-muted-foreground">{day}</span>)}{calendarDays.map((day) => { const sameMonth = day.getMonth() === visibleMonth.getMonth(); const selected = day.toDateString() === selectedDate.toDateString(); const today = day.toDateString() === new Date().toDateString(); return <button key={day.toISOString()} type="button" onClick={() => updateDate(day)} className={`grid h-8 place-items-center rounded-xl text-xs transition ${selected ? "bg-primary font-semibold text-primary-foreground" : sameMonth ? "text-foreground hover:bg-white/[0.06]" : "text-muted-foreground/35 hover:bg-white/[0.04]"} ${today && !selected ? "ring-1 ring-primary/50" : ""}`}>{day.getDate()}</button>; })}</div><div className="mt-3 border-t border-white/10 pt-3"><p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("datePicker.time")}</p><div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2"><TimeStepper value={selectedDate.getHours()} max={23} onDecrease={() => adjustTime("hours", -1)} onIncrease={() => adjustTime("hours", 1)} onValueChange={(hours) => updateTime(String(hours).padStart(2, "0"), String(selectedDate.getMinutes()).padStart(2, "0"))} /><span className="text-sm font-semibold text-muted-foreground">:</span><TimeStepper value={selectedDate.getMinutes()} max={59} onDecrease={() => adjustTime("minutes", -1)} onIncrease={() => adjustTime("minutes", 1)} onValueChange={(minutes) => updateTime(String(selectedDate.getHours()).padStart(2, "0"), String(minutes).padStart(2, "0"))} /></div></div><div className="mt-3 flex justify-end gap-2"><button type="button" onClick={() => onChange(toLocalDateTime(new Date()))} className="rounded-full px-3 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/10">{t("datePicker.now")}</button><button type="button" onClick={() => setOpen(false)} className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">{t("datePicker.done")}</button></div></div>}</div>;
+  return <div ref={rootRef} className="relative">
+    <button type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className={`flex w-full items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 text-left text-sm outline-none transition focus:border-primary/30 focus:bg-white/[0.04] ${value ? "text-foreground" : "text-muted-foreground/40"}`}>
+      <CalendarDays className="h-4 w-4 shrink-0 text-primary" />
+      <span className="min-w-0 flex-1 truncate">{buttonLabel}</span>
+      <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </button>
+    {open && <div role="dialog" aria-label={displayPlaceholder} className="fixed inset-x-5 bottom-[calc(var(--native-safe-bottom)+6.5rem)] z-[120] max-h-[calc(100dvh-var(--native-safe-top)-8rem)] w-auto overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-[#171717]/[0.98] p-3 shadow-[0_20px_46px_rgba(0,0,0,0.5)] md:absolute md:inset-x-auto md:bottom-auto md:left-0 md:top-[calc(100%+0.5rem)] md:z-40 md:max-h-[calc(100dvh-2rem)] md:w-[min(18.5rem,calc(100vw-2.5rem))]">
+      <div className="mb-2 flex items-center justify-between">
+        <button type="button" onClick={() => setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground" aria-label={t("datePicker.previousMonth")}>
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <p className="text-sm font-semibold capitalize">{new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(visibleMonth)}</p>
+        <button type="button" onClick={() => setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground" aria-label={t("datePicker.nextMonth")}>
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center">
+        {weekdayLabels.map((day, index) => <span key={`${day}-${index}`} className="pb-0.5 text-[9px] font-semibold uppercase text-muted-foreground">{day}</span>)}
+        {calendarDays.map((day) => {
+          const sameMonth = day.getMonth() === visibleMonth.getMonth();
+          const selected = day.toDateString() === selectedDate.toDateString();
+          const today = day.toDateString() === new Date().toDateString();
+          return <button key={day.toISOString()} type="button" onClick={() => updateDate(day)} className={`grid h-8 place-items-center rounded-xl text-xs transition ${selected ? "bg-primary font-semibold text-primary-foreground" : sameMonth ? "text-foreground hover:bg-white/[0.06]" : "text-muted-foreground/35 hover:bg-white/[0.04]"} ${today && !selected ? "ring-1 ring-primary/50" : ""}`}>{day.getDate()}</button>;
+        })}
+      </div>
+      <div className="mt-3 border-t border-white/10 pt-3">
+        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("datePicker.time")}</p>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <TimeStepper value={selectedDate.getHours()} max={23} onDecrease={() => adjustTime("hours", -1)} onIncrease={() => adjustTime("hours", 1)} onValueChange={(hours) => updateTime(String(hours).padStart(2, "0"), String(selectedDate.getMinutes()).padStart(2, "0"))} />
+          <span className="text-sm font-semibold text-muted-foreground">:</span>
+          <TimeStepper value={selectedDate.getMinutes()} max={59} onDecrease={() => adjustTime("minutes", -1)} onIncrease={() => adjustTime("minutes", 1)} onValueChange={(minutes) => updateTime(String(selectedDate.getHours()).padStart(2, "0"), String(minutes).padStart(2, "0"))} />
+        </div>
+      </div>
+      <div className="mt-3 flex justify-end gap-2">
+        <button type="button" onClick={() => onChange(toLocalDateTime(new Date()))} className="rounded-full px-3 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/10">{t("datePicker.now")}</button>
+        <button type="button" onClick={() => setOpen(false)} className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">{t("datePicker.done")}</button>
+      </div>
+    </div>}
+  </div>;
 }
 
 export function TimePicker({ value, onChange, compact = false }: { value: string; onChange: (value: string) => void; compact?: boolean }) {
@@ -56,7 +94,7 @@ export function TimePicker({ value, onChange, compact = false }: { value: string
       <Clock className={`${compact ? "h-3.5 w-3.5" : "h-4 w-4"} shrink-0 text-primary`} />
       <span className={`flex-1 tabular-nums ${value ? "text-foreground" : "text-muted-foreground"}`}>{value || "--:--"}</span>
     </button>
-    {open && <div role="dialog" aria-label={t("datePicker.time")} className="fixed inset-x-5 bottom-[calc(var(--native-safe-bottom)+6.5rem)] z-[120] rounded-2xl border border-white/15 bg-[oklch(0.18_0.02_150_/_98%)] p-4 shadow-[0_20px_46px_rgba(0,0,0,0.5)] md:absolute md:inset-x-auto md:bottom-auto md:left-0 md:top-[calc(100%+0.5rem)] md:z-50 md:w-64">
+    {open && <div role="dialog" aria-label={t("datePicker.time")} className="fixed inset-x-5 bottom-[calc(var(--native-safe-bottom)+6.5rem)] z-[120] rounded-2xl border border-white/15 bg-[#171717]/[0.98] p-4 shadow-[0_20px_46px_rgba(0,0,0,0.5)] md:absolute md:inset-x-auto md:bottom-auto md:left-0 md:top-[calc(100%+0.5rem)] md:z-50 md:w-64">
       <p className="mb-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("datePicker.time")}</p>
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         <TimeStepper value={hours} max={23} onDecrease={() => adjust("hours", -1)} onIncrease={() => adjust("hours", 1)} onValueChange={(next) => emit(next, minutes)} />

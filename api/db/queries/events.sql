@@ -84,7 +84,14 @@ WHERE (sqlc.arg(category)::VARCHAR = '' OR sqlc.arg(category) IS NULL OR e.categ
       SELECT 1 FROM user_hidden_event_categories hidden
       WHERE hidden.user_id = sqlc.arg(user_id) AND hidden.category = UPPER(e.category)
   )
-  AND e.status = 'published'
+  AND (
+      e.status = 'published'
+      OR (
+          sqlc.narg(organizer_id)::UUID IS NOT NULL
+          AND e.status = 'completed'
+          AND e.was_published = TRUE
+      )
+  )
 ORDER BY e.start_time DESC
 LIMIT sqlc.arg(req_limit) OFFSET sqlc.arg(req_offset);
 
@@ -148,8 +155,8 @@ GROUP BY e.id
 ORDER BY e.start_time DESC;
 
 -- name: CreateEvent :one
-INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, organizer_absorbs_service_fee, latitude, longitude, start_time, end_time, publish_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, organizer_absorbs_service_fee, latitude, longitude, start_time, end_time, publish_at, was_published)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $5 = 'published')
 RETURNING *; 
 
 -- name: EditEvent :one
@@ -168,9 +175,21 @@ SET title = $2,
     longitude = $13,
     start_time = $14,
     end_time = $15,
-    publish_at = $16
+    publish_at = $16,
+    was_published = events.was_published OR $5 = 'published'
 WHERE id = $1
 RETURNING *; -- RETURNING * va aduce status-ul modificat
+
+-- name: PublishDueEvents :many
+UPDATE events
+SET status = 'published', publish_at = NULL, was_published = TRUE
+WHERE status = 'scheduled' AND publish_at <= CURRENT_TIMESTAMP
+RETURNING id;
+
+-- name: CompleteEndedEvents :exec
+UPDATE events
+SET status = 'completed', is_live = FALSE
+WHERE status IN ('draft', 'scheduled', 'published') AND end_time <= CURRENT_TIMESTAMP;
 
 -- name: GetEventByID :one
 SELECT 

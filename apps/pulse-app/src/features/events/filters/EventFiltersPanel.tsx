@@ -101,13 +101,13 @@ export function EventFiltersPanel({
           </div>
         </FilterSection>
         <FilterSection title={`${t("filters.distance")} · ${t("filters.distanceValue", { distance: filters.distance })}`}>
-          <input type="range" min={1} max={50} value={filters.distance} onChange={(event) => onChange({ ...filters, distance: Number(event.target.value) })} className="w-full accent-[hsl(var(--primary))]" style={{ accentColor: "oklch(0.88 0.22 135)" }} />
+          <input type="range" min={1} max={50} value={filters.distance} onChange={(event) => onChange({ ...filters, distance: Number(event.target.value) })} className="w-full accent-primary" />
           <div className="mt-1 flex justify-between text-[11px] text-muted-foreground"><span>{t("filters.distanceValue", { distance: 1 })}</span><span>{t("filters.distanceValue", { distance: 50 })}</span></div>
         </FilterSection>
       </motion.div>
       <div className="relative flex items-center gap-3 border-t border-white/10 px-6 py-4">
         <button type="button" onClick={onReset} className="flex-1 rounded-full border border-white/15 bg-white/5 py-3 text-sm font-medium">{t("common.reset")}</button>
-        <button type="button" onClick={onApply} className="flex-[1.6] rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-[0_0_24px_rgba(163,255,64,0.5)]">{t("common.applyFilters")}</button>
+        <button type="button" onClick={onApply} className="flex-[1.6] rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground">{t("common.applyFilters")}</button>
       </div>
     </div>
   );

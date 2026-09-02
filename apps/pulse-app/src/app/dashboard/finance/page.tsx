@@ -132,13 +132,7 @@ export default function FinancePage() {
     <main className="app-page-spacing mx-auto max-w-5xl text-foreground pb-[110px]">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-primary">
-            <WalletCards className="h-4 w-4" />
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em]">
-              {t("dashboardNav.organizer")}
-            </p>
-          </div>
-          <h1 className="mt-2 text-2xl font-bold sm:text-3xl">
+          <h1 className="text-2xl font-bold sm:text-3xl">
             {t("finance.title")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">

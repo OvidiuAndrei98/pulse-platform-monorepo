@@ -282,6 +282,7 @@ type Events struct {
 	Status                     string             `json:"status"`
 	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
 	PublishAt                  pgtype.Timestamptz `json:"publish_at"`
+	WasPublished               bool               `json:"was_published"`
 }
 
 type Friendships struct {
@@ -300,6 +301,8 @@ type InvitationTickets struct {
 	ValidatedAt    pgtype.Timestamptz `json:"validated_at"`
 	RevokedAt      pgtype.Timestamptz `json:"revoked_at"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	BatchID        pgtype.UUID        `json:"batch_id"`
+	BatchIndex     int32              `json:"batch_index"`
 }
 
 type Notifications struct {

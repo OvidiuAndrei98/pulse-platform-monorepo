@@ -78,6 +78,15 @@ export default function PromotionsPage() {
   }, [eligibleEvents, eventId]);
   const selectedPlan = plans.find((plan) => plan.id === planId);
   const selectedEvent = eligibleEvents.find((event) => event.id === eventId);
+  const sortedCampaigns = useMemo(
+    () =>
+      [...campaigns].sort(
+        (first, second) =>
+          Number(second.status === "active") -
+          Number(first.status === "active"),
+      ),
+    [campaigns],
+  );
 
   const dateOptions = useMemo(() => {
     const result: { value: string; label: string }[] = [];
@@ -133,22 +142,14 @@ export default function PromotionsPage() {
 
   return (
     <main className="app-page-spacing mx-auto max-w-5xl pb-32">
-      <div className="flex items-start gap-3">
-        <span className="grid h-11 w-11 place-items-center rounded-2xl bg-primary/10 text-primary">
-          <Megaphone className="h-5 w-5" />
-        </span>
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">
-            {t("dashboardNav.organizer")}
-          </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-            {t("promotions.title")}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("promotions.subtitle")}
-          </p>
-        </div>
-      </div>
+      <header>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          {t("promotions.title")}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t("promotions.subtitle")}
+        </p>
+      </header>
 
       <section className="mt-7 rounded-3xl border border-white/10 bg-white/[0.025] p-5 sm:p-6">
         <div className="flex items-center gap-2">
@@ -265,14 +266,14 @@ export default function PromotionsPage() {
       </section>
 
       <section className="mt-8">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold">
             {t("promotions.statistics")}
           </h2>
         </div>
-        <div className="mt-4 space-y-3">
-          {campaigns.map((campaign) => (
+        <div className="space-y-3">
+          {sortedCampaigns.map((campaign) => (
             <article
               key={campaign.id}
               className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 sm:p-5"

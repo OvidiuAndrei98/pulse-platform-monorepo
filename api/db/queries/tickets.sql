@@ -214,6 +214,15 @@ WHERE tt.event_id = $1
   AND t.is_validated = FALSE
 ORDER BY t.created_at ASC;
 
+-- name: ListOfflineInvitationTickets :many
+SELECT i.id, i.validation_hash, COALESCE(tt.name, 'Invitatie') AS ticket_type_name
+FROM invitation_tickets i
+LEFT JOIN ticket_types tt ON tt.id = i.ticket_type_id
+WHERE i.event_id = $1
+  AND i.revoked_at IS NULL
+  AND i.validated_at IS NULL
+ORDER BY i.created_at ASC;
+
 -- name: CreateOfflineValidationSnapshot :one
 INSERT INTO offline_validation_snapshots (event_id, created_by_user_id, ticket_count, expires_at)
 VALUES ($1, $2, $3, $4)
@@ -276,3 +285,45 @@ FROM orders o
 JOIN events e ON e.id = o.event_id
 WHERE o.user_id = $1
 ORDER BY o.created_at DESC;
+
+-- name: GetInvitationForValidation :one
+SELECT i.id, i.label, COALESCE(tt.name, '') AS ticket_type,
+       i.validated_at, i.revoked_at
+FROM invitation_tickets i
+LEFT JOIN ticket_types tt ON tt.id = i.ticket_type_id
+WHERE i.event_id = $1 AND i.validation_hash = $2;
+
+-- name: MarkInvitationValidated :one
+UPDATE invitation_tickets
+SET validated_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND validated_at IS NULL AND revoked_at IS NULL
+RETURNING validated_at;
+
+-- name: GetInvitationTicketType :one
+SELECT name
+FROM ticket_types
+WHERE id = $1 AND event_id = $2;
+
+-- name: CreateInvitationTicket :one
+INSERT INTO invitation_tickets (
+    event_id, ticket_type_id, created_by, label, validation_hash, batch_id, batch_index
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, created_at;
+
+-- name: ListInvitationsForEvent :many
+SELECT i.id, i.label, i.validation_hash, COALESCE(tt.name, '') AS ticket_type,
+       i.validated_at, i.revoked_at, i.created_at, i.batch_id, i.batch_index
+FROM invitation_tickets i
+LEFT JOIN ticket_types tt ON tt.id = i.ticket_type_id
+WHERE i.event_id = $1
+ORDER BY i.created_at DESC, i.batch_index ASC;
+
+-- name: RevokeInvitationTicket :execrows
+UPDATE invitation_tickets
+SET revoked_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND event_id = $2 AND revoked_at IS NULL AND validated_at IS NULL;
+
+-- name: DeleteRevokedInvitationTicket :execrows
+DELETE FROM invitation_tickets
+WHERE id = $1 AND event_id = $2 AND revoked_at IS NOT NULL;

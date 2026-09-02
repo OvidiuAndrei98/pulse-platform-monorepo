@@ -10,12 +10,14 @@ import { formatEventTime } from "@/features/events/dateFormat";
 
 interface SelectedEventPopupProps {
   event: Event;
+  position?: { latitude: number; longitude: number };
   onClose: () => void;
   onOpen: () => void;
 }
 
 export function SelectedEventPopup({
   event,
+  position,
   onClose,
   onOpen,
 }: SelectedEventPopupProps) {
@@ -30,7 +32,10 @@ export function SelectedEventPopup({
   return (
     <Popup
       ref={popupRef}
-      position={[event.latitude, event.longitude]}
+      position={[
+        position?.latitude ?? event.latitude,
+        position?.longitude ?? event.longitude,
+      ]}
       offset={[0, -27]}
       closeButton={false}
       closeOnClick={false}

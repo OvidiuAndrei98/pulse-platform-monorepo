@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowUpRight, BadgeCheck, Calendar, MapPin, Share2, Ticket, UsersRound } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ArrowUpRight, BadgeCheck, Calendar, ChevronLeft, ChevronRight, MapPin, Share2, Ticket, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
 import { Event, PublicEventsService } from "@/core/DataProvider";
@@ -349,16 +349,28 @@ function OrganizerProfilePage({
 }
 
 function PosterEventSection({ title, events, loading, emptyLabel, completed = false, onSelect }: { title: string; events: Event[]; loading: boolean; emptyLabel: string; completed?: boolean; onSelect: (event: Event) => void }) {
+  const { t } = useTranslation();
+  const railRef = useRef<HTMLDivElement>(null);
+  const scroll = (direction: -1 | 1) => {
+    railRef.current?.scrollBy({ left: direction * 560, behavior: "smooth" });
+  };
+
   return (
     <section>
       <div className="flex items-end justify-between">
         <h2 className="text-2xl font-bold tracking-tight md:text-3xl">{title}</h2>
-        {!loading && <span className="text-xs font-semibold text-primary">{events.length}</span>}
+        {!loading && <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-primary">{events.length}</span>
+          {events.length > 1 && <div className="hidden items-center gap-1 md:flex">
+            <button type="button" onClick={() => scroll(-1)} aria-label={`${t("common.back")} ${title}`} title={t("common.back")} className="grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-white/[0.035] text-muted-foreground transition hover:border-white/20 hover:bg-white/[0.08] hover:text-foreground"><ChevronLeft className="h-4 w-4" /></button>
+            <button type="button" onClick={() => scroll(1)} aria-label={`${t("common.next")} ${title}`} title={t("common.next")} className="grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-white/[0.035] text-muted-foreground transition hover:border-white/20 hover:bg-white/[0.08] hover:text-foreground"><ChevronRight className="h-4 w-4" /></button>
+          </div>}
+        </div>}
       </div>
       {loading ? (
         <div className="mt-5 flex gap-4 overflow-hidden">{[0, 1, 2].map((item) => <div key={item} className="aspect-[3/4] w-40 shrink-0 animate-pulse rounded-2xl bg-white/[0.05] md:w-52" />)}</div>
       ) : events.length ? (
-        <div className="-mx-5 mt-5 flex snap-x gap-4 overflow-x-auto px-5 pb-3 [scrollbar-width:none] sm:-mx-8 sm:px-8 [&::-webkit-scrollbar]:hidden">
+        <div ref={railRef} className="-mx-5 mt-5 flex snap-x gap-4 overflow-x-auto scroll-smooth px-5 pb-3 [scrollbar-width:none] sm:-mx-8 sm:px-8 [&::-webkit-scrollbar]:hidden">
           {events.map((event) => (
             <button key={event.id} type="button" onClick={() => onSelect(event)} className="group w-40 shrink-0 snap-start text-left md:w-52">
               <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-white/[0.05]">

@@ -14,7 +14,7 @@ export type UpdateEventPayload = WritableSchema<"UpdateEventPayload">;
 export type TicketTier = ReadableSchema<"TicketTypeResponse">;
 export type Artist = ReadableSchema<"Artist">;
 export type ArtistInput = WritableSchema<"ArtistInput">;
-export type InvitationTicket = { id: string; label: string; validationHash: string; ticketType?: string; status: "active" | "used" | "revoked"; createdAt?: string };
+export type InvitationTicket = ReadableSchema<"InvitationTicketResponse">;
 export type PromoCode = ReadableSchema<"PromoCodeResponse">;
 export type CreatePromoCode = WritableSchema<"CreatePromoCodePayload">;
 export type PromotionPlan = ReadableSchema<"PromotionPlanResponse">;
@@ -751,7 +751,7 @@ export class User {
     return ApiClient.instance.get("/dashboard/events/{id}/invitations", { params: { path: { id: eventId } } });
   }
 
-  async createInvitation(eventId: string, payload: { label: string; ticketTypeId?: string }): Promise<InvitationTicket> {
+  async createInvitation(eventId: string, payload: { label: string; ticketTypeId?: string; quantity?: number }): Promise<InvitationTicket[]> {
     return ApiClient.instance.post("/dashboard/events/{id}/invitations", { params: { path: { id: eventId } }, body: payload });
   }
 

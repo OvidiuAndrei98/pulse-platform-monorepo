@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import L from "leaflet";
 import { Marker, MapContainer, TileLayer } from "react-leaflet";
 import { Event } from "@/core/DataProvider";
 import {
   MapBoundsObserver,
   MapClickDismiss,
+  MapEventFocusController,
   MapSizeUpdater,
   MapViewportController,
 } from "@/features/events/map/MapBehavior";
@@ -38,6 +39,7 @@ export function EventsMapView({
   userLocation: userLocationProp,
   onUserLocationChange,
   onBoundsEventsChange,
+  focusRequest,
   distanceKm = 15,
   cityCenter,
 }: {
@@ -51,11 +53,17 @@ export function EventsMapView({
   userLocation?: Coordinates | null;
   onUserLocationChange?: (location: Coordinates) => void;
   onBoundsEventsChange?: (eventIds: string[]) => void;
+  focusRequest?: { eventId: string; requestId: number } | null;
   distanceKm?: number;
   cityCenter?: Coordinates | null;
 }) {
   const { t } = useTranslation();
   const [internalId, setInternalId] = useState<string | null>(null);
+  const [selectedDisplayPosition, setSelectedDisplayPosition] = useState<{
+    eventId: string;
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [userLocation, setUserLocation] = useState<Coordinates | null>(
     userLocationProp ?? null,
@@ -80,12 +88,24 @@ export function EventsMapView({
 
   const selectedId = selectedIdProp !== undefined ? selectedIdProp : internalId;
   const setSelectedId = (id: string | null) => {
+    if (!id) setSelectedDisplayPosition(null);
     if (onSelect) {
       onSelect(id);
       return;
     }
     setInternalId(id);
   };
+  const handleSelectedDisplayPositionChange = useCallback(
+    (
+      eventId: string,
+      displayPosition: { latitude: number; longitude: number } | null,
+    ) => {
+      setSelectedDisplayPosition(
+        displayPosition ? { eventId, ...displayPosition } : null,
+      );
+    },
+    [],
+  );
   const handleUserLocation = (location: Coordinates) => {
     setUserLocation(location);
     onUserLocationChange?.(location);
@@ -108,6 +128,10 @@ export function EventsMapView({
   const selectedEvent = useMemo(
     () => events.find((event) => event.id === selectedId) ?? null,
     [events, selectedId],
+  );
+  const focusEvent = useMemo(
+    () => events.find((event) => event.id === focusRequest?.eventId),
+    [events, focusRequest?.eventId],
   );
   const desktopHeight = desktopFillViewport
     ? "lg:h-[calc(100dvh-200px)] lg:min-h-0"
@@ -189,11 +213,29 @@ export function EventsMapView({
         <EventMapMarkers
           events={events}
           selectedId={selectedId}
-          onSelect={setSelectedId}
+          onSelect={(id, displayPosition) => {
+            setSelectedDisplayPosition(
+              displayPosition
+                ? { eventId: id, ...displayPosition }
+                : null,
+            );
+            setSelectedId(id);
+          }}
+          onSelectedDisplayPositionChange={handleSelectedDisplayPositionChange}
+        />
+        <MapEventFocusController
+          latitude={focusEvent?.latitude}
+          longitude={focusEvent?.longitude}
+          requestId={focusRequest?.requestId ?? 0}
         />
         {selectedEvent && (
           <SelectedEventPopup
             event={selectedEvent}
+            position={
+              selectedDisplayPosition?.eventId === selectedEvent.id
+                ? selectedDisplayPosition
+                : undefined
+            }
             onClose={() => setSelectedId(null)}
             onOpen={() => open(selectedEvent)}
           />

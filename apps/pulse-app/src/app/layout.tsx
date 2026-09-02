@@ -38,7 +38,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  userScalable: false, // O face să se simtă ca o aplicație nativă, fără zoom accidental
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -52,9 +52,7 @@ export default function RootLayout({
       className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="relative min-h-screen overflow-x-hidden bg-[#000000] text-white">
-        {/* Background global */}
 
-        {/* Conținut */}
         <div className="relative z-10">
           <I18nProvider>
             <DataProvider>

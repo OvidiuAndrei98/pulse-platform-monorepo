@@ -55,7 +55,7 @@ export default function NewEventPage() {
   };
 
   return (
-    <div className="relative min-h-screen text-foreground antialiased pb-[110px]">
+    <div className="relative text-foreground antialiased pb-[110px]">
       <div className="app-page-spacing mx-auto max-w-3xl">
         <Link
           href="/dashboard/events"

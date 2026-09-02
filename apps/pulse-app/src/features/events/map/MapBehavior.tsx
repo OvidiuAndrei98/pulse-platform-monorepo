@@ -45,6 +45,29 @@ export function MapSizeUpdater({ layoutKey }: { layoutKey: string }) {
   return null;
 }
 
+export function MapEventFocusController({
+  latitude,
+  longitude,
+  requestId,
+}: {
+  latitude?: number;
+  longitude?: number;
+  requestId: number;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!requestId || latitude === undefined || longitude === undefined) return;
+    map.flyTo(
+      [latitude, longitude],
+      Math.max(18, map.getZoom()),
+      { animate: true, duration: 0.55 },
+    );
+  }, [latitude, longitude, map, requestId]);
+
+  return null;
+}
+
 export function MapBoundsObserver({
   events,
   onBoundsEventsChange,

@@ -11,6 +11,7 @@ import { getDistanceKm } from "@/features/events/utils";
 import { useTranslation } from "react-i18next";
 import { requestCurrentLocation } from "@/lib/native/location";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
+import Image from "next/image";
 
 const guestNames = [
   "Party Crasher",
@@ -149,17 +150,26 @@ export default function Home() {
     <div className="relative min-h-screen overflow-hidden text-foreground">
       <div className="relative z-10 pb-[110px]">
         <div className="app-page-gutter mx-auto max-w-7xl pt-[max(1.5rem,var(--native-safe-top))] md:pt-8">
-          <div className="relative z-40 flex items-center justify-between gap-4">
-            <span className="text-lg font-black uppercase tracking-[0.10em] text-foreground">
-              SPOTTR<span className="text-primary">.</span>
-            </span>
+          <div className="relative z-40 flex items-center justify-between gap-4 mb-2 md:mb-4">
+            <div className="flex items-center gap-2">
+              <Image
+                src="/spottr-logo.svg"
+                alt="Spottr Logo"
+                width={40}
+                height={40}
+                className="h-8 w-8 md:h-10 md:w-10"
+              />
+              <span className="hidden md:block text-md md:text-lg font-black uppercase tracking-[0.10em] text-foreground">
+                SPOTTR<span className="text-primary">.</span>
+              </span>
+            </div>
             <div className="flex items-center gap-2">
               {user && <NotificationsPopover />}
               <SearchPopover events={events as Event[]} />
             </div>
           </div>
 
-          <div className="relative z-30 mt-7 flex items-end justify-between gap-4">
+          <div className="relative z-30 flex items-end justify-between gap-4">
             <div>
               <p className="text-xl font-semibold leading-tight md:text-2xl">
                 {loading ? (

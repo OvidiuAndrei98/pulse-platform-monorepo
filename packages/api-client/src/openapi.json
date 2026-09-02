@@ -309,7 +309,10 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvitationTicketResponse"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationTicketResponse"
+                  }
                 }
               }
             }
@@ -2986,6 +2989,10 @@
           },
           "ticketTypeId": {
             "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -3384,7 +3391,9 @@
           "id",
           "label",
           "validationHash",
-          "status"
+          "status",
+          "batchId",
+          "batchIndex"
         ],
         "properties": {
           "id": {
@@ -3410,6 +3419,13 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "batchId": {
+            "type": "string"
+          },
+          "batchIndex": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

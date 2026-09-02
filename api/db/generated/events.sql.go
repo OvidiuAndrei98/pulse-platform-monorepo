@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const completeEndedEvents = `-- name: CompleteEndedEvents :exec
+UPDATE events
+SET status = 'completed', is_live = FALSE
+WHERE status IN ('draft', 'scheduled', 'published') AND end_time <= CURRENT_TIMESTAMP
+`
+
+func (q *Queries) CompleteEndedEvents(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, completeEndedEvents)
+	return err
+}
+
 const countCompletedOrdersForEvent = `-- name: CountCompletedOrdersForEvent :one
 SELECT COUNT(*)::bigint
 FROM orders
@@ -38,9 +49,9 @@ func (q *Queries) CountEventOrders(ctx context.Context, eventID pgtype.UUID) (in
 }
 
 const createEvent = `-- name: CreateEvent :one
-INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, organizer_absorbs_service_fee, latitude, longitude, start_time, end_time, publish_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status, organizer_absorbs_service_fee, publish_at
+INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, organizer_absorbs_service_fee, latitude, longitude, start_time, end_time, publish_at, was_published)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $5 = 'published')
+RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status, organizer_absorbs_service_fee, publish_at, was_published
 `
 
 type CreateEventParams struct {
@@ -103,6 +114,7 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 		&i.Status,
 		&i.OrganizerAbsorbsServiceFee,
 		&i.PublishAt,
+		&i.WasPublished,
 	)
 	return i, err
 }
@@ -176,9 +188,10 @@ SET title = $2,
     longitude = $13,
     start_time = $14,
     end_time = $15,
-    publish_at = $16
+    publish_at = $16,
+    was_published = events.was_published OR $5 = 'published'
 WHERE id = $1
-RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status, organizer_absorbs_service_fee, publish_at
+RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status, organizer_absorbs_service_fee, publish_at, was_published
 `
 
 type EditEventParams struct {
@@ -241,6 +254,7 @@ func (q *Queries) EditEvent(ctx context.Context, arg EditEventParams) (Events, e
 		&i.Status,
 		&i.OrganizerAbsorbsServiceFee,
 		&i.PublishAt,
+		&i.WasPublished,
 	)
 	return i, err
 }
@@ -295,7 +309,6 @@ func (q *Queries) GetCommentsForEvent(ctx context.Context, arg GetCommentsForEve
 }
 
 const getEventByID = `-- name: GetEventByID :one
-
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
     e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.latitude, e.longitude, e.start_time,
@@ -395,7 +408,6 @@ type GetEventByIDRow struct {
 	Lineup                     interface{}        `json:"lineup"`
 }
 
-// RETURNING * va aduce status-ul modificat
 func (q *Queries) GetEventByID(ctx context.Context, arg GetEventByIDParams) (GetEventByIDRow, error) {
 	row := q.db.QueryRow(ctx, getEventByID, arg.UserID, arg.ID)
 	var i GetEventByIDRow
@@ -429,7 +441,7 @@ func (q *Queries) GetEventByID(ctx context.Context, arg GetEventByIDParams) (Get
 
 const getEventWithStats = `-- name: GetEventWithStats :one
 SELECT 
-    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status, e.organizer_absorbs_service_fee, e.publish_at,
+    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status, e.organizer_absorbs_service_fee, e.publish_at, e.was_published,
     
     (
         SELECT COUNT(*) 
@@ -529,6 +541,7 @@ type GetEventWithStatsRow struct {
 	Status                     string             `json:"status"`
 	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
 	PublishAt                  pgtype.Timestamptz `json:"publish_at"`
+	WasPublished               bool               `json:"was_published"`
 	TotalCheckIns              int64              `json:"total_check_ins"`
 	TotalTicketsSold           int64              `json:"total_tickets_sold"`
 	TotalRevenueRon            int64              `json:"total_revenue_ron"`
@@ -563,6 +576,7 @@ func (q *Queries) GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEve
 		&i.Status,
 		&i.OrganizerAbsorbsServiceFee,
 		&i.PublishAt,
+		&i.WasPublished,
 		&i.TotalCheckIns,
 		&i.TotalTicketsSold,
 		&i.TotalRevenueRon,
@@ -776,7 +790,14 @@ WHERE ($2::VARCHAR = '' OR $2 IS NULL OR e.category = ANY(string_to_array($2::VA
       SELECT 1 FROM user_hidden_event_categories hidden
       WHERE hidden.user_id = $1 AND hidden.category = UPPER(e.category)
   )
-  AND e.status = 'published'
+  AND (
+      e.status = 'published'
+      OR (
+          $12::UUID IS NOT NULL
+          AND e.status = 'completed'
+          AND e.was_published = TRUE
+      )
+  )
 ORDER BY e.start_time DESC
 LIMIT $14 OFFSET $13
 `
@@ -885,7 +906,7 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 
 const listEventsWithStats = `-- name: ListEventsWithStats :many
 SELECT 
-    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status, e.organizer_absorbs_service_fee, e.publish_at,
+    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status, e.organizer_absorbs_service_fee, e.publish_at, e.was_published,
     (
         SELECT COUNT(*)::bigint 
         FROM check_ins 
@@ -964,6 +985,7 @@ type ListEventsWithStatsRow struct {
 	Status                     string             `json:"status"`
 	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
 	PublishAt                  pgtype.Timestamptz `json:"publish_at"`
+	WasPublished               bool               `json:"was_published"`
 	TotalCheckIns              int64              `json:"total_check_ins"`
 	TotalTicketsSold           int64              `json:"total_tickets_sold"`
 	TotalRevenueRon            int64              `json:"total_revenue_ron"`
@@ -1004,6 +1026,7 @@ func (q *Queries) ListEventsWithStats(ctx context.Context, organizerID pgtype.UU
 			&i.Status,
 			&i.OrganizerAbsorbsServiceFee,
 			&i.PublishAt,
+			&i.WasPublished,
 			&i.TotalCheckIns,
 			&i.TotalTicketsSold,
 			&i.TotalRevenueRon,
@@ -1016,6 +1039,35 @@ func (q *Queries) ListEventsWithStats(ctx context.Context, organizerID pgtype.UU
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const publishDueEvents = `-- name: PublishDueEvents :many
+
+UPDATE events
+SET status = 'published', publish_at = NULL, was_published = TRUE
+WHERE status = 'scheduled' AND publish_at <= CURRENT_TIMESTAMP
+RETURNING id
+`
+
+// RETURNING * va aduce status-ul modificat
+func (q *Queries) PublishDueEvents(ctx context.Context) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, publishDueEvents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var id pgtype.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

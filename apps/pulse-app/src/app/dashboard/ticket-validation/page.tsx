@@ -753,13 +753,10 @@ export default function TicketValidationPage() {
   }
 
   return (
-    <main className="min-h-screen text-foreground pb-[110px]">
+    <main className="text-foreground pb-[110px]">
       <div className="app-page-spacing mx-auto max-w-5xl space-y-6">
         <header className="flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">
-              {t("validation.eventAccess")}
-            </p>
             <h1 className="text-2xl font-bold sm:text-3xl">
               {t("validation.title")}
             </h1>
