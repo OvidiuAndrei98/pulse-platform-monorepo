@@ -37,10 +37,10 @@ export function EventCard({
 
   const formattedDate = formatEventDateShort(event.startTime);
 
-  // Formatăm ora scurt (ex: 22:00) pentru când evenimentul este LIVE
+  // Formatăm ora scurt în format de 24 ore (ex: 22:00)
   const formattedTime = new Date(event.startTime).toLocaleTimeString(
     i18n.language || "ro",
-    { hour: "2-digit", minute: "2-digit" },
+    { hour: "2-digit", minute: "2-digit", hour12: false },
   );
 
   useEffect(
