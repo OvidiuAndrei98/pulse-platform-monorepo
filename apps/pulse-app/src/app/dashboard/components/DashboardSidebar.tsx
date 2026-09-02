@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -69,18 +70,21 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col justify-between">
       {/* HEADER & NAV */}
-      <div>
-        <div className="px-5 pt-8 pb-6">
-          <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">
+      <div className="space-y-3 p-[16px_16px_16px_8px]">
+        <div className="pl-2">
+          <div className="flex items-center gap-2">
+            <Image src="/spottr-logo.svg" alt="Spottr Logo" width={16} height={16} />
+               <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">
             SPOTTR
           </p>
+          </div>
           <h2 className="mt-1 text-lg font-bold tracking-tight text-foreground">
             {isOrganizer ? t("dashboardNav.organizer") : t("dashboardNav.ticketValidation")}
           </h2>
         </div>
 
         {/* Navigation Items */}
-        <nav className="relative space-y-1 px-3">
+        <nav>
           {items.map((it) => {
             const active = isActive(it.href, "exact" in it ? it.exact : false);
             const Icon = it.icon;
@@ -90,7 +94,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                 key={it.href}
                 href={it.href}
                 onClick={onNavigate}
-                className="relative flex h-11 items-center gap-3 rounded-xl px-3.5 text-xs font-semibold transition-colors duration-200 z-10"
+                className="relative flex h-11 items-center gap-3 rounded-xl px-2 text-xs font-semibold transition-colors duration-200 z-10"
                 style={{
                   color: active ? "var(--primary)" : "var(--muted-foreground)",
                 }}
