@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	db "pulse-api/db/generated"
 	"pulse-api/internal/auth"
 	"pulse-api/internal/common"
 	"pulse-api/internal/router"
@@ -20,13 +21,13 @@ import (
 type createInvitationRequest struct {
 	Label        string `json:"label"`
 	TicketTypeID string `json:"ticketTypeId"`
+	Quantity     int32  `json:"quantity"`
 }
 
 func (h *Handler) validateInvitation(ctx context.Context, eventID pgtype.UUID, hash string) (map[string]any, bool, error) {
-	var id pgtype.UUID
-	var label, ticketType string
-	var validatedAt, revokedAt pgtype.Timestamptz
-	err := h.DB.QueryRow(ctx, `SELECT i.id,i.label,COALESCE(tt.name,''),i.validated_at,i.revoked_at FROM invitation_tickets i LEFT JOIN ticket_types tt ON tt.id=i.ticket_type_id WHERE i.event_id=$1 AND i.validation_hash=$2`, eventID, hash).Scan(&id, &label, &ticketType, &validatedAt, &revokedAt)
+	invitation, err := h.Queries.GetInvitationForValidation(ctx, db.GetInvitationForValidationParams{
+		EventID: eventID, ValidationHash: hash,
+	})
 	if err == pgx.ErrNoRows {
 		return nil, false, nil
 	}
@@ -34,17 +35,18 @@ func (h *Handler) validateInvitation(ctx context.Context, eventID pgtype.UUID, h
 		return nil, true, err
 	}
 	status := "valid"
-	if revokedAt.Valid {
+	validatedAt := invitation.ValidatedAt
+	if invitation.RevokedAt.Valid {
 		status = "revoked"
 	} else if validatedAt.Valid {
 		status = "already_validated"
 	} else {
-		err = h.DB.QueryRow(ctx, `UPDATE invitation_tickets SET validated_at=CURRENT_TIMESTAMP WHERE id=$1 AND validated_at IS NULL AND revoked_at IS NULL RETURNING validated_at`, id).Scan(&validatedAt)
+		validatedAt, err = h.Queries.MarkInvitationValidated(ctx, invitation.ID)
 		if err != nil {
 			status = "already_validated"
 		}
 	}
-	return map[string]any{"ticketId": common.UUIDToString(id), "ticketType": ticketType, "eventId": common.UUIDToString(eventID), "status": status, "validatedAt": validatedAt.Time, "invitationLabel": label}, true, nil
+	return map[string]any{"ticketId": common.UUIDToString(invitation.ID), "ticketType": invitation.TicketType, "eventId": common.UUIDToString(eventID), "status": status, "validatedAt": validatedAt.Time, "invitationLabel": invitation.Label}, true, nil
 }
 
 func invitationHash() (string, error) {
@@ -53,6 +55,17 @@ func invitationHash() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+func invitationUUID() (pgtype.UUID, error) {
+	var id pgtype.UUID
+	if _, err := rand.Read(id.Bytes[:]); err != nil {
+		return id, err
+	}
+	id.Bytes[6] = (id.Bytes[6] & 0x0f) | 0x40
+	id.Bytes[8] = (id.Bytes[8] & 0x3f) | 0x80
+	id.Valid = true
+	return id, nil
 }
 
 func (h *Handler) organizerEventIDs(r *http.Request) (pgtype.UUID, pgtype.UUID, bool) {
@@ -79,23 +92,65 @@ func (h *Handler) HandleCreateInvitation(w http.ResponseWriter, r *http.Request)
 		router.RespondWithError(w, http.StatusBadRequest, "Eticheta invitatiei este obligatorie")
 		return
 	}
+	if req.Quantity == 0 {
+		req.Quantity = 1
+	}
+	if req.Quantity < 1 || req.Quantity > 100 {
+		router.RespondWithError(w, http.StatusBadRequest, "Cantitatea trebuie sa fie intre 1 si 100")
+		return
+	}
 	var ticketTypeID pgtype.UUID
 	if req.TicketTypeID != "" && ticketTypeID.Scan(req.TicketTypeID) != nil {
 		router.RespondWithError(w, http.StatusBadRequest, "Tip de bilet invalid")
 		return
 	}
-	hash, err := invitationHash()
+	tx, err := h.DB.Begin(r.Context())
 	if err != nil {
-		router.RespondWithError(w, 500, "Invitatia nu a putut fi generata")
+		router.RespondWithError(w, http.StatusInternalServerError, "Invitatiile nu au putut fi generate")
 		return
 	}
-	var id pgtype.UUID
-	err = h.DB.QueryRow(r.Context(), `INSERT INTO invitation_tickets(event_id,ticket_type_id,created_by,label,validation_hash) SELECT $1,$2,$3,$4,$5 WHERE $2::uuid IS NULL OR EXISTS(SELECT 1 FROM ticket_types WHERE id=$2 AND event_id=$1) RETURNING id`, eventID, ticketTypeID, userID, strings.TrimSpace(req.Label), hash).Scan(&id)
+	defer tx.Rollback(r.Context())
+	qtx := h.Queries.WithTx(tx)
+	ticketType := ""
+	if ticketTypeID.Valid {
+		ticketType, err = qtx.GetInvitationTicketType(r.Context(), db.GetInvitationTicketTypeParams{ID: ticketTypeID, EventID: eventID})
+		if err != nil {
+			router.RespondWithError(w, http.StatusBadRequest, "Tipul de bilet nu apartine evenimentului")
+			return
+		}
+	}
+	batchID, err := invitationUUID()
 	if err != nil {
-		router.RespondWithError(w, http.StatusBadRequest, "Tipul de bilet nu apartine evenimentului")
+		router.RespondWithError(w, http.StatusInternalServerError, "Invitatiile nu au putut fi generate")
 		return
 	}
-	router.RespondWithJSON(w, http.StatusCreated, map[string]any{"id": common.UUIDToString(id), "label": strings.TrimSpace(req.Label), "validationHash": hash, "status": "active"})
+	label := strings.TrimSpace(req.Label)
+	items := make([]map[string]any, 0, req.Quantity)
+	for index := int32(1); index <= req.Quantity; index++ {
+		hash, hashErr := invitationHash()
+		if hashErr != nil {
+			router.RespondWithError(w, http.StatusInternalServerError, "Invitatiile nu au putut fi generate")
+			return
+		}
+		created, createErr := qtx.CreateInvitationTicket(r.Context(), db.CreateInvitationTicketParams{
+			EventID: eventID, TicketTypeID: ticketTypeID, CreatedBy: userID, Label: label,
+			ValidationHash: hash, BatchID: batchID, BatchIndex: index,
+		})
+		if createErr != nil {
+			router.RespondWithError(w, http.StatusInternalServerError, "Invitatiile nu au putut fi generate")
+			return
+		}
+		items = append(items, map[string]any{
+			"id": common.UUIDToString(created.ID), "label": label, "validationHash": hash,
+			"ticketType": ticketType, "status": "active", "createdAt": created.CreatedAt.Time,
+			"batchId": common.UUIDToString(batchID), "batchIndex": index,
+		})
+	}
+	if err = tx.Commit(r.Context()); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Invitatiile nu au putut fi generate")
+		return
+	}
+	router.RespondWithJSON(w, http.StatusCreated, items)
 }
 
 func (h *Handler) HandleListInvitations(w http.ResponseWriter, r *http.Request) {
@@ -104,26 +159,25 @@ func (h *Handler) HandleListInvitations(w http.ResponseWriter, r *http.Request) 
 		router.RespondWithError(w, 403, "Acces interzis")
 		return
 	}
-	rows, err := h.DB.Query(r.Context(), `SELECT i.id,i.label,i.validation_hash,COALESCE(tt.name,''),i.validated_at,i.revoked_at,i.created_at FROM invitation_tickets i LEFT JOIN ticket_types tt ON tt.id=i.ticket_type_id WHERE i.event_id=$1 ORDER BY i.created_at DESC`, eventID)
+	rows, err := h.Queries.ListInvitationsForEvent(r.Context(), eventID)
 	if err != nil {
 		router.RespondWithError(w, 500, "Invitatiile nu au putut fi incarcate")
 		return
 	}
-	defer rows.Close()
 	items := []map[string]any{}
-	for rows.Next() {
-		var id pgtype.UUID
-		var label, hash, ticketType string
-		var validated, revoked, created pgtype.Timestamptz
-		if rows.Scan(&id, &label, &hash, &ticketType, &validated, &revoked, &created) == nil {
-			status := "active"
-			if revoked.Valid {
-				status = "revoked"
-			} else if validated.Valid {
-				status = "used"
-			}
-			items = append(items, map[string]any{"id": common.UUIDToString(id), "label": label, "validationHash": hash, "ticketType": ticketType, "status": status, "createdAt": created.Time})
+	for _, invitation := range rows {
+		status := "active"
+		if invitation.RevokedAt.Valid {
+			status = "revoked"
+		} else if invitation.ValidatedAt.Valid {
+			status = "used"
 		}
+		items = append(items, map[string]any{
+			"id": common.UUIDToString(invitation.ID), "label": invitation.Label,
+			"validationHash": invitation.ValidationHash, "ticketType": invitation.TicketType,
+			"status": status, "createdAt": invitation.CreatedAt.Time,
+			"batchId": common.UUIDToString(invitation.BatchID), "batchIndex": invitation.BatchIndex,
+		})
 	}
 	router.RespondWithJSON(w, 200, items)
 }
@@ -134,8 +188,13 @@ func (h *Handler) HandleRevokeInvitation(w http.ResponseWriter, r *http.Request)
 		router.RespondWithError(w, 403, "Acces interzis")
 		return
 	}
-	result, err := h.DB.Exec(r.Context(), `UPDATE invitation_tickets SET revoked_at=CURRENT_TIMESTAMP WHERE id=$1 AND event_id=$2 AND revoked_at IS NULL AND validated_at IS NULL`, chi.URLParam(r, "invitationId"), eventID)
-	if err != nil || result.RowsAffected() == 0 {
+	var invitationID pgtype.UUID
+	if invitationID.Scan(chi.URLParam(r, "invitationId")) != nil {
+		router.RespondWithError(w, http.StatusBadRequest, "Invitatie invalida")
+		return
+	}
+	rows, err := h.Queries.RevokeInvitationTicket(r.Context(), db.RevokeInvitationTicketParams{ID: invitationID, EventID: eventID})
+	if err != nil || rows == 0 {
 		router.RespondWithError(w, 409, "Invitatia nu poate fi anulata")
 		return
 	}
@@ -148,8 +207,13 @@ func (h *Handler) HandleDeleteInvitation(w http.ResponseWriter, r *http.Request)
 		router.RespondWithError(w, http.StatusForbidden, "Acces interzis")
 		return
 	}
-	result, err := h.DB.Exec(r.Context(), `DELETE FROM invitation_tickets WHERE id=$1 AND event_id=$2 AND revoked_at IS NOT NULL`, chi.URLParam(r, "invitationId"), eventID)
-	if err != nil || result.RowsAffected() == 0 {
+	var invitationID pgtype.UUID
+	if invitationID.Scan(chi.URLParam(r, "invitationId")) != nil {
+		router.RespondWithError(w, http.StatusBadRequest, "Invitatie invalida")
+		return
+	}
+	rows, err := h.Queries.DeleteRevokedInvitationTicket(r.Context(), db.DeleteRevokedInvitationTicketParams{ID: invitationID, EventID: eventID})
+	if err != nil || rows == 0 {
 		router.RespondWithError(w, http.StatusConflict, "Doar invitatiile anulate pot fi sterse")
 		return
 	}

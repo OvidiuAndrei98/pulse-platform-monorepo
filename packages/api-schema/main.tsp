@@ -335,6 +335,7 @@ model UpdateEventPayload {
 model CreateInvitationPayload {
   label: string;
   ticketTypeId?: string;
+  quantity?: int32;
 }
 
 model CreatePromoCodePayload {
@@ -408,6 +409,8 @@ model InvitationTicketResponse {
   ticketType?: string;
   status: "active" | "used" | "revoked";
   createdAt?: utcDateTime;
+  batchId: string;
+  batchIndex: int32;
 }
 
 model SubmitOrganizerProfilePayload {
@@ -1023,7 +1026,7 @@ interface DashboardOperations {
   @route("/events/{id}/invitations")
   createInvitation(@path id: string, @body payload: CreateInvitationPayload): {
     @statusCode statusCode: 201;
-    @body response: InvitationTicketResponse;
+    @body response: InvitationTicketResponse[];
   };
 
   @delete

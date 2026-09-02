@@ -867,18 +867,13 @@ func (h *Handler) HandleCreateOfflineSnapshot(w http.ResponseWriter, r *http.Req
 	for _, ticket := range tickets {
 		responseTickets = append(responseTickets, OfflineTicketSnapshot{TicketID: common.UUIDToString(ticket.ID), ValidationHash: ticket.ValidationHash, TicketType: ticket.TicketTypeName})
 	}
-	invitationRows, err := h.DB.Query(ctx, `SELECT i.id,i.validation_hash,COALESCE(tt.name,'Invitatie') FROM invitation_tickets i LEFT JOIN ticket_types tt ON tt.id=i.ticket_type_id WHERE i.event_id=$1 AND i.revoked_at IS NULL AND i.validated_at IS NULL`, eventID)
+	invitationRows, err := h.Queries.ListOfflineInvitationTickets(ctx, eventID)
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Invitatiile offline nu au putut fi incarcate")
 		return
 	}
-	defer invitationRows.Close()
-	for invitationRows.Next() {
-		var id pgtype.UUID
-		var hash, kind string
-		if invitationRows.Scan(&id, &hash, &kind) == nil {
-			responseTickets = append(responseTickets, OfflineTicketSnapshot{TicketID: common.UUIDToString(id), ValidationHash: hash, TicketType: kind})
-		}
+	for _, invitation := range invitationRows {
+		responseTickets = append(responseTickets, OfflineTicketSnapshot{TicketID: common.UUIDToString(invitation.ID), ValidationHash: invitation.ValidationHash, TicketType: invitation.TicketTypeName})
 	}
 	snapshot, err := h.Queries.CreateOfflineValidationSnapshot(ctx, db.CreateOfflineValidationSnapshotParams{
 		EventID:         eventID,

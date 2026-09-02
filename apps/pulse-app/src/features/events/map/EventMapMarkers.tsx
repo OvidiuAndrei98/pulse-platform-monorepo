@@ -1,11 +1,16 @@
 import L from "leaflet";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Marker, useMap, useMapEvents } from "react-leaflet";
 import { useTranslation } from "react-i18next";
 import { Event } from "@/core/DataProvider";
 
 const CLUSTER_RADIUS_PX = 58;
-const CLUSTER_MAX_ZOOM = 17;
+const OVERLAP_RADIUS_PX = 34;
+const RADIAL_ZOOM_THRESHOLD = 17;
+const eventPinIconCache = new Map<string, L.DivIcon>();
+const clusterIconCache = new Map<number, L.DivIcon>();
+
+type DisplayPosition = { latitude: number; longitude: number };
 
 type EventCluster = {
   events: Event[];
@@ -14,12 +19,29 @@ type EventCluster = {
   point: L.Point;
 };
 
-function createEventPinIcon(isSelected: boolean, isLive: boolean) {
-  const size = isSelected ? 46 : 40;
-  const state = `${isSelected ? "selected" : "default"}${isLive ? " event-map-pin--live" : ""}`;
+type RadialEvent = {
+  event: Event;
+  position: L.LatLng;
+};
 
-  return L.divIcon({
-    html: `<div class="event-map-pin event-map-pin--${state}" style="width: ${size}px; height: ${size}px;">
+function createEventPinIcon(
+  isSelected: boolean,
+  isLive: boolean,
+  isRadial = false,
+) {
+  const cacheKey = `${isSelected}-${isLive}-${isRadial}`;
+  const cached = eventPinIconCache.get(cacheKey);
+  if (cached) return cached;
+
+  const size = isSelected ? 46 : 40;
+  const classes = [
+    "event-map-pin",
+    `event-map-pin--${isSelected ? "selected" : "default"}`,
+    isLive ? "event-map-pin--live" : "",
+    isRadial ? "event-map-pin--spiderfied" : "",
+  ].filter(Boolean).join(" ");
+  const icon = L.divIcon({
+    html: `<div class="${classes}" style="width: ${size}px; height: ${size}px;">
       ${isLive ? '<span class="event-map-pin__pulse"></span>' : ""}
       <div class="event-map-pin__shape"><svg class="event-map-pin__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg></div>
     </div>`,
@@ -27,29 +49,31 @@ function createEventPinIcon(isSelected: boolean, isLive: boolean) {
     iconSize: [size, size],
     iconAnchor: [size / 2, size - 3],
   });
+  eventPinIconCache.set(cacheKey, icon);
+  return icon;
 }
 
 function createClusterIcon(count: number) {
+  const cached = clusterIconCache.get(count);
+  if (cached) return cached;
+
   const size = count >= 100 ? 56 : count >= 10 ? 50 : 44;
-  return L.divIcon({
+  const icon = L.divIcon({
     html: `<div class="event-map-cluster" style="width:${size}px;height:${size}px"><span>${count}</span></div>`,
     className: "custom-leaflet-marker",
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
+  clusterIconCache.set(count, icon);
+  return icon;
 }
 
 function groupNearbyEvents(events: Event[], map: L.Map, zoom: number) {
-  if (zoom > CLUSTER_MAX_ZOOM) {
-    return events.map<EventCluster>((event) => ({
-      events: [event],
-      latitude: event.latitude,
-      longitude: event.longitude,
-      point: map.project([event.latitude, event.longitude], zoom),
-    }));
-  }
-
+  const clusterRadius = zoom > RADIAL_ZOOM_THRESHOLD
+    ? OVERLAP_RADIUS_PX
+    : CLUSTER_RADIUS_PX;
   const clusters: EventCluster[] = [];
+
   for (const event of events) {
     const point = map.project([event.latitude, event.longitude], zoom);
     let closest: EventCluster | undefined;
@@ -57,7 +81,7 @@ function groupNearbyEvents(events: Event[], map: L.Map, zoom: number) {
 
     for (const cluster of clusters) {
       const distance = point.distanceTo(cluster.point);
-      if (distance <= CLUSTER_RADIUS_PX && distance < closestDistance) {
+      if (distance <= clusterRadius && distance < closestDistance) {
         closest = cluster;
         closestDistance = distance;
       }
@@ -85,14 +109,55 @@ function groupNearbyEvents(events: Event[], map: L.Map, zoom: number) {
   return clusters;
 }
 
+function createRadialEventPositions(cluster: EventCluster, map: L.Map) {
+  const centerPoint = map.latLngToLayerPoint([
+    cluster.latitude,
+    cluster.longitude,
+  ]);
+  const positionedEvents: RadialEvent[] = [];
+  let eventIndex = 0;
+  let ringIndex = 0;
+
+  while (eventIndex < cluster.events.length) {
+    const remaining = cluster.events.length - eventIndex;
+    const capacity = ringIndex === 0 ? 8 : 12 + (ringIndex - 1) * 4;
+    const ringCount = Math.min(capacity, remaining);
+    const radius = ringIndex === 0
+      ? ringCount <= 4 ? 28 : 38
+      : 68 + (ringIndex - 1) * 34;
+
+    for (let indexInRing = 0; indexInRing < ringCount; indexInRing += 1) {
+      const angle = -Math.PI / 2 + (Math.PI * 2 * indexInRing) / ringCount;
+      const point = L.point(
+        centerPoint.x + Math.cos(angle) * radius,
+        centerPoint.y + Math.sin(angle) * radius,
+      );
+      positionedEvents.push({
+        event: cluster.events[eventIndex + indexInRing],
+        position: map.layerPointToLatLng(point),
+      });
+    }
+
+    eventIndex += ringCount;
+    ringIndex += 1;
+  }
+
+  return positionedEvents;
+}
+
 export function EventMapMarkers({
   events,
   selectedId,
   onSelect,
+  onSelectedDisplayPositionChange,
 }: {
   events: Event[];
   selectedId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, displayPosition?: DisplayPosition) => void;
+  onSelectedDisplayPositionChange?: (
+    eventId: string,
+    displayPosition: DisplayPosition | null,
+  ) => void;
 }) {
   const { t } = useTranslation();
   const map = useMap();
@@ -102,23 +167,64 @@ export function EventMapMarkers({
     zoomend: () => setZoom(map.getZoom()),
   });
 
-  useEffect(() => setZoom(map.getZoom()), [map]);
-
-  const selectedEvent = events.find((event) => event.id === selectedId);
   const clusters = useMemo(
-    () => groupNearbyEvents(events.filter((event) => event.id !== selectedId), map, zoom),
-    [events, map, selectedId, zoom],
+    () => groupNearbyEvents(events, map, zoom),
+    [events, map, zoom],
+  );
+  const radialLayouts = useMemo(
+    () => zoom > RADIAL_ZOOM_THRESHOLD
+      ? clusters
+          .filter((cluster) => cluster.events.length > 1)
+          .flatMap((cluster) => createRadialEventPositions(cluster, map))
+      : [],
+    [clusters, map, zoom],
+  );
+  const radialPositionByEventId = useMemo(
+    () => new Map(
+      radialLayouts.map(({ event, position }) => [event.id, position]),
+    ),
+    [radialLayouts],
   );
 
-  const openCluster = (cluster: EventCluster) => {
+  useEffect(() => {
+    if (!selectedId || !onSelectedDisplayPositionChange) return;
+    const radialPosition = radialPositionByEventId.get(selectedId);
+    onSelectedDisplayPositionChange(
+      selectedId,
+      radialPosition
+        ? { latitude: radialPosition.lat, longitude: radialPosition.lng }
+        : null,
+    );
+  }, [onSelectedDisplayPositionChange, radialPositionByEventId, selectedId]);
+
+  const zoomToCluster = (cluster: EventCluster) => {
+    const firstEvent = cluster.events[0];
+    const sameLocation = cluster.events.every(
+      (event) =>
+        Math.abs(event.latitude - firstEvent.latitude) < 0.000001 &&
+        Math.abs(event.longitude - firstEvent.longitude) < 0.000001,
+    );
+
+    if (sameLocation) {
+      map.flyTo(
+        [cluster.latitude, cluster.longitude],
+        Math.max(RADIAL_ZOOM_THRESHOLD + 1, zoom),
+        { animate: true, duration: 0.45 },
+      );
+      return;
+    }
+
     const bounds = L.latLngBounds(
-      cluster.events.map((event) => [event.latitude, event.longitude] as L.LatLngTuple),
+      cluster.events.map((event) => [
+        event.latitude,
+        event.longitude,
+      ] as L.LatLngTuple),
     );
     map.flyToBounds(bounds, {
       animate: true,
       duration: 0.45,
       padding: [64, 64],
-      maxZoom: Math.min(CLUSTER_MAX_ZOOM + 1, zoom + 2),
+      maxZoom: RADIAL_ZOOM_THRESHOLD + 1,
     });
   };
 
@@ -131,9 +237,42 @@ export function EventMapMarkers({
             <Marker
               key={event.id}
               position={[event.latitude, event.longitude]}
-              icon={createEventPinIcon(false, !!event.isLive)}
+              icon={createEventPinIcon(event.id === selectedId, !!event.isLive)}
               eventHandlers={{ click: () => onSelect(event.id) }}
+              zIndexOffset={event.id === selectedId ? 1000 : 0}
             />
+          );
+        }
+
+        if (zoom > RADIAL_ZOOM_THRESHOLD) {
+          return (
+            <Fragment key={`radial-${cluster.events.map((event) => event.id).sort().join("-")}`}>
+              {cluster.events.map((event) => {
+                const position = radialPositionByEventId.get(event.id);
+                if (!position) return null;
+                return (
+                  <Marker
+                    key={`radial-pin-${event.id}`}
+                    position={position}
+                    icon={createEventPinIcon(
+                      event.id === selectedId,
+                      !!event.isLive,
+                      true,
+                    )}
+                    eventHandlers={{
+                      click: (clickEvent) => {
+                        L.DomEvent.stopPropagation(clickEvent.originalEvent);
+                        onSelect(event.id, {
+                          latitude: position.lat,
+                          longitude: position.lng,
+                        });
+                      },
+                    }}
+                    zIndexOffset={event.id === selectedId ? 1000 : 900}
+                  />
+                );
+              })}
+            </Fragment>
           );
         }
 
@@ -145,20 +284,15 @@ export function EventMapMarkers({
             icon={createClusterIcon(cluster.events.length)}
             title={label}
             alt={label}
-            eventHandlers={{ click: () => openCluster(cluster) }}
+            eventHandlers={{
+              click: (clickEvent) => {
+                L.DomEvent.stopPropagation(clickEvent.originalEvent);
+                zoomToCluster(cluster);
+              },
+            }}
           />
         );
       })}
-
-      {selectedEvent && (
-        <Marker
-          key={`selected-${selectedEvent.id}`}
-          position={[selectedEvent.latitude, selectedEvent.longitude]}
-          icon={createEventPinIcon(true, !!selectedEvent.isLive)}
-          eventHandlers={{ click: () => onSelect(selectedEvent.id) }}
-          zIndexOffset={1000}
-        />
-      )}
     </>
   );
 }

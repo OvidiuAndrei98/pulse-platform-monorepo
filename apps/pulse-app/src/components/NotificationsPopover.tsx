@@ -92,7 +92,7 @@ export function NotificationsPopover() {
           <motion.div
             key="panel"
             layoutId="notif-morph"
-            className="absolute right-0 top-0 z-[100] w-[min(20rem,calc(100vw-2.5rem))] origin-top-right overflow-hidden rounded-[26px] border border-white/20 bg-[#141614]/95 md:bg-[#141614]/85 text-foreground md:backdrop-blur-xl transform-gpu"
+            className="absolute right-0 top-0 z-[100] w-[min(20rem,calc(100vw-2.5rem))] origin-top-right overflow-hidden rounded-[26px] border border-white/20 bg-[#141414]/95 text-foreground md:bg-[#141414]/85 md:backdrop-blur-xl transform-gpu"
             transition={{ type: "spring", stiffness: 220, damping: 26 }}
           >
             {/* Sheen effect */}

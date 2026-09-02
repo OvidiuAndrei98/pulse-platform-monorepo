@@ -130,6 +130,44 @@ func (q *Queries) CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrd
 	return i, err
 }
 
+const createInvitationTicket = `-- name: CreateInvitationTicket :one
+INSERT INTO invitation_tickets (
+    event_id, ticket_type_id, created_by, label, validation_hash, batch_id, batch_index
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, created_at
+`
+
+type CreateInvitationTicketParams struct {
+	EventID        pgtype.UUID `json:"event_id"`
+	TicketTypeID   pgtype.UUID `json:"ticket_type_id"`
+	CreatedBy      pgtype.UUID `json:"created_by"`
+	Label          string      `json:"label"`
+	ValidationHash string      `json:"validation_hash"`
+	BatchID        pgtype.UUID `json:"batch_id"`
+	BatchIndex     int32       `json:"batch_index"`
+}
+
+type CreateInvitationTicketRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) CreateInvitationTicket(ctx context.Context, arg CreateInvitationTicketParams) (CreateInvitationTicketRow, error) {
+	row := q.db.QueryRow(ctx, createInvitationTicket,
+		arg.EventID,
+		arg.TicketTypeID,
+		arg.CreatedBy,
+		arg.Label,
+		arg.ValidationHash,
+		arg.BatchID,
+		arg.BatchIndex,
+	)
+	var i CreateInvitationTicketRow
+	err := row.Scan(&i.ID, &i.CreatedAt)
+	return i, err
+}
+
 const createOfflineTicketValidation = `-- name: CreateOfflineTicketValidation :one
 INSERT INTO offline_ticket_validations (
     client_scan_id, snapshot_id, event_id, validated_by_user_id,
@@ -387,6 +425,76 @@ type DecrementTicketsSoldParams struct {
 func (q *Queries) DecrementTicketsSold(ctx context.Context, arg DecrementTicketsSoldParams) error {
 	_, err := q.db.Exec(ctx, decrementTicketsSold, arg.ID, arg.TicketsSold)
 	return err
+}
+
+const deleteRevokedInvitationTicket = `-- name: DeleteRevokedInvitationTicket :execrows
+DELETE FROM invitation_tickets
+WHERE id = $1 AND event_id = $2 AND revoked_at IS NOT NULL
+`
+
+type DeleteRevokedInvitationTicketParams struct {
+	ID      pgtype.UUID `json:"id"`
+	EventID pgtype.UUID `json:"event_id"`
+}
+
+func (q *Queries) DeleteRevokedInvitationTicket(ctx context.Context, arg DeleteRevokedInvitationTicketParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteRevokedInvitationTicket, arg.ID, arg.EventID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const getInvitationForValidation = `-- name: GetInvitationForValidation :one
+SELECT i.id, i.label, COALESCE(tt.name, '') AS ticket_type,
+       i.validated_at, i.revoked_at
+FROM invitation_tickets i
+LEFT JOIN ticket_types tt ON tt.id = i.ticket_type_id
+WHERE i.event_id = $1 AND i.validation_hash = $2
+`
+
+type GetInvitationForValidationParams struct {
+	EventID        pgtype.UUID `json:"event_id"`
+	ValidationHash string      `json:"validation_hash"`
+}
+
+type GetInvitationForValidationRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	Label       string             `json:"label"`
+	TicketType  string             `json:"ticket_type"`
+	ValidatedAt pgtype.Timestamptz `json:"validated_at"`
+	RevokedAt   pgtype.Timestamptz `json:"revoked_at"`
+}
+
+func (q *Queries) GetInvitationForValidation(ctx context.Context, arg GetInvitationForValidationParams) (GetInvitationForValidationRow, error) {
+	row := q.db.QueryRow(ctx, getInvitationForValidation, arg.EventID, arg.ValidationHash)
+	var i GetInvitationForValidationRow
+	err := row.Scan(
+		&i.ID,
+		&i.Label,
+		&i.TicketType,
+		&i.ValidatedAt,
+		&i.RevokedAt,
+	)
+	return i, err
+}
+
+const getInvitationTicketType = `-- name: GetInvitationTicketType :one
+SELECT name
+FROM ticket_types
+WHERE id = $1 AND event_id = $2
+`
+
+type GetInvitationTicketTypeParams struct {
+	ID      pgtype.UUID `json:"id"`
+	EventID pgtype.UUID `json:"event_id"`
+}
+
+func (q *Queries) GetInvitationTicketType(ctx context.Context, arg GetInvitationTicketTypeParams) (string, error) {
+	row := q.db.QueryRow(ctx, getInvitationTicketType, arg.ID, arg.EventID)
+	var name string
+	err := row.Scan(&name)
+	return name, err
 }
 
 const getOfflineTicketValidationByClientScanID = `-- name: GetOfflineTicketValidationByClientScanID :one
@@ -805,6 +913,93 @@ func (q *Queries) IsValidationStaffForEvent(ctx context.Context, arg IsValidatio
 	return is_validation_staff, err
 }
 
+const listInvitationsForEvent = `-- name: ListInvitationsForEvent :many
+SELECT i.id, i.label, i.validation_hash, COALESCE(tt.name, '') AS ticket_type,
+       i.validated_at, i.revoked_at, i.created_at, i.batch_id, i.batch_index
+FROM invitation_tickets i
+LEFT JOIN ticket_types tt ON tt.id = i.ticket_type_id
+WHERE i.event_id = $1
+ORDER BY i.created_at DESC, i.batch_index ASC
+`
+
+type ListInvitationsForEventRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	Label          string             `json:"label"`
+	ValidationHash string             `json:"validation_hash"`
+	TicketType     string             `json:"ticket_type"`
+	ValidatedAt    pgtype.Timestamptz `json:"validated_at"`
+	RevokedAt      pgtype.Timestamptz `json:"revoked_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	BatchID        pgtype.UUID        `json:"batch_id"`
+	BatchIndex     int32              `json:"batch_index"`
+}
+
+func (q *Queries) ListInvitationsForEvent(ctx context.Context, eventID pgtype.UUID) ([]ListInvitationsForEventRow, error) {
+	rows, err := q.db.Query(ctx, listInvitationsForEvent, eventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListInvitationsForEventRow
+	for rows.Next() {
+		var i ListInvitationsForEventRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.ValidationHash,
+			&i.TicketType,
+			&i.ValidatedAt,
+			&i.RevokedAt,
+			&i.CreatedAt,
+			&i.BatchID,
+			&i.BatchIndex,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOfflineInvitationTickets = `-- name: ListOfflineInvitationTickets :many
+SELECT i.id, i.validation_hash, COALESCE(tt.name, 'Invitatie') AS ticket_type_name
+FROM invitation_tickets i
+LEFT JOIN ticket_types tt ON tt.id = i.ticket_type_id
+WHERE i.event_id = $1
+  AND i.revoked_at IS NULL
+  AND i.validated_at IS NULL
+ORDER BY i.created_at ASC
+`
+
+type ListOfflineInvitationTicketsRow struct {
+	ID             pgtype.UUID `json:"id"`
+	ValidationHash string      `json:"validation_hash"`
+	TicketTypeName string      `json:"ticket_type_name"`
+}
+
+func (q *Queries) ListOfflineInvitationTickets(ctx context.Context, eventID pgtype.UUID) ([]ListOfflineInvitationTicketsRow, error) {
+	rows, err := q.db.Query(ctx, listOfflineInvitationTickets, eventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOfflineInvitationTicketsRow
+	for rows.Next() {
+		var i ListOfflineInvitationTicketsRow
+		if err := rows.Scan(&i.ID, &i.ValidationHash, &i.TicketTypeName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOfflineValidationTickets = `-- name: ListOfflineValidationTickets :many
 SELECT t.id, t.validation_hash, tt.name AS ticket_type_name
 FROM tickets t
@@ -1148,6 +1343,20 @@ func (q *Queries) MarkGuestTicketEmailSent(ctx context.Context, id pgtype.UUID) 
 	return err
 }
 
+const markInvitationValidated = `-- name: MarkInvitationValidated :one
+UPDATE invitation_tickets
+SET validated_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND validated_at IS NULL AND revoked_at IS NULL
+RETURNING validated_at
+`
+
+func (q *Queries) MarkInvitationValidated(ctx context.Context, id pgtype.UUID) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, markInvitationValidated, id)
+	var validated_at pgtype.Timestamptz
+	err := row.Scan(&validated_at)
+	return validated_at, err
+}
+
 const removeValidationStaff = `-- name: RemoveValidationStaff :exec
 DELETE FROM event_validation_staff
 WHERE event_id = $1 AND user_id = $2
@@ -1161,6 +1370,25 @@ type RemoveValidationStaffParams struct {
 func (q *Queries) RemoveValidationStaff(ctx context.Context, arg RemoveValidationStaffParams) error {
 	_, err := q.db.Exec(ctx, removeValidationStaff, arg.EventID, arg.UserID)
 	return err
+}
+
+const revokeInvitationTicket = `-- name: RevokeInvitationTicket :execrows
+UPDATE invitation_tickets
+SET revoked_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND event_id = $2 AND revoked_at IS NULL AND validated_at IS NULL
+`
+
+type RevokeInvitationTicketParams struct {
+	ID      pgtype.UUID `json:"id"`
+	EventID pgtype.UUID `json:"event_id"`
+}
+
+func (q *Queries) RevokeInvitationTicket(ctx context.Context, arg RevokeInvitationTicketParams) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeInvitationTicket, arg.ID, arg.EventID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const revokeScannerAccess = `-- name: RevokeScannerAccess :exec

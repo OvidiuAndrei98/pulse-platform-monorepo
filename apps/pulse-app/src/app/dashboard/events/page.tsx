@@ -74,9 +74,6 @@ export default function EventsListPage() {
         {/* HEADER SECTION */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">
-              {t("dashboardNav.organizer")}
-            </p>
             <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
               {t("organizerEvents.title")}
             </h1>

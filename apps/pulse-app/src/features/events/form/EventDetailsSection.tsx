@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Sparkles, Tags } from "lucide-react";
+import { Calendar, MapPin, Music2, Tags } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
 import {
   PlacesAutocomplete,
@@ -58,7 +58,7 @@ export function EventDetailsSection({
           className={eventInputClass}
         />
       </FormField>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormField
           label={t("eventForm.category")}
           error={errors.category?.message}
@@ -85,7 +85,7 @@ export function EventDetailsSection({
             value={watch("vibe")}
             options={eventVibes.map((vibe) => ({ value: vibe, label: vibe }))}
             placeholder={t("eventForm.vibePlaceholder")}
-            icon={Sparkles}
+            icon={Music2}
             onChange={(vibe) =>
               setValue("vibe", vibe, {
                 shouldValidate: true,
@@ -95,24 +95,26 @@ export function EventDetailsSection({
           />
           <input type="hidden" {...register("vibe")} />
         </FormField>
-        <FormField label={t("eventForm.eventStatus")}>
-          <div
-            className={`grid h-[42px] gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1 ${currentStatus === "completed" ? "grid-cols-1" : "grid-cols-3"}`}
-          >
-            {statuses.map((status) => (
-              <button
-                key={status}
-                type="button"
-                onClick={() => setValue("status", status)}
-                className={`rounded-full text-xs font-medium transition ${currentStatus === status ? (status === "published" ? "bg-primary text-primary-foreground" : "bg-white/10 text-white") : "text-muted-foreground hover:text-white"}`}
-              >
-                {status === "completed"
-                  ? t("organizerEvents.completed")
-                  : t(`eventForm.${status}`)}
-              </button>
-            ))}
-          </div>
-        </FormField>
+        <div className="sm:col-span-2 sm:max-w-sm">
+          <FormField label={t("eventForm.eventStatus")}>
+            <div
+              className={`grid h-[42px] gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1 ${currentStatus === "completed" ? "grid-cols-1" : "grid-cols-3"}`}
+            >
+              {statuses.map((status) => (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => setValue("status", status)}
+                  className={`min-w-0 whitespace-nowrap rounded-full px-3 text-xs font-medium transition ${currentStatus === status ? (status === "published" ? "bg-primary text-primary-foreground" : "bg-white/10 text-white") : "text-muted-foreground hover:text-white"}`}
+                >
+                  {status === "completed"
+                    ? t("organizerEvents.completed")
+                    : t(`eventForm.${status}`)}
+                </button>
+              ))}
+            </div>
+          </FormField>
+        </div>
       </div>
       {currentStatus === "scheduled" && (
         <FormField

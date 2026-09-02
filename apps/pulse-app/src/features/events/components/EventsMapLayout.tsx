@@ -22,6 +22,10 @@ export function EventsMapLayout({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isFullView, setIsFullView] = useState(false);
   const [visibleEventIds, setVisibleEventIds] = useState<string[] | null>(null);
+  const [focusRequest, setFocusRequest] = useState<{
+    eventId: string;
+    requestId: number;
+  } | null>(null);
   const visibleEvents = visibleEventIds
     ? events.filter((event) => visibleEventIds.includes(event.id))
     : events;
@@ -33,7 +37,13 @@ export function EventsMapLayout({
           events={visibleEvents}
           selectedId={selectedId}
           userLocation={userLocation}
-          onSelect={setSelectedId}
+          onSelect={(eventId) => {
+            setSelectedId(eventId);
+            setFocusRequest((current) => ({
+              eventId,
+              requestId: (current?.requestId ?? 0) + 1,
+            }));
+          }}
           onOpen={open}
         />
       )}
@@ -50,6 +60,7 @@ export function EventsMapLayout({
         userLocation={userLocation}
         onUserLocationChange={onUserLocationChange}
         onBoundsEventsChange={setVisibleEventIds}
+        focusRequest={focusRequest}
       />
     </div>
   );

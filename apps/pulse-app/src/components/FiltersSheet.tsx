@@ -91,7 +91,7 @@ export function FiltersSheet({ value, onChange }: FiltersSheetProps = {}) {
                 <motion.div
                   key="sheet"
                   layoutId="filter-morph"
-                  className="fixed inset-x-3 bottom-3 top-16 z-[10000] overflow-hidden rounded-lg border border-white/15 bg-[#141614]/95 text-foreground shadow-2xl backdrop-blur-xl md:inset-x-auto md:left-1/2 md:top-1/2 md:h-auto md:max-h-[85vh] md:w-[min(32rem,calc(100vw-2rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:bg-[#141614]/85 md:backdrop-blur-2xl transform-gpu"
+                  className="fixed inset-x-3 bottom-3 top-16 z-[10000] overflow-hidden rounded-lg border border-white/15 bg-[#141414]/95 text-foreground shadow-2xl backdrop-blur-xl md:inset-x-auto md:left-1/2 md:top-1/2 md:h-auto md:max-h-[85vh] md:w-[min(32rem,calc(100vw-2rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:bg-[#141414]/85 md:backdrop-blur-2xl transform-gpu"
                   transition={{ type: "spring", stiffness: 220, damping: 26 }}
                 >
                   <div

@@ -100,7 +100,7 @@ export default function EditEventPage() {
   const completed = event?.status === "completed" || Boolean(event && new Date(event.endTime).getTime() <= Date.now());
 
   return (
-    <div className="relative min-h-screen bg-background pb-40 text-foreground antialiased">
+    <div className="relative bg-background pb-40 text-foreground antialiased">
       <div className="app-page-spacing mx-auto max-w-3xl">
         <Link
           href="/dashboard/events"

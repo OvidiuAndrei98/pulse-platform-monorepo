@@ -48,11 +48,8 @@ export default function ProfilePage() {
 
   return (
     <div className="w-full text-foreground pb-[110px]">
-      <div className="app-page-spacing mx-auto max-w-3xl space-y-6">
+      <div className="app-page-spacing mx-auto max-w-5xl space-y-6">
         <div className="space-y-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            {t("dashboardNav.organizer")}
-          </p>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
             {t("organizerProfile.title")}
           </h1>

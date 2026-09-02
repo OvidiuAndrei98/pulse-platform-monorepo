@@ -1222,6 +1222,8 @@ export interface components {
         CreateInvitationPayload: {
             label: string;
             ticketTypeId?: string;
+            /** Format: int32 */
+            quantity?: number;
         };
         CreateOrganizerEventUpdatePayload: {
             imageUrl: string;
@@ -1351,6 +1353,9 @@ export interface components {
             status: "active" | "used" | "revoked";
             /** Format: date-time */
             createdAt?: string;
+            batchId: string;
+            /** Format: int32 */
+            batchIndex: number;
         };
         MessageResponse: {
             message: string;
@@ -2010,7 +2015,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvitationTicketResponse"];
+                    "application/json": components["schemas"]["InvitationTicketResponse"][];
                 };
             };
         };

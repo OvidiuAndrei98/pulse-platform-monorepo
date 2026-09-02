@@ -60,7 +60,7 @@
   --card: oklch(0.22 0.02 150);
   --card-foreground: oklch(0.98 0.01 120);
 
-  --popover: oklch(0.22 0.02 150);
+  --popover: #171717;
   --popover-foreground: oklch(0.98 0.01 120);
 
   --primary: #ff0044;
@@ -88,6 +88,14 @@
     border-color: var(--color-border);
     scrollbar-width: thin;
     scrollbar-color: rgb(255 255 255 / 16%) transparent;
+  }
+
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
   }
 
   *::-webkit-scrollbar {
@@ -187,9 +195,9 @@
   z-index: 10001 !important;
   margin-top: 8px;
   overflow: hidden;
-  border: 1px solid oklch(0.32 0.02 150 / 75%);
+  border: 1px solid rgb(255 255 255 / 15%);
   border-radius: 14px;
-  background: oklch(0.18 0.02 150 / 98%);
+  background: rgb(23 23 23 / 98%);
   box-shadow: 0 18px 38px rgb(0 0 0 / 45%);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
@@ -211,7 +219,7 @@
 
 .pac-item:hover,
 .pac-item-selected {
-  background: oklch(0.88 0.22 135 / 12%);
+  background: rgb(255 0 68 / 12%);
 }
 
 .pac-item-query,
@@ -225,7 +233,7 @@
 }
 
 .pac-matched {
-  color: oklch(0.88 0.22 135);
+  color: var(--primary);
 }
 
 .pac-icon {
@@ -286,6 +294,19 @@ html.capacitor-native body {
   min-height: 100dvh;
   padding-top: var(--native-safe-top);
   padding-bottom: var(--native-safe-bottom);
+}
+
+/* The body already reserves the native safe areas. Full-viewport page shells
+   must use the remaining content height, otherwise short pages gain a small,
+   empty scroll range equal to the status and navigation safe areas. */
+html.capacitor-native .min-h-screen,
+html.capacitor-native .min-h-dvh {
+  min-height: calc(100dvh - var(--native-safe-top) - var(--native-safe-bottom)) !important;
+}
+
+html.capacitor-native .h-screen,
+html.capacitor-native .h-dvh {
+  height: calc(100dvh - var(--native-safe-top) - var(--native-safe-bottom)) !important;
 }
 
 /* Keep the iPhone status-bar/notch area visually stable, independent of the

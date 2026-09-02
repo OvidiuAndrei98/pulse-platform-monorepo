@@ -56,32 +56,17 @@ func (h *Handler) StartEventExpiryWorker(ctx context.Context) {
 	expireEvents := func() {
 		runCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
-		rows, err := h.DB.Query(runCtx, `
-			UPDATE events
-			SET status = 'published', publish_at = NULL
-			WHERE status = 'scheduled' AND publish_at <= CURRENT_TIMESTAMP
-			RETURNING id`)
+		publishedIDs, err := h.Queries.PublishDueEvents(runCtx)
 		if err != nil {
 			log.Printf("scheduled publishing worker: %v", err)
 		} else {
-			publishedIDs := make([]pgtype.UUID, 0)
-			for rows.Next() {
-				var eventID pgtype.UUID
-				if rows.Scan(&eventID) == nil {
-					publishedIDs = append(publishedIDs, eventID)
-				}
-			}
-			rows.Close()
 			for _, eventID := range publishedIDs {
 				if err := h.Queries.CreateOrganizerEventNotifications(runCtx, eventID); err != nil {
 					log.Printf("scheduled event notification failed: %v", err)
 				}
 			}
 		}
-		if _, err := h.DB.Exec(runCtx, `
-			UPDATE events
-			SET status = 'completed', is_live = FALSE
-			WHERE status IN ('draft', 'scheduled', 'published') AND end_time <= CURRENT_TIMESTAMP`); err != nil {
+		if err := h.Queries.CompleteEndedEvents(runCtx); err != nil {
 			log.Printf("event expiry worker: %v", err)
 		}
 	}
@@ -586,7 +571,10 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 	if val, err := strconv.Atoi(pageStr); err == nil && val > 1 {
 		page = int32(val) - 1
 	}
-	const pageSize = int32(20)
+	pageSize := int32(20)
+	if organizerID.Valid {
+		pageSize = 100
+	}
 
 	params := db.ListEventsParams{
 		Category:     category,
