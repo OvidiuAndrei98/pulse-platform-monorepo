@@ -73,7 +73,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       <div className="space-y-3 p-[16px_16px_16px_8px]">
         <div className="pl-2">
           <div className="flex items-center gap-2">
-            <Image src="/spottr-logo.svg" alt="Spottr Logo" width={16} height={16} />
+            <Image src="/spottr-logo.svg" alt={t("common.logoAlt")} width={16} height={16} />
                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-primary">
             SPOTTR
           </p>

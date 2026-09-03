@@ -49,3 +49,40 @@ func TestUnknownPlanIsRejected(t *testing.T) {
 		t.Fatal("expected invalid plan error")
 	}
 }
+
+func TestPromotionCatalogSeparatesBannerAndFeedPrices(t *testing.T) {
+	t.Setenv("PROMOTION_ONE_DAY_PRICE_RON", "")
+	t.Setenv("PROMOTION_THU_SAT_PRICE_RON", "")
+	t.Setenv("PROMOTION_FULL_WEEK_PRICE_RON", "")
+	t.Setenv("PROMOTION_FEED_ONE_DAY_PRICE_RON", "")
+	t.Setenv("PROMOTION_FEED_THU_SAT_PRICE_RON", "")
+	t.Setenv("PROMOTION_FEED_FULL_WEEK_PRICE_RON", "")
+
+	expected := map[string]int32{
+		"home_banner:one_day":   50,
+		"home_banner:thu_sat":   120,
+		"home_banner:full_week": 200,
+		"feed:one_day":          10,
+		"feed:thu_sat":          25,
+		"feed:full_week":        50,
+	}
+	for _, plan := range plans() {
+		key := plan.Placement + ":" + plan.ID
+		if amount, ok := expected[key]; !ok || amount != plan.AmountRon {
+			t.Fatalf("unexpected plan %s with amount %d", key, plan.AmountRon)
+		}
+		delete(expected, key)
+	}
+	if len(expected) != 0 {
+		t.Fatalf("missing plans: %v", expected)
+	}
+}
+
+func TestBannerReservationPolicy(t *testing.T) {
+	if homeBannerCapacity != 5 {
+		t.Fatalf("home banner capacity = %d, expected 5", homeBannerCapacity)
+	}
+	if promotionReservationDuration != 10*time.Minute {
+		t.Fatalf("reservation duration = %v, expected 10m", promotionReservationDuration)
+	}
+}

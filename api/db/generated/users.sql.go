@@ -202,6 +202,33 @@ func (q *Queries) ListHiddenEventCategories(ctx context.Context, userID pgtype.U
 	return items, nil
 }
 
+const promoteUserToOrganizer = `-- name: PromoteUserToOrganizer :one
+UPDATE users
+SET role = 'organizer'
+WHERE id = $1 AND role = 'user'
+RETURNING id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id, preferred_language, show_attendance_publicly
+`
+
+func (q *Queries) PromoteUserToOrganizer(ctx context.Context, id pgtype.UUID) (Users, error) {
+	row := q.db.QueryRow(ctx, promoteUserToOrganizer, id)
+	var i Users
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.PasswordHash,
+		&i.AvatarUrl,
+		&i.Role,
+		&i.Bio,
+		&i.CreatedAt,
+		&i.IsActive,
+		&i.GoogleID,
+		&i.PreferredLanguage,
+		&i.ShowAttendancePublicly,
+	)
+	return i, err
+}
+
 const showEventCategory = `-- name: ShowEventCategory :exec
 DELETE FROM user_hidden_event_categories WHERE user_id = $1 AND category = UPPER($2)
 `

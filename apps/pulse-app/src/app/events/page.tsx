@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { FiltersSheet } from "@/components/FiltersSheet";
-import { Event, PublicEventsService } from "@/core/DataProvider";
+import { Event, PromotedEvent, PublicEventsService } from "@/core/DataProvider";
 import {
   cityCenters,
   defaultEventFilters,
@@ -16,8 +16,10 @@ import { EventViewToggle } from "@/features/events/components/EventViewToggle";
 import { getEventDateRange } from "@/features/events/dateFilters";
 import { Coordinates, EventFilters } from "@/features/events/types";
 import { EventCardSkeleton, PageLoadingState } from "@/components/ui/loading";
-
-const eventsFiltersStorageKey = "glow.events.filters";
+import {
+  mixFeedPromotions,
+  promotionCampaignsByEvent,
+} from "@/features/events/promotions";
 
 const EventsMapLayout = dynamic(
   () =>
@@ -40,40 +42,21 @@ function getDateFilter(value: string | null) {
     : defaultEventFilters.date;
 }
 
-function getStoredFilters(
-  requestedDate: string,
-  hasDateInUrl: boolean,
-): EventFilters {
-  if (typeof window === "undefined") {
-    return { ...defaultEventFilters, date: requestedDate };
+function trackFeedPromotion(
+  campaign: PromotedEvent | undefined,
+  metric: "impression" | "click",
+) {
+  if (!campaign) return;
+  let viewerKey = sessionStorage.getItem("pulse:promotion-viewer");
+  if (!viewerKey) {
+    viewerKey = crypto.randomUUID();
+    sessionStorage.setItem("pulse:promotion-viewer", viewerKey);
   }
-
-  try {
-    const stored = JSON.parse(
-      window.sessionStorage.getItem(eventsFiltersStorageKey) ?? "null",
-    ) as Partial<EventFilters> | null;
-
-    if (
-      !stored ||
-      !Array.isArray(stored.categories) ||
-      !Array.isArray(stored.vibes)
-    ) {
-      return { ...defaultEventFilters, date: requestedDate };
-    }
-
-    return {
-      categories: stored.categories,
-      vibes: stored.vibes,
-      city: typeof stored.city === "string" ? stored.city : "",
-      distance:
-        typeof stored.distance === "number"
-          ? stored.distance
-          : defaultEventFilters.distance,
-      date: hasDateInUrl ? requestedDate : stored.date || requestedDate,
-    };
-  } catch {
-    return { ...defaultEventFilters, date: requestedDate };
-  }
+  void PublicEventsService.trackPromotion(
+    campaign.campaignId,
+    metric,
+    viewerKey,
+  );
 }
 
 export default function EventsPage() {
@@ -95,11 +78,16 @@ function EventsPageContent() {
   const searchParams = useSearchParams();
   const requestedDate = getDateFilter(searchParams.get("date"));
   const hasDateInUrl = searchParams.has("date");
-  const [filters, setFilters] = useState<EventFilters>(() =>
-    getStoredFilters(requestedDate, hasDateInUrl),
-  );
+  const [filters, setFilters] = useState<EventFilters>(() => ({
+    ...defaultEventFilters,
+    date: requestedDate,
+  }));
   const [view, setView] = useState<"list" | "map">("list");
   const [events, setEvents] = useState<Event[]>([]);
+  const [promotions, setPromotions] = useState<PromotedEvent[]>([]);
+  const [promotionSeed] = useState(
+    () => `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
   const [eventsLoading, setEventsLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const selectedCityCenter = filters.city
@@ -107,21 +95,11 @@ function EventsPageContent() {
     : null;
 
   useEffect(() => {
-    if (!hasDateInUrl) return;
-
-    setFilters((current) =>
-      current.date === requestedDate
-        ? current
-        : { ...current, date: requestedDate },
-    );
+    setFilters({
+      ...defaultEventFilters,
+      date: hasDateInUrl ? requestedDate : defaultEventFilters.date,
+    });
   }, [hasDateInUrl, requestedDate]);
-
-  useEffect(() => {
-    window.sessionStorage.setItem(
-      eventsFiltersStorageKey,
-      JSON.stringify(filters),
-    );
-  }, [filters]);
 
   const eventQuery = useMemo(() => {
     const dateRange = getEventDateRange(filters.date);
@@ -140,9 +118,14 @@ function EventsPageContent() {
     let active = true;
     setEventsLoading(true);
 
-    PublicEventsService.getPublicEvents(eventQuery)
-      .then((nextEvents) => {
-        if (active) setEvents(nextEvents);
+    Promise.all([
+      PublicEventsService.getPublicEvents(eventQuery),
+      PublicEventsService.getPromotedEvents().catch(() => []),
+    ])
+      .then(([nextEvents, nextPromotions]) => {
+        if (!active) return;
+        setEvents(nextEvents);
+        setPromotions(nextPromotions);
       })
       .catch((error) => {
         console.error("Failed to filter events:", error);
@@ -156,6 +139,39 @@ function EventsPageContent() {
       active = false;
     };
   }, [eventQuery]);
+
+  const feedPromotions = useMemo(
+    () => promotions.filter((campaign) => campaign.placement === "feed"),
+    [promotions],
+  );
+  const feedCampaignsByEvent = useMemo(
+    () => promotionCampaignsByEvent(feedPromotions),
+    [feedPromotions],
+  );
+  const feedEventIds = useMemo(
+    () => new Set(feedCampaignsByEvent.keys()),
+    [feedCampaignsByEvent],
+  );
+  const displayedEvents = useMemo(
+    () =>
+      mixFeedPromotions(
+        events,
+        feedPromotions,
+        `${promotionSeed}:events`,
+        (event) => {
+          const categories = eventQuery.category?.split(",") ?? [];
+          const vibes = eventQuery.vibe?.split(",") ?? [];
+          if (categories.length && !categories.includes(event.category)) return false;
+          if (vibes.length && !vibes.includes(event.vibe)) return false;
+          if (eventQuery.city && event.city !== eventQuery.city) return false;
+          if (eventQuery.startsAfter && new Date(event.endTime) <= new Date(eventQuery.startsAfter)) return false;
+          if (eventQuery.startsBefore && new Date(event.startTime) >= new Date(eventQuery.startsBefore)) return false;
+          return true;
+        },
+        3,
+      ),
+    [eventQuery, events, feedPromotions, promotionSeed],
+  );
 
   return (
     <div className="relative h-dvh overflow-hidden overscroll-none text-foreground">
@@ -186,15 +202,18 @@ function EventsPageContent() {
                     ? Array.from({ length: 6 }, (_, index) => (
                         <EventCardSkeleton key={index} />
                       ))
-                    : events.map((event) => (
+                    : displayedEvents.map((event) => (
                         <EventBrowseCard
                           key={event.id}
                           event={event}
                           userLocation={userLocation}
+                          promoted={feedEventIds.has(event.id)}
+                          onOpen={() => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "click")}
+                          onVisible={() => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "impression")}
                         />
                       ))}
                 </div>
-                {!eventsLoading && !events.length && (
+                {!eventsLoading && !displayedEvents.length && (
                   <div className="mx-auto mt-12 max-w-md border border-dashed border-white/15 px-5 py-10 text-center">
                     <p className="text-sm font-medium">{t("events.noMatch")}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -217,7 +236,7 @@ function EventsPageContent() {
         ) : (
           <div className="pointer-events-auto fixed inset-0 z-0 w-screen max-w-none bg-transparent lg:static lg:mt-5 lg:w-auto">
             <EventsMapLayout
-              events={events}
+              events={displayedEvents}
               distanceKm={filters.distance}
               cityCenter={selectedCityCenter}
               userLocation={userLocation}

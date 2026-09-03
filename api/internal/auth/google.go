@@ -30,8 +30,9 @@ type GoogleOAuthConfig struct {
 }
 
 type googleOAuthState struct {
-	ReturnTo string `json:"returnTo"`
-	Mobile   bool   `json:"mobile"`
+	ReturnTo    string `json:"returnTo"`
+	Mobile      bool   `json:"mobile"`
+	AccountType string `json:"accountType"`
 }
 
 type googleTokenResponse struct {
@@ -63,8 +64,9 @@ func (h *Handler) HandleGoogleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	returnTo := safeReturnTo(r.URL.Query().Get("returnTo"))
 	statePayload, err := json.Marshal(googleOAuthState{
-		ReturnTo: returnTo,
-		Mobile:   r.URL.Query().Get("client") == "mobile",
+		ReturnTo:    returnTo,
+		Mobile:      r.URL.Query().Get("client") == "mobile",
+		AccountType: googleAccountType(r.URL.Query().Get("accountType")),
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Nu s-a putut porni autentificarea Google")
@@ -130,7 +132,7 @@ func (h *Handler) HandleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusUnauthorized, "Autentificarea cu Google nu a putut fi validata")
 		return
 	}
-	user, err := h.findOrCreateGoogleUser(r, profile)
+	user, err := h.findOrCreateGoogleUser(r, profile, googleAccountType(oauthState.AccountType))
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Contul Google nu a putut fi asociat")
 		return
@@ -199,15 +201,19 @@ func (h *Handler) fetchGoogleProfile(r *http.Request, code string) (googleProfil
 	return profile, nil
 }
 
-func (h *Handler) findOrCreateGoogleUser(r *http.Request, profile googleProfile) (db.Users, error) {
+func (h *Handler) findOrCreateGoogleUser(r *http.Request, profile googleProfile, accountType string) (db.Users, error) {
 	googleID := pgtype.Text{String: profile.Subject, Valid: true}
 	user, err := h.Queries.GetUserByGoogleID(r.Context(), googleID)
 	if err == nil {
-		return h.Queries.LinkGoogleIdentity(r.Context(), db.LinkGoogleIdentityParams{
+		linkedUser, linkErr := h.Queries.LinkGoogleIdentity(r.Context(), db.LinkGoogleIdentityParams{
 			ID:        user.ID,
 			GoogleID:  googleID,
 			AvatarUrl: profile.Picture,
 		})
+		if linkErr != nil {
+			return db.Users{}, linkErr
+		}
+		return h.applyGoogleAccountType(r.Context(), linkedUser, accountType)
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return db.Users{}, err
@@ -215,11 +221,15 @@ func (h *Handler) findOrCreateGoogleUser(r *http.Request, profile googleProfile)
 
 	user, err = h.Queries.GetUserByEmail(r.Context(), strings.ToLower(profile.Email))
 	if err == nil {
-		return h.Queries.LinkGoogleIdentity(r.Context(), db.LinkGoogleIdentityParams{
+		linkedUser, linkErr := h.Queries.LinkGoogleIdentity(r.Context(), db.LinkGoogleIdentityParams{
 			ID:        user.ID,
 			GoogleID:  googleID,
 			AvatarUrl: profile.Picture,
 		})
+		if linkErr != nil {
+			return db.Users{}, linkErr
+		}
+		return h.applyGoogleAccountType(r.Context(), linkedUser, accountType)
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return db.Users{}, err
@@ -230,10 +240,24 @@ func (h *Handler) findOrCreateGoogleUser(r *http.Request, profile googleProfile)
 		Username:  username,
 		Email:     strings.ToLower(profile.Email),
 		AvatarUrl: pgtype.Text{String: profile.Picture, Valid: profile.Picture != ""},
-		Role:      pgtype.Text{String: "user", Valid: true},
+		Role:      pgtype.Text{String: accountType, Valid: true},
 		IsActive:  pgtype.Bool{Bool: true, Valid: true},
 		GoogleID:  googleID,
 	})
+}
+
+func googleAccountType(value string) string {
+	if value == "organizer" {
+		return "organizer"
+	}
+	return "user"
+}
+
+func (h *Handler) applyGoogleAccountType(ctx context.Context, user db.Users, accountType string) (db.Users, error) {
+	if accountType != "organizer" || user.Role.String != "user" {
+		return user, nil
+	}
+	return h.Queries.PromoteUserToOrganizer(ctx, user.ID)
 }
 
 func (h *Handler) googleRedirectURI() string {

@@ -18,6 +18,7 @@ type Querier interface {
 	AddValidationStaff(ctx context.Context, arg AddValidationStaffParams) error
 	AssignGuestOrdersToUser(ctx context.Context, userID pgtype.UUID) error
 	AssignGuestTicketsToUser(ctx context.Context, userID pgtype.UUID) error
+	CancelAbandonedPromotionReservations(ctx context.Context, expiresBefore pgtype.Timestamptz) error
 	CancelPendingPromotionCampaign(ctx context.Context, id pgtype.UUID) error
 	CompleteEndedEvents(ctx context.Context) error
 	CompleteExpiredPromotionCampaigns(ctx context.Context) error
@@ -59,6 +60,8 @@ type Querier interface {
 	EditEvent(ctx context.Context, arg EditEventParams) (Events, error)
 	FollowOrganizer(ctx context.Context, arg FollowOrganizerParams) error
 	FulfillPromotionCampaign(ctx context.Context, arg FulfillPromotionCampaignParams) (int64, error)
+	GetAvailablePromoCode(ctx context.Context, arg GetAvailablePromoCodeParams) (GetAvailablePromoCodeRow, error)
+	GetAvailablePromoCodeForUpdate(ctx context.Context, arg GetAvailablePromoCodeForUpdateParams) (GetAvailablePromoCodeForUpdateRow, error)
 	GetCommentsForEvent(ctx context.Context, arg GetCommentsForEventParams) ([]GetCommentsForEventRow, error)
 	GetEventByID(ctx context.Context, arg GetEventByIDParams) (GetEventByIDRow, error)
 	GetEventForOrganizerUpdate(ctx context.Context, id pgtype.UUID) (GetEventForOrganizerUpdateRow, error)
@@ -93,6 +96,7 @@ type Querier interface {
 	GetUserTickets(ctx context.Context, userID pgtype.UUID) ([]GetUserTicketsRow, error)
 	GetUserTokenByHash(ctx context.Context, arg GetUserTokenByHashParams) (UserTokens, error)
 	HideEventCategory(ctx context.Context, arg HideEventCategoryParams) error
+	HomeBannerPromotionPeakOccupancy(ctx context.Context, arg HomeBannerPromotionPeakOccupancyParams) (int64, error)
 	IncrementTicketsSold(ctx context.Context, arg IncrementTicketsSoldParams) error
 	InsertUserToken(ctx context.Context, arg InsertUserTokenParams) (UserTokens, error)
 	IsValidationStaffForEvent(ctx context.Context, arg IsValidationStaffForEventParams) (bool, error)
@@ -103,6 +107,7 @@ type Querier interface {
 	ListEventAttendees(ctx context.Context, eventID pgtype.UUID) ([]ListEventAttendeesRow, error)
 	ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error)
 	ListEventsWithStats(ctx context.Context, organizerID pgtype.UUID) ([]ListEventsWithStatsRow, error)
+	ListExpiredPromotionCheckoutReservations(ctx context.Context, expiresBefore pgtype.Timestamptz) ([]ListExpiredPromotionCheckoutReservationsRow, error)
 	ListFriendEventActivity(ctx context.Context, arg ListFriendEventActivityParams) ([]ListFriendEventActivityRow, error)
 	ListHiddenEventCategories(ctx context.Context, userID pgtype.UUID) ([]string, error)
 	ListInvitationsForEvent(ctx context.Context, eventID pgtype.UUID) ([]ListInvitationsForEventRow, error)
@@ -118,11 +123,14 @@ type Querier interface {
 	ListUserOrders(ctx context.Context, userID pgtype.UUID) ([]ListUserOrdersRow, error)
 	ListValidationEvents(ctx context.Context, organizerID pgtype.UUID) ([]ListValidationEventsRow, error)
 	ListValidationStaff(ctx context.Context, eventID pgtype.UUID) ([]ListValidationStaffRow, error)
+	LockHomeBannerPromotionCapacity(ctx context.Context) error
 	LockOrganizerEventUpdates(ctx context.Context, dollar_1 string) error
+	LockPromotionEvent(ctx context.Context, eventID pgtype.UUID) error
 	MarkAllNotificationsRead(ctx context.Context, userID pgtype.UUID) error
 	MarkGuestTicketEmailSent(ctx context.Context, id pgtype.UUID) error
 	MarkInvitationValidated(ctx context.Context, id pgtype.UUID) (pgtype.Timestamptz, error)
 	MarkNotificationRead(ctx context.Context, arg MarkNotificationReadParams) error
+	PromoteUserToOrganizer(ctx context.Context, id pgtype.UUID) (Users, error)
 	PromotionCampaignOverlaps(ctx context.Context, arg PromotionCampaignOverlapsParams) (bool, error)
 	// RETURNING * va aduce status-ul modificat
 	PublishDueEvents(ctx context.Context) ([]pgtype.UUID, error)

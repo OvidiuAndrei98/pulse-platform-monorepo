@@ -17,6 +17,7 @@ func main() {
 	}
 	defer coreApp.Pool.Close()
 	coreApp.StartEventExpiryWorker(context.Background())
+	coreApp.StartPromotionReservationExpiryWorker(context.Background())
 
 	// Citim routerul comun
 	router := coreApp.BuildRouter()

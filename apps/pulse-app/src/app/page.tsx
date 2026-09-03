@@ -8,6 +8,10 @@ import { HomeEventCarousel } from "@/features/events/home/HomeEventCarousel";
 import { PromotedEventsHeroCarousel } from "@/features/events/home/PromotedEventsHeroCarousel";
 import { Coordinates } from "@/features/events/types";
 import { getDistanceKm } from "@/features/events/utils";
+import {
+  mixFeedPromotions,
+  promotionCampaignsByEvent,
+} from "@/features/events/promotions";
 import { useTranslation } from "react-i18next";
 import { requestCurrentLocation } from "@/lib/native/location";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
@@ -48,6 +52,20 @@ function selectEventsByIds(
     .slice(0, 8);
 }
 
+function trackFeedPromotion(
+  campaign: PromotedEvent | undefined,
+  metric: "impression" | "click",
+) {
+  if (!campaign) return;
+  const viewerKey = sessionStorage.getItem("pulse:promotion-viewer");
+  if (viewerKey)
+    void PublicEventsService.trackPromotion(
+      campaign.campaignId,
+      metric,
+      viewerKey,
+    );
+}
+
 export default function Home() {
   const { t } = useTranslation();
   const { user, loading } = useDataProvider();
@@ -55,6 +73,9 @@ export default function Home() {
   const { items: socialFeed } = User.useSocialFeed(user);
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [promotedEvents, setPromotedEvents] = useState<PromotedEvent[]>([]);
+  const [promotionSeed] = useState(
+    () => `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
 
   useEffect(() => {
     if (loading) return;
@@ -88,26 +109,59 @@ export default function Home() {
   }, [eventsLoading]);
 
   const now = new Date();
+  const endOfTonight = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  );
+  const bannerPromotions = promotedEvents.filter(
+    (campaign) => campaign.placement === "home_banner",
+  );
+  const feedPromotions = promotedEvents.filter(
+    (campaign) => campaign.placement === "feed",
+  );
+  const feedCampaignsByEvent = promotionCampaignsByEvent(feedPromotions);
+  const feedEventIds = new Set(feedCampaignsByEvent.keys());
   const activeEvents = useMemo(
     () => events.filter((event) => new Date(event.endTime) > now),
     [events],
   );
-  const liveEvents = activeEvents.filter((event) => event.isLive);
-  const upcomingEvents = activeEvents
+  const liveEvents = mixFeedPromotions(
+    activeEvents.filter((event) => event.isLive),
+    feedPromotions,
+    `${promotionSeed}:live`,
+    (event) =>
+      new Date(event.startTime) <= now && new Date(event.endTime) > now,
+  );
+  const upcomingEvents = mixFeedPromotions(
+    activeEvents
     .filter((event) => !event.isLive)
     .sort(
       (first, second) =>
         +new Date(first.startTime) - +new Date(second.startTime),
-    );
+    ),
+    feedPromotions,
+    `${promotionSeed}:upcoming`,
+    (event) => new Date(event.startTime) > now,
+  );
   const tonightEvents = getTonightEvents(activeEvents);
-  const tonightForYou = [...tonightEvents]
-    .filter((event) => !event.isLive)
-    .sort(
-      (first, second) =>
-        Number(Boolean(second.stats?.isFavorited)) -
-          Number(Boolean(first.stats?.isFavorited)) ||
-        (second.stats?.goingCount ?? 0) - (first.stats?.goingCount ?? 0),
-    );
+  const tonightForYou = mixFeedPromotions(
+    [...tonightEvents]
+      .filter((event) => !event.isLive)
+      .sort(
+        (first, second) =>
+          Number(Boolean(second.stats?.isFavorited)) -
+            Number(Boolean(first.stats?.isFavorited)) ||
+          (second.stats?.goingCount ?? 0) - (first.stats?.goingCount ?? 0),
+      ),
+    feedPromotions,
+    `${promotionSeed}:tonight`,
+    (event) => {
+      const startsAt = new Date(event.startTime);
+      const endsAt = new Date(event.endTime);
+      return endsAt > now && startsAt < endOfTonight && startsAt > now;
+    },
+  );
   const friendEventIds = useMemo(
     () =>
       new Set(
@@ -138,12 +192,18 @@ export default function Home() {
   const nearbyEvents = useMemo(() => {
     if (!userLocation) return [];
 
-    return activeEvents
+    const nearby = activeEvents
       .map((event) => ({ event, distance: getDistanceKm(userLocation, event) }))
       .filter(({ distance }) => distance <= 25)
       .sort((first, second) => first.distance - second.distance)
       .map(({ event }) => event);
-  }, [activeEvents, userLocation]);
+    return mixFeedPromotions(
+      nearby,
+      feedPromotions,
+      `${promotionSeed}:nearby`,
+      (event) => getDistanceKm(userLocation, event) <= 25,
+    );
+  }, [activeEvents, feedPromotions, promotionSeed, userLocation]);
   const guestName = guestNames[new Date().getDate() % guestNames.length];
 
   return (
@@ -154,7 +214,7 @@ export default function Home() {
             <div className="flex items-center gap-2">
               <Image
                 src="/spottr-logo.svg"
-                alt="Spottr Logo"
+                alt={t("common.logoAlt")}
                 width={40}
                 height={40}
                 className="h-8 w-8 md:h-10 md:w-10"
@@ -193,9 +253,9 @@ export default function Home() {
           </div>
         </div>
 
-        {promotedEvents.length > 0 && (
+        {bannerPromotions.length > 0 && (
           <PromotedEventsHeroCarousel
-            items={promotedEvents}
+            items={bannerPromotions}
             onEventOpen={(campaign) => {
               const viewerKey = sessionStorage.getItem("pulse:promotion-viewer");
               if (viewerKey) void PublicEventsService.trackPromotion(campaign.campaignId, "click", viewerKey);
@@ -220,6 +280,9 @@ export default function Home() {
                 title={t("common.liveNow")}
                 events={liveEvents.slice(0, 8)}
                 live
+                promotedEventIds={feedEventIds}
+                onEventOpen={(event) => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "click")}
+                onEventVisible={(event) => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "impression")}
                 emptyMessage=""
                 seeAllHref="/events?date=Tonight"
               />
@@ -228,6 +291,9 @@ export default function Home() {
               <HomeEventCarousel
                 title={user ? t("home.tonightForYou") : t("home.tonight")}
                 events={tonightForYou.slice(0, 8)}
+                promotedEventIds={feedEventIds}
+                onEventOpen={(event) => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "click")}
+                onEventVisible={(event) => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "impression")}
                 emptyMessage=""
                 seeAllHref="/events?date=Tonight"
               />
@@ -250,12 +316,18 @@ export default function Home() {
               <HomeEventCarousel
                 title={t("home.nearYou")}
                 events={nearbyEvents.slice(0, 8)}
+                promotedEventIds={feedEventIds}
+                onEventOpen={(event) => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "click")}
+                onEventVisible={(event) => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "impression")}
                 emptyMessage=""
               />
             )}
             <HomeEventCarousel
               title={t("home.upcoming")}
               events={upcomingEvents.slice(0, 8)}
+              promotedEventIds={feedEventIds}
+              onEventOpen={(event) => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "click")}
+              onEventVisible={(event) => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "impression")}
               emptyMessage={t("home.noUpcoming")}
             />
           </>

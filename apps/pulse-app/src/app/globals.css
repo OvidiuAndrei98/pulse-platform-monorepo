@@ -159,22 +159,30 @@
 
   .app-page-spacing {
     padding-inline: 1.25rem !important;
-    padding-top: max(2.5rem, calc(var(--native-safe-top) + 1.5rem)) !important;
+    padding-top: max(1.25rem, calc(var(--native-safe-top) + 2rem)) !important;
   }
 
   @media (min-width: 640px) {
     .app-page-gutter {
-      padding-inline: 1.75rem !important;
+      padding-inline: 2rem !important;
     }
 
     .app-page-spacing {
-      padding-inline: 1.75rem !important;
+      padding-inline: 2rem !important;
     }
   }
 }
 
 /* Backdrop filters force expensive offscreen rendering on mobile GPUs. */
 @media (max-width: 767px) {
+  /* Mobile Safari zooms the page when a focused form control renders text
+     below 16px. Keep controls at the accessibility-safe size on phones. */
+  input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="image"]):not([type="radio"]):not([type="range"]):not([type="reset"]):not([type="submit"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
   /* Limităm blur-ul la maxim 8px pe mobil pentru a preveni căderile de frame-uri */
   .backdrop-blur-md,
   .backdrop-blur-lg,

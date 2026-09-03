@@ -1,5 +1,6 @@
 import Image from "next/image";
-import { ArrowUpRight, Calendar, CheckCircle2, MapPin } from "lucide-react";
+import { ArrowUpRight, Calendar, CheckCircle2, MapPin, Megaphone } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Event } from "@/core/DataProvider";
 import { useEventDetails } from "@/components/EventDetailsSheet";
@@ -15,20 +16,47 @@ import { EventFriendsPreview } from "@/components/social/EventFriendsPreview";
 export function EventBrowseCard({
   event,
   userLocation,
+  promoted = false,
+  onOpen,
+  onVisible,
 }: {
   event: Event;
   userLocation: Coordinates | null;
+  promoted?: boolean;
+  onOpen?: () => void;
+  onVisible?: () => void;
 }) {
   const { open } = useEventDetails();
   const { t } = useTranslation();
+  const cardRef = useRef<HTMLButtonElement>(null);
   const eventDate = event.startTime
     ? `${formatEventDateShort(event.startTime)} · ${formatEventTime(event.startTime)}`
     : null;
 
+  useEffect(() => {
+    if (!onVisible || !cardRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting || entry.intersectionRatio < 0.4) return;
+        onVisible();
+        observer.disconnect();
+      },
+      { threshold: [0.4] },
+    );
+    observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, [event.id, onVisible]);
+
+  const openEvent = () => {
+    onOpen?.();
+    open(event);
+  };
+
   return (
     <button
+      ref={cardRef}
       type="button"
-      onClick={() => open(event)}
+      onClick={openEvent}
       data-event-card
       className="event-card group block w-full text-left transition-all duration-300 active:scale-[0.99] sm:relative sm:overflow-hidden sm:rounded-[26px] sm:border sm:border-white/10 sm:bg-black sm:hover:border-white/20"
     >
@@ -46,7 +74,10 @@ export function EventBrowseCard({
 
           <div className="absolute left-2.5 right-2.5 top-2.5 flex items-start justify-between gap-2">
             <span className="rounded-full border border-white/15 bg-black/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-md">
-              {event.category || t("events.generalCategory")}
+              <span className="inline-flex items-center gap-1">
+                {promoted && <Megaphone className="h-3 w-3 text-primary" />}
+                {event.category || t("events.generalCategory")}
+              </span>
             </span>
             {event.isLive && (
               <span className="rounded-full border border-red-500/40 bg-red-500/20 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-red-400 backdrop-blur-md">
@@ -94,6 +125,11 @@ export function EventBrowseCard({
         <div className="absolute left-4 right-4 top-4 flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <EventStatusBadge event={event} />
+            {promoted && (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/35 bg-black/55 px-2 py-1 text-[10px] font-semibold text-primary backdrop-blur">
+                <Megaphone className="h-3 w-3" /> {t("promotions.sponsored")}
+              </span>
+            )}
             {event.organizerAbsorbsServiceFee && (
               <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/35 bg-primary/15 px-2 py-1 text-[10px] font-semibold text-primary backdrop-blur">
                 <CheckCircle2 className="h-3 w-3" /> {t("events.finalPrice")}

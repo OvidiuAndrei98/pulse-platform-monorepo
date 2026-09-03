@@ -322,6 +322,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/promotions/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DashboardOperations_getPromotionAvailability"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/promotions/checkout": {
         parameters: {
             query?: never;
@@ -648,6 +664,23 @@ export interface paths {
         get: operations["EventOperations_getFriendsGoingToEvent"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{id}/promo-code/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verifica un cod promo disponibil pentru eveniment */
+        post: operations["EventOperations_validatePromoCode"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1244,6 +1277,8 @@ export interface components {
             eventId: string;
             /** @enum {string} */
             plan: "one_day" | "thu_sat" | "full_week";
+            /** @enum {string} */
+            placement: "home_banner" | "feed";
             startDate: string;
         };
         CreateScannerAccessPayload: {
@@ -1478,9 +1513,22 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
+        PromoCodeValidationResponse: {
+            code: string;
+            /** Format: int32 */
+            discountPercent: number;
+        };
         PromotedEventResponse: {
             campaignId: string;
+            /** @enum {string} */
+            placement: "home_banner" | "feed";
             event: components["schemas"]["EventResponse"];
+        };
+        PromotionAvailabilityResponse: {
+            /** Format: int32 */
+            capacity: number;
+            /** Format: int32 */
+            availableSlots: number;
         };
         PromotionCampaignResponse: {
             id: string;
@@ -1488,6 +1536,8 @@ export interface components {
             eventTitle: string;
             /** @enum {string} */
             plan: "one_day" | "thu_sat" | "full_week";
+            /** @enum {string} */
+            placement: "home_banner" | "feed";
             /** @enum {string} */
             status: "pending_payment" | "scheduled" | "active" | "completed" | "cancelled";
             /** Format: date-time */
@@ -1512,6 +1562,8 @@ export interface components {
         PromotionPlanResponse: {
             /** @enum {string} */
             id: "one_day" | "thu_sat" | "full_week";
+            /** @enum {string} */
+            placement: "home_banner" | "feed";
             name: string;
             description: string;
             /** Format: int32 */
@@ -1734,6 +1786,9 @@ export interface components {
             organizerCompanyName: string;
             organizerCui: string;
             organizerFiscalAddress: string;
+        };
+        ValidatePromoCodePayload: {
+            code: string;
         };
         ValidationEventResponse: {
             id: string;
@@ -2337,6 +2392,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PromotionCampaignResponse"][];
+                };
+            };
+        };
+    };
+    DashboardOperations_getPromotionAvailability: {
+        parameters: {
+            query: {
+                plan: "one_day" | "thu_sat" | "full_week";
+                startDate: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionAvailabilityResponse"];
                 };
             };
         };
@@ -3007,6 +3085,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserMinResponse"][];
+                };
+            };
+        };
+    };
+    EventOperations_validatePromoCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ValidatePromoCodePayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoCodeValidationResponse"];
                 };
             };
         };

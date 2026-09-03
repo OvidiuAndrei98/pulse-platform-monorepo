@@ -758,6 +758,48 @@
         }
       }
     },
+    "/dashboard/promotions/availability": {
+      "get": {
+        "operationId": "DashboardOperations_getPromotionAvailability",
+        "parameters": [
+          {
+            "name": "plan",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "one_day",
+                "thu_sat",
+                "full_week"
+              ]
+            },
+            "explode": false
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionAvailabilityResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/dashboard/promotions/checkout": {
       "post": {
         "operationId": "DashboardOperations_createPromotionCheckout",
@@ -1684,6 +1726,44 @@
                     "$ref": "#/components/schemas/UserMinResponse"
                   }
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}/promo-code/validate": {
+      "post": {
+        "operationId": "EventOperations_validatePromoCode",
+        "summary": "Verifica un cod promo disponibil pentru eveniment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromoCodeValidationResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidatePromoCodePayload"
               }
             }
           }
@@ -3043,6 +3123,7 @@
         "required": [
           "eventId",
           "plan",
+          "placement",
           "startDate"
         ],
         "properties": {
@@ -3055,6 +3136,13 @@
               "one_day",
               "thu_sat",
               "full_week"
+            ]
+          },
+          "placement": {
+            "type": "string",
+            "enum": [
+              "home_banner",
+              "feed"
             ]
           },
           "startDate": {
@@ -3830,18 +3918,59 @@
           }
         }
       },
+      "PromoCodeValidationResponse": {
+        "type": "object",
+        "required": [
+          "code",
+          "discountPercent"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "discountPercent": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "PromotedEventResponse": {
         "type": "object",
         "required": [
           "campaignId",
+          "placement",
           "event"
         ],
         "properties": {
           "campaignId": {
             "type": "string"
           },
+          "placement": {
+            "type": "string",
+            "enum": [
+              "home_banner",
+              "feed"
+            ]
+          },
           "event": {
             "$ref": "#/components/schemas/EventResponse"
+          }
+        }
+      },
+      "PromotionAvailabilityResponse": {
+        "type": "object",
+        "required": [
+          "capacity",
+          "availableSlots"
+        ],
+        "properties": {
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "availableSlots": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -3852,6 +3981,7 @@
           "eventId",
           "eventTitle",
           "plan",
+          "placement",
           "status",
           "startsAt",
           "endsAt",
@@ -3877,6 +4007,13 @@
               "one_day",
               "thu_sat",
               "full_week"
+            ]
+          },
+          "placement": {
+            "type": "string",
+            "enum": [
+              "home_banner",
+              "feed"
             ]
           },
           "status": {
@@ -3938,6 +4075,7 @@
         "type": "object",
         "required": [
           "id",
+          "placement",
           "name",
           "description",
           "amountRon",
@@ -3950,6 +4088,13 @@
               "one_day",
               "thu_sat",
               "full_week"
+            ]
+          },
+          "placement": {
+            "type": "string",
+            "enum": [
+              "home_banner",
+              "feed"
             ]
           },
           "name": {
@@ -4706,6 +4851,17 @@
             "type": "string"
           },
           "organizerFiscalAddress": {
+            "type": "string"
+          }
+        }
+      },
+      "ValidatePromoCodePayload": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
             "type": "string"
           }
         }

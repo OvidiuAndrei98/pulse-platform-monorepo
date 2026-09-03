@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 
 type RegistrationState = "idle" | "loading" | "success" | "error";
 
@@ -91,7 +93,42 @@ export default function RegisterPage() {
         {t("auth.registerHint")}
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-9">
+      <div className="mt-7">
+        <label className={`flex cursor-pointer items-start gap-3 rounded-2xl p-4 backdrop-blur-md transition ${isOrganizer ? "bg-primary/20 ring-1 ring-primary/60" : "bg-black/35 ring-1 ring-white/15 hover:bg-black/50"}`}>
+          <input
+            type="checkbox"
+            checked={isOrganizer}
+            onChange={(inputEvent) => setIsOrganizer(inputEvent.target.checked)}
+            className="peer sr-only"
+          />
+          <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md transition ${isOrganizer ? "bg-primary text-primary-foreground" : "bg-white/15 text-transparent"}`}>
+            <Check className="h-3.5 w-3.5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-2 text-sm font-semibold text-white">
+              <Building2 className="h-4 w-4 text-primary" /> {t("auth.organizerAccount")}
+            </span>
+            <span className="mt-1 block text-xs leading-5 text-white/65">
+              {t("auth.organizerHint")}
+            </span>
+          </span>
+        </label>
+
+        <GoogleSignInButton
+          accountType={isOrganizer ? "organizer" : "user"}
+          returnTo={isOrganizer ? "/dashboard" : "/users/me"}
+          variant="light"
+          className="mt-4"
+        />
+
+        <div className="mt-6 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/40">
+          <span className="h-px flex-1 bg-white/15" />
+          <span>{t("auth.or")}</span>
+          <span className="h-px flex-1 bg-white/15" />
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="mt-6">
         <div className="space-y-5">
           <Field label={t("auth.username")} icon={UserRound}>
             <input
@@ -149,25 +186,6 @@ export default function RegisterPage() {
             />
           </Field>
 
-          <label className={`flex cursor-pointer items-start gap-3 rounded-2xl p-4 backdrop-blur-md transition ${isOrganizer ? "bg-primary/20 ring-1 ring-primary/60" : "bg-black/35 ring-1 ring-white/15 hover:bg-black/50"}`}>
-            <input
-              type="checkbox"
-              checked={isOrganizer}
-              onChange={(inputEvent) => setIsOrganizer(inputEvent.target.checked)}
-              className="peer sr-only"
-            />
-            <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md transition ${isOrganizer ? "bg-primary text-primary-foreground" : "bg-white/15 text-transparent"}`}>
-              <Check className="h-3.5 w-3.5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-2 text-sm font-semibold text-white">
-                <Building2 className="h-4 w-4 text-primary" /> {t("auth.organizerAccount")}
-              </span>
-              <span className="mt-1 block text-xs leading-5 text-white/65">
-                {t("auth.organizerHint")}
-              </span>
-            </span>
-          </label>
         </div>
 
         {state === "error" && (
@@ -226,6 +244,18 @@ function AuthScene({
 }) {
   return (
     <main className="relative min-h-dvh overflow-y-auto bg-black text-white">
+      <div className="absolute inset-y-0 right-0 hidden w-1/2 overflow-hidden md:block">
+        <Image
+          src="/party-event.png"
+          alt=""
+          fill
+          priority
+          sizes="50vw"
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
+      </div>
       <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-[max(2rem,calc(var(--native-safe-bottom)+1.5rem))] pt-[max(1.5rem,calc(var(--native-safe-top)+1rem))] sm:px-7 md:mx-0 md:w-1/2 md:max-w-none md:px-16 md:py-10 lg:px-24">
         <Link
           href="/"

@@ -5,15 +5,18 @@ import {
   CalendarDays,
   Check,
   Eye,
+  GalleryHorizontalEnd,
   Loader2,
   Megaphone,
   MousePointerClick,
+  Rows3,
   Sparkles,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import {
+  type PromotionAvailability,
   type PromotionCampaign,
   type PromotionPlan,
   User,
@@ -30,22 +33,43 @@ export default function PromotionsPage() {
   const { events } = User.useOrganizerEvents(user);
   const [plans, setPlans] = useState<PromotionPlan[]>([]);
   const [campaigns, setCampaigns] = useState<PromotionCampaign[]>([]);
+  const [placement, setPlacement] =
+    useState<PromotionPlan["placement"]>("home_banner");
   const [planId, setPlanId] = useState<PromotionPlan["id"]>("one_day");
   const [eventId, setEventId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [availability, setAvailability] =
+    useState<PromotionAvailability | null>(null);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
   const locale = i18n.language === "ro" ? "ro-RO" : "en-GB";
 
   useEffect(() => {
     if (!user) return;
-    Promise.all([user.listPromotionPlans(), user.listPromotionCampaigns()])
-      .then(([nextPlans, nextCampaigns]) => {
-        setPlans(nextPlans);
-        setCampaigns(nextCampaigns);
-      })
-      .catch(() => toast.error(t("promotions.loadFailed")))
-      .finally(() => setLoading(false));
+    Promise.allSettled([
+      user.listPromotionPlans(),
+      user.listPromotionCampaigns(),
+    ]).then(([plansResult, campaignsResult]) => {
+      if (plansResult.status === "fulfilled") {
+        setPlans(
+          plansResult.value.map((plan) => ({
+            ...plan,
+            placement: plan.placement || "home_banner",
+          })),
+        );
+      }
+      if (campaignsResult.status === "fulfilled") {
+        setCampaigns(campaignsResult.value);
+      }
+      if (
+        plansResult.status === "rejected" ||
+        campaignsResult.status === "rejected"
+      ) {
+        toast.error(t("promotions.loadFailed"));
+      }
+      setLoading(false);
+    });
   }, [t, user]);
 
   useEffect(() => {
@@ -76,7 +100,8 @@ export default function PromotionsPage() {
   useEffect(() => {
     if (!eventId && eligibleEvents[0]) setEventId(eligibleEvents[0].id);
   }, [eligibleEvents, eventId]);
-  const selectedPlan = plans.find((plan) => plan.id === planId);
+  const visiblePlans = plans.filter((plan) => plan.placement === placement);
+  const selectedPlan = visiblePlans.find((plan) => plan.id === planId);
   const selectedEvent = eligibleEvents.find((event) => event.id === eventId);
   const sortedCampaigns = useMemo(
     () =>
@@ -122,6 +147,24 @@ export default function PromotionsPage() {
       setStartDate(dateOptions[0]?.value ?? "");
   }, [dateOptions, startDate]);
 
+  useEffect(() => {
+    if (!user || placement !== "home_banner" || !startDate) {
+      setAvailability(null);
+      setCheckingAvailability(false);
+      return;
+    }
+    let active = true;
+    setCheckingAvailability(true);
+    user
+      .getPromotionAvailability(planId, startDate)
+      .then((result) => active && setAvailability(result))
+      .catch(() => active && setAvailability(null))
+      .finally(() => active && setCheckingAvailability(false));
+    return () => {
+      active = false;
+    };
+  }, [placement, planId, startDate, user]);
+
   const checkout = async () => {
     if (!user || !eventId || !startDate || !selectedPlan) return;
     setCheckingOut(true);
@@ -129,6 +172,7 @@ export default function PromotionsPage() {
       const result = await user.createPromotionCheckout({
         eventId,
         plan: planId,
+        placement,
         startDate,
       });
       window.location.assign(result.checkoutUrl);
@@ -184,14 +228,52 @@ export default function PromotionsPage() {
             </div>
             <div>
               <p className="mb-2 text-xs font-semibold text-muted-foreground">
+                {t("promotions.placement")}
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(["home_banner", "feed"] as const).map((option) => {
+                  const active = option === placement;
+                  const Icon = option === "home_banner" ? GalleryHorizontalEnd : Rows3;
+                  const name = option === "home_banner"
+                    ? t("promotions.bannerName")
+                    : t("promotions.feedName");
+                  const description = option === "home_banner"
+                    ? t("promotions.bannerDescription")
+                    : t("promotions.feedDescription");
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setPlacement(option)}
+                      className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition ${active ? "border-primary/50 bg-primary/10" : "border-white/10 bg-black/15 hover:border-white/20"}`}
+                    >
+                      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${active ? "bg-primary text-primary-foreground" : "bg-white/5 text-muted-foreground"}`}>
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span>
+                        <span className="block text-sm font-semibold">{name}</span>
+                        <span className="mt-1 block text-xs leading-5 text-muted-foreground">{description}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {placement === "home_banner" && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {t("promotions.bannerReservationHint")}
+                </p>
+              )}
+            </div>
+            <div>
+              <p className="mb-2 text-xs font-semibold text-muted-foreground">
                 {t("promotions.plan")}
               </p>
               <div className="grid gap-3 sm:grid-cols-3">
-                {plans.map((plan) => {
+                {visiblePlans.map((plan) => {
                   const active = plan.id === planId;
                   return (
                     <button
-                      key={plan.id}
+                      key={`${plan.placement}-${plan.id}`}
                       type="button"
                       onClick={() => setPlanId(plan.id)}
                       className={`relative rounded-2xl border p-4 text-left transition ${active ? "border-primary/50 bg-primary/10" : "border-white/10 bg-black/15 hover:border-white/20"}`}
@@ -231,6 +313,20 @@ export default function PromotionsPage() {
                   {t("promotions.eventTooSoon")}
                 </p>
               )}
+              {placement === "home_banner" && startDate && (
+                <p className={`mt-2 text-xs ${availability?.availableSlots === 0 ? "text-red-400" : "text-muted-foreground"}`}>
+                  {checkingAvailability
+                    ? t("promotions.checkingAvailability")
+                    : availability?.availableSlots === 0
+                      ? t("promotions.bannerSoldOut")
+                      : availability
+                        ? t("promotions.bannerSlotsAvailable", {
+                            count: availability.availableSlots,
+                            capacity: availability.capacity,
+                          })
+                        : null}
+                </p>
+              )}
             </div>
             <div className="flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -248,6 +344,8 @@ export default function PromotionsPage() {
                 onClick={() => void checkout()}
                 disabled={
                   checkingOut || !eventId || !startDate || !selectedPlan
+                  || checkingAvailability
+                  || (placement === "home_banner" && availability?.availableSlots === 0)
                 }
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -280,6 +378,11 @@ export default function PromotionsPage() {
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                    {campaign.placement === "feed"
+                      ? t("promotions.feedName")
+                      : t("promotions.bannerName")}
+                  </p>
                   <p className="text-sm font-semibold">{campaign.eventTitle}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {new Intl.DateTimeFormat(locale, {

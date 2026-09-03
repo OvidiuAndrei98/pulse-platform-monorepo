@@ -445,6 +445,65 @@ func (q *Queries) DeleteRevokedInvitationTicket(ctx context.Context, arg DeleteR
 	return result.RowsAffected(), nil
 }
 
+const getAvailablePromoCode = `-- name: GetAvailablePromoCode :one
+SELECT id, code, discount_percent
+FROM promo_codes
+WHERE event_id = $1
+  AND code = $2
+  AND active = TRUE
+  AND (starts_at IS NULL OR starts_at <= CURRENT_TIMESTAMP)
+  AND (ends_at IS NULL OR ends_at > CURRENT_TIMESTAMP)
+  AND (max_redemptions IS NULL OR redemptions_count < max_redemptions)
+`
+
+type GetAvailablePromoCodeParams struct {
+	EventID pgtype.UUID `json:"event_id"`
+	Code    string      `json:"code"`
+}
+
+type GetAvailablePromoCodeRow struct {
+	ID              pgtype.UUID `json:"id"`
+	Code            string      `json:"code"`
+	DiscountPercent int32       `json:"discount_percent"`
+}
+
+func (q *Queries) GetAvailablePromoCode(ctx context.Context, arg GetAvailablePromoCodeParams) (GetAvailablePromoCodeRow, error) {
+	row := q.db.QueryRow(ctx, getAvailablePromoCode, arg.EventID, arg.Code)
+	var i GetAvailablePromoCodeRow
+	err := row.Scan(&i.ID, &i.Code, &i.DiscountPercent)
+	return i, err
+}
+
+const getAvailablePromoCodeForUpdate = `-- name: GetAvailablePromoCodeForUpdate :one
+SELECT id, code, discount_percent
+FROM promo_codes
+WHERE event_id = $1
+  AND code = $2
+  AND active = TRUE
+  AND (starts_at IS NULL OR starts_at <= CURRENT_TIMESTAMP)
+  AND (ends_at IS NULL OR ends_at > CURRENT_TIMESTAMP)
+  AND (max_redemptions IS NULL OR redemptions_count < max_redemptions)
+FOR UPDATE
+`
+
+type GetAvailablePromoCodeForUpdateParams struct {
+	EventID pgtype.UUID `json:"event_id"`
+	Code    string      `json:"code"`
+}
+
+type GetAvailablePromoCodeForUpdateRow struct {
+	ID              pgtype.UUID `json:"id"`
+	Code            string      `json:"code"`
+	DiscountPercent int32       `json:"discount_percent"`
+}
+
+func (q *Queries) GetAvailablePromoCodeForUpdate(ctx context.Context, arg GetAvailablePromoCodeForUpdateParams) (GetAvailablePromoCodeForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getAvailablePromoCodeForUpdate, arg.EventID, arg.Code)
+	var i GetAvailablePromoCodeForUpdateRow
+	err := row.Scan(&i.ID, &i.Code, &i.DiscountPercent)
+	return i, err
+}
+
 const getInvitationForValidation = `-- name: GetInvitationForValidation :one
 SELECT i.id, i.label, COALESCE(tt.name, '') AS ticket_type,
        i.validated_at, i.revoked_at

@@ -133,7 +133,7 @@ func (app *Application) BuildRouter() http.Handler {
 	organizerHandler := organizer.NewHandler(app.Queries)
 	ticketingHandler := tickets.NewHandler(app.Queries, app.Pool, os.Getenv("PUBLIC_APP_URL"))
 	stripeCheckoutHandler := payments.NewCheckoutHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), mailerService)
-	promotionHandler := promotions.NewHandler(app.Queries, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"))
+	promotionHandler := promotions.NewHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"))
 	stripeWebhookHandler := payments.NewWebhookHandler(os.Getenv("STRIPE_WEBHOOK_SECRET"), stripeCheckoutHandler, promotionHandler)
 	stripeConnectWebhookHandler := payments.NewConnectWebhookHandler(app.Queries, os.Getenv("STRIPE_CONNECT_WEBHOOK_SECRET"))
 	stripeConnectHandler := payments.NewConnectHandler(
@@ -213,7 +213,9 @@ func (app *Application) BuildRouter() http.Handler {
 		ListPromoCodes:             eventsHandler.HandleListPromoCodes,
 		CreatePromoCode:            eventsHandler.HandleCreatePromoCode,
 		DeactivatePromoCode:        eventsHandler.HandleDeactivatePromoCode,
+		ValidatePromoCode:          stripeCheckoutHandler.HandleValidatePromoCode,
 		ListPromotionPlans:         promotionHandler.HandleListPlans,
+		GetPromotionAvailability:   promotionHandler.HandleAvailability,
 		CreatePromotionCheckout:    promotionHandler.HandleCreateCheckout,
 		ListPromotionCampaigns:     promotionHandler.HandleListCampaigns,
 		ListActivePromotions:       promotionHandler.HandleListActive,
@@ -276,4 +278,8 @@ func (app *Application) BuildRouter() http.Handler {
 
 func (app *Application) StartEventExpiryWorker(ctx context.Context) {
 	events.NewHandler(app.Queries, app.Pool).StartEventExpiryWorker(ctx)
+}
+
+func (app *Application) StartPromotionReservationExpiryWorker(ctx context.Context) {
+	promotions.NewHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL")).StartReservationExpiryWorker(ctx)
 }

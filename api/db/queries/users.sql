@@ -20,6 +20,12 @@ SET google_id = $2,
 WHERE id = $1
 RETURNING *;
 
+-- name: PromoteUserToOrganizer :one
+UPDATE users
+SET role = 'organizer'
+WHERE id = $1 AND role = 'user'
+RETURNING *;
+
 -- name: UpdateUserActivation :exec
 UPDATE users SET is_active = $1 WHERE id = $2;
 

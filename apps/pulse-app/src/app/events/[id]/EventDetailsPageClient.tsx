@@ -31,6 +31,11 @@ import { formatEventDate, formatEventTime } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 import { shareEvent as shareNativeEvent } from "@/lib/native/share";
 import { EventDetailsSkeleton } from "@/components/ui/loading";
+import { PromoCodeField } from "@/features/events/PromoCodeField";
+import {
+  discountedUnitPrice,
+  useEventPromoCode,
+} from "@/features/events/useEventPromoCode";
 
 export default function EventStandalonePage() {
   const { user } = useDataProvider();
@@ -41,11 +46,11 @@ export default function EventStandalonePage() {
   const [shared, setShared] = useState(false);
   const [favorite, setFavorite] = useState(false);
   const [guestEmail, setGuestEmail] = useState("");
-  const [promoCode, setPromoCode] = useState("");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const promo = useEventPromoCode(params.id);
 
   useEffect(() => {
     let active = true;
@@ -86,10 +91,21 @@ export default function EventStandalonePage() {
     (sum, ticket) => sum + (quantities[ticket.id] ?? 0) * ticket.priceRon,
     0,
   );
+  const discountedTicketSubtotal = ticketTypes.reduce(
+    (sum, ticket) =>
+      sum +
+      (quantities[ticket.id] ?? 0) *
+        discountedUnitPrice(
+          ticket.priceRon,
+          promo.applied?.discountPercent ?? 0,
+        ),
+    0,
+  );
+  const discountAmount = ticketSubtotal - discountedTicketSubtotal;
   const serviceFee = event.organizerAbsorbsServiceFee
     ? 0
-    : calculateServiceFeeRon(ticketSubtotal, ticketCount);
-  const total = ticketSubtotal + serviceFee;
+    : calculateServiceFeeRon(discountedTicketSubtotal, ticketCount);
+  const total = discountedTicketSubtotal + serviceFee;
   const bannerUrl = event.bannerUrl || "/images/events/default.jpg";
 
   const changeQuantity = (ticketId: string, amount: number) => {
@@ -151,7 +167,7 @@ export default function EventStandalonePage() {
               ticketTypeId: ticket.id,
               quantity: quantities[ticket.id] ?? 0,
             })),
-          promoCode: promoCode.trim() || undefined,
+          promoCode: promo.applied?.code,
         },
       });
       window.location.assign(checkout.checkoutUrl);
@@ -162,7 +178,7 @@ export default function EventStandalonePage() {
   };
 
   return (
-    <main className="relative isolate min-h-screen bg-[#090b0a] pb-32 text-foreground">
+    <main className="relative isolate min-h-screen overflow-x-clip bg-[#090b0a] pb-32 text-foreground">
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-[#090b0a]">
         <Image
           src={bannerUrl}
@@ -176,7 +192,7 @@ export default function EventStandalonePage() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#090b0a]/5 via-[#090b0a]/45 to-[#090b0a]/90" />
       </div>
 
-      <div className="app-page-gutter relative z-10 mx-auto max-w-7xl pb-12 pt-5 sm:pt-8">
+      <div className="app-page-gutter relative z-10 mx-auto w-full max-w-7xl pb-12 pt-5 sm:pt-8">
         <header className="flex items-center justify-between gap-4">
           <Link
             href="/events"
@@ -212,7 +228,7 @@ export default function EventStandalonePage() {
           </div>
         </header>
 
-        <div className="mt-6 grid gap-9 lg:mt-10 lg:grid-cols-[minmax(0,1.16fr)_minmax(21rem,0.84fr)] lg:items-start lg:gap-12">
+        <div className="mt-6 grid min-w-0 gap-9 lg:mt-10 lg:grid-cols-[minmax(0,1.16fr)_minmax(21rem,0.84fr)] lg:items-start lg:gap-12">
           <div className="min-w-0">
             <section>
               <div className="relative aspect-[4/3] overflow-hidden rounded-[22px] border border-white/10 bg-black shadow-2xl shadow-black/40 sm:aspect-[16/9] lg:rounded-[24px]">
@@ -291,7 +307,7 @@ export default function EventStandalonePage() {
 
             <section className="mt-10 sm:mt-12">
               <h2 className="text-base font-semibold text-white">{t("eventPage.location")}</h2>
-              <div className="mt-3 flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.035] p-4">
+              <div className="mt-3 flex min-w-0 max-w-full items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.035] p-4">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">{event.locationName}</p>
                   <p className="mt-1 text-xs text-white/55">{t("eventPage.directions")}</p>
@@ -308,8 +324,8 @@ export default function EventStandalonePage() {
             </section>
           </div>
 
-          <aside className="lg:sticky lg:top-8 lg:self-start">
-            <section className="overflow-hidden rounded-2xl border border-white/12 bg-[#0c0f0d]/88 shadow-2xl shadow-black/30 backdrop-blur-xl">
+          <aside className="min-w-0 w-full lg:sticky lg:top-8 lg:self-start">
+            <section className="w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-white/10 bg-black/30 shadow-xl shadow-black/15 backdrop-blur-md">
               <div className="border-b border-white/10 px-5 py-4 sm:px-6">
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{t("eventPage.tickets")}</p>
                 <p className="mt-1 text-sm text-white/60">
@@ -323,7 +339,7 @@ export default function EventStandalonePage() {
                     {ticketTypes.map((ticket) => (
                       <div
                         key={ticket.id}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-3.5 py-3.5 sm:px-4"
+                        className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-3.5 py-3.5 sm:px-4"
                       >
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-white">{ticket.name}</p>
@@ -362,15 +378,30 @@ export default function EventStandalonePage() {
 
                 {ticketTypes.length > 0 && !isFinished && (
                   <div className="mt-4 border-t border-white/10 pt-4">
-                    <div className="rounded-xl border border-white/10 bg-black/20 px-3.5 py-3 text-xs">
+                    <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3.5 py-3 text-xs">
+                      <PromoCodeField
+                        code={promo.code}
+                        applied={promo.applied}
+                        error={promo.error}
+                        isValidating={promo.isValidating}
+                        onChange={promo.setCode}
+                        onApply={() => void promo.apply()}
+                        onClear={promo.clear}
+                      />
                       {ticketCount > 0 ? (
-                        <div className="space-y-2">
+                        <div className="space-y-2 pt-3">
                           <div className="flex justify-between text-white/55"><span>{t("checkout.tickets")}</span><span>{formatRon(ticketSubtotal)}</span></div>
+                          {promo.applied && discountAmount > 0 && (
+                            <div className="flex justify-between gap-3 text-primary">
+                              <span>{t("checkout.discount", { code: promo.applied.code, percent: promo.applied.discountPercent })}</span>
+                              <span>-{formatRon(discountAmount)}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between gap-3 text-white/55"><span>{event.organizerAbsorbsServiceFee ? t("checkout.organizerFee") : t("checkout.serviceFee")}</span><span>{event.organizerAbsorbsServiceFee ? "0 RON" : formatRon(serviceFee)}</span></div>
                           <div className="flex justify-between border-t border-white/10 pt-2 text-sm font-semibold text-white"><span>{t("checkout.total")}</span><span>{formatRon(total)}</span></div>
                         </div>
                       ) : (
-                        <p className="leading-5 text-white/55">
+                        <p className="pt-3 leading-5 text-white/55">
                           {event.organizerAbsorbsServiceFee ? t("checkout.finalPrice") : t("checkout.feeBeforePayment")}
                         </p>
                       )}
@@ -386,10 +417,8 @@ export default function EventStandalonePage() {
                       value={guestEmail}
                       onChange={(inputEvent) => setGuestEmail(inputEvent.target.value)}
                       placeholder={t("checkout.emailPlaceholder")}
-                      className="mt-2 h-11 w-full rounded-xl border border-white/15 bg-white/[0.035] px-3.5 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-primary/60"
+                      className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/[0.025] px-3.5 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-primary/60"
                     />
-                    <label className="mt-4 block text-xs font-semibold text-white" htmlFor="promo-code">{t("auth.promoCode")}</label>
-                    <input id="promo-code" value={promoCode} onChange={(inputEvent) => setPromoCode(inputEvent.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))} placeholder={t("auth.promoPlaceholder")} className="mt-2 h-11 w-full rounded-xl border border-white/15 bg-white/[0.035] px-3.5 text-sm font-semibold uppercase tracking-wide text-white outline-none transition placeholder:text-white/35 focus:border-primary/60" />
                     {!user && (
                       <GoogleSignInButton returnTo={`/events/${event.id}?checkout=1`} className="mt-3" />
                     )}
@@ -398,7 +427,12 @@ export default function EventStandalonePage() {
                     <button
                       type="button"
                       onClick={handleCheckout}
-                      disabled={ticketCount === 0 || isCheckingOut || isOwnEvent}
+                      disabled={
+                        ticketCount === 0 ||
+                        isCheckingOut ||
+                        isOwnEvent ||
+                        Boolean(promo.code && !promo.applied)
+                      }
                       className="mt-4 flex h-12 w-full items-center justify-between rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <span className="inline-flex items-center gap-2">

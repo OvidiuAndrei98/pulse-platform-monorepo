@@ -56,6 +56,48 @@ func (ns NullOrderStatus) Value() (driver.Value, error) {
 	return string(ns.OrderStatus), nil
 }
 
+type PromotionPlacement string
+
+const (
+	PromotionPlacementHomeBanner PromotionPlacement = "home_banner"
+	PromotionPlacementFeed       PromotionPlacement = "feed"
+)
+
+func (e *PromotionPlacement) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PromotionPlacement(s)
+	case string:
+		*e = PromotionPlacement(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PromotionPlacement: %T", src)
+	}
+	return nil
+}
+
+type NullPromotionPlacement struct {
+	PromotionPlacement PromotionPlacement `json:"promotion_placement"`
+	Valid              bool               `json:"valid"` // Valid is true if PromotionPlacement is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPromotionPlacement) Scan(value interface{}) error {
+	if value == nil {
+		ns.PromotionPlacement, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PromotionPlacement.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPromotionPlacement) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PromotionPlacement), nil
+}
+
 type PromotionPlan string
 
 const (
@@ -421,6 +463,7 @@ type PromotionCampaigns struct {
 	StripePaymentIntentID   pgtype.Text        `json:"stripe_payment_intent_id"`
 	PaidAt                  pgtype.Timestamptz `json:"paid_at"`
 	CreatedAt               pgtype.Timestamptz `json:"created_at"`
+	Placement               PromotionPlacement `json:"placement"`
 }
 
 type PromotionMetricEvents struct {

@@ -207,6 +207,46 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	})
 }
 
+func (h *CheckoutHandler) HandleValidatePromoCode(w http.ResponseWriter, r *http.Request) {
+	var eventID pgtype.UUID
+	if err := eventID.Scan(chi.URLParam(r, "id")); err != nil || !eventID.Valid {
+		router.RespondWithError(w, http.StatusBadRequest, "Eveniment invalid")
+		return
+	}
+
+	var req struct {
+		Code string `json:"code"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		router.RespondWithError(w, http.StatusBadRequest, "Date invalide")
+		return
+	}
+
+	code := strings.ToUpper(strings.TrimSpace(req.Code))
+	if code == "" {
+		router.RespondWithError(w, http.StatusBadRequest, "Codul promo este obligatoriu")
+		return
+	}
+
+	promo, err := h.queries.GetAvailablePromoCode(r.Context(), db.GetAvailablePromoCodeParams{
+		EventID: eventID,
+		Code:    code,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		router.RespondWithError(w, http.StatusNotFound, "Codul promo este invalid, expirat sau epuizat")
+		return
+	}
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Codul promo nu a putut fi verificat")
+		return
+	}
+
+	router.RespondWithJSON(w, http.StatusOK, map[string]any{
+		"code":            promo.Code,
+		"discountPercent": promo.DiscountPercent,
+	})
+}
+
 func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgtype.UUID, email string, requested map[string]int32, totalTicketCount int32, rawPromoCode string) (db.Orders, []checkoutItem, string, string, string, bool, error) {
 	tx, err := h.db.Begin(ctx)
 	if err != nil {
@@ -266,19 +306,18 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	var promoCodeID pgtype.UUID
 	var discountPercent int32
 	if promoCode != "" {
-		err := tx.QueryRow(ctx, `
-			SELECT id, discount_percent FROM promo_codes
-			WHERE event_id=$1 AND code=$2 AND active=TRUE
-			  AND (starts_at IS NULL OR starts_at <= CURRENT_TIMESTAMP)
-			  AND (ends_at IS NULL OR ends_at > CURRENT_TIMESTAMP)
-			  AND (max_redemptions IS NULL OR redemptions_count < max_redemptions)
-			FOR UPDATE`, eventID, promoCode).Scan(&promoCodeID, &discountPercent)
+		promo, err := qtx.GetAvailablePromoCodeForUpdate(ctx, db.GetAvailablePromoCodeForUpdateParams{
+			EventID: eventID,
+			Code:    promoCode,
+		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusBadRequest, message: "Codul promo este invalid, expirat sau epuizat"}
 		}
 		if err != nil {
 			return db.Orders{}, nil, "", "", "", false, err
 		}
+		promoCodeID = promo.ID
+		discountPercent = promo.DiscountPercent
 	}
 
 	var totalAmount int64

@@ -9,7 +9,6 @@ import {
   ArrowRight,
   LockKeyhole,
   Mail,
-  Moon,
   X,
 } from "lucide-react";
 import { useDataProvider } from "@/core/DataProviderContext";
@@ -101,10 +100,17 @@ export default function LoginPage() {
         <section
           className={`flex flex-1 flex-col items-center justify-center pb-10 text-center md:items-start md:text-left md:pb-0 ${showEmailForm ? "hidden" : ""}`}
         >
-          <span className="mb-5 grid h-16 w-16 place-items-center rounded-full bg-white text-black shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
-            <Moon className="h-9 w-9 fill-current" />
-          </span>
-          <p className="text-5xl font-semibold tracking-[-0.06em]">SPOTTR</p>
+          <Image
+            src="/spottr-logo.svg"
+            alt={t("common.logoAlt")}
+            width={80}
+            height={76}
+            priority
+            className="mb-5 h-20 w-20 object-contain"
+          />
+          <p className="text-5xl font-semibold tracking-[-0.06em]">
+            SPOTTR<span className="text-primary">.</span>
+          </p>
           <p className="mt-3 text-lg font-medium text-white/90">
             {t("auth.tagline")}
           </p>

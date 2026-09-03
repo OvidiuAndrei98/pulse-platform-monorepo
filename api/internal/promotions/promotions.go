@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -20,13 +21,19 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stripe/stripe-go/v85"
 )
 
-const promotionCheckoutExpiration = 30 * time.Minute
+const (
+	promotionCheckoutExpiration  = 30 * time.Minute
+	promotionReservationDuration = 10 * time.Minute
+	homeBannerCapacity           = 5
+)
 
 type Handler struct {
 	queries    *db.Queries
+	pool       *pgxpool.Pool
 	client     *stripe.Client
 	appURL     string
 	configured bool
@@ -34,6 +41,7 @@ type Handler struct {
 
 type PlanResponse struct {
 	ID          string `json:"id"`
+	Placement   string `json:"placement"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	AmountRon   int32  `json:"amountRon"`
@@ -45,6 +53,7 @@ type CampaignResponse struct {
 	EventID          string    `json:"eventId"`
 	EventTitle       string    `json:"eventTitle"`
 	Plan             string    `json:"plan"`
+	Placement        string    `json:"placement"`
 	Status           string    `json:"status"`
 	StartsAt         time.Time `json:"startsAt"`
 	EndsAt           time.Time `json:"endsAt"`
@@ -57,14 +66,15 @@ type CampaignResponse struct {
 
 type PromotedEventResponse struct {
 	CampaignID string                 `json:"campaignId"`
+	Placement  string                 `json:"placement"`
 	Event      eventapi.EventResponse `json:"event"`
 }
 
-func NewHandler(queries *db.Queries, stripeSecret, appURL string) *Handler {
+func NewHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, appURL string) *Handler {
 	if appURL == "" {
 		appURL = "http://localhost:3000"
 	}
-	return &Handler{queries: queries, client: stripe.NewClient(stripeSecret), appURL: strings.TrimRight(appURL, "/"), configured: stripeSecret != ""}
+	return &Handler{queries: queries, pool: pool, client: stripe.NewClient(stripeSecret), appURL: strings.TrimRight(appURL, "/"), configured: stripeSecret != ""}
 }
 
 func envPrice(name string, fallback int32) int32 {
@@ -77,15 +87,18 @@ func envPrice(name string, fallback int32) int32 {
 
 func plans() []PlanResponse {
 	return []PlanResponse{
-		{ID: "one_day", Name: "O zi", Description: "Promovare timp de 24 de ore", AmountRon: envPrice("PROMOTION_ONE_DAY_PRICE_RON", 50), Days: 1},
-		{ID: "thu_sat", Name: "Joi – sâmbătă", Description: "Vizibilitate în cele trei zile principale de ieșit", AmountRon: envPrice("PROMOTION_THU_SAT_PRICE_RON", 120), Days: 3},
-		{ID: "full_week", Name: "Toată săptămâna", Description: "Promovare continuă timp de șapte zile", AmountRon: envPrice("PROMOTION_FULL_WEEK_PRICE_RON", 200), Days: 7},
+		{ID: "one_day", Placement: "home_banner", Name: "O zi", Description: "Banner principal timp de 24 de ore", AmountRon: envPrice("PROMOTION_ONE_DAY_PRICE_RON", 50), Days: 1},
+		{ID: "thu_sat", Placement: "home_banner", Name: "Joi - sambata", Description: "Banner principal in cele trei zile de varf", AmountRon: envPrice("PROMOTION_THU_SAT_PRICE_RON", 120), Days: 3},
+		{ID: "full_week", Placement: "home_banner", Name: "Toata saptamana", Description: "Banner principal timp de sapte zile", AmountRon: envPrice("PROMOTION_FULL_WEEK_PRICE_RON", 200), Days: 7},
+		{ID: "one_day", Placement: "feed", Name: "O zi", Description: "Pozitionare prioritara in liste timp de 24 de ore", AmountRon: envPrice("PROMOTION_FEED_ONE_DAY_PRICE_RON", 10), Days: 1},
+		{ID: "thu_sat", Placement: "feed", Name: "Joi - sambata", Description: "Pozitionare prioritara in liste in cele trei zile de varf", AmountRon: envPrice("PROMOTION_FEED_THU_SAT_PRICE_RON", 25), Days: 3},
+		{ID: "full_week", Placement: "feed", Name: "Toata saptamana", Description: "Pozitionare prioritara in liste timp de sapte zile", AmountRon: envPrice("PROMOTION_FEED_FULL_WEEK_PRICE_RON", 50), Days: 7},
 	}
 }
 
-func planByID(id string) (PlanResponse, bool) {
+func planByID(id, placement string) (PlanResponse, bool) {
 	for _, plan := range plans() {
-		if plan.ID == id {
+		if plan.ID == id && plan.Placement == placement {
 			return plan, true
 		}
 	}
@@ -141,8 +154,101 @@ func (h *Handler) refreshStatuses(ctx context.Context) {
 	_ = h.queries.CompleteExpiredPromotionCampaigns(ctx)
 }
 
+func (h *Handler) expireCheckoutReservations(ctx context.Context) {
+	if !h.configured {
+		return
+	}
+	expiresBefore := pgtype.Timestamptz{
+		Time:  time.Now().Add(-promotionReservationDuration),
+		Valid: true,
+	}
+	if err := h.queries.CancelAbandonedPromotionReservations(ctx, expiresBefore); err != nil {
+		log.Printf("abandoned promotion reservation cleanup failed: %v", err)
+	}
+	rows, err := h.queries.ListExpiredPromotionCheckoutReservations(ctx, expiresBefore)
+	if err != nil {
+		log.Printf("promotion reservation cleanup query failed: %v", err)
+		return
+	}
+	for _, row := range rows {
+		sessionID := row.StripeCheckoutSessionID.String
+		requestCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		session, sessionErr := h.client.V1CheckoutSessions.Expire(requestCtx, sessionID, nil)
+		if sessionErr != nil {
+			session, sessionErr = h.client.V1CheckoutSessions.Retrieve(requestCtx, sessionID, nil)
+		}
+		cancel()
+		if sessionErr != nil || session == nil {
+			log.Printf("promotion checkout expiration failed: session=%s error=%v", sessionID, sessionErr)
+			continue
+		}
+		switch session.Status {
+		case stripe.CheckoutSessionStatusExpired:
+			if err := h.queries.CancelPendingPromotionCampaign(ctx, row.ID); err != nil {
+				log.Printf("promotion reservation cancellation failed: session=%s error=%v", sessionID, err)
+			}
+		case stripe.CheckoutSessionStatusComplete:
+			if session.PaymentStatus != stripe.CheckoutSessionPaymentStatusPaid {
+				continue
+			}
+			paymentIntentID := ""
+			if session.PaymentIntent != nil {
+				paymentIntentID = session.PaymentIntent.ID
+			}
+			if err := h.FulfillCampaign(ctx, common.UUIDToString(row.ID), sessionID, paymentIntentID); err != nil {
+				log.Printf("promotion reservation fulfillment failed: session=%s error=%v", sessionID, err)
+			}
+		}
+	}
+}
+
+func (h *Handler) StartReservationExpiryWorker(ctx context.Context) {
+	go func() {
+		h.expireCheckoutReservations(ctx)
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				h.expireCheckoutReservations(ctx)
+			}
+		}
+	}()
+}
+
 func (h *Handler) HandleListPlans(w http.ResponseWriter, r *http.Request) {
 	router.RespondWithJSON(w, http.StatusOK, plans())
+}
+
+func (h *Handler) HandleAvailability(w http.ResponseWriter, r *http.Request) {
+	plan, exists := planByID(r.URL.Query().Get("plan"), "home_banner")
+	if !exists {
+		router.RespondWithError(w, http.StatusBadRequest, "Plan invalid")
+		return
+	}
+	startsAt, endsAt, err := campaignInterval(plan.ID, r.URL.Query().Get("startDate"))
+	if err != nil {
+		router.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	peakOccupancy, err := h.queries.HomeBannerPromotionPeakOccupancy(r.Context(), db.HomeBannerPromotionPeakOccupancyParams{
+		StartsAt: pgtype.Timestamptz{Time: startsAt, Valid: true},
+		EndsAt:   pgtype.Timestamptz{Time: endsAt, Valid: true},
+	})
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Locurile din banner nu au putut fi verificate")
+		return
+	}
+	availableSlots := int64(homeBannerCapacity) - peakOccupancy
+	if availableSlots < 0 {
+		availableSlots = 0
+	}
+	router.RespondWithJSON(w, http.StatusOK, map[string]int64{
+		"capacity":       homeBannerCapacity,
+		"availableSlots": availableSlots,
+	})
 }
 
 func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
@@ -158,13 +264,14 @@ func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		EventID   string `json:"eventId"`
 		Plan      string `json:"plan"`
+		Placement string `json:"placement"`
 		StartDate string `json:"startDate"`
 	}
 	if json.NewDecoder(r.Body).Decode(&body) != nil {
 		router.RespondWithError(w, http.StatusBadRequest, "Datele promovarii sunt invalide")
 		return
 	}
-	plan, exists := planByID(body.Plan)
+	plan, exists := planByID(body.Plan, body.Placement)
 	if !exists {
 		router.RespondWithError(w, http.StatusBadRequest, "Plan invalid")
 		return
@@ -193,7 +300,18 @@ func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusConflict, "Evenimentul trebuie sa fie publicat si activ pe intreaga perioada aleasa")
 		return
 	}
-	overlap, err := h.queries.PromotionCampaignOverlaps(r.Context(), db.PromotionCampaignOverlapsParams{
+	tx, err := h.pool.Begin(r.Context())
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Promovarea nu a putut fi rezervata")
+		return
+	}
+	defer tx.Rollback(r.Context())
+	qtx := h.queries.WithTx(tx)
+	if err := qtx.LockPromotionEvent(r.Context(), eventID); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Promovarea nu a putut fi rezervata")
+		return
+	}
+	overlap, err := qtx.PromotionCampaignOverlaps(r.Context(), db.PromotionCampaignOverlapsParams{
 		EventID:  eventID,
 		StartsAt: pgtype.Timestamptz{Time: startsAt, Valid: true},
 		EndsAt:   pgtype.Timestamptz{Time: endsAt, Valid: true},
@@ -202,16 +320,39 @@ func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusConflict, "Evenimentul are deja o promovare in intervalul ales")
 		return
 	}
-	campaignID, err := h.queries.CreatePromotionCampaign(r.Context(), db.CreatePromotionCampaignParams{
+	if body.Placement == "home_banner" {
+		if err := qtx.LockHomeBannerPromotionCapacity(r.Context()); err != nil {
+			router.RespondWithError(w, http.StatusInternalServerError, "Locurile din banner nu au putut fi verificate")
+			return
+		}
+		peakOccupancy, err := qtx.HomeBannerPromotionPeakOccupancy(r.Context(), db.HomeBannerPromotionPeakOccupancyParams{
+			StartsAt: pgtype.Timestamptz{Time: startsAt, Valid: true},
+			EndsAt:   pgtype.Timestamptz{Time: endsAt, Valid: true},
+		})
+		if err != nil {
+			router.RespondWithError(w, http.StatusInternalServerError, "Locurile din banner nu au putut fi verificate")
+			return
+		}
+		if peakOccupancy >= homeBannerCapacity {
+			router.RespondWithError(w, http.StatusConflict, "Cele 5 locuri din banner sunt deja rezervate pentru perioada aleasa")
+			return
+		}
+	}
+	campaignID, err := qtx.CreatePromotionCampaign(r.Context(), db.CreatePromotionCampaignParams{
 		EventID:     eventID,
 		OrganizerID: organizerID,
 		Plan:        db.PromotionPlan(plan.ID),
+		Placement:   db.PromotionPlacement(plan.Placement),
 		StartsAt:    pgtype.Timestamptz{Time: startsAt, Valid: true},
 		EndsAt:      pgtype.Timestamptz{Time: endsAt, Valid: true},
 		AmountBani:  plan.AmountRon * 100,
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Promovarea nu a putut fi pregatita")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Promovarea nu a putut fi rezervata")
 		return
 	}
 	campaignIDString := common.UUIDToString(campaignID)
@@ -224,7 +365,7 @@ func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
 		PaymentMethodTypes: []*string{stripe.String("card")},
 		Metadata:           map[string]string{"pulse_promotion_campaign_id": campaignIDString},
 		PaymentIntentData:  &stripe.CheckoutSessionCreatePaymentIntentDataParams{Metadata: map[string]string{"pulse_promotion_campaign_id": campaignIDString}, ReceiptEmail: stripe.String(organizer.Email)},
-		LineItems:          []*stripe.CheckoutSessionCreateLineItemParams{{Quantity: stripe.Int64(1), PriceData: &stripe.CheckoutSessionCreateLineItemPriceDataParams{Currency: stripe.String("ron"), UnitAmount: stripe.Int64(int64(plan.AmountRon) * 100), ProductData: &stripe.CheckoutSessionCreateLineItemPriceDataProductDataParams{Name: stripe.String("Promovare Pulse - " + plan.Name), Description: stripe.String(event.Title)}}}},
+		LineItems:          []*stripe.CheckoutSessionCreateLineItemParams{{Quantity: stripe.Int64(1), PriceData: &stripe.CheckoutSessionCreateLineItemPriceDataParams{Currency: stripe.String("ron"), UnitAmount: stripe.Int64(int64(plan.AmountRon) * 100), ProductData: &stripe.CheckoutSessionCreateLineItemPriceDataProductDataParams{Name: stripe.String("Promovare Pulse - " + plan.Name), Description: stripe.String(event.Title + " - " + plan.Placement)}}}},
 	}
 	params.SetIdempotencyKey("pulse-promotion-" + campaignIDString)
 	session, err := h.client.V1CheckoutSessions.Create(r.Context(), params)
@@ -237,6 +378,8 @@ func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
 		ID:                      campaignID,
 		StripeCheckoutSessionID: pgtype.Text{String: session.ID, Valid: true},
 	}); err != nil {
+		_, _ = h.client.V1CheckoutSessions.Expire(r.Context(), session.ID, nil)
+		_ = h.queries.CancelPendingPromotionCampaign(r.Context(), campaignID)
 		router.RespondWithError(w, http.StatusInternalServerError, "Sesiunea Stripe nu a putut fi salvata")
 		return
 	}
@@ -296,6 +439,7 @@ func (h *Handler) HandleListCampaigns(w http.ResponseWriter, r *http.Request) {
 			EventID:          common.UUIDToString(row.EventID),
 			EventTitle:       row.EventTitle,
 			Plan:             string(row.Plan),
+			Placement:        string(row.Placement),
 			Status:           string(row.Status),
 			StartsAt:         row.StartsAt.Time,
 			EndsAt:           row.EndsAt.Time,
@@ -325,7 +469,7 @@ func (h *Handler) HandleListActive(w http.ResponseWriter, r *http.Request) {
 	for _, promotion := range rows {
 		row, err := h.queries.GetEventByID(r.Context(), db.GetEventByIDParams{UserID: userID, ID: promotion.EventID})
 		if err == nil {
-			items = append(items, PromotedEventResponse{CampaignID: common.UUIDToString(promotion.CampaignID), Event: eventapi.MapFromDBGetEvent(row)})
+			items = append(items, PromotedEventResponse{CampaignID: common.UUIDToString(promotion.CampaignID), Placement: string(promotion.Placement), Event: eventapi.MapFromDBGetEvent(row)})
 		}
 	}
 	router.RespondWithJSON(w, http.StatusOK, items)

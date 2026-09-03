@@ -14,6 +14,7 @@ export function HomeEventCarousel({
   emptyMessage,
   seeAllHref = "/events",
   promoted = false,
+  promotedEventIds,
   onEventOpen,
   onEventVisible,
 }: {
@@ -23,6 +24,7 @@ export function HomeEventCarousel({
   emptyMessage: string;
   seeAllHref?: string;
   promoted?: boolean;
+  promotedEventIds?: ReadonlySet<string>;
   onEventOpen?: (event: Event) => void;
   onEventVisible?: (event: Event) => void;
 }) {
@@ -76,7 +78,7 @@ export function HomeEventCarousel({
               key={event.id}
               event={event}
               live={live || event.isLive}
-              promoted={promoted}
+              promoted={promoted || promotedEventIds?.has(event.id)}
               onOpen={() => onEventOpen?.(event)}
               onVisible={() => onEventVisible?.(event)}
             />

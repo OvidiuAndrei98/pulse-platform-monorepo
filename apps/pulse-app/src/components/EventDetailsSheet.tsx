@@ -36,6 +36,11 @@ import { useTranslation } from "react-i18next";
 import { shareEvent } from "@/lib/native/share";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { PromoCodeField } from "@/features/events/PromoCodeField";
+import {
+  discountedUnitPrice,
+  useEventPromoCode,
+} from "@/features/events/useEventPromoCode";
 
 interface EventDetailsContextType {
   open: (event: Event) => void;
@@ -136,13 +141,13 @@ export function EventDetailsSheet({
   );
   const [qty, setQty] = useState<Record<string, number>>({});
   const [guestEmail, setGuestEmail] = useState("");
-  const [promoCode, setPromoCode] = useState("");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [purchased, setPurchased] = useState(false);
   const [favorited, setFavorited] = useState(false);
   const [shared, setShared] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const promo = useEventPromoCode(displayedEvent?.id ?? activeEvent?.id ?? "");
 
   const handleClose = (clearReturnEvent = true) => {
     if (isDesktop) setDisplayedEvent(null);
@@ -187,7 +192,6 @@ export function EventDetailsSheet({
     if (activeEvent) {
       setQty({});
       setGuestEmail(user?.properties.email ?? "");
-      setPromoCode("");
       setIsCheckingOut(false);
       setCheckoutError("");
       setPurchased(false);
@@ -220,11 +224,22 @@ export function EventDetailsSheet({
     (sum, t) => sum + (qty[t.id] ?? 0) * (t.priceRon ?? 0),
     0,
   );
+  const discountedTicketSubtotal = ticketTypes.reduce(
+    (sum, ticket) =>
+      sum +
+      (qty[ticket.id] ?? 0) *
+        discountedUnitPrice(
+          ticket.priceRon ?? 0,
+          promo.applied?.discountPercent ?? 0,
+        ),
+    0,
+  );
+  const discountAmount = ticketSubtotal - discountedTicketSubtotal;
   const count = ticketTypes.reduce((sum, t) => sum + (qty[t.id] ?? 0), 0);
   const serviceFee = event.organizerAbsorbsServiceFee
     ? 0
-    : calculateServiceFeeRon(ticketSubtotal, count);
-  const total = ticketSubtotal + serviceFee;
+    : calculateServiceFeeRon(discountedTicketSubtotal, count);
+  const total = discountedTicketSubtotal + serviceFee;
   const checkoutLabel = isFinished
     ? t("eventSheet.viewOrganizerEvents")
     : isOwnEvent
@@ -292,7 +307,7 @@ export function EventDetailsSheet({
                 ticketTypeId: ticket.id,
                 quantity: qty[ticket.id] ?? 0,
               })),
-            promoCode: promoCode.trim() || undefined,
+            promoCode: promo.applied?.code,
           },
         },
       );
@@ -464,9 +479,11 @@ export function EventDetailsSheet({
                 <CheckoutPriceSummary
                   ticketSubtotal={ticketSubtotal}
                   ticketCount={count}
+                  discountAmount={discountAmount}
                   serviceFee={serviceFee}
                   total={total}
                   organizerAbsorbsServiceFee={event.organizerAbsorbsServiceFee}
+                  promo={promo}
                   t={t}
                 />
               )}
@@ -491,8 +508,6 @@ export function EventDetailsSheet({
                 placeholder={t("checkout.emailPlaceholder")}
                 className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/60 focus:bg-white/[0.07]"
               />
-              <label className="mt-4 block text-sm font-semibold text-foreground/90" htmlFor="checkout-promo">{t("auth.promoCode")}</label>
-              <input id="checkout-promo" value={promoCode} onChange={(inputEvent) => setPromoCode(inputEvent.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))} placeholder={t("auth.promoPlaceholder")} className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm font-semibold uppercase tracking-wide outline-none transition placeholder:text-muted-foreground focus:border-primary/60 focus:bg-white/[0.07]" />
               {!user && (
                 <GoogleSignInButton
                   returnTo={`/events/${event.id}?checkout=1`}
@@ -545,7 +560,10 @@ export function EventDetailsSheet({
         </button>
         <button
           type="button"
-          disabled={!isFinished && (count === 0 || purchased || isOwnEvent)}
+          disabled={
+            !isFinished &&
+            (count === 0 || purchased || isOwnEvent || Boolean(promo.code && !promo.applied))
+          }
           onClick={isFinished ? viewOrganizerEvents : handleCheckout}
           className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:opacity-90 disabled:opacity-40 disabled:shadow-none"
         >
@@ -562,6 +580,7 @@ export function EventDetailsSheet({
         onOpenChange={(open) => !open && handleClose()}
         shouldScaleBackground={false}
         closeThreshold={0.35}
+        fixed
       >
         <DrawerContent className="h-[82svh] max-h-[46rem] overflow-hidden rounded-t-4xl border-none bg-[#050505] p-0 touch-none [&>div:first-child]:hidden">
           <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
@@ -599,48 +618,67 @@ export function EventDetailsSheet({
 function CheckoutPriceSummary({
   ticketSubtotal,
   ticketCount,
+  discountAmount,
   serviceFee,
   total,
   organizerAbsorbsServiceFee,
+  promo,
   t,
 }: {
   ticketSubtotal: number;
   ticketCount: number;
+  discountAmount: number;
   serviceFee: number;
   total: number;
   organizerAbsorbsServiceFee: boolean;
+  promo: ReturnType<typeof useEventPromoCode>;
   t: (key: string, options?: Record<string, unknown>) => string;
 }) {
-  if (ticketCount === 0) {
-    return (
-      <p className="mt-3 text-xs text-muted-foreground">
-        {organizerAbsorbsServiceFee
-          ? t("checkout.finalPrice")
-          : t("checkout.feeBeforePayment")}
-      </p>
-    );
-  }
-
   return (
-    <div className="mt-3 space-y-1.5 rounded-xl border border-white/10 bg-white/[0.02] px-3.5 py-3 text-xs">
-      <div className="flex justify-between text-muted-foreground">
-        <span>{t("checkout.tickets")}</span>
-        <span>{formatRon(ticketSubtotal)}</span>
-      </div>
-      <div className="flex justify-between text-muted-foreground">
-        <span>
+    <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] px-3.5 py-3 text-xs">
+      <PromoCodeField
+        code={promo.code}
+        applied={promo.applied}
+        error={promo.error}
+        isValidating={promo.isValidating}
+        onChange={promo.setCode}
+        onApply={() => void promo.apply()}
+        onClear={promo.clear}
+      />
+      {ticketCount === 0 ? (
+        <p className="pt-3 text-muted-foreground">
           {organizerAbsorbsServiceFee
-            ? t("checkout.organizerFee")
-            : t("checkout.serviceFee")}
-        </span>
-        <span>
-          {organizerAbsorbsServiceFee ? "0 RON" : formatRon(serviceFee)}
-        </span>
-      </div>
-      <div className="flex justify-between border-t border-white/10 pt-2 text-sm font-semibold text-foreground">
-        <span>{t("checkout.total")}</span>
-        <span className="text-primary">{formatRon(total)}</span>
-      </div>
+            ? t("checkout.finalPrice")
+            : t("checkout.feeBeforePayment")}
+        </p>
+      ) : (
+        <div className="space-y-1.5 pt-3">
+          <div className="flex justify-between text-muted-foreground">
+            <span>{t("checkout.tickets")}</span>
+            <span>{formatRon(ticketSubtotal)}</span>
+          </div>
+          {promo.applied && discountAmount > 0 && (
+            <div className="flex justify-between gap-3 text-primary">
+              <span>{t("checkout.discount", { code: promo.applied.code, percent: promo.applied.discountPercent })}</span>
+              <span>-{formatRon(discountAmount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-muted-foreground">
+            <span>
+              {organizerAbsorbsServiceFee
+                ? t("checkout.organizerFee")
+                : t("checkout.serviceFee")}
+            </span>
+            <span>
+              {organizerAbsorbsServiceFee ? "0 RON" : formatRon(serviceFee)}
+            </span>
+          </div>
+          <div className="flex justify-between border-t border-white/10 pt-2 text-sm font-semibold text-foreground">
+            <span>{t("checkout.total")}</span>
+            <span className="text-primary">{formatRon(total)}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

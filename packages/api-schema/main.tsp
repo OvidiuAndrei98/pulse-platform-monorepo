@@ -360,6 +360,7 @@ model PromoCodeResponse {
 
 model PromotionPlanResponse {
   id: "one_day" | "thu_sat" | "full_week";
+  placement: "home_banner" | "feed";
   name: string;
   description: string;
   amountRon: int32;
@@ -369,6 +370,7 @@ model PromotionPlanResponse {
 model CreatePromotionCheckoutPayload {
   eventId: string;
   plan: "one_day" | "thu_sat" | "full_week";
+  placement: "home_banner" | "feed";
   startDate: string;
 }
 
@@ -382,6 +384,7 @@ model PromotionCampaignResponse {
   eventId: string;
   eventTitle: string;
   plan: "one_day" | "thu_sat" | "full_week";
+  placement: "home_banner" | "feed";
   status: "pending_payment" | "scheduled" | "active" | "completed" | "cancelled";
   startsAt: utcDateTime;
   endsAt: utcDateTime;
@@ -394,7 +397,13 @@ model PromotionCampaignResponse {
 
 model PromotedEventResponse {
   campaignId: string;
+  placement: "home_banner" | "feed";
   event: EventResponse;
+}
+
+model PromotionAvailabilityResponse {
+  capacity: int32;
+  availableSlots: int32;
 }
 
 model TrackPromotionMetricPayload {
@@ -465,6 +474,15 @@ model CreateCheckoutSessionPayload {
   email: string;
   items: CheckoutTicketItemPayload[];
   promoCode?: string;
+}
+
+model ValidatePromoCodePayload {
+  code: string;
+}
+
+model PromoCodeValidationResponse {
+  code: string;
+  discountPercent: int32;
 }
 
 model CheckoutSessionResponse {
@@ -766,6 +784,14 @@ interface EventOperations {
     @body checkout: CheckoutSessionResponse;
   };
 
+  @summary("Verifica un cod promo disponibil pentru eveniment")
+  @post
+  @route("/{id}/promo-code/validate")
+  validatePromoCode(
+    @path id: string,
+    @body payload: ValidatePromoCodePayload,
+  ): PromoCodeValidationResponse;
+
   @summary("Ștergere eveniment")
   @delete
   @route("/{id}")
@@ -912,6 +938,13 @@ interface DashboardOperations {
   @get
   @route("/promotions")
   listPromotionCampaigns(): PromotionCampaignResponse[];
+
+  @get
+  @route("/promotions/availability")
+  getPromotionAvailability(
+    @query plan: "one_day" | "thu_sat" | "full_week",
+    @query startDate: string,
+  ): PromotionAvailabilityResponse;
 
   @post
   @route("/promotions/checkout")

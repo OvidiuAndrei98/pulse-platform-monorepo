@@ -7,10 +7,12 @@ import { apiRoot } from "@/core/apiRoot";
 
 export function GoogleSignInButton({
   returnTo,
+  accountType = "user",
   className = "",
   variant = "default",
 }: {
   returnTo?: string;
+  accountType?: "user" | "organizer";
   className?: string;
   variant?: "default" | "light";
 }) {
@@ -18,6 +20,7 @@ export function GoogleSignInButton({
   const startGoogleLogin = async () => {
     const url = new URL(`${apiRoot}/auth/google`);
     if (returnTo) url.searchParams.set("returnTo", returnTo);
+    url.searchParams.set("accountType", accountType);
     if (isNativePlatform()) {
       url.searchParams.set("client", "mobile");
       await Browser.open({ url: url.toString(), presentationStyle: "popover" });

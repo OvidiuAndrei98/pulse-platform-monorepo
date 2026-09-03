@@ -81,7 +81,9 @@ type HandlersConfig struct {
 	ListPromoCodes             http.HandlerFunc
 	CreatePromoCode            http.HandlerFunc
 	DeactivatePromoCode        http.HandlerFunc
+	ValidatePromoCode          http.HandlerFunc
 	ListPromotionPlans         http.HandlerFunc
+	GetPromotionAvailability   http.HandlerFunc
 	CreatePromotionCheckout    http.HandlerFunc
 	ListPromotionCampaigns     http.HandlerFunc
 	ListActivePromotions       http.HandlerFunc
@@ -238,6 +240,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			r.Get("/{id}/updates", cfg.GetEventUpdates)
 			r.Get("/{id}/comments", cfg.GetComments)
 			r.Get("/{id}/ticket-types", cfg.GetEventTicketTypes)
+			r.Post("/{id}/promo-code/validate", cfg.ValidatePromoCode)
 			r.With(optionalAuthMiddleware).Post("/{id}/tickets/purchase", cfg.PurchaseTickets)
 		})
 		r.With(optionalAuthMiddleware).Get("/promotions/active", cfg.ListActivePromotions)
@@ -341,6 +344,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				// --- ORGANIZER PROFILE ---
 				r.Get("/dashboard/finance", cfg.GetOrganizerFinance)
 				r.Get("/dashboard/promotions/plans", cfg.ListPromotionPlans)
+				r.Get("/dashboard/promotions/availability", cfg.GetPromotionAvailability)
 				r.Get("/dashboard/promotions", cfg.ListPromotionCampaigns)
 				r.Post("/dashboard/promotions/checkout", cfg.CreatePromotionCheckout)
 				r.Post("/dashboard/organizer/profile", cfg.CreateOrganizerProfile)

@@ -24,6 +24,19 @@ func (q *Queries) ActivateScheduledPromotionCampaigns(ctx context.Context) error
 	return err
 }
 
+const cancelAbandonedPromotionReservations = `-- name: CancelAbandonedPromotionReservations :exec
+UPDATE promotion_campaigns
+SET status = 'cancelled'
+WHERE status = 'pending_payment'
+  AND stripe_checkout_session_id IS NULL
+  AND created_at <= $1
+`
+
+func (q *Queries) CancelAbandonedPromotionReservations(ctx context.Context, expiresBefore pgtype.Timestamptz) error {
+	_, err := q.db.Exec(ctx, cancelAbandonedPromotionReservations, expiresBefore)
+	return err
+}
+
 const cancelPendingPromotionCampaign = `-- name: CancelPendingPromotionCampaign :exec
 UPDATE promotion_campaigns
 SET status = 'cancelled'
@@ -53,11 +66,12 @@ INSERT INTO promotion_campaigns (
     event_id,
     organizer_id,
     plan,
+    placement,
     starts_at,
     ends_at,
     amount_bani
 )
-VALUES ($1, $2, $3, $4, $5, $6)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id
 `
 
@@ -65,6 +79,7 @@ type CreatePromotionCampaignParams struct {
 	EventID     pgtype.UUID        `json:"event_id"`
 	OrganizerID pgtype.UUID        `json:"organizer_id"`
 	Plan        PromotionPlan      `json:"plan"`
+	Placement   PromotionPlacement `json:"placement"`
 	StartsAt    pgtype.Timestamptz `json:"starts_at"`
 	EndsAt      pgtype.Timestamptz `json:"ends_at"`
 	AmountBani  int32              `json:"amount_bani"`
@@ -75,6 +90,7 @@ func (q *Queries) CreatePromotionCampaign(ctx context.Context, arg CreatePromoti
 		arg.EventID,
 		arg.OrganizerID,
 		arg.Plan,
+		arg.Placement,
 		arg.StartsAt,
 		arg.EndsAt,
 		arg.AmountBani,
@@ -130,28 +146,79 @@ func (q *Queries) GetPromotionCampaignStatusForCheckout(ctx context.Context, arg
 	return status, err
 }
 
+const homeBannerPromotionPeakOccupancy = `-- name: HomeBannerPromotionPeakOccupancy :one
+WITH relevant_campaigns AS (
+    SELECT starts_at, ends_at
+    FROM promotion_campaigns
+    WHERE placement = 'home_banner'
+      AND status IN ('pending_payment', 'scheduled', 'active')
+      AND starts_at < $1
+      AND ends_at > $2
+), boundary_points AS (
+    SELECT $2::timestamptz AS moment
+    UNION
+    SELECT starts_at
+    FROM relevant_campaigns
+    WHERE starts_at > $2
+      AND starts_at < $1
+)
+SELECT COALESCE(MAX(
+    (
+        SELECT COUNT(*)
+        FROM relevant_campaigns campaign
+        WHERE campaign.starts_at <= point.moment
+          AND campaign.ends_at > point.moment
+    )
+), 0)::bigint
+FROM boundary_points point
+`
+
+type HomeBannerPromotionPeakOccupancyParams struct {
+	EndsAt   pgtype.Timestamptz `json:"ends_at"`
+	StartsAt pgtype.Timestamptz `json:"starts_at"`
+}
+
+func (q *Queries) HomeBannerPromotionPeakOccupancy(ctx context.Context, arg HomeBannerPromotionPeakOccupancyParams) (int64, error) {
+	row := q.db.QueryRow(ctx, homeBannerPromotionPeakOccupancy, arg.EndsAt, arg.StartsAt)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const listActivePromotionCampaignEvents = `-- name: ListActivePromotionCampaignEvents :many
-SELECT campaign.id AS campaign_id, campaign.event_id
-FROM promotion_campaigns campaign
-JOIN events event ON event.id = campaign.event_id
-WHERE campaign.status = 'active'
-  AND campaign.starts_at <= CURRENT_TIMESTAMP
-  AND campaign.ends_at > CURRENT_TIMESTAMP
-  AND event.status = 'published'
-  AND event.end_time > CURRENT_TIMESTAMP
-  AND NOT EXISTS (
-      SELECT 1
-      FROM user_hidden_event_categories hidden
-      WHERE hidden.user_id = $1
-        AND hidden.category = UPPER(event.category)
-  )
+WITH ranked_campaigns AS (
+    SELECT
+        campaign.id AS campaign_id,
+        campaign.event_id,
+        campaign.placement,
+        ROW_NUMBER() OVER (
+            PARTITION BY campaign.placement
+            ORDER BY RANDOM()
+        ) AS placement_rank
+    FROM promotion_campaigns campaign
+    JOIN events event ON event.id = campaign.event_id
+    WHERE campaign.status = 'active'
+      AND campaign.starts_at <= CURRENT_TIMESTAMP
+      AND campaign.ends_at > CURRENT_TIMESTAMP
+      AND event.status = 'published'
+      AND event.end_time > CURRENT_TIMESTAMP
+      AND NOT EXISTS (
+          SELECT 1
+          FROM user_hidden_event_categories hidden
+          WHERE hidden.user_id = $1
+            AND hidden.category = UPPER(event.category)
+      )
+)
+SELECT campaign_id, event_id, placement
+FROM ranked_campaigns
+WHERE placement = 'home_banner' OR placement_rank <= 10
 ORDER BY RANDOM()
-LIMIT 5
 `
 
 type ListActivePromotionCampaignEventsRow struct {
-	CampaignID pgtype.UUID `json:"campaign_id"`
-	EventID    pgtype.UUID `json:"event_id"`
+	CampaignID pgtype.UUID        `json:"campaign_id"`
+	EventID    pgtype.UUID        `json:"event_id"`
+	Placement  PromotionPlacement `json:"placement"`
 }
 
 func (q *Queries) ListActivePromotionCampaignEvents(ctx context.Context, userID pgtype.UUID) ([]ListActivePromotionCampaignEventsRow, error) {
@@ -163,7 +230,42 @@ func (q *Queries) ListActivePromotionCampaignEvents(ctx context.Context, userID 
 	var items []ListActivePromotionCampaignEventsRow
 	for rows.Next() {
 		var i ListActivePromotionCampaignEventsRow
-		if err := rows.Scan(&i.CampaignID, &i.EventID); err != nil {
+		if err := rows.Scan(&i.CampaignID, &i.EventID, &i.Placement); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listExpiredPromotionCheckoutReservations = `-- name: ListExpiredPromotionCheckoutReservations :many
+SELECT id, stripe_checkout_session_id
+FROM promotion_campaigns
+WHERE status = 'pending_payment'
+  AND stripe_checkout_session_id IS NOT NULL
+  AND created_at <= $1
+ORDER BY created_at
+LIMIT 50
+`
+
+type ListExpiredPromotionCheckoutReservationsRow struct {
+	ID                      pgtype.UUID `json:"id"`
+	StripeCheckoutSessionID pgtype.Text `json:"stripe_checkout_session_id"`
+}
+
+func (q *Queries) ListExpiredPromotionCheckoutReservations(ctx context.Context, expiresBefore pgtype.Timestamptz) ([]ListExpiredPromotionCheckoutReservationsRow, error) {
+	rows, err := q.db.Query(ctx, listExpiredPromotionCheckoutReservations, expiresBefore)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListExpiredPromotionCheckoutReservationsRow
+	for rows.Next() {
+		var i ListExpiredPromotionCheckoutReservationsRow
+		if err := rows.Scan(&i.ID, &i.StripeCheckoutSessionID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -180,6 +282,7 @@ SELECT
     campaign.event_id,
     event.title AS event_title,
     campaign.plan,
+    campaign.placement,
     campaign.status,
     campaign.starts_at,
     campaign.ends_at,
@@ -198,6 +301,7 @@ type ListPromotionCampaignsRow struct {
 	EventID          pgtype.UUID        `json:"event_id"`
 	EventTitle       string             `json:"event_title"`
 	Plan             PromotionPlan      `json:"plan"`
+	Placement        PromotionPlacement `json:"placement"`
 	Status           PromotionStatus    `json:"status"`
 	StartsAt         pgtype.Timestamptz `json:"starts_at"`
 	EndsAt           pgtype.Timestamptz `json:"ends_at"`
@@ -221,6 +325,7 @@ func (q *Queries) ListPromotionCampaigns(ctx context.Context, organizerID pgtype
 			&i.EventID,
 			&i.EventTitle,
 			&i.Plan,
+			&i.Placement,
 			&i.Status,
 			&i.StartsAt,
 			&i.EndsAt,
@@ -237,6 +342,24 @@ func (q *Queries) ListPromotionCampaigns(ctx context.Context, organizerID pgtype
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockHomeBannerPromotionCapacity = `-- name: LockHomeBannerPromotionCapacity :exec
+SELECT pg_advisory_xact_lock(73052026)
+`
+
+func (q *Queries) LockHomeBannerPromotionCapacity(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockHomeBannerPromotionCapacity)
+	return err
+}
+
+const lockPromotionEvent = `-- name: LockPromotionEvent :exec
+SELECT pg_advisory_xact_lock(hashtextextended(($1::uuid)::text, 0))
+`
+
+func (q *Queries) LockPromotionEvent(ctx context.Context, eventID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, lockPromotionEvent, eventID)
+	return err
 }
 
 const promotionCampaignOverlaps = `-- name: PromotionCampaignOverlaps :one

@@ -8,6 +8,27 @@ SELECT * FROM ticket_types
 WHERE id = $1 
 FOR UPDATE;
 
+-- name: GetAvailablePromoCode :one
+SELECT id, code, discount_percent
+FROM promo_codes
+WHERE event_id = $1
+  AND code = $2
+  AND active = TRUE
+  AND (starts_at IS NULL OR starts_at <= CURRENT_TIMESTAMP)
+  AND (ends_at IS NULL OR ends_at > CURRENT_TIMESTAMP)
+  AND (max_redemptions IS NULL OR redemptions_count < max_redemptions);
+
+-- name: GetAvailablePromoCodeForUpdate :one
+SELECT id, code, discount_percent
+FROM promo_codes
+WHERE event_id = $1
+  AND code = $2
+  AND active = TRUE
+  AND (starts_at IS NULL OR starts_at <= CURRENT_TIMESTAMP)
+  AND (ends_at IS NULL OR ends_at > CURRENT_TIMESTAMP)
+  AND (max_redemptions IS NULL OR redemptions_count < max_redemptions)
+FOR UPDATE;
+
 -- name: CreateTicketType :exec
 INSERT INTO ticket_types (event_id, name, description, price_ron, capacity, start_sales, end_sales)
 VALUES ($1, $2, $3, $4, $5, $6, $7);
