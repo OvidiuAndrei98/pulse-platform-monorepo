@@ -41,6 +41,7 @@ import {
   discountedUnitPrice,
   useEventPromoCode,
 } from "@/features/events/useEventPromoCode";
+import { toast } from "sonner";
 
 interface EventDetailsContextType {
   open: (event: Event) => void;
@@ -142,7 +143,6 @@ export function EventDetailsSheet({
   const [qty, setQty] = useState<Record<string, number>>({});
   const [guestEmail, setGuestEmail] = useState("");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [checkoutError, setCheckoutError] = useState("");
   const [purchased, setPurchased] = useState(false);
   const [favorited, setFavorited] = useState(false);
   const [shared, setShared] = useState(false);
@@ -193,7 +193,6 @@ export function EventDetailsSheet({
       setQty({});
       setGuestEmail(user?.properties.email ?? "");
       setIsCheckingOut(false);
-      setCheckoutError("");
       setPurchased(false);
       setFavorited(Boolean(activeEvent.stats?.isFavorited));
       setShared(false);
@@ -280,18 +279,17 @@ export function EventDetailsSheet({
   const handleCheckout = async () => {
     if (isFinished) return;
     if (isOwnEvent) {
-      setCheckoutError(t("eventSheet.ownEvent"));
+      toast.error(t("eventSheet.ownEvent"));
       return;
     }
     if (count === 0 || isCheckingOut) return;
 
     const email = guestEmail.trim();
     if (!email) {
-      setCheckoutError(t("eventSheet.emailRequired"));
+      toast.error(t("eventSheet.emailRequired"));
       return;
     }
 
-    setCheckoutError("");
     setIsCheckingOut(true);
     setPurchased(true);
     try {
@@ -313,7 +311,11 @@ export function EventDetailsSheet({
       );
       window.location.assign(checkout.checkoutUrl);
     } catch (error) {
-      setCheckoutError(error instanceof ApiError ? (error.detail || error.title) : t("eventSheet.purchaseError"));
+      const message =
+        error instanceof ApiError
+          ? error.detail || error.title
+          : t("eventSheet.purchaseError");
+      toast.error(message);
       setIsCheckingOut(false);
       setPurchased(false);
     }
@@ -513,11 +515,6 @@ export function EventDetailsSheet({
                   returnTo={`/events/${event.id}?checkout=1`}
                   className="mt-3 h-10 text-xs rounded-xl"
                 />
-              )}
-              {checkoutError && (
-                <p className="mt-2 text-xs font-medium text-red-400">
-                  {checkoutError}
-                </p>
               )}
             </section>
           )}

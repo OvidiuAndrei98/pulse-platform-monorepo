@@ -342,10 +342,18 @@ export class ApiClient {
       } catch {
         errorData = { title: response.statusText };
       }
+      const errorMessage =
+        errorData.error ||
+        errorData.detail ||
+        errorData.title ||
+        response.statusText ||
+        "Error";
       throw new ApiError(
         response.status,
-        errorData.title || "Error",
-        errorData.detail,
+        errorMessage,
+        errorData.detail && errorData.detail !== errorMessage
+          ? errorData.detail
+          : undefined,
       );
     }
 
