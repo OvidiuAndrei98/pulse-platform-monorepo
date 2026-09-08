@@ -16,7 +16,7 @@ const config: CapacitorConfig = {
     ? {
         url: process.env.CAPACITOR_SERVER_URL,
         androidScheme: "https",
-        allowNavigation: ["pulse-app.code-lab.ro", "pulse-api.code-lab.ro"],
+        allowNavigation: ["spottr.ro", "www.spottr.ro", "api.spottr.ro"],
       }
     : undefined,
 };

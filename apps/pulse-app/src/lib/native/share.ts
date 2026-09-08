@@ -1,7 +1,7 @@
 import { Share } from "@capacitor/share";
 import { isNativePlatform } from "@/lib/native/platform";
 
-const PUBLIC_APP_URL = "https://pulse-app.code-lab.ro";
+const PUBLIC_APP_URL = "https://spottr.ro";
 
 export function publicEventUrl(eventId: string) {
   return `${PUBLIC_APP_URL}/events/${encodeURIComponent(eventId)}`;
