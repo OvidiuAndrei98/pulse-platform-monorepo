@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
+  AlertTriangle,
   Building2,
   Calendar,
   CreditCard,
@@ -10,6 +11,7 @@ import {
   Megaphone,
   Plus,
   RefreshCw,
+  Unplug,
 } from "lucide-react";
 import { type Event, OrganizerProfile, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
@@ -17,6 +19,7 @@ import { formatEventDateShort } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { useEventDetails } from "@/components/EventDetailsSheet";
+import { toast } from "sonner";
 
 export default function OrganizerDashboard() {
   const { user } = useDataProvider();
@@ -26,15 +29,21 @@ export default function OrganizerDashboard() {
   const [profile, setProfile] = useState<OrganizerProfile>();
   const [loading, setLoading] = useState(true);
   const [stripeLoading, setStripeLoading] = useState(false);
+  const [disconnectOpen, setDisconnectOpen] = useState(false);
+  const [disconnectLoading, setDisconnectLoading] = useState(false);
   const [error, setError] = useState("");
 
   const loadProfile = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      setProfile(await user.getOrganizerProfile());
+      setProfile(await user.refreshStripeAccountStatus());
     } catch {
-      setProfile(undefined);
+      try {
+        setProfile(await user.getOrganizerProfile());
+      } catch {
+        setProfile(undefined);
+      }
     } finally {
       setLoading(false);
     }
@@ -63,6 +72,22 @@ export default function OrganizerDashboard() {
     } catch {
       setError(t("dashboard.stripeSetupFailed"));
       setStripeLoading(false);
+    }
+  };
+
+  const disconnectStripe = async () => {
+    if (!user) return;
+    setDisconnectLoading(true);
+    setError("");
+    try {
+      await user.disconnectStripeAccount();
+      setProfile(await user.getOrganizerProfile());
+      setDisconnectOpen(false);
+      toast.success(t("dashboard.stripeDisconnected"));
+    } catch {
+      toast.error(t("dashboard.stripeDisconnectFailed"));
+    } finally {
+      setDisconnectLoading(false);
     }
   };
 
@@ -192,10 +217,18 @@ export default function OrganizerDashboard() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold">
-                    {t("dashboard.companyMissing")}
+                    {profile?.verificationStatus === "pending"
+                      ? t("organizerProfile.companyPending")
+                      : profile?.verificationStatus === "rejected"
+                        ? t("organizerProfile.companyRejected")
+                        : t("dashboard.companyMissing")}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {t("dashboard.companyRequired")}
+                    {profile?.verificationStatus === "pending"
+                      ? t("dashboard.companyPendingHint")
+                      : profile?.verificationStatus === "rejected"
+                        ? t("dashboard.companyRejectedHint")
+                        : t("dashboard.companyRequired")}
                   </p>
                 </div>
               </div>
@@ -207,7 +240,7 @@ export default function OrganizerDashboard() {
               </Link>
             </div>
           </section>
-        ) : !stripeReady ? (
+        ) : (
           <section className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
             <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
@@ -247,8 +280,9 @@ export default function OrganizerDashboard() {
                   {t("dashboard.acceptAgreement")}
                 </Link>
               )}
-              {companyReady && agreementCurrent && !stripeReady && (
-                <div className="flex gap-2">
+              {companyReady &&
+                (agreementCurrent || Boolean(profile?.stripeAccountId)) && (
+                <div className="flex flex-wrap gap-2">
                   {profile?.stripeAccountId && (
                     <button
                       type="button"
@@ -262,22 +296,35 @@ export default function OrganizerDashboard() {
                       />
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={startStripeOnboarding}
-                    disabled={stripeLoading}
-                    className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
-                  >
-                    <CreditCard className="h-4 w-4" />
-                    {profile?.stripeAccountId
-                      ? t("dashboard.continueStripe")
-                      : t("dashboard.connectStripe")}
-                  </button>
+                  {agreementCurrent && !stripeReady && (
+                    <button
+                      type="button"
+                      onClick={startStripeOnboarding}
+                      disabled={stripeLoading}
+                      className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      {profile?.stripeAccountId
+                        ? t("dashboard.continueStripe")
+                        : t("dashboard.connectStripe")}
+                    </button>
+                  )}
+                  {profile?.stripeAccountId && (
+                    <button
+                      type="button"
+                      onClick={() => setDisconnectOpen(true)}
+                      disabled={stripeLoading}
+                      className="inline-flex h-10 items-center gap-2 rounded-lg border border-red-500/30 px-3 text-xs font-semibold text-red-300 transition hover:bg-red-500/10 disabled:opacity-50"
+                    >
+                      <Unplug className="h-4 w-4" />
+                      {t("dashboard.disconnectStripe")}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
           </section>
-        ) : null}
+        )}
 
         <section className="border-t border-white/10 pt-6">
           <div className="mb-4 flex items-center justify-between gap-3">
@@ -368,6 +415,59 @@ export default function OrganizerDashboard() {
 
         {error && <p className="text-sm text-red-400">{error}</p>}
       </div>
+
+      {disconnectOpen && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="disconnect-stripe-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !disconnectLoading) {
+              setDisconnectOpen(false);
+            }
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl sm:p-6">
+            <div className="flex items-start gap-3">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-red-500/10 text-red-300">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 id="disconnect-stripe-title" className="text-lg font-semibold">
+                  {t("dashboard.disconnectStripeTitle")}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {t("dashboard.disconnectStripeHint")}
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setDisconnectOpen(false)}
+                disabled={disconnectLoading}
+                className="h-10 rounded-lg border border-white/15 px-4 text-sm font-semibold transition hover:bg-white/5 disabled:opacity-50"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={disconnectStripe}
+                disabled={disconnectLoading}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-50"
+              >
+                {disconnectLoading ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Unplug className="h-4 w-4" />
+                )}
+                {t("dashboard.confirmDisconnectStripe")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

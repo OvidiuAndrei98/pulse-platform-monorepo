@@ -36,6 +36,7 @@ import {
   discountedUnitPrice,
   useEventPromoCode,
 } from "@/features/events/useEventPromoCode";
+import { toast } from "sonner";
 
 export default function EventStandalonePage() {
   const { user } = useDataProvider();
@@ -47,7 +48,6 @@ export default function EventStandalonePage() {
   const [favorite, setFavorite] = useState(false);
   const [guestEmail, setGuestEmail] = useState("");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [checkoutError, setCheckoutError] = useState("");
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const promo = useEventPromoCode(params.id);
@@ -142,18 +142,17 @@ export default function EventStandalonePage() {
   const handleCheckout = async () => {
     if (isFinished) return;
     if (isOwnEvent) {
-      setCheckoutError(t("eventPage.cannotBuyOwn"));
+      toast.error(t("eventPage.cannotBuyOwn"));
       return;
     }
     if (ticketCount === 0 || isCheckingOut) return;
 
     const email = guestEmail.trim();
     if (!email) {
-      setCheckoutError(t("eventSheet.emailRequired"));
+      toast.error(t("eventSheet.emailRequired"));
       return;
     }
 
-    setCheckoutError("");
     setIsCheckingOut(true);
 
     try {
@@ -172,7 +171,11 @@ export default function EventStandalonePage() {
       });
       window.location.assign(checkout.checkoutUrl);
     } catch (error) {
-      setCheckoutError(error instanceof ApiError ? (error.detail || error.title) : t("eventSheet.purchaseError"));
+      const message =
+        error instanceof ApiError
+          ? error.detail || error.title
+          : t("eventSheet.purchaseError");
+      toast.error(message);
       setIsCheckingOut(false);
     }
   };
@@ -422,8 +425,6 @@ export default function EventStandalonePage() {
                     {!user && (
                       <GoogleSignInButton returnTo={`/events/${event.id}?checkout=1`} className="mt-3" />
                     )}
-                    {checkoutError && <p className="mt-2 text-xs text-red-400">{checkoutError}</p>}
-
                     <button
                       type="button"
                       onClick={handleCheckout}

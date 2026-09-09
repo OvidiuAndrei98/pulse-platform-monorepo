@@ -75,6 +75,7 @@ type HandlersConfig struct {
 	CreateStripeAccountLink    http.HandlerFunc
 	GetStripeAccountStatus     http.HandlerFunc
 	CreateStripeLoginLink      http.HandlerFunc
+	DisconnectStripeAccount    http.HandlerFunc
 	GetEventSocial             http.HandlerFunc
 	UpdateEventRsvp            http.HandlerFunc
 	DeleteEventRsvp            http.HandlerFunc
@@ -114,6 +115,8 @@ type HandlersConfig struct {
 	// Organizer
 	GetOrganizerProfile      http.HandlerFunc
 	CreateOrganizerProfile   http.HandlerFunc
+	ListOrganizerVerifications http.HandlerFunc
+	ReviewOrganizerVerification http.HandlerFunc
 	AcceptOrganizerAgreement http.HandlerFunc
 	GetOrganizerFinance      http.HandlerFunc
 
@@ -353,6 +356,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Post("/dashboard/stripe/account-link", cfg.CreateStripeAccountLink)
 				r.Get("/dashboard/stripe/status", cfg.GetStripeAccountStatus)
 				r.Post("/dashboard/stripe/login-link", cfg.CreateStripeLoginLink)
+				r.Delete("/dashboard/stripe/account", cfg.DisconnectStripeAccount)
 
 			})
 
@@ -361,6 +365,8 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				if cfg.AdminMiddleware != nil {
 					r.Use(cfg.AdminMiddleware)
 				}
+				r.Get("/admin/organizers", cfg.ListOrganizerVerifications)
+				r.Patch("/admin/organizers/{id}/verification", cfg.ReviewOrganizerVerification)
 			})
 		})
 	})

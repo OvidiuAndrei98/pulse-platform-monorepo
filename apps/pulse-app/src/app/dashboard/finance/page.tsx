@@ -68,7 +68,7 @@ export default function FinancePage() {
 
     let active = true;
     void user
-      .getOrganizerProfile()
+      .refreshStripeAccountStatus()
       .then((profile) => {
         if (active) {
           setStripeReady(

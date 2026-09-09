@@ -177,10 +177,22 @@ export class ApiClient {
       } catch {
         errorData = { title: response.statusText };
       }
+
+      const title =
+        errorData.error ||
+        errorData.title ||
+        errorData.detail ||
+        response.statusText ||
+        "Error";
+      const detail =
+        errorData.detail && errorData.detail !== title
+          ? errorData.detail
+          : undefined;
+
       throw new ApiError(
         response.status,
-        errorData.title || "Error",
-        errorData.detail,
+        title,
+        detail,
       );
     }
 
@@ -342,10 +354,18 @@ export class ApiClient {
       } catch {
         errorData = { title: response.statusText };
       }
+      const errorMessage =
+        errorData.error ||
+        errorData.detail ||
+        errorData.title ||
+        response.statusText ||
+        "Error";
       throw new ApiError(
         response.status,
-        errorData.title || "Error",
-        errorData.detail,
+        errorMessage,
+        errorData.detail && errorData.detail !== errorMessage
+          ? errorData.detail
+          : undefined,
       );
     }
 

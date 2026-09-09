@@ -13,13 +13,17 @@ import (
 	"time"
 
 	db "pulse-api/db/generated"
+	"pulse-api/internal/common"
 	"pulse-api/internal/router"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const googleStateCookie = "pulse_google_oauth_state"
+const (
+	googleStateCookie                 = "pulse_google_oauth_state"
+	googleOrganizerRegistrationCookie = "spottr_google_organizer_registration"
+)
 
 type GoogleOAuthConfig struct {
 	ClientID        string
@@ -33,6 +37,11 @@ type googleOAuthState struct {
 	ReturnTo    string `json:"returnTo"`
 	Mobile      bool   `json:"mobile"`
 	AccountType string `json:"accountType"`
+}
+
+type googleOrganizerRegistration struct {
+	Cui         string `json:"cui"`
+	CompanyName string `json:"companyName"`
 }
 
 type googleTokenResponse struct {
@@ -57,6 +66,32 @@ func (h *Handler) HandleGoogleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	accountType := googleAccountType(r.URL.Query().Get("accountType"))
+	if accountType == "organizer" {
+		cui, companyName, detailErr := common.NormalizeOrganizerDetails(
+			r.URL.Query().Get("cui"),
+			r.URL.Query().Get("companyName"),
+		)
+		if detailErr != nil {
+			router.RespondWithError(w, http.StatusBadRequest, detailErr.Error())
+			return
+		}
+		registration, marshalErr := json.Marshal(googleOrganizerRegistration{Cui: cui, CompanyName: companyName})
+		if marshalErr != nil {
+			router.RespondWithError(w, http.StatusInternalServerError, "Datele firmei nu au putut fi pregatite")
+			return
+		}
+		http.SetCookie(w, &http.Cookie{
+			Name:     googleOrganizerRegistrationCookie,
+			Value:    base64.RawURLEncoding.EncodeToString(registration),
+			Path:     "/api/v1/auth/google/callback",
+			MaxAge:   600,
+			HttpOnly: true,
+			Secure:   strings.HasPrefix(h.googleOAuth.PublicAPIURL, "https://"),
+			SameSite: http.SameSiteLaxMode,
+		})
+	}
+
 	state, err := randomURLToken(24)
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Nu s-a putut porni autentificarea Google")
@@ -66,7 +101,7 @@ func (h *Handler) HandleGoogleLogin(w http.ResponseWriter, r *http.Request) {
 	statePayload, err := json.Marshal(googleOAuthState{
 		ReturnTo:    returnTo,
 		Mobile:      r.URL.Query().Get("client") == "mobile",
-		AccountType: googleAccountType(r.URL.Query().Get("accountType")),
+		AccountType: accountType,
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Nu s-a putut porni autentificarea Google")
@@ -121,6 +156,28 @@ func (h *Handler) HandleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	returnTo := safeReturnTo(oauthState.ReturnTo)
+	var organizerRegistration googleOrganizerRegistration
+	if googleAccountType(oauthState.AccountType) == "organizer" {
+		registrationCookie, cookieErr := r.Cookie(googleOrganizerRegistrationCookie)
+		if cookieErr != nil {
+			router.RespondWithError(w, http.StatusBadRequest, "Datele firmei au expirat. Porneste din nou inregistrarea")
+			return
+		}
+		http.SetCookie(w, &http.Cookie{Name: googleOrganizerRegistrationCookie, Value: "", Path: "/api/v1/auth/google/callback", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+		registrationBytes, decodeErr := base64.RawURLEncoding.DecodeString(registrationCookie.Value)
+		if decodeErr != nil || json.Unmarshal(registrationBytes, &organizerRegistration) != nil {
+			router.RespondWithError(w, http.StatusBadRequest, "Datele firmei sunt invalide")
+			return
+		}
+		organizerRegistration.Cui, organizerRegistration.CompanyName, err = common.NormalizeOrganizerDetails(
+			organizerRegistration.Cui,
+			organizerRegistration.CompanyName,
+		)
+		if err != nil {
+			router.RespondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
 	code := r.URL.Query().Get("code")
 	if code == "" {
 		router.RespondWithError(w, http.StatusBadRequest, "Google nu a returnat un cod de autentificare")
@@ -136,6 +193,16 @@ func (h *Handler) HandleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Contul Google nu a putut fi asociat")
 		return
+	}
+	if googleAccountType(oauthState.AccountType) == "organizer" {
+		if err := h.Queries.CreatePendingOrganizerProfile(r.Context(), db.CreatePendingOrganizerProfileParams{
+			UserID:      user.ID,
+			Cui:         organizerRegistration.Cui,
+			CompanyName: organizerRegistration.CompanyName,
+		}); err != nil {
+			router.RespondWithError(w, http.StatusConflict, "CUI-ul este deja asociat unui alt cont de organizator")
+			return
+		}
 	}
 	h.claimGuestPurchases(r.Context(), user.ID)
 	token, err := issueUserJWT(user)

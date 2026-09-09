@@ -37,7 +37,10 @@ export function NativeAppBridge() {
         return;
       }
 
-      if (target.protocol === "https:" && target.hostname === "pulse-app.code-lab.ro") {
+      if (
+        target.protocol === "https:" &&
+        (target.hostname === "spottr.ro" || target.hostname === "www.spottr.ro")
+      ) {
         await Browser.close();
         window.location.assign(routeForPlatform(`${target.pathname}${target.search}${target.hash}`));
       }

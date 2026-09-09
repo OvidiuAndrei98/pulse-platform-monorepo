@@ -28,6 +28,7 @@ export type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 export type EventAttendee = ReadableSchema<"EventAttendeeResponse">;
 export type OrganizerFinanceEvent = ReadableSchema<"OrganizerFinanceEventResponse">;
 export type OrganizerProfile = ReadableSchema<"OrganizerProfile">;
+export type OrganizerVerificationRequest = ReadableSchema<"OrganizerVerificationRequest">;
 export type ValidationEvent = ReadableSchema<"ValidationEventResponse">;
 export type SocialFeedItem = ReadableSchema<"SocialFeedItemResponse">;
 export type OrganizerEventUpdate = ReadableSchema<"OrganizerEventUpdateResponse">;
@@ -247,6 +248,24 @@ export class User {
 
   async createStripeDashboardLoginLink(): Promise<{ url: string }> {
     return ApiClient.instance.post("/dashboard/stripe/login-link");
+  }
+
+  async disconnectStripeAccount(): Promise<void> {
+    await ApiClient.instance.delete("/dashboard/stripe/account");
+  }
+
+  async listOrganizerVerifications(): Promise<OrganizerVerificationRequest[]> {
+    return ApiClient.instance.get("/admin/organizers");
+  }
+
+  async reviewOrganizerVerification(
+    organizerId: string,
+    status: "approved" | "rejected",
+  ): Promise<OrganizerProfile> {
+    return ApiClient.instance.patch("/admin/organizers/{id}/verification", {
+      params: { path: { id: organizerId } },
+      body: { status },
+    });
   }
 
   async getOrganizerFinance(): Promise<OrganizerFinanceEvent[]> {

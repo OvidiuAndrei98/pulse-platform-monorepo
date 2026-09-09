@@ -50,6 +50,18 @@ func (h *ConnectWebhookHandler) HandleStripeConnectWebhook(w http.ResponseWriter
 		return
 	}
 
+	if string(event.Type) == "account.application.deauthorized" && event.Account != "" {
+		_, err = h.queries.ClearOrganizerStripeAccount(r.Context(), pgtype.Text{String: event.Account, Valid: true})
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			log.Printf("Stripe Connect deauthorization cleanup failed: account=%s err=%v", event.Account, err)
+			http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
+			return
+		}
+		log.Printf("Stripe Connect account deauthorized: account=%s", event.Account)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	if string(event.Type) != "account.updated" {
 		log.Printf("Stripe Connect webhook ignored: id=%s type=%s", event.ID, event.Type)
 		w.WriteHeader(http.StatusOK)
@@ -59,6 +71,17 @@ func (h *ConnectWebhookHandler) HandleStripeConnectWebhook(w http.ResponseWriter
 	var account stripe.Account
 	if event.Data == nil || json.Unmarshal(event.Data.Raw, &account) != nil || account.ID == "" {
 		log.Printf("Stripe Connect account event could not be decoded: id=%s", event.ID)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if account.Deleted {
+		_, err = h.queries.ClearOrganizerStripeAccount(r.Context(), pgtype.Text{String: account.ID, Valid: true})
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			log.Printf("Stripe Connect deleted account cleanup failed: account=%s err=%v", account.ID, err)
+			http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
+			return
+		}
+		log.Printf("Stripe Connect account deleted: account=%s", account.ID)
 		w.WriteHeader(http.StatusOK)
 		return
 	}

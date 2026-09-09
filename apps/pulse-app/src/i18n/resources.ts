@@ -137,6 +137,15 @@ export const resources = {
         minCharacters: "At least 6 characters",
         organizerAccount: "Organizer account",
         organizerHint: "For companies that publish events and sell tickets.",
+        companyName: "Company name",
+        companyNamePlaceholder: "Company SRL",
+        cui: "Tax ID (CUI)",
+        cuiPlaceholder: "12345678",
+        organizerDetailsRequired: "Enter the company name and tax ID.",
+        manualVerificationHint:
+          "The company details will be reviewed manually before you can publish events or accept payments.",
+        organizerPendingAfterActivation:
+          "Your company verification request is pending manual review.",
         creatingAccount: "Creating account...",
         registrationFailed:
           "Your account could not be created. Please try again.",
@@ -168,6 +177,32 @@ export const resources = {
         connectingGoogle: "Connecting your Google account...",
         invalidCredentials: "Incorrect email or password.",
         accountInactive: "Activate your account from the email we sent you.",
+      },
+      admin: {
+        eyebrow: "SPOTTR administration",
+        title: "Organizer verification",
+        subtitle:
+          "Review the company name and tax ID submitted by organizer accounts, then approve or reject their access.",
+        refresh: "Refresh requests",
+        loadFailed: "Organizer requests could not be loaded.",
+        reviewFailed: "The verification decision could not be saved.",
+        approvedSuccess: "Organizer approved.",
+        rejectedSuccess: "Organizer rejected.",
+        filters: {
+          all: "All",
+          pending: "Pending",
+          approved: "Approved",
+          rejected: "Rejected",
+        },
+        cui: "Tax ID (CUI)",
+        account: "Account",
+        submittedAt: "Last submitted",
+        approve: "Approve",
+        reject: "Reject",
+        approveTitle: "Approve this organizer?",
+        rejectTitle: "Reject this organizer?",
+        reviewHint: "The decision will be applied to {{company}} immediately.",
+        empty: "There are no organizer requests in this category.",
       },
       profile: {
         language: "Language",
@@ -687,6 +722,10 @@ export const resources = {
         companyVerified: "Tax ID {{cui}} - verified",
         companyRequired:
           "Company verification is required for events and tickets.",
+        companyPendingHint:
+          "The company details are waiting for manual review by SPOTTR.",
+        companyRejectedHint:
+          "Update the company name or tax ID and submit the request again.",
         stripePayments: "Stripe payments",
         availableAfterVerification: "Available after company approval.",
         acceptAgreementBeforeStripe:
@@ -699,6 +738,14 @@ export const resources = {
         continueStripe: "Continue Stripe",
         connectStripe: "Connect Stripe",
         openStripeDashboard: "Open Stripe Dashboard",
+        disconnectStripe: "Disconnect Stripe",
+        disconnectStripeTitle: "Disconnect Stripe account?",
+        disconnectStripeHint:
+          "This closes the Stripe Express account managed by Spottr and stops ticket sales. Stripe only allows it when the account balance is zero and there are no pending payment obligations. Your events, orders, and existing tickets remain in Spottr.",
+        confirmDisconnectStripe: "Disconnect account",
+        stripeDisconnected: "Stripe account disconnected.",
+        stripeDisconnectFailed:
+          "The Stripe account could not be disconnected. Check its balance, payments, and disputes in Stripe.",
         nextEvent: "Next event",
         nextEvents: "Next events",
         nextEventsHint: "Your upcoming events, ordered by date.",
@@ -817,13 +864,13 @@ export const resources = {
           "Validators, temporary links, and scanning below are strictly limited to the selected event.",
         companyVerification: "Company verification",
         companyHint:
-          "Your company must be approved before publishing events or selling tickets.",
-        companyPending: "Your request is being verified.",
-        companyApproved: "Company verified successfully.",
-        verifyAgain: "Check again",
+          "Your company must be approved manually before publishing events or selling tickets.",
+        companyPending: "Your request is waiting for manual review.",
+        companyApproved: "Company details submitted for manual review.",
+        verifyAgain: "Update details",
         cui: "Tax ID",
         companyName: "Company name",
-        verify: "Verify",
+        verify: "Submit for review",
         verifyTicket: "Validate a ticket",
         ticketHint:
           "Choose an event and enter or paste the secure code from its QR.",
@@ -855,7 +902,7 @@ export const resources = {
         eventsLoadFailed: "Validation events could not be loaded.",
         companySubmitted: "Company details were sent for verification.",
         companyFailed:
-          "The company could not be verified. Check the entered details.",
+          "The company details could not be submitted. Check the entered information.",
         invalidTicket:
           "The ticket is invalid or does not belong to the selected event.",
         staffAdded: "The validator now has access to this event.",
@@ -1242,6 +1289,15 @@ export const resources = {
         organizerAccount: "Cont de organizator",
         organizerHint:
           "Pentru firme care publica si vand bilete la evenimente.",
+        companyName: "Numele firmei",
+        companyNamePlaceholder: "Firma SRL",
+        cui: "Cod unic de identificare (CUI)",
+        cuiPlaceholder: "12345678",
+        organizerDetailsRequired: "Introdu numele firmei si CUI-ul.",
+        manualVerificationHint:
+          "Datele firmei vor fi verificate manual inainte sa poti publica evenimente sau accepta plati.",
+        organizerPendingAfterActivation:
+          "Cererea de verificare a firmei este in asteptarea aprobarii manuale.",
         creatingAccount: "Se creeaza contul...",
         registrationFailed: "Contul nu a putut fi creat. Incearca din nou.",
         activationTitle: "Verifica-ti emailul",
@@ -1271,6 +1327,32 @@ export const resources = {
         connectingGoogle: "Se conecteaza contul Google...",
         invalidCredentials: "Email sau parola sunt incorecte.",
         accountInactive: "Activeaza-ti contul din emailul trimis.",
+      },
+      admin: {
+        eyebrow: "Administrare SPOTTR",
+        title: "Verificarea organizatorilor",
+        subtitle:
+          "Verifica numele firmei si CUI-ul trimise de conturile de organizator, apoi aproba sau respinge accesul.",
+        refresh: "Actualizeaza cererile",
+        loadFailed: "Cererile organizatorilor nu au putut fi incarcate.",
+        reviewFailed: "Decizia de verificare nu a putut fi salvata.",
+        approvedSuccess: "Organizator aprobat.",
+        rejectedSuccess: "Organizator respins.",
+        filters: {
+          all: "Toate",
+          pending: "In asteptare",
+          approved: "Aprobate",
+          rejected: "Respinse",
+        },
+        cui: "Cod unic de identificare (CUI)",
+        account: "Cont",
+        submittedAt: "Ultima trimitere",
+        approve: "Aproba",
+        reject: "Respinge",
+        approveTitle: "Aprobi acest organizator?",
+        rejectTitle: "Respinge acest organizator?",
+        reviewHint: "Decizia va fi aplicata imediat pentru {{company}}.",
+        empty: "Nu exista cereri de organizator in aceasta categorie.",
       },
       profile: {
         language: "Limba",
@@ -1798,6 +1880,10 @@ export const resources = {
         companyVerified: "CUI {{cui}} - verificat",
         companyRequired:
           "Verificarea firmei este necesara pentru evenimente si bilete.",
+        companyPendingHint:
+          "Datele firmei asteapta verificarea manuala din partea SPOTTR.",
+        companyRejectedHint:
+          "Actualizeaza numele firmei sau CUI-ul si trimite din nou cererea.",
         stripePayments: "Plati Stripe",
         availableAfterVerification: "Disponibil dupa aprobarea firmei.",
         acceptAgreementBeforeStripe:
@@ -1810,6 +1896,14 @@ export const resources = {
         continueStripe: "Continua Stripe",
         connectStripe: "Conecteaza Stripe",
         openStripeDashboard: "Deschide dashboardul Stripe",
+        disconnectStripe: "Deconecteaza Stripe",
+        disconnectStripeTitle: "Deconectezi contul Stripe?",
+        disconnectStripeHint:
+          "Aceasta actiune inchide contul Stripe Express administrat prin Spottr si opreste vanzarea biletelor. Stripe o permite doar cand soldul este zero si nu exista obligatii de plata in asteptare. Evenimentele, comenzile si biletele existente raman in Spottr.",
+        confirmDisconnectStripe: "Deconecteaza contul",
+        stripeDisconnected: "Contul Stripe a fost deconectat.",
+        stripeDisconnectFailed:
+          "Contul Stripe nu a putut fi deconectat. Verifica soldul, platile si disputele din Stripe.",
         nextEvent: "Urmatorul eveniment",
         nextEvents: "Evenimente urmatoare",
         nextEventsHint: "Evenimentele tale viitoare, in ordinea datei.",
@@ -1932,13 +2026,13 @@ export const resources = {
           "Validatorii, linkurile temporare si scanarea de mai jos sunt limitate strict la evenimentul selectat.",
         companyVerification: "Verificare firma",
         companyHint:
-          "Firma trebuie aprobata inainte sa publici evenimente sau sa vinzi bilete.",
-        companyPending: "Cererea este in curs de verificare.",
-        companyApproved: "Firma a fost verificata cu succes.",
-        verifyAgain: "Verifica din nou",
+          "Firma trebuie aprobata manual inainte sa publici evenimente sau sa vinzi bilete.",
+        companyPending: "Cererea asteapta verificarea manuala.",
+        companyApproved: "Datele firmei au fost trimise pentru verificare manuala.",
+        verifyAgain: "Actualizeaza datele",
         cui: "CUI / CIF",
         companyName: "Denumire firma",
-        verify: "Verifica",
+        verify: "Trimite spre verificare",
         verifyTicket: "Verifica un bilet",
         ticketHint:
           "Alege evenimentul si introdu sau lipeste codul securizat din QR.",
@@ -1973,7 +2067,7 @@ export const resources = {
           "Evenimentele pentru validare nu au putut fi incarcate.",
         companySubmitted: "Datele firmei au fost trimise pentru verificare.",
         companyFailed:
-          "Firma nu a putut fi verificata. Verifica datele introduse.",
+          "Datele firmei nu au putut fi trimise. Verifica informatiile introduse.",
         invalidTicket:
           "Biletul este invalid sau nu apartine evenimentului selectat.",
         staffAdded: "Validatorul are acum acces la acest eveniment.",

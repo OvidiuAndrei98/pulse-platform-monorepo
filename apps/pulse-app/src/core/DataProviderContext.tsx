@@ -48,6 +48,7 @@ interface DataProviderContextProps {
     email: string,
     password: string,
     requestOrganizerRole: boolean,
+    organizerDetails?: { cui: string; companyName: string },
   ) => Promise<void>;
   logout: () => void;
   getToken: () => string | null;
@@ -173,9 +174,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       email: string,
       password: string,
       requestOrganizerRole: boolean,
+      organizerDetails?: { cui: string; companyName: string },
     ): Promise<void> => {
       await ApiClient.instance.post("/auth/register", {
-        body: { username, email, password, requestOrganizerRole },
+        body: {
+          username,
+          email,
+          password,
+          requestOrganizerRole,
+          ...(requestOrganizerRole ? organizerDetails : undefined),
+        },
       });
     },
     [],

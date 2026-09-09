@@ -23,6 +23,11 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "api.spottr.ro",
+        pathname: "/api/v1/media/**",
+      },
+      {
+        protocol: "https",
         hostname: "pulse-api.code-lab.ro",
         pathname: "/api/v1/media/**",
       },

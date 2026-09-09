@@ -1,4 +1,4 @@
-const PRODUCTION_API_ROOT = "https://pulse-api.code-lab.ro/api/v1";
+const PRODUCTION_API_ROOT = "https://api.spottr.ro/api/v1";
 const LOCAL_API_ROOT = "http://localhost:8080/api/v1";
 
 // Vercel and native builds may not include a local .env file. Falling back to
