@@ -37,6 +37,29 @@ type SettingsResponse struct {
 	CredentialsSet bool    `json:"credentialsConfigured"`
 }
 
+type ProviderConnectionInput struct {
+	Provider       string `json:"provider"`
+	AccountEmail   string `json:"accountEmail"`
+	APIToken       string `json:"apiToken,omitempty"`
+	CompanyVATCode string `json:"companyVatCode"`
+}
+
+type SeriesOption struct {
+	Name    string `json:"name"`
+	Default bool   `json:"default"`
+}
+
+type VATRateOption struct {
+	Name       string  `json:"name"`
+	Percentage float64 `json:"percentage"`
+	Default    bool    `json:"default"`
+}
+
+type ProviderOptions struct {
+	Series   []SeriesOption  `json:"series"`
+	VATRates []VATRateOption `json:"vatRates"`
+}
+
 type InvoiceItem struct {
 	Name      string
 	Code      string
@@ -59,6 +82,8 @@ type InvoiceRequest struct {
 	CustomerCounty    string
 	CustomerSector    string
 	CustomerCountry   string
+	CustomerVATPayer  bool
+	VATPayerKnown     bool
 	EventTitle        string
 	Total             float64
 	Items             []InvoiceItem
@@ -70,6 +95,9 @@ type InvoiceRequest struct {
 	VATPercentage     float64
 	SendEmail         bool
 	SendToSPV         bool
+	PaymentType       string
+	PaymentReference  string
+	InternalNote      string
 }
 
 type InvoiceResult struct {
@@ -88,7 +116,7 @@ func (e *providerFailure) Error() string { return e.err.Error() }
 func (e *providerFailure) Unwrap() error { return e.err }
 
 type invoiceProvider interface {
-	Verify(ctx context.Context, input SettingsInput, apiToken string) error
+	Options(ctx context.Context, input ProviderConnectionInput, apiToken string) (ProviderOptions, error)
 	Issue(ctx context.Context, request InvoiceRequest) (InvoiceResult, error)
 }
 
@@ -97,4 +125,25 @@ func providerCustomerCity(invoice InvoiceRequest) string {
 		return invoice.CustomerSector
 	}
 	return invoice.CustomerCity
+}
+
+func invoicePaymentType(invoice InvoiceRequest, fallback string) string {
+	if invoice.PaymentType != "" {
+		return invoice.PaymentType
+	}
+	return fallback
+}
+
+func invoicePaymentReference(invoice InvoiceRequest) string {
+	if invoice.PaymentReference != "" {
+		return invoice.PaymentReference
+	}
+	return invoice.PaymentIntentID
+}
+
+func invoiceInternalNote(invoice InvoiceRequest) string {
+	if invoice.InternalNote != "" {
+		return invoice.InternalNote
+	}
+	return "Comanda Spottr " + invoice.OrderID
 }

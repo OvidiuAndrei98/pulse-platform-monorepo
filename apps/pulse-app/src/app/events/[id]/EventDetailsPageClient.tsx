@@ -24,25 +24,13 @@ import { EventAttendees } from "@/components/social/EventAttendees";
 import { EventLineup } from "@/features/events/lineup/EventLineup";
 import { EventOrganizerProfile } from "@/components/EventOrganizerProfile";
 import { EventOrganizerUpdates } from "@/components/EventOrganizerUpdates";
-import { ApiClient, ApiError } from "@packages/api-client/src/Client";
-import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { calculateServiceFeeRon, formatRon } from "@/features/events/serviceFee";
 import { formatEventDate, formatEventTime } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 import { shareEvent as shareNativeEvent } from "@/lib/native/share";
 import { EventDetailsSkeleton } from "@/components/ui/loading";
-import { PromoCodeField } from "@/features/events/PromoCodeField";
-import {
-  discountedUnitPrice,
-  useEventPromoCode,
-} from "@/features/events/useEventPromoCode";
 import { toast } from "sonner";
-import {
-  emptyInvoiceDetails,
-  InvoiceDetailsFields,
-  type InvoiceDetails,
-  validateInvoiceDetails,
-} from "@/features/checkout/InvoiceDetailsFields";
+import { TicketCheckoutDrawer } from "@/features/checkout/TicketCheckoutDrawer";
 
 export default function EventStandalonePage() {
   const { user } = useDataProvider();
@@ -52,12 +40,9 @@ export default function EventStandalonePage() {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [shared, setShared] = useState(false);
   const [favorite, setFavorite] = useState(false);
-  const [guestEmail, setGuestEmail] = useState("");
-  const [invoiceDetails, setInvoiceDetails] = useState<InvoiceDetails>(() => emptyInvoiceDetails(user?.properties.username ?? ""));
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const promo = useEventPromoCode(params.id);
 
   useEffect(() => {
     let active = true;
@@ -67,8 +52,6 @@ export default function EventStandalonePage() {
         if (!active) return;
         setEvent(fetchedEvent);
         setFavorite(Boolean(fetchedEvent.stats?.isFavorited));
-        setGuestEmail(user?.properties.email ?? "");
-        setInvoiceDetails((current) => current.name ? current : { ...current, name: user?.properties.username ?? "" });
       })
       .catch((error) => {
         console.error("Failed to load event details", error);
@@ -80,7 +63,7 @@ export default function EventStandalonePage() {
     return () => {
       active = false;
     };
-  }, [params.id, user?.properties.email, user?.properties.username]);
+  }, [params.id]);
 
   if (loading) return <EventDetailsSkeleton label={t("common.loading")} />;
   if (!event) notFound();
@@ -99,21 +82,10 @@ export default function EventStandalonePage() {
     (sum, ticket) => sum + (quantities[ticket.id] ?? 0) * ticket.priceRon,
     0,
   );
-  const discountedTicketSubtotal = ticketTypes.reduce(
-    (sum, ticket) =>
-      sum +
-      (quantities[ticket.id] ?? 0) *
-        discountedUnitPrice(
-          ticket.priceRon,
-          promo.applied?.discountPercent ?? 0,
-        ),
-    0,
-  );
-  const discountAmount = ticketSubtotal - discountedTicketSubtotal;
   const serviceFee = event.organizerAbsorbsServiceFee
     ? 0
-    : calculateServiceFeeRon(discountedTicketSubtotal, ticketCount);
-  const total = discountedTicketSubtotal + serviceFee;
+    : calculateServiceFeeRon(ticketSubtotal, ticketCount);
+  const total = ticketSubtotal + serviceFee;
   const bannerUrl = event.bannerUrl || "/images/events/default.jpg";
 
   const changeQuantity = (ticketId: string, amount: number) => {
@@ -147,51 +119,14 @@ export default function EventStandalonePage() {
     }
   };
 
-  const handleCheckout = async () => {
+  const openCheckout = () => {
     if (isFinished) return;
     if (isOwnEvent) {
       toast.error(t("eventPage.cannotBuyOwn"));
       return;
     }
-    if (ticketCount === 0 || isCheckingOut) return;
-
-    const email = guestEmail.trim();
-    if (!email) {
-      toast.error(t("eventSheet.emailRequired"));
-      return;
-    }
-    const validationKey = validateInvoiceDetails(invoiceDetails);
-    if (validationKey) {
-      toast.error(t(validationKey));
-      return;
-    }
-
-    setIsCheckingOut(true);
-
-    try {
-      const checkout = await ApiClient.instance.post("/events/{id}/tickets/purchase", {
-        params: { path: { id: event.id } },
-        body: {
-          email,
-          items: ticketTypes
-            .filter((ticket) => (quantities[ticket.id] ?? 0) > 0)
-            .map((ticket) => ({
-              ticketTypeId: ticket.id,
-              quantity: quantities[ticket.id] ?? 0,
-            })),
-          promoCode: promo.applied?.code,
-          billingDetails: invoiceDetails,
-        },
-      });
-      window.location.assign(checkout.checkoutUrl);
-    } catch (error) {
-      const message =
-        error instanceof ApiError
-          ? error.detail || error.title
-          : t("eventSheet.purchaseError");
-      toast.error(message);
-      setIsCheckingOut(false);
-    }
+    if (ticketCount === 0) return;
+    setCheckoutOpen(true);
   };
 
   return (
@@ -395,77 +330,20 @@ export default function EventStandalonePage() {
 
                 {ticketTypes.length > 0 && !isFinished && (
                   <div className="mt-4 border-t border-white/10 pt-4">
-                    <div className="rounded-xl border border-white/10 bg-white/[0.02] px-3.5 py-3 text-xs">
-                      <PromoCodeField
-                        code={promo.code}
-                        applied={promo.applied}
-                        error={promo.error}
-                        isValidating={promo.isValidating}
-                        onChange={promo.setCode}
-                        onApply={() => void promo.apply()}
-                        onClear={promo.clear}
-                      />
-                      {ticketCount > 0 ? (
-                        <div className="space-y-2 pt-3">
-                          <div className="flex justify-between text-white/55"><span>{t("checkout.tickets")}</span><span>{formatRon(ticketSubtotal)}</span></div>
-                          {promo.applied && discountAmount > 0 && (
-                            <div className="flex justify-between gap-3 text-primary">
-                              <span>{t("checkout.discount", { code: promo.applied.code, percent: promo.applied.discountPercent })}</span>
-                              <span>-{formatRon(discountAmount)}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between gap-3 text-white/55"><span>{event.organizerAbsorbsServiceFee ? t("checkout.organizerFee") : t("checkout.serviceFee")}</span><span>{event.organizerAbsorbsServiceFee ? "0 RON" : formatRon(serviceFee)}</span></div>
-                          <div className="flex justify-between border-t border-white/10 pt-2 text-sm font-semibold text-white"><span>{t("checkout.total")}</span><span>{formatRon(total)}</span></div>
-                        </div>
-                      ) : (
-                        <p className="pt-3 leading-5 text-white/55">
-                          {event.organizerAbsorbsServiceFee ? t("checkout.finalPrice") : t("checkout.feeBeforePayment")}
-                        </p>
-                      )}
-                    </div>
-
-                    <label className="mt-4 block text-xs font-semibold text-white" htmlFor="ticket-email">
-                      {t("eventSheet.emailForTickets")}
-                    </label>
-                    <input
-                      id="ticket-email"
-                      type="email"
-                      autoComplete="email"
-                      value={guestEmail}
-                      onChange={(inputEvent) => setGuestEmail(inputEvent.target.value)}
-                      placeholder={t("checkout.emailPlaceholder")}
-                      className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/[0.025] px-3.5 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-primary/60"
-                    />
-                    {!user && (
-                      <GoogleSignInButton returnTo={`/events/${event.id}?checkout=1`} className="mt-3" />
-                    )}
-                    <InvoiceDetailsFields
-                      value={invoiceDetails}
-                      onChange={setInvoiceDetails}
-                      idPrefix="event-checkout"
-                    />
                     <button
                       type="button"
-                      onClick={handleCheckout}
-                      disabled={
-                        ticketCount === 0 ||
-                        isCheckingOut ||
-                        isOwnEvent ||
-                        Boolean(promo.code && !promo.applied)
-                      }
+                      onClick={openCheckout}
+                      disabled={ticketCount === 0 || isOwnEvent}
                       className="mt-4 flex h-12 w-full items-center justify-between rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <span className="inline-flex items-center gap-2">
                         <Ticket className="h-4 w-4" />
                         {isOwnEvent
                           ? t("eventPage.ownEvent")
-                          : isCheckingOut
-                            ? t("checkout.preparingPayment")
-                            : ticketCount
-                              ? t("eventPage.buyTickets", { count: ticketCount })
-                              : t("checkout.selectTickets")}
+                          : ticketCount
+                            ? t("eventSheet.continue", { count: ticketCount, total: formatRon(total) })
+                            : t("checkout.selectTickets")}
                       </span>
-                      {ticketCount > 0 && <span>{formatRon(total)}</span>}
                     </button>
                   </div>
                 )}
@@ -485,6 +363,7 @@ export default function EventStandalonePage() {
           </aside>
         </div>
       </div>
+      <TicketCheckoutDrawer event={event} quantities={quantities} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
     </main>
   );
 }

@@ -709,6 +709,28 @@
         }
       }
     },
+    "/dashboard/finance/invoices": {
+      "get": {
+        "operationId": "DashboardOperations_getPlatformCommissionInvoices",
+        "summary": "Facturile lunare emise de SPOTTR pentru comisioanele organizatorului",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlatformCommissionInvoiceResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/dashboard/invoicing/invoices": {
       "get": {
         "operationId": "DashboardOperations_listBillingInvoices",
@@ -762,6 +784,34 @@
                     "status"
                   ]
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/invoicing/options": {
+      "post": {
+        "operationId": "DashboardOperations_getInvoicingProviderOptions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoicingProviderOptionsResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvoicingProviderOptionsPayload"
               }
             }
           }
@@ -3824,6 +3874,68 @@
           }
         }
       },
+      "InvoicingProviderOptionsPayload": {
+        "type": "object",
+        "required": [
+          "provider",
+          "accountEmail",
+          "companyVatCode"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "oblio",
+              "smartbill"
+            ]
+          },
+          "accountEmail": {
+            "type": "string"
+          },
+          "apiToken": {
+            "type": "string"
+          },
+          "companyVatCode": {
+            "type": "string"
+          }
+        }
+      },
+      "InvoicingProviderOptionsResponse": {
+        "type": "object",
+        "required": [
+          "series",
+          "vatRates"
+        ],
+        "properties": {
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoicingSeriesOption"
+            }
+          },
+          "vatRates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InvoicingVATRateOption"
+            }
+          }
+        }
+      },
+      "InvoicingSeriesOption": {
+        "type": "object",
+        "required": [
+          "name",
+          "default"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "default": {
+            "type": "boolean"
+          }
+        }
+      },
       "InvoicingSettingsPayload": {
         "type": "object",
         "required": [
@@ -3922,6 +4034,26 @@
             "type": "boolean"
           },
           "credentialsConfigured": {
+            "type": "boolean"
+          }
+        }
+      },
+      "InvoicingVATRateOption": {
+        "type": "object",
+        "required": [
+          "name",
+          "percentage",
+          "default"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "percentage": {
+            "type": "number",
+            "format": "double"
+          },
+          "default": {
             "type": "boolean"
           }
         }
@@ -4331,6 +4463,72 @@
         "properties": {
           "email": {
             "type": "string"
+          }
+        }
+      },
+      "PlatformCommissionInvoiceResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "status",
+          "transactionCount",
+          "totalFeeBani",
+          "periodStart",
+          "periodEnd",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "oblio",
+              "smartbill"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "issued",
+              "failed",
+              "needs_review"
+            ]
+          },
+          "transactionCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalFeeBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "series": {
+            "type": "string"
+          },
+          "number": {
+            "type": "string"
+          },
+          "documentUrl": {
+            "type": "string"
+          },
+          "periodStart": {
+            "type": "string"
+          },
+          "periodEnd": {
+            "type": "string"
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

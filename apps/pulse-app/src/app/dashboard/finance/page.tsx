@@ -14,7 +14,10 @@ import {
   Ticket,
   WalletCards,
 } from "lucide-react";
-import { type OrganizerFinanceEvent } from "@/core/DataProvider";
+import {
+  type OrganizerFinanceEvent,
+  type PlatformCommissionInvoice,
+} from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { formatEventDate } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
@@ -30,10 +33,13 @@ const SALES_PAGE_SIZE = 10;
 
 export default function FinancePage() {
   const { user } = useDataProvider();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState<OrganizerFinanceEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [invoices, setInvoices] = useState<PlatformCommissionInvoice[]>([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(true);
+  const [invoicesError, setInvoicesError] = useState("");
   const [salesPage, setSalesPage] = useState(1);
   const [stripeReady, setStripeReady] = useState(false);
   const [stripeDashboardLoading, setStripeDashboardLoading] = useState(false);
@@ -56,6 +62,29 @@ export default function FinancePage() {
       })
       .finally(() => {
         if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [t, user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let active = true;
+    setInvoicesLoading(true);
+    setInvoicesError("");
+    void user
+      .getPlatformCommissionInvoices()
+      .then((data) => {
+        if (active) setInvoices(data);
+      })
+      .catch(() => {
+        if (active) setInvoicesError(t("finance.invoiceLoadFailed"));
+      })
+      .finally(() => {
+        if (active) setInvoicesLoading(false);
       });
 
     return () => {
@@ -333,14 +362,67 @@ export default function FinancePage() {
                 </p>
               </div>
             </div>
-            <div className="mt-4 border border-dashed border-white/15 px-5 py-6">
-              <div className="flex items-start gap-3">
-                <BookOpenText className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                <p className="text-sm leading-6 text-muted-foreground">
-                  {t("finance.noInvoices")}
-                </p>
+            {invoicesLoading ? (
+              <div className="mt-4 h-24 animate-pulse border border-white/10 bg-white/[0.025]" />
+            ) : invoicesError ? (
+              <p className="mt-4 border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                {invoicesError}
+              </p>
+            ) : invoices.length ? (
+              <div className="mt-4 divide-y divide-white/10 border border-white/10 bg-white/[0.025]">
+                {invoices.map((invoice) => (
+                  <article
+                    key={invoice.id}
+                    className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold capitalize">
+                          {new Intl.DateTimeFormat(i18n.language, {
+                            month: "long",
+                            year: "numeric",
+                            timeZone: "UTC",
+                          }).format(new Date(`${invoice.periodStart}T00:00:00Z`))}
+                        </p>
+                        <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                          {t(`invoicing.status.${invoice.status}`)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {t("finance.invoiceTransactions", {
+                          count: invoice.transactionCount,
+                        })}
+                        {" · "}
+                        {formatRon(invoice.totalFeeBani / 100)}
+                      </p>
+                    </div>
+                    {invoice.documentUrl && (
+                      <a
+                        href={invoice.documentUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold transition hover:bg-white/5"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        {t("finance.downloadInvoice", {
+                          series: invoice.series,
+                          number: invoice.number,
+                        })}
+                      </a>
+                    )}
+                  </article>
+                ))}
               </div>
-            </div>
+            ) : (
+              <div className="mt-4 border border-dashed border-white/15 px-5 py-6">
+                <div className="flex items-start gap-3">
+                  <BookOpenText className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    {t("finance.noInvoices")}
+                  </p>
+                </div>
+              </div>
+            )}
           </section>
         </>
       )}

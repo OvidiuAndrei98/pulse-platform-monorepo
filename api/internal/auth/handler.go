@@ -10,8 +10,8 @@ import (
 	"time"
 
 	db "pulse-api/db/generated"
-	"pulse-api/internal/router"
 	"pulse-api/internal/common"
+	"pulse-api/internal/router"
 
 	"log"
 
@@ -223,7 +223,7 @@ func (h *Handler) HandleActivate(w http.ResponseWriter, r *http.Request) {
 	// 7. Răspundem succes (poți trimite JSON sau chiar să randezi un HTML simplu de succes)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "Contul tău Glow a fost activat cu succes! Te poți loga acum."}`))
+	w.Write([]byte(`{"message": "Contul tău Spottr a fost activat cu succes! Te poți loga acum."}`))
 }
 
 type LoginRequest struct {

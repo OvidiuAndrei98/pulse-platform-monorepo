@@ -510,7 +510,7 @@ func (h *Handler) HandleAddValidationStaff(w http.ResponseWriter, r *http.Reques
 
 	validator, err := h.Queries.GetUserByEmail(ctx, req.Email)
 	if errors.Is(err, pgx.ErrNoRows) {
-		router.RespondWithError(w, http.StatusNotFound, "Nu exista un cont Glow cu acest email")
+		router.RespondWithError(w, http.StatusNotFound, "Nu exista un cont Spottr cu acest email")
 		return
 	}
 	if err != nil {

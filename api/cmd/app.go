@@ -251,15 +251,17 @@ func (app *Application) BuildRouter() http.Handler {
 		GetSocialFeed:          interactionsHandler.HandleGetSocialFeed,
 
 		// Organizer
-		GetOrganizerProfile:      organizerHandler.HandleGetOrganizerProfile,
-		CreateOrganizerProfile:   organizerHandler.HandleCreateOrganizerProfile,
-		AcceptOrganizerAgreement: organizerHandler.HandleAcceptOrganizerAgreement,
-		GetOrganizerFinance:      organizerHandler.HandleGetOrganizerFinance,
-		GetInvoicingSettings:     app.Invoicing.HandleGetSettings,
-		SaveInvoicingSettings:    app.Invoicing.HandleSaveSettings,
-		DeleteInvoicingSettings:  app.Invoicing.HandleDeleteSettings,
-		ListBillingInvoices:      app.Invoicing.HandleListInvoices,
-		RetryBillingInvoice:      app.Invoicing.HandleRetryInvoice,
+		GetOrganizerProfile:         organizerHandler.HandleGetOrganizerProfile,
+		CreateOrganizerProfile:      organizerHandler.HandleCreateOrganizerProfile,
+		AcceptOrganizerAgreement:    organizerHandler.HandleAcceptOrganizerAgreement,
+		GetOrganizerFinance:         organizerHandler.HandleGetOrganizerFinance,
+		ListPlatformInvoices:        app.Invoicing.HandleListPlatformCommissionInvoices,
+		GetInvoicingSettings:        app.Invoicing.HandleGetSettings,
+		GetInvoicingProviderOptions: app.Invoicing.HandleGetProviderOptions,
+		SaveInvoicingSettings:       app.Invoicing.HandleSaveSettings,
+		DeleteInvoicingSettings:     app.Invoicing.HandleDeleteSettings,
+		ListBillingInvoices:         app.Invoicing.HandleListInvoices,
+		RetryBillingInvoice:         app.Invoicing.HandleRetryInvoice,
 
 		// Tickets
 		GetEventTicketTypes:   ticketingHandler.HandleGetTicketTypesForEvent,

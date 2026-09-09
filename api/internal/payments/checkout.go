@@ -442,9 +442,8 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 		if err := tx.Commit(ctx); err != nil {
 			return err
 		}
-		h.deliverGuestTickets(order.ID)
 		h.queueInvoice(ctx, order.ID)
-		return nil
+		return h.deliverTicketConfirmation(order.ID)
 	}
 	if order.Status != db.OrderStatusPending || (order.StripeCheckoutSessionID.Valid && order.StripeCheckoutSessionID.String != sessionID) {
 		return tx.Commit(ctx)
@@ -485,9 +484,8 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 	if err := h.queries.CreateTicketPurchaseNotification(ctx, order.ID); err != nil {
 		log.Printf("ticket purchase notification failed for order %s: %v", common.UUIDToString(order.ID), err)
 	}
-	h.deliverGuestTickets(order.ID)
 	h.queueInvoice(ctx, order.ID)
-	return nil
+	return h.deliverTicketConfirmation(order.ID)
 }
 
 func (h *CheckoutHandler) queueInvoice(ctx context.Context, orderID pgtype.UUID) {
@@ -499,9 +497,9 @@ func (h *CheckoutHandler) queueInvoice(ctx context.Context, orderID pgtype.UUID)
 	}
 }
 
-func (h *CheckoutHandler) deliverGuestTickets(orderID pgtype.UUID) {
+func (h *CheckoutHandler) deliverTicketConfirmation(orderID pgtype.UUID) error {
 	if h.mailer == nil {
-		return
+		return nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -510,12 +508,12 @@ func (h *CheckoutHandler) deliverGuestTickets(orderID pgtype.UUID) {
 	rows, err := h.queries.ListOrderTicketEmailDetails(ctx, orderID)
 	if err != nil || len(rows) == 0 {
 		if err != nil {
-			log.Printf("guest ticket email details failed for order %s: %v", common.UUIDToString(orderID), err)
+			log.Printf("ticket confirmation email details failed for order %s: %v", common.UUIDToString(orderID), err)
 		}
-		return
+		return err
 	}
-	if rows[0].UserID.Valid || rows[0].TicketEmailSentAt.Valid {
-		return
+	if rows[0].TicketEmailSentAt.Valid {
+		return nil
 	}
 
 	tickets := make([]email.TicketDelivery, 0, len(rows))
@@ -526,13 +524,15 @@ func (h *CheckoutHandler) deliverGuestTickets(orderID pgtype.UUID) {
 		})
 	}
 
-	if err := h.mailer.SendGuestTicketEmail(ctx, rows[0].Email, rows[0].EventTitle, rows[0].LocationName, tickets); err != nil {
-		log.Printf("guest ticket email failed for order %s: %v", common.UUIDToString(orderID), err)
-		return
+	if err := h.mailer.SendTicketConfirmationEmail(ctx, rows[0].Email, rows[0].EventTitle, rows[0].LocationName, rows[0].UserID.Valid, tickets); err != nil {
+		log.Printf("ticket confirmation email failed for order %s: %v", common.UUIDToString(orderID), err)
+		return err
 	}
-	if err := h.queries.MarkGuestTicketEmailSent(ctx, orderID); err != nil {
-		log.Printf("guest ticket email could not be marked sent for order %s: %v", common.UUIDToString(orderID), err)
+	if err := h.queries.MarkTicketEmailSent(ctx, orderID); err != nil {
+		log.Printf("ticket confirmation email could not be marked sent for order %s: %v", common.UUIDToString(orderID), err)
+		return err
 	}
+	return nil
 }
 
 func (h *CheckoutHandler) FailCheckout(ctx context.Context, orderID, paymentIntentID string) error {

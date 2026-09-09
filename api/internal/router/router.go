@@ -119,7 +119,9 @@ type HandlersConfig struct {
 	ReviewOrganizerVerification http.HandlerFunc
 	AcceptOrganizerAgreement    http.HandlerFunc
 	GetOrganizerFinance         http.HandlerFunc
+	ListPlatformInvoices        http.HandlerFunc
 	GetInvoicingSettings        http.HandlerFunc
+	GetInvoicingProviderOptions http.HandlerFunc
 	SaveInvoicingSettings       http.HandlerFunc
 	DeleteInvoicingSettings     http.HandlerFunc
 	ListBillingInvoices         http.HandlerFunc
@@ -351,7 +353,9 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 
 				// --- ORGANIZER PROFILE ---
 				r.Get("/dashboard/finance", cfg.GetOrganizerFinance)
+				r.Get("/dashboard/finance/invoices", cfg.ListPlatformInvoices)
 				r.Get("/dashboard/invoicing/settings", cfg.GetInvoicingSettings)
+				r.Post("/dashboard/invoicing/options", cfg.GetInvoicingProviderOptions)
 				r.Put("/dashboard/invoicing/settings", cfg.SaveInvoicingSettings)
 				r.Delete("/dashboard/invoicing/settings", cfg.DeleteInvoicingSettings)
 				r.Get("/dashboard/invoicing/invoices", cfg.ListBillingInvoices)

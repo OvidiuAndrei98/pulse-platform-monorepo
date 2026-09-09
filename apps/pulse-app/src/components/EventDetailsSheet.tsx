@@ -20,13 +20,11 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Event, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
-import { ApiClient, ApiError } from "@packages/api-client/src/Client";
 import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
 import { EventLineup } from "@/features/events/lineup/EventLineup";
 import { EventOrganizerProfile } from "@/components/EventOrganizerProfile";
 import { EventOrganizerUpdates } from "@/components/EventOrganizerUpdates";
-import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import {
   calculateServiceFeeRon,
   formatRon,
@@ -36,18 +34,8 @@ import { useTranslation } from "react-i18next";
 import { shareEvent } from "@/lib/native/share";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
-import { PromoCodeField } from "@/features/events/PromoCodeField";
-import {
-  discountedUnitPrice,
-  useEventPromoCode,
-} from "@/features/events/useEventPromoCode";
 import { toast } from "sonner";
-import {
-  emptyInvoiceDetails,
-  InvoiceDetailsFields,
-  type InvoiceDetails,
-  validateInvoiceDetails,
-} from "@/features/checkout/InvoiceDetailsFields";
+import { TicketCheckoutDrawer } from "@/features/checkout/TicketCheckoutDrawer";
 
 interface EventDetailsContextType {
   open: (event: Event) => void;
@@ -147,16 +135,13 @@ export function EventDetailsSheet({
     activeEvent,
   );
   const [qty, setQty] = useState<Record<string, number>>({});
-  const [guestEmail, setGuestEmail] = useState("");
-  const [invoiceDetails, setInvoiceDetails] = useState<InvoiceDetails>(() => emptyInvoiceDetails(user?.properties.username ?? ""));
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [purchased, setPurchased] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [favorited, setFavorited] = useState(false);
   const [shared, setShared] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const promo = useEventPromoCode(displayedEvent?.id ?? activeEvent?.id ?? "");
 
   const handleClose = (clearReturnEvent = true) => {
+    setCheckoutOpen(false);
     if (isDesktop) setDisplayedEvent(null);
     onClose();
 
@@ -198,14 +183,11 @@ export function EventDetailsSheet({
   useEffect(() => {
     if (activeEvent) {
       setQty({});
-      setGuestEmail(user?.properties.email ?? "");
-      setInvoiceDetails(emptyInvoiceDetails(user?.properties.username ?? ""));
-      setIsCheckingOut(false);
-      setPurchased(false);
+      setCheckoutOpen(false);
       setFavorited(Boolean(activeEvent.stats?.isFavorited));
       setShared(false);
     }
-  }, [activeEvent?.id, user?.properties.email, user?.properties.username]);
+  }, [activeEvent?.id]);
 
   useEffect(() => {
     if (!displayedEvent) return;
@@ -231,31 +213,18 @@ export function EventDetailsSheet({
     (sum, t) => sum + (qty[t.id] ?? 0) * (t.priceRon ?? 0),
     0,
   );
-  const discountedTicketSubtotal = ticketTypes.reduce(
-    (sum, ticket) =>
-      sum +
-      (qty[ticket.id] ?? 0) *
-        discountedUnitPrice(
-          ticket.priceRon ?? 0,
-          promo.applied?.discountPercent ?? 0,
-        ),
-    0,
-  );
-  const discountAmount = ticketSubtotal - discountedTicketSubtotal;
   const count = ticketTypes.reduce((sum, t) => sum + (qty[t.id] ?? 0), 0);
   const serviceFee = event.organizerAbsorbsServiceFee
     ? 0
-    : calculateServiceFeeRon(discountedTicketSubtotal, count);
-  const total = discountedTicketSubtotal + serviceFee;
+    : calculateServiceFeeRon(ticketSubtotal, count);
+  const total = ticketSubtotal + serviceFee;
   const checkoutLabel = isFinished
     ? t("eventSheet.viewOrganizerEvents")
     : isOwnEvent
       ? t("eventSheet.ownEvent")
-      : purchased
-        ? t("checkout.reserved")
-        : count === 0
-          ? t("eventSheet.selectTickets")
-          : t("eventSheet.buy", { count, total: formatRon(total) });
+      : count === 0
+        ? t("eventSheet.selectTickets")
+        : t("eventSheet.continue", { count, total: formatRon(total) });
 
   const setTierQty = (id: string, delta: number) =>
     setQty((q) => ({
@@ -284,55 +253,14 @@ export function EventDetailsSheet({
     }
   };
 
-  const handleCheckout = async () => {
+  const openCheckout = () => {
     if (isFinished) return;
     if (isOwnEvent) {
       toast.error(t("eventSheet.ownEvent"));
       return;
     }
-    if (count === 0 || isCheckingOut) return;
-
-    const email = guestEmail.trim();
-    if (!email) {
-      toast.error(t("eventSheet.emailRequired"));
-      return;
-    }
-    const validationKey = validateInvoiceDetails(invoiceDetails);
-    if (validationKey) {
-      toast.error(t(validationKey));
-      return;
-    }
-
-    setIsCheckingOut(true);
-    setPurchased(true);
-    try {
-      const checkout = await ApiClient.instance.post(
-        "/events/{id}/tickets/purchase",
-        {
-          params: { path: { id: event.id } },
-          body: {
-            email,
-            items: ticketTypes
-              .filter((ticket) => (qty[ticket.id] ?? 0) > 0)
-              .map((ticket) => ({
-                ticketTypeId: ticket.id,
-                quantity: qty[ticket.id] ?? 0,
-              })),
-            promoCode: promo.applied?.code,
-            billingDetails: invoiceDetails,
-          },
-        },
-      );
-      window.location.assign(checkout.checkoutUrl);
-    } catch (error) {
-      const message =
-        error instanceof ApiError
-          ? error.detail || error.title
-          : t("eventSheet.purchaseError");
-      toast.error(message);
-      setIsCheckingOut(false);
-      setPurchased(false);
-    }
+    if (count === 0) return;
+    setCheckoutOpen(true);
   };
 
   const viewOrganizerEvents = () => {
@@ -487,54 +415,11 @@ export function EventDetailsSheet({
                 ))}
               </div>
 
-              {isFinished ? (
+              {isFinished && (
                 <p className="mt-3 text-xs text-muted-foreground">
                   {t("eventSheet.eventCompleted")}
                 </p>
-              ) : (
-                <CheckoutPriceSummary
-                  ticketSubtotal={ticketSubtotal}
-                  ticketCount={count}
-                  discountAmount={discountAmount}
-                  serviceFee={serviceFee}
-                  total={total}
-                  organizerAbsorbsServiceFee={event.organizerAbsorbsServiceFee}
-                  promo={promo}
-                  t={t}
-                />
               )}
-            </section>
-          )}
-
-          {/* FORMULAR EMAIL CHECKOUT */}
-          {!isFinished && (
-            <section>
-              <label
-                className="block text-sm font-semibold text-foreground/90"
-                htmlFor="checkout-email"
-              >
-                {t("eventSheet.emailForTickets")}
-              </label>
-              <input
-                id="checkout-email"
-                type="email"
-                autoComplete="email"
-                value={guestEmail}
-                onChange={(event) => setGuestEmail(event.target.value)}
-                placeholder={t("checkout.emailPlaceholder")}
-                className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/60 focus:bg-white/[0.07]"
-              />
-              {!user && (
-                <GoogleSignInButton
-                  returnTo={`/events/${event.id}?checkout=1`}
-                  className="mt-3 h-10 text-xs rounded-xl"
-                />
-              )}
-              <InvoiceDetailsFields
-                value={invoiceDetails}
-                onChange={setInvoiceDetails}
-                idPrefix="sheet-checkout"
-              />
             </section>
           )}
         </div>
@@ -578,9 +463,9 @@ export function EventDetailsSheet({
           type="button"
           disabled={
             !isFinished &&
-            (count === 0 || purchased || isOwnEvent || Boolean(promo.code && !promo.applied))
+            (count === 0 || isOwnEvent)
           }
-          onClick={isFinished ? viewOrganizerEvents : handleCheckout}
+          onClick={isFinished ? viewOrganizerEvents : openCheckout}
           className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:opacity-90 disabled:opacity-40 disabled:shadow-none"
         >
           <TicketIcon className="h-4 w-4" />
@@ -591,110 +476,48 @@ export function EventDetailsSheet({
   );
   if (!isDesktop) {
     return (
-      <Drawer
-        open={Boolean(activeEvent)}
-        onOpenChange={(open) => !open && handleClose()}
-        shouldScaleBackground={false}
-        closeThreshold={0.35}
-        fixed
-      >
-        <DrawerContent className="h-[82svh] max-h-[46rem] overflow-hidden rounded-t-4xl border-none bg-[#050505] p-0 touch-none [&>div:first-child]:hidden">
-          <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
+      <>
+        <Drawer
+          open={Boolean(activeEvent)}
+          onOpenChange={(open) => !open && handleClose()}
+          shouldScaleBackground={false}
+          closeThreshold={0.35}
+          fixed
+        >
+          <DrawerContent className="h-[82svh] max-h-[46rem] overflow-hidden rounded-t-4xl border-none bg-[#050505] p-0 touch-none [&>div:first-child]:hidden">
+            <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
 
-          {/* HANDLE OPTIMIZAT: Randat hardware direct (translate-z-0), fara efecte de blur care cauzeaza delay */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-8 items-center justify-center bg-gradient-to-b from-black/60 to-transparent transform-gpu translate-z-0">
-            <div className="h-1.5 w-12 rounded-full bg-white/70 shadow-sm" />
-          </div>
+            {/* HANDLE OPTIMIZAT: Randat hardware direct (translate-z-0), fara efecte de blur care cauzeaza delay */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-8 items-center justify-center bg-gradient-to-b from-black/60 to-transparent transform-gpu translate-z-0">
+              <div className="h-1.5 w-12 rounded-full bg-white/70 shadow-sm" />
+            </div>
 
-          {sheetContent}
-        </DrawerContent>
-      </Drawer>
+            {sheetContent}
+          </DrawerContent>
+        </Drawer>
+        <TicketCheckoutDrawer event={event} quantities={qty} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
+      </>
     );
   }
 
   return (
-    <div
-      onClick={() => handleClose()}
-      className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/70 backdrop-blur-sm md:flex cursor-pointer"
-    >
-      <motion.div
-        initial={{ y: 24, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 24, opacity: 0 }}
-        transition={{ type: "spring", damping: 28, stiffness: 260 }}
-        onClick={(clickEvent) => clickEvent.stopPropagation()}
-        className="relative z-10 flex h-[min(88vh,49rem)] w-[calc(100%-1.5rem)] max-w-2xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#050505] text-foreground shadow-2xl backdrop-blur-xl cursor-default"
+    <>
+      <div
+        onClick={() => handleClose()}
+        className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/70 backdrop-blur-sm md:flex cursor-pointer"
       >
-        {sheetContent}
-      </motion.div>
-    </div>
-  );
-}
-
-function CheckoutPriceSummary({
-  ticketSubtotal,
-  ticketCount,
-  discountAmount,
-  serviceFee,
-  total,
-  organizerAbsorbsServiceFee,
-  promo,
-  t,
-}: {
-  ticketSubtotal: number;
-  ticketCount: number;
-  discountAmount: number;
-  serviceFee: number;
-  total: number;
-  organizerAbsorbsServiceFee: boolean;
-  promo: ReturnType<typeof useEventPromoCode>;
-  t: (key: string, options?: Record<string, unknown>) => string;
-}) {
-  return (
-    <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.02] px-3.5 py-3 text-xs">
-      <PromoCodeField
-        code={promo.code}
-        applied={promo.applied}
-        error={promo.error}
-        isValidating={promo.isValidating}
-        onChange={promo.setCode}
-        onApply={() => void promo.apply()}
-        onClear={promo.clear}
-      />
-      {ticketCount === 0 ? (
-        <p className="pt-3 text-muted-foreground">
-          {organizerAbsorbsServiceFee
-            ? t("checkout.finalPrice")
-            : t("checkout.feeBeforePayment")}
-        </p>
-      ) : (
-        <div className="space-y-1.5 pt-3">
-          <div className="flex justify-between text-muted-foreground">
-            <span>{t("checkout.tickets")}</span>
-            <span>{formatRon(ticketSubtotal)}</span>
-          </div>
-          {promo.applied && discountAmount > 0 && (
-            <div className="flex justify-between gap-3 text-primary">
-              <span>{t("checkout.discount", { code: promo.applied.code, percent: promo.applied.discountPercent })}</span>
-              <span>-{formatRon(discountAmount)}</span>
-            </div>
-          )}
-          <div className="flex justify-between text-muted-foreground">
-            <span>
-              {organizerAbsorbsServiceFee
-                ? t("checkout.organizerFee")
-                : t("checkout.serviceFee")}
-            </span>
-            <span>
-              {organizerAbsorbsServiceFee ? "0 RON" : formatRon(serviceFee)}
-            </span>
-          </div>
-          <div className="flex justify-between border-t border-white/10 pt-2 text-sm font-semibold text-foreground">
-            <span>{t("checkout.total")}</span>
-            <span className="text-primary">{formatRon(total)}</span>
-          </div>
-        </div>
-      )}
-    </div>
+        <motion.div
+          initial={{ y: 24, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 24, opacity: 0 }}
+          transition={{ type: "spring", damping: 28, stiffness: 260 }}
+          onClick={(clickEvent) => clickEvent.stopPropagation()}
+          className="relative z-10 flex h-[min(88vh,49rem)] w-[calc(100%-1.5rem)] max-w-2xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#050505] text-foreground shadow-2xl backdrop-blur-xl cursor-default"
+        >
+          {sheetContent}
+        </motion.div>
+      </div>
+      <TicketCheckoutDrawer event={event} quantities={qty} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
+    </>
   );
 }

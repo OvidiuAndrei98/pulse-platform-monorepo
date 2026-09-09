@@ -435,6 +435,7 @@ type Orders struct {
 	BillingCounty             string             `json:"billing_county"`
 	BillingCountry            string             `json:"billing_country"`
 	BillingSector             string             `json:"billing_sector"`
+	CompletedAt               pgtype.Timestamptz `json:"completed_at"`
 }
 
 type OrganizerFollows struct {
@@ -477,6 +478,27 @@ type OrganizerProfiles struct {
 	OrganizerAgreementVersion    pgtype.Text            `json:"organizer_agreement_version"`
 	OrganizerAgreementAcceptedAt pgtype.Timestamptz     `json:"organizer_agreement_accepted_at"`
 	OrganizerAgreementAcceptedIp *netip.Addr            `json:"organizer_agreement_accepted_ip"`
+}
+
+type PlatformCommissionInvoices struct {
+	ID                 pgtype.UUID        `json:"id"`
+	OrganizerID        pgtype.UUID        `json:"organizer_id"`
+	PeriodStart        pgtype.Date        `json:"period_start"`
+	PeriodEnd          pgtype.Date        `json:"period_end"`
+	Provider           string             `json:"provider"`
+	Status             string             `json:"status"`
+	TransactionCount   int32              `json:"transaction_count"`
+	TotalFeeBani       int64              `json:"total_fee_bani"`
+	AttemptCount       int32              `json:"attempt_count"`
+	NextAttemptAt      pgtype.Timestamptz `json:"next_attempt_at"`
+	ExternalSeries     pgtype.Text        `json:"external_series"`
+	ExternalNumber     pgtype.Text        `json:"external_number"`
+	ExternalDocumentID pgtype.Text        `json:"external_document_id"`
+	DocumentUrl        pgtype.Text        `json:"document_url"`
+	ErrorMessage       pgtype.Text        `json:"error_message"`
+	IssuedAt           pgtype.Timestamptz `json:"issued_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
 
 type PromoCodes struct {

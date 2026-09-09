@@ -28,8 +28,19 @@ type oblioSeriesResponse struct {
 	Status        int    `json:"status"`
 	StatusMessage string `json:"statusMessage"`
 	Data          []struct {
-		Type string `json:"type"`
-		Name string `json:"name"`
+		Type    string `json:"type"`
+		Name    string `json:"name"`
+		Default bool   `json:"default"`
+	} `json:"data"`
+}
+
+type oblioVATRatesResponse struct {
+	Status        int    `json:"status"`
+	StatusMessage string `json:"statusMessage"`
+	Data          []struct {
+		Name    string  `json:"name"`
+		Percent float64 `json:"percent"`
+		Default bool    `json:"default"`
 	} `json:"data"`
 }
 
@@ -47,29 +58,38 @@ func newOblioProvider(client *http.Client) *oblioProvider {
 	return &oblioProvider{client: client, baseURL: oblioBaseURL}
 }
 
-func (p *oblioProvider) Verify(ctx context.Context, input SettingsInput, apiToken string) error {
+func (p *oblioProvider) Options(ctx context.Context, input ProviderConnectionInput, apiToken string) (ProviderOptions, error) {
 	token, err := p.authorize(ctx, input.AccountEmail, apiToken)
 	if err != nil {
-		return err
+		return ProviderOptions{}, err
 	}
 
-	endpoint := p.baseURL + "/nomenclature/series?cif=" + url.QueryEscape(input.CompanyVATCode)
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return err
+	var seriesResponse oblioSeriesResponse
+	if err := p.getNomenclature(ctx, token, "/nomenclature/series", input.CompanyVATCode, &seriesResponse); err != nil {
+		return ProviderOptions{}, fmt.Errorf("Oblio series verification failed: %w", err)
 	}
-	request.Header.Set("Authorization", "Bearer "+token)
+	if seriesResponse.Status != http.StatusOK {
+		return ProviderOptions{}, errors.New(providerMessage(seriesResponse.StatusMessage, "Oblio nu a returnat seriile de facturi"))
+	}
 
-	var response oblioSeriesResponse
-	if err := doProviderJSON(p.client, request, &response); err != nil {
-		return fmt.Errorf("Oblio series verification failed: %w", err)
-	}
-	for _, series := range response.Data {
-		if strings.EqualFold(series.Type, "Factura") && series.Name == input.SeriesName {
-			return nil
+	options := ProviderOptions{Series: make([]SeriesOption, 0), VATRates: make([]VATRateOption, 0)}
+	for _, series := range seriesResponse.Data {
+		if strings.EqualFold(series.Type, "Factura") {
+			options.Series = append(options.Series, SeriesOption{Name: series.Name, Default: series.Default})
 		}
 	}
-	return fmt.Errorf("seria de factura %q nu exista in contul Oblio", input.SeriesName)
+
+	var vatResponse oblioVATRatesResponse
+	if err := p.getNomenclature(ctx, token, "/nomenclature/vat_rates", input.CompanyVATCode, &vatResponse); err != nil {
+		return ProviderOptions{}, fmt.Errorf("Oblio VAT rates verification failed: %w", err)
+	}
+	if vatResponse.Status != http.StatusOK {
+		return ProviderOptions{}, errors.New(providerMessage(vatResponse.StatusMessage, "Oblio nu a returnat cotele TVA"))
+	}
+	for _, rate := range vatResponse.Data {
+		options.VATRates = append(options.VATRates, VATRateOption{Name: rate.Name, Percentage: rate.Percent, Default: rate.Default})
+	}
+	return normalizeProviderOptions(options), nil
 }
 
 func (p *oblioProvider) Issue(ctx context.Context, invoice InvoiceRequest) (InvoiceResult, error) {
@@ -84,8 +104,8 @@ func (p *oblioProvider) Issue(ctx context.Context, invoice InvoiceRequest) (Invo
 		Description   string  `json:"description,omitempty"`
 		Price         float64 `json:"price"`
 		MeasuringUnit string  `json:"measuringUnit"`
-		VATName       string  `json:"vatName"`
-		VATPercentage float64 `json:"vatPercentage"`
+		VATName       string  `json:"vatName,omitempty"`
+		VATPercentage float64 `json:"vatPercentage,omitempty"`
 		VATIncluded   int     `json:"vatIncluded"`
 		Quantity      int32   `json:"quantity"`
 		ProductType   string  `json:"productType"`
@@ -108,20 +128,28 @@ func (p *oblioProvider) Issue(ctx context.Context, invoice InvoiceRequest) (Invo
 		})
 	}
 
+	client := map[string]any{
+		"cif":     invoice.CustomerTaxID,
+		"name":    invoice.CustomerName,
+		"rc":      invoice.CustomerRegNumber,
+		"address": invoice.CustomerAddress,
+		"state":   invoice.CustomerCounty,
+		"city":    providerCustomerCity(invoice),
+		"country": invoice.CustomerCountry,
+		"email":   invoice.CustomerEmail,
+		"save":    0,
+	}
+	if invoice.CustomerType == "company" && strings.TrimSpace(invoice.CustomerTaxID) != "" && strings.EqualFold(invoice.CustomerCountry, "Romania") {
+		// Oblio resolves the Romanian company's fiscal data, including VAT status,
+		// from the CIF. Do not override that result with a hard-coded value.
+		client["autocomplete"] = 1
+	} else if invoice.VATPayerKnown {
+		client["vatPayer"] = invoice.CustomerVATPayer
+	}
+
 	payload := map[string]any{
-		"cif": invoice.CompanyVATCode,
-		"client": map[string]any{
-			"cif":      invoice.CustomerTaxID,
-			"name":     invoice.CustomerName,
-			"rc":       invoice.CustomerRegNumber,
-			"address":  invoice.CustomerAddress,
-			"state":    invoice.CustomerCounty,
-			"city":     providerCustomerCity(invoice),
-			"country":  invoice.CustomerCountry,
-			"email":    invoice.CustomerEmail,
-			"vatPayer": false,
-			"save":     0,
-		},
+		"cif":         invoice.CompanyVATCode,
+		"client":      client,
 		"issueDate":   invoice.IssueDate.Format("2006-01-02"),
 		"dueDate":     invoice.IssueDate.Format("2006-01-02"),
 		"collectDate": invoice.IssueDate.Format("2006-01-02"),
@@ -131,15 +159,15 @@ func (p *oblioProvider) Issue(ctx context.Context, invoice InvoiceRequest) (Invo
 		"currency":    "RON",
 		"products":    products,
 		"collect": map[string]any{
-			"type":           "Card",
-			"documentNumber": invoice.PaymentIntentID,
+			"type":           invoicePaymentType(invoice, "Card"),
+			"documentNumber": invoicePaymentReference(invoice),
 			"value":          invoice.Total,
 			"issueDate":      invoice.IssueDate.Format("2006-01-02"),
 		},
 		"sendEmail":      boolInt(invoice.SendEmail),
 		"spvExtern":      boolInt(invoice.SendToSPV),
 		"orderNumber":    invoice.OrderID,
-		"internalNote":   "Comanda Spottr " + invoice.OrderID,
+		"internalNote":   invoiceInternalNote(invoice),
 		"idempotencyKey": "spottr-order-" + invoice.OrderID,
 	}
 
@@ -171,6 +199,23 @@ func (p *oblioProvider) Issue(ctx context.Context, invoice InvoiceRequest) (Invo
 		Number:      response.Data.Number,
 		DocumentURL: response.Data.Link,
 	}, nil
+}
+
+func (p *oblioProvider) getNomenclature(ctx context.Context, token, path, companyVATCode string, target any) error {
+	endpoint := p.baseURL + path + "?cif=" + url.QueryEscape(companyVATCode)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Authorization", "Bearer "+token)
+	return doProviderJSON(p.client, request, target)
+}
+
+func providerMessage(message, fallback string) string {
+	if value := strings.TrimSpace(message); value != "" {
+		return value
+	}
+	return fallback
 }
 
 func (p *oblioProvider) authorize(ctx context.Context, email, secret string) (string, error) {

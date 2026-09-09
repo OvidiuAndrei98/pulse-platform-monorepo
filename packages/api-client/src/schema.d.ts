@@ -287,6 +287,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/finance/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Facturile lunare emise de SPOTTR pentru comisioanele organizatorului */
+        get: operations["DashboardOperations_getPlatformCommissionInvoices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/invoicing/invoices": {
         parameters: {
             query?: never;
@@ -313,6 +330,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["DashboardOperations_retryBillingInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/invoicing/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DashboardOperations_getInvoicingProviderOptions"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1525,6 +1558,21 @@ export interface components {
             /** Format: int32 */
             batchIndex: number;
         };
+        InvoicingProviderOptionsPayload: {
+            /** @enum {string} */
+            provider: "oblio" | "smartbill";
+            accountEmail: string;
+            apiToken?: string;
+            companyVatCode: string;
+        };
+        InvoicingProviderOptionsResponse: {
+            series: components["schemas"]["InvoicingSeriesOption"][];
+            vatRates: components["schemas"]["InvoicingVATRateOption"][];
+        };
+        InvoicingSeriesOption: {
+            name: string;
+            default: boolean;
+        };
         InvoicingSettingsPayload: {
             /** @enum {string} */
             provider: "oblio" | "smartbill";
@@ -1553,6 +1601,12 @@ export interface components {
             sendEmail: boolean;
             sendToSpv: boolean;
             credentialsConfigured: boolean;
+        };
+        InvoicingVATRateOption: {
+            name: string;
+            /** Format: double */
+            percentage: number;
+            default: boolean;
         };
         MessageResponse: {
             message: string;
@@ -1673,6 +1727,26 @@ export interface components {
         };
         PasswordResetRequest: {
             email: string;
+        };
+        PlatformCommissionInvoiceResponse: {
+            id: string;
+            /** @enum {string} */
+            provider: "oblio" | "smartbill";
+            /** @enum {string} */
+            status: "pending" | "processing" | "issued" | "failed" | "needs_review";
+            /** Format: int32 */
+            transactionCount: number;
+            /** Format: int64 */
+            totalFeeBani: number;
+            series?: string;
+            number?: string;
+            documentUrl?: string;
+            periodStart: string;
+            periodEnd: string;
+            /** Format: date-time */
+            issuedAt?: string;
+            /** Format: date-time */
+            createdAt: string;
         };
         PromoCodeResponse: {
             id: string;
@@ -2543,6 +2617,26 @@ export interface operations {
             };
         };
     };
+    DashboardOperations_getPlatformCommissionInvoices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformCommissionInvoiceResponse"][];
+                };
+            };
+        };
+    };
     DashboardOperations_listBillingInvoices: {
         parameters: {
             query?: never;
@@ -2584,6 +2678,30 @@ export interface operations {
                         /** @enum {string} */
                         status: "pending";
                     };
+                };
+            };
+        };
+    };
+    DashboardOperations_getInvoicingProviderOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvoicingProviderOptionsPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicingProviderOptionsResponse"];
                 };
             };
         };

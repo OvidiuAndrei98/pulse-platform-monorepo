@@ -27,8 +27,11 @@ export type Event = ReadableSchema<"EventResponse">;
 export type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 export type EventAttendee = ReadableSchema<"EventAttendeeResponse">;
 export type OrganizerFinanceEvent = ReadableSchema<"OrganizerFinanceEventResponse">;
+export type PlatformCommissionInvoice = ReadableSchema<"PlatformCommissionInvoiceResponse">;
 export type InvoicingSettings = ReadableSchema<"InvoicingSettingsResponse">;
 export type InvoicingSettingsPayload = WritableSchema<"InvoicingSettingsPayload">;
+export type InvoicingProviderOptionsPayload = WritableSchema<"InvoicingProviderOptionsPayload">;
+export type InvoicingProviderOptions = ReadableSchema<"InvoicingProviderOptionsResponse">;
 export type BillingInvoice = ReadableSchema<"BillingInvoiceResponse">;
 export type OrganizerProfile = ReadableSchema<"OrganizerProfile">;
 export type OrganizerVerificationRequest = ReadableSchema<"OrganizerVerificationRequest">;
@@ -275,12 +278,20 @@ export class User {
     return ApiClient.instance.get("/dashboard/finance");
   }
 
+  async getPlatformCommissionInvoices(): Promise<PlatformCommissionInvoice[]> {
+    return ApiClient.instance.get("/dashboard/finance/invoices");
+  }
+
   async getInvoicingSettings(): Promise<InvoicingSettings> {
     return ApiClient.instance.get("/dashboard/invoicing/settings");
   }
 
   async saveInvoicingSettings(payload: InvoicingSettingsPayload): Promise<InvoicingSettings> {
     return ApiClient.instance.put("/dashboard/invoicing/settings", { body: payload });
+  }
+
+  async getInvoicingProviderOptions(payload: InvoicingProviderOptionsPayload): Promise<InvoicingProviderOptions> {
+    return ApiClient.instance.post("/dashboard/invoicing/options", { body: payload });
   }
 
   async disconnectInvoicing(): Promise<void> {

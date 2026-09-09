@@ -22,6 +22,7 @@ type Querier interface {
 	CancelAbandonedPromotionReservations(ctx context.Context, expiresBefore pgtype.Timestamptz) error
 	CancelPendingPromotionCampaign(ctx context.Context, id pgtype.UUID) error
 	ClaimBillingInvoices(ctx context.Context, batchSize int32) ([]BillingInvoices, error)
+	ClaimPlatformCommissionInvoices(ctx context.Context, batchSize int32) ([]PlatformCommissionInvoices, error)
 	ClearOrganizerStripeAccount(ctx context.Context, stripeAccountID pgtype.Text) (OrganizerProfiles, error)
 	CompleteEndedEvents(ctx context.Context) error
 	CompleteExpiredPromotionCampaigns(ctx context.Context) error
@@ -39,6 +40,7 @@ type Querier interface {
 	CreateEventUpdate(ctx context.Context, arg CreateEventUpdateParams) (EventUpdates, error)
 	CreateFriendRequest(ctx context.Context, arg CreateFriendRequestParams) (int64, error)
 	CreateInvitationTicket(ctx context.Context, arg CreateInvitationTicketParams) (CreateInvitationTicketRow, error)
+	CreateMonthlyPlatformCommissionInvoices(ctx context.Context, arg CreateMonthlyPlatformCommissionInvoicesParams) (int64, error)
 	CreateNotification(ctx context.Context, arg CreateNotificationParams) error
 	CreateOfflineTicketValidation(ctx context.Context, arg CreateOfflineTicketValidationParams) (pgtype.UUID, error)
 	CreateOfflineValidationSnapshot(ctx context.Context, arg CreateOfflineValidationSnapshotParams) (OfflineValidationSnapshots, error)
@@ -91,6 +93,7 @@ type Querier interface {
 	GetOrganizerInvoicingSettings(ctx context.Context, organizerID pgtype.UUID) (OrganizerInvoicingSettings, error)
 	GetOrganizerProfile(ctx context.Context, userID pgtype.UUID) (OrganizerProfiles, error)
 	GetOrganizerPublicStats(ctx context.Context, organizerID pgtype.UUID) (GetOrganizerPublicStatsRow, error)
+	GetPlatformCommissionInvoiceIssueData(ctx context.Context, id pgtype.UUID) (GetPlatformCommissionInvoiceIssueDataRow, error)
 	GetPromotionCampaignStatusForCheckout(ctx context.Context, arg GetPromotionCampaignStatusForCheckoutParams) (PromotionStatus, error)
 	GetPublicProfile(ctx context.Context, id pgtype.UUID) (GetPublicProfileRow, error)
 	GetScannerAccessByID(ctx context.Context, id pgtype.UUID) (GetScannerAccessByIDRow, error)
@@ -126,6 +129,7 @@ type Querier interface {
 	ListOrderTicketEmailDetails(ctx context.Context, id pgtype.UUID) ([]ListOrderTicketEmailDetailsRow, error)
 	ListOrganizerBillingInvoices(ctx context.Context, organizerID pgtype.UUID) ([]ListOrganizerBillingInvoicesRow, error)
 	ListOrganizerFinanceEvents(ctx context.Context, organizerID pgtype.UUID) ([]ListOrganizerFinanceEventsRow, error)
+	ListOrganizerPlatformCommissionInvoices(ctx context.Context, organizerID pgtype.UUID) ([]ListOrganizerPlatformCommissionInvoicesRow, error)
 	ListOrganizerVerificationRequests(ctx context.Context) ([]ListOrganizerVerificationRequestsRow, error)
 	ListPromotionCampaigns(ctx context.Context, organizerID pgtype.UUID) ([]ListPromotionCampaignsRow, error)
 	ListSavedEvents(ctx context.Context, userID pgtype.UUID) ([]Events, error)
@@ -140,9 +144,11 @@ type Querier interface {
 	MarkAllNotificationsRead(ctx context.Context, userID pgtype.UUID) error
 	MarkBillingInvoiceFailed(ctx context.Context, arg MarkBillingInvoiceFailedParams) (BillingInvoices, error)
 	MarkBillingInvoiceIssued(ctx context.Context, arg MarkBillingInvoiceIssuedParams) (BillingInvoices, error)
-	MarkGuestTicketEmailSent(ctx context.Context, id pgtype.UUID) error
 	MarkInvitationValidated(ctx context.Context, id pgtype.UUID) (pgtype.Timestamptz, error)
 	MarkNotificationRead(ctx context.Context, arg MarkNotificationReadParams) error
+	MarkPlatformCommissionInvoiceFailed(ctx context.Context, arg MarkPlatformCommissionInvoiceFailedParams) (PlatformCommissionInvoices, error)
+	MarkPlatformCommissionInvoiceIssued(ctx context.Context, arg MarkPlatformCommissionInvoiceIssuedParams) (PlatformCommissionInvoices, error)
+	MarkTicketEmailSent(ctx context.Context, id pgtype.UUID) error
 	PromoteUserToOrganizer(ctx context.Context, id pgtype.UUID) (Users, error)
 	PromotionCampaignOverlaps(ctx context.Context, arg PromotionCampaignOverlapsParams) (bool, error)
 	// RETURNING * va aduce status-ul modificat

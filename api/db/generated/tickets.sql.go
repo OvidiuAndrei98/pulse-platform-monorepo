@@ -94,7 +94,7 @@ VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
     $11, $12, $13, $14, $15, $16, $17, $18
 )
-RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector
+RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at
 `
 
 type CreateCheckoutOrderParams struct {
@@ -164,6 +164,7 @@ func (q *Queries) CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrd
 		&i.BillingCounty,
 		&i.BillingCountry,
 		&i.BillingSector,
+		&i.CompletedAt,
 	)
 	return i, err
 }
@@ -276,7 +277,7 @@ func (q *Queries) CreateOfflineValidationSnapshot(ctx context.Context, arg Creat
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO orders (user_id, event_id, email, total_amount, stripe_payment_intent_id, status)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector
+RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at
 `
 
 type CreateOrderParams struct {
@@ -322,6 +323,7 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.BillingCounty,
 		&i.BillingCountry,
 		&i.BillingSector,
+		&i.CompletedAt,
 	)
 	return i, err
 }
@@ -674,7 +676,7 @@ func (q *Queries) GetOfflineValidationSnapshotForSync(ctx context.Context, arg G
 }
 
 const getOrderForUpdate = `-- name: GetOrderForUpdate :one
-SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector FROM orders
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at FROM orders
 WHERE id = $1
 FOR UPDATE
 `
@@ -706,6 +708,7 @@ func (q *Queries) GetOrderForUpdate(ctx context.Context, id pgtype.UUID) (Orders
 		&i.BillingCounty,
 		&i.BillingCountry,
 		&i.BillingSector,
+		&i.CompletedAt,
 	)
 	return i, err
 }
@@ -1468,17 +1471,6 @@ func (q *Queries) ListValidationStaff(ctx context.Context, eventID pgtype.UUID) 
 	return items, nil
 }
 
-const markGuestTicketEmailSent = `-- name: MarkGuestTicketEmailSent :exec
-UPDATE orders
-SET ticket_email_sent_at = CURRENT_TIMESTAMP
-WHERE id = $1 AND user_id IS NULL AND ticket_email_sent_at IS NULL
-`
-
-func (q *Queries) MarkGuestTicketEmailSent(ctx context.Context, id pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, markGuestTicketEmailSent, id)
-	return err
-}
-
 const markInvitationValidated = `-- name: MarkInvitationValidated :one
 UPDATE invitation_tickets
 SET validated_at = CURRENT_TIMESTAMP
@@ -1491,6 +1483,17 @@ func (q *Queries) MarkInvitationValidated(ctx context.Context, id pgtype.UUID) (
 	var validated_at pgtype.Timestamptz
 	err := row.Scan(&validated_at)
 	return validated_at, err
+}
+
+const markTicketEmailSent = `-- name: MarkTicketEmailSent :exec
+UPDATE orders
+SET ticket_email_sent_at = CURRENT_TIMESTAMP
+WHERE id = $1 AND ticket_email_sent_at IS NULL
+`
+
+func (q *Queries) MarkTicketEmailSent(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, markTicketEmailSent, id)
+	return err
 }
 
 const removeValidationStaff = `-- name: RemoveValidationStaff :exec
@@ -1561,7 +1564,12 @@ func (q *Queries) UpdateOrderCheckoutSession(ctx context.Context, arg UpdateOrde
 
 const updateOrderStatus = `-- name: UpdateOrderStatus :exec
 UPDATE orders
-SET status = $2, stripe_payment_intent_id = COALESCE($3, stripe_payment_intent_id)
+SET status = $2,
+    stripe_payment_intent_id = COALESCE($3, stripe_payment_intent_id),
+    completed_at = CASE
+        WHEN $2 = 'completed' AND completed_at IS NULL THEN CURRENT_TIMESTAMP
+        ELSE completed_at
+    END
 WHERE id = $1
 `
 

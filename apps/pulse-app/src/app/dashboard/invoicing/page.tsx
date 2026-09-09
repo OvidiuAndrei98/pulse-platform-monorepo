@@ -13,9 +13,11 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   type BillingInvoice,
+  type InvoicingProviderOptions,
   type InvoicingSettingsPayload,
 } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { ThemedSelect } from "@/features/events/form/ThemedSelect";
 
 const defaultSettings: InvoicingSettingsPayload = {
   provider: "oblio",
@@ -24,8 +26,8 @@ const defaultSettings: InvoicingSettingsPayload = {
   apiToken: "",
   companyVatCode: "",
   seriesName: "",
-  vatName: "Normala",
-  vatPercentage: 21,
+  vatName: "",
+  vatPercentage: 0,
   sendEmail: true,
   sendToSpv: true,
 };
@@ -40,6 +42,8 @@ export default function InvoicingPage() {
   const [saving, setSaving] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [retrying, setRetrying] = useState<string | null>(null);
+  const [providerOptions, setProviderOptions] = useState<InvoicingProviderOptions | null>(null);
+  const [loadingOptions, setLoadingOptions] = useState(false);
 
   const loadInvoices = useCallback(async () => {
     if (!user) return;
@@ -51,22 +55,35 @@ export default function InvoicingPage() {
     let active = true;
     setLoading(true);
     void Promise.all([user.getInvoicingSettings(), user.listBillingInvoices()])
-      .then(([current, invoiceRows]) => {
+      .then(async ([current, invoiceRows]) => {
         if (!active) return;
         setConnected(current.connected);
-        setSettings({
+        const nextSettings: InvoicingSettingsPayload = {
           provider: current.provider ?? "oblio",
           enabled: current.connected ? current.enabled : true,
           accountEmail: current.accountEmail ?? "",
           apiToken: "",
           companyVatCode: current.companyVatCode ?? "",
           seriesName: current.seriesName ?? "",
-          vatName: current.vatName || "Normala",
-          vatPercentage: current.vatPercentage || 21,
+          vatName: current.vatName ?? "",
+          vatPercentage: current.vatPercentage ?? 0,
           sendEmail: current.connected ? current.sendEmail : true,
           sendToSpv: current.connected ? current.sendToSpv : true,
-        });
+        };
+        setSettings(nextSettings);
         setInvoices(invoiceRows);
+        if (current.connected) {
+          try {
+            const options = await user.getInvoicingProviderOptions({
+              provider: nextSettings.provider,
+              accountEmail: nextSettings.accountEmail,
+              companyVatCode: nextSettings.companyVatCode,
+            });
+            if (active) setProviderOptions(options);
+          } catch {
+            // The saved values remain visible and can be refreshed manually.
+          }
+        }
       })
       .catch(() => active && toast.error(t("invoicing.loadFailed")))
       .finally(() => active && setLoading(false));
@@ -90,8 +107,45 @@ export default function InvoicingPage() {
     [invoices],
   );
 
-  const update = <K extends keyof InvoicingSettingsPayload>(key: K, value: InvoicingSettingsPayload[K]) =>
+  const update = <K extends keyof InvoicingSettingsPayload>(key: K, value: InvoicingSettingsPayload[K]) => {
+    if (key === "provider" || key === "accountEmail" || key === "apiToken" || key === "companyVatCode") {
+      setProviderOptions(null);
+    }
     setSettings((current) => ({ ...current, [key]: value }));
+  };
+
+  const loadProviderOptions = async () => {
+    if (!user || loadingOptions) return;
+    setLoadingOptions(true);
+    try {
+      const options = await user.getInvoicingProviderOptions({
+        provider: settings.provider,
+        accountEmail: settings.accountEmail,
+        apiToken: settings.apiToken?.trim() || undefined,
+        companyVatCode: settings.companyVatCode,
+      });
+      setProviderOptions(options);
+      setSettings((current) => {
+        const selectedSeries = options.series.find((option) => option.name === current.seriesName)
+          ?? options.series.find((option) => option.default)
+          ?? options.series[0];
+        const selectedRate = options.vatRates.find((option) => option.name === current.vatName && option.percentage === current.vatPercentage)
+          ?? options.vatRates.find((option) => option.default)
+          ?? options.vatRates[0];
+        return {
+          ...current,
+          seriesName: selectedSeries?.name ?? "",
+          vatName: selectedRate?.name ?? "",
+          vatPercentage: selectedRate?.percentage ?? 0,
+        };
+      });
+      toast.success(t("invoicing.optionsLoaded"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("invoicing.optionsLoadFailed"));
+    } finally {
+      setLoadingOptions(false);
+    }
+  };
 
   const save = async () => {
     if (!user || saving) return;
@@ -118,6 +172,7 @@ export default function InvoicingPage() {
       await user.disconnectInvoicing();
       setConnected(false);
       setSettings(defaultSettings);
+      setProviderOptions(null);
       toast.success(t("invoicing.disconnected"));
     } catch {
       toast.error(t("invoicing.disconnectFailed"));
@@ -183,9 +238,27 @@ export default function InvoicingPage() {
               <Input label={t("invoicing.accountEmail")} type="email" value={settings.accountEmail} onChange={(value) => update("accountEmail", value)} autoComplete="username" />
               <Input label={connected ? t("invoicing.apiTokenKeep") : t("invoicing.apiToken")} type="password" value={settings.apiToken ?? ""} onChange={(value) => update("apiToken", value)} autoComplete="new-password" />
               <Input label={t("invoicing.companyVatCode")} value={settings.companyVatCode} onChange={(value) => update("companyVatCode", value)} />
-              <Input label={t("invoicing.seriesName")} value={settings.seriesName} onChange={(value) => update("seriesName", value)} />
-              <Input label={t("invoicing.vatName")} value={settings.vatName} onChange={(value) => update("vatName", value)} />
-              <Input label={t("invoicing.vatPercentage")} type="number" value={String(settings.vatPercentage)} onChange={(value) => update("vatPercentage", Number(value))} min="0" max="100" step="0.01" />
+              <div className="flex items-end">
+                <button type="button" onClick={() => void loadProviderOptions()} disabled={loadingOptions} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/[0.06] px-4 text-sm font-semibold text-primary transition hover:bg-primary/[0.1] disabled:opacity-50">
+                  {loadingOptions ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  {loadingOptions ? t("invoicing.loadingOptions") : t("invoicing.loadOptions")}
+                </button>
+              </div>
+              {providerOptions && (
+                <>
+                  <SelectField label={t("invoicing.seriesName")} value={settings.seriesName} onChange={(value) => update("seriesName", value)} placeholder={t("invoicing.selectSeries")} options={providerOptions.series.map((option) => ({ value: option.name, label: option.name }))} />
+                  <SelectField
+                    label={t("invoicing.vatRate")}
+                    value={vatRateValue(settings.vatName, settings.vatPercentage)}
+                    onChange={(value) => {
+                      const option = providerOptions.vatRates.find((rate) => vatRateValue(rate.name, rate.percentage) === value);
+                      if (option) setSettings((current) => ({ ...current, vatName: option.name, vatPercentage: option.percentage }));
+                    }}
+                    placeholder={t("invoicing.selectVatRate")}
+                    options={providerOptions.vatRates.map((option) => ({ value: vatRateValue(option.name, option.percentage), label: option.name ? `${option.name} · ${option.percentage}%` : t("invoicing.noVat") }))}
+                  />
+                </>
+              )}
             </div>
 
             <div className="mt-5 space-y-3 border-t border-white/10 pt-4">
@@ -205,7 +278,7 @@ export default function InvoicingPage() {
                   {t("invoicing.disconnect")}
                 </button>
               )}
-              <button type="button" onClick={save} disabled={saving} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50">
+              <button type="button" onClick={save} disabled={saving || !providerOptions} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50">
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                 {saving ? t("invoicing.verifying") : t("invoicing.saveAndVerify")}
               </button>
@@ -269,6 +342,19 @@ export default function InvoicingPage() {
         </>
       )}
     </main>
+  );
+}
+
+function vatRateValue(name: string, percentage: number) {
+  return `${name}\u0000${percentage}`;
+}
+
+function SelectField({ label, ...props }: { label: string } & React.ComponentProps<typeof ThemedSelect>) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-semibold text-white/70">{label}</span>
+      <ThemedSelect {...props} />
+    </label>
   );
 }
 

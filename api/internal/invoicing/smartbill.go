@@ -22,9 +22,21 @@ type smartBillProvider struct {
 type smartBillSeriesResponse struct {
 	ErrorText string `json:"errorText"`
 	List      []struct {
-		Name string `json:"name"`
-		Type string `json:"type"`
+		Name      string `json:"name"`
+		Type      string `json:"type"`
+		Default   bool   `json:"default"`
+		IsDefault bool   `json:"isDefault"`
 	} `json:"list"`
+}
+
+type smartBillTaxResponse struct {
+	ErrorText string `json:"errorText"`
+	Taxes     []struct {
+		Name       string  `json:"name"`
+		Percentage float64 `json:"percentage"`
+		Default    bool    `json:"default"`
+		IsDefault  bool    `json:"isDefault"`
+	} `json:"taxes"`
 }
 
 type smartBillInvoiceResponse struct {
@@ -41,27 +53,33 @@ func newSmartBillProvider(client *http.Client) *smartBillProvider {
 	return &smartBillProvider{client: client, baseURL: smartBillBaseURL}
 }
 
-func (p *smartBillProvider) Verify(ctx context.Context, input SettingsInput, apiToken string) error {
-	endpoint := p.baseURL + "/series?cif=" + url.QueryEscape(input.CompanyVATCode) + "&type=f"
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return err
+func (p *smartBillProvider) Options(ctx context.Context, input ProviderConnectionInput, apiToken string) (ProviderOptions, error) {
+	var seriesResponse smartBillSeriesResponse
+	if err := p.getConfiguration(ctx, input, apiToken, "/series", "&type=f", &seriesResponse); err != nil {
+		return ProviderOptions{}, fmt.Errorf("SmartBill series verification failed: %w", err)
 	}
-	request.SetBasicAuth(input.AccountEmail, apiToken)
+	if strings.TrimSpace(seriesResponse.ErrorText) != "" {
+		return ProviderOptions{}, errors.New(seriesResponse.ErrorText)
+	}
 
-	var response smartBillSeriesResponse
-	if err := doProviderJSON(p.client, request, &response); err != nil {
-		return fmt.Errorf("SmartBill series verification failed: %w", err)
-	}
-	if response.ErrorText != "" {
-		return errors.New(response.ErrorText)
-	}
-	for _, series := range response.List {
-		if series.Type == "f" && series.Name == input.SeriesName {
-			return nil
+	options := ProviderOptions{Series: make([]SeriesOption, 0), VATRates: make([]VATRateOption, 0)}
+	for _, series := range seriesResponse.List {
+		if strings.EqualFold(series.Type, "f") {
+			options.Series = append(options.Series, SeriesOption{Name: series.Name, Default: series.Default || series.IsDefault})
 		}
 	}
-	return fmt.Errorf("seria de factura %q nu exista in contul SmartBill", input.SeriesName)
+
+	var taxResponse smartBillTaxResponse
+	if err := p.getConfiguration(ctx, input, apiToken, "/tax", "", &taxResponse); err != nil {
+		return ProviderOptions{}, fmt.Errorf("SmartBill VAT rates verification failed: %w", err)
+	}
+	if strings.TrimSpace(taxResponse.ErrorText) != "" {
+		return ProviderOptions{}, errors.New(taxResponse.ErrorText)
+	}
+	for _, rate := range taxResponse.Taxes {
+		options.VATRates = append(options.VATRates, VATRateOption{Name: rate.Name, Percentage: rate.Percentage, Default: rate.Default || rate.IsDefault})
+	}
+	return normalizeProviderOptions(options), nil
 }
 
 func (p *smartBillProvider) Issue(ctx context.Context, invoice InvoiceRequest) (InvoiceResult, error) {
@@ -73,7 +91,7 @@ func (p *smartBillProvider) Issue(ctx context.Context, invoice InvoiceRequest) (
 		Price              float64 `json:"price"`
 		MeasuringUnitName  string  `json:"measuringUnitName"`
 		TaxName            string  `json:"taxName,omitempty"`
-		TaxPercentage      float64 `json:"taxPercentage"`
+		TaxPercentage      float64 `json:"taxPercentage,omitempty"`
 		IsTaxIncluded      bool    `json:"isTaxIncluded"`
 		IsService          bool    `json:"isService"`
 		SaveToDB           bool    `json:"saveToDb"`
@@ -95,6 +113,21 @@ func (p *smartBillProvider) Issue(ctx context.Context, invoice InvoiceRequest) (
 		})
 	}
 
+	client := map[string]any{
+		"name":     invoice.CustomerName,
+		"vatCode":  invoice.CustomerTaxID,
+		"regCom":   invoice.CustomerRegNumber,
+		"address":  invoice.CustomerAddress,
+		"city":     providerCustomerCity(invoice),
+		"county":   invoice.CustomerCounty,
+		"country":  invoice.CustomerCountry,
+		"email":    invoice.CustomerEmail,
+		"saveToDb": false,
+	}
+	if invoice.VATPayerKnown {
+		client["isTaxPayer"] = invoice.CustomerVATPayer
+	}
+
 	payload := map[string]any{
 		"companyVatCode": invoice.CompanyVATCode,
 		"seriesName":     invoice.SeriesName,
@@ -106,29 +139,19 @@ func (p *smartBillProvider) Issue(ctx context.Context, invoice InvoiceRequest) (
 		"currency":       "RON",
 		"precision":      2,
 		"useStock":       false,
-		"client": map[string]any{
-			"name":     invoice.CustomerName,
-			"vatCode":  invoice.CustomerTaxID,
-			"regCom":   invoice.CustomerRegNumber,
-			"address":  invoice.CustomerAddress,
-			"city":     providerCustomerCity(invoice),
-			"county":   invoice.CustomerCounty,
-			"country":  invoice.CustomerCountry,
-			"email":    invoice.CustomerEmail,
-			"saveToDb": false,
-		},
-		"products": products,
+		"client":         client,
+		"products":       products,
 		"payment": map[string]any{
 			"value":  invoice.Total,
-			"type":   "Card online",
+			"type":   invoicePaymentType(invoice, "Card online"),
 			"isCash": false,
 		},
 		"sendEmail": invoice.SendEmail,
 		"email": map[string]string{
 			"to": invoice.CustomerEmail,
 		},
-		"observations": "Comanda Spottr " + invoice.OrderID,
-		"mentions":     "Plata online Stripe " + invoice.PaymentIntentID,
+		"observations": invoiceInternalNote(invoice),
+		"mentions":     invoicePaymentReference(invoice),
 	}
 
 	body, err := json.Marshal(payload)
@@ -164,4 +187,14 @@ func (p *smartBillProvider) Issue(ctx context.Context, invoice InvoiceRequest) (
 		DocumentID:  strconv.FormatInt(response.DocumentID, 10),
 		DocumentURL: documentURL,
 	}, nil
+}
+
+func (p *smartBillProvider) getConfiguration(ctx context.Context, input ProviderConnectionInput, apiToken, path, extraQuery string, target any) error {
+	endpoint := p.baseURL + path + "?cif=" + url.QueryEscape(input.CompanyVATCode) + extraQuery
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	request.SetBasicAuth(input.AccountEmail, apiToken)
+	return doProviderJSON(p.client, request, target)
 }

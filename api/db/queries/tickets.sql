@@ -98,7 +98,12 @@ FOR UPDATE;
 
 -- name: UpdateOrderStatus :exec
 UPDATE orders
-SET status = $2, stripe_payment_intent_id = COALESCE($3, stripe_payment_intent_id)
+SET status = $2,
+    stripe_payment_intent_id = COALESCE($3, stripe_payment_intent_id),
+    completed_at = CASE
+        WHEN $2 = 'completed' AND completed_at IS NULL THEN CURRENT_TIMESTAMP
+        ELSE completed_at
+    END
 WHERE id = $1;
 
 -- name: ListOrderTicketEmailDetails :many
@@ -111,10 +116,10 @@ JOIN ticket_types tt ON tt.id = t.ticket_type_id
 WHERE o.id = $1
 ORDER BY t.created_at ASC;
 
--- name: MarkGuestTicketEmailSent :exec
+-- name: MarkTicketEmailSent :exec
 UPDATE orders
 SET ticket_email_sent_at = CURRENT_TIMESTAMP
-WHERE id = $1 AND user_id IS NULL AND ticket_email_sent_at IS NULL;
+WHERE id = $1 AND ticket_email_sent_at IS NULL;
 
 -- name: AssignGuestOrdersToUser :exec
 UPDATE orders o

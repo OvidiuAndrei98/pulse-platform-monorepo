@@ -640,6 +640,21 @@ model OrganizerFinanceEventResponse {
   ticketsSold: int64;
 }
 
+model PlatformCommissionInvoiceResponse {
+  id: string;
+  provider: "oblio" | "smartbill";
+  status: "pending" | "processing" | "issued" | "failed" | "needs_review";
+  transactionCount: int32;
+  totalFeeBani: int64;
+  series?: string;
+  number?: string;
+  documentUrl?: string;
+  periodStart: string;
+  periodEnd: string;
+  issuedAt?: utcDateTime;
+  createdAt: utcDateTime;
+}
+
 model InvoicingSettingsPayload {
   provider: "oblio" | "smartbill";
   enabled: boolean;
@@ -665,6 +680,29 @@ model InvoicingSettingsResponse {
   sendEmail: boolean;
   sendToSpv: boolean;
   credentialsConfigured: boolean;
+}
+
+model InvoicingProviderOptionsPayload {
+  provider: "oblio" | "smartbill";
+  accountEmail: string;
+  apiToken?: string;
+  companyVatCode: string;
+}
+
+model InvoicingSeriesOption {
+  name: string;
+  default: boolean;
+}
+
+model InvoicingVATRateOption {
+  name: string;
+  percentage: float64;
+  default: boolean;
+}
+
+model InvoicingProviderOptionsResponse {
+  series: InvoicingSeriesOption[];
+  vatRates: InvoicingVATRateOption[];
 }
 
 model BillingInvoiceResponse {
@@ -1042,8 +1080,17 @@ interface DashboardOperations {
   getFinance(): OrganizerFinanceEventResponse[];
 
   @get
+  @route("/finance/invoices")
+  @summary("Facturile lunare emise de SPOTTR pentru comisioanele organizatorului")
+  getPlatformCommissionInvoices(): PlatformCommissionInvoiceResponse[];
+
+  @get
   @route("/invoicing/settings")
   getInvoicingSettings(): InvoicingSettingsResponse;
+
+  @post
+  @route("/invoicing/options")
+  getInvoicingProviderOptions(@body payload: InvoicingProviderOptionsPayload): InvoicingProviderOptionsResponse;
 
   @put
   @route("/invoicing/settings")
