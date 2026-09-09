@@ -53,11 +53,14 @@ ORDER BY CASE op.verification_status
 
 -- name: ReviewOrganizerVerification :one
 UPDATE organizer_profiles
-SET verification_status = $2,
-    is_verified = ($2 = 'approved'),
-    verified_at = CASE WHEN $2 = 'approved' THEN NOW() ELSE NULL END,
+SET verification_status = sqlc.arg(verification_status),
+    is_verified = sqlc.arg(is_verified),
+    verified_at = CASE
+        WHEN sqlc.arg(is_verified)::BOOLEAN THEN NOW()
+        ELSE NULL
+    END,
     updated_at = NOW()
-WHERE user_id = $1
+WHERE user_id = sqlc.arg(user_id)
 RETURNING *;
 
 -- name: AcceptOrganizerAgreement :one

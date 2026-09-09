@@ -39,3 +39,33 @@ func TestGenerateValidationHash(t *testing.T) {
 		t.Fatal("validation hashes must be unique")
 	}
 }
+
+func TestNormalizeBillingDetailsKeepsBucharestAndSectorSeparate(t *testing.T) {
+	details, err := normalizeBillingDetails(BillingDetailsRequest{
+		Type:    "individual",
+		Name:    "Andrei Popescu",
+		Address: "Calea Victoriei 1",
+		City:    "București",
+		Sector:  "Sector 1",
+		Country: "România",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if details.City != "Bucuresti" || details.County != "Bucuresti" || details.Sector != "Sector 1" {
+		t.Fatalf("unexpected normalized Bucharest address: %#v", details)
+	}
+}
+
+func TestNormalizeBillingDetailsRequiresBucharestSector(t *testing.T) {
+	_, err := normalizeBillingDetails(BillingDetailsRequest{
+		Type:    "individual",
+		Name:    "Andrei Popescu",
+		Address: "Calea Victoriei 1",
+		City:    "Bucuresti",
+		Country: "Romania",
+	})
+	if err == nil {
+		t.Fatal("expected Bucharest address without sector to be rejected")
+	}
+}

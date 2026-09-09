@@ -42,6 +42,12 @@ import {
   useEventPromoCode,
 } from "@/features/events/useEventPromoCode";
 import { toast } from "sonner";
+import {
+  emptyInvoiceDetails,
+  InvoiceDetailsFields,
+  type InvoiceDetails,
+  validateInvoiceDetails,
+} from "@/features/checkout/InvoiceDetailsFields";
 
 interface EventDetailsContextType {
   open: (event: Event) => void;
@@ -142,6 +148,7 @@ export function EventDetailsSheet({
   );
   const [qty, setQty] = useState<Record<string, number>>({});
   const [guestEmail, setGuestEmail] = useState("");
+  const [invoiceDetails, setInvoiceDetails] = useState<InvoiceDetails>(() => emptyInvoiceDetails(user?.properties.username ?? ""));
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [purchased, setPurchased] = useState(false);
   const [favorited, setFavorited] = useState(false);
@@ -192,12 +199,13 @@ export function EventDetailsSheet({
     if (activeEvent) {
       setQty({});
       setGuestEmail(user?.properties.email ?? "");
+      setInvoiceDetails(emptyInvoiceDetails(user?.properties.username ?? ""));
       setIsCheckingOut(false);
       setPurchased(false);
       setFavorited(Boolean(activeEvent.stats?.isFavorited));
       setShared(false);
     }
-  }, [activeEvent?.id, user?.properties.email]);
+  }, [activeEvent?.id, user?.properties.email, user?.properties.username]);
 
   useEffect(() => {
     if (!displayedEvent) return;
@@ -289,6 +297,11 @@ export function EventDetailsSheet({
       toast.error(t("eventSheet.emailRequired"));
       return;
     }
+    const validationKey = validateInvoiceDetails(invoiceDetails);
+    if (validationKey) {
+      toast.error(t(validationKey));
+      return;
+    }
 
     setIsCheckingOut(true);
     setPurchased(true);
@@ -306,6 +319,7 @@ export function EventDetailsSheet({
                 quantity: qty[ticket.id] ?? 0,
               })),
             promoCode: promo.applied?.code,
+            billingDetails: invoiceDetails,
           },
         },
       );
@@ -516,6 +530,11 @@ export function EventDetailsSheet({
                   className="mt-3 h-10 text-xs rounded-xl"
                 />
               )}
+              <InvoiceDetailsFields
+                value={invoiceDetails}
+                onChange={setInvoiceDetails}
+                idPrefix="sheet-checkout"
+              />
             </section>
           )}
         </div>

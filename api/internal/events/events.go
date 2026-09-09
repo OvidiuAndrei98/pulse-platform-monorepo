@@ -176,6 +176,7 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		EndTime:                    pgtype.Timestamptz{Time: endTime, Valid: true},
 		Status:                     status,
 		PublishAt:                  publishAt,
+		MarkPublished:              status == "published",
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la crearea evenimentului: "+err.Error())
@@ -346,6 +347,7 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		Description:                pgtype.Text{String: req.Description, Valid: true},
 		Status:                     status,
 		PublishAt:                  publishAt,
+		MarkPublished:              status == "published",
 		BannerUrl:                  bannerURL,
 		City:                       req.City,
 		Vibe:                       req.Vibe,

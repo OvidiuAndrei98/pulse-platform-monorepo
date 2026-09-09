@@ -3,6 +3,7 @@ package organizer
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	db "pulse-api/db/generated"
@@ -79,12 +80,17 @@ func (h *Handler) HandleAdminReviewOrganizerVerification(w http.ResponseWriter, 
 	profile, err := h.Queries.ReviewOrganizerVerification(r.Context(), db.ReviewOrganizerVerificationParams{
 		UserID:             userID,
 		VerificationStatus: status,
+		IsVerified: pgtype.Bool{
+			Bool:  status == db.VerificationStatusTypeApproved,
+			Valid: true,
+		},
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		router.RespondWithError(w, http.StatusNotFound, "Cererea organizatorului nu a fost gasita")
 		return
 	}
 	if err != nil {
+		log.Printf("review organizer verification failed for user %s with status %s: %v", chi.URLParam(r, "id"), status, err)
 		router.RespondWithError(w, http.StatusInternalServerError, "Verificarea organizatorului nu a putut fi salvata")
 		return
 	}

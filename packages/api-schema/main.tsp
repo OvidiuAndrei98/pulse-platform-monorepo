@@ -482,6 +482,12 @@ model UserOrderResponse {
   eventTitle: string;
   locationName: string;
   startTime: utcDateTime;
+  invoiceRequested: boolean;
+  invoiceStatus?: string;
+  invoiceSeries?: string;
+  invoiceNumber?: string;
+  invoiceDocumentUrl?: string;
+  invoiceIssuedAt?: utcDateTime;
 }
 
 model CheckoutTicketItemPayload {
@@ -489,10 +495,23 @@ model CheckoutTicketItemPayload {
   quantity: int32;
 }
 
+model BillingDetailsPayload {
+  type: "individual" | "company";
+  name: string;
+  taxId?: string;
+  registrationNumber?: string;
+  address: string;
+  city: string;
+  county: string;
+  sector?: string;
+  country: string;
+}
+
 model CreateCheckoutSessionPayload {
   email: string;
   items: CheckoutTicketItemPayload[];
   promoCode?: string;
+  billingDetails: BillingDetailsPayload;
 }
 
 model ValidatePromoCodePayload {
@@ -619,6 +638,51 @@ model OrganizerFinanceEventResponse {
   grossRevenueRon: int64;
   platformFeeBani: int64;
   ticketsSold: int64;
+}
+
+model InvoicingSettingsPayload {
+  provider: "oblio" | "smartbill";
+  enabled: boolean;
+  accountEmail: string;
+  apiToken?: string;
+  companyVatCode: string;
+  seriesName: string;
+  vatName: string;
+  vatPercentage: float64;
+  sendEmail: boolean;
+  sendToSpv: boolean;
+}
+
+model InvoicingSettingsResponse {
+  connected: boolean;
+  provider?: "oblio" | "smartbill";
+  enabled: boolean;
+  accountEmail?: string;
+  companyVatCode?: string;
+  seriesName?: string;
+  vatName?: string;
+  vatPercentage: float64;
+  sendEmail: boolean;
+  sendToSpv: boolean;
+  credentialsConfigured: boolean;
+}
+
+model BillingInvoiceResponse {
+  id: string;
+  orderId: string;
+  provider: "oblio" | "smartbill";
+  status: "pending" | "processing" | "issued" | "failed" | "needs_review";
+  attemptCount: int32;
+  series?: string;
+  number?: string;
+  documentUrl?: string;
+  errorMessage?: string;
+  issuedAt?: utcDateTime;
+  createdAt: utcDateTime;
+  customerName: string;
+  customerEmail: string;
+  totalAmountRon: int32;
+  eventTitle: string;
 }
 
 // --- ENDPOINTS / RUTE ---
@@ -976,6 +1040,31 @@ interface DashboardOperations {
   @route("/finance")
   @summary("Situația financiară a evenimentelor organizatorului, bazată pe comenzi finalizate")
   getFinance(): OrganizerFinanceEventResponse[];
+
+  @get
+  @route("/invoicing/settings")
+  getInvoicingSettings(): InvoicingSettingsResponse;
+
+  @put
+  @route("/invoicing/settings")
+  saveInvoicingSettings(@body payload: InvoicingSettingsPayload): InvoicingSettingsResponse;
+
+  @delete
+  @route("/invoicing/settings")
+  disconnectInvoicing(): {
+    @statusCode statusCode: 204;
+  };
+
+  @get
+  @route("/invoicing/invoices")
+  listBillingInvoices(): BillingInvoiceResponse[];
+
+  @post
+  @route("/invoicing/invoices/{id}/retry")
+  retryBillingInvoice(@path id: string): {
+    @statusCode statusCode: 202;
+    status: "pending";
+  };
 
   @post
   @route("/organizer/profile")

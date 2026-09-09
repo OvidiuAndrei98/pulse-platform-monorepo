@@ -113,12 +113,17 @@ type HandlersConfig struct {
 	GetSocialFeed          http.HandlerFunc
 
 	// Organizer
-	GetOrganizerProfile      http.HandlerFunc
-	CreateOrganizerProfile   http.HandlerFunc
-	ListOrganizerVerifications http.HandlerFunc
+	GetOrganizerProfile         http.HandlerFunc
+	CreateOrganizerProfile      http.HandlerFunc
+	ListOrganizerVerifications  http.HandlerFunc
 	ReviewOrganizerVerification http.HandlerFunc
-	AcceptOrganizerAgreement http.HandlerFunc
-	GetOrganizerFinance      http.HandlerFunc
+	AcceptOrganizerAgreement    http.HandlerFunc
+	GetOrganizerFinance         http.HandlerFunc
+	GetInvoicingSettings        http.HandlerFunc
+	SaveInvoicingSettings       http.HandlerFunc
+	DeleteInvoicingSettings     http.HandlerFunc
+	ListBillingInvoices         http.HandlerFunc
+	RetryBillingInvoice         http.HandlerFunc
 
 	// Tickets
 	GetEventTicketTypes   http.HandlerFunc
@@ -346,6 +351,11 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 
 				// --- ORGANIZER PROFILE ---
 				r.Get("/dashboard/finance", cfg.GetOrganizerFinance)
+				r.Get("/dashboard/invoicing/settings", cfg.GetInvoicingSettings)
+				r.Put("/dashboard/invoicing/settings", cfg.SaveInvoicingSettings)
+				r.Delete("/dashboard/invoicing/settings", cfg.DeleteInvoicingSettings)
+				r.Get("/dashboard/invoicing/invoices", cfg.ListBillingInvoices)
+				r.Post("/dashboard/invoicing/invoices/{id}/retry", cfg.RetryBillingInvoice)
 				r.Get("/dashboard/promotions/plans", cfg.ListPromotionPlans)
 				r.Get("/dashboard/promotions/availability", cfg.GetPromotionAvailability)
 				r.Get("/dashboard/promotions", cfg.ListPromotionCampaigns)

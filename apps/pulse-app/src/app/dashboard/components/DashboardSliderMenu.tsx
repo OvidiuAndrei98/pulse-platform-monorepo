@@ -15,6 +15,7 @@ import {
   WalletCards,
   LogOut,
   Megaphone,
+  ReceiptText,
 } from "lucide-react";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
@@ -39,6 +40,7 @@ const organizerTabs = [
     label: "dashboardNav.finance",
     icon: WalletCards,
   },
+  { href: "/dashboard/invoicing", label: "dashboardNav.invoicing", icon: ReceiptText },
   { href: "/dashboard/profile", label: "dashboardNav.profile", icon: User },
 
   {

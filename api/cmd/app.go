@@ -13,6 +13,7 @@ import (
 	"pulse-api/internal/email"
 	"pulse-api/internal/events"
 	"pulse-api/internal/interactions"
+	"pulse-api/internal/invoicing"
 	"pulse-api/internal/notifications"
 	"pulse-api/internal/organizer"
 	"pulse-api/internal/payments"
@@ -26,8 +27,9 @@ import (
 )
 
 type Application struct {
-	Queries *db.Queries
-	Pool    *pgxpool.Pool
+	Queries   *db.Queries
+	Pool      *pgxpool.Pool
+	Invoicing *invoicing.Service
 }
 
 // InitApplication configurează pool-ul de conexiuni, refolosit și local și în Lambda
@@ -95,9 +97,11 @@ func InitApplication() (*Application, error) {
 		return nil, err
 	}
 
+	queries := db.New(pool)
 	return &Application{
-		Queries: db.New(pool),
-		Pool:    pool,
+		Queries:   queries,
+		Pool:      pool,
+		Invoicing: invoicing.NewService(queries, os.Getenv("INVOICING_ENCRYPTION_KEY")),
 	}, nil
 }
 
@@ -132,7 +136,7 @@ func (app *Application) BuildRouter() http.Handler {
 	requireAdmin := auth.RequireRole("admin")
 	organizerHandler := organizer.NewHandler(app.Queries)
 	ticketingHandler := tickets.NewHandler(app.Queries, app.Pool, os.Getenv("PUBLIC_APP_URL"))
-	stripeCheckoutHandler := payments.NewCheckoutHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), mailerService)
+	stripeCheckoutHandler := payments.NewCheckoutHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), mailerService, app.Invoicing)
 	promotionHandler := promotions.NewHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"))
 	stripeWebhookHandler := payments.NewWebhookHandler(os.Getenv("STRIPE_WEBHOOK_SECRET"), stripeCheckoutHandler, promotionHandler)
 	stripeConnectWebhookHandler := payments.NewConnectWebhookHandler(app.Queries, os.Getenv("STRIPE_CONNECT_WEBHOOK_SECRET"))
@@ -169,21 +173,21 @@ func (app *Application) BuildRouter() http.Handler {
 		ResetPassword:        authHandler.ResetPassword,
 
 		// Users
-		GetMe:                    usersHandler.HandleGetMe,
-		UpdateMe:                 usersHandler.HandleUpdateMe,
-		UploadUserAvatar:         usersHandler.HandleUploadAvatar,
-		CreateUser:               usersHandler.HandleCreateUser,
-		GetUser:                  usersHandler.HandleGetUser,
-		GetUserTickets:           ticketingHandler.HandleGetUserTickets,
-		GetUserOrders:            ticketingHandler.HandleGetUserOrders,
-		GetSavedEvents:           eventsHandler.HandleListSavedEvents,
-		ListNotifications:        notificationsHandler.HandleList,
-		MarkAllNotificationsRead: notificationsHandler.HandleMarkAllRead,
-		MarkNotificationRead:     notificationsHandler.HandleMarkRead,
-		ListHiddenCategories:     usersHandler.HandleListHiddenCategories,
-		HideEventCategory:        usersHandler.HandleHideCategory,
-		ShowEventCategory:        usersHandler.HandleShowCategory,
-		ListOrganizerVerifications: organizerHandler.HandleAdminListOrganizerVerifications,
+		GetMe:                       usersHandler.HandleGetMe,
+		UpdateMe:                    usersHandler.HandleUpdateMe,
+		UploadUserAvatar:            usersHandler.HandleUploadAvatar,
+		CreateUser:                  usersHandler.HandleCreateUser,
+		GetUser:                     usersHandler.HandleGetUser,
+		GetUserTickets:              ticketingHandler.HandleGetUserTickets,
+		GetUserOrders:               ticketingHandler.HandleGetUserOrders,
+		GetSavedEvents:              eventsHandler.HandleListSavedEvents,
+		ListNotifications:           notificationsHandler.HandleList,
+		MarkAllNotificationsRead:    notificationsHandler.HandleMarkAllRead,
+		MarkNotificationRead:        notificationsHandler.HandleMarkRead,
+		ListHiddenCategories:        usersHandler.HandleListHiddenCategories,
+		HideEventCategory:           usersHandler.HandleHideCategory,
+		ShowEventCategory:           usersHandler.HandleShowCategory,
+		ListOrganizerVerifications:  organizerHandler.HandleAdminListOrganizerVerifications,
 		ReviewOrganizerVerification: organizerHandler.HandleAdminReviewOrganizerVerification,
 
 		// Events
@@ -251,6 +255,11 @@ func (app *Application) BuildRouter() http.Handler {
 		CreateOrganizerProfile:   organizerHandler.HandleCreateOrganizerProfile,
 		AcceptOrganizerAgreement: organizerHandler.HandleAcceptOrganizerAgreement,
 		GetOrganizerFinance:      organizerHandler.HandleGetOrganizerFinance,
+		GetInvoicingSettings:     app.Invoicing.HandleGetSettings,
+		SaveInvoicingSettings:    app.Invoicing.HandleSaveSettings,
+		DeleteInvoicingSettings:  app.Invoicing.HandleDeleteSettings,
+		ListBillingInvoices:      app.Invoicing.HandleListInvoices,
+		RetryBillingInvoice:      app.Invoicing.HandleRetryInvoice,
 
 		// Tickets
 		GetEventTicketTypes:   ticketingHandler.HandleGetTicketTypesForEvent,
@@ -285,4 +294,10 @@ func (app *Application) StartEventExpiryWorker(ctx context.Context) {
 
 func (app *Application) StartPromotionReservationExpiryWorker(ctx context.Context) {
 	promotions.NewHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL")).StartReservationExpiryWorker(ctx)
+}
+
+func (app *Application) StartInvoicingWorker(ctx context.Context) {
+	if app.Invoicing != nil {
+		app.Invoicing.StartWorker(ctx)
+	}
 }

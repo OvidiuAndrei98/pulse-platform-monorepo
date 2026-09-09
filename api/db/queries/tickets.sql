@@ -49,8 +49,16 @@ VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: CreateCheckoutOrder :one
-INSERT INTO orders (user_id, event_id, email, total_amount, platform_fee_bani, status, promo_code_id, discount_amount_ron)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO orders (
+    user_id, event_id, email, total_amount, platform_fee_bani, status,
+    promo_code_id, discount_amount_ron, invoice_requested, billing_type,
+    billing_name, billing_tax_id, billing_registration_number, billing_address,
+    billing_city, billing_county, billing_sector, billing_country
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+    $11, $12, $13, $14, $15, $16, $17, $18
+)
 RETURNING *;
 
 -- name: ListOrganizerFinanceEvents :many
@@ -301,9 +309,16 @@ ORDER BY t.created_at DESC;
 
 -- name: ListUserOrders :many
 SELECT o.id, o.status, o.total_amount, o.created_at, o.stripe_payment_intent_id,
-       e.id AS event_id, e.title AS event_title, e.location_name, e.start_time
+       o.invoice_requested,
+       e.id AS event_id, e.title AS event_title, e.location_name, e.start_time,
+       invoice.status AS invoice_status,
+       invoice.external_series AS invoice_series,
+       invoice.external_number AS invoice_number,
+       invoice.document_url AS invoice_document_url,
+       invoice.issued_at AS invoice_issued_at
 FROM orders o
 JOIN events e ON e.id = o.event_id
+LEFT JOIN billing_invoices invoice ON invoice.order_id = o.id
 WHERE o.user_id = $1
 ORDER BY o.created_at DESC;
 

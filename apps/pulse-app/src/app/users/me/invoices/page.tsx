@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, ChevronLeft, MapPin, Receipt } from "lucide-react";
+import { Calendar, ChevronLeft, ExternalLink, MapPin, Receipt } from "lucide-react";
 import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { formatEventDate } from "@/features/events/dateFormat";
@@ -31,6 +31,8 @@ export default function InvoicesPage() {
       .finally(() => setPending(false));
   }, [user]);
 
+  const invoiceOrders = orders.filter((order) => order.invoiceRequested);
+
   return (
     <main className="app-page-spacing mx-auto min-h-screen max-w-3xl text-foreground">
       <Link
@@ -40,25 +42,25 @@ export default function InvoicesPage() {
         <ChevronLeft className="h-4 w-4" /> {t("tickets.profile")}
       </Link>
       <div className="mt-5">
-        <h1 className="text-2xl font-semibold">{t("orders.title")}</h1>
+        <h1 className="text-2xl font-semibold">{t("orders.invoiceTitle")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t("orders.history")}
+          {t("orders.invoiceHistory")}
         </p>
       </div>
 
       {pending ? (
         <div className="mt-7 h-48 animate-pulse border border-white/10 bg-white/[0.03]" />
-      ) : orders.length === 0 ? (
+      ) : invoiceOrders.length === 0 ? (
         <div className="mt-7 border border-dashed border-white/15 px-5 py-12 text-center">
           <Receipt className="mx-auto h-6 w-6 text-primary" />
-          <p className="mt-3 text-sm font-semibold">{t("orders.empty")}</p>
+          <p className="mt-3 text-sm font-semibold">{t("orders.invoiceEmpty")}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {t("orders.emptyHint")}
+            {t("orders.invoiceEmptyHint")}
           </p>
         </div>
       ) : (
         <div className="mt-7 divide-y divide-white/10 border-y border-white/10">
-          {orders.map((order) => (
+          {invoiceOrders.map((order) => (
             <article key={order.id} className="flex gap-3 py-4">
               <span className="grid h-10 w-10 shrink-0 place-items-center bg-primary/10 text-primary">
                 <Receipt className="h-4 w-4" />
@@ -81,9 +83,21 @@ export default function InvoicesPage() {
               </div>
               <div className="shrink-0 text-right">
                 <p className="text-sm font-semibold">{order.totalAmountRon} RON</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {t(`orders.${order.status}`, { defaultValue: order.status })}
-                </p>
+                {order.invoiceDocumentUrl ? (
+                  <a
+                    href={order.invoiceDocumentUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 px-2.5 text-[11px] font-semibold text-primary transition hover:bg-white/5"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    {order.invoiceSeries} {order.invoiceNumber}
+                  </a>
+                ) : (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {t(`orders.invoiceStatus.${order.invoiceStatus || "pending"}`)}
+                  </p>
+                )}
               </div>
             </article>
           ))}

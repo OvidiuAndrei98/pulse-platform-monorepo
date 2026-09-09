@@ -156,7 +156,7 @@ ORDER BY e.start_time DESC;
 
 -- name: CreateEvent :one
 INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, organizer_absorbs_service_fee, latitude, longitude, start_time, end_time, publish_at, was_published)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $5 = 'published')
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, sqlc.arg(mark_published)::BOOLEAN)
 RETURNING *; 
 
 -- name: EditEvent :one
@@ -176,7 +176,7 @@ SET title = $2,
     start_time = $14,
     end_time = $15,
     publish_at = $16,
-    was_published = events.was_published OR $5 = 'published'
+    was_published = events.was_published OR sqlc.arg(mark_published)::BOOLEAN
 WHERE id = $1
 RETURNING *; -- RETURNING * va aduce status-ul modificat
 

@@ -287,6 +287,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/invoicing/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DashboardOperations_listBillingInvoices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/invoicing/invoices/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DashboardOperations_retryBillingInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/invoicing/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DashboardOperations_getInvoicingSettings"];
+        put: operations["DashboardOperations_saveInvoicingSettings"];
+        post?: never;
+        delete: operations["DashboardOperations_disconnectInvoicing"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/organizer/agreement": {
         parameters: {
             query?: never;
@@ -1247,6 +1295,41 @@ export interface components {
             /** @enum {string} */
             source: "SPOTIFY" | "MANUAL";
         };
+        BillingDetailsPayload: {
+            /** @enum {string} */
+            type: "individual" | "company";
+            name: string;
+            taxId?: string;
+            registrationNumber?: string;
+            address: string;
+            city: string;
+            county: string;
+            sector?: string;
+            country: string;
+        };
+        BillingInvoiceResponse: {
+            id: string;
+            orderId: string;
+            /** @enum {string} */
+            provider: "oblio" | "smartbill";
+            /** @enum {string} */
+            status: "pending" | "processing" | "issued" | "failed" | "needs_review";
+            /** Format: int32 */
+            attemptCount: number;
+            series?: string;
+            number?: string;
+            documentUrl?: string;
+            errorMessage?: string;
+            /** Format: date-time */
+            issuedAt?: string;
+            /** Format: date-time */
+            createdAt: string;
+            customerName: string;
+            customerEmail: string;
+            /** Format: int32 */
+            totalAmountRon: number;
+            eventTitle: string;
+        };
         CheckIn: {
             id: string;
             eventId: string;
@@ -1275,6 +1358,7 @@ export interface components {
             email: string;
             items: components["schemas"]["CheckoutTicketItemPayload"][];
             promoCode?: string;
+            billingDetails: components["schemas"]["BillingDetailsPayload"];
         };
         CreateEventPayload: {
             title: string;
@@ -1440,6 +1524,35 @@ export interface components {
             batchId: string;
             /** Format: int32 */
             batchIndex: number;
+        };
+        InvoicingSettingsPayload: {
+            /** @enum {string} */
+            provider: "oblio" | "smartbill";
+            enabled: boolean;
+            accountEmail: string;
+            apiToken?: string;
+            companyVatCode: string;
+            seriesName: string;
+            vatName: string;
+            /** Format: double */
+            vatPercentage: number;
+            sendEmail: boolean;
+            sendToSpv: boolean;
+        };
+        InvoicingSettingsResponse: {
+            connected: boolean;
+            /** @enum {string} */
+            provider?: "oblio" | "smartbill";
+            enabled: boolean;
+            accountEmail?: string;
+            companyVatCode?: string;
+            seriesName?: string;
+            vatName?: string;
+            /** Format: double */
+            vatPercentage: number;
+            sendEmail: boolean;
+            sendToSpv: boolean;
+            credentialsConfigured: boolean;
         };
         MessageResponse: {
             message: string;
@@ -1829,6 +1942,13 @@ export interface components {
             locationName: string;
             /** Format: date-time */
             startTime: string;
+            invoiceRequested: boolean;
+            invoiceStatus?: string;
+            invoiceSeries?: string;
+            invoiceNumber?: string;
+            invoiceDocumentUrl?: string;
+            /** Format: date-time */
+            invoiceIssuedAt?: string;
         };
         UserRegisterPayload: {
             username: string;
@@ -2420,6 +2540,113 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["OrganizerFinanceEventResponse"][];
                 };
+            };
+        };
+    };
+    DashboardOperations_listBillingInvoices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingInvoiceResponse"][];
+                };
+            };
+        };
+    };
+    DashboardOperations_retryBillingInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has been accepted for processing, but processing has not yet completed. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        status: "pending";
+                    };
+                };
+            };
+        };
+    };
+    DashboardOperations_getInvoicingSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicingSettingsResponse"];
+                };
+            };
+        };
+    };
+    DashboardOperations_saveInvoicingSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvoicingSettingsPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicingSettingsResponse"];
+                };
+            };
+        };
+    };
+    DashboardOperations_disconnectInvoicing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

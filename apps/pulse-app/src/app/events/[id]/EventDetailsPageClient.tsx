@@ -37,6 +37,12 @@ import {
   useEventPromoCode,
 } from "@/features/events/useEventPromoCode";
 import { toast } from "sonner";
+import {
+  emptyInvoiceDetails,
+  InvoiceDetailsFields,
+  type InvoiceDetails,
+  validateInvoiceDetails,
+} from "@/features/checkout/InvoiceDetailsFields";
 
 export default function EventStandalonePage() {
   const { user } = useDataProvider();
@@ -47,6 +53,7 @@ export default function EventStandalonePage() {
   const [shared, setShared] = useState(false);
   const [favorite, setFavorite] = useState(false);
   const [guestEmail, setGuestEmail] = useState("");
+  const [invoiceDetails, setInvoiceDetails] = useState<InvoiceDetails>(() => emptyInvoiceDetails(user?.properties.username ?? ""));
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -61,6 +68,7 @@ export default function EventStandalonePage() {
         setEvent(fetchedEvent);
         setFavorite(Boolean(fetchedEvent.stats?.isFavorited));
         setGuestEmail(user?.properties.email ?? "");
+        setInvoiceDetails((current) => current.name ? current : { ...current, name: user?.properties.username ?? "" });
       })
       .catch((error) => {
         console.error("Failed to load event details", error);
@@ -72,7 +80,7 @@ export default function EventStandalonePage() {
     return () => {
       active = false;
     };
-  }, [params.id, user?.properties.email]);
+  }, [params.id, user?.properties.email, user?.properties.username]);
 
   if (loading) return <EventDetailsSkeleton label={t("common.loading")} />;
   if (!event) notFound();
@@ -152,6 +160,11 @@ export default function EventStandalonePage() {
       toast.error(t("eventSheet.emailRequired"));
       return;
     }
+    const validationKey = validateInvoiceDetails(invoiceDetails);
+    if (validationKey) {
+      toast.error(t(validationKey));
+      return;
+    }
 
     setIsCheckingOut(true);
 
@@ -167,6 +180,7 @@ export default function EventStandalonePage() {
               quantity: quantities[ticket.id] ?? 0,
             })),
           promoCode: promo.applied?.code,
+          billingDetails: invoiceDetails,
         },
       });
       window.location.assign(checkout.checkoutUrl);
@@ -425,6 +439,11 @@ export default function EventStandalonePage() {
                     {!user && (
                       <GoogleSignInButton returnTo={`/events/${event.id}?checkout=1`} className="mt-3" />
                     )}
+                    <InvoiceDetailsFields
+                      value={invoiceDetails}
+                      onChange={setInvoiceDetails}
+                      idPrefix="event-checkout"
+                    />
                     <button
                       type="button"
                       onClick={handleCheckout}

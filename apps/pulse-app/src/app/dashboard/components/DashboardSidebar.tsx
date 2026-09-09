@@ -15,6 +15,7 @@ import {
   Ticket,
   LogOut,
   Megaphone,
+  ReceiptText,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -35,6 +36,7 @@ const organizerItems = [
     icon: QrCode,
   },
   { href: "/dashboard/finance", label: "dashboardNav.finance", icon: WalletCards },
+  { href: "/dashboard/invoicing", label: "dashboardNav.invoicing", icon: ReceiptText },
   { href: "/dashboard/purchases", label: "dashboardNav.purchases", icon: Ticket },
   { href: "/dashboard/events", label: "dashboardNav.events", icon: Calendar },
   { href: "/dashboard/promotions", label: "dashboardNav.promotions", icon: Megaphone },

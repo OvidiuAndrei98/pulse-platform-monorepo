@@ -27,6 +27,9 @@ export type Event = ReadableSchema<"EventResponse">;
 export type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 export type EventAttendee = ReadableSchema<"EventAttendeeResponse">;
 export type OrganizerFinanceEvent = ReadableSchema<"OrganizerFinanceEventResponse">;
+export type InvoicingSettings = ReadableSchema<"InvoicingSettingsResponse">;
+export type InvoicingSettingsPayload = WritableSchema<"InvoicingSettingsPayload">;
+export type BillingInvoice = ReadableSchema<"BillingInvoiceResponse">;
 export type OrganizerProfile = ReadableSchema<"OrganizerProfile">;
 export type OrganizerVerificationRequest = ReadableSchema<"OrganizerVerificationRequest">;
 export type ValidationEvent = ReadableSchema<"ValidationEventResponse">;
@@ -270,6 +273,28 @@ export class User {
 
   async getOrganizerFinance(): Promise<OrganizerFinanceEvent[]> {
     return ApiClient.instance.get("/dashboard/finance");
+  }
+
+  async getInvoicingSettings(): Promise<InvoicingSettings> {
+    return ApiClient.instance.get("/dashboard/invoicing/settings");
+  }
+
+  async saveInvoicingSettings(payload: InvoicingSettingsPayload): Promise<InvoicingSettings> {
+    return ApiClient.instance.put("/dashboard/invoicing/settings", { body: payload });
+  }
+
+  async disconnectInvoicing(): Promise<void> {
+    await ApiClient.instance.delete("/dashboard/invoicing/settings");
+  }
+
+  async listBillingInvoices(): Promise<BillingInvoice[]> {
+    return ApiClient.instance.get("/dashboard/invoicing/invoices");
+  }
+
+  async retryBillingInvoice(id: string): Promise<void> {
+    await ApiClient.instance.post("/dashboard/invoicing/invoices/{id}/retry", {
+      params: { path: { id } },
+    });
   }
 
   async getValidationEvents(): Promise<ValidationEvent[]> {

@@ -709,6 +709,118 @@
         }
       }
     },
+    "/dashboard/invoicing/invoices": {
+      "get": {
+        "operationId": "DashboardOperations_listBillingInvoices",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BillingInvoiceResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/invoicing/invoices/{id}/retry": {
+      "post": {
+        "operationId": "DashboardOperations_retryBillingInvoice",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "The request has been accepted for processing, but processing has not yet completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/invoicing/settings": {
+      "get": {
+        "operationId": "DashboardOperations_getInvoicingSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoicingSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "DashboardOperations_saveInvoicingSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoicingSettingsResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvoicingSettingsPayload"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "DashboardOperations_disconnectInvoicing",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      }
+    },
     "/dashboard/organizer/agreement": {
       "post": {
         "operationId": "DashboardOperations_acceptOrganizerAgreement",
@@ -2940,6 +3052,127 @@
           }
         }
       },
+      "BillingDetailsPayload": {
+        "type": "object",
+        "required": [
+          "type",
+          "name",
+          "address",
+          "city",
+          "county",
+          "country"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "individual",
+              "company"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "taxId": {
+            "type": "string"
+          },
+          "registrationNumber": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "county": {
+            "type": "string"
+          },
+          "sector": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          }
+        }
+      },
+      "BillingInvoiceResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "orderId",
+          "provider",
+          "status",
+          "attemptCount",
+          "createdAt",
+          "customerName",
+          "customerEmail",
+          "totalAmountRon",
+          "eventTitle"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "orderId": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "oblio",
+              "smartbill"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "issued",
+              "failed",
+              "needs_review"
+            ]
+          },
+          "attemptCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "series": {
+            "type": "string"
+          },
+          "number": {
+            "type": "string"
+          },
+          "documentUrl": {
+            "type": "string"
+          },
+          "errorMessage": {
+            "type": "string"
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "customerEmail": {
+            "type": "string"
+          },
+          "totalAmountRon": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "eventTitle": {
+            "type": "string"
+          }
+        }
+      },
       "CheckIn": {
         "type": "object",
         "required": [
@@ -3026,7 +3259,8 @@
         "type": "object",
         "required": [
           "email",
-          "items"
+          "items",
+          "billingDetails"
         ],
         "properties": {
           "email": {
@@ -3040,6 +3274,9 @@
           },
           "promoCode": {
             "type": "string"
+          },
+          "billingDetails": {
+            "$ref": "#/components/schemas/BillingDetailsPayload"
           }
         }
       },
@@ -3584,6 +3821,108 @@
           "batchIndex": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "InvoicingSettingsPayload": {
+        "type": "object",
+        "required": [
+          "provider",
+          "enabled",
+          "accountEmail",
+          "companyVatCode",
+          "seriesName",
+          "vatName",
+          "vatPercentage",
+          "sendEmail",
+          "sendToSpv"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "oblio",
+              "smartbill"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "accountEmail": {
+            "type": "string"
+          },
+          "apiToken": {
+            "type": "string"
+          },
+          "companyVatCode": {
+            "type": "string"
+          },
+          "seriesName": {
+            "type": "string"
+          },
+          "vatName": {
+            "type": "string"
+          },
+          "vatPercentage": {
+            "type": "number",
+            "format": "double"
+          },
+          "sendEmail": {
+            "type": "boolean"
+          },
+          "sendToSpv": {
+            "type": "boolean"
+          }
+        }
+      },
+      "InvoicingSettingsResponse": {
+        "type": "object",
+        "required": [
+          "connected",
+          "enabled",
+          "vatPercentage",
+          "sendEmail",
+          "sendToSpv",
+          "credentialsConfigured"
+        ],
+        "properties": {
+          "connected": {
+            "type": "boolean"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "oblio",
+              "smartbill"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "accountEmail": {
+            "type": "string"
+          },
+          "companyVatCode": {
+            "type": "string"
+          },
+          "seriesName": {
+            "type": "string"
+          },
+          "vatName": {
+            "type": "string"
+          },
+          "vatPercentage": {
+            "type": "number",
+            "format": "double"
+          },
+          "sendEmail": {
+            "type": "boolean"
+          },
+          "sendToSpv": {
+            "type": "boolean"
+          },
+          "credentialsConfigured": {
+            "type": "boolean"
           }
         }
       },
@@ -4870,7 +5209,8 @@
           "eventId",
           "eventTitle",
           "locationName",
-          "startTime"
+          "startTime",
+          "invoiceRequested"
         ],
         "properties": {
           "id": {
@@ -4900,6 +5240,25 @@
             "type": "string"
           },
           "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "invoiceRequested": {
+            "type": "boolean"
+          },
+          "invoiceStatus": {
+            "type": "string"
+          },
+          "invoiceSeries": {
+            "type": "string"
+          },
+          "invoiceNumber": {
+            "type": "string"
+          },
+          "invoiceDocumentUrl": {
+            "type": "string"
+          },
+          "invoiceIssuedAt": {
             "type": "string",
             "format": "date-time"
           }

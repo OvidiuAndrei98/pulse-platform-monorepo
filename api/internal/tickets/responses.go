@@ -98,6 +98,12 @@ type UserOrderResponse struct {
 	EventTitle            string `json:"eventTitle"`
 	LocationName          string `json:"locationName"`
 	StartTime             string `json:"startTime"`
+	InvoiceRequested      bool   `json:"invoiceRequested"`
+	InvoiceStatus         string `json:"invoiceStatus,omitempty"`
+	InvoiceSeries         string `json:"invoiceSeries,omitempty"`
+	InvoiceNumber         string `json:"invoiceNumber,omitempty"`
+	InvoiceDocumentURL    string `json:"invoiceDocumentUrl,omitempty"`
+	InvoiceIssuedAt       string `json:"invoiceIssuedAt,omitempty"`
 }
 
 type ValidationEventResponse struct {
@@ -227,5 +233,11 @@ func MapUserOrder(order db.ListUserOrdersRow) UserOrderResponse {
 		EventTitle:            order.EventTitle,
 		LocationName:          order.LocationName,
 		StartTime:             common.TimestampToString(order.StartTime),
+		InvoiceRequested:      order.InvoiceRequested,
+		InvoiceStatus:         order.InvoiceStatus.String,
+		InvoiceSeries:         order.InvoiceSeries.String,
+		InvoiceNumber:         order.InvoiceNumber.String,
+		InvoiceDocumentURL:    order.InvoiceDocumentUrl.String,
+		InvoiceIssuedAt:       common.TimestampToString(order.InvoiceIssuedAt),
 	}
 }

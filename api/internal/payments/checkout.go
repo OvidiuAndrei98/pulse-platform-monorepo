@@ -18,6 +18,7 @@ import (
 	"pulse-api/internal/auth"
 	"pulse-api/internal/common"
 	"pulse-api/internal/email"
+	"pulse-api/internal/invoicing"
 	"pulse-api/internal/organizer"
 	"pulse-api/internal/router"
 
@@ -40,6 +41,7 @@ type CheckoutHandler struct {
 	client     *stripe.Client
 	appURL     string
 	mailer     *email.Mailer
+	invoicing  *invoicing.Service
 	configured bool
 }
 
@@ -49,9 +51,22 @@ type CheckoutItemRequest struct {
 }
 
 type CreateCheckoutRequest struct {
-	Email     string                `json:"email"`
-	Items     []CheckoutItemRequest `json:"items"`
-	PromoCode string                `json:"promoCode"`
+	Email          string                `json:"email"`
+	Items          []CheckoutItemRequest `json:"items"`
+	PromoCode      string                `json:"promoCode"`
+	BillingDetails BillingDetailsRequest `json:"billingDetails"`
+}
+
+type BillingDetailsRequest struct {
+	Type               string `json:"type"`
+	Name               string `json:"name"`
+	TaxID              string `json:"taxId"`
+	RegistrationNumber string `json:"registrationNumber"`
+	Address            string `json:"address"`
+	City               string `json:"city"`
+	County             string `json:"county"`
+	Sector             string `json:"sector"`
+	Country            string `json:"country"`
 }
 
 type CreateCheckoutResponse struct {
@@ -65,7 +80,7 @@ type checkoutItem struct {
 	unitPrice  int32
 }
 
-func NewCheckoutHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, appURL string, mailer *email.Mailer) *CheckoutHandler {
+func NewCheckoutHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, appURL string, mailer *email.Mailer, invoicingService *invoicing.Service) *CheckoutHandler {
 	if appURL == "" {
 		appURL = "http://localhost:3000"
 	}
@@ -76,6 +91,7 @@ func NewCheckoutHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, a
 		client:     stripe.NewClient(stripeSecret),
 		appURL:     strings.TrimRight(appURL, "/"),
 		mailer:     mailer,
+		invoicing:  invoicingService,
 		configured: stripeSecret != "",
 	}
 }
@@ -110,6 +126,11 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 		router.RespondWithError(w, http.StatusBadRequest, "Selecteaza cel putin un bilet")
 		return
 	}
+	billingDetails, err := normalizeBillingDetails(req.BillingDetails)
+	if err != nil {
+		router.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	var eventID pgtype.UUID
 	if err := eventID.Scan(chi.URLParam(r, "id")); err != nil || !eventID.Valid {
@@ -123,7 +144,7 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	order, checkoutItems, eventTitle, eventIDString, organizerStripeAccount, organizerAbsorbsServiceFee, err := h.reserveOrder(r.Context(), eventID, userID, req.Email, items, totalTicketCount, req.PromoCode)
+	order, checkoutItems, eventTitle, eventIDString, organizerStripeAccount, organizerAbsorbsServiceFee, err := h.reserveOrder(r.Context(), eventID, userID, req.Email, items, totalTicketCount, req.PromoCode, billingDetails)
 	if err != nil {
 		var requestError *checkoutRequestError
 		if errors.As(err, &requestError) {
@@ -254,7 +275,7 @@ func (h *CheckoutHandler) HandleValidatePromoCode(w http.ResponseWriter, r *http
 	})
 }
 
-func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgtype.UUID, email string, requested map[string]int32, totalTicketCount int32, rawPromoCode string) (db.Orders, []checkoutItem, string, string, string, bool, error) {
+func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgtype.UUID, email string, requested map[string]int32, totalTicketCount int32, rawPromoCode string, billing BillingDetailsRequest) (db.Orders, []checkoutItem, string, string, string, bool, error) {
 	tx, err := h.db.Begin(ctx)
 	if err != nil {
 		return db.Orders{}, nil, "", "", "", false, err
@@ -354,14 +375,24 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	}
 
 	order, err := qtx.CreateCheckoutOrder(ctx, db.CreateCheckoutOrderParams{
-		UserID:            userID,
-		EventID:           eventID,
-		Email:             email,
-		TotalAmount:       int32(totalAmount),
-		PlatformFeeBani:   int32(platformFeeBani),
-		Status:            db.OrderStatusPending,
-		PromoCodeID:       promoCodeID,
-		DiscountAmountRon: int32(originalAmount - totalAmount),
+		UserID:                    userID,
+		EventID:                   eventID,
+		Email:                     email,
+		TotalAmount:               int32(totalAmount),
+		PlatformFeeBani:           int32(platformFeeBani),
+		Status:                    db.OrderStatusPending,
+		PromoCodeID:               promoCodeID,
+		DiscountAmountRon:         int32(originalAmount - totalAmount),
+		InvoiceRequested:          true,
+		BillingType:               billing.Type,
+		BillingName:               billing.Name,
+		BillingTaxID:              billing.TaxID,
+		BillingRegistrationNumber: billing.RegistrationNumber,
+		BillingAddress:            billing.Address,
+		BillingCity:               billing.City,
+		BillingCounty:             billing.County,
+		BillingSector:             billing.Sector,
+		BillingCountry:            billing.Country,
 	})
 	if err != nil {
 		return db.Orders{}, nil, "", "", "", false, err
@@ -412,6 +443,7 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 			return err
 		}
 		h.deliverGuestTickets(order.ID)
+		h.queueInvoice(ctx, order.ID)
 		return nil
 	}
 	if order.Status != db.OrderStatusPending || (order.StripeCheckoutSessionID.Valid && order.StripeCheckoutSessionID.String != sessionID) {
@@ -454,7 +486,17 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 		log.Printf("ticket purchase notification failed for order %s: %v", common.UUIDToString(order.ID), err)
 	}
 	h.deliverGuestTickets(order.ID)
+	h.queueInvoice(ctx, order.ID)
 	return nil
+}
+
+func (h *CheckoutHandler) queueInvoice(ctx context.Context, orderID pgtype.UUID) {
+	if h.invoicing == nil {
+		return
+	}
+	if err := h.invoicing.QueueOrder(ctx, orderID); err != nil {
+		log.Printf("invoice could not be queued for order %s: %v", common.UUIDToString(orderID), err)
+	}
 }
 
 func (h *CheckoutHandler) deliverGuestTickets(orderID pgtype.UUID) {
@@ -576,6 +618,68 @@ func parseCheckoutItems(w http.ResponseWriter, requested []CheckoutItemRequest) 
 func calculatePlatformFeeBani(totalBani int64, ticketCount int32) int64 {
 	percentageFee := (totalBani*platformFeePercent + 99) / 100
 	return percentageFee + int64(ticketCount)*platformFeePerTicketBani
+}
+
+func normalizeBillingDetails(details BillingDetailsRequest) (BillingDetailsRequest, error) {
+	details.Type = strings.ToLower(strings.TrimSpace(details.Type))
+	details.Name = strings.TrimSpace(details.Name)
+	details.TaxID = strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(details.TaxID), " ", ""))
+	details.RegistrationNumber = strings.TrimSpace(details.RegistrationNumber)
+	details.Address = strings.TrimSpace(details.Address)
+	details.City = strings.TrimSpace(details.City)
+	details.County = strings.TrimSpace(details.County)
+	details.Sector = strings.TrimSpace(details.Sector)
+	details.Country = strings.TrimSpace(details.Country)
+	if details.Type == "" {
+		details.Type = "individual"
+	}
+	if details.Country == "" {
+		details.Country = "Romania"
+	}
+	if details.Type != "individual" && details.Type != "company" {
+		return BillingDetailsRequest{}, errors.New("tipul datelor de facturare este invalid")
+	}
+	if len(details.Name) < 2 {
+		return BillingDetailsRequest{}, errors.New("numele pentru factura este obligatoriu")
+	}
+	if details.Type == "company" && details.TaxID == "" {
+		return BillingDetailsRequest{}, errors.New("CUI-ul companiei este obligatoriu pentru factura")
+	}
+	if details.Type == "individual" {
+		details.TaxID = ""
+		details.RegistrationNumber = ""
+	}
+	if details.Address == "" || details.City == "" || details.Country == "" {
+		return BillingDetailsRequest{}, errors.New("adresa, localitatea si tara sunt obligatorii pentru factura")
+	}
+	if isBucharestAddress(details.City, details.Country) {
+		details.City = "Bucuresti"
+		details.County = "Bucuresti"
+		if !isValidBucharestSector(details.Sector) {
+			return BillingDetailsRequest{}, errors.New("selecteaza sectorul adresei din Bucuresti")
+		}
+	} else {
+		details.Sector = ""
+		if details.County == "" {
+			return BillingDetailsRequest{}, errors.New("judetul este obligatoriu pentru factura")
+		}
+	}
+	return details, nil
+}
+
+func isBucharestAddress(city, country string) bool {
+	normalizedCity := strings.NewReplacer("ă", "a", "â", "a", "î", "i", "ș", "s", "ş", "s", "ț", "t", "ţ", "t").Replace(strings.ToLower(strings.TrimSpace(city)))
+	normalizedCountry := strings.NewReplacer("â", "a", "î", "i").Replace(strings.ToLower(strings.TrimSpace(country)))
+	return (normalizedCountry == "romania" || normalizedCountry == "ro") && (normalizedCity == "bucuresti" || normalizedCity == "bucharest")
+}
+
+func isValidBucharestSector(sector string) bool {
+	switch strings.ToLower(strings.TrimSpace(sector)) {
+	case "sector 1", "sector 2", "sector 3", "sector 4", "sector 5", "sector 6":
+		return true
+	default:
+		return false
+	}
 }
 
 func optionalUserID(ctx context.Context) pgtype.UUID {
