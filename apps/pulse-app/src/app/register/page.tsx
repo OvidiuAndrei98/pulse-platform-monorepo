@@ -5,6 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
+  BadgeCheck,
   Building2,
   Check,
   CircleCheck,
@@ -27,6 +28,8 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [isOrganizer, setIsOrganizer] = useState(false);
+  const [companyName, setCompanyName] = useState("");
+  const [cui, setCui] = useState("");
   const [state, setState] = useState<RegistrationState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -39,11 +42,22 @@ export default function RegisterPage() {
       setErrorMessage(t("auth.passwordsMismatch"));
       return;
     }
+    if (isOrganizer && (!companyName.trim() || !cui.trim())) {
+      setState("error");
+      setErrorMessage(t("auth.organizerDetailsRequired"));
+      return;
+    }
 
     setState("loading");
 
     try {
-      await register(username, email, password, isOrganizer);
+      await register(
+        username,
+        email,
+        password,
+        isOrganizer,
+        isOrganizer ? { companyName: companyName.trim(), cui: cui.trim() } : undefined,
+      );
       setState("success");
     } catch (error) {
       setState("error");
@@ -65,6 +79,11 @@ export default function RegisterPage() {
         <p className="mt-3 text-sm leading-6 text-white/75">
           {t("auth.activationText", { email })}
         </p>
+        {isOrganizer && (
+          <p className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm leading-6 text-amber-100">
+            {t("auth.organizerPendingAfterActivation")}
+          </p>
+        )}
         <Link
           href="/login"
           className="mt-7 inline-flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:bg-primary/90"
@@ -114,9 +133,47 @@ export default function RegisterPage() {
           </span>
         </label>
 
+        {isOrganizer && (
+          <div className="mt-4 space-y-4 rounded-2xl bg-black/25 p-4 ring-1 ring-white/10">
+            <Field label={t("auth.companyName")} icon={Building2}>
+              <input
+                id="company-name"
+                type="text"
+                autoComplete="organization"
+                required
+                maxLength={255}
+                value={companyName}
+                onChange={(inputEvent) => setCompanyName(inputEvent.target.value)}
+                className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/45"
+                placeholder={t("auth.companyNamePlaceholder")}
+              />
+            </Field>
+            <Field label={t("auth.cui")} icon={BadgeCheck}>
+              <input
+                id="company-cui"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                required
+                maxLength={12}
+                value={cui}
+                onChange={(inputEvent) => setCui(inputEvent.target.value)}
+                className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/45"
+                placeholder={t("auth.cuiPlaceholder")}
+              />
+            </Field>
+            <p className="text-xs leading-5 text-white/55">
+              {t("auth.manualVerificationHint")}
+            </p>
+          </div>
+        )}
+
         <GoogleSignInButton
           accountType={isOrganizer ? "organizer" : "user"}
           returnTo={isOrganizer ? "/dashboard" : "/users/me"}
+          companyName={isOrganizer ? companyName : undefined}
+          cui={isOrganizer ? cui : undefined}
+          disabled={isOrganizer && (!companyName.trim() || !cui.trim())}
           variant="light"
           className="mt-4"
         />

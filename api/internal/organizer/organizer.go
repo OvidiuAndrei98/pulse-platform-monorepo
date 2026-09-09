@@ -2,18 +2,19 @@ package organizer
 
 import (
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"net/netip"
 	"time"
 
 	db "pulse-api/db/generated"
-	"pulse-api/internal/anaf"
 	"pulse-api/internal/auth"
 	"pulse-api/internal/common"
 	"pulse-api/internal/router"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -73,7 +74,6 @@ func (h *Handler) HandleGetOrganizerFinance(w http.ResponseWriter, r *http.Reque
 type CreateOrganizerProfileRequest struct {
 	Cui                       string `json:"cui"`
 	CompanyName               string `json:"companyName"`
-	UserID                    string `json:"userId"`
 	OrganizerAgreementVersion string `json:"organizerAgreementVersion"`
 }
 
@@ -94,16 +94,11 @@ func (h *Handler) HandleCreateOrganizerProfile(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// 1. Extragerea ID-ului din Context (baza middleware-ului tău JWT)
+	// ID-ul organizatorului este preluat exclusiv din tokenul autentificat.
 	userIDStr, err := auth.GetUserIDFromContext(r.Context())
 	if err != nil || userIDStr == "" {
-		// FALLBACK TEMPORAR: Dacă încă testezi fără JWT middleware, lasă linia de mai jos:
-		userIDStr = req.UserID
-
-		if userIDStr == "" {
-			router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat sau ID lipsă")
-			return
-		}
+		router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat")
+		return
 	}
 
 	// 2. Validare ID în format pgtype.UUID
@@ -113,29 +108,32 @@ func (h *Handler) HandleCreateOrganizerProfile(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// 3. Interogare ICA pentru verificarea CUI din surse oficiale
-	company, err := anaf.Lookup(ctx, req.Cui, req.CompanyName)
+	cui, companyName, err := common.NormalizeOrganizerDetails(req.Cui, req.CompanyName)
 	if err != nil {
-		router.RespondWithError(w, http.StatusBadRequest, "Failed to lookup company: "+err.Error())
+		router.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	verificationStatus := db.VerificationStatusTypeApproved
-
-	if !company.IsActive {
-		// There is no asynchronous verification worker. An inactive company must be
-		// rejected so the organizer can correct the CUI instead of being stuck pending.
-		verificationStatus = db.VerificationStatusTypeRejected
+	existingProfile, err := h.Queries.GetOrganizerProfile(ctx, uuid)
+	if err == nil && existingProfile.VerificationStatus == db.VerificationStatusTypeApproved {
+		router.RespondWithError(w, http.StatusConflict, "Firma este deja verificata")
+		return
+	}
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		router.RespondWithError(w, http.StatusInternalServerError, "Profilul firmei nu a putut fi verificat")
+		return
 	}
 
+	// Verificarea automata ANAF/ICA este dezactivata temporar. Profilul ramane
+	// pending pana cand un administrator il aproba sau il respinge manual.
 	params := db.CreateOrganizerProfileParams{
 		UserID:                       uuid,
-		Cui:                          req.Cui,
-		CompanyName:                  company.Name,
-		FiscalAddress:                company.Address,
-		IsVerified:                   pgtype.Bool{Bool: company.IsActive, Valid: true},
-		VerifiedAt:                   pgtype.Timestamptz{Time: time.Now(), Valid: true},
-		VerificationStatus:           verificationStatus,
+		Cui:                          cui,
+		CompanyName:                  companyName,
+		FiscalAddress:                "",
+		IsVerified:                   pgtype.Bool{Bool: false, Valid: true},
+		VerifiedAt:                   pgtype.Timestamptz{},
+		VerificationStatus:           db.VerificationStatusTypePending,
 		OrganizerAgreementVersion:    pgtype.Text{String: AgreementVersion, Valid: true},
 		OrganizerAgreementAcceptedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		OrganizerAgreementAcceptedIp: acceptedIP(r),

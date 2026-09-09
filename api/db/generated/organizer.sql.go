@@ -59,6 +59,42 @@ func (q *Queries) AcceptOrganizerAgreement(ctx context.Context, arg AcceptOrgani
 	return i, err
 }
 
+const clearOrganizerStripeAccount = `-- name: ClearOrganizerStripeAccount :one
+UPDATE organizer_profiles
+SET stripe_account_id = NULL,
+    stripe_charges_enabled = FALSE,
+    stripe_payouts_enabled = FALSE,
+    stripe_details_submitted = FALSE,
+    updated_at = NOW()
+WHERE stripe_account_id = $1
+RETURNING id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted, organizer_agreement_version, organizer_agreement_accepted_at, organizer_agreement_accepted_ip
+`
+
+func (q *Queries) ClearOrganizerStripeAccount(ctx context.Context, stripeAccountID pgtype.Text) (OrganizerProfiles, error) {
+	row := q.db.QueryRow(ctx, clearOrganizerStripeAccount, stripeAccountID)
+	var i OrganizerProfiles
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Cui,
+		&i.CompanyName,
+		&i.FiscalAddress,
+		&i.IsVerified,
+		&i.VerifiedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.VerificationStatus,
+		&i.StripeAccountID,
+		&i.StripeChargesEnabled,
+		&i.StripePayoutsEnabled,
+		&i.StripeDetailsSubmitted,
+		&i.OrganizerAgreementVersion,
+		&i.OrganizerAgreementAcceptedAt,
+		&i.OrganizerAgreementAcceptedIp,
+	)
+	return i, err
+}
+
 const createOrganizerProfile = `-- name: CreateOrganizerProfile :one
 INSERT INTO organizer_profiles (
     user_id, cui, company_name, fiscal_address, is_verified, verified_at, verification_status,
@@ -128,6 +164,25 @@ func (q *Queries) CreateOrganizerProfile(ctx context.Context, arg CreateOrganize
 	return i, err
 }
 
+const createPendingOrganizerProfile = `-- name: CreatePendingOrganizerProfile :exec
+INSERT INTO organizer_profiles (
+    user_id, cui, company_name, fiscal_address, is_verified, verified_at, verification_status
+)
+VALUES ($1, $2, $3, '', FALSE, NULL, 'pending')
+ON CONFLICT (user_id) DO NOTHING
+`
+
+type CreatePendingOrganizerProfileParams struct {
+	UserID      pgtype.UUID `json:"user_id"`
+	Cui         string      `json:"cui"`
+	CompanyName string      `json:"company_name"`
+}
+
+func (q *Queries) CreatePendingOrganizerProfile(ctx context.Context, arg CreatePendingOrganizerProfileParams) error {
+	_, err := q.db.Exec(ctx, createPendingOrganizerProfile, arg.UserID, arg.Cui, arg.CompanyName)
+	return err
+}
+
 const getOrganizerByCUI = `-- name: GetOrganizerByCUI :one
 SELECT id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted, organizer_agreement_version, organizer_agreement_accepted_at, organizer_agreement_accepted_ip FROM organizer_profiles WHERE cui = $1 LIMIT 1
 `
@@ -163,6 +218,114 @@ SELECT id, user_id, cui, company_name, fiscal_address, is_verified, verified_at,
 
 func (q *Queries) GetOrganizerProfile(ctx context.Context, userID pgtype.UUID) (OrganizerProfiles, error) {
 	row := q.db.QueryRow(ctx, getOrganizerProfile, userID)
+	var i OrganizerProfiles
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Cui,
+		&i.CompanyName,
+		&i.FiscalAddress,
+		&i.IsVerified,
+		&i.VerifiedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.VerificationStatus,
+		&i.StripeAccountID,
+		&i.StripeChargesEnabled,
+		&i.StripePayoutsEnabled,
+		&i.StripeDetailsSubmitted,
+		&i.OrganizerAgreementVersion,
+		&i.OrganizerAgreementAcceptedAt,
+		&i.OrganizerAgreementAcceptedIp,
+	)
+	return i, err
+}
+
+const listOrganizerVerificationRequests = `-- name: ListOrganizerVerificationRequests :many
+SELECT op.user_id,
+       users.username,
+       users.email,
+       op.cui,
+       op.company_name,
+       op.fiscal_address,
+       op.verification_status,
+       op.is_verified,
+       op.created_at,
+       op.updated_at,
+       op.verified_at
+FROM organizer_profiles op
+JOIN users ON users.id = op.user_id
+ORDER BY CASE op.verification_status
+             WHEN 'pending' THEN 0
+             WHEN 'rejected' THEN 1
+             ELSE 2
+         END,
+         op.updated_at DESC
+`
+
+type ListOrganizerVerificationRequestsRow struct {
+	UserID             pgtype.UUID            `json:"user_id"`
+	Username           string                 `json:"username"`
+	Email              string                 `json:"email"`
+	Cui                string                 `json:"cui"`
+	CompanyName        string                 `json:"company_name"`
+	FiscalAddress      string                 `json:"fiscal_address"`
+	VerificationStatus VerificationStatusType `json:"verification_status"`
+	IsVerified         pgtype.Bool            `json:"is_verified"`
+	CreatedAt          pgtype.Timestamptz     `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz     `json:"updated_at"`
+	VerifiedAt         pgtype.Timestamptz     `json:"verified_at"`
+}
+
+func (q *Queries) ListOrganizerVerificationRequests(ctx context.Context) ([]ListOrganizerVerificationRequestsRow, error) {
+	rows, err := q.db.Query(ctx, listOrganizerVerificationRequests)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrganizerVerificationRequestsRow
+	for rows.Next() {
+		var i ListOrganizerVerificationRequestsRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Username,
+			&i.Email,
+			&i.Cui,
+			&i.CompanyName,
+			&i.FiscalAddress,
+			&i.VerificationStatus,
+			&i.IsVerified,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.VerifiedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reviewOrganizerVerification = `-- name: ReviewOrganizerVerification :one
+UPDATE organizer_profiles
+SET verification_status = $2,
+    is_verified = ($2 = 'approved'),
+    verified_at = CASE WHEN $2 = 'approved' THEN NOW() ELSE NULL END,
+    updated_at = NOW()
+WHERE user_id = $1
+RETURNING id, user_id, cui, company_name, fiscal_address, is_verified, verified_at, created_at, updated_at, verification_status, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled, stripe_details_submitted, organizer_agreement_version, organizer_agreement_accepted_at, organizer_agreement_accepted_ip
+`
+
+type ReviewOrganizerVerificationParams struct {
+	UserID             pgtype.UUID            `json:"user_id"`
+	VerificationStatus VerificationStatusType `json:"verification_status"`
+}
+
+func (q *Queries) ReviewOrganizerVerification(ctx context.Context, arg ReviewOrganizerVerificationParams) (OrganizerProfiles, error) {
+	row := q.db.QueryRow(ctx, reviewOrganizerVerification, arg.UserID, arg.VerificationStatus)
 	var i OrganizerProfiles
 	err := row.Scan(
 		&i.ID,

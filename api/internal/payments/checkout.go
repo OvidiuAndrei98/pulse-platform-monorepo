@@ -189,6 +189,13 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	session, err := h.client.V1CheckoutSessions.Create(r.Context(), params)
 	if err != nil {
 		_ = h.failOrder(r.Context(), order.ID, "")
+		if isStripeAccountMissing(err) {
+			if _, clearErr := h.queries.ClearOrganizerStripeAccount(r.Context(), pgtype.Text{String: organizerStripeAccount, Valid: true}); clearErr != nil && !errors.Is(clearErr, pgx.ErrNoRows) {
+				log.Printf("Stripe account cleanup failed after checkout destination disappeared: account=%s err=%v", organizerStripeAccount, clearErr)
+			}
+			router.RespondWithError(w, http.StatusConflict, "Organizatorul trebuie sa reconecteze contul Stripe inainte de a putea accepta plati")
+			return
+		}
 		router.RespondWithError(w, http.StatusBadGateway, "Sesiunea de plata Stripe nu a putut fi creata")
 		return
 	}

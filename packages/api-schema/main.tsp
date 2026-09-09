@@ -284,6 +284,25 @@ model UserRegisterPayload {
   email: string;
   password: string;
   requestOrganizerRole?: boolean;
+  companyName?: string;
+  cui?: string;
+}
+
+model OrganizerVerificationRequest {
+  userId: string;
+  username: string;
+  email: string;
+  cui: string;
+  companyName: string;
+  fiscalAddress?: string;
+  verificationStatus: "pending" | "approved" | "rejected";
+  submittedAt: utcDateTime;
+  updatedAt: utcDateTime;
+  verifiedAt?: utcDateTime;
+}
+
+model ReviewOrganizerVerificationPayload {
+  status: "approved" | "rejected";
 }
 
 model UserLoginPayload {
@@ -988,6 +1007,13 @@ interface DashboardOperations {
   @route("/stripe/login-link")
   createStripeLoginLink(): StripeAccountLinkResponse;
 
+  @summary("Inchide si deconecteaza contul Stripe Express al organizatorului curent")
+  @delete
+  @route("/stripe/account")
+  disconnectStripeAccount(): {
+    @statusCode statusCode: 204;
+  };
+
   @summary("Creare eveniment nou (doar Organizatori/Admini)")
   @post
   @route("/events")
@@ -1186,6 +1212,20 @@ interface TicketValidationOperations {
         @statusCode statusCode: 500;
         @body response: ApiError;
       };
+}
+
+@route("/admin")
+interface AdminOperations {
+  @get
+  @route("/organizers")
+  listOrganizerVerifications(): OrganizerVerificationRequest[];
+
+  @patch
+  @route("/organizers/{id}/verification")
+  reviewOrganizerVerification(
+    @path id: string,
+    @body payload: ReviewOrganizerVerificationPayload,
+  ): OrganizerProfile;
 }
 
 @route("/ticket-validation/quick-access")

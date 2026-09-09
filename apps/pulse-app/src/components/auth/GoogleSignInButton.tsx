@@ -10,17 +10,28 @@ export function GoogleSignInButton({
   accountType = "user",
   className = "",
   variant = "default",
+  companyName,
+  cui,
+  disabled = false,
 }: {
   returnTo?: string;
   accountType?: "user" | "organizer";
   className?: string;
   variant?: "default" | "light";
+  companyName?: string;
+  cui?: string;
+  disabled?: boolean;
 }) {
   const { t } = useTranslation();
   const startGoogleLogin = async () => {
+    if (disabled) return;
     const url = new URL(`${apiRoot}/auth/google`);
     if (returnTo) url.searchParams.set("returnTo", returnTo);
     url.searchParams.set("accountType", accountType);
+    if (accountType === "organizer") {
+      if (companyName) url.searchParams.set("companyName", companyName);
+      if (cui) url.searchParams.set("cui", cui);
+    }
     if (isNativePlatform()) {
       url.searchParams.set("client", "mobile");
       await Browser.open({ url: url.toString(), presentationStyle: "popover" });
@@ -33,11 +44,12 @@ export function GoogleSignInButton({
     <button
       type="button"
       onClick={() => void startGoogleLogin()}
+      disabled={disabled}
       className={`flex h-14 w-full items-center justify-center gap-3 px-4 text-sm font-semibold transition ${
         variant === "light"
           ? "rounded-xl bg-white text-black shadow-[0_12px_32px_rgba(0,0,0,0.22)] "
           : "rounded-2xl bg-white/[0.055] text-foreground hover:bg-white/[0.09]"
-      } ${className}`}
+      } disabled:cursor-not-allowed disabled:opacity-45 ${className}`}
     >
       <span className="grid h-5 w-5 place-items-center rounded-full bg-white text-xs font-bold text-black">
         <svg

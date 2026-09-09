@@ -6,6 +6,64 @@
   },
   "tags": [],
   "paths": {
+    "/admin/organizers": {
+      "get": {
+        "operationId": "AdminOperations_listOrganizerVerifications",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizerVerificationRequest"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/organizers/{id}/verification": {
+      "patch": {
+        "operationId": "AdminOperations_reviewOrganizerVerification",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizerProfile"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewOrganizerVerificationPayload"
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/forgot-password": {
       "post": {
         "operationId": "AuthOperations_forgotPassword",
@@ -845,6 +903,18 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/dashboard/stripe/account": {
+      "delete": {
+        "operationId": "DashboardOperations_disconnectStripeAccount",
+        "summary": "Inchide si deconecteaza contul Stripe Express al organizatorului curent",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
           }
         }
       }
@@ -3846,6 +3916,59 @@
           }
         }
       },
+      "OrganizerVerificationRequest": {
+        "type": "object",
+        "required": [
+          "userId",
+          "username",
+          "email",
+          "cui",
+          "companyName",
+          "verificationStatus",
+          "submittedAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "cui": {
+            "type": "string"
+          },
+          "companyName": {
+            "type": "string"
+          },
+          "fiscalAddress": {
+            "type": "string"
+          },
+          "verificationStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "verifiedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "PasswordResetPayload": {
         "type": "object",
         "required": [
@@ -4185,6 +4308,21 @@
           "ticketsSoldCount": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "ReviewOrganizerVerificationPayload": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected"
+            ]
           }
         }
       },
@@ -4786,6 +4924,12 @@
           },
           "requestOrganizerRole": {
             "type": "boolean"
+          },
+          "companyName": {
+            "type": "string"
+          },
+          "cui": {
+            "type": "string"
           }
         }
       },

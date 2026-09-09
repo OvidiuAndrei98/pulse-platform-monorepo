@@ -20,6 +20,7 @@ type Querier interface {
 	AssignGuestTicketsToUser(ctx context.Context, userID pgtype.UUID) error
 	CancelAbandonedPromotionReservations(ctx context.Context, expiresBefore pgtype.Timestamptz) error
 	CancelPendingPromotionCampaign(ctx context.Context, id pgtype.UUID) error
+	ClearOrganizerStripeAccount(ctx context.Context, stripeAccountID pgtype.Text) (OrganizerProfiles, error)
 	CompleteEndedEvents(ctx context.Context) error
 	CompleteExpiredPromotionCampaigns(ctx context.Context) error
 	CompleteOfflineTicketValidation(ctx context.Context, arg CompleteOfflineTicketValidationParams) error
@@ -42,6 +43,7 @@ type Querier interface {
 	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) error
 	CreateOrganizerEventNotifications(ctx context.Context, id pgtype.UUID) error
 	CreateOrganizerProfile(ctx context.Context, arg CreateOrganizerProfileParams) (OrganizerProfiles, error)
+	CreatePendingOrganizerProfile(ctx context.Context, arg CreatePendingOrganizerProfileParams) error
 	CreatePromotionCampaign(ctx context.Context, arg CreatePromotionCampaignParams) (pgtype.UUID, error)
 	CreateScannerAccess(ctx context.Context, arg CreateScannerAccessParams) (CreateScannerAccessRow, error)
 	CreateTicket(ctx context.Context, arg CreateTicketParams) (Tickets, error)
@@ -116,6 +118,7 @@ type Querier interface {
 	ListOfflineValidationTickets(ctx context.Context, eventID pgtype.UUID) ([]ListOfflineValidationTicketsRow, error)
 	ListOrderTicketEmailDetails(ctx context.Context, id pgtype.UUID) ([]ListOrderTicketEmailDetailsRow, error)
 	ListOrganizerFinanceEvents(ctx context.Context, organizerID pgtype.UUID) ([]ListOrganizerFinanceEventsRow, error)
+	ListOrganizerVerificationRequests(ctx context.Context) ([]ListOrganizerVerificationRequestsRow, error)
 	ListPromotionCampaigns(ctx context.Context, organizerID pgtype.UUID) ([]ListPromotionCampaignsRow, error)
 	ListSavedEvents(ctx context.Context, userID pgtype.UUID) ([]Events, error)
 	ListScannerAccess(ctx context.Context, eventID pgtype.UUID) ([]ListScannerAccessRow, error)
@@ -140,6 +143,7 @@ type Querier interface {
 	RemoveSavedEvent(ctx context.Context, arg RemoveSavedEventParams) error
 	RemoveValidationStaff(ctx context.Context, arg RemoveValidationStaffParams) error
 	RespondToFriendRequest(ctx context.Context, arg RespondToFriendRequestParams) error
+	ReviewOrganizerVerification(ctx context.Context, arg ReviewOrganizerVerificationParams) (OrganizerProfiles, error)
 	RevokeInvitationTicket(ctx context.Context, arg RevokeInvitationTicketParams) (int64, error)
 	RevokeScannerAccess(ctx context.Context, arg RevokeScannerAccessParams) error
 	SaveEvent(ctx context.Context, arg SaveEventParams) error

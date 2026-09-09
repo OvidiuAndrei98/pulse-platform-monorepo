@@ -11,11 +11,13 @@ import (
 
 	db "pulse-api/db/generated"
 	"pulse-api/internal/router"
+	"pulse-api/internal/common"
 
 	"log"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // RegisterRequest definește structura corpului pentru înregistrare
@@ -25,6 +27,8 @@ type RegisterRequest struct {
 	Password             string `json:"password"`
 	Bio                  string `json:"bio,omitempty"`
 	RequestOrganizerRole bool   `json:"requestOrganizerRole,omitempty"`
+	CompanyName          string `json:"companyName,omitempty"`
+	Cui                  string `json:"cui,omitempty"`
 }
 
 type EmailSender interface {
@@ -35,6 +39,7 @@ type EmailSender interface {
 // Handler colectează dependențele din app.go
 type Handler struct {
 	Queries     *db.Queries
+	Pool        *pgxpool.Pool
 	EmailSender EmailSender
 	googleOAuth GoogleOAuthConfig
 }
@@ -50,9 +55,10 @@ func (h *Handler) claimGuestPurchases(ctx context.Context, userID pgtype.UUID) {
 }
 
 // NewHandler este constructorul pentru Handler-ul de auth
-func NewHandler(queries *db.Queries, emailSender EmailSender) *Handler {
+func NewHandler(queries *db.Queries, pool *pgxpool.Pool, emailSender EmailSender) *Handler {
 	return &Handler{
 		Queries:     queries,
+		Pool:        pool,
 		EmailSender: emailSender,
 	}
 }
@@ -71,6 +77,16 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	if len(req.Password) < 6 {
 		router.RespondWithError(w, http.StatusBadRequest, "Parola trebuie să aibă cel puțin 6 caractere")
 		return
+	}
+
+	var organizerCUI, organizerCompanyName string
+	if req.RequestOrganizerRole {
+		var err error
+		organizerCUI, organizerCompanyName, err = common.NormalizeOrganizerDetails(req.Cui, req.CompanyName)
+		if err != nil {
+			router.RespondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 
 	// Apelăm direct funcțiile din auth.go din același pachet
@@ -92,7 +108,15 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	user, err := h.Queries.CreateUser(r.Context(), db.CreateUserParams{
+	tx, err := h.Pool.Begin(ctx)
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Contul nu a putut fi creat")
+		return
+	}
+	defer tx.Rollback(ctx)
+	qtx := h.Queries.WithTx(tx)
+
+	user, err := qtx.CreateUser(ctx, db.CreateUserParams{
 		Username:     req.Username,
 		Email:        req.Email,
 		PasswordHash: pgtype.Text{String: hashedPassword, Valid: true},
@@ -100,12 +124,21 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		IsActive:     pgtype.Bool{Bool: false, Valid: true},
 	})
 	if err != nil {
-
-		router.RespondWithError(w, http.StatusInternalServerError, "Error creating the user: "+err.Error())
+		router.RespondWithError(w, http.StatusConflict, "Username-ul sau adresa de email este deja folosita")
 		return
 	}
+	if req.RequestOrganizerRole {
+		if err := qtx.CreatePendingOrganizerProfile(ctx, db.CreatePendingOrganizerProfileParams{
+			UserID:      user.ID,
+			Cui:         organizerCUI,
+			CompanyName: organizerCompanyName,
+		}); err != nil {
+			router.RespondWithError(w, http.StatusConflict, "CUI-ul este deja asociat unui alt cont de organizator")
+			return
+		}
+	}
 
-	_, err = h.Queries.InsertUserToken(ctx, db.InsertUserTokenParams{
+	_, err = qtx.InsertUserToken(ctx, db.InsertUserTokenParams{
 		UserID:    user.ID,
 		TokenHash: hashedToken,
 		Type:      "activation",
@@ -116,6 +149,10 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la salvarea token-ului")
+		return
+	}
+	if err := tx.Commit(ctx); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Contul nu a putut fi salvat")
 		return
 	}
 

@@ -51,7 +51,7 @@ func Lookup(ctx context.Context, cuiRaw string, _ string) (*CompanyInfo, error) 
 		return nil, fmt.Errorf("failed to create ICA request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "GlowOnboardingBackend/1.0")
+	req.Header.Set("User-Agent", "SpottrOnboardingBackend/1.0")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)

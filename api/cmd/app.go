@@ -114,7 +114,7 @@ func (app *Application) BuildRouter() http.Handler {
 	)
 
 	// 1. Instanțiem modulele din internal cu dependențele necesare
-	authHandler := auth.NewHandler(app.Queries, mailerService)
+	authHandler := auth.NewHandler(app.Queries, app.Pool, mailerService)
 	authHandler.ConfigureGoogleOAuth(auth.GoogleOAuthConfig{
 		ClientID:        os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
 		ClientSecret:    os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
@@ -183,6 +183,8 @@ func (app *Application) BuildRouter() http.Handler {
 		ListHiddenCategories:     usersHandler.HandleListHiddenCategories,
 		HideEventCategory:        usersHandler.HandleHideCategory,
 		ShowEventCategory:        usersHandler.HandleShowCategory,
+		ListOrganizerVerifications: organizerHandler.HandleAdminListOrganizerVerifications,
+		ReviewOrganizerVerification: organizerHandler.HandleAdminReviewOrganizerVerification,
 
 		// Events
 		CreateEvent:                eventsHandler.HandleCreateEvent,
@@ -207,6 +209,7 @@ func (app *Application) BuildRouter() http.Handler {
 		CreateStripeAccountLink:    stripeConnectHandler.HandleCreateAccountLink,
 		GetStripeAccountStatus:     stripeConnectHandler.HandleGetAccountStatus,
 		CreateStripeLoginLink:      stripeConnectHandler.HandleCreateDashboardLoginLink,
+		DisconnectStripeAccount:    stripeConnectHandler.HandleDisconnectAccount,
 		GetEventSocial:             interactionsHandler.HandleGetEventSocial,
 		UpdateEventRsvp:            interactionsHandler.HandleUpdateEventRsvp,
 		DeleteEventRsvp:            interactionsHandler.HandleDeleteEventRsvp,

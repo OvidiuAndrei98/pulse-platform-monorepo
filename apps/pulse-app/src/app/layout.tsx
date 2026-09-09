@@ -57,7 +57,6 @@ export default function RootLayout({
           <I18nProvider>
             <DataProvider>
               <EventDetailsProvider>{children}</EventDetailsProvider>
-              <ToastProvider />
               <BottomNavGate />
               <OfflineScannerServiceWorker />
               <NativeAppBridge />
@@ -65,6 +64,7 @@ export default function RootLayout({
             </DataProvider>
           </I18nProvider>
         </div>
+        <ToastProvider />
       </body>
     </html>
   );

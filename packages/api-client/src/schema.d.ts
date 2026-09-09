@@ -4,6 +4,38 @@
  */
 
 export interface paths {
+    "/admin/organizers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminOperations_listOrganizerVerifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/organizers/{id}/verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["AdminOperations_reviewOrganizerVerification"];
+        trace?: never;
+    };
     "/auth/forgot-password": {
         parameters: {
             query?: never;
@@ -365,6 +397,23 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/stripe/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Inchide si deconecteaza contul Stripe Express al organizatorului curent */
+        delete: operations["DashboardOperations_disconnectStripeAccount"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1489,6 +1538,22 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
+        OrganizerVerificationRequest: {
+            userId: string;
+            username: string;
+            email: string;
+            cui: string;
+            companyName: string;
+            fiscalAddress?: string;
+            /** @enum {string} */
+            verificationStatus: "pending" | "approved" | "rejected";
+            /** Format: date-time */
+            submittedAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            verifiedAt?: string;
+        };
         PasswordResetPayload: {
             token: string;
             newPassword: string;
@@ -1591,6 +1656,10 @@ export interface components {
             eventCount: number;
             /** Format: int64 */
             ticketsSoldCount: number;
+        };
+        ReviewOrganizerVerificationPayload: {
+            /** @enum {string} */
+            status: "approved" | "rejected";
         };
         ScannerAccessResponse: {
             id: string;
@@ -1766,6 +1835,8 @@ export interface components {
             email: string;
             password: string;
             requestOrganizerRole?: boolean;
+            companyName?: string;
+            cui?: string;
         };
         UserTicketResponse: {
             id: string;
@@ -1817,6 +1888,52 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    AdminOperations_listOrganizerVerifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizerVerificationRequest"][];
+                };
+            };
+        };
+    };
+    AdminOperations_reviewOrganizerVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewOrganizerVerificationPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizerProfile"];
+                };
+            };
+        };
+    };
     AuthOperations_forgotPassword: {
         parameters: {
             query?: never;
@@ -2460,6 +2577,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PromotionPlanResponse"][];
                 };
+            };
+        };
+    };
+    DashboardOperations_disconnectStripeAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
