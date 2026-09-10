@@ -7,5 +7,7 @@ func IsVerified(profile db.OrganizerProfiles) bool {
 }
 
 func CanSellTickets(profile db.OrganizerProfiles) bool {
-	return IsVerified(profile) && profile.StripeChargesEnabled && profile.StripePayoutsEnabled
+	return IsVerified(profile) &&
+		profile.StripeChargeType.Valid && profile.StripeChargeType.String == "direct" &&
+		profile.StripeChargesEnabled && profile.StripePayoutsEnabled
 }

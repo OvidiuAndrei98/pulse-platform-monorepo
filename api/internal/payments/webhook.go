@@ -48,6 +48,11 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "Invalid webhook signature", http.StatusBadRequest)
 		return
 	}
+	if h.checkout != nil && !h.checkout.acceptsStripeLiveMode(event.Livemode) {
+		log.Printf("Stripe webhook ignored because its mode does not match the configured API key: id=%s livemode=%t", event.ID, event.Livemode)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 
 	switch string(event.Type) {
 	case "checkout.session.completed":
@@ -77,7 +82,8 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 			log.Printf("Stripe promotion fulfilled: session=%s campaign=%s", session.ID, campaignID)
 			break
 		}
-		if err := h.checkout.FulfillCheckout(r.Context(), session.ID, paymentIntentID, session.Metadata["pulse_order_id"]); err != nil {
+		orderID := firstStripeMetadata(session.Metadata, "spottr_order_id", "pulse_order_id")
+		if err := h.checkout.FulfillCheckout(r.Context(), session.ID, paymentIntentID, orderID, "", event.Livemode); err != nil {
 			log.Printf("Stripe checkout fulfillment failed: session=%s err=%v", session.ID, err)
 			http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
 			return
@@ -96,7 +102,8 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 			if h.checkout == nil {
 				break
 			}
-			if err := h.checkout.FailCheckout(r.Context(), session.Metadata["pulse_order_id"], ""); err != nil {
+			orderID := firstStripeMetadata(session.Metadata, "spottr_order_id", "pulse_order_id")
+			if err := h.checkout.FailCheckout(r.Context(), orderID, "", ""); err != nil {
 				log.Printf("Stripe checkout release failed: session=%s err=%v", session.ID, err)
 				http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
 				return
@@ -116,7 +123,8 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 			if h.checkout == nil {
 				break
 			}
-			if err := h.checkout.FailCheckout(r.Context(), paymentIntent.Metadata["pulse_order_id"], paymentIntent.ID); err != nil {
+			orderID := firstStripeMetadata(paymentIntent.Metadata, "spottr_order_id", "pulse_order_id")
+			if err := h.checkout.FailCheckout(r.Context(), orderID, paymentIntent.ID, ""); err != nil {
 				log.Printf("Stripe payment failure release failed: payment_intent=%s err=%v", paymentIntent.ID, err)
 				http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
 				return
@@ -128,4 +136,13 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func firstStripeMetadata(metadata map[string]string, keys ...string) string {
+	for _, key := range keys {
+		if value := metadata[key]; value != "" {
+			return value
+		}
+	}
+	return ""
 }

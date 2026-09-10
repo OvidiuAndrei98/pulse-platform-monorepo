@@ -36,13 +36,15 @@ const (
 )
 
 type CheckoutHandler struct {
-	queries    *db.Queries
-	db         *pgxpool.Pool
-	client     *stripe.Client
-	appURL     string
-	mailer     *email.Mailer
-	invoicing  *invoicing.Service
-	configured bool
+	queries               *db.Queries
+	db                    *pgxpool.Pool
+	client                *stripe.Client
+	appURL                string
+	mailer                *email.Mailer
+	invoicing             *invoicing.Service
+	configured            bool
+	expectedLiveMode      bool
+	expectedLiveModeKnown bool
 }
 
 type CheckoutItemRequest struct {
@@ -85,15 +87,34 @@ func NewCheckoutHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, a
 		appURL = "http://localhost:3000"
 	}
 
+	expectedLiveMode, expectedLiveModeKnown := stripeSecretLiveMode(stripeSecret)
 	return &CheckoutHandler{
-		queries:    queries,
-		db:         pool,
-		client:     stripe.NewClient(stripeSecret),
-		appURL:     strings.TrimRight(appURL, "/"),
-		mailer:     mailer,
-		invoicing:  invoicingService,
-		configured: stripeSecret != "",
+		queries:               queries,
+		db:                    pool,
+		client:                stripe.NewClient(stripeSecret),
+		appURL:                strings.TrimRight(appURL, "/"),
+		mailer:                mailer,
+		invoicing:             invoicingService,
+		configured:            stripeSecret != "",
+		expectedLiveMode:      expectedLiveMode,
+		expectedLiveModeKnown: expectedLiveModeKnown,
 	}
+}
+
+func stripeSecretLiveMode(secret string) (bool, bool) {
+	secret = strings.TrimSpace(secret)
+	switch {
+	case strings.HasPrefix(secret, "sk_live_"), strings.HasPrefix(secret, "rk_live_"):
+		return true, true
+	case strings.HasPrefix(secret, "sk_test_"), strings.HasPrefix(secret, "rk_test_"):
+		return false, true
+	default:
+		return false, false
+	}
+}
+
+func (h *CheckoutHandler) acceptsStripeLiveMode(liveMode bool) bool {
+	return h == nil || !h.expectedLiveModeKnown || h.expectedLiveMode == liveMode
 }
 
 type checkoutRequestError struct {
@@ -164,23 +185,20 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 		ExpiresAt:          stripe.Int64(time.Now().Add(checkoutExpiration).Unix()),
 		PaymentMethodTypes: []*string{stripe.String("card")},
 		Metadata: map[string]string{
-			"pulse_order_id": common.UUIDToString(order.ID),
-			"pulse_event_id": eventIDString,
+			"spottr_order_id": common.UUIDToString(order.ID),
+			"spottr_event_id": eventIDString,
 		},
 		PaymentIntentData: &stripe.CheckoutSessionCreatePaymentIntentDataParams{
 			ApplicationFeeAmount: stripe.Int64(int64(order.PlatformFeeBani)),
-			OnBehalfOf:           stripe.String(organizerStripeAccount),
 			ReceiptEmail:         stripe.String(req.Email),
-			TransferData: &stripe.CheckoutSessionCreatePaymentIntentDataTransferDataParams{
-				Destination: stripe.String(organizerStripeAccount),
-			},
 			Metadata: map[string]string{
-				"pulse_order_id": common.UUIDToString(order.ID),
-				"pulse_event_id": eventIDString,
+				"spottr_order_id": common.UUIDToString(order.ID),
+				"spottr_event_id": eventIDString,
 			},
 		},
 	}
 	params.SetIdempotencyKey("pulse-checkout-" + common.UUIDToString(order.ID))
+	params.SetStripeAccount(organizerStripeAccount)
 
 	for _, item := range checkoutItems {
 		params.LineItems = append(params.LineItems, &stripe.CheckoutSessionCreateLineItemParams{
@@ -199,9 +217,9 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 			Quantity: stripe.Int64(1),
 			PriceData: &stripe.CheckoutSessionCreateLineItemPriceDataParams{
 				Currency:   stripe.String("ron"),
-				UnitAmount: stripe.Int64(int64(order.PlatformFeeBani)),
+				UnitAmount: stripe.Int64(int64(order.CustomerTicketingFeeBani)),
 				ProductData: &stripe.CheckoutSessionCreateLineItemPriceDataProductDataParams{
-					Name: stripe.String("Taxa de servicii Spottr"),
+					Name: stripe.String("Taxă de ticketing și procesare"),
 				},
 			},
 		})
@@ -209,7 +227,7 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 
 	session, err := h.client.V1CheckoutSessions.Create(r.Context(), params)
 	if err != nil {
-		_ = h.failOrder(r.Context(), order.ID, "")
+		_ = h.failOrder(r.Context(), order.ID, "", organizerStripeAccount)
 		if isStripeAccountMissing(err) {
 			if _, clearErr := h.queries.ClearOrganizerStripeAccount(r.Context(), pgtype.Text{String: organizerStripeAccount, Valid: true}); clearErr != nil && !errors.Is(clearErr, pgx.ErrNoRows) {
 				log.Printf("Stripe account cleanup failed after checkout destination disappeared: account=%s err=%v", organizerStripeAccount, clearErr)
@@ -224,6 +242,7 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	if err := h.queries.UpdateOrderCheckoutSession(r.Context(), db.UpdateOrderCheckoutSessionParams{
 		ID:                      order.ID,
 		StripeCheckoutSessionID: pgtype.Text{String: session.ID, Valid: true},
+		StripeLivemode:          session.Livemode,
 	}); err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Sesiunea de plata nu a putut fi salvata")
 		return
@@ -364,6 +383,10 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	if event.OrganizerAbsorbsServiceFee && platformFeeBani >= totalAmount*100 {
 		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusBadRequest, message: "Valoarea biletelor trebuie sa depaseasca comisionul platformei"}
 	}
+	customerTicketingFeeBani := int64(0)
+	if !event.OrganizerAbsorbsServiceFee {
+		customerTicketingFeeBani = platformFeeBani
+	}
 
 	for _, item := range items {
 		if err := qtx.IncrementTicketsSold(ctx, db.IncrementTicketsSoldParams{
@@ -380,6 +403,7 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 		Email:                     email,
 		TotalAmount:               int32(totalAmount),
 		PlatformFeeBani:           int32(platformFeeBani),
+		CustomerTicketingFeeBani:  int32(customerTicketingFeeBani),
 		Status:                    db.OrderStatusPending,
 		PromoCodeID:               promoCodeID,
 		DiscountAmountRon:         int32(originalAmount - totalAmount),
@@ -393,6 +417,8 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 		BillingCounty:             billing.County,
 		BillingSector:             billing.Sector,
 		BillingCountry:            billing.Country,
+		StripeConnectedAccountID:  pgtype.Text{String: profile.StripeAccountID.String, Valid: true},
+		StripeChargeType:          pgtype.Text{String: directChargeType, Valid: true},
 	})
 	if err != nil {
 		return db.Orders{}, nil, "", "", "", false, err
@@ -421,7 +447,7 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	return order, items, event.Title, common.UUIDToString(eventID), profile.StripeAccountID.String, event.OrganizerAbsorbsServiceFee, nil
 }
 
-func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymentIntentID, orderID string) error {
+func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymentIntentID, orderID, connectedAccountID string, liveMode bool) error {
 	var parsedOrderID pgtype.UUID
 	if err := parsedOrderID.Scan(orderID); err != nil || !parsedOrderID.Valid {
 		return nil
@@ -436,6 +462,18 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 	qtx := h.queries.WithTx(tx)
 	order, err := qtx.GetOrderForUpdate(ctx, parsedOrderID)
 	if err != nil {
+		return err
+	}
+	if !stripeOrderContextMatches(order, connectedAccountID) {
+		return errors.New("contextul contului Stripe nu corespunde comenzii")
+	}
+	if order.StripeLivemode.Valid && order.StripeLivemode.Bool != liveMode {
+		return errors.New("mediul Stripe din webhook nu corespunde comenzii")
+	}
+	if err := qtx.SetOrderStripeLivemode(ctx, db.SetOrderStripeLivemodeParams{
+		ID:             order.ID,
+		StripeLivemode: liveMode,
+	}); err != nil {
 		return err
 	}
 	if order.Status == db.OrderStatusCompleted {
@@ -535,15 +573,15 @@ func (h *CheckoutHandler) deliverTicketConfirmation(orderID pgtype.UUID) error {
 	return nil
 }
 
-func (h *CheckoutHandler) FailCheckout(ctx context.Context, orderID, paymentIntentID string) error {
+func (h *CheckoutHandler) FailCheckout(ctx context.Context, orderID, paymentIntentID, connectedAccountID string) error {
 	var parsedOrderID pgtype.UUID
 	if err := parsedOrderID.Scan(orderID); err != nil || !parsedOrderID.Valid {
 		return nil
 	}
-	return h.failOrder(ctx, parsedOrderID, paymentIntentID)
+	return h.failOrder(ctx, parsedOrderID, paymentIntentID, connectedAccountID)
 }
 
-func (h *CheckoutHandler) failOrder(ctx context.Context, orderID pgtype.UUID, paymentIntentID string) error {
+func (h *CheckoutHandler) failOrder(ctx context.Context, orderID pgtype.UUID, paymentIntentID, connectedAccountID string) error {
 	tx, err := h.db.Begin(ctx)
 	if err != nil {
 		return err
@@ -554,6 +592,9 @@ func (h *CheckoutHandler) failOrder(ctx context.Context, orderID pgtype.UUID, pa
 	order, err := qtx.GetOrderForUpdate(ctx, orderID)
 	if err != nil {
 		return err
+	}
+	if !stripeOrderContextMatches(order, connectedAccountID) {
+		return errors.New("contextul contului Stripe nu corespunde comenzii")
 	}
 	if order.Status != db.OrderStatusPending {
 		return tx.Commit(ctx)
@@ -586,6 +627,18 @@ func (h *CheckoutHandler) failOrder(ctx context.Context, orderID pgtype.UUID, pa
 	}
 
 	return tx.Commit(ctx)
+}
+
+func stripeOrderContextMatches(order db.Orders, connectedAccountID string) bool {
+	if order.StripeChargeType.Valid && order.StripeChargeType.String == directChargeType {
+		return order.StripeConnectedAccountID.Valid &&
+			order.StripeConnectedAccountID.String != "" &&
+			order.StripeConnectedAccountID.String == connectedAccountID
+	}
+
+	// Destination charges and legacy orders emit platform-scoped events. Never
+	// allow such an event to fulfill a direct-charge order, or vice versa.
+	return connectedAccountID == ""
 }
 
 func parseCheckoutItems(w http.ResponseWriter, requested []CheckoutItemRequest) (map[string]int32, int32, bool) {

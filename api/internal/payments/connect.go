@@ -29,6 +29,8 @@ type ConnectAccountLinkResponse struct {
 	URL string `json:"url"`
 }
 
+const directChargeType = "direct"
+
 func NewConnectHandler(queries *db.Queries, stripeSecret, appURL, country string) *ConnectHandler {
 	if appURL == "" {
 		appURL = "http://localhost:3000"
@@ -52,6 +54,17 @@ func (h *ConnectHandler) HandleCreateAccountLink(w http.ResponseWriter, r *http.
 	}
 
 	stripeAccountID := profile.StripeAccountID.String
+	if profile.StripeAccountID.Valid && (!profile.StripeChargeType.Valid || profile.StripeChargeType.String != directChargeType) {
+		legacyAccountID := profile.StripeAccountID.String
+		var err error
+		profile, err = h.clearStripeAccount(r.Context(), legacyAccountID)
+		if err != nil {
+			router.RespondWithError(w, http.StatusInternalServerError, "Legatura cu vechiul cont Stripe nu a putut fi resetata")
+			return
+		}
+		stripeAccountID = ""
+		log.Printf("Legacy Stripe account detached during direct-charge migration: account=%s organizer=%s", legacyAccountID, organizerIDString(userID))
+	}
 	if profile.StripeAccountID.Valid {
 		account, err := h.client.V1Accounts.GetByID(r.Context(), stripeAccountID, nil)
 		if err != nil {
@@ -83,7 +96,6 @@ func (h *ConnectHandler) HandleCreateAccountLink(w http.ResponseWriter, r *http.
 		}
 
 		account, err := h.client.V1Accounts.Create(r.Context(), &stripe.AccountCreateParams{
-			Type:            stripe.String("express"),
 			Country:         stripe.String(h.country),
 			DefaultCurrency: stripe.String("ron"),
 			BusinessType:    stripe.String("company"),
@@ -98,8 +110,21 @@ func (h *ConnectHandler) HandleCreateAccountLink(w http.ResponseWriter, r *http.
 				CardPayments: &stripe.AccountCreateCapabilitiesCardPaymentsParams{Requested: stripe.Bool(true)},
 				Transfers:    &stripe.AccountCreateCapabilitiesTransfersParams{Requested: stripe.Bool(true)},
 			},
+			Controller: &stripe.AccountCreateControllerParams{
+				Fees: &stripe.AccountCreateControllerFeesParams{
+					Payer: stripe.String("account"),
+				},
+				Losses: &stripe.AccountCreateControllerLossesParams{
+					Payments: stripe.String("stripe"),
+				},
+				RequirementCollection: stripe.String("stripe"),
+				StripeDashboard: &stripe.AccountCreateControllerStripeDashboardParams{
+					Type: stripe.String("full"),
+				},
+			},
 			Metadata: map[string]string{
 				"spottr_organizer_id": organizerIDString(userID),
+				"spottr_charge_type":  directChargeType,
 			},
 		})
 		if err != nil {
@@ -114,6 +139,7 @@ func (h *ConnectHandler) HandleCreateAccountLink(w http.ResponseWriter, r *http.
 			StripeChargesEnabled:   account.ChargesEnabled,
 			StripePayoutsEnabled:   account.PayoutsEnabled,
 			StripeDetailsSubmitted: account.DetailsSubmitted,
+			StripeChargeType:       pgtype.Text{String: directChargeType, Valid: true},
 		})
 		if err != nil {
 			router.RespondWithError(w, http.StatusInternalServerError, "Contul Stripe nu a putut fi asociat organizatorului")
@@ -149,6 +175,18 @@ func (h *ConnectHandler) HandleGetAccountStatus(w http.ResponseWriter, r *http.R
 	}
 
 	if !profile.StripeAccountID.Valid {
+		router.RespondWithJSON(w, http.StatusOK, organizer.MapOrganizerProfile(profile))
+		return
+	}
+	if !profile.StripeChargeType.Valid || profile.StripeChargeType.String != directChargeType {
+		legacyAccountID := profile.StripeAccountID.String
+		var err error
+		profile, err = h.clearStripeAccount(r.Context(), legacyAccountID)
+		if err != nil {
+			router.RespondWithError(w, http.StatusInternalServerError, "Legatura cu vechiul cont Stripe nu a putut fi resetata")
+			return
+		}
+		log.Printf("Legacy Stripe account detached during status refresh: account=%s", legacyAccountID)
 		router.RespondWithJSON(w, http.StatusOK, organizer.MapOrganizerProfile(profile))
 		return
 	}
@@ -191,40 +229,26 @@ func (h *ConnectHandler) HandleGetAccountStatus(w http.ResponseWriter, r *http.R
 	router.RespondWithJSON(w, http.StatusOK, organizer.MapOrganizerProfile(profile))
 }
 
-// HandleCreateDashboardLoginLink creates a short-lived, single-use Stripe Express
-// Dashboard link for the currently authenticated organizer.
+// HandleCreateDashboardLoginLink opens Stripe's full Dashboard. Direct-charge
+// organizers own their Stripe account and authenticate with Stripe directly;
+// unlike Express accounts, full-Dashboard accounts don't use login links.
 func (h *ConnectHandler) HandleCreateDashboardLoginLink(w http.ResponseWriter, r *http.Request) {
 	_, profile, ok := h.getOrganizerProfile(w, r)
 	if !ok {
 		return
 	}
 
-	if !profile.StripeAccountID.Valid || profile.StripeAccountID.String == "" {
+	if !profile.StripeAccountID.Valid || profile.StripeAccountID.String == "" || !profile.StripeChargeType.Valid || profile.StripeChargeType.String != directChargeType {
 		router.RespondWithError(w, http.StatusConflict, "Conecteaza mai intai contul Stripe")
 		return
 	}
 
-	link, err := h.client.V1LoginLinks.Create(r.Context(), &stripe.LoginLinkCreateParams{
-		Account: stripe.String(profile.StripeAccountID.String),
-	})
-	if err != nil {
-		if isStripeAccountMissing(err) {
-			if _, clearErr := h.clearStripeAccount(r.Context(), profile.StripeAccountID.String); clearErr != nil && !errors.Is(clearErr, pgx.ErrNoRows) {
-				log.Printf("Stripe account cleanup failed after missing login account: account=%s err=%v", profile.StripeAccountID.String, clearErr)
-			}
-			router.RespondWithError(w, http.StatusConflict, "Contul Stripe a fost inchis. Conecteaza un cont nou")
-			return
-		}
-		router.RespondWithError(w, http.StatusBadGateway, "Dashboardul Stripe nu a putut fi deschis")
-		return
-	}
-
-	router.RespondWithJSON(w, http.StatusOK, ConnectAccountLinkResponse{URL: link.URL})
+	router.RespondWithJSON(w, http.StatusOK, ConnectAccountLinkResponse{URL: "https://dashboard.stripe.com/"})
 }
 
-// HandleDisconnectAccount closes the Express account managed by Spottr and only
-// removes the local association after Stripe confirms the deletion. Stripe can
-// reject live account deletion while the account still has a non-zero balance.
+// HandleDisconnectAccount asks Stripe to close the connected account and only
+// removes the local association after Stripe confirms the operation. Stripe can
+// reject deletion while the account still has a balance, payments, or disputes.
 func (h *ConnectHandler) HandleDisconnectAccount(w http.ResponseWriter, r *http.Request) {
 	_, profile, ok := h.getOrganizerProfile(w, r)
 	if !ok {

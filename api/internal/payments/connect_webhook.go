@@ -18,10 +18,11 @@ import (
 type ConnectWebhookHandler struct {
 	queries       *db.Queries
 	webhookSecret string
+	checkout      *CheckoutHandler
 }
 
-func NewConnectWebhookHandler(queries *db.Queries, webhookSecret string) *ConnectWebhookHandler {
-	return &ConnectWebhookHandler{queries: queries, webhookSecret: webhookSecret}
+func NewConnectWebhookHandler(queries *db.Queries, webhookSecret string, checkout *CheckoutHandler) *ConnectWebhookHandler {
+	return &ConnectWebhookHandler{queries: queries, webhookSecret: webhookSecret, checkout: checkout}
 }
 
 func (h *ConnectWebhookHandler) HandleStripeConnectWebhook(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +38,6 @@ func (h *ConnectWebhookHandler) HandleStripeConnectWebhook(w http.ResponseWriter
 		http.Error(w, "Invalid webhook payload", http.StatusBadRequest)
 		return
 	}
-
 	event, err := webhook.ConstructEventWithOptions(
 		payload,
 		r.Header.Get("Stripe-Signature"),
@@ -47,6 +47,21 @@ func (h *ConnectWebhookHandler) HandleStripeConnectWebhook(w http.ResponseWriter
 	if err != nil {
 		log.Printf("Stripe Connect webhook signature verification failed: %v", err)
 		http.Error(w, "Invalid webhook signature", http.StatusBadRequest)
+		return
+	}
+	if h.checkout != nil && !h.checkout.acceptsStripeLiveMode(event.Livemode) {
+		log.Printf("Stripe Connect webhook ignored because its mode does not match the configured API key: id=%s livemode=%t", event.ID, event.Livemode)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if handled, processingErr := h.handleDirectChargeEvent(r, event); handled {
+		if processingErr != nil {
+			log.Printf("Stripe direct-charge webhook processing failed: id=%s account=%s err=%v", event.ID, event.Account, processingErr)
+			http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 
@@ -106,4 +121,64 @@ func (h *ConnectWebhookHandler) HandleStripeConnectWebhook(w http.ResponseWriter
 
 	log.Printf("Stripe Connect account updated: account=%s charges_enabled=%t payouts_enabled=%t", account.ID, account.ChargesEnabled, account.PayoutsEnabled)
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *ConnectWebhookHandler) handleDirectChargeEvent(r *http.Request, event stripe.Event) (bool, error) {
+	switch string(event.Type) {
+	case "checkout.session.completed":
+		var session stripe.CheckoutSession
+		if event.Data == nil || json.Unmarshal(event.Data.Raw, &session) != nil {
+			return true, errors.New("invalid Checkout Session")
+		}
+		orderID := firstStripeMetadata(session.Metadata, "spottr_order_id", "pulse_order_id")
+		if orderID == "" {
+			return false, nil
+		}
+		if h.checkout == nil || event.Account == "" {
+			return true, errors.New("direct checkout handler or connected account is missing")
+		}
+		if session.PaymentStatus != stripe.CheckoutSessionPaymentStatusPaid {
+			log.Printf("Stripe direct checkout is not paid yet: session=%s account=%s status=%s", session.ID, event.Account, session.PaymentStatus)
+			return true, nil
+		}
+		paymentIntentID := ""
+		if session.PaymentIntent != nil {
+			paymentIntentID = session.PaymentIntent.ID
+		}
+		if err := h.checkout.FulfillCheckout(r.Context(), session.ID, paymentIntentID, orderID, event.Account, event.Livemode); err != nil {
+			return true, err
+		}
+		log.Printf("Stripe direct checkout fulfilled: session=%s account=%s", session.ID, event.Account)
+		return true, nil
+
+	case "checkout.session.expired":
+		var session stripe.CheckoutSession
+		if event.Data == nil || json.Unmarshal(event.Data.Raw, &session) != nil {
+			return true, errors.New("invalid expired Checkout Session")
+		}
+		orderID := firstStripeMetadata(session.Metadata, "spottr_order_id", "pulse_order_id")
+		if orderID == "" {
+			return false, nil
+		}
+		if h.checkout == nil || event.Account == "" {
+			return true, errors.New("direct checkout handler or connected account is missing")
+		}
+		return true, h.checkout.FailCheckout(r.Context(), orderID, "", event.Account)
+
+	case "payment_intent.payment_failed":
+		var paymentIntent stripe.PaymentIntent
+		if event.Data == nil || json.Unmarshal(event.Data.Raw, &paymentIntent) != nil {
+			return true, errors.New("invalid failed PaymentIntent")
+		}
+		orderID := firstStripeMetadata(paymentIntent.Metadata, "spottr_order_id", "pulse_order_id")
+		if orderID == "" {
+			return false, nil
+		}
+		if h.checkout == nil || event.Account == "" {
+			return true, errors.New("direct checkout handler or connected account is missing")
+		}
+		return true, h.checkout.FailCheckout(r.Context(), orderID, paymentIntent.ID, event.Account)
+	default:
+		return false, nil
+	}
 }

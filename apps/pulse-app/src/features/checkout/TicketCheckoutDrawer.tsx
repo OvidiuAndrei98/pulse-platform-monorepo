@@ -149,7 +149,7 @@ export function TicketCheckoutDrawer({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => !isCheckingOut && onClose()}
-            className="fixed inset-0 z-[230] bg-black/75 backdrop-blur-sm"
+            className="pointer-events-auto fixed inset-0 z-[230] bg-black/75 backdrop-blur-sm"
           />
           <motion.aside
             ref={panelRef}
@@ -160,7 +160,7 @@ export function TicketCheckoutDrawer({
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 34 }}
-            className="fixed right-0 top-0 z-[231] flex h-[100dvh] w-full max-w-lg flex-col overflow-hidden border-l border-white/10 bg-[#080909] text-foreground shadow-2xl"
+            className="pointer-events-auto fixed right-0 top-0 z-[231] flex h-[100dvh] w-full max-w-lg flex-col overflow-hidden border-l border-white/10 bg-[#080909] text-foreground shadow-2xl"
           >
             <header className="flex shrink-0 items-center gap-3 border-b border-white/10 px-4 pb-4 pt-[max(1rem,calc(var(--native-safe-top)+0.75rem))] sm:px-5">
               <button
@@ -191,7 +191,7 @@ export function TicketCheckoutDrawer({
               </button>
             </header>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-5">
+            <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 py-5 [-webkit-overflow-scrolling:touch] sm:px-5">
               <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
                 <h3 className="text-sm font-semibold">{t("checkout.orderSummary")}</h3>
                 <div className="mt-3 space-y-2.5 border-b border-white/10 pb-4">
@@ -227,7 +227,9 @@ export function TicketCheckoutDrawer({
                     />
                   )}
                   <PriceRow
-                    label={event.organizerAbsorbsServiceFee ? t("checkout.organizerFee") : t("checkout.serviceFee")}
+                    label={event.organizerAbsorbsServiceFee
+                      ? t("checkout.ticketingProcessingFeeCoveredByOrganizer")
+                      : t("checkout.ticketingProcessingFee")}
                     value={event.organizerAbsorbsServiceFee ? "0 RON" : formatRon(serviceFee)}
                   />
                   <div className="flex items-center justify-between border-t border-white/10 pt-3 text-base font-bold">

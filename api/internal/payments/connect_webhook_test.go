@@ -19,7 +19,7 @@ func TestConnectWebhookAcceptsSignedUnhandledEvent(t *testing.T) {
 	req.Header.Set("Stripe-Signature", signedPayload.Header)
 	response := httptest.NewRecorder()
 
-	NewConnectWebhookHandler(nil, secret).HandleStripeConnectWebhook(response, req)
+	NewConnectWebhookHandler(nil, secret, nil).HandleStripeConnectWebhook(response, req)
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, response.Code)

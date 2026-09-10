@@ -22,6 +22,7 @@ func TestOrganizerEligibility(t *testing.T) {
 
 	profile.StripeChargesEnabled = true
 	profile.StripePayoutsEnabled = true
+	profile.StripeChargeType = pgtype.Text{String: "direct", Valid: true}
 	if !CanSellTickets(profile) {
 		t.Fatal("expected verified organizer with Stripe enabled to sell tickets")
 	}

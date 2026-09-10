@@ -420,6 +420,31 @@ func (s *Service) processPlatformInvoice(ctx context.Context, job db.PlatformCom
 		fail(errors.New("operatorul de facturare SPOTTR a fost schimbat"), true)
 		return
 	}
+	liveTotals, err := s.queries.GetPlatformCommissionInvoiceLiveTotals(ctx, db.GetPlatformCommissionInvoiceLiveTotalsParams{
+		OrganizerID: data.OrganizerID,
+		PeriodStart: data.PeriodStart,
+		PeriodEnd:   data.PeriodEnd,
+	})
+	if err != nil {
+		fail(fmt.Errorf("revalidate SPOTTR monthly invoice against live Stripe orders: %w", err), false)
+		return
+	}
+	if liveTotals.TransactionCount <= 0 || liveTotals.TotalFeeBani <= 0 {
+		fail(errors.New("factura SPOTTR nu mai are tranzactii Stripe live eligibile"), true)
+		return
+	}
+	if liveTotals.TransactionCount != data.TransactionCount || liveTotals.TotalFeeBani != data.TotalFeeBani {
+		if err := s.queries.UpdatePlatformCommissionInvoiceTotals(ctx, db.UpdatePlatformCommissionInvoiceTotalsParams{
+			ID:               data.ID,
+			TransactionCount: liveTotals.TransactionCount,
+			TotalFeeBani:     liveTotals.TotalFeeBani,
+		}); err != nil {
+			fail(fmt.Errorf("refresh SPOTTR monthly invoice totals: %w", err), false)
+			return
+		}
+		data.TransactionCount = liveTotals.TransactionCount
+		data.TotalFeeBani = liveTotals.TotalFeeBani
+	}
 	provider, ok := s.providers[data.Provider]
 	if !ok {
 		fail(errors.New("operator de facturare SPOTTR necunoscut"), true)
@@ -506,6 +531,10 @@ func (s *Service) processJob(ctx context.Context, job db.BillingInvoices) {
 		fail(fmt.Errorf("load invoice data: %w", err), errors.Is(err, pgx.ErrNoRows))
 		return
 	}
+	if !data.StripeLivemode.Valid || !data.StripeLivemode.Bool {
+		fail(errors.New("factura nu apartine unei plati Stripe live confirmate"), true)
+		return
+	}
 	if !data.IntegrationEnabled || data.ConfiguredProvider != data.Provider {
 		fail(errors.New("integrarea de facturare a fost dezactivata sau schimbata"), true)
 		return
@@ -533,7 +562,7 @@ func (s *Service) processJob(ctx context.Context, job db.BillingInvoices) {
 		fail(err, true)
 		return
 	}
-	invoiceItems := make([]InvoiceItem, 0, len(items))
+	invoiceItems := make([]InvoiceItem, 0, len(items)+1)
 	for _, item := range items {
 		invoiceItems = append(invoiceItems, InvoiceItem{
 			Name:      "Bilet " + data.EventTitle + " - " + item.TicketTypeName,
@@ -542,6 +571,8 @@ func (s *Service) processJob(ctx context.Context, job db.BillingInvoices) {
 			UnitPrice: float64(item.UnitPriceRon),
 		})
 	}
+	invoiceItems = appendCustomerTicketingFee(invoiceItems, data.CustomerTicketingFeeBani)
+	customerTotalRon := customerInvoiceTotalRon(data.TotalAmount, data.CustomerTicketingFeeBani)
 
 	requestContext, cancel := context.WithTimeout(ctx, 25*time.Second)
 	defer cancel()
@@ -563,7 +594,7 @@ func (s *Service) processJob(ctx context.Context, job db.BillingInvoices) {
 		CustomerVATPayer:  strings.HasPrefix(strings.ToUpper(strings.TrimSpace(data.BillingTaxID)), "RO"),
 		VATPayerKnown:     data.BillingType != "company" || strings.HasPrefix(strings.ToUpper(strings.TrimSpace(data.BillingTaxID)), "RO"),
 		EventTitle:        data.EventTitle,
-		Total:             float64(data.TotalAmount),
+		Total:             customerTotalRon,
 		Items:             invoiceItems,
 		AccountEmail:      data.AccountEmail,
 		APIToken:          string(apiToken),
@@ -588,6 +619,22 @@ func (s *Service) processJob(ctx context.Context, job db.BillingInvoices) {
 	}); err != nil {
 		log.Printf("issued invoice could not be persisted: invoice=%s provider=%s series=%s number=%s err=%v", common.UUIDToString(job.ID), data.Provider, result.Series, result.Number, err)
 	}
+}
+
+func appendCustomerTicketingFee(items []InvoiceItem, feeBani int32) []InvoiceItem {
+	if feeBani <= 0 {
+		return items
+	}
+	return append(items, InvoiceItem{
+		Name:      "Taxă de ticketing și procesare",
+		Code:      "SPOTTR-TICKETING-PROCESSING",
+		Quantity:  1,
+		UnitPrice: float64(feeBani) / 100,
+	})
+}
+
+func customerInvoiceTotalRon(ticketTotalRon, customerTicketingFeeBani int32) float64 {
+	return float64(ticketTotalRon) + float64(customerTicketingFeeBani)/100
 }
 
 func credentialContext(organizerID pgtype.UUID, provider string) string {

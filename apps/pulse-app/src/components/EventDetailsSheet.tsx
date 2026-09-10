@@ -478,8 +478,10 @@ export function EventDetailsSheet({
     return (
       <>
         <Drawer
-          open={Boolean(activeEvent)}
-          onOpenChange={(open) => !open && handleClose()}
+          open={Boolean(activeEvent) && !checkoutOpen}
+          onOpenChange={(open) => !open && !checkoutOpen && handleClose()}
+          modal={!checkoutOpen}
+          dismissible={!checkoutOpen}
           shouldScaleBackground={false}
           closeThreshold={0.35}
           fixed

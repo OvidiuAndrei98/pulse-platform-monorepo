@@ -50,14 +50,16 @@ RETURNING *;
 
 -- name: CreateCheckoutOrder :one
 INSERT INTO orders (
-    user_id, event_id, email, total_amount, platform_fee_bani, status,
+    user_id, event_id, email, total_amount, platform_fee_bani, customer_ticketing_fee_bani, status,
     promo_code_id, discount_amount_ron, invoice_requested, billing_type,
     billing_name, billing_tax_id, billing_registration_number, billing_address,
-    billing_city, billing_county, billing_sector, billing_country
+    billing_city, billing_county, billing_sector, billing_country,
+    stripe_connected_account_id, stripe_charge_type
 )
 VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-    $11, $12, $13, $14, $15, $16, $17, $18
+    $11, $12, $13, $14, $15, $16, $17, $18, $19,
+    $20, $21
 )
 RETURNING *;
 
@@ -88,7 +90,13 @@ ORDER BY e.start_time DESC;
 
 -- name: UpdateOrderCheckoutSession :exec
 UPDATE orders
-SET stripe_checkout_session_id = $2
+SET stripe_checkout_session_id = $2,
+    stripe_livemode = sqlc.arg(stripe_livemode)::BOOLEAN
+WHERE id = $1;
+
+-- name: SetOrderStripeLivemode :exec
+UPDATE orders
+SET stripe_livemode = sqlc.arg(stripe_livemode)::BOOLEAN
 WHERE id = $1;
 
 -- name: GetOrderForUpdate :one

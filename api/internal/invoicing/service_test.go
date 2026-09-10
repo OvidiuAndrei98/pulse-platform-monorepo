@@ -30,3 +30,29 @@ func TestPreviousCalendarMonthAcrossYearBoundary(t *testing.T) {
 		t.Fatalf("end = %s, want %s", got, want)
 	}
 }
+
+func TestCustomerInvoiceIncludesTicketingAndProcessingFee(t *testing.T) {
+	items := appendCustomerTicketingFee([]InvoiceItem{{Name: "Bilet", Quantity: 1, UnitPrice: 5}}, 270)
+
+	if len(items) != 2 {
+		t.Fatalf("invoice items = %d, want 2", len(items))
+	}
+	fee := items[1]
+	if fee.Name != "Taxă de ticketing și procesare" || fee.UnitPrice != 2.70 || fee.Quantity != 1 {
+		t.Fatalf("ticketing fee item = %#v", fee)
+	}
+	if got, want := customerInvoiceTotalRon(5, 270), 7.70; got != want {
+		t.Fatalf("invoice total = %.2f, want %.2f", got, want)
+	}
+}
+
+func TestCustomerInvoiceExcludesFeeCoveredByOrganizer(t *testing.T) {
+	items := appendCustomerTicketingFee([]InvoiceItem{{Name: "Bilet", Quantity: 1, UnitPrice: 5}}, 0)
+
+	if len(items) != 1 {
+		t.Fatalf("invoice items = %d, want 1", len(items))
+	}
+	if got, want := customerInvoiceTotalRon(5, 0), 5.0; got != want {
+		t.Fatalf("invoice total = %.2f, want %.2f", got, want)
+	}
+}

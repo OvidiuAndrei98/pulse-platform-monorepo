@@ -139,7 +139,7 @@ func (app *Application) BuildRouter() http.Handler {
 	stripeCheckoutHandler := payments.NewCheckoutHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), mailerService, app.Invoicing)
 	promotionHandler := promotions.NewHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"))
 	stripeWebhookHandler := payments.NewWebhookHandler(os.Getenv("STRIPE_WEBHOOK_SECRET"), stripeCheckoutHandler, promotionHandler)
-	stripeConnectWebhookHandler := payments.NewConnectWebhookHandler(app.Queries, os.Getenv("STRIPE_CONNECT_WEBHOOK_SECRET"))
+	stripeConnectWebhookHandler := payments.NewConnectWebhookHandler(app.Queries, os.Getenv("STRIPE_CONNECT_WEBHOOK_SECRET"), stripeCheckoutHandler)
 	stripeConnectHandler := payments.NewConnectHandler(
 		app.Queries,
 		os.Getenv("STRIPE_SECRET_KEY"),

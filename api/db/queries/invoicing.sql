@@ -35,6 +35,7 @@ JOIN events e ON e.id = o.event_id
 JOIN organizer_invoicing_settings settings ON settings.organizer_id = e.organizer_id
 WHERE o.id = $1
   AND o.status = 'completed'
+  AND o.stripe_livemode IS TRUE
   AND settings.enabled = TRUE
 ON CONFLICT (order_id) DO UPDATE
 SET updated_at = billing_invoices.updated_at
@@ -48,6 +49,7 @@ JOIN events e ON e.id = o.event_id
 JOIN organizer_invoicing_settings settings ON settings.organizer_id = e.organizer_id
 LEFT JOIN billing_invoices invoice ON invoice.order_id = o.id
 WHERE o.status = 'completed'
+  AND o.stripe_livemode IS TRUE
   AND settings.enabled = TRUE
   AND invoice.id IS NULL
 ON CONFLICT (order_id) DO NOTHING;
@@ -82,6 +84,8 @@ SELECT invoice.id AS invoice_id,
        invoice.attempt_count,
        orders.email,
        orders.total_amount,
+       orders.customer_ticketing_fee_bani,
+       orders.stripe_livemode,
        orders.stripe_payment_intent_id,
        orders.billing_type,
        orders.billing_name,

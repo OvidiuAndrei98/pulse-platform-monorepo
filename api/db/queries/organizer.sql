@@ -78,6 +78,7 @@ SET stripe_account_id = $2,
     stripe_charges_enabled = $3,
     stripe_payouts_enabled = $4,
     stripe_details_submitted = $5,
+    stripe_charge_type = $6,
     updated_at = NOW()
 WHERE user_id = $1
 RETURNING *;
@@ -97,6 +98,7 @@ SET stripe_account_id = NULL,
     stripe_charges_enabled = FALSE,
     stripe_payouts_enabled = FALSE,
     stripe_details_submitted = FALSE,
+    stripe_charge_type = NULL,
     updated_at = NOW()
 WHERE stripe_account_id = $1
 RETURNING *;

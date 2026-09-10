@@ -12,6 +12,7 @@ FROM orders
 JOIN events ON events.id = orders.event_id
 JOIN organizer_profiles profile ON profile.user_id = events.organizer_id
 WHERE orders.status = 'completed'
+  AND orders.stripe_livemode IS TRUE
   AND orders.platform_fee_bani > 0
   AND COALESCE(orders.completed_at, orders.created_at) >= sqlc.arg(period_start_at)::TIMESTAMPTZ
   AND COALESCE(orders.completed_at, orders.created_at) < sqlc.arg(period_end_at)::TIMESTAMPTZ
@@ -58,6 +59,27 @@ FROM platform_commission_invoices invoice
 JOIN organizer_profiles profile ON profile.user_id = invoice.organizer_id
 JOIN users ON users.id = invoice.organizer_id
 WHERE invoice.id = $1;
+
+-- name: GetPlatformCommissionInvoiceLiveTotals :one
+SELECT COUNT(orders.id)::INT AS transaction_count,
+       COALESCE(SUM(orders.platform_fee_bani), 0)::BIGINT AS total_fee_bani
+FROM orders
+JOIN events ON events.id = orders.event_id
+WHERE events.organizer_id = sqlc.arg(organizer_id)
+  AND orders.status = 'completed'
+  AND orders.stripe_livemode IS TRUE
+  AND orders.platform_fee_bani > 0
+  AND COALESCE(orders.completed_at, orders.created_at) >=
+      (sqlc.arg(period_start)::DATE::TIMESTAMP AT TIME ZONE 'Europe/Bucharest')
+  AND COALESCE(orders.completed_at, orders.created_at) <
+      (sqlc.arg(period_end)::DATE::TIMESTAMP AT TIME ZONE 'Europe/Bucharest');
+
+-- name: UpdatePlatformCommissionInvoiceTotals :exec
+UPDATE platform_commission_invoices
+SET transaction_count = sqlc.arg(transaction_count),
+    total_fee_bani = sqlc.arg(total_fee_bani),
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $1;
 
 -- name: MarkPlatformCommissionInvoiceIssued :one
 UPDATE platform_commission_invoices
