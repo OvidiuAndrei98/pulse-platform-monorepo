@@ -16,16 +16,21 @@ import (
 )
 
 type VerificationRequestResponse struct {
-	UserID             string `json:"userId"`
-	Username           string `json:"username"`
-	Email              string `json:"email"`
-	Cui                string `json:"cui"`
-	CompanyName        string `json:"companyName"`
-	FiscalAddress      string `json:"fiscalAddress,omitempty"`
-	VerificationStatus string `json:"verificationStatus"`
-	SubmittedAt        string `json:"submittedAt"`
-	UpdatedAt          string `json:"updatedAt"`
-	VerifiedAt         string `json:"verifiedAt,omitempty"`
+	UserID                 string `json:"userId"`
+	Username               string `json:"username"`
+	Email                  string `json:"email"`
+	Cui                    string `json:"cui"`
+	CompanyName            string `json:"companyName"`
+	FiscalAddress          string `json:"fiscalAddress,omitempty"`
+	VerificationStatus     string `json:"verificationStatus"`
+	SubmittedAt            string `json:"submittedAt"`
+	UpdatedAt              string `json:"updatedAt"`
+	VerifiedAt             string `json:"verifiedAt,omitempty"`
+	StripeAccountID        string `json:"stripeAccountId,omitempty"`
+	StripeChargesEnabled   bool   `json:"stripeChargesEnabled"`
+	StripePayoutsEnabled   bool   `json:"stripePayoutsEnabled"`
+	StripeDetailsSubmitted bool   `json:"stripeDetailsSubmitted"`
+	StripeChargeType       string `json:"stripeChargeType,omitempty"`
 }
 
 type ReviewVerificationRequest struct {
@@ -42,16 +47,21 @@ func (h *Handler) HandleAdminListOrganizerVerifications(w http.ResponseWriter, r
 	result := make([]VerificationRequestResponse, 0, len(rows))
 	for _, row := range rows {
 		result = append(result, VerificationRequestResponse{
-			UserID:             common.UUIDToString(row.UserID),
-			Username:           row.Username,
-			Email:              row.Email,
-			Cui:                row.Cui,
-			CompanyName:        row.CompanyName,
-			FiscalAddress:      row.FiscalAddress,
-			VerificationStatus: string(row.VerificationStatus),
-			SubmittedAt:        common.TimestampToString(row.CreatedAt),
-			UpdatedAt:          common.TimestampToString(row.UpdatedAt),
-			VerifiedAt:         common.TimestampToString(row.VerifiedAt),
+			UserID:                 common.UUIDToString(row.UserID),
+			Username:               row.Username,
+			Email:                  row.Email,
+			Cui:                    row.Cui,
+			CompanyName:            row.CompanyName,
+			FiscalAddress:          row.FiscalAddress,
+			VerificationStatus:     string(row.VerificationStatus),
+			SubmittedAt:            common.TimestampToString(row.CreatedAt),
+			UpdatedAt:              common.TimestampToString(row.UpdatedAt),
+			VerifiedAt:             common.TimestampToString(row.VerifiedAt),
+			StripeAccountID:        row.StripeAccountID.String,
+			StripeChargesEnabled:   row.StripeChargesEnabled,
+			StripePayoutsEnabled:   row.StripePayoutsEnabled,
+			StripeDetailsSubmitted: row.StripeDetailsSubmitted,
+			StripeChargeType:       row.StripeChargeType.String,
 		})
 	}
 

@@ -8,6 +8,7 @@ import {
   CircleCheck,
   CircleX,
   Clock3,
+  CreditCard,
   ExternalLink,
   Loader2,
   LogOut,
@@ -28,6 +29,14 @@ import { RefundAttentionList } from "@/app/dashboard/components/RefundAttentionL
 
 type VerificationStatus = "pending" | "approved" | "rejected";
 type StatusFilter = "all" | VerificationStatus;
+type StripeStatus = "active" | "onboarding" | "attention" | "notConnected";
+
+function getStripeStatus(request: OrganizerVerificationRequest): StripeStatus {
+  if (!request.stripeAccountId) return "notConnected";
+  if (!request.stripeDetailsSubmitted) return "onboarding";
+  if (request.stripeChargesEnabled && request.stripePayoutsEnabled) return "active";
+  return "attention";
+}
 
 export default function AdminPage() {
   const { t, i18n } = useTranslation();
@@ -154,6 +163,18 @@ export default function AdminPage() {
     [filter, requests],
   );
 
+  const stripeCounts = useMemo(
+    () =>
+      requests.reduce(
+        (result, request) => {
+          result[getStripeStatus(request)] += 1;
+          return result;
+        },
+        { active: 0, onboarding: 0, attention: 0, notConnected: 0 } satisfies Record<StripeStatus, number>,
+      ),
+    [requests],
+  );
+
   const confirmReview = async () => {
     if (!user || !reviewTarget) return;
     setReviewing(true);
@@ -277,9 +298,18 @@ export default function AdminPage() {
         />
 
         <section>
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            {t("admin.subtitle")}
-          </p>
+          <div>
+            <h2 className="text-lg font-semibold">{t("admin.organizersTitle")}</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+              {t("admin.subtitle")}
+            </p>
+          </div>
+          <dl className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <FinancialStat label={t("admin.stripe.status.active")} value={String(stripeCounts.active)} />
+            <FinancialStat label={t("admin.stripe.status.onboarding")} value={String(stripeCounts.onboarding)} />
+            <FinancialStat label={t("admin.stripe.status.attention")} value={String(stripeCounts.attention)} />
+            <FinancialStat label={t("admin.stripe.status.notConnected")} value={String(stripeCounts.notConnected)} />
+          </dl>
           <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
             {(["pending", "approved", "rejected", "all"] as const).map((status) => (
               <button
@@ -344,6 +374,8 @@ export default function AdminPage() {
                     </dd>
                   </div>
                 </dl>
+
+                <StripeAccountStatus request={request} />
 
                 <div className="mt-4 flex gap-2">
                   {request.verificationStatus !== "rejected" && (
@@ -443,5 +475,58 @@ function StatusBadge({ status }: { status: VerificationStatus }) {
     <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${styles[status]}`}>
       {t(`admin.filters.${status}`)}
     </span>
+  );
+}
+
+function StripeAccountStatus({ request }: { request: OrganizerVerificationRequest }) {
+  const { t } = useTranslation();
+  const status = getStripeStatus(request);
+  const styles: Record<StripeStatus, string> = {
+    active: "border-white/15 bg-white/[0.06] text-foreground",
+    onboarding: "border-amber-300/25 bg-amber-300/10 text-amber-200",
+    attention: "border-red-400/25 bg-red-500/10 text-red-300",
+    notConnected: "border-white/10 bg-white/[0.025] text-muted-foreground",
+  };
+
+  return (
+    <section className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs font-semibold">
+          <CreditCard className="h-4 w-4 text-primary" />
+          {t("admin.stripe.title")}
+        </div>
+        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${styles[status]}`}>
+          {t(`admin.stripe.status.${status}`)}
+        </span>
+      </div>
+
+      {request.stripeAccountId ? (
+        <>
+          <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+            <StripeCheck label={t("admin.stripe.detailsSubmitted")} ready={request.stripeDetailsSubmitted} />
+            <StripeCheck label={t("admin.stripe.payments")} ready={request.stripeChargesEnabled} />
+            <StripeCheck label={t("admin.stripe.payouts")} ready={request.stripePayoutsEnabled} />
+          </dl>
+          <p className="mt-3 truncate font-mono text-[10px] text-muted-foreground" title={request.stripeAccountId}>
+            {request.stripeAccountId}
+            {request.stripeChargeType ? ` · ${t(`admin.stripe.chargeType.${request.stripeChargeType}`, { defaultValue: request.stripeChargeType })}` : ""}
+          </p>
+        </>
+      ) : (
+        <p className="mt-3 text-xs leading-5 text-muted-foreground">{t("admin.stripe.notConnectedHint")}</p>
+      )}
+    </section>
+  );
+}
+
+function StripeCheck({ label, ready }: { label: string; ready: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.025] px-2.5 py-2">
+      <dt className="truncate text-muted-foreground">{label}</dt>
+      <dd className={`shrink-0 font-semibold ${ready ? "text-foreground" : "text-amber-200"}`}>
+        {t(ready ? "admin.stripe.ready" : "admin.stripe.pending")}
+      </dd>
+    </div>
   );
 }

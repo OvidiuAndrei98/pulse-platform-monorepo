@@ -183,8 +183,9 @@ export const resources = {
       admin: {
         eyebrow: "SPOTTR administration",
         title: "Organizer verification",
+        organizersTitle: "Organizer accounts",
         subtitle:
-          "Review the company name and tax ID submitted by organizer accounts, then approve or reject their access.",
+          "Review company verification and monitor each organizer's Stripe account status.",
         refresh: "Refresh requests",
         loadFailed: "Organizer requests could not be loaded.",
         reviewFailed: "The verification decision could not be saved.",
@@ -192,7 +193,7 @@ export const resources = {
         rejectedSuccess: "Organizer rejected.",
         filters: {
           all: "All",
-          pending: "Pending",
+          pending: "In asteptare",
           approved: "Approved",
           rejected: "Rejected",
         },
@@ -205,6 +206,24 @@ export const resources = {
         rejectTitle: "Reject this organizer?",
         reviewHint: "The decision will be applied to {{company}} immediately.",
         empty: "There are no organizer requests in this category.",
+        stripe: {
+          title: "Stripe account",
+          detailsSubmitted: "Onboarding",
+          payments: "Payments",
+          payouts: "Payouts",
+          ready: "Ready",
+          pending: "Pending",
+          notConnectedHint: "This organizer has not connected a Stripe account yet.",
+          status: {
+            active: "Active",
+            onboarding: "Setup pending",
+            attention: "Needs attention",
+            notConnected: "Not connected",
+          },
+          chargeType: {
+            direct: "Direct charges",
+          },
+        },
       },
       adminCancellations: {
         title: "Event cancellation requests",
@@ -1516,8 +1535,9 @@ export const resources = {
       admin: {
         eyebrow: "Administrare SPOTTR",
         title: "Verificarea organizatorilor",
+        organizersTitle: "Conturi de organizator",
         subtitle:
-          "Verifica numele firmei si CUI-ul trimise de conturile de organizator, apoi aproba sau respinge accesul.",
+          "Verifica firmele si urmareste statusul contului Stripe al fiecarui organizator.",
         refresh: "Actualizeaza cererile",
         loadFailed: "Cererile organizatorilor nu au putut fi incarcate.",
         reviewFailed: "Decizia de verificare nu a putut fi salvata.",
@@ -1538,6 +1558,24 @@ export const resources = {
         rejectTitle: "Respinge acest organizator?",
         reviewHint: "Decizia va fi aplicata imediat pentru {{company}}.",
         empty: "Nu exista cereri de organizator in aceasta categorie.",
+        stripe: {
+          title: "Cont Stripe",
+          detailsSubmitted: "Onboarding",
+          payments: "Plati",
+          payouts: "Transferuri",
+          ready: "Activ",
+          pending: "Pending",
+          notConnectedHint: "Organizatorul nu a conectat inca un cont Stripe.",
+          status: {
+            active: "Activ",
+            onboarding: "Configurare in asteptare",
+            attention: "Necesita atentie",
+            notConnected: "Neconectat",
+          },
+          chargeType: {
+            direct: "Direct charges",
+          },
+        },
       },
       adminCancellations: {
         title: "Cereri de anulare a evenimentelor",

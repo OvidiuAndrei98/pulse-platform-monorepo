@@ -41,7 +41,12 @@ SELECT op.user_id,
        op.is_verified,
        op.created_at,
        op.updated_at,
-       op.verified_at
+       op.verified_at,
+       op.stripe_account_id,
+       op.stripe_charges_enabled,
+       op.stripe_payouts_enabled,
+       op.stripe_details_submitted,
+       op.stripe_charge_type
 FROM organizer_profiles op
 JOIN users ON users.id = op.user_id
 ORDER BY CASE op.verification_status

@@ -4849,7 +4849,10 @@
           "companyName",
           "verificationStatus",
           "submittedAt",
-          "updatedAt"
+          "updatedAt",
+          "stripeChargesEnabled",
+          "stripePayoutsEnabled",
+          "stripeDetailsSubmitted"
         ],
         "properties": {
           "userId": {
@@ -4889,6 +4892,21 @@
           "verifiedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "stripeAccountId": {
+            "type": "string"
+          },
+          "stripeChargesEnabled": {
+            "type": "boolean"
+          },
+          "stripePayoutsEnabled": {
+            "type": "boolean"
+          },
+          "stripeDetailsSubmitted": {
+            "type": "boolean"
+          },
+          "stripeChargeType": {
+            "type": "string"
           }
         }
       },

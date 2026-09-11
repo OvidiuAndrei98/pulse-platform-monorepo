@@ -1918,6 +1918,11 @@ export interface components {
             updatedAt: string;
             /** Format: date-time */
             verifiedAt?: string;
+            stripeAccountId?: string;
+            stripeChargesEnabled: boolean;
+            stripePayoutsEnabled: boolean;
+            stripeDetailsSubmitted: boolean;
+            stripeChargeType?: string;
         };
         PasswordResetPayload: {
             token: string;

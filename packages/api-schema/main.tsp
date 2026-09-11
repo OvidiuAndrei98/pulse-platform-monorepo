@@ -299,6 +299,11 @@ model OrganizerVerificationRequest {
   submittedAt: utcDateTime;
   updatedAt: utcDateTime;
   verifiedAt?: utcDateTime;
+  stripeAccountId?: string;
+  stripeChargesEnabled: boolean;
+  stripePayoutsEnabled: boolean;
+  stripeDetailsSubmitted: boolean;
+  stripeChargeType?: string;
 }
 
 model ReviewOrganizerVerificationPayload {

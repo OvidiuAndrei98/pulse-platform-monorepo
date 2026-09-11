@@ -258,7 +258,12 @@ SELECT op.user_id,
        op.is_verified,
        op.created_at,
        op.updated_at,
-       op.verified_at
+       op.verified_at,
+       op.stripe_account_id,
+       op.stripe_charges_enabled,
+       op.stripe_payouts_enabled,
+       op.stripe_details_submitted,
+       op.stripe_charge_type
 FROM organizer_profiles op
 JOIN users ON users.id = op.user_id
 ORDER BY CASE op.verification_status
@@ -270,17 +275,22 @@ ORDER BY CASE op.verification_status
 `
 
 type ListOrganizerVerificationRequestsRow struct {
-	UserID             pgtype.UUID            `json:"user_id"`
-	Username           string                 `json:"username"`
-	Email              string                 `json:"email"`
-	Cui                string                 `json:"cui"`
-	CompanyName        string                 `json:"company_name"`
-	FiscalAddress      string                 `json:"fiscal_address"`
-	VerificationStatus VerificationStatusType `json:"verification_status"`
-	IsVerified         pgtype.Bool            `json:"is_verified"`
-	CreatedAt          pgtype.Timestamptz     `json:"created_at"`
-	UpdatedAt          pgtype.Timestamptz     `json:"updated_at"`
-	VerifiedAt         pgtype.Timestamptz     `json:"verified_at"`
+	UserID                 pgtype.UUID            `json:"user_id"`
+	Username               string                 `json:"username"`
+	Email                  string                 `json:"email"`
+	Cui                    string                 `json:"cui"`
+	CompanyName            string                 `json:"company_name"`
+	FiscalAddress          string                 `json:"fiscal_address"`
+	VerificationStatus     VerificationStatusType `json:"verification_status"`
+	IsVerified             pgtype.Bool            `json:"is_verified"`
+	CreatedAt              pgtype.Timestamptz     `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz     `json:"updated_at"`
+	VerifiedAt             pgtype.Timestamptz     `json:"verified_at"`
+	StripeAccountID        pgtype.Text            `json:"stripe_account_id"`
+	StripeChargesEnabled   bool                   `json:"stripe_charges_enabled"`
+	StripePayoutsEnabled   bool                   `json:"stripe_payouts_enabled"`
+	StripeDetailsSubmitted bool                   `json:"stripe_details_submitted"`
+	StripeChargeType       pgtype.Text            `json:"stripe_charge_type"`
 }
 
 func (q *Queries) ListOrganizerVerificationRequests(ctx context.Context) ([]ListOrganizerVerificationRequestsRow, error) {
@@ -304,6 +314,11 @@ func (q *Queries) ListOrganizerVerificationRequests(ctx context.Context) ([]List
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.VerifiedAt,
+			&i.StripeAccountID,
+			&i.StripeChargesEnabled,
+			&i.StripePayoutsEnabled,
+			&i.StripeDetailsSubmitted,
+			&i.StripeChargeType,
 		); err != nil {
 			return nil, err
 		}
