@@ -200,6 +200,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/checkout/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reconciliaza o sesiune Stripe platita cand webhookul Connect intarzie */
+        post: operations["CheckoutOperations_reconcile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/events": {
         parameters: {
             query?: never;
@@ -2047,6 +2064,15 @@ export interface components {
             /** Format: int64 */
             ticketsSoldCount: number;
         };
+        ReconcileCheckoutPayload: {
+            sessionId: string;
+            eventId: string;
+        };
+        ReconcileCheckoutResponse: {
+            /** @enum {string} */
+            status: "pending" | "completed" | "failed" | "refunded";
+            orderId: string;
+        };
         RefundAttentionResponse: {
             orderId: string;
             eventId: string;
@@ -2612,6 +2638,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    CheckoutOperations_reconcile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconcileCheckoutPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconcileCheckoutResponse"];
                 };
             };
         };

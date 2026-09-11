@@ -24,6 +24,7 @@ func main() {
 	coreApp.StartPromotionReservationExpiryWorker(context.Background())
 	coreApp.StartInvoicingWorker(context.Background())
 	coreApp.StartRefundWorker(context.Background())
+	coreApp.StartCheckoutReconciliationWorker(context.Background())
 
 	port := os.Getenv("PORT")
 	if port == "" {

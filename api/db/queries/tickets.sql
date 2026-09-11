@@ -130,6 +130,29 @@ SELECT * FROM orders
 WHERE id = $1
 FOR UPDATE;
 
+-- name: GetOrderByCheckoutSession :one
+SELECT * FROM orders
+WHERE stripe_checkout_session_id = $1;
+
+-- name: ListPendingDirectChargeCheckoutsForReconciliation :many
+SELECT * FROM orders
+WHERE status = 'pending'
+  AND stripe_checkout_session_id IS NOT NULL
+  AND stripe_connected_account_id IS NOT NULL
+  AND stripe_charge_type = 'direct'
+  AND created_at <= CURRENT_TIMESTAMP - INTERVAL '15 seconds'
+ORDER BY created_at ASC
+LIMIT 50;
+
+-- name: ListRecentCompletedOrdersWithPendingTicketEmail :many
+SELECT * FROM orders
+WHERE status = 'completed'
+  AND ticket_email_sent_at IS NULL
+  AND completed_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+  AND EXISTS (SELECT 1 FROM tickets WHERE tickets.order_id = orders.id)
+ORDER BY completed_at ASC
+LIMIT 50;
+
 -- name: GetOrderByStripePaymentIntent :one
 SELECT * FROM orders
 WHERE stripe_payment_intent_id = $1;
@@ -150,13 +173,13 @@ WHERE id = sqlc.arg(id);
 
 -- name: UpdateOrderStatus :exec
 UPDATE orders
-SET status = $2,
-    stripe_payment_intent_id = COALESCE($3, stripe_payment_intent_id),
+SET status = sqlc.arg(status)::order_status,
+    stripe_payment_intent_id = COALESCE(sqlc.narg(stripe_payment_intent_id)::TEXT, stripe_payment_intent_id),
     completed_at = CASE
-        WHEN $2 = 'completed' AND completed_at IS NULL THEN CURRENT_TIMESTAMP
+        WHEN sqlc.arg(status)::order_status = 'completed'::order_status AND completed_at IS NULL THEN CURRENT_TIMESTAMP
         ELSE completed_at
     END
-WHERE id = $1;
+WHERE id = sqlc.arg(id);
 
 -- name: ListOrderTicketEmailDetails :many
 SELECT o.email, o.user_id, o.ticket_email_sent_at, e.title AS event_title,

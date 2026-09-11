@@ -373,6 +373,35 @@
         }
       }
     },
+    "/checkout/reconcile": {
+      "post": {
+        "operationId": "CheckoutOperations_reconcile",
+        "summary": "Reconciliaza o sesiune Stripe platita cand webhookul Connect intarzie",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconcileCheckoutResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconcileCheckoutPayload"
+              }
+            }
+          }
+        }
+      }
+    },
     "/dashboard/events": {
       "post": {
         "operationId": "DashboardOperations_createEvent",
@@ -5315,6 +5344,42 @@
           "ticketsSoldCount": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "ReconcileCheckoutPayload": {
+        "type": "object",
+        "required": [
+          "sessionId",
+          "eventId"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          }
+        }
+      },
+      "ReconcileCheckoutResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "orderId"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "completed",
+              "failed",
+              "refunded"
+            ]
+          },
+          "orderId": {
+            "type": "string"
           }
         }
       },

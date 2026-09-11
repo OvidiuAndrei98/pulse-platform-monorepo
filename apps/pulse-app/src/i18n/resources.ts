@@ -603,6 +603,12 @@ export const resources = {
         confirming: "Your payment is being confirmed.",
         confirmationHint:
           "You will receive confirmation as soon as Stripe processes the payment.",
+        confirmed: "Your payment is confirmed.",
+        confirmedHint:
+          "Your tickets have been issued and the confirmation email is on its way.",
+        problem: "We could not confirm the payment yet.",
+        problemHint:
+          "If Stripe charged you, your order is safe and will be checked automatically. Please contact us if the ticket does not appear shortly.",
         ticketsInAccount: "Your tickets will appear in your account.",
         ticketsInAccountHint:
           "Find them in Profile with their entry QR codes. We also sent a confirmation email with every ticket.",
@@ -1959,6 +1965,12 @@ export const resources = {
         confirming: "Plata ta este in curs de confirmare.",
         confirmationHint:
           "Vei primi confirmarea imediat ce plata este procesata de Stripe.",
+        confirmed: "Plata ta a fost confirmata.",
+        confirmedHint:
+          "Biletele au fost emise, iar emailul de confirmare este in curs de trimitere.",
+        problem: "Plata nu a putut fi confirmata inca.",
+        problemHint:
+          "Daca Stripe ti-a retras banii, comanda este in siguranta si va fi verificata automat. Contacteaza-ne daca biletul nu apare in scurt timp.",
         ticketsInAccount: "Biletele vor aparea in contul tau.",
         ticketsInAccountHint:
           "Le gasesti in Profil cu codurile QR pentru acces. Ti-am trimis si un email de confirmare cu toate biletele.",

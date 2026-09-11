@@ -212,6 +212,7 @@ func (app *Application) BuildRouter() http.Handler {
 		RemoveSavedEvent:               eventsHandler.HandleRemoveSavedEvent,
 		StripeWebhook:                  stripeWebhookHandler.HandleStripeWebhook,
 		StripeConnectWebhook:           stripeConnectWebhookHandler.HandleStripeConnectWebhook,
+		ReconcileCheckout:              stripeCheckoutHandler.HandleReconcileCheckout,
 		CreateStripeAccountLink:        stripeConnectHandler.HandleCreateAccountLink,
 		GetStripeAccountStatus:         stripeConnectHandler.HandleGetAccountStatus,
 		CreateStripeLoginLink:          stripeConnectHandler.HandleCreateDashboardLoginLink,
@@ -319,5 +320,11 @@ func (app *Application) StartInvoicingWorker(ctx context.Context) {
 func (app *Application) StartRefundWorker(ctx context.Context) {
 	if app.Refunds != nil {
 		app.Refunds.StartRefundWorker(ctx)
+	}
+}
+
+func (app *Application) StartCheckoutReconciliationWorker(ctx context.Context) {
+	if app.Refunds != nil {
+		app.Refunds.StartCheckoutReconciliationWorker(ctx)
 	}
 }

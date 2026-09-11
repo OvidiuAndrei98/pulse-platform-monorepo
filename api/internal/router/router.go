@@ -72,6 +72,7 @@ type HandlersConfig struct {
 	RemoveSavedEvent               http.HandlerFunc
 	StripeWebhook                  http.HandlerFunc
 	StripeConnectWebhook           http.HandlerFunc
+	ReconcileCheckout              http.HandlerFunc
 	CreateStripeAccountLink        http.HandlerFunc
 	GetStripeAccountStatus         http.HandlerFunc
 	CreateStripeLoginLink          http.HandlerFunc
@@ -218,6 +219,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 		r.Get("/media/*", cfg.GetEventBanner)
 		r.Post("/stripe/webhook", cfg.StripeWebhook)
 		r.Post("/stripe/connect/webhook", cfg.StripeConnectWebhook)
+		r.Post("/checkout/reconcile", cfg.ReconcileCheckout)
 		r.Post("/ticket-validation/quick-access/session", cfg.CreateScannerSession)
 		r.Group(func(r chi.Router) {
 			if cfg.ScannerAuthMiddleware != nil {

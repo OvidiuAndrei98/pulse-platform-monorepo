@@ -569,6 +569,16 @@ model CheckoutSessionResponse {
   orderId: string;
 }
 
+model ReconcileCheckoutPayload {
+  sessionId: string;
+  eventId: string;
+}
+
+model ReconcileCheckoutResponse {
+  status: "pending" | "completed" | "failed" | "refunded";
+  orderId: string;
+}
+
 // --- REQUESTS RESPONSE PAYLOADS ---
 
 model TicketValidationResponse {
@@ -913,6 +923,14 @@ interface ProfileOperations {
   @get
   @route("/{id}")
   get(@path id: string): PublicProfileResponse;
+}
+
+@route("/checkout")
+interface CheckoutOperations {
+  @summary("Reconciliaza o sesiune Stripe platita cand webhookul Connect intarzie")
+  @post
+  @route("/reconcile")
+  reconcile(@body payload: ReconcileCheckoutPayload): ReconcileCheckoutResponse;
 }
 
 @route("/events")

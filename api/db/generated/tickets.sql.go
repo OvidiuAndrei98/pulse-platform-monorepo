@@ -720,6 +720,56 @@ func (q *Queries) GetOfflineValidationSnapshotForSync(ctx context.Context, arg G
 	return i, err
 }
 
+const getOrderByCheckoutSession = `-- name: GetOrderByCheckoutSession :one
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin FROM orders
+WHERE stripe_checkout_session_id = $1
+`
+
+func (q *Queries) GetOrderByCheckoutSession(ctx context.Context, stripeCheckoutSessionID pgtype.Text) (Orders, error) {
+	row := q.db.QueryRow(ctx, getOrderByCheckoutSession, stripeCheckoutSessionID)
+	var i Orders
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.EventID,
+		&i.Email,
+		&i.StripePaymentIntentID,
+		&i.Status,
+		&i.TotalAmount,
+		&i.CreatedAt,
+		&i.StripeCheckoutSessionID,
+		&i.PlatformFeeBani,
+		&i.TicketEmailSentAt,
+		&i.PromoCodeID,
+		&i.DiscountAmountRon,
+		&i.InvoiceRequested,
+		&i.BillingType,
+		&i.BillingName,
+		&i.BillingTaxID,
+		&i.BillingRegistrationNumber,
+		&i.BillingAddress,
+		&i.BillingCity,
+		&i.BillingCounty,
+		&i.BillingCountry,
+		&i.BillingSector,
+		&i.CompletedAt,
+		&i.CustomerTicketingFeeBani,
+		&i.StripeLivemode,
+		&i.StripeConnectedAccountID,
+		&i.StripeChargeType,
+		&i.StripeChargeID,
+		&i.StripeAmountRefundedBani,
+		&i.StripeRefundStatus,
+		&i.StripeRefundNeedsAttention,
+		&i.StripeRefundUpdatedAt,
+		&i.AutomaticInvoiceRefundEnabled,
+		&i.PlatformFeeStatus,
+		&i.PlatformFeeRefundedBani,
+		&i.RefundOrigin,
+	)
+	return i, err
+}
+
 const getOrderByStripeChargeID = `-- name: GetOrderByStripeChargeID :one
 SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin FROM orders
 WHERE stripe_charge_id = $1
@@ -1453,6 +1503,143 @@ func (q *Queries) ListOrganizerFinanceEvents(ctx context.Context, organizerID pg
 	return items, nil
 }
 
+const listPendingDirectChargeCheckoutsForReconciliation = `-- name: ListPendingDirectChargeCheckoutsForReconciliation :many
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin FROM orders
+WHERE status = 'pending'
+  AND stripe_checkout_session_id IS NOT NULL
+  AND stripe_connected_account_id IS NOT NULL
+  AND stripe_charge_type = 'direct'
+  AND created_at <= CURRENT_TIMESTAMP - INTERVAL '15 seconds'
+ORDER BY created_at ASC
+LIMIT 50
+`
+
+func (q *Queries) ListPendingDirectChargeCheckoutsForReconciliation(ctx context.Context) ([]Orders, error) {
+	rows, err := q.db.Query(ctx, listPendingDirectChargeCheckoutsForReconciliation)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Orders
+	for rows.Next() {
+		var i Orders
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.EventID,
+			&i.Email,
+			&i.StripePaymentIntentID,
+			&i.Status,
+			&i.TotalAmount,
+			&i.CreatedAt,
+			&i.StripeCheckoutSessionID,
+			&i.PlatformFeeBani,
+			&i.TicketEmailSentAt,
+			&i.PromoCodeID,
+			&i.DiscountAmountRon,
+			&i.InvoiceRequested,
+			&i.BillingType,
+			&i.BillingName,
+			&i.BillingTaxID,
+			&i.BillingRegistrationNumber,
+			&i.BillingAddress,
+			&i.BillingCity,
+			&i.BillingCounty,
+			&i.BillingCountry,
+			&i.BillingSector,
+			&i.CompletedAt,
+			&i.CustomerTicketingFeeBani,
+			&i.StripeLivemode,
+			&i.StripeConnectedAccountID,
+			&i.StripeChargeType,
+			&i.StripeChargeID,
+			&i.StripeAmountRefundedBani,
+			&i.StripeRefundStatus,
+			&i.StripeRefundNeedsAttention,
+			&i.StripeRefundUpdatedAt,
+			&i.AutomaticInvoiceRefundEnabled,
+			&i.PlatformFeeStatus,
+			&i.PlatformFeeRefundedBani,
+			&i.RefundOrigin,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecentCompletedOrdersWithPendingTicketEmail = `-- name: ListRecentCompletedOrdersWithPendingTicketEmail :many
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin FROM orders
+WHERE status = 'completed'
+  AND ticket_email_sent_at IS NULL
+  AND completed_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+  AND EXISTS (SELECT 1 FROM tickets WHERE tickets.order_id = orders.id)
+ORDER BY completed_at ASC
+LIMIT 50
+`
+
+func (q *Queries) ListRecentCompletedOrdersWithPendingTicketEmail(ctx context.Context) ([]Orders, error) {
+	rows, err := q.db.Query(ctx, listRecentCompletedOrdersWithPendingTicketEmail)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Orders
+	for rows.Next() {
+		var i Orders
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.EventID,
+			&i.Email,
+			&i.StripePaymentIntentID,
+			&i.Status,
+			&i.TotalAmount,
+			&i.CreatedAt,
+			&i.StripeCheckoutSessionID,
+			&i.PlatformFeeBani,
+			&i.TicketEmailSentAt,
+			&i.PromoCodeID,
+			&i.DiscountAmountRon,
+			&i.InvoiceRequested,
+			&i.BillingType,
+			&i.BillingName,
+			&i.BillingTaxID,
+			&i.BillingRegistrationNumber,
+			&i.BillingAddress,
+			&i.BillingCity,
+			&i.BillingCounty,
+			&i.BillingCountry,
+			&i.BillingSector,
+			&i.CompletedAt,
+			&i.CustomerTicketingFeeBani,
+			&i.StripeLivemode,
+			&i.StripeConnectedAccountID,
+			&i.StripeChargeType,
+			&i.StripeChargeID,
+			&i.StripeAmountRefundedBani,
+			&i.StripeRefundStatus,
+			&i.StripeRefundNeedsAttention,
+			&i.StripeRefundUpdatedAt,
+			&i.AutomaticInvoiceRefundEnabled,
+			&i.PlatformFeeStatus,
+			&i.PlatformFeeRefundedBani,
+			&i.RefundOrigin,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listScannerAccess = `-- name: ListScannerAccess :many
 SELECT id, event_id, label, starts_at, ends_at, revoked_at, created_at
 FROM event_scanner_access
@@ -1815,23 +2002,23 @@ func (q *Queries) UpdateOrderRefundState(ctx context.Context, arg UpdateOrderRef
 
 const updateOrderStatus = `-- name: UpdateOrderStatus :exec
 UPDATE orders
-SET status = $2,
-    stripe_payment_intent_id = COALESCE($3, stripe_payment_intent_id),
+SET status = $1::order_status,
+    stripe_payment_intent_id = COALESCE($2::TEXT, stripe_payment_intent_id),
     completed_at = CASE
-        WHEN $2 = 'completed' AND completed_at IS NULL THEN CURRENT_TIMESTAMP
+        WHEN $1::order_status = 'completed'::order_status AND completed_at IS NULL THEN CURRENT_TIMESTAMP
         ELSE completed_at
     END
-WHERE id = $1
+WHERE id = $3
 `
 
 type UpdateOrderStatusParams struct {
-	ID                    pgtype.UUID `json:"id"`
 	Status                OrderStatus `json:"status"`
 	StripePaymentIntentID pgtype.Text `json:"stripe_payment_intent_id"`
+	ID                    pgtype.UUID `json:"id"`
 }
 
 func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error {
-	_, err := q.db.Exec(ctx, updateOrderStatus, arg.ID, arg.Status, arg.StripePaymentIntentID)
+	_, err := q.db.Exec(ctx, updateOrderStatus, arg.Status, arg.StripePaymentIntentID, arg.ID)
 	return err
 }
 

@@ -76,6 +76,16 @@ type CreateCheckoutResponse struct {
 	OrderID     string `json:"orderId"`
 }
 
+type ReconcileCheckoutRequest struct {
+	SessionID string `json:"sessionId"`
+	EventID   string `json:"eventId"`
+}
+
+type ReconcileCheckoutResponse struct {
+	Status  string `json:"status"`
+	OrderID string `json:"orderId"`
+}
+
 type checkoutItem struct {
 	ticketType db.TicketTypes
 	quantity   int32
@@ -252,6 +262,40 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 		CheckoutURL: session.URL,
 		OrderID:     common.UUIDToString(order.ID),
 	})
+}
+
+// HandleReconcileCheckout is an idempotent fallback for delayed or missed
+// Connect webhooks. Stripe remains the source of truth for payment status.
+func (h *CheckoutHandler) HandleReconcileCheckout(w http.ResponseWriter, r *http.Request) {
+	if !h.configured {
+		router.RespondWithError(w, http.StatusServiceUnavailable, "Platile nu sunt configurate")
+		return
+	}
+
+	var req ReconcileCheckoutRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		router.RespondWithError(w, http.StatusBadRequest, "Datele sesiunii de plata sunt invalide")
+		return
+	}
+	req.SessionID = strings.TrimSpace(req.SessionID)
+	req.EventID = strings.TrimSpace(req.EventID)
+	if req.SessionID == "" || req.EventID == "" {
+		router.RespondWithError(w, http.StatusBadRequest, "Sesiunea de plata este invalida")
+		return
+	}
+
+	status, orderID, err := h.reconcileCheckoutSession(r.Context(), req.SessionID, req.EventID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			router.RespondWithError(w, http.StatusNotFound, "Sesiunea de plata nu a fost gasita")
+			return
+		}
+		log.Printf("checkout success reconciliation failed: session=%s err=%v", req.SessionID, err)
+		router.RespondWithError(w, http.StatusBadGateway, "Confirmarea platii este temporar indisponibila")
+		return
+	}
+
+	router.RespondWithJSON(w, http.StatusOK, ReconcileCheckoutResponse{Status: status, OrderID: orderID})
 }
 
 func (h *CheckoutHandler) HandleValidatePromoCode(w http.ResponseWriter, r *http.Request) {
@@ -490,7 +534,12 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 			return err
 		}
 		h.queueInvoice(ctx, order.ID)
-		return h.deliverTicketConfirmation(order.ID)
+		if err := h.deliverTicketConfirmation(order.ID); err != nil {
+			// Payment fulfillment is already committed. Email delivery is retried by
+			// the reconciliation worker and must not make Stripe retry the payment event.
+			log.Printf("ticket confirmation remains queued for order %s: %v", common.UUIDToString(order.ID), err)
+		}
+		return nil
 	}
 	if order.Status != db.OrderStatusPending || (order.StripeCheckoutSessionID.Valid && order.StripeCheckoutSessionID.String != sessionID) {
 		return tx.Commit(ctx)
@@ -532,7 +581,12 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 		log.Printf("ticket purchase notification failed for order %s: %v", common.UUIDToString(order.ID), err)
 	}
 	h.queueInvoice(ctx, order.ID)
-	return h.deliverTicketConfirmation(order.ID)
+	if err := h.deliverTicketConfirmation(order.ID); err != nil {
+		// The ticket exists at this point; keep webhook acknowledgement independent
+		// from the transactional email provider.
+		log.Printf("ticket confirmation remains queued for order %s: %v", common.UUIDToString(order.ID), err)
+	}
+	return nil
 }
 
 func (h *CheckoutHandler) queueInvoice(ctx context.Context, orderID pgtype.UUID) {
