@@ -17,21 +17,26 @@ import (
 )
 
 type InvoiceResponse struct {
-	ID             string `json:"id"`
-	OrderID        string `json:"orderId"`
-	Provider       string `json:"provider"`
-	Status         string `json:"status"`
-	AttemptCount   int32  `json:"attemptCount"`
-	Series         string `json:"series,omitempty"`
-	Number         string `json:"number,omitempty"`
-	DocumentURL    string `json:"documentUrl,omitempty"`
-	ErrorMessage   string `json:"errorMessage,omitempty"`
-	IssuedAt       string `json:"issuedAt,omitempty"`
-	CreatedAt      string `json:"createdAt"`
-	CustomerName   string `json:"customerName"`
-	CustomerEmail  string `json:"customerEmail"`
-	TotalAmountRon int32  `json:"totalAmountRon"`
-	EventTitle     string `json:"eventTitle"`
+	ID                 string `json:"id"`
+	OrderID            string `json:"orderId"`
+	Provider           string `json:"provider"`
+	Status             string `json:"status"`
+	AttemptCount       int32  `json:"attemptCount"`
+	Series             string `json:"series,omitempty"`
+	Number             string `json:"number,omitempty"`
+	DocumentURL        string `json:"documentUrl,omitempty"`
+	ErrorMessage       string `json:"errorMessage,omitempty"`
+	IssuedAt           string `json:"issuedAt,omitempty"`
+	CreatedAt          string `json:"createdAt"`
+	CustomerName       string `json:"customerName"`
+	CustomerEmail      string `json:"customerEmail"`
+	TotalAmountRon     int32  `json:"totalAmountRon"`
+	EventTitle         string `json:"eventTitle"`
+	RefundStatus       string `json:"refundStatus,omitempty"`
+	RefundSeries       string `json:"refundSeries,omitempty"`
+	RefundNumber       string `json:"refundNumber,omitempty"`
+	RefundDocumentURL  string `json:"refundDocumentUrl,omitempty"`
+	RefundErrorMessage string `json:"refundErrorMessage,omitempty"`
 }
 
 type PlatformCommissionInvoiceResponse struct {
@@ -131,21 +136,26 @@ func (s *Service) HandleListInvoices(w http.ResponseWriter, r *http.Request) {
 	result := make([]InvoiceResponse, 0, len(rows))
 	for _, row := range rows {
 		result = append(result, InvoiceResponse{
-			ID:             common.UUIDToString(row.ID),
-			OrderID:        common.UUIDToString(row.OrderID),
-			Provider:       row.Provider,
-			Status:         row.Status,
-			AttemptCount:   row.AttemptCount,
-			Series:         row.ExternalSeries.String,
-			Number:         row.ExternalNumber.String,
-			DocumentURL:    row.DocumentUrl.String,
-			ErrorMessage:   row.ErrorMessage.String,
-			IssuedAt:       common.TimestampToString(row.IssuedAt),
-			CreatedAt:      common.TimestampToString(row.CreatedAt),
-			CustomerName:   row.BillingName,
-			CustomerEmail:  row.Email,
-			TotalAmountRon: row.TotalAmount,
-			EventTitle:     row.EventTitle,
+			ID:                 common.UUIDToString(row.ID),
+			OrderID:            common.UUIDToString(row.OrderID),
+			Provider:           row.Provider,
+			Status:             row.Status,
+			AttemptCount:       row.AttemptCount,
+			Series:             row.ExternalSeries.String,
+			Number:             row.ExternalNumber.String,
+			DocumentURL:        row.DocumentUrl.String,
+			ErrorMessage:       row.ErrorMessage.String,
+			IssuedAt:           common.TimestampToString(row.IssuedAt),
+			CreatedAt:          common.TimestampToString(row.CreatedAt),
+			CustomerName:       row.BillingName,
+			CustomerEmail:      row.Email,
+			TotalAmountRon:     row.TotalAmount,
+			EventTitle:         row.EventTitle,
+			RefundStatus:       row.RefundStatus.String,
+			RefundSeries:       row.RefundExternalSeries.String,
+			RefundNumber:       row.RefundExternalNumber.String,
+			RefundDocumentURL:  row.RefundDocumentUrl.String,
+			RefundErrorMessage: row.RefundErrorMessage.String,
 		})
 	}
 	router.RespondWithJSON(w, http.StatusOK, result)
@@ -194,6 +204,11 @@ func (s *Service) HandleRetryInvoice(w http.ResponseWriter, r *http.Request) {
 	_, err := s.queries.RetryBillingInvoice(r.Context(), db.RetryBillingInvoiceParams{
 		ID: invoiceID, OrganizerID: organizerID,
 	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		_, err = s.queries.RetryBillingInvoiceRefund(r.Context(), db.RetryBillingInvoiceRefundParams{
+			BillingInvoiceID: invoiceID, OrganizerID: organizerID,
+		})
+	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		router.RespondWithError(w, http.StatusConflict, "Factura nu poate fi retrimisa in starea curenta")
 		return

@@ -107,6 +107,17 @@ type InvoiceResult struct {
 	DocumentURL string
 }
 
+type InvoiceRefundRequest struct {
+	RefundID       string
+	OrderID        string
+	OriginalSeries string
+	OriginalNumber string
+	AccountEmail   string
+	APIToken       string
+	CompanyVATCode string
+	SeriesName     string
+}
+
 type providerFailure struct {
 	err         error
 	needsReview bool
@@ -118,6 +129,7 @@ func (e *providerFailure) Unwrap() error { return e.err }
 type invoiceProvider interface {
 	Options(ctx context.Context, input ProviderConnectionInput, apiToken string) (ProviderOptions, error)
 	Issue(ctx context.Context, request InvoiceRequest) (InvoiceResult, error)
+	Refund(ctx context.Context, request InvoiceRefundRequest) (InvoiceResult, error)
 }
 
 func providerCustomerCity(invoice InvoiceRequest) string {

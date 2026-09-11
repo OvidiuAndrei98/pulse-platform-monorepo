@@ -11,6 +11,29 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const backfillBillingInvoiceRefunds = `-- name: BackfillBillingInvoiceRefunds :execrows
+INSERT INTO billing_invoice_refunds (
+    billing_invoice_id, order_id, organizer_id, provider
+)
+SELECT invoice.id, invoice.order_id, invoice.organizer_id, invoice.provider
+FROM billing_invoices invoice
+JOIN orders ON orders.id = invoice.order_id
+LEFT JOIN billing_invoice_refunds refund ON refund.order_id = invoice.order_id
+WHERE invoice.status = 'issued'
+  AND orders.status = 'refunded'
+  AND orders.automatic_invoice_refund_enabled = TRUE
+  AND refund.id IS NULL
+ON CONFLICT (order_id) DO NOTHING
+`
+
+func (q *Queries) BackfillBillingInvoiceRefunds(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, backfillBillingInvoiceRefunds)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const backfillBillingInvoices = `-- name: BackfillBillingInvoices :execrows
 INSERT INTO billing_invoices (order_id, organizer_id, provider)
 SELECT o.id, e.organizer_id, settings.provider
@@ -31,6 +54,66 @@ func (q *Queries) BackfillBillingInvoices(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const claimBillingInvoiceRefunds = `-- name: ClaimBillingInvoiceRefunds :many
+WITH claimable AS (
+    SELECT id
+    FROM billing_invoice_refunds
+    WHERE attempt_count < 8
+      AND (
+        (status IN ('pending', 'failed') AND next_attempt_at <= CURRENT_TIMESTAMP)
+        OR (status = 'processing' AND updated_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes')
+      )
+    ORDER BY next_attempt_at ASC, created_at ASC
+    FOR UPDATE SKIP LOCKED
+    LIMIT $1
+)
+UPDATE billing_invoice_refunds refund
+SET status = 'processing',
+    attempt_count = attempt_count + 1,
+    error_message = NULL,
+    updated_at = CURRENT_TIMESTAMP
+FROM claimable
+WHERE refund.id = claimable.id
+RETURNING refund.id, refund.billing_invoice_id, refund.order_id, refund.organizer_id, refund.provider, refund.status, refund.attempt_count, refund.next_attempt_at, refund.external_series, refund.external_number, refund.external_document_id, refund.document_url, refund.error_message, refund.issued_at, refund.created_at, refund.updated_at
+`
+
+func (q *Queries) ClaimBillingInvoiceRefunds(ctx context.Context, batchSize int32) ([]BillingInvoiceRefunds, error) {
+	rows, err := q.db.Query(ctx, claimBillingInvoiceRefunds, batchSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BillingInvoiceRefunds
+	for rows.Next() {
+		var i BillingInvoiceRefunds
+		if err := rows.Scan(
+			&i.ID,
+			&i.BillingInvoiceID,
+			&i.OrderID,
+			&i.OrganizerID,
+			&i.Provider,
+			&i.Status,
+			&i.AttemptCount,
+			&i.NextAttemptAt,
+			&i.ExternalSeries,
+			&i.ExternalNumber,
+			&i.ExternalDocumentID,
+			&i.DocumentUrl,
+			&i.ErrorMessage,
+			&i.IssuedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const claimBillingInvoices = `-- name: ClaimBillingInvoices :many
@@ -130,6 +213,59 @@ func (q *Queries) CreateBillingInvoiceForOrder(ctx context.Context, id pgtype.UU
 	return i, err
 }
 
+const createBillingInvoiceRefundForOrder = `-- name: CreateBillingInvoiceRefundForOrder :one
+INSERT INTO billing_invoice_refunds (
+    billing_invoice_id, order_id, organizer_id, provider
+)
+SELECT invoice.id, invoice.order_id, invoice.organizer_id, invoice.provider
+FROM billing_invoices invoice
+JOIN orders ON orders.id = invoice.order_id
+WHERE invoice.order_id = $1
+  AND invoice.status = 'issued'
+  AND orders.status = 'refunded'
+  AND orders.automatic_invoice_refund_enabled = TRUE
+ON CONFLICT (order_id) DO UPDATE
+SET updated_at = billing_invoice_refunds.updated_at
+RETURNING id, billing_invoice_id, order_id, organizer_id, provider, status, attempt_count, next_attempt_at, external_series, external_number, external_document_id, document_url, error_message, issued_at, created_at, updated_at
+`
+
+func (q *Queries) CreateBillingInvoiceRefundForOrder(ctx context.Context, orderID pgtype.UUID) (BillingInvoiceRefunds, error) {
+	row := q.db.QueryRow(ctx, createBillingInvoiceRefundForOrder, orderID)
+	var i BillingInvoiceRefunds
+	err := row.Scan(
+		&i.ID,
+		&i.BillingInvoiceID,
+		&i.OrderID,
+		&i.OrganizerID,
+		&i.Provider,
+		&i.Status,
+		&i.AttemptCount,
+		&i.NextAttemptAt,
+		&i.ExternalSeries,
+		&i.ExternalNumber,
+		&i.ExternalDocumentID,
+		&i.DocumentUrl,
+		&i.ErrorMessage,
+		&i.IssuedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const deleteClaimedBillingInvoice = `-- name: DeleteClaimedBillingInvoice :execrows
+DELETE FROM billing_invoices
+WHERE id = $1 AND status = 'processing'
+`
+
+func (q *Queries) DeleteClaimedBillingInvoice(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteClaimedBillingInvoice, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteOrganizerInvoicingSettings = `-- name: DeleteOrganizerInvoicingSettings :execrows
 DELETE FROM organizer_invoicing_settings
 WHERE organizer_id = $1
@@ -137,6 +273,36 @@ WHERE organizer_id = $1
 
 func (q *Queries) DeleteOrganizerInvoicingSettings(ctx context.Context, organizerID pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteOrganizerInvoicingSettings, organizerID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteUnissuedBillingInvoiceForRefund = `-- name: DeleteUnissuedBillingInvoiceForRefund :execrows
+DELETE FROM billing_invoices
+WHERE order_id = $1
+  AND status IN ('pending', 'failed', 'needs_review')
+`
+
+func (q *Queries) DeleteUnissuedBillingInvoiceForRefund(ctx context.Context, orderID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteUnissuedBillingInvoiceForRefund, orderID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteUnissuedBillingInvoicesForRefundedOrders = `-- name: DeleteUnissuedBillingInvoicesForRefundedOrders :execrows
+DELETE FROM billing_invoices invoice
+USING orders
+WHERE orders.id = invoice.order_id
+  AND orders.status = 'refunded'
+  AND invoice.status IN ('pending', 'failed', 'needs_review')
+`
+
+func (q *Queries) DeleteUnissuedBillingInvoicesForRefundedOrders(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteUnissuedBillingInvoicesForRefundedOrders)
 	if err != nil {
 		return 0, err
 	}
@@ -154,6 +320,7 @@ SELECT invoice.id AS invoice_id,
        orders.customer_ticketing_fee_bani,
        orders.stripe_livemode,
        orders.stripe_payment_intent_id,
+       orders.status AS order_status,
        orders.billing_type,
        orders.billing_name,
        orders.billing_tax_id,
@@ -196,6 +363,7 @@ type GetBillingInvoiceIssueDataRow struct {
 	CustomerTicketingFeeBani  int32              `json:"customer_ticketing_fee_bani"`
 	StripeLivemode            pgtype.Bool        `json:"stripe_livemode"`
 	StripePaymentIntentID     pgtype.Text        `json:"stripe_payment_intent_id"`
+	OrderStatus               OrderStatus        `json:"order_status"`
 	BillingType               string             `json:"billing_type"`
 	BillingName               string             `json:"billing_name"`
 	BillingTaxID              string             `json:"billing_tax_id"`
@@ -235,6 +403,7 @@ func (q *Queries) GetBillingInvoiceIssueData(ctx context.Context, id pgtype.UUID
 		&i.CustomerTicketingFeeBani,
 		&i.StripeLivemode,
 		&i.StripePaymentIntentID,
+		&i.OrderStatus,
 		&i.BillingType,
 		&i.BillingName,
 		&i.BillingTaxID,
@@ -256,6 +425,65 @@ func (q *Queries) GetBillingInvoiceIssueData(ctx context.Context, id pgtype.UUID
 		&i.VatPercentage,
 		&i.SendEmail,
 		&i.SendToSpv,
+		&i.IntegrationEnabled,
+		&i.ConfiguredProvider,
+	)
+	return i, err
+}
+
+const getBillingInvoiceRefundIssueData = `-- name: GetBillingInvoiceRefundIssueData :one
+SELECT refund.id,
+       refund.order_id,
+       refund.organizer_id,
+       refund.provider,
+       refund.attempt_count,
+       invoice.external_series AS original_series,
+       invoice.external_number AS original_number,
+       settings.account_email,
+       settings.credentials_encrypted,
+       settings.company_vat_code,
+       settings.series_name,
+       settings.enabled AS integration_enabled,
+       settings.provider AS configured_provider
+FROM billing_invoice_refunds refund
+JOIN billing_invoices invoice ON invoice.id = refund.billing_invoice_id
+JOIN organizer_invoicing_settings settings ON settings.organizer_id = refund.organizer_id
+JOIN orders ON orders.id = refund.order_id
+WHERE refund.id = $1
+  AND orders.status = 'refunded'
+`
+
+type GetBillingInvoiceRefundIssueDataRow struct {
+	ID                   pgtype.UUID `json:"id"`
+	OrderID              pgtype.UUID `json:"order_id"`
+	OrganizerID          pgtype.UUID `json:"organizer_id"`
+	Provider             string      `json:"provider"`
+	AttemptCount         int32       `json:"attempt_count"`
+	OriginalSeries       pgtype.Text `json:"original_series"`
+	OriginalNumber       pgtype.Text `json:"original_number"`
+	AccountEmail         string      `json:"account_email"`
+	CredentialsEncrypted []byte      `json:"credentials_encrypted"`
+	CompanyVatCode       string      `json:"company_vat_code"`
+	SeriesName           string      `json:"series_name"`
+	IntegrationEnabled   bool        `json:"integration_enabled"`
+	ConfiguredProvider   string      `json:"configured_provider"`
+}
+
+func (q *Queries) GetBillingInvoiceRefundIssueData(ctx context.Context, id pgtype.UUID) (GetBillingInvoiceRefundIssueDataRow, error) {
+	row := q.db.QueryRow(ctx, getBillingInvoiceRefundIssueData, id)
+	var i GetBillingInvoiceRefundIssueDataRow
+	err := row.Scan(
+		&i.ID,
+		&i.OrderID,
+		&i.OrganizerID,
+		&i.Provider,
+		&i.AttemptCount,
+		&i.OriginalSeries,
+		&i.OriginalNumber,
+		&i.AccountEmail,
+		&i.CredentialsEncrypted,
+		&i.CompanyVatCode,
+		&i.SeriesName,
 		&i.IntegrationEnabled,
 		&i.ConfiguredProvider,
 	)
@@ -344,6 +572,11 @@ SELECT invoice.id,
        invoice.error_message,
        invoice.issued_at,
        invoice.created_at,
+       refund.status AS refund_status,
+       refund.external_series AS refund_external_series,
+       refund.external_number AS refund_external_number,
+       refund.document_url AS refund_document_url,
+       refund.error_message AS refund_error_message,
        orders.email,
        orders.billing_name,
        orders.total_amount,
@@ -351,27 +584,33 @@ SELECT invoice.id,
 FROM billing_invoices invoice
 JOIN orders ON orders.id = invoice.order_id
 JOIN events ON events.id = orders.event_id
+LEFT JOIN billing_invoice_refunds refund ON refund.billing_invoice_id = invoice.id
 WHERE invoice.organizer_id = $1
 ORDER BY invoice.created_at DESC
 LIMIT 100
 `
 
 type ListOrganizerBillingInvoicesRow struct {
-	ID             pgtype.UUID        `json:"id"`
-	OrderID        pgtype.UUID        `json:"order_id"`
-	Provider       string             `json:"provider"`
-	Status         string             `json:"status"`
-	AttemptCount   int32              `json:"attempt_count"`
-	ExternalSeries pgtype.Text        `json:"external_series"`
-	ExternalNumber pgtype.Text        `json:"external_number"`
-	DocumentUrl    pgtype.Text        `json:"document_url"`
-	ErrorMessage   pgtype.Text        `json:"error_message"`
-	IssuedAt       pgtype.Timestamptz `json:"issued_at"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	Email          string             `json:"email"`
-	BillingName    string             `json:"billing_name"`
-	TotalAmount    int32              `json:"total_amount"`
-	EventTitle     string             `json:"event_title"`
+	ID                   pgtype.UUID        `json:"id"`
+	OrderID              pgtype.UUID        `json:"order_id"`
+	Provider             string             `json:"provider"`
+	Status               string             `json:"status"`
+	AttemptCount         int32              `json:"attempt_count"`
+	ExternalSeries       pgtype.Text        `json:"external_series"`
+	ExternalNumber       pgtype.Text        `json:"external_number"`
+	DocumentUrl          pgtype.Text        `json:"document_url"`
+	ErrorMessage         pgtype.Text        `json:"error_message"`
+	IssuedAt             pgtype.Timestamptz `json:"issued_at"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	RefundStatus         pgtype.Text        `json:"refund_status"`
+	RefundExternalSeries pgtype.Text        `json:"refund_external_series"`
+	RefundExternalNumber pgtype.Text        `json:"refund_external_number"`
+	RefundDocumentUrl    pgtype.Text        `json:"refund_document_url"`
+	RefundErrorMessage   pgtype.Text        `json:"refund_error_message"`
+	Email                string             `json:"email"`
+	BillingName          string             `json:"billing_name"`
+	TotalAmount          int32              `json:"total_amount"`
+	EventTitle           string             `json:"event_title"`
 }
 
 func (q *Queries) ListOrganizerBillingInvoices(ctx context.Context, organizerID pgtype.UUID) ([]ListOrganizerBillingInvoicesRow, error) {
@@ -395,6 +634,11 @@ func (q *Queries) ListOrganizerBillingInvoices(ctx context.Context, organizerID 
 			&i.ErrorMessage,
 			&i.IssuedAt,
 			&i.CreatedAt,
+			&i.RefundStatus,
+			&i.RefundExternalSeries,
+			&i.RefundExternalNumber,
+			&i.RefundDocumentUrl,
+			&i.RefundErrorMessage,
 			&i.Email,
 			&i.BillingName,
 			&i.TotalAmount,
@@ -506,6 +750,104 @@ func (q *Queries) MarkBillingInvoiceIssued(ctx context.Context, arg MarkBillingI
 	return i, err
 }
 
+const markBillingInvoiceRefundFailed = `-- name: MarkBillingInvoiceRefundFailed :one
+UPDATE billing_invoice_refunds
+SET status = CASE WHEN $1::BOOLEAN THEN 'needs_review' ELSE 'failed' END,
+    error_message = $2,
+    next_attempt_at = CURRENT_TIMESTAMP + make_interval(secs => $3::INT),
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $4
+RETURNING id, billing_invoice_id, order_id, organizer_id, provider, status, attempt_count, next_attempt_at, external_series, external_number, external_document_id, document_url, error_message, issued_at, created_at, updated_at
+`
+
+type MarkBillingInvoiceRefundFailedParams struct {
+	NeedsReview  bool        `json:"needs_review"`
+	ErrorMessage pgtype.Text `json:"error_message"`
+	RetrySeconds int32       `json:"retry_seconds"`
+	ID           pgtype.UUID `json:"id"`
+}
+
+func (q *Queries) MarkBillingInvoiceRefundFailed(ctx context.Context, arg MarkBillingInvoiceRefundFailedParams) (BillingInvoiceRefunds, error) {
+	row := q.db.QueryRow(ctx, markBillingInvoiceRefundFailed,
+		arg.NeedsReview,
+		arg.ErrorMessage,
+		arg.RetrySeconds,
+		arg.ID,
+	)
+	var i BillingInvoiceRefunds
+	err := row.Scan(
+		&i.ID,
+		&i.BillingInvoiceID,
+		&i.OrderID,
+		&i.OrganizerID,
+		&i.Provider,
+		&i.Status,
+		&i.AttemptCount,
+		&i.NextAttemptAt,
+		&i.ExternalSeries,
+		&i.ExternalNumber,
+		&i.ExternalDocumentID,
+		&i.DocumentUrl,
+		&i.ErrorMessage,
+		&i.IssuedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const markBillingInvoiceRefundIssued = `-- name: MarkBillingInvoiceRefundIssued :one
+UPDATE billing_invoice_refunds
+SET status = 'issued',
+    external_series = $2,
+    external_number = $3,
+    external_document_id = $4,
+    document_url = $5,
+    error_message = NULL,
+    issued_at = CURRENT_TIMESTAMP,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING id, billing_invoice_id, order_id, organizer_id, provider, status, attempt_count, next_attempt_at, external_series, external_number, external_document_id, document_url, error_message, issued_at, created_at, updated_at
+`
+
+type MarkBillingInvoiceRefundIssuedParams struct {
+	ID                 pgtype.UUID `json:"id"`
+	ExternalSeries     pgtype.Text `json:"external_series"`
+	ExternalNumber     pgtype.Text `json:"external_number"`
+	ExternalDocumentID pgtype.Text `json:"external_document_id"`
+	DocumentUrl        pgtype.Text `json:"document_url"`
+}
+
+func (q *Queries) MarkBillingInvoiceRefundIssued(ctx context.Context, arg MarkBillingInvoiceRefundIssuedParams) (BillingInvoiceRefunds, error) {
+	row := q.db.QueryRow(ctx, markBillingInvoiceRefundIssued,
+		arg.ID,
+		arg.ExternalSeries,
+		arg.ExternalNumber,
+		arg.ExternalDocumentID,
+		arg.DocumentUrl,
+	)
+	var i BillingInvoiceRefunds
+	err := row.Scan(
+		&i.ID,
+		&i.BillingInvoiceID,
+		&i.OrderID,
+		&i.OrganizerID,
+		&i.Provider,
+		&i.Status,
+		&i.AttemptCount,
+		&i.NextAttemptAt,
+		&i.ExternalSeries,
+		&i.ExternalNumber,
+		&i.ExternalDocumentID,
+		&i.DocumentUrl,
+		&i.ErrorMessage,
+		&i.IssuedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const retryBillingInvoice = `-- name: RetryBillingInvoice :one
 UPDATE billing_invoices
 SET status = 'pending',
@@ -529,6 +871,48 @@ func (q *Queries) RetryBillingInvoice(ctx context.Context, arg RetryBillingInvoi
 	var i BillingInvoices
 	err := row.Scan(
 		&i.ID,
+		&i.OrderID,
+		&i.OrganizerID,
+		&i.Provider,
+		&i.Status,
+		&i.AttemptCount,
+		&i.NextAttemptAt,
+		&i.ExternalSeries,
+		&i.ExternalNumber,
+		&i.ExternalDocumentID,
+		&i.DocumentUrl,
+		&i.ErrorMessage,
+		&i.IssuedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const retryBillingInvoiceRefund = `-- name: RetryBillingInvoiceRefund :one
+UPDATE billing_invoice_refunds
+SET status = 'pending',
+    attempt_count = 0,
+    next_attempt_at = CURRENT_TIMESTAMP,
+    error_message = NULL,
+    updated_at = CURRENT_TIMESTAMP
+WHERE billing_invoice_id = $1
+  AND organizer_id = $2
+  AND status IN ('failed', 'needs_review')
+RETURNING id, billing_invoice_id, order_id, organizer_id, provider, status, attempt_count, next_attempt_at, external_series, external_number, external_document_id, document_url, error_message, issued_at, created_at, updated_at
+`
+
+type RetryBillingInvoiceRefundParams struct {
+	BillingInvoiceID pgtype.UUID `json:"billing_invoice_id"`
+	OrganizerID      pgtype.UUID `json:"organizer_id"`
+}
+
+func (q *Queries) RetryBillingInvoiceRefund(ctx context.Context, arg RetryBillingInvoiceRefundParams) (BillingInvoiceRefunds, error) {
+	row := q.db.QueryRow(ctx, retryBillingInvoiceRefund, arg.BillingInvoiceID, arg.OrganizerID)
+	var i BillingInvoiceRefunds
+	err := row.Scan(
+		&i.ID,
+		&i.BillingInvoiceID,
 		&i.OrderID,
 		&i.OrganizerID,
 		&i.Provider,

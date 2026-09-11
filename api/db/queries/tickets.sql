@@ -3,6 +3,12 @@ SELECT * FROM ticket_types
 WHERE event_id = $1 
 ORDER BY created_at ASC;
 
+-- name: LockPublishedEventForCheckout :one
+SELECT id
+FROM events
+WHERE id = $1 AND status = 'published'
+FOR SHARE;
+
 -- name: GetTicketTypeForUpdate :one
 SELECT * FROM ticket_types
 WHERE id = $1 
@@ -43,6 +49,16 @@ UPDATE ticket_types
 SET tickets_sold = GREATEST(0, tickets_sold - $2)
 WHERE id = $1;
 
+-- name: IncrementPromoCodeRedemption :exec
+UPDATE promo_codes
+SET redemptions_count = redemptions_count + 1
+WHERE id = $1;
+
+-- name: DecrementPromoCodeRedemption :exec
+UPDATE promo_codes
+SET redemptions_count = GREATEST(0, redemptions_count - 1)
+WHERE id = $1;
+
 -- name: CreateOrder :one
 INSERT INTO orders (user_id, event_id, email, total_amount, stripe_payment_intent_id, status)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -74,16 +90,26 @@ SELECT
         WHERE o.event_id = e.id AND o.status = 'completed'
     ), 0)::bigint AS gross_revenue_ron,
     COALESCE((
-        SELECT SUM(o.platform_fee_bani)::bigint
+        SELECT SUM(o.customer_ticketing_fee_bani)::bigint
         FROM orders o
         WHERE o.event_id = e.id AND o.status = 'completed'
+    ), 0)::bigint AS customer_ticketing_fee_bani,
+    COALESCE((
+        SELECT SUM(o.platform_fee_bani - o.platform_fee_refunded_bani)::bigint
+        FROM orders o
+        WHERE o.event_id = e.id AND o.status IN ('completed', 'refunded') AND o.platform_fee_status = 'earned'
     ), 0)::bigint AS platform_fee_bani,
     COALESCE((
         SELECT COUNT(*)::bigint
         FROM tickets t
         JOIN orders o ON o.id = t.order_id
         WHERE o.event_id = e.id AND o.status = 'completed'
-    ), 0)::bigint AS tickets_sold
+    ), 0)::bigint AS tickets_sold,
+    COALESCE((
+        SELECT COUNT(*)::bigint
+        FROM orders o
+        WHERE o.event_id = e.id AND o.stripe_refund_needs_attention = TRUE
+    ), 0)::bigint AS refunds_needing_attention
 FROM events e
 WHERE e.organizer_id = $1
 ORDER BY e.start_time DESC;
@@ -103,6 +129,24 @@ WHERE id = $1;
 SELECT * FROM orders
 WHERE id = $1
 FOR UPDATE;
+
+-- name: GetOrderByStripePaymentIntent :one
+SELECT * FROM orders
+WHERE stripe_payment_intent_id = $1;
+
+-- name: GetOrderByStripeChargeID :one
+SELECT * FROM orders
+WHERE stripe_charge_id = $1;
+
+-- name: UpdateOrderRefundState :exec
+UPDATE orders
+SET stripe_charge_id = COALESCE(NULLIF(sqlc.arg(stripe_charge_id)::TEXT, ''), stripe_charge_id),
+    stripe_amount_refunded_bani = GREATEST(stripe_amount_refunded_bani, sqlc.arg(amount_refunded_bani)::BIGINT),
+    stripe_refund_status = sqlc.arg(refund_status),
+    stripe_refund_needs_attention = sqlc.arg(needs_attention)::BOOLEAN,
+    stripe_refund_updated_at = CURRENT_TIMESTAMP,
+    status = CASE WHEN sqlc.arg(mark_refunded)::BOOLEAN THEN 'refunded'::order_status ELSE status END
+WHERE id = sqlc.arg(id);
 
 -- name: UpdateOrderStatus :exec
 UPDATE orders
@@ -237,7 +281,8 @@ SELECT t.*, tt.name as ticket_type_name, e.title as event_title, e.id as event_i
 FROM tickets t
 JOIN ticket_types tt ON t.ticket_type_id = tt.id
 JOIN events e ON tt.event_id = e.id
-WHERE t.validation_hash = $1;
+JOIN orders o ON o.id = t.order_id
+WHERE t.validation_hash = $1 AND o.status = 'completed';
 
 -- name: ValidateTicketOnce :one
 UPDATE tickets
@@ -245,14 +290,20 @@ SET is_validated = TRUE,
     validated_at = CURRENT_TIMESTAMP,
     validated_by_user_id = $2,
     validated_by_scanner_access_id = $3
-WHERE id = $1 AND is_validated = FALSE
+WHERE tickets.id = $1 AND tickets.is_validated = FALSE
+  AND EXISTS (
+      SELECT 1 FROM orders o
+      WHERE o.id = tickets.order_id AND o.status = 'completed'
+  )
 RETURNING validated_at;
 
 -- name: ListOfflineValidationTickets :many
 SELECT t.id, t.validation_hash, tt.name AS ticket_type_name
 FROM tickets t
 JOIN ticket_types tt ON tt.id = t.ticket_type_id
+JOIN orders o ON o.id = t.order_id
 WHERE tt.event_id = $1
+  AND o.status = 'completed'
   AND t.is_validated = FALSE
 ORDER BY t.created_at ASC;
 
@@ -315,9 +366,10 @@ SELECT t.*, tt.name AS ticket_type_name, e.id AS event_id, e.title AS event_titl
 FROM tickets t
 JOIN ticket_types tt ON t.ticket_type_id = tt.id
 JOIN events e ON tt.event_id = e.id
+JOIN orders o ON o.id = t.order_id
 LEFT JOIN order_items oi ON oi.order_id = t.order_id AND oi.ticket_type_id = t.ticket_type_id
 LEFT JOIN organizer_profiles op ON op.user_id = e.organizer_id
-WHERE t.user_id = $1
+WHERE t.user_id = $1 AND o.status = 'completed'
 ORDER BY t.created_at DESC;
 
 -- name: ListUserOrders :many

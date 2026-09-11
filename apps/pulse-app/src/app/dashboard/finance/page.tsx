@@ -137,16 +137,18 @@ export default function FinancePage() {
       items.reduce(
         (result, item) => ({
           grossRevenueRon: result.grossRevenueRon + item.grossRevenueRon,
+          customerTicketingFeeBani: result.customerTicketingFeeBani + item.customerTicketingFeeBani,
           platformFeeBani: result.platformFeeBani + item.platformFeeBani,
           ticketsSold: result.ticketsSold + item.ticketsSold,
+          refundsNeedingAttention: result.refundsNeedingAttention + item.refundsNeedingAttention,
         }),
-        { grossRevenueRon: 0, platformFeeBani: 0, ticketsSold: 0 },
+        { grossRevenueRon: 0, customerTicketingFeeBani: 0, platformFeeBani: 0, ticketsSold: 0, refundsNeedingAttention: 0 },
       ),
     [items],
   );
   const platformFeeRon = totals.platformFeeBani / 100;
-  const estimatedPayoutRon = totals.grossRevenueRon - platformFeeRon;
-  const sales = items.filter((item) => item.ticketsSold > 0);
+  const estimatedPayoutRon = totals.grossRevenueRon + totals.customerTicketingFeeBani / 100 - platformFeeRon;
+  const sales = items.filter((item) => item.ticketsSold > 0 || item.platformFeeBani > 0);
   const salesPageCount = Math.max(1, Math.ceil(sales.length / SALES_PAGE_SIZE));
   const visibleSales = sales.slice(
     (salesPage - 1) * SALES_PAGE_SIZE,
@@ -239,6 +241,12 @@ export default function FinancePage() {
             {t("finance.estimateNote")}
           </p>
 
+          {totals.refundsNeedingAttention > 0 && (
+            <p className="mt-4 border border-amber-400/25 bg-amber-400/[0.08] px-4 py-3 text-sm text-amber-100">
+              {t("finance.refundsNeedAttention", { count: totals.refundsNeedingAttention })}
+            </p>
+          )}
+
           <section className="mt-8">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
@@ -296,7 +304,7 @@ export default function FinancePage() {
                         <FinanceCell
                           label={t("finance.estimate")}
                           value={formatRon(
-                            item.grossRevenueRon - commissionRon,
+                            item.grossRevenueRon + item.customerTicketingFeeBani / 100 - commissionRon,
                           )}
                           primary
                         />

@@ -7,13 +7,14 @@ SELECT events.organizer_id,
        (sqlc.arg(period_end_at)::TIMESTAMPTZ AT TIME ZONE 'Europe/Bucharest')::DATE,
        sqlc.arg(provider),
        COUNT(orders.id)::INT,
-       SUM(orders.platform_fee_bani)::BIGINT
+       SUM(orders.platform_fee_bani - orders.platform_fee_refunded_bani)::BIGINT
 FROM orders
 JOIN events ON events.id = orders.event_id
 JOIN organizer_profiles profile ON profile.user_id = events.organizer_id
-WHERE orders.status = 'completed'
+WHERE orders.status IN ('completed', 'refunded')
   AND orders.stripe_livemode IS TRUE
   AND orders.platform_fee_bani > 0
+  AND orders.platform_fee_status = 'earned'
   AND COALESCE(orders.completed_at, orders.created_at) >= sqlc.arg(period_start_at)::TIMESTAMPTZ
   AND COALESCE(orders.completed_at, orders.created_at) < sqlc.arg(period_end_at)::TIMESTAMPTZ
   AND profile.verification_status = 'approved'
@@ -62,13 +63,14 @@ WHERE invoice.id = $1;
 
 -- name: GetPlatformCommissionInvoiceLiveTotals :one
 SELECT COUNT(orders.id)::INT AS transaction_count,
-       COALESCE(SUM(orders.platform_fee_bani), 0)::BIGINT AS total_fee_bani
+       COALESCE(SUM(orders.platform_fee_bani - orders.platform_fee_refunded_bani), 0)::BIGINT AS total_fee_bani
 FROM orders
 JOIN events ON events.id = orders.event_id
 WHERE events.organizer_id = sqlc.arg(organizer_id)
-  AND orders.status = 'completed'
+  AND orders.status IN ('completed', 'refunded')
   AND orders.stripe_livemode IS TRUE
   AND orders.platform_fee_bani > 0
+  AND orders.platform_fee_status = 'earned'
   AND COALESCE(orders.completed_at, orders.created_at) >=
       (sqlc.arg(period_start)::DATE::TIMESTAMP AT TIME ZONE 'Europe/Bucharest')
   AND COALESCE(orders.completed_at, orders.created_at) <

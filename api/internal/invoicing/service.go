@@ -273,6 +273,20 @@ func (s *Service) QueueOrder(ctx context.Context, orderID pgtype.UUID) error {
 	return err
 }
 
+func (s *Service) QueueOrderRefund(ctx context.Context, orderID pgtype.UUID) error {
+	if _, err := s.queries.DeleteUnissuedBillingInvoiceForRefund(ctx, orderID); err != nil {
+		return err
+	}
+	_, err := s.queries.CreateBillingInvoiceRefundForOrder(ctx, orderID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err == nil {
+		s.Wake()
+	}
+	return err
+}
+
 func (s *Service) Wake() {
 	select {
 	case s.wake <- struct{}{}:
@@ -316,6 +330,12 @@ func (s *Service) backfill(ctx context.Context) {
 	if _, err := s.queries.BackfillBillingInvoices(ctx); err != nil && ctx.Err() == nil {
 		log.Printf("invoicing backfill failed: %v", err)
 	}
+	if _, err := s.queries.DeleteUnissuedBillingInvoicesForRefundedOrders(ctx); err != nil && ctx.Err() == nil {
+		log.Printf("refunded order invoice cleanup failed: %v", err)
+	}
+	if _, err := s.queries.BackfillBillingInvoiceRefunds(ctx); err != nil && ctx.Err() == nil {
+		log.Printf("invoice refund backfill failed: %v", err)
+	}
 }
 
 func (s *Service) processAvailable(ctx context.Context) {
@@ -336,7 +356,93 @@ func (s *Service) processAvailable(ctx context.Context) {
 		}
 		s.processJob(ctx, job)
 	}
+	s.processInvoiceRefunds(ctx)
 	s.processPlatformInvoices(ctx)
+}
+
+func (s *Service) processInvoiceRefunds(ctx context.Context) {
+	jobs, err := s.queries.ClaimBillingInvoiceRefunds(ctx, 3)
+	if err != nil {
+		if ctx.Err() == nil {
+			log.Printf("invoice refund jobs claim failed: %v", err)
+		}
+		return
+	}
+	for index, job := range jobs {
+		if index > 0 {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(400 * time.Millisecond):
+			}
+		}
+		s.processInvoiceRefund(ctx, job)
+	}
+}
+
+func (s *Service) processInvoiceRefund(ctx context.Context, job db.BillingInvoiceRefunds) {
+	fail := func(err error, needsReview bool) {
+		retrySeconds := int32(math.Min(3600, 15*math.Pow(2, float64(max(0, job.AttemptCount-1)))))
+		if _, markErr := s.queries.MarkBillingInvoiceRefundFailed(ctx, db.MarkBillingInvoiceRefundFailedParams{
+			ID:           job.ID,
+			NeedsReview:  needsReview,
+			ErrorMessage: pgtype.Text{String: truncateError(err), Valid: true},
+			RetrySeconds: retrySeconds,
+		}); markErr != nil {
+			log.Printf("invoice refund failure could not be persisted: refund=%s err=%v", common.UUIDToString(job.ID), markErr)
+		}
+	}
+
+	if s.cipherErr != nil {
+		fail(s.cipherErr, true)
+		return
+	}
+	data, err := s.queries.GetBillingInvoiceRefundIssueData(ctx, job.ID)
+	if err != nil {
+		fail(fmt.Errorf("load invoice refund data: %w", err), errors.Is(err, pgx.ErrNoRows))
+		return
+	}
+	if !data.IntegrationEnabled || data.ConfiguredProvider != data.Provider {
+		fail(errors.New("integrarea de facturare a fost dezactivata sau schimbata"), true)
+		return
+	}
+	provider, ok := s.providers[data.Provider]
+	if !ok {
+		fail(errors.New("operator de facturare necunoscut"), true)
+		return
+	}
+	apiToken, err := s.cipher.decrypt(data.CredentialsEncrypted, credentialContext(data.OrganizerID, data.Provider))
+	if err != nil {
+		fail(err, true)
+		return
+	}
+
+	requestContext, cancel := context.WithTimeout(ctx, 25*time.Second)
+	defer cancel()
+	result, err := provider.Refund(requestContext, InvoiceRefundRequest{
+		RefundID:       common.UUIDToString(data.ID),
+		OrderID:        common.UUIDToString(data.OrderID),
+		OriginalSeries: data.OriginalSeries.String,
+		OriginalNumber: data.OriginalNumber.String,
+		AccountEmail:   data.AccountEmail,
+		APIToken:       string(apiToken),
+		CompanyVATCode: data.CompanyVatCode,
+		SeriesName:     data.SeriesName,
+	})
+	if err != nil {
+		var failure *providerFailure
+		fail(err, errors.As(err, &failure) && failure.needsReview)
+		return
+	}
+	if _, err := s.queries.MarkBillingInvoiceRefundIssued(ctx, db.MarkBillingInvoiceRefundIssuedParams{
+		ID:                 job.ID,
+		ExternalSeries:     optionalText(result.Series),
+		ExternalNumber:     optionalText(result.Number),
+		ExternalDocumentID: optionalText(result.DocumentID),
+		DocumentUrl:        optionalText(result.DocumentURL),
+	}); err != nil {
+		log.Printf("issued invoice refund could not be persisted: refund=%s provider=%s series=%s number=%s err=%v", common.UUIDToString(job.ID), data.Provider, result.Series, result.Number, err)
+	}
 }
 
 func (s *Service) queuePreviousMonth(ctx context.Context, now time.Time) {
@@ -531,6 +637,12 @@ func (s *Service) processJob(ctx context.Context, job db.BillingInvoices) {
 		fail(fmt.Errorf("load invoice data: %w", err), errors.Is(err, pgx.ErrNoRows))
 		return
 	}
+	if data.OrderStatus == db.OrderStatusRefunded {
+		if _, deleteErr := s.queries.DeleteClaimedBillingInvoice(ctx, job.ID); deleteErr != nil {
+			log.Printf("refunded order invoice could not be cancelled: invoice=%s err=%v", common.UUIDToString(job.ID), deleteErr)
+		}
+		return
+	}
 	if !data.StripeLivemode.Valid || !data.StripeLivemode.Bool {
 		fail(errors.New("factura nu apartine unei plati Stripe live confirmate"), true)
 		return
@@ -618,6 +730,10 @@ func (s *Service) processJob(ctx context.Context, job db.BillingInvoices) {
 		DocumentUrl:        optionalText(result.DocumentURL),
 	}); err != nil {
 		log.Printf("issued invoice could not be persisted: invoice=%s provider=%s series=%s number=%s err=%v", common.UUIDToString(job.ID), data.Provider, result.Series, result.Number, err)
+		return
+	}
+	if err := s.QueueOrderRefund(ctx, data.OrderID); err != nil {
+		log.Printf("invoice refund could not be queued after issue: order=%s err=%v", common.UUIDToString(data.OrderID), err)
 	}
 }
 

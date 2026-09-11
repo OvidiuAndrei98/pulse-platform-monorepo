@@ -201,6 +201,54 @@ func (p *oblioProvider) Issue(ctx context.Context, invoice InvoiceRequest) (Invo
 	}, nil
 }
 
+func (p *oblioProvider) Refund(ctx context.Context, refund InvoiceRefundRequest) (InvoiceResult, error) {
+	token, err := p.authorize(ctx, refund.AccountEmail, refund.APIToken)
+	if err != nil {
+		return InvoiceResult{}, &providerFailure{err: err, needsReview: true}
+	}
+	if strings.TrimSpace(refund.OriginalSeries) == "" || strings.TrimSpace(refund.OriginalNumber) == "" {
+		return InvoiceResult{}, &providerFailure{err: errors.New("factura originala Oblio nu are serie sau numar"), needsReview: true}
+	}
+
+	payload := map[string]any{
+		"cif":        refund.CompanyVATCode,
+		"seriesName": refund.SeriesName,
+		"referenceDocument": map[string]any{
+			"type":       "Factura",
+			"refund":     1,
+			"seriesName": refund.OriginalSeries,
+			"number":     refund.OriginalNumber,
+		},
+		"idempotencyKey": "spottr-refund-" + refund.OrderID,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return InvoiceResult{}, err
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+"/docs/invoice", bytes.NewReader(body))
+	if err != nil {
+		return InvoiceResult{}, err
+	}
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set("Content-Type", "application/json")
+
+	var response oblioInvoiceResponse
+	if err := doProviderJSON(p.client, request, &response); err != nil {
+		return InvoiceResult{}, &providerFailure{err: fmt.Errorf("Oblio storno failed: %w", err)}
+	}
+	if response.Status != http.StatusOK || response.Data.Number == "" {
+		return InvoiceResult{}, &providerFailure{
+			err:         errors.New(providerMessage(response.StatusMessage, "Oblio nu a returnat numarul facturii storno")),
+			needsReview: true,
+		}
+	}
+	return InvoiceResult{
+		Series:      response.Data.SeriesName,
+		Number:      response.Data.Number,
+		DocumentURL: response.Data.Link,
+	}, nil
+}
+
 func (p *oblioProvider) getNomenclature(ctx context.Context, token, path, companyVATCode string, target any) error {
 	endpoint := p.baseURL + path + "?cif=" + url.QueryEscape(companyVATCode)
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)

@@ -17,6 +17,7 @@ import { ApiError } from "@packages/api-client/src/Client";
 import { OrganizerUpdatesManager } from "../../components/OrganizerUpdatesManager";
 import { InvitationManager } from "../../components/InvitationManager";
 import { PromoCodeManager } from "../../components/PromoCodeManager";
+import { EventCancellationManager } from "../../components/EventCancellationManager";
 
 export default function EditEventPage() {
   const { t } = useTranslation();
@@ -98,6 +99,7 @@ export default function EditEventPage() {
   };
 
   const completed = event?.status === "completed" || Boolean(event && new Date(event.endTime).getTime() <= Date.now());
+  const cancellationLocked = Boolean(event && ["cancel_pending", "refunding", "cancelled"].includes(event.status));
 
   return (
     <div className="relative bg-background pb-40 text-foreground antialiased">
@@ -115,9 +117,10 @@ export default function EditEventPage() {
           </h1>
         </div>
 
-        {loading ? <div className="mt-6 h-[34rem] animate-pulse rounded-lg border border-white/10 bg-white/[0.03]" /> : event && completed ? <>
-            <div className="my-5 rounded-2xl border border-primary/20 bg-primary/[0.06] px-4 py-3"><p className="text-xs font-bold uppercase tracking-wider text-primary">{t("organizerEvents.completed")}</p><p className="mt-1 text-sm text-muted-foreground">{t("eventForm.completedReadOnly")}</p></div>
-            <EventForm onSubmit={() => undefined} initialValues={{ ...event, status: "completed" }} readOnly onUseAsTemplate={useAsTemplate} />
+        {loading ? <div className="mt-6 h-[34rem] animate-pulse rounded-lg border border-white/10 bg-white/[0.03]" /> : event && (completed || cancellationLocked) ? <>
+            <div className="my-5 rounded-2xl border border-primary/20 bg-primary/[0.06] px-4 py-3"><p className="text-xs font-bold uppercase tracking-wider text-primary">{completed ? t("organizerEvents.completed") : t(`eventCancellation.eventStatus.${event.status}`)}</p><p className="mt-1 text-sm text-muted-foreground">{completed ? t("eventForm.completedReadOnly") : t("eventCancellation.locked")}</p></div>
+            <EventForm onSubmit={() => undefined} initialValues={{ ...event, status: "completed" }} readOnly onUseAsTemplate={event.status === "cancelled" || completed ? useAsTemplate : undefined} />
+            <EventCancellationManager event={event} onRequested={() => setEvent((current) => current ? { ...current, status: "cancel_pending" } : current)} />
             <InvitationManager event={event} readOnly />
             <PromoCodeManager event={event} readOnly />
           </> : event ? <>
@@ -129,6 +132,7 @@ export default function EditEventPage() {
             }}
             onDelete={handleDelete}
           />
+          <EventCancellationManager event={event} onRequested={() => setEvent((current) => current ? { ...current, status: "cancel_pending" } : current)} />
           <InvitationManager event={event} />
           <PromoCodeManager event={event} />
           <OrganizerUpdatesManager eventId={event.id} status={event.status} endTime={event.endTime} />

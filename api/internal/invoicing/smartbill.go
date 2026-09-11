@@ -189,6 +189,16 @@ func (p *smartBillProvider) Issue(ctx context.Context, invoice InvoiceRequest) (
 	}, nil
 }
 
+func (p *smartBillProvider) Refund(_ context.Context, _ InvoiceRefundRequest) (InvoiceResult, error) {
+	// SmartBill's public API does not document a linked full-storno endpoint.
+	// Creating a normal invoice with negative lines would not be recorded as a
+	// proper storno of the original document, so require accounting review.
+	return InvoiceResult{}, &providerFailure{
+		err:         errors.New("Factura SmartBill trebuie stornata din SmartBill; API-ul public nu documenteaza stornarea legata de factura originala"),
+		needsReview: true,
+	}
+}
+
 func (p *smartBillProvider) getConfiguration(ctx context.Context, input ProviderConnectionInput, apiToken, path, extraQuery string, target any) error {
 	endpoint := p.baseURL + path + "?cif=" + url.QueryEscape(input.CompanyVATCode) + extraQuery
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)

@@ -242,6 +242,8 @@ export default function EventsListPage() {
                           {e.status === "completed" ||
                           new Date(e.endTime).getTime() <= Date.now()
                             ? t("organizerEvents.completed")
+                            : e.status === "cancel_pending" || e.status === "refunding" || e.status === "cancelled"
+                              ? t(`eventCancellation.eventStatus.${e.status}`)
                             : e.status === "published"
                               ? t("organizerEvents.published")
                               : e.status === "scheduled"

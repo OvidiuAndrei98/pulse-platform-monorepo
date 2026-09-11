@@ -4,6 +4,70 @@
  */
 
 export interface paths {
+    "/admin/event-cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminOperations_listEventCancellationRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/event-cancellations/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminOperations_approveEventCancellation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/event-cancellations/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminOperations_rejectEventCancellation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/event-cancellations/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminOperations_retryEventCancellation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/organizers": {
         parameters: {
             query?: never;
@@ -136,6 +200,22 @@ export interface paths {
         post: operations["DashboardOperations_editEvent"];
         /** Șterge un eveniment (doar Organizatori/Admini) */
         delete: operations["DashboardOperations_deleteEvent"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/events/{id}/cancellation-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["DashboardOperations_getEventCancellationRequest"];
+        put?: never;
+        post: operations["DashboardOperations_createEventCancellationRequest"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1362,6 +1442,12 @@ export interface components {
             /** Format: int32 */
             totalAmountRon: number;
             eventTitle: string;
+            /** @enum {string} */
+            refundStatus?: "pending" | "processing" | "issued" | "failed" | "needs_review";
+            refundSeries?: string;
+            refundNumber?: string;
+            refundDocumentUrl?: string;
+            refundErrorMessage?: string;
         };
         CheckIn: {
             id: string;
@@ -1392,6 +1478,10 @@ export interface components {
             items: components["schemas"]["CheckoutTicketItemPayload"][];
             promoCode?: string;
             billingDetails: components["schemas"]["BillingDetailsPayload"];
+        };
+        CreateEventCancellationPayload: {
+            reason: string;
+            evidenceUrl?: string;
         };
         CreateEventPayload: {
             title: string;
@@ -1477,6 +1567,44 @@ export interface components {
             /** @enum {string} */
             attendanceStatus: "going" | "has_ticket";
         } & components["schemas"]["PublicProfileResponse"];
+        EventCancellationRequestResponse: {
+            id: string;
+            eventId: string;
+            organizerId: string;
+            eventTitle?: string;
+            organizerEmail?: string;
+            companyName?: string;
+            previousEventStatus: string;
+            reason: string;
+            evidenceUrl?: string;
+            /** @enum {string} */
+            status: "pending" | "refunding" | "completed" | "rejected" | "failed";
+            /** @enum {string} */
+            feePolicy?: "retain" | "refund";
+            adminNote?: string;
+            /** Format: date-time */
+            startTime?: string;
+            /** Format: int64 */
+            orderCount?: number;
+            /** Format: int64 */
+            ticketCount?: number;
+            /** Format: int64 */
+            customerTotalBani?: number;
+            /** Format: int64 */
+            platformFeeBani?: number;
+            /** Format: int64 */
+            alreadyRefundedBani?: number;
+            /** Format: int64 */
+            succeededRefunds?: number;
+            /** Format: int64 */
+            pendingRefunds?: number;
+            /** Format: int64 */
+            failedRefunds?: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         EventResponse: {
             id: string;
             organizerId: string;
@@ -1682,9 +1810,13 @@ export interface components {
             /** Format: int64 */
             grossRevenueRon: number;
             /** Format: int64 */
+            customerTicketingFeeBani: number;
+            /** Format: int64 */
             platformFeeBani: number;
             /** Format: int64 */
             ticketsSold: number;
+            /** Format: int64 */
+            refundsNeedingAttention: number;
         };
         OrganizerProfile: {
             id: string;
@@ -1843,6 +1975,11 @@ export interface components {
             eventCount: number;
             /** Format: int64 */
             ticketsSoldCount: number;
+        };
+        ReviewEventCancellationPayload: {
+            /** @enum {string} */
+            feePolicy?: "retain" | "refund";
+            adminNote?: string;
         };
         ReviewOrganizerVerificationPayload: {
             /** @enum {string} */
@@ -2082,6 +2219,104 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    AdminOperations_listEventCancellationRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventCancellationRequestResponse"][];
+                };
+            };
+        };
+    };
+    AdminOperations_approveEventCancellation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewEventCancellationPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has been accepted for processing, but processing has not yet completed. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        status: "refunding";
+                    };
+                };
+            };
+        };
+    };
+    AdminOperations_rejectEventCancellation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewEventCancellationPayload"];
+            };
+        };
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminOperations_retryEventCancellation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has been accepted for processing, but processing has not yet completed. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        status: "refunding";
+                    };
+                };
+            };
+        };
+    };
     AdminOperations_listOrganizerVerifications: {
         parameters: {
             query?: never;
@@ -2335,6 +2570,61 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    DashboardOperations_getEventCancellationRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventCancellationRequestResponse"];
+                };
+            };
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DashboardOperations_createEventCancellationRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEventCancellationPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded and a new resource has been created as a result. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventCancellationRequestResponse"];
+                };
             };
         };
     };

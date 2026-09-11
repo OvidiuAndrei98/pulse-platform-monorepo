@@ -178,6 +178,30 @@ func (h *ConnectWebhookHandler) handleDirectChargeEvent(r *http.Request, event s
 			return true, errors.New("direct checkout handler or connected account is missing")
 		}
 		return true, h.checkout.FailCheckout(r.Context(), orderID, paymentIntent.ID, event.Account)
+
+	case "charge.refunded":
+		var charge stripe.Charge
+		if event.Data == nil || json.Unmarshal(event.Data.Raw, &charge) != nil {
+			return true, errors.New("invalid refunded Charge")
+		}
+		if h.checkout == nil || event.Account == "" {
+			return true, errors.New("direct refund handler or connected account is missing")
+		}
+		if err := h.checkout.ReconcileChargeRefund(r.Context(), charge, event.Account, event.Livemode); err != nil {
+			return true, err
+		}
+		log.Printf("Stripe direct refund reconciled: charge=%s account=%s", charge.ID, event.Account)
+		return true, nil
+
+	case "refund.created", "refund.updated", "refund.failed":
+		var refund stripe.Refund
+		if event.Data == nil || json.Unmarshal(event.Data.Raw, &refund) != nil {
+			return true, errors.New("invalid Refund")
+		}
+		if h.checkout == nil || event.Account == "" {
+			return true, errors.New("direct refund handler or connected account is missing")
+		}
+		return true, h.checkout.RecordRefundEvent(r.Context(), refund, event.Account, event.Livemode)
 	default:
 		return false, nil
 	}

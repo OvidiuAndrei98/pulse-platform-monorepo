@@ -3,19 +3,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Building2,
+  Ban,
   Check,
   CircleCheck,
   CircleX,
   Clock3,
+  ExternalLink,
   Loader2,
   LogOut,
   RefreshCw,
   ShieldCheck,
+  Ticket,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { type OrganizerVerificationRequest } from "@/core/DataProvider";
+import { type EventCancellationRequest, type OrganizerVerificationRequest } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 
 type VerificationStatus = "pending" | "approved" | "rejected";
@@ -32,6 +35,10 @@ export default function AdminPage() {
     status: "approved" | "rejected";
   }>();
   const [reviewing, setReviewing] = useState(false);
+  const [cancellations, setCancellations] = useState<EventCancellationRequest[]>([]);
+  const [cancellationsLoading, setCancellationsLoading] = useState(true);
+  const [cancellationTarget, setCancellationTarget] = useState<{ request: EventCancellationRequest; action: "retain" | "refund" | "reject" }>();
+  const [adminNote, setAdminNote] = useState("");
 
   const loadRequests = useCallback(async () => {
     if (!user) return;
@@ -48,6 +55,42 @@ export default function AdminPage() {
   useEffect(() => {
     void loadRequests();
   }, [loadRequests]);
+
+  const loadCancellations = useCallback(async () => {
+    if (!user) return;
+    setCancellationsLoading(true);
+    try {
+      setCancellations(await user.listEventCancellationRequests());
+    } catch {
+      toast.error(t("adminCancellations.loadFailed"));
+    } finally {
+      setCancellationsLoading(false);
+    }
+  }, [t, user]);
+
+  useEffect(() => {
+    void loadCancellations();
+  }, [loadCancellations]);
+
+  const confirmCancellation = async () => {
+    if (!user || !cancellationTarget) return;
+    setReviewing(true);
+    try {
+      if (cancellationTarget.action === "reject") {
+        await user.rejectEventCancellation(cancellationTarget.request.id, adminNote);
+      } else {
+        await user.approveEventCancellation(cancellationTarget.request.id, cancellationTarget.action, adminNote);
+      }
+      toast.success(t("adminCancellations.saved"));
+      setCancellationTarget(undefined);
+      setAdminNote("");
+      await loadCancellations();
+    } catch {
+      toast.error(t("adminCancellations.saveFailed"));
+    } finally {
+      setReviewing(false);
+    }
+  };
 
   const counts = useMemo(
     () => ({
@@ -125,12 +168,12 @@ export default function AdminPage() {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => void loadRequests()}
-              disabled={loading}
+              onClick={() => { void loadRequests(); void loadCancellations(); }}
+              disabled={loading || cancellationsLoading}
               className="grid h-10 w-10 place-items-center rounded-lg border border-white/15 transition hover:bg-white/5 disabled:opacity-50"
               aria-label={t("admin.refresh")}
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`h-4 w-4 ${loading || cancellationsLoading ? "animate-spin" : ""}`} />
             </button>
             <button
               type="button"
@@ -142,6 +185,43 @@ export default function AdminPage() {
             </button>
           </div>
         </header>
+
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold">{t("adminCancellations.title")}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{t("adminCancellations.subtitle")}</p>
+          </div>
+          {cancellationsLoading ? (
+            <div className="h-40 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />
+          ) : cancellations.length ? cancellations.map((request) => (
+            <article key={request.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2"><Ban className="h-4 w-4 text-red-300" /><h3 className="truncate font-semibold">{request.eventTitle}</h3></div>
+                  <p className="mt-1 text-xs text-muted-foreground">{request.companyName} · {request.organizerEmail}</p>
+                </div>
+                <span className="w-fit rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide">{t(`adminCancellations.status.${request.status}`)}</span>
+              </div>
+              <p className="mt-4 rounded-xl bg-black/20 p-3 text-sm leading-6 text-muted-foreground">{request.reason}</p>
+              {request.evidenceUrl && <a href={request.evidenceUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-primary">{t("eventCancellation.evidence")}<ExternalLink className="h-3.5 w-3.5" /></a>}
+              <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <FinancialStat label={t("adminCancellations.tickets")} value={String(request.ticketCount ?? 0)} />
+                <FinancialStat label={t("adminCancellations.customerTotal")} value={`${((request.customerTotalBani ?? 0) / 100).toFixed(2)} RON`} />
+                <FinancialStat label={t("adminCancellations.spottrFee")} value={`${((request.platformFeeBani ?? 0) / 100).toFixed(2)} RON`} />
+                <FinancialStat label={t("adminCancellations.refundProgress")} value={`${request.succeededRefunds ?? 0}/${request.orderCount ?? 0}`} />
+              </dl>
+              {request.failedRefunds ? <p className="mt-3 text-xs font-semibold text-red-300">{t("adminCancellations.failedCount", { count: request.failedRefunds })}</p> : null}
+              {request.failedRefunds ? <button type="button" onClick={async () => { try { await user?.retryEventCancellation(request.id); toast.success(t("adminCancellations.retryStarted")); await loadCancellations(); } catch { toast.error(t("adminCancellations.saveFailed")); } }} className="mt-3 h-10 rounded-lg border border-red-400/25 px-4 text-xs font-semibold text-red-300">{t("adminCancellations.retry")}</button> : null}
+              {request.status === "pending" && (
+                <div className="mt-5 grid gap-2 sm:grid-cols-3">
+                  <button type="button" onClick={() => setCancellationTarget({ request, action: "reject" })} className="h-10 rounded-lg border border-white/10 text-xs font-semibold">{t("adminCancellations.reject")}</button>
+                  <button type="button" onClick={() => setCancellationTarget({ request, action: "refund" })} className="h-10 rounded-lg border border-amber-300/20 bg-amber-300/10 text-xs font-semibold text-amber-200">{t("adminCancellations.approveRefundFee")}</button>
+                  <button type="button" onClick={() => setCancellationTarget({ request, action: "retain" })} className="h-10 rounded-lg bg-primary text-xs font-semibold text-primary-foreground">{t("adminCancellations.approveRetainFee")}</button>
+                </div>
+              )}
+            </article>
+          )) : <div className="rounded-2xl border border-dashed border-white/15 px-5 py-10 text-center text-sm text-muted-foreground">{t("adminCancellations.empty")}</div>}
+        </section>
 
         <section>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
@@ -277,8 +357,26 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {cancellationTarget && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl">
+            <div className="flex items-center gap-3"><Ticket className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold">{t(`adminCancellations.confirm.${cancellationTarget.action}`)}</h2></div>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">{t(`adminCancellations.confirmHint.${cancellationTarget.action}`)}</p>
+            <textarea value={adminNote} onChange={(event) => setAdminNote(event.target.value)} placeholder={t("adminCancellations.note")} rows={3} className="mt-4 w-full resize-none rounded-xl border border-white/10 bg-white/[0.035] p-3 text-base outline-none focus:border-primary/50" />
+            <div className="mt-5 flex gap-2">
+              <button type="button" onClick={() => setCancellationTarget(undefined)} disabled={reviewing} className="h-10 flex-1 rounded-lg border border-white/10 text-sm font-semibold">{t("common.cancel")}</button>
+              <button type="button" onClick={() => void confirmCancellation()} disabled={reviewing} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-50">{reviewing && <Loader2 className="h-4 w-4 animate-spin" />}{t("common.confirm")}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
+}
+
+function FinancialStat({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-xl border border-white/10 bg-black/20 p-3"><dt className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</dt><dd className="mt-1 text-sm font-semibold">{value}</dd></div>;
 }
 
 function StatusBadge({ status }: { status: VerificationStatus }) {

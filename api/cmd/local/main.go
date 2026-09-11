@@ -16,12 +16,14 @@ func main() {
 		log.Fatalf("Eroare la inițializarea bazei de date: %v", err)
 	}
 	defer coreApp.Pool.Close()
+
+	// Construirea routerului initializeaza handler-ele partajate de webhook-uri
+	// si workeri, inclusiv executorul durabil de refunduri.
+	router := coreApp.BuildRouter()
 	coreApp.StartEventExpiryWorker(context.Background())
 	coreApp.StartPromotionReservationExpiryWorker(context.Background())
 	coreApp.StartInvoicingWorker(context.Background())
-
-	// Citim routerul comun
-	router := coreApp.BuildRouter()
+	coreApp.StartRefundWorker(context.Background())
 
 	port := os.Getenv("PORT")
 	if port == "" {

@@ -30,6 +30,7 @@ type Application struct {
 	Queries   *db.Queries
 	Pool      *pgxpool.Pool
 	Invoicing *invoicing.Service
+	Refunds   *payments.CheckoutHandler
 }
 
 // InitApplication configurează pool-ul de conexiuni, refolosit și local și în Lambda
@@ -137,6 +138,7 @@ func (app *Application) BuildRouter() http.Handler {
 	organizerHandler := organizer.NewHandler(app.Queries)
 	ticketingHandler := tickets.NewHandler(app.Queries, app.Pool, os.Getenv("PUBLIC_APP_URL"))
 	stripeCheckoutHandler := payments.NewCheckoutHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), mailerService, app.Invoicing)
+	app.Refunds = stripeCheckoutHandler
 	promotionHandler := promotions.NewHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"))
 	stripeWebhookHandler := payments.NewWebhookHandler(os.Getenv("STRIPE_WEBHOOK_SECRET"), stripeCheckoutHandler, promotionHandler)
 	stripeConnectWebhookHandler := payments.NewConnectWebhookHandler(app.Queries, os.Getenv("STRIPE_CONNECT_WEBHOOK_SECRET"), stripeCheckoutHandler)
@@ -191,42 +193,48 @@ func (app *Application) BuildRouter() http.Handler {
 		ReviewOrganizerVerification: organizerHandler.HandleAdminReviewOrganizerVerification,
 
 		// Events
-		CreateEvent:                eventsHandler.HandleCreateEvent,
-		ListEvents:                 eventsHandler.HandleListEvents,
-		GetEventByID:               eventsHandler.HandleGetEventByID,
-		GetLiveEventsInArea:        eventsHandler.HandleGetLiveEventsInArea,
-		DeleteEvent:                eventsHandler.HandleDeleteEvent,
-		EditEvent:                  eventsHandler.HandleEditEvent,
-		GetEventWithStats:          eventsHandler.HandleGetEventWithStats,
-		ListEventsWithStats:        eventsHandler.HandleListEventsWithStats,
-		UploadEventBanner:          eventsHandler.HandleUploadEventBanner,
-		UploadOrganizerUpdateImage: eventsHandler.HandleUploadOrganizerUpdateImage,
-		GetEventBanner:             eventsHandler.HandleGetEventBanner,
-		GetEventUpdates:            eventsHandler.HandleGetEventUpdates,
-		GetOrganizerUpdates:        eventsHandler.HandleGetOrganizerUpdates,
-		CreateEventUpdate:          eventsHandler.HandleCreateEventUpdate,
-		DeleteEventUpdate:          eventsHandler.HandleDeleteEventUpdate,
-		SaveEvent:                  eventsHandler.HandleSaveEvent,
-		RemoveSavedEvent:           eventsHandler.HandleRemoveSavedEvent,
-		StripeWebhook:              stripeWebhookHandler.HandleStripeWebhook,
-		StripeConnectWebhook:       stripeConnectWebhookHandler.HandleStripeConnectWebhook,
-		CreateStripeAccountLink:    stripeConnectHandler.HandleCreateAccountLink,
-		GetStripeAccountStatus:     stripeConnectHandler.HandleGetAccountStatus,
-		CreateStripeLoginLink:      stripeConnectHandler.HandleCreateDashboardLoginLink,
-		DisconnectStripeAccount:    stripeConnectHandler.HandleDisconnectAccount,
-		GetEventSocial:             interactionsHandler.HandleGetEventSocial,
-		UpdateEventRsvp:            interactionsHandler.HandleUpdateEventRsvp,
-		DeleteEventRsvp:            interactionsHandler.HandleDeleteEventRsvp,
-		ListPromoCodes:             eventsHandler.HandleListPromoCodes,
-		CreatePromoCode:            eventsHandler.HandleCreatePromoCode,
-		DeactivatePromoCode:        eventsHandler.HandleDeactivatePromoCode,
-		ValidatePromoCode:          stripeCheckoutHandler.HandleValidatePromoCode,
-		ListPromotionPlans:         promotionHandler.HandleListPlans,
-		GetPromotionAvailability:   promotionHandler.HandleAvailability,
-		CreatePromotionCheckout:    promotionHandler.HandleCreateCheckout,
-		ListPromotionCampaigns:     promotionHandler.HandleListCampaigns,
-		ListActivePromotions:       promotionHandler.HandleListActive,
-		TrackPromotionMetric:       promotionHandler.HandleTrackMetric,
+		CreateEvent:                    eventsHandler.HandleCreateEvent,
+		ListEvents:                     eventsHandler.HandleListEvents,
+		GetEventByID:                   eventsHandler.HandleGetEventByID,
+		GetLiveEventsInArea:            eventsHandler.HandleGetLiveEventsInArea,
+		DeleteEvent:                    eventsHandler.HandleDeleteEvent,
+		EditEvent:                      eventsHandler.HandleEditEvent,
+		GetEventWithStats:              eventsHandler.HandleGetEventWithStats,
+		ListEventsWithStats:            eventsHandler.HandleListEventsWithStats,
+		UploadEventBanner:              eventsHandler.HandleUploadEventBanner,
+		UploadOrganizerUpdateImage:     eventsHandler.HandleUploadOrganizerUpdateImage,
+		GetEventBanner:                 eventsHandler.HandleGetEventBanner,
+		GetEventUpdates:                eventsHandler.HandleGetEventUpdates,
+		GetOrganizerUpdates:            eventsHandler.HandleGetOrganizerUpdates,
+		CreateEventUpdate:              eventsHandler.HandleCreateEventUpdate,
+		DeleteEventUpdate:              eventsHandler.HandleDeleteEventUpdate,
+		SaveEvent:                      eventsHandler.HandleSaveEvent,
+		RemoveSavedEvent:               eventsHandler.HandleRemoveSavedEvent,
+		StripeWebhook:                  stripeWebhookHandler.HandleStripeWebhook,
+		StripeConnectWebhook:           stripeConnectWebhookHandler.HandleStripeConnectWebhook,
+		CreateStripeAccountLink:        stripeConnectHandler.HandleCreateAccountLink,
+		GetStripeAccountStatus:         stripeConnectHandler.HandleGetAccountStatus,
+		CreateStripeLoginLink:          stripeConnectHandler.HandleCreateDashboardLoginLink,
+		DisconnectStripeAccount:        stripeConnectHandler.HandleDisconnectAccount,
+		GetEventSocial:                 interactionsHandler.HandleGetEventSocial,
+		UpdateEventRsvp:                interactionsHandler.HandleUpdateEventRsvp,
+		DeleteEventRsvp:                interactionsHandler.HandleDeleteEventRsvp,
+		ListPromoCodes:                 eventsHandler.HandleListPromoCodes,
+		CreatePromoCode:                eventsHandler.HandleCreatePromoCode,
+		DeactivatePromoCode:            eventsHandler.HandleDeactivatePromoCode,
+		ValidatePromoCode:              stripeCheckoutHandler.HandleValidatePromoCode,
+		ListPromotionPlans:             promotionHandler.HandleListPlans,
+		GetPromotionAvailability:       promotionHandler.HandleAvailability,
+		CreatePromotionCheckout:        promotionHandler.HandleCreateCheckout,
+		ListPromotionCampaigns:         promotionHandler.HandleListCampaigns,
+		ListActivePromotions:           promotionHandler.HandleListActive,
+		TrackPromotionMetric:           promotionHandler.HandleTrackMetric,
+		CreateEventCancellationRequest: stripeCheckoutHandler.HandleCreateEventCancellationRequest,
+		GetEventCancellationRequest:    stripeCheckoutHandler.HandleGetEventCancellationRequest,
+		ListEventCancellationRequests:  stripeCheckoutHandler.HandleAdminListEventCancellationRequests,
+		ApproveEventCancellation:       stripeCheckoutHandler.HandleAdminApproveEventCancellation,
+		RejectEventCancellation:        stripeCheckoutHandler.HandleAdminRejectEventCancellation,
+		RetryEventCancellation:         stripeCheckoutHandler.HandleAdminRetryEventCancellation,
 
 		// Interactions / Checkins
 		CreateCheckIn: interactionsHandler.HandleCreateCheckIn,
@@ -301,5 +309,11 @@ func (app *Application) StartPromotionReservationExpiryWorker(ctx context.Contex
 func (app *Application) StartInvoicingWorker(ctx context.Context) {
 	if app.Invoicing != nil {
 		app.Invoicing.StartWorker(ctx)
+	}
+}
+
+func (app *Application) StartRefundWorker(ctx context.Context) {
+	if app.Refunds != nil {
+		app.Refunds.StartRefundWorker(ctx)
 	}
 }

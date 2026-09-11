@@ -44,6 +44,49 @@ func TestOblioCompanyUsesFiscalAutocompleteWithoutHardcodedVATStatus(t *testing.
 	}
 }
 
+func TestOblioRefundCreatesLinkedFullStorno(t *testing.T) {
+	var refundPayload map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/authorize/token":
+			_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "token"})
+		case "/docs/invoice":
+			if err := json.NewDecoder(r.Body).Decode(&refundPayload); err != nil {
+				t.Fatal(err)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status": 200,
+				"data":   map[string]any{"seriesName": "FCT", "number": "2"},
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	provider := newOblioProvider(server.Client())
+	provider.baseURL = server.URL
+	if _, err := provider.Refund(context.Background(), InvoiceRefundRequest{
+		OrderID:        "order-1",
+		OriginalSeries: "FCT",
+		OriginalNumber: "1",
+		AccountEmail:   "issuer@example.com",
+		APIToken:       "secret",
+		CompanyVATCode: "RO87654321",
+		SeriesName:     "FCT",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	reference := refundPayload["referenceDocument"].(map[string]any)
+	if reference["type"] != "Factura" || reference["refund"] != float64(1) || reference["seriesName"] != "FCT" || reference["number"] != "1" {
+		t.Fatalf("unexpected reference document: %#v", reference)
+	}
+	if refundPayload["idempotencyKey"] != "spottr-refund-order-1" {
+		t.Fatalf("unexpected idempotency key: %#v", refundPayload["idempotencyKey"])
+	}
+}
+
 func TestSmartBillSendsKnownVATStatusAndOmitsUnknownStatus(t *testing.T) {
 	tests := []struct {
 		name       string

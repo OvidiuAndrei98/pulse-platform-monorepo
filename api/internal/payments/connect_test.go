@@ -45,3 +45,23 @@ func TestIsStripeAccountMissing(t *testing.T) {
 		})
 	}
 }
+
+func TestConnectDashboardBaseURLMatchesStripeMode(t *testing.T) {
+	tests := []struct {
+		name   string
+		secret string
+		want   string
+	}{
+		{name: "live", secret: "sk_live_example", want: "https://dashboard.stripe.com"},
+		{name: "test", secret: "sk_test_example", want: "https://dashboard.stripe.com/test"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := NewConnectHandler(nil, tt.secret, "", "")
+			if handler.stripeDashboardBaseURL != tt.want {
+				t.Fatalf("expected %q, got %q", tt.want, handler.stripeDashboardBaseURL)
+			}
+		})
+	}
+}

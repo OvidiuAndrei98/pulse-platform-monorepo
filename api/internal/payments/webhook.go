@@ -131,6 +131,37 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 			}
 		}
 		log.Printf("Stripe payment failed: id=%s", event.ID)
+	case "charge.refunded":
+		var charge stripe.Charge
+		if event.Data == nil || json.Unmarshal(event.Data.Raw, &charge) != nil {
+			http.Error(w, "Invalid refunded Charge", http.StatusBadRequest)
+			return
+		}
+		if h.checkout == nil {
+			http.Error(w, "Checkout is not configured", http.StatusServiceUnavailable)
+			return
+		}
+		if err := h.checkout.ReconcileChargeRefund(r.Context(), charge, event.Account, event.Livemode); err != nil {
+			log.Printf("Stripe refund reconciliation failed: charge=%s account=%s err=%v", charge.ID, event.Account, err)
+			http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
+			return
+		}
+		log.Printf("Stripe refund reconciled: charge=%s account=%s", charge.ID, event.Account)
+	case "refund.created", "refund.updated", "refund.failed":
+		var refund stripe.Refund
+		if event.Data == nil || json.Unmarshal(event.Data.Raw, &refund) != nil {
+			http.Error(w, "Invalid Refund", http.StatusBadRequest)
+			return
+		}
+		if h.checkout == nil {
+			http.Error(w, "Checkout is not configured", http.StatusServiceUnavailable)
+			return
+		}
+		if err := h.checkout.RecordRefundEvent(r.Context(), refund, event.Account, event.Livemode); err != nil {
+			log.Printf("Stripe refund status update failed: refund=%s account=%s err=%v", refund.ID, event.Account, err)
+			http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
+			return
+		}
 	default:
 		log.Printf("Stripe webhook ignored: id=%s type=%s", event.ID, event.Type)
 	}

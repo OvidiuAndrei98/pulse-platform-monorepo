@@ -35,6 +35,7 @@ export type InvoicingProviderOptions = ReadableSchema<"InvoicingProviderOptionsR
 export type BillingInvoice = ReadableSchema<"BillingInvoiceResponse">;
 export type OrganizerProfile = ReadableSchema<"OrganizerProfile">;
 export type OrganizerVerificationRequest = ReadableSchema<"OrganizerVerificationRequest">;
+export type EventCancellationRequest = ReadableSchema<"EventCancellationRequestResponse">;
 export type ValidationEvent = ReadableSchema<"ValidationEventResponse">;
 export type SocialFeedItem = ReadableSchema<"SocialFeedItemResponse">;
 export type OrganizerEventUpdate = ReadableSchema<"OrganizerEventUpdateResponse">;
@@ -271,6 +272,45 @@ export class User {
     return ApiClient.instance.patch("/admin/organizers/{id}/verification", {
       params: { path: { id: organizerId } },
       body: { status },
+    });
+  }
+
+  async getEventCancellationRequest(eventId: string): Promise<EventCancellationRequest | undefined> {
+    return ApiClient.instance.get("/dashboard/events/{id}/cancellation-request", {
+      params: { path: { id: eventId } },
+    });
+  }
+
+  async requestEventCancellation(eventId: string, reason: string, evidenceUrl?: string): Promise<EventCancellationRequest> {
+    const request = await ApiClient.instance.post("/dashboard/events/{id}/cancellation-request", {
+      params: { path: { id: eventId } },
+      body: { reason, evidenceUrl: evidenceUrl || undefined },
+    });
+    await this._getOrganizerEvents();
+    return request;
+  }
+
+  async listEventCancellationRequests(): Promise<EventCancellationRequest[]> {
+    return ApiClient.instance.get("/admin/event-cancellations");
+  }
+
+  async approveEventCancellation(id: string, feePolicy: "retain" | "refund", adminNote?: string): Promise<void> {
+    await ApiClient.instance.post("/admin/event-cancellations/{id}/approve", {
+      params: { path: { id } },
+      body: { feePolicy, adminNote: adminNote || undefined },
+    });
+  }
+
+  async rejectEventCancellation(id: string, adminNote?: string): Promise<void> {
+    await ApiClient.instance.post("/admin/event-cancellations/{id}/reject", {
+      params: { path: { id } },
+      body: { adminNote: adminNote || undefined },
+    });
+  }
+
+  async retryEventCancellation(id: string): Promise<void> {
+    await ApiClient.instance.post("/admin/event-cancellations/{id}/retry", {
+      params: { path: { id } },
     });
   }
 

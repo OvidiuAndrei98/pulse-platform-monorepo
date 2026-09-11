@@ -93,7 +93,7 @@ export default function InvoicingPage() {
   }, [t, user]);
 
   useEffect(() => {
-    if (!user || !invoices.some((invoice) => invoice.status === "pending" || invoice.status === "processing")) return;
+    if (!user || !invoices.some((invoice) => invoice.status === "pending" || invoice.status === "processing" || invoice.refundStatus === "pending" || invoice.refundStatus === "processing")) return;
     const timer = window.setInterval(() => void loadInvoices().catch(() => undefined), 10000);
     return () => window.clearInterval(timer);
   }, [invoices, loadInvoices, user]);
@@ -101,8 +101,8 @@ export default function InvoicingPage() {
   const stats = useMemo(
     () => ({
       issued: invoices.filter((invoice) => invoice.status === "issued").length,
-      inProgress: invoices.filter((invoice) => invoice.status === "pending" || invoice.status === "processing").length,
-      attention: invoices.filter((invoice) => invoice.status === "failed" || invoice.status === "needs_review").length,
+      inProgress: invoices.filter((invoice) => invoice.status === "pending" || invoice.status === "processing" || invoice.refundStatus === "pending" || invoice.refundStatus === "processing").length,
+      attention: invoices.filter((invoice) => invoice.status === "failed" || invoice.status === "needs_review" || invoice.refundStatus === "failed" || invoice.refundStatus === "needs_review").length,
     }),
     [invoices],
   );
@@ -315,6 +315,13 @@ export default function InvoicingPage() {
                         <p className="mt-1 text-xs text-muted-foreground">{invoice.customerName} · {invoice.customerEmail}</p>
                         <p className="mt-2 text-xs text-white/45">{new Date(invoice.createdAt).toLocaleString()} · {invoice.totalAmountRon} RON</p>
                         {invoice.errorMessage && <p className="mt-3 max-w-2xl rounded-lg bg-red-500/[0.08] px-3 py-2 text-xs leading-5 text-red-300">{invoice.errorMessage}</p>}
+                        {invoice.refundStatus && (
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                            <span className="text-muted-foreground">{t("invoicing.refundDocument")}</span>
+                            <Status status={invoice.refundStatus} label={t(`invoicing.status.${invoice.refundStatus}`)} />
+                            {invoice.refundErrorMessage && <span className="w-full rounded-lg bg-red-500/[0.08] px-3 py-2 leading-5 text-red-300">{invoice.refundErrorMessage}</span>}
+                          </div>
+                        )}
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         {invoice.documentUrl && (
@@ -322,7 +329,12 @@ export default function InvoicingPage() {
                             <ExternalLink className="h-3.5 w-3.5" /> {invoice.series} {invoice.number}
                           </a>
                         )}
-                        {(invoice.status === "failed" || invoice.status === "needs_review") && (
+                        {invoice.refundDocumentUrl && (
+                          <a href={invoice.refundDocumentUrl} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold transition hover:bg-white/5">
+                            <ExternalLink className="h-3.5 w-3.5" /> {t("invoicing.refundShort")} {invoice.refundSeries} {invoice.refundNumber}
+                          </a>
+                        )}
+                        {(invoice.status === "failed" || invoice.status === "needs_review" || invoice.refundStatus === "failed" || invoice.refundStatus === "needs_review") && (
                           <button type="button" onClick={() => void retry(invoice.id)} disabled={Boolean(retrying)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-primary/25 px-3 text-xs font-semibold text-primary transition hover:bg-primary/10 disabled:opacity-50">
                             {retrying === invoice.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                             {t("invoicing.retry")}

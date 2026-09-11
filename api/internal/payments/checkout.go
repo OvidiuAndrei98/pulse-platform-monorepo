@@ -302,6 +302,12 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	defer tx.Rollback(ctx)
 
 	qtx := h.queries.WithTx(tx)
+	if _, err := qtx.LockPublishedEventForCheckout(ctx, eventID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusConflict, message: "Vanzarea biletelor pentru acest eveniment este oprita"}
+		}
+		return db.Orders{}, nil, "", "", "", false, err
+	}
 	event, err := qtx.GetEventWithStats(ctx, eventID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -311,6 +317,9 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	}
 	if userID.Valid && event.OrganizerID == userID {
 		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusForbidden, message: "Nu poti cumpara bilete la propriul eveniment"}
+	}
+	if event.Status != "published" {
+		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusConflict, message: "Vanzarea biletelor pentru acest eveniment este oprita"}
 	}
 
 	profile, err := qtx.GetOrganizerProfile(ctx, event.OrganizerID)
@@ -435,7 +444,7 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 		}
 	}
 	if promoCodeID.Valid {
-		if _, err := tx.Exec(ctx, `UPDATE promo_codes SET redemptions_count=redemptions_count+1 WHERE id=$1`, promoCodeID); err != nil {
+		if err := qtx.IncrementPromoCodeRedemption(ctx, promoCodeID); err != nil {
 			return db.Orders{}, nil, "", "", "", false, err
 		}
 	}
@@ -581,6 +590,213 @@ func (h *CheckoutHandler) FailCheckout(ctx context.Context, orderID, paymentInte
 	return h.failOrder(ctx, parsedOrderID, paymentIntentID, connectedAccountID)
 }
 
+func (h *CheckoutHandler) ReconcileChargeRefund(ctx context.Context, charge stripe.Charge, connectedAccountID string, liveMode bool) error {
+	order, err := h.findStripeOrder(ctx, charge.Metadata, stripePaymentIntentID(charge.PaymentIntent), charge.ID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	tx, err := h.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := h.queries.WithTx(tx)
+	order, err = qtx.GetOrderForUpdate(ctx, order.ID)
+	if err != nil {
+		return err
+	}
+	if !stripeOrderContextMatches(order, connectedAccountID) {
+		return errors.New("contextul contului Stripe nu corespunde refundului")
+	}
+	if order.StripeLivemode.Valid && order.StripeLivemode.Bool != liveMode {
+		return errors.New("mediul Stripe din refund nu corespunde comenzii")
+	}
+	if charge.AmountRefunded < order.StripeAmountRefundedBani {
+		return tx.Commit(ctx)
+	}
+
+	fullRefund := charge.Refunded || (charge.Amount > 0 && charge.AmountRefunded >= charge.Amount)
+	refundStatus := "partial"
+	needsAttention := true
+	if fullRefund {
+		refundStatus = "succeeded"
+		needsAttention = false
+	}
+
+	if fullRefund && order.Status == db.OrderStatusCompleted {
+		items, itemsErr := qtx.GetOrderItems(ctx, order.ID)
+		if itemsErr != nil {
+			return itemsErr
+		}
+		for _, item := range items {
+			if err := qtx.DecrementTicketsSold(ctx, db.DecrementTicketsSoldParams{
+				ID:          item.TicketTypeID,
+				TicketsSold: item.Quantity,
+			}); err != nil {
+				return err
+			}
+		}
+		if order.PromoCodeID.Valid {
+			if err := qtx.DecrementPromoCodeRedemption(ctx, order.PromoCodeID); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := qtx.UpdateOrderRefundState(ctx, db.UpdateOrderRefundStateParams{
+		ID:                 order.ID,
+		StripeChargeID:     charge.ID,
+		AmountRefundedBani: charge.AmountRefunded,
+		RefundStatus:       refundStatus,
+		NeedsAttention:     needsAttention,
+		MarkRefunded:       fullRefund,
+	}); err != nil {
+		return err
+	}
+
+	operation, operationErr := qtx.GetOrderRefundOperation(ctx, order.ID)
+	manualFeeRefundQueued := false
+	if operationErr != nil && !errors.Is(operationErr, pgx.ErrNoRows) {
+		return operationErr
+	}
+	if fullRefund {
+		if errors.Is(operationErr, pgx.ErrNoRows) || (operationErr == nil && operation.Source == "stripe_dashboard" && operation.FeePolicy == "review") {
+			// A full refund without a Spottr operation was initiated directly in
+			// Stripe. It must not remain commissionable: queue a separate refund
+			// of the Application Fee back to the connected account.
+			operation, operationErr = qtx.UpsertManualRefundOperation(ctx, db.UpsertManualRefundOperationParams{
+				OrderID: order.ID, FeePolicy: "refund", Status: "pending", StripeRefundID: pgtype.Text{}, RefundAmountBani: charge.AmountRefunded,
+			})
+			if operationErr != nil {
+				return operationErr
+			}
+			if err := qtx.MarkOrderPlatformFeePending(ctx, db.MarkOrderPlatformFeePendingParams{
+				OrderID: order.ID, Status: "refund_pending", RefundOrigin: optionalText("stripe_dashboard"), NeedsAttention: false,
+			}); err != nil {
+				return err
+			}
+			manualFeeRefundQueued = true
+		} else {
+			if operation.FeePolicy == "refund" && operation.Status != "succeeded" {
+				manualFeeRefundQueued = true
+				if err := qtx.MarkOrderPlatformFeePending(ctx, db.MarkOrderPlatformFeePendingParams{OrderID: order.ID, Status: "refund_pending", RefundOrigin: optionalText(operation.Source), NeedsAttention: false}); err != nil {
+					return err
+				}
+				if err := qtx.MarkOrderRefundSubmitted(ctx, db.MarkOrderRefundSubmittedParams{ID: operation.ID, Status: "pending", StripeRefundID: operation.StripeRefundID, StripeApplicationFeeID: operation.StripeApplicationFeeID}); err != nil {
+					return err
+				}
+			} else if operation.FeePolicy == "retain" {
+				if err := qtx.MarkOrderPlatformFeeRetained(ctx, db.MarkOrderPlatformFeeRetainedParams{OrderID: order.ID, RefundOrigin: optionalText(operation.Source)}); err != nil {
+					return err
+				}
+			}
+			if !manualFeeRefundQueued {
+				if err := qtx.MarkOrderRefundSubmitted(ctx, db.MarkOrderRefundSubmittedParams{ID: operation.ID, Status: "succeeded", StripeRefundID: operation.StripeRefundID, StripeApplicationFeeID: operation.StripeApplicationFeeID}); err != nil {
+					return err
+				}
+			}
+		}
+	} else {
+		_, operationErr = qtx.UpsertManualRefundOperation(ctx, db.UpsertManualRefundOperationParams{
+			OrderID: order.ID, FeePolicy: "review", Status: "needs_review", StripeRefundID: pgtype.Text{}, RefundAmountBani: charge.AmountRefunded,
+		})
+		if operationErr != nil {
+			return operationErr
+		}
+		if err := qtx.MarkOrderPlatformFeePending(ctx, db.MarkOrderPlatformFeePendingParams{
+			OrderID: order.ID, Status: "needs_review", RefundOrigin: optionalText("stripe_dashboard"), NeedsAttention: true,
+		}); err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	if fullRefund && order.AutomaticInvoiceRefundEnabled && h.invoicing != nil {
+		if err := h.invoicing.QueueOrderRefund(ctx, order.ID); err != nil {
+			log.Printf("invoice refund could not be queued for order %s: %v", common.UUIDToString(order.ID), err)
+		}
+	}
+	if manualFeeRefundQueued {
+		go h.processRefundBatch(context.Background())
+	}
+	return nil
+}
+
+func (h *CheckoutHandler) RecordRefundEvent(ctx context.Context, refund stripe.Refund, connectedAccountID string, liveMode bool) error {
+	if refund.Status == stripe.RefundStatusSucceeded {
+		// charge.refunded is the authoritative cumulative event and handles both
+		// a single full refund and multiple partial refunds idempotently.
+		return nil
+	}
+	order, err := h.findStripeOrder(ctx, refund.Metadata, stripePaymentIntentID(refund.PaymentIntent), stripeChargeID(refund.Charge))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !stripeOrderContextMatches(order, connectedAccountID) {
+		return errors.New("contextul contului Stripe nu corespunde refundului")
+	}
+	if order.StripeLivemode.Valid && order.StripeLivemode.Bool != liveMode {
+		return errors.New("mediul Stripe din refund nu corespunde comenzii")
+	}
+	status := string(refund.Status)
+	switch refund.Status {
+	case stripe.RefundStatusPending, stripe.RefundStatusFailed, stripe.RefundStatusRequiresAction, stripe.RefundStatusCanceled:
+		if refund.Status == stripe.RefundStatusCanceled {
+			status = "failed"
+		}
+	default:
+		return nil
+	}
+	return h.queries.UpdateOrderRefundState(ctx, db.UpdateOrderRefundStateParams{
+		ID:                 order.ID,
+		StripeChargeID:     stripeChargeID(refund.Charge),
+		AmountRefundedBani: order.StripeAmountRefundedBani,
+		RefundStatus:       status,
+		NeedsAttention:     true,
+		MarkRefunded:       false,
+	})
+}
+
+func (h *CheckoutHandler) findStripeOrder(ctx context.Context, metadata map[string]string, paymentIntentID, chargeID string) (db.Orders, error) {
+	if orderID := firstStripeMetadata(metadata, "spottr_order_id", "pulse_order_id"); orderID != "" {
+		var parsedOrderID pgtype.UUID
+		if err := parsedOrderID.Scan(orderID); err == nil && parsedOrderID.Valid {
+			return h.queries.GetOrderForUpdate(ctx, parsedOrderID)
+		}
+	}
+	if paymentIntentID != "" {
+		return h.queries.GetOrderByStripePaymentIntent(ctx, pgtype.Text{String: paymentIntentID, Valid: true})
+	}
+	if chargeID != "" {
+		return h.queries.GetOrderByStripeChargeID(ctx, pgtype.Text{String: chargeID, Valid: true})
+	}
+	return db.Orders{}, pgx.ErrNoRows
+}
+
+func stripePaymentIntentID(paymentIntent *stripe.PaymentIntent) string {
+	if paymentIntent == nil {
+		return ""
+	}
+	return paymentIntent.ID
+}
+
+func stripeChargeID(charge *stripe.Charge) string {
+	if charge == nil {
+		return ""
+	}
+	return charge.ID
+}
+
 func (h *CheckoutHandler) failOrder(ctx context.Context, orderID pgtype.UUID, paymentIntentID, connectedAccountID string) error {
 	tx, err := h.db.Begin(ctx)
 	if err != nil {
@@ -600,7 +816,7 @@ func (h *CheckoutHandler) failOrder(ctx context.Context, orderID pgtype.UUID, pa
 		return tx.Commit(ctx)
 	}
 	if order.PromoCodeID.Valid {
-		if _, err := tx.Exec(ctx, `UPDATE promo_codes SET redemptions_count=GREATEST(0,redemptions_count-1) WHERE id=$1`, order.PromoCodeID); err != nil {
+		if err := qtx.DecrementPromoCodeRedemption(ctx, order.PromoCodeID); err != nil {
 			return err
 		}
 	}

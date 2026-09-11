@@ -54,6 +54,27 @@ WHERE o.status = 'completed'
   AND invoice.id IS NULL
 ON CONFLICT (order_id) DO NOTHING;
 
+-- name: BackfillBillingInvoiceRefunds :execrows
+INSERT INTO billing_invoice_refunds (
+    billing_invoice_id, order_id, organizer_id, provider
+)
+SELECT invoice.id, invoice.order_id, invoice.organizer_id, invoice.provider
+FROM billing_invoices invoice
+JOIN orders ON orders.id = invoice.order_id
+LEFT JOIN billing_invoice_refunds refund ON refund.order_id = invoice.order_id
+WHERE invoice.status = 'issued'
+  AND orders.status = 'refunded'
+  AND orders.automatic_invoice_refund_enabled = TRUE
+  AND refund.id IS NULL
+ON CONFLICT (order_id) DO NOTHING;
+
+-- name: DeleteUnissuedBillingInvoicesForRefundedOrders :execrows
+DELETE FROM billing_invoices invoice
+USING orders
+WHERE orders.id = invoice.order_id
+  AND orders.status = 'refunded'
+  AND invoice.status IN ('pending', 'failed', 'needs_review');
+
 -- name: ClaimBillingInvoices :many
 WITH claimable AS (
     SELECT id
@@ -87,6 +108,7 @@ SELECT invoice.id AS invoice_id,
        orders.customer_ticketing_fee_bani,
        orders.stripe_livemode,
        orders.stripe_payment_intent_id,
+       orders.status AS order_status,
        orders.billing_type,
        orders.billing_name,
        orders.billing_tax_id,
@@ -116,6 +138,15 @@ JOIN events ON events.id = orders.event_id
 JOIN organizer_profiles profile ON profile.user_id = invoice.organizer_id
 JOIN organizer_invoicing_settings settings ON settings.organizer_id = invoice.organizer_id
 WHERE invoice.id = $1;
+
+-- name: DeleteUnissuedBillingInvoiceForRefund :execrows
+DELETE FROM billing_invoices
+WHERE order_id = $1
+  AND status IN ('pending', 'failed', 'needs_review');
+
+-- name: DeleteClaimedBillingInvoice :execrows
+DELETE FROM billing_invoices
+WHERE id = $1 AND status = 'processing';
 
 -- name: ListBillingInvoiceItems :many
 SELECT items.ticket_type_id,
@@ -161,6 +192,11 @@ SELECT invoice.id,
        invoice.error_message,
        invoice.issued_at,
        invoice.created_at,
+       refund.status AS refund_status,
+       refund.external_series AS refund_external_series,
+       refund.external_number AS refund_external_number,
+       refund.document_url AS refund_document_url,
+       refund.error_message AS refund_error_message,
        orders.email,
        orders.billing_name,
        orders.total_amount,
@@ -168,6 +204,7 @@ SELECT invoice.id,
 FROM billing_invoices invoice
 JOIN orders ON orders.id = invoice.order_id
 JOIN events ON events.id = orders.event_id
+LEFT JOIN billing_invoice_refunds refund ON refund.billing_invoice_id = invoice.id
 WHERE invoice.organizer_id = $1
 ORDER BY invoice.created_at DESC
 LIMIT 100;
@@ -181,5 +218,97 @@ SET status = 'pending',
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
   AND organizer_id = $2
+  AND status IN ('failed', 'needs_review')
+RETURNING *;
+
+-- name: CreateBillingInvoiceRefundForOrder :one
+INSERT INTO billing_invoice_refunds (
+    billing_invoice_id, order_id, organizer_id, provider
+)
+SELECT invoice.id, invoice.order_id, invoice.organizer_id, invoice.provider
+FROM billing_invoices invoice
+JOIN orders ON orders.id = invoice.order_id
+WHERE invoice.order_id = $1
+  AND invoice.status = 'issued'
+  AND orders.status = 'refunded'
+  AND orders.automatic_invoice_refund_enabled = TRUE
+ON CONFLICT (order_id) DO UPDATE
+SET updated_at = billing_invoice_refunds.updated_at
+RETURNING *;
+
+-- name: ClaimBillingInvoiceRefunds :many
+WITH claimable AS (
+    SELECT id
+    FROM billing_invoice_refunds
+    WHERE attempt_count < 8
+      AND (
+        (status IN ('pending', 'failed') AND next_attempt_at <= CURRENT_TIMESTAMP)
+        OR (status = 'processing' AND updated_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes')
+      )
+    ORDER BY next_attempt_at ASC, created_at ASC
+    FOR UPDATE SKIP LOCKED
+    LIMIT sqlc.arg(batch_size)
+)
+UPDATE billing_invoice_refunds refund
+SET status = 'processing',
+    attempt_count = attempt_count + 1,
+    error_message = NULL,
+    updated_at = CURRENT_TIMESTAMP
+FROM claimable
+WHERE refund.id = claimable.id
+RETURNING refund.*;
+
+-- name: GetBillingInvoiceRefundIssueData :one
+SELECT refund.id,
+       refund.order_id,
+       refund.organizer_id,
+       refund.provider,
+       refund.attempt_count,
+       invoice.external_series AS original_series,
+       invoice.external_number AS original_number,
+       settings.account_email,
+       settings.credentials_encrypted,
+       settings.company_vat_code,
+       settings.series_name,
+       settings.enabled AS integration_enabled,
+       settings.provider AS configured_provider
+FROM billing_invoice_refunds refund
+JOIN billing_invoices invoice ON invoice.id = refund.billing_invoice_id
+JOIN organizer_invoicing_settings settings ON settings.organizer_id = refund.organizer_id
+JOIN orders ON orders.id = refund.order_id
+WHERE refund.id = $1
+  AND orders.status = 'refunded';
+
+-- name: MarkBillingInvoiceRefundIssued :one
+UPDATE billing_invoice_refunds
+SET status = 'issued',
+    external_series = $2,
+    external_number = $3,
+    external_document_id = $4,
+    document_url = $5,
+    error_message = NULL,
+    issued_at = CURRENT_TIMESTAMP,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING *;
+
+-- name: MarkBillingInvoiceRefundFailed :one
+UPDATE billing_invoice_refunds
+SET status = CASE WHEN sqlc.arg(needs_review)::BOOLEAN THEN 'needs_review' ELSE 'failed' END,
+    error_message = sqlc.arg(error_message),
+    next_attempt_at = CURRENT_TIMESTAMP + make_interval(secs => sqlc.arg(retry_seconds)::INT),
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = sqlc.arg(id)
+RETURNING *;
+
+-- name: RetryBillingInvoiceRefund :one
+UPDATE billing_invoice_refunds
+SET status = 'pending',
+    attempt_count = 0,
+    next_attempt_at = CURRENT_TIMESTAMP,
+    error_message = NULL,
+    updated_at = CURRENT_TIMESTAMP
+WHERE billing_invoice_id = sqlc.arg(billing_invoice_id)
+  AND organizer_id = sqlc.arg(organizer_id)
   AND status IN ('failed', 'needs_review')
 RETURNING *;

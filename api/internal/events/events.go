@@ -266,6 +266,10 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusConflict, "Evenimentele incheiate nu mai pot fi modificate. Foloseste evenimentul ca template.")
 		return
 	}
+	if existingEvent.Status == "cancel_pending" || existingEvent.Status == "refunding" || existingEvent.Status == "cancelled" {
+		router.RespondWithError(w, http.StatusConflict, "Evenimentul nu poate fi modificat cat timp anularea sau refundurile sunt procesate")
+		return
+	}
 
 	var organizerUUID pgtype.UUID
 	if err := organizerUUID.Scan(userID); err != nil || !organizerUUID.Valid {

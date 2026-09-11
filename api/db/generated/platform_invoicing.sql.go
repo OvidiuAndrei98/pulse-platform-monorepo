@@ -82,13 +82,14 @@ SELECT events.organizer_id,
        ($2::TIMESTAMPTZ AT TIME ZONE 'Europe/Bucharest')::DATE,
        $3,
        COUNT(orders.id)::INT,
-       SUM(orders.platform_fee_bani)::BIGINT
+       SUM(orders.platform_fee_bani - orders.platform_fee_refunded_bani)::BIGINT
 FROM orders
 JOIN events ON events.id = orders.event_id
 JOIN organizer_profiles profile ON profile.user_id = events.organizer_id
-WHERE orders.status = 'completed'
+WHERE orders.status IN ('completed', 'refunded')
   AND orders.stripe_livemode IS TRUE
   AND orders.platform_fee_bani > 0
+  AND orders.platform_fee_status = 'earned'
   AND COALESCE(orders.completed_at, orders.created_at) >= $1::TIMESTAMPTZ
   AND COALESCE(orders.completed_at, orders.created_at) < $2::TIMESTAMPTZ
   AND profile.verification_status = 'approved'
@@ -166,13 +167,14 @@ func (q *Queries) GetPlatformCommissionInvoiceIssueData(ctx context.Context, id 
 
 const getPlatformCommissionInvoiceLiveTotals = `-- name: GetPlatformCommissionInvoiceLiveTotals :one
 SELECT COUNT(orders.id)::INT AS transaction_count,
-       COALESCE(SUM(orders.platform_fee_bani), 0)::BIGINT AS total_fee_bani
+       COALESCE(SUM(orders.platform_fee_bani - orders.platform_fee_refunded_bani), 0)::BIGINT AS total_fee_bani
 FROM orders
 JOIN events ON events.id = orders.event_id
 WHERE events.organizer_id = $1
-  AND orders.status = 'completed'
+  AND orders.status IN ('completed', 'refunded')
   AND orders.stripe_livemode IS TRUE
   AND orders.platform_fee_bani > 0
+  AND orders.platform_fee_status = 'earned'
   AND COALESCE(orders.completed_at, orders.created_at) >=
       ($2::DATE::TIMESTAMP AT TIME ZONE 'Europe/Bucharest')
   AND COALESCE(orders.completed_at, orders.created_at) <

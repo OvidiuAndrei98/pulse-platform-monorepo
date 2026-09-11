@@ -305,6 +305,42 @@ model ReviewOrganizerVerificationPayload {
   status: "approved" | "rejected";
 }
 
+model CreateEventCancellationPayload {
+  reason: string;
+  evidenceUrl?: string;
+}
+
+model ReviewEventCancellationPayload {
+  feePolicy?: "retain" | "refund";
+  adminNote?: string;
+}
+
+model EventCancellationRequestResponse {
+  id: string;
+  eventId: string;
+  organizerId: string;
+  eventTitle?: string;
+  organizerEmail?: string;
+  companyName?: string;
+  previousEventStatus: string;
+  reason: string;
+  evidenceUrl?: string;
+  status: "pending" | "refunding" | "completed" | "rejected" | "failed";
+  feePolicy?: "retain" | "refund";
+  adminNote?: string;
+  startTime?: utcDateTime;
+  orderCount?: int64;
+  ticketCount?: int64;
+  customerTotalBani?: int64;
+  platformFeeBani?: int64;
+  alreadyRefundedBani?: int64;
+  succeededRefunds?: int64;
+  pendingRefunds?: int64;
+  failedRefunds?: int64;
+  createdAt: utcDateTime;
+  updatedAt: utcDateTime;
+}
+
 model UserLoginPayload {
   email: string;
   password: string;
@@ -636,8 +672,10 @@ model OrganizerFinanceEventResponse {
   eventTitle: string;
   startTime: utcDateTime;
   grossRevenueRon: int64;
+  customerTicketingFeeBani: int64;
   platformFeeBani: int64;
   ticketsSold: int64;
+  refundsNeedingAttention: int64;
 }
 
 model PlatformCommissionInvoiceResponse {
@@ -721,6 +759,11 @@ model BillingInvoiceResponse {
   customerEmail: string;
   totalAmountRon: int32;
   eventTitle: string;
+  refundStatus?: "pending" | "processing" | "issued" | "failed" | "needs_review";
+  refundSeries?: string;
+  refundNumber?: string;
+  refundDocumentUrl?: string;
+  refundErrorMessage?: string;
 }
 
 // --- ENDPOINTS / RUTE ---
@@ -1224,6 +1267,22 @@ interface DashboardOperations {
     @body response: InvitationTicketResponse[];
   };
 
+  @get
+  @route("/events/{id}/cancellation-request")
+  getEventCancellationRequest(@path id: string):
+    | EventCancellationRequestResponse
+    | { @statusCode statusCode: 204 };
+
+  @post
+  @route("/events/{id}/cancellation-request")
+  createEventCancellationRequest(
+    @path id: string,
+    @body payload: CreateEventCancellationPayload,
+  ): {
+    @statusCode statusCode: 201;
+    @body response: EventCancellationRequestResponse;
+  };
+
   @delete
   @route("/events/{id}/invitations/{invitationId}")
   revokeInvitation(@path id: string, @path invitationId: string): {
@@ -1362,6 +1421,34 @@ interface AdminOperations {
     @path id: string,
     @body payload: ReviewOrganizerVerificationPayload,
   ): OrganizerProfile;
+
+  @get
+  @route("/event-cancellations")
+  listEventCancellationRequests(): EventCancellationRequestResponse[];
+
+  @post
+  @route("/event-cancellations/{id}/approve")
+  approveEventCancellation(
+    @path id: string,
+    @body payload: ReviewEventCancellationPayload,
+  ): {
+    @statusCode statusCode: 202;
+    @body response: { status: "refunding" };
+  };
+
+  @post
+  @route("/event-cancellations/{id}/reject")
+  rejectEventCancellation(
+    @path id: string,
+    @body payload: ReviewEventCancellationPayload,
+  ): { @statusCode statusCode: 204 };
+
+  @post
+  @route("/event-cancellations/{id}/retry")
+  retryEventCancellation(@path id: string): {
+    @statusCode statusCode: 202;
+    @body response: { status: "refunding" };
+  };
 }
 
 @route("/ticket-validation/quick-access")

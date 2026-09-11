@@ -96,7 +96,7 @@ VALUES (
     $11, $12, $13, $14, $15, $16, $17, $18, $19,
     $20, $21
 )
-RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type
+RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin
 `
 
 type CreateCheckoutOrderParams struct {
@@ -177,6 +177,15 @@ func (q *Queries) CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrd
 		&i.StripeLivemode,
 		&i.StripeConnectedAccountID,
 		&i.StripeChargeType,
+		&i.StripeChargeID,
+		&i.StripeAmountRefundedBani,
+		&i.StripeRefundStatus,
+		&i.StripeRefundNeedsAttention,
+		&i.StripeRefundUpdatedAt,
+		&i.AutomaticInvoiceRefundEnabled,
+		&i.PlatformFeeStatus,
+		&i.PlatformFeeRefundedBani,
+		&i.RefundOrigin,
 	)
 	return i, err
 }
@@ -289,7 +298,7 @@ func (q *Queries) CreateOfflineValidationSnapshot(ctx context.Context, arg Creat
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO orders (user_id, event_id, email, total_amount, stripe_payment_intent_id, status)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type
+RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin
 `
 
 type CreateOrderParams struct {
@@ -340,6 +349,15 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.StripeLivemode,
 		&i.StripeConnectedAccountID,
 		&i.StripeChargeType,
+		&i.StripeChargeID,
+		&i.StripeAmountRefundedBani,
+		&i.StripeRefundStatus,
+		&i.StripeRefundNeedsAttention,
+		&i.StripeRefundUpdatedAt,
+		&i.AutomaticInvoiceRefundEnabled,
+		&i.PlatformFeeStatus,
+		&i.PlatformFeeRefundedBani,
+		&i.RefundOrigin,
 	)
 	return i, err
 }
@@ -474,6 +492,17 @@ func (q *Queries) CreateTicketType(ctx context.Context, arg CreateTicketTypePara
 		arg.StartSales,
 		arg.EndSales,
 	)
+	return err
+}
+
+const decrementPromoCodeRedemption = `-- name: DecrementPromoCodeRedemption :exec
+UPDATE promo_codes
+SET redemptions_count = GREATEST(0, redemptions_count - 1)
+WHERE id = $1
+`
+
+func (q *Queries) DecrementPromoCodeRedemption(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, decrementPromoCodeRedemption, id)
 	return err
 }
 
@@ -691,8 +720,108 @@ func (q *Queries) GetOfflineValidationSnapshotForSync(ctx context.Context, arg G
 	return i, err
 }
 
+const getOrderByStripeChargeID = `-- name: GetOrderByStripeChargeID :one
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin FROM orders
+WHERE stripe_charge_id = $1
+`
+
+func (q *Queries) GetOrderByStripeChargeID(ctx context.Context, stripeChargeID pgtype.Text) (Orders, error) {
+	row := q.db.QueryRow(ctx, getOrderByStripeChargeID, stripeChargeID)
+	var i Orders
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.EventID,
+		&i.Email,
+		&i.StripePaymentIntentID,
+		&i.Status,
+		&i.TotalAmount,
+		&i.CreatedAt,
+		&i.StripeCheckoutSessionID,
+		&i.PlatformFeeBani,
+		&i.TicketEmailSentAt,
+		&i.PromoCodeID,
+		&i.DiscountAmountRon,
+		&i.InvoiceRequested,
+		&i.BillingType,
+		&i.BillingName,
+		&i.BillingTaxID,
+		&i.BillingRegistrationNumber,
+		&i.BillingAddress,
+		&i.BillingCity,
+		&i.BillingCounty,
+		&i.BillingCountry,
+		&i.BillingSector,
+		&i.CompletedAt,
+		&i.CustomerTicketingFeeBani,
+		&i.StripeLivemode,
+		&i.StripeConnectedAccountID,
+		&i.StripeChargeType,
+		&i.StripeChargeID,
+		&i.StripeAmountRefundedBani,
+		&i.StripeRefundStatus,
+		&i.StripeRefundNeedsAttention,
+		&i.StripeRefundUpdatedAt,
+		&i.AutomaticInvoiceRefundEnabled,
+		&i.PlatformFeeStatus,
+		&i.PlatformFeeRefundedBani,
+		&i.RefundOrigin,
+	)
+	return i, err
+}
+
+const getOrderByStripePaymentIntent = `-- name: GetOrderByStripePaymentIntent :one
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin FROM orders
+WHERE stripe_payment_intent_id = $1
+`
+
+func (q *Queries) GetOrderByStripePaymentIntent(ctx context.Context, stripePaymentIntentID pgtype.Text) (Orders, error) {
+	row := q.db.QueryRow(ctx, getOrderByStripePaymentIntent, stripePaymentIntentID)
+	var i Orders
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.EventID,
+		&i.Email,
+		&i.StripePaymentIntentID,
+		&i.Status,
+		&i.TotalAmount,
+		&i.CreatedAt,
+		&i.StripeCheckoutSessionID,
+		&i.PlatformFeeBani,
+		&i.TicketEmailSentAt,
+		&i.PromoCodeID,
+		&i.DiscountAmountRon,
+		&i.InvoiceRequested,
+		&i.BillingType,
+		&i.BillingName,
+		&i.BillingTaxID,
+		&i.BillingRegistrationNumber,
+		&i.BillingAddress,
+		&i.BillingCity,
+		&i.BillingCounty,
+		&i.BillingCountry,
+		&i.BillingSector,
+		&i.CompletedAt,
+		&i.CustomerTicketingFeeBani,
+		&i.StripeLivemode,
+		&i.StripeConnectedAccountID,
+		&i.StripeChargeType,
+		&i.StripeChargeID,
+		&i.StripeAmountRefundedBani,
+		&i.StripeRefundStatus,
+		&i.StripeRefundNeedsAttention,
+		&i.StripeRefundUpdatedAt,
+		&i.AutomaticInvoiceRefundEnabled,
+		&i.PlatformFeeStatus,
+		&i.PlatformFeeRefundedBani,
+		&i.RefundOrigin,
+	)
+	return i, err
+}
+
 const getOrderForUpdate = `-- name: GetOrderForUpdate :one
-SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type FROM orders
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin FROM orders
 WHERE id = $1
 FOR UPDATE
 `
@@ -729,6 +858,15 @@ func (q *Queries) GetOrderForUpdate(ctx context.Context, id pgtype.UUID) (Orders
 		&i.StripeLivemode,
 		&i.StripeConnectedAccountID,
 		&i.StripeChargeType,
+		&i.StripeChargeID,
+		&i.StripeAmountRefundedBani,
+		&i.StripeRefundStatus,
+		&i.StripeRefundNeedsAttention,
+		&i.StripeRefundUpdatedAt,
+		&i.AutomaticInvoiceRefundEnabled,
+		&i.PlatformFeeStatus,
+		&i.PlatformFeeRefundedBani,
+		&i.RefundOrigin,
 	)
 	return i, err
 }
@@ -834,7 +972,8 @@ SELECT t.id, t.order_id, t.ticket_type_id, t.user_id, t.validation_hash, t.is_va
 FROM tickets t
 JOIN ticket_types tt ON t.ticket_type_id = tt.id
 JOIN events e ON tt.event_id = e.id
-WHERE t.validation_hash = $1
+JOIN orders o ON o.id = t.order_id
+WHERE t.validation_hash = $1 AND o.status = 'completed'
 `
 
 type GetTicketByHashRow struct {
@@ -947,9 +1086,10 @@ SELECT t.id, t.order_id, t.ticket_type_id, t.user_id, t.validation_hash, t.is_va
 FROM tickets t
 JOIN ticket_types tt ON t.ticket_type_id = tt.id
 JOIN events e ON tt.event_id = e.id
+JOIN orders o ON o.id = t.order_id
 LEFT JOIN order_items oi ON oi.order_id = t.order_id AND oi.ticket_type_id = t.ticket_type_id
 LEFT JOIN organizer_profiles op ON op.user_id = e.organizer_id
-WHERE t.user_id = $1
+WHERE t.user_id = $1 AND o.status = 'completed'
 ORDER BY t.created_at DESC
 `
 
@@ -1015,6 +1155,17 @@ func (q *Queries) GetUserTickets(ctx context.Context, userID pgtype.UUID) ([]Get
 		return nil, err
 	}
 	return items, nil
+}
+
+const incrementPromoCodeRedemption = `-- name: IncrementPromoCodeRedemption :exec
+UPDATE promo_codes
+SET redemptions_count = redemptions_count + 1
+WHERE id = $1
+`
+
+func (q *Queries) IncrementPromoCodeRedemption(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, incrementPromoCodeRedemption, id)
+	return err
 }
 
 const incrementTicketsSold = `-- name: IncrementTicketsSold :exec
@@ -1144,7 +1295,9 @@ const listOfflineValidationTickets = `-- name: ListOfflineValidationTickets :man
 SELECT t.id, t.validation_hash, tt.name AS ticket_type_name
 FROM tickets t
 JOIN ticket_types tt ON tt.id = t.ticket_type_id
+JOIN orders o ON o.id = t.order_id
 WHERE tt.event_id = $1
+  AND o.status = 'completed'
   AND t.is_validated = FALSE
 ORDER BY t.created_at ASC
 `
@@ -1235,28 +1388,40 @@ SELECT
         WHERE o.event_id = e.id AND o.status = 'completed'
     ), 0)::bigint AS gross_revenue_ron,
     COALESCE((
-        SELECT SUM(o.platform_fee_bani)::bigint
+        SELECT SUM(o.customer_ticketing_fee_bani)::bigint
         FROM orders o
         WHERE o.event_id = e.id AND o.status = 'completed'
+    ), 0)::bigint AS customer_ticketing_fee_bani,
+    COALESCE((
+        SELECT SUM(o.platform_fee_bani - o.platform_fee_refunded_bani)::bigint
+        FROM orders o
+        WHERE o.event_id = e.id AND o.status IN ('completed', 'refunded') AND o.platform_fee_status = 'earned'
     ), 0)::bigint AS platform_fee_bani,
     COALESCE((
         SELECT COUNT(*)::bigint
         FROM tickets t
         JOIN orders o ON o.id = t.order_id
         WHERE o.event_id = e.id AND o.status = 'completed'
-    ), 0)::bigint AS tickets_sold
+    ), 0)::bigint AS tickets_sold,
+    COALESCE((
+        SELECT COUNT(*)::bigint
+        FROM orders o
+        WHERE o.event_id = e.id AND o.stripe_refund_needs_attention = TRUE
+    ), 0)::bigint AS refunds_needing_attention
 FROM events e
 WHERE e.organizer_id = $1
 ORDER BY e.start_time DESC
 `
 
 type ListOrganizerFinanceEventsRow struct {
-	EventID         pgtype.UUID        `json:"event_id"`
-	EventTitle      string             `json:"event_title"`
-	StartTime       pgtype.Timestamptz `json:"start_time"`
-	GrossRevenueRon int64              `json:"gross_revenue_ron"`
-	PlatformFeeBani int64              `json:"platform_fee_bani"`
-	TicketsSold     int64              `json:"tickets_sold"`
+	EventID                  pgtype.UUID        `json:"event_id"`
+	EventTitle               string             `json:"event_title"`
+	StartTime                pgtype.Timestamptz `json:"start_time"`
+	GrossRevenueRon          int64              `json:"gross_revenue_ron"`
+	CustomerTicketingFeeBani int64              `json:"customer_ticketing_fee_bani"`
+	PlatformFeeBani          int64              `json:"platform_fee_bani"`
+	TicketsSold              int64              `json:"tickets_sold"`
+	RefundsNeedingAttention  int64              `json:"refunds_needing_attention"`
 }
 
 func (q *Queries) ListOrganizerFinanceEvents(ctx context.Context, organizerID pgtype.UUID) ([]ListOrganizerFinanceEventsRow, error) {
@@ -1273,8 +1438,10 @@ func (q *Queries) ListOrganizerFinanceEvents(ctx context.Context, organizerID pg
 			&i.EventTitle,
 			&i.StartTime,
 			&i.GrossRevenueRon,
+			&i.CustomerTicketingFeeBani,
 			&i.PlatformFeeBani,
 			&i.TicketsSold,
+			&i.RefundsNeedingAttention,
 		); err != nil {
 			return nil, err
 		}
@@ -1491,6 +1658,20 @@ func (q *Queries) ListValidationStaff(ctx context.Context, eventID pgtype.UUID) 
 	return items, nil
 }
 
+const lockPublishedEventForCheckout = `-- name: LockPublishedEventForCheckout :one
+SELECT id
+FROM events
+WHERE id = $1 AND status = 'published'
+FOR SHARE
+`
+
+func (q *Queries) LockPublishedEventForCheckout(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockPublishedEventForCheckout, id)
+	var id_2 pgtype.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const markInvitationValidated = `-- name: MarkInvitationValidated :one
 UPDATE invitation_tickets
 SET validated_at = CURRENT_TIMESTAMP
@@ -1600,6 +1781,38 @@ func (q *Queries) UpdateOrderCheckoutSession(ctx context.Context, arg UpdateOrde
 	return err
 }
 
+const updateOrderRefundState = `-- name: UpdateOrderRefundState :exec
+UPDATE orders
+SET stripe_charge_id = COALESCE(NULLIF($1::TEXT, ''), stripe_charge_id),
+    stripe_amount_refunded_bani = GREATEST(stripe_amount_refunded_bani, $2::BIGINT),
+    stripe_refund_status = $3,
+    stripe_refund_needs_attention = $4::BOOLEAN,
+    stripe_refund_updated_at = CURRENT_TIMESTAMP,
+    status = CASE WHEN $5::BOOLEAN THEN 'refunded'::order_status ELSE status END
+WHERE id = $6
+`
+
+type UpdateOrderRefundStateParams struct {
+	StripeChargeID     string      `json:"stripe_charge_id"`
+	AmountRefundedBani int64       `json:"amount_refunded_bani"`
+	RefundStatus       string      `json:"refund_status"`
+	NeedsAttention     bool        `json:"needs_attention"`
+	MarkRefunded       bool        `json:"mark_refunded"`
+	ID                 pgtype.UUID `json:"id"`
+}
+
+func (q *Queries) UpdateOrderRefundState(ctx context.Context, arg UpdateOrderRefundStateParams) error {
+	_, err := q.db.Exec(ctx, updateOrderRefundState,
+		arg.StripeChargeID,
+		arg.AmountRefundedBani,
+		arg.RefundStatus,
+		arg.NeedsAttention,
+		arg.MarkRefunded,
+		arg.ID,
+	)
+	return err
+}
+
 const updateOrderStatus = `-- name: UpdateOrderStatus :exec
 UPDATE orders
 SET status = $2,
@@ -1663,7 +1876,11 @@ SET is_validated = TRUE,
     validated_at = CURRENT_TIMESTAMP,
     validated_by_user_id = $2,
     validated_by_scanner_access_id = $3
-WHERE id = $1 AND is_validated = FALSE
+WHERE tickets.id = $1 AND tickets.is_validated = FALSE
+  AND EXISTS (
+      SELECT 1 FROM orders o
+      WHERE o.id = tickets.order_id AND o.status = 'completed'
+  )
 RETURNING validated_at
 `
 

@@ -229,6 +229,25 @@ func (ns NullVerificationStatusType) Value() (driver.Value, error) {
 	return string(ns.VerificationStatusType), nil
 }
 
+type BillingInvoiceRefunds struct {
+	ID                 pgtype.UUID        `json:"id"`
+	BillingInvoiceID   pgtype.UUID        `json:"billing_invoice_id"`
+	OrderID            pgtype.UUID        `json:"order_id"`
+	OrganizerID        pgtype.UUID        `json:"organizer_id"`
+	Provider           string             `json:"provider"`
+	Status             string             `json:"status"`
+	AttemptCount       int32              `json:"attempt_count"`
+	NextAttemptAt      pgtype.Timestamptz `json:"next_attempt_at"`
+	ExternalSeries     pgtype.Text        `json:"external_series"`
+	ExternalNumber     pgtype.Text        `json:"external_number"`
+	ExternalDocumentID pgtype.Text        `json:"external_document_id"`
+	DocumentUrl        pgtype.Text        `json:"document_url"`
+	ErrorMessage       pgtype.Text        `json:"error_message"`
+	IssuedAt           pgtype.Timestamptz `json:"issued_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
 type BillingInvoices struct {
 	ID                 pgtype.UUID        `json:"id"`
 	OrderID            pgtype.UUID        `json:"order_id"`
@@ -274,6 +293,25 @@ type EventArtists struct {
 	IsHeadliner     bool               `json:"is_headliner"`
 	SortOrder       int32              `json:"sort_order"`
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
+type EventCancellationRequests struct {
+	ID                  pgtype.UUID        `json:"id"`
+	EventID             pgtype.UUID        `json:"event_id"`
+	OrganizerID         pgtype.UUID        `json:"organizer_id"`
+	PreviousEventStatus string             `json:"previous_event_status"`
+	PreviousPublishAt   pgtype.Timestamptz `json:"previous_publish_at"`
+	PreviousIsLive      bool               `json:"previous_is_live"`
+	Reason              string             `json:"reason"`
+	EvidenceUrl         pgtype.Text        `json:"evidence_url"`
+	Status              string             `json:"status"`
+	FeePolicy           pgtype.Text        `json:"fee_policy"`
+	AdminNote           pgtype.Text        `json:"admin_note"`
+	ReviewedBy          pgtype.UUID        `json:"reviewed_by"`
+	ReviewedAt          pgtype.Timestamptz `json:"reviewed_at"`
+	CompletedAt         pgtype.Timestamptz `json:"completed_at"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
 }
 
 type EventJoins struct {
@@ -411,6 +449,25 @@ type OrderItems struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
+type OrderRefundOperations struct {
+	ID                         pgtype.UUID        `json:"id"`
+	OrderID                    pgtype.UUID        `json:"order_id"`
+	CancellationRequestID      pgtype.UUID        `json:"cancellation_request_id"`
+	Source                     string             `json:"source"`
+	FeePolicy                  string             `json:"fee_policy"`
+	Status                     string             `json:"status"`
+	StripeRefundID             pgtype.Text        `json:"stripe_refund_id"`
+	StripeApplicationFeeID     pgtype.Text        `json:"stripe_application_fee_id"`
+	StripeFeeRefundID          pgtype.Text        `json:"stripe_fee_refund_id"`
+	RefundAmountBani           int64              `json:"refund_amount_bani"`
+	ApplicationFeeRefundedBani int64              `json:"application_fee_refunded_bani"`
+	AttemptCount               int32              `json:"attempt_count"`
+	NextAttemptAt              pgtype.Timestamptz `json:"next_attempt_at"`
+	ErrorMessage               pgtype.Text        `json:"error_message"`
+	CreatedAt                  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                  pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Orders struct {
 	ID                        pgtype.UUID        `json:"id"`
 	UserID                    pgtype.UUID        `json:"user_id"`
@@ -442,7 +499,16 @@ type Orders struct {
 	// Immutable Stripe connected-account context in which this ticket checkout was created.
 	StripeConnectedAccountID pgtype.Text `json:"stripe_connected_account_id"`
 	// Immutable Stripe charge flow used by this order: destination for legacy orders, direct for new orders.
-	StripeChargeType pgtype.Text `json:"stripe_charge_type"`
+	StripeChargeType              pgtype.Text        `json:"stripe_charge_type"`
+	StripeChargeID                pgtype.Text        `json:"stripe_charge_id"`
+	StripeAmountRefundedBani      int64              `json:"stripe_amount_refunded_bani"`
+	StripeRefundStatus            string             `json:"stripe_refund_status"`
+	StripeRefundNeedsAttention    bool               `json:"stripe_refund_needs_attention"`
+	StripeRefundUpdatedAt         pgtype.Timestamptz `json:"stripe_refund_updated_at"`
+	AutomaticInvoiceRefundEnabled bool               `json:"automatic_invoice_refund_enabled"`
+	PlatformFeeStatus             string             `json:"platform_fee_status"`
+	PlatformFeeRefundedBani       int64              `json:"platform_fee_refunded_bani"`
+	RefundOrigin                  pgtype.Text        `json:"refund_origin"`
 }
 
 type OrganizerFollows struct {

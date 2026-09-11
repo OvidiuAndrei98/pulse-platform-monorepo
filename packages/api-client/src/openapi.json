@@ -6,6 +6,143 @@
   },
   "tags": [],
   "paths": {
+    "/admin/event-cancellations": {
+      "get": {
+        "operationId": "AdminOperations_listEventCancellationRequests",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventCancellationRequestResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/event-cancellations/{id}/approve": {
+      "post": {
+        "operationId": "AdminOperations_approveEventCancellation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "The request has been accepted for processing, but processing has not yet completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "refunding"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewEventCancellationPayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/event-cancellations/{id}/reject": {
+      "post": {
+        "operationId": "AdminOperations_rejectEventCancellation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewEventCancellationPayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/event-cancellations/{id}/retry": {
+      "post": {
+        "operationId": "AdminOperations_retryEventCancellation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "The request has been accepted for processing, but processing has not yet completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "refunding"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/organizers": {
       "get": {
         "operationId": "AdminOperations_listOrganizerVerifications",
@@ -316,6 +453,71 @@
         "responses": {
           "204": {
             "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      }
+    },
+    "/dashboard/events/{id}/cancellation-request": {
+      "get": {
+        "operationId": "DashboardOperations_getEventCancellationRequest",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCancellationRequestResponse"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      },
+      "post": {
+        "operationId": "DashboardOperations_createEventCancellationRequest",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The request has succeeded and a new resource has been created as a result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventCancellationRequestResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventCancellationPayload"
+              }
+            }
           }
         }
       }
@@ -3220,6 +3422,28 @@
           },
           "eventTitle": {
             "type": "string"
+          },
+          "refundStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "issued",
+              "failed",
+              "needs_review"
+            ]
+          },
+          "refundSeries": {
+            "type": "string"
+          },
+          "refundNumber": {
+            "type": "string"
+          },
+          "refundDocumentUrl": {
+            "type": "string"
+          },
+          "refundErrorMessage": {
+            "type": "string"
           }
         }
       },
@@ -3327,6 +3551,20 @@
           },
           "billingDetails": {
             "$ref": "#/components/schemas/BillingDetailsPayload"
+          }
+        }
+      },
+      "CreateEventCancellationPayload": {
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "evidenceUrl": {
+            "type": "string"
           }
         }
       },
@@ -3611,6 +3849,112 @@
             "$ref": "#/components/schemas/PublicProfileResponse"
           }
         ]
+      },
+      "EventCancellationRequestResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "eventId",
+          "organizerId",
+          "previousEventStatus",
+          "reason",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "organizerId": {
+            "type": "string"
+          },
+          "eventTitle": {
+            "type": "string"
+          },
+          "organizerEmail": {
+            "type": "string"
+          },
+          "companyName": {
+            "type": "string"
+          },
+          "previousEventStatus": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "evidenceUrl": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "refunding",
+              "completed",
+              "rejected",
+              "failed"
+            ]
+          },
+          "feePolicy": {
+            "type": "string",
+            "enum": [
+              "retain",
+              "refund"
+            ]
+          },
+          "adminNote": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "orderCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ticketCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "customerTotalBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "platformFeeBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "alreadyRefundedBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "succeededRefunds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pendingRefunds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failedRefunds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
       "EventResponse": {
         "type": "object",
@@ -4293,8 +4637,10 @@
           "eventTitle",
           "startTime",
           "grossRevenueRon",
+          "customerTicketingFeeBani",
           "platformFeeBani",
-          "ticketsSold"
+          "ticketsSold",
+          "refundsNeedingAttention"
         ],
         "properties": {
           "eventId": {
@@ -4311,11 +4657,19 @@
             "type": "integer",
             "format": "int64"
           },
+          "customerTicketingFeeBani": {
+            "type": "integer",
+            "format": "int64"
+          },
           "platformFeeBani": {
             "type": "integer",
             "format": "int64"
           },
           "ticketsSold": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "refundsNeedingAttention": {
             "type": "integer",
             "format": "int64"
           }
@@ -4845,6 +5199,21 @@
           "ticketsSoldCount": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "ReviewEventCancellationPayload": {
+        "type": "object",
+        "properties": {
+          "feePolicy": {
+            "type": "string",
+            "enum": [
+              "retain",
+              "refund"
+            ]
+          },
+          "adminNote": {
+            "type": "string"
           }
         }
       },

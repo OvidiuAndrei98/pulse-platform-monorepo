@@ -29,12 +29,14 @@ func NewHandler(queries *db.Queries) *Handler {
 }
 
 type FinanceEventResponse struct {
-	EventID         string `json:"eventId"`
-	EventTitle      string `json:"eventTitle"`
-	StartTime       string `json:"startTime"`
-	GrossRevenueRon int64  `json:"grossRevenueRon"`
-	PlatformFeeBani int64  `json:"platformFeeBani"`
-	TicketsSold     int64  `json:"ticketsSold"`
+	EventID                  string `json:"eventId"`
+	EventTitle               string `json:"eventTitle"`
+	StartTime                string `json:"startTime"`
+	GrossRevenueRon          int64  `json:"grossRevenueRon"`
+	CustomerTicketingFeeBani int64  `json:"customerTicketingFeeBani"`
+	PlatformFeeBani          int64  `json:"platformFeeBani"`
+	TicketsSold              int64  `json:"ticketsSold"`
+	RefundsNeedingAttention  int64  `json:"refundsNeedingAttention"`
 }
 
 func (h *Handler) HandleGetOrganizerFinance(w http.ResponseWriter, r *http.Request) {
@@ -59,12 +61,14 @@ func (h *Handler) HandleGetOrganizerFinance(w http.ResponseWriter, r *http.Reque
 	result := make([]FinanceEventResponse, 0, len(rows))
 	for _, row := range rows {
 		result = append(result, FinanceEventResponse{
-			EventID:         common.UUIDToString(row.EventID),
-			EventTitle:      row.EventTitle,
-			StartTime:       common.TimestampToString(row.StartTime),
-			GrossRevenueRon: row.GrossRevenueRon,
-			PlatformFeeBani: row.PlatformFeeBani,
-			TicketsSold:     row.TicketsSold,
+			EventID:                  common.UUIDToString(row.EventID),
+			EventTitle:               row.EventTitle,
+			StartTime:                common.TimestampToString(row.StartTime),
+			GrossRevenueRon:          row.GrossRevenueRon,
+			CustomerTicketingFeeBani: row.CustomerTicketingFeeBani,
+			PlatformFeeBani:          row.PlatformFeeBani,
+			TicketsSold:              row.TicketsSold,
+			RefundsNeedingAttention:  row.RefundsNeedingAttention,
 		})
 	}
 

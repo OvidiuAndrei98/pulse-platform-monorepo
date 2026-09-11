@@ -16,12 +16,16 @@ type Querier interface {
 	ActivateScheduledPromotionCampaigns(ctx context.Context) error
 	AddComment(ctx context.Context, arg AddCommentParams) (Comments, error)
 	AddValidationStaff(ctx context.Context, arg AddValidationStaffParams) error
+	ApproveEventCancellation(ctx context.Context, arg ApproveEventCancellationParams) (pgtype.UUID, error)
 	AssignGuestOrdersToUser(ctx context.Context, userID pgtype.UUID) error
 	AssignGuestTicketsToUser(ctx context.Context, userID pgtype.UUID) error
+	BackfillBillingInvoiceRefunds(ctx context.Context) (int64, error)
 	BackfillBillingInvoices(ctx context.Context) (int64, error)
 	CancelAbandonedPromotionReservations(ctx context.Context, expiresBefore pgtype.Timestamptz) error
 	CancelPendingPromotionCampaign(ctx context.Context, id pgtype.UUID) error
+	ClaimBillingInvoiceRefunds(ctx context.Context, batchSize int32) ([]BillingInvoiceRefunds, error)
 	ClaimBillingInvoices(ctx context.Context, batchSize int32) ([]BillingInvoices, error)
+	ClaimOrderRefundOperations(ctx context.Context, batchSize int32) ([]OrderRefundOperations, error)
 	ClaimPlatformCommissionInvoices(ctx context.Context, batchSize int32) ([]PlatformCommissionInvoices, error)
 	ClearOrganizerStripeAccount(ctx context.Context, stripeAccountID pgtype.Text) (OrganizerProfiles, error)
 	CompleteEndedEvents(ctx context.Context) error
@@ -33,10 +37,12 @@ type Querier interface {
 	CountEventOrders(ctx context.Context, eventID pgtype.UUID) (int64, error)
 	CountUnreadNotifications(ctx context.Context, userID pgtype.UUID) (int64, error)
 	CreateBillingInvoiceForOrder(ctx context.Context, id pgtype.UUID) (BillingInvoices, error)
+	CreateBillingInvoiceRefundForOrder(ctx context.Context, orderID pgtype.UUID) (BillingInvoiceRefunds, error)
 	CreateCheckIn(ctx context.Context, arg CreateCheckInParams) (CheckIns, error)
 	CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrderParams) (Orders, error)
 	CreateEvent(ctx context.Context, arg CreateEventParams) (Events, error)
 	CreateEventArtist(ctx context.Context, arg CreateEventArtistParams) error
+	CreateEventCancellationRequest(ctx context.Context, arg CreateEventCancellationRequestParams) (pgtype.UUID, error)
 	CreateEventUpdate(ctx context.Context, arg CreateEventUpdateParams) (EventUpdates, error)
 	CreateFriendRequest(ctx context.Context, arg CreateFriendRequestParams) (int64, error)
 	CreateInvitationTicket(ctx context.Context, arg CreateInvitationTicketParams) (CreateInvitationTicketRow, error)
@@ -56,21 +62,28 @@ type Querier interface {
 	CreateTicketType(ctx context.Context, arg CreateTicketTypeParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (Users, error)
 	DeclineFriendRequest(ctx context.Context, arg DeclineFriendRequestParams) error
+	DecrementPromoCodeRedemption(ctx context.Context, id pgtype.UUID) error
 	DecrementTicketsSold(ctx context.Context, arg DecrementTicketsSoldParams) error
 	DeleteCheckIn(ctx context.Context, arg DeleteCheckInParams) error
+	DeleteClaimedBillingInvoice(ctx context.Context, id pgtype.UUID) (int64, error)
 	DeleteEvent(ctx context.Context, id pgtype.UUID) error
 	DeleteEventArtists(ctx context.Context, eventID pgtype.UUID) error
 	DeleteEventRsvp(ctx context.Context, arg DeleteEventRsvpParams) error
 	DeleteOrganizerEventUpdate(ctx context.Context, arg DeleteOrganizerEventUpdateParams) (string, error)
 	DeleteOrganizerInvoicingSettings(ctx context.Context, organizerID pgtype.UUID) (int64, error)
 	DeleteRevokedInvitationTicket(ctx context.Context, arg DeleteRevokedInvitationTicketParams) (int64, error)
+	DeleteUnissuedBillingInvoiceForRefund(ctx context.Context, orderID pgtype.UUID) (int64, error)
+	DeleteUnissuedBillingInvoicesForRefundedOrders(ctx context.Context) (int64, error)
 	DeleteUserToken(ctx context.Context, arg DeleteUserTokenParams) error
 	EditEvent(ctx context.Context, arg EditEventParams) (Events, error)
+	FinalizeCompletedCancellationRequests(ctx context.Context) (int64, error)
+	FinalizeEmptyCancellationRequests(ctx context.Context) (int64, error)
 	FollowOrganizer(ctx context.Context, arg FollowOrganizerParams) error
 	FulfillPromotionCampaign(ctx context.Context, arg FulfillPromotionCampaignParams) (int64, error)
 	GetAvailablePromoCode(ctx context.Context, arg GetAvailablePromoCodeParams) (GetAvailablePromoCodeRow, error)
 	GetAvailablePromoCodeForUpdate(ctx context.Context, arg GetAvailablePromoCodeForUpdateParams) (GetAvailablePromoCodeForUpdateRow, error)
 	GetBillingInvoiceIssueData(ctx context.Context, id pgtype.UUID) (GetBillingInvoiceIssueDataRow, error)
+	GetBillingInvoiceRefundIssueData(ctx context.Context, id pgtype.UUID) (GetBillingInvoiceRefundIssueDataRow, error)
 	GetCommentsForEvent(ctx context.Context, arg GetCommentsForEventParams) ([]GetCommentsForEventRow, error)
 	GetEventByID(ctx context.Context, arg GetEventByIDParams) (GetEventByIDRow, error)
 	GetEventForOrganizerUpdate(ctx context.Context, id pgtype.UUID) (GetEventForOrganizerUpdateRow, error)
@@ -85,9 +98,14 @@ type Querier interface {
 	GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAreaParams) ([]GetLiveEventsInAreaRow, error)
 	GetOfflineTicketValidationByClientScanID(ctx context.Context, arg GetOfflineTicketValidationByClientScanIDParams) (GetOfflineTicketValidationByClientScanIDRow, error)
 	GetOfflineValidationSnapshotForSync(ctx context.Context, arg GetOfflineValidationSnapshotForSyncParams) (OfflineValidationSnapshots, error)
+	GetOrderByStripeChargeID(ctx context.Context, stripeChargeID pgtype.Text) (Orders, error)
+	GetOrderByStripePaymentIntent(ctx context.Context, stripePaymentIntentID pgtype.Text) (Orders, error)
 	GetOrderForUpdate(ctx context.Context, id pgtype.UUID) (Orders, error)
 	GetOrderItems(ctx context.Context, orderID pgtype.UUID) ([]OrderItems, error)
+	GetOrderRefundExecutionData(ctx context.Context, id pgtype.UUID) (GetOrderRefundExecutionDataRow, error)
+	GetOrderRefundOperation(ctx context.Context, orderID pgtype.UUID) (OrderRefundOperations, error)
 	GetOrganizerByCUI(ctx context.Context, cui string) (OrganizerProfiles, error)
+	GetOrganizerEventCancellationRequest(ctx context.Context, arg GetOrganizerEventCancellationRequestParams) (EventCancellationRequests, error)
 	GetOrganizerFollowState(ctx context.Context, arg GetOrganizerFollowStateParams) (bool, error)
 	GetOrganizerFollowerCount(ctx context.Context, organizerID pgtype.UUID) (int64, error)
 	GetOrganizerInvoicingSettings(ctx context.Context, organizerID pgtype.UUID) (OrganizerInvoicingSettings, error)
@@ -109,6 +127,7 @@ type Querier interface {
 	GetUserTokenByHash(ctx context.Context, arg GetUserTokenByHashParams) (UserTokens, error)
 	HideEventCategory(ctx context.Context, arg HideEventCategoryParams) error
 	HomeBannerPromotionPeakOccupancy(ctx context.Context, arg HomeBannerPromotionPeakOccupancyParams) (int64, error)
+	IncrementPromoCodeRedemption(ctx context.Context, id pgtype.UUID) error
 	IncrementTicketsSold(ctx context.Context, arg IncrementTicketsSoldParams) error
 	InsertUserToken(ctx context.Context, arg InsertUserTokenParams) (UserTokens, error)
 	IsValidationStaffForEvent(ctx context.Context, arg IsValidationStaffForEventParams) (bool, error)
@@ -116,6 +135,7 @@ type Querier interface {
 	ListActiveEventUpdates(ctx context.Context, eventID pgtype.UUID) ([]ListActiveEventUpdatesRow, error)
 	ListActiveOrganizerUpdates(ctx context.Context, organizerID pgtype.UUID) ([]ListActiveOrganizerUpdatesRow, error)
 	ListActivePromotionCampaignEvents(ctx context.Context, userID pgtype.UUID) ([]ListActivePromotionCampaignEventsRow, error)
+	ListAdminEventCancellationRequests(ctx context.Context) ([]ListAdminEventCancellationRequestsRow, error)
 	ListBillingInvoiceItems(ctx context.Context, orderID pgtype.UUID) ([]ListBillingInvoiceItemsRow, error)
 	ListEventAttendees(ctx context.Context, eventID pgtype.UUID) ([]ListEventAttendeesRow, error)
 	ListEvents(ctx context.Context, arg ListEventsParams) ([]ListEventsRow, error)
@@ -142,11 +162,21 @@ type Querier interface {
 	LockHomeBannerPromotionCapacity(ctx context.Context) error
 	LockOrganizerEventUpdates(ctx context.Context, dollar_1 string) error
 	LockPromotionEvent(ctx context.Context, eventID pgtype.UUID) error
+	LockPublishedEventForCheckout(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error)
 	MarkAllNotificationsRead(ctx context.Context, userID pgtype.UUID) error
 	MarkBillingInvoiceFailed(ctx context.Context, arg MarkBillingInvoiceFailedParams) (BillingInvoices, error)
 	MarkBillingInvoiceIssued(ctx context.Context, arg MarkBillingInvoiceIssuedParams) (BillingInvoices, error)
+	MarkBillingInvoiceRefundFailed(ctx context.Context, arg MarkBillingInvoiceRefundFailedParams) (BillingInvoiceRefunds, error)
+	MarkBillingInvoiceRefundIssued(ctx context.Context, arg MarkBillingInvoiceRefundIssuedParams) (BillingInvoiceRefunds, error)
 	MarkInvitationValidated(ctx context.Context, id pgtype.UUID) (pgtype.Timestamptz, error)
 	MarkNotificationRead(ctx context.Context, arg MarkNotificationReadParams) error
+	MarkOrderApplicationFeeRefunded(ctx context.Context, arg MarkOrderApplicationFeeRefundedParams) error
+	MarkOrderFeeRefundCompleted(ctx context.Context, arg MarkOrderFeeRefundCompletedParams) error
+	MarkOrderPlatformFeePending(ctx context.Context, arg MarkOrderPlatformFeePendingParams) error
+	MarkOrderPlatformFeeRefunded(ctx context.Context, arg MarkOrderPlatformFeeRefundedParams) error
+	MarkOrderPlatformFeeRetained(ctx context.Context, arg MarkOrderPlatformFeeRetainedParams) error
+	MarkOrderRefundFailed(ctx context.Context, arg MarkOrderRefundFailedParams) error
+	MarkOrderRefundSubmitted(ctx context.Context, arg MarkOrderRefundSubmittedParams) error
 	MarkPlatformCommissionInvoiceFailed(ctx context.Context, arg MarkPlatformCommissionInvoiceFailedParams) (PlatformCommissionInvoices, error)
 	MarkPlatformCommissionInvoiceIssued(ctx context.Context, arg MarkPlatformCommissionInvoiceIssuedParams) (PlatformCommissionInvoices, error)
 	MarkTicketEmailSent(ctx context.Context, id pgtype.UUID) error
@@ -156,11 +186,14 @@ type Querier interface {
 	PublishDueEvents(ctx context.Context) ([]pgtype.UUID, error)
 	RecordPromotionClick(ctx context.Context, arg RecordPromotionClickParams) error
 	RecordPromotionImpression(ctx context.Context, arg RecordPromotionImpressionParams) error
+	RejectEventCancellation(ctx context.Context, arg RejectEventCancellationParams) (pgtype.UUID, error)
 	RemoveFriend(ctx context.Context, arg RemoveFriendParams) (int64, error)
 	RemoveSavedEvent(ctx context.Context, arg RemoveSavedEventParams) error
 	RemoveValidationStaff(ctx context.Context, arg RemoveValidationStaffParams) error
 	RespondToFriendRequest(ctx context.Context, arg RespondToFriendRequestParams) error
 	RetryBillingInvoice(ctx context.Context, arg RetryBillingInvoiceParams) (BillingInvoices, error)
+	RetryBillingInvoiceRefund(ctx context.Context, arg RetryBillingInvoiceRefundParams) (BillingInvoiceRefunds, error)
+	RetryEventCancellationRefunds(ctx context.Context, id pgtype.UUID) (int64, error)
 	ReviewOrganizerVerification(ctx context.Context, arg ReviewOrganizerVerificationParams) (OrganizerProfiles, error)
 	RevokeInvitationTicket(ctx context.Context, arg RevokeInvitationTicketParams) (int64, error)
 	RevokeScannerAccess(ctx context.Context, arg RevokeScannerAccessParams) error
@@ -175,6 +208,7 @@ type Querier interface {
 	ShowEventCategory(ctx context.Context, arg ShowEventCategoryParams) error
 	UnfollowOrganizer(ctx context.Context, arg UnfollowOrganizerParams) error
 	UpdateOrderCheckoutSession(ctx context.Context, arg UpdateOrderCheckoutSessionParams) error
+	UpdateOrderRefundState(ctx context.Context, arg UpdateOrderRefundStateParams) error
 	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error
 	UpdateOrganizerStripeAccountStatus(ctx context.Context, arg UpdateOrganizerStripeAccountStatusParams) (OrganizerProfiles, error)
 	UpdatePlatformCommissionInvoiceTotals(ctx context.Context, arg UpdatePlatformCommissionInvoiceTotalsParams) error
@@ -185,6 +219,7 @@ type Querier interface {
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (UpdateUserProfileRow, error)
 	UpsertEventRsvp(ctx context.Context, arg UpsertEventRsvpParams) error
+	UpsertManualRefundOperation(ctx context.Context, arg UpsertManualRefundOperationParams) (OrderRefundOperations, error)
 	UpsertOrganizerInvoicingSettings(ctx context.Context, arg UpsertOrganizerInvoicingSettingsParams) (OrganizerInvoicingSettings, error)
 	ValidateTicketOnce(ctx context.Context, arg ValidateTicketOnceParams) (pgtype.Timestamptz, error)
 }

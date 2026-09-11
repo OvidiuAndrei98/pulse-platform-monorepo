@@ -53,42 +53,48 @@ type HandlersConfig struct {
 	ShowEventCategory        http.HandlerFunc
 
 	// Events
-	CreateEvent                http.HandlerFunc
-	ListEvents                 http.HandlerFunc
-	GetEventByID               http.HandlerFunc
-	GetEventWithStats          http.HandlerFunc
-	GetLiveEventsInArea        http.HandlerFunc
-	DeleteEvent                http.HandlerFunc
-	EditEvent                  http.HandlerFunc
-	ListEventsWithStats        http.HandlerFunc
-	UploadEventBanner          http.HandlerFunc
-	UploadOrganizerUpdateImage http.HandlerFunc
-	GetEventBanner             http.HandlerFunc
-	GetEventUpdates            http.HandlerFunc
-	GetOrganizerUpdates        http.HandlerFunc
-	CreateEventUpdate          http.HandlerFunc
-	DeleteEventUpdate          http.HandlerFunc
-	SaveEvent                  http.HandlerFunc
-	RemoveSavedEvent           http.HandlerFunc
-	StripeWebhook              http.HandlerFunc
-	StripeConnectWebhook       http.HandlerFunc
-	CreateStripeAccountLink    http.HandlerFunc
-	GetStripeAccountStatus     http.HandlerFunc
-	CreateStripeLoginLink      http.HandlerFunc
-	DisconnectStripeAccount    http.HandlerFunc
-	GetEventSocial             http.HandlerFunc
-	UpdateEventRsvp            http.HandlerFunc
-	DeleteEventRsvp            http.HandlerFunc
-	ListPromoCodes             http.HandlerFunc
-	CreatePromoCode            http.HandlerFunc
-	DeactivatePromoCode        http.HandlerFunc
-	ValidatePromoCode          http.HandlerFunc
-	ListPromotionPlans         http.HandlerFunc
-	GetPromotionAvailability   http.HandlerFunc
-	CreatePromotionCheckout    http.HandlerFunc
-	ListPromotionCampaigns     http.HandlerFunc
-	ListActivePromotions       http.HandlerFunc
-	TrackPromotionMetric       http.HandlerFunc
+	CreateEvent                    http.HandlerFunc
+	ListEvents                     http.HandlerFunc
+	GetEventByID                   http.HandlerFunc
+	GetEventWithStats              http.HandlerFunc
+	GetLiveEventsInArea            http.HandlerFunc
+	DeleteEvent                    http.HandlerFunc
+	EditEvent                      http.HandlerFunc
+	ListEventsWithStats            http.HandlerFunc
+	UploadEventBanner              http.HandlerFunc
+	UploadOrganizerUpdateImage     http.HandlerFunc
+	GetEventBanner                 http.HandlerFunc
+	GetEventUpdates                http.HandlerFunc
+	GetOrganizerUpdates            http.HandlerFunc
+	CreateEventUpdate              http.HandlerFunc
+	DeleteEventUpdate              http.HandlerFunc
+	SaveEvent                      http.HandlerFunc
+	RemoveSavedEvent               http.HandlerFunc
+	StripeWebhook                  http.HandlerFunc
+	StripeConnectWebhook           http.HandlerFunc
+	CreateStripeAccountLink        http.HandlerFunc
+	GetStripeAccountStatus         http.HandlerFunc
+	CreateStripeLoginLink          http.HandlerFunc
+	DisconnectStripeAccount        http.HandlerFunc
+	GetEventSocial                 http.HandlerFunc
+	UpdateEventRsvp                http.HandlerFunc
+	DeleteEventRsvp                http.HandlerFunc
+	ListPromoCodes                 http.HandlerFunc
+	CreatePromoCode                http.HandlerFunc
+	DeactivatePromoCode            http.HandlerFunc
+	ValidatePromoCode              http.HandlerFunc
+	ListPromotionPlans             http.HandlerFunc
+	GetPromotionAvailability       http.HandlerFunc
+	CreatePromotionCheckout        http.HandlerFunc
+	ListPromotionCampaigns         http.HandlerFunc
+	ListActivePromotions           http.HandlerFunc
+	TrackPromotionMetric           http.HandlerFunc
+	CreateEventCancellationRequest http.HandlerFunc
+	GetEventCancellationRequest    http.HandlerFunc
+	ListEventCancellationRequests  http.HandlerFunc
+	ApproveEventCancellation       http.HandlerFunc
+	RejectEventCancellation        http.HandlerFunc
+	RetryEventCancellation         http.HandlerFunc
 
 	// Interactions / Checkins
 	CreateCheckIn http.HandlerFunc
@@ -338,6 +344,8 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 					}
 					r.Post("/{id}", cfg.EditEvent)
 					r.Get("/{id}", cfg.GetEventWithStats)
+					r.Get("/{id}/cancellation-request", cfg.GetEventCancellationRequest)
+					r.Post("/{id}/cancellation-request", cfg.CreateEventCancellationRequest)
 					r.Post("/{id}/ticket-types", cfg.CreateTicketType)
 					r.Get("/{id}/invitations", cfg.ListInvitations)
 					r.Post("/{id}/invitations", cfg.CreateInvitation)
@@ -381,6 +389,10 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				}
 				r.Get("/admin/organizers", cfg.ListOrganizerVerifications)
 				r.Patch("/admin/organizers/{id}/verification", cfg.ReviewOrganizerVerification)
+				r.Get("/admin/event-cancellations", cfg.ListEventCancellationRequests)
+				r.Post("/admin/event-cancellations/{id}/approve", cfg.ApproveEventCancellation)
+				r.Post("/admin/event-cancellations/{id}/reject", cfg.RejectEventCancellation)
+				r.Post("/admin/event-cancellations/{id}/retry", cfg.RetryEventCancellation)
 			})
 		})
 	})

@@ -19,10 +19,11 @@ import (
 )
 
 type ConnectHandler struct {
-	queries *db.Queries
-	client  *stripe.Client
-	appURL  string
-	country string
+	queries                *db.Queries
+	client                 *stripe.Client
+	appURL                 string
+	country                string
+	stripeDashboardBaseURL string
 }
 
 type ConnectAccountLinkResponse struct {
@@ -38,12 +39,17 @@ func NewConnectHandler(queries *db.Queries, stripeSecret, appURL, country string
 	if country == "" {
 		country = "RO"
 	}
+	stripeDashboardBaseURL := "https://dashboard.stripe.com"
+	if liveMode, known := stripeSecretLiveMode(stripeSecret); known && !liveMode {
+		stripeDashboardBaseURL += "/test"
+	}
 
 	return &ConnectHandler{
-		queries: queries,
-		client:  stripe.NewClient(stripeSecret),
-		appURL:  strings.TrimRight(appURL, "/"),
-		country: strings.ToUpper(country),
+		queries:                queries,
+		client:                 stripe.NewClient(stripeSecret),
+		appURL:                 strings.TrimRight(appURL, "/"),
+		country:                strings.ToUpper(country),
+		stripeDashboardBaseURL: stripeDashboardBaseURL,
 	}
 }
 
@@ -243,12 +249,14 @@ func (h *ConnectHandler) HandleCreateDashboardLoginLink(w http.ResponseWriter, r
 		return
 	}
 
-	router.RespondWithJSON(w, http.StatusOK, ConnectAccountLinkResponse{URL: "https://dashboard.stripe.com/"})
+	dashboardURL := h.stripeDashboardBaseURL + "/" + profile.StripeAccountID.String + "/dashboard"
+	router.RespondWithJSON(w, http.StatusOK, ConnectAccountLinkResponse{URL: dashboardURL})
 }
 
-// HandleDisconnectAccount asks Stripe to close the connected account and only
-// removes the local association after Stripe confirms the operation. Stripe can
-// reject deletion while the account still has a balance, payments, or disputes.
+// HandleDisconnectAccount stops using the Stripe account for new Spottr sales.
+// Full-Dashboard accounts belong to the organizer and must never be closed by
+// Spottr. Existing orders keep their immutable Stripe account context so their
+// payment history, fulfillment, and reconciliation remain addressable.
 func (h *ConnectHandler) HandleDisconnectAccount(w http.ResponseWriter, r *http.Request) {
 	_, profile, ok := h.getOrganizerProfile(w, r)
 	if !ok {
@@ -261,12 +269,6 @@ func (h *ConnectHandler) HandleDisconnectAccount(w http.ResponseWriter, r *http.
 	}
 
 	stripeAccountID := profile.StripeAccountID.String
-	_, err := h.client.V1Accounts.Delete(r.Context(), stripeAccountID, nil)
-	if err != nil && !isStripeAccountMissing(err) {
-		router.RespondWithError(w, http.StatusConflict, "Contul Stripe nu poate fi deconectat momentan. Verifica soldul, platile si disputele din Stripe")
-		return
-	}
-
 	if _, err := h.clearStripeAccount(r.Context(), stripeAccountID); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		router.RespondWithError(w, http.StatusInternalServerError, "Legatura cu contul Stripe nu a putut fi eliminata")
 		return
