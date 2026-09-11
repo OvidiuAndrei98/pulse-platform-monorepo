@@ -6103,6 +6103,9 @@
           "id",
           "status",
           "totalAmountRon",
+          "paidTotalBani",
+          "refundedAmountBani",
+          "stripeRefundStatus",
           "createdAt",
           "eventId",
           "eventTitle",
@@ -6120,6 +6123,17 @@
           "totalAmountRon": {
             "type": "integer",
             "format": "int32"
+          },
+          "paidTotalBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "refundedAmountBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stripeRefundStatus": {
+            "type": "string"
           },
           "createdAt": {
             "type": "string",
@@ -6157,6 +6171,22 @@
             "type": "string"
           },
           "invoiceIssuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "refundInvoiceStatus": {
+            "type": "string"
+          },
+          "refundInvoiceSeries": {
+            "type": "string"
+          },
+          "refundInvoiceNumber": {
+            "type": "string"
+          },
+          "refundInvoiceDocumentUrl": {
+            "type": "string"
+          },
+          "refundInvoiceIssuedAt": {
             "type": "string",
             "format": "date-time"
           }

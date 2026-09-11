@@ -2284,6 +2284,11 @@ export interface components {
             status: string;
             /** Format: int32 */
             totalAmountRon: number;
+            /** Format: int64 */
+            paidTotalBani: number;
+            /** Format: int64 */
+            refundedAmountBani: number;
+            stripeRefundStatus: string;
             /** Format: date-time */
             createdAt: string;
             stripePaymentIntentId?: string;
@@ -2299,6 +2304,12 @@ export interface components {
             invoiceDocumentUrl?: string;
             /** Format: date-time */
             invoiceIssuedAt?: string;
+            refundInvoiceStatus?: string;
+            refundInvoiceSeries?: string;
+            refundInvoiceNumber?: string;
+            refundInvoiceDocumentUrl?: string;
+            /** Format: date-time */
+            refundInvoiceIssuedAt?: string;
         };
         UserRegisterPayload: {
             username: string;

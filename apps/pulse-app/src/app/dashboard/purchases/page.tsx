@@ -11,6 +11,7 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { TicketQrCode } from "@/components/tickets/TicketQrCode";
 import { TicketPdfButton } from "@/components/tickets/TicketPdfButton";
 import { formatEventDate } from "@/features/events/dateFormat";
+import { formatRon } from "@/features/events/serviceFee";
 import { useTranslation } from "react-i18next";
 import { Skeleton } from "@/components/ui/loading";
 
@@ -227,46 +228,55 @@ function OrdersList({ orders }: { orders: UserOrder[] }) {
   }
   return (
     <div className="mt-6 overflow-hidden rounded-lg border border-white/10 bg-white/[0.025]">
-      {orders.map((order) => (
-        <article
-          key={order.id}
-          className="flex gap-3 border-b border-white/10 p-4 last:border-b-0"
-        >
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-            <Receipt className="h-4 w-4" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold">{order.eventTitle}</p>
-            <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
-                {formatEventDate(order.createdAt)}
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" />
-                {order.locationName}
-              </span>
-            </p>
-            <p className="mt-1 font-mono text-[10px] text-muted-foreground">
-              {t("purchases.order", { id: order.id })}
-            </p>
-          </div>
-          <div className="shrink-0 text-right">
-            <p className="text-sm font-semibold">{order.totalAmountRon} RON</p>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {order.status === "completed"
-                ? t("orders.completed")
-                : order.status === "pending"
-                  ? t("orders.pending")
-                  : order.status === "canceled"
-                    ? t("orders.canceled")
-                    : order.status === "refunded"
-                      ? t("orders.refunded")
-                      : order.status}
-            </p>
-          </div>
-        </article>
-      ))}
+      {orders.map((order) => {
+        const paidTotal = Number(order.paidTotalBani) / 100;
+        const refundedAmount = Number(order.refundedAmountBani) / 100;
+        return (
+          <article
+            key={order.id}
+            className="flex gap-3 border-b border-white/10 p-4 last:border-b-0"
+          >
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <Receipt className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold">{order.eventTitle}</p>
+              <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {formatEventDate(order.createdAt)}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {order.locationName}
+                </span>
+              </p>
+              <p className="mt-1 font-mono text-[10px] text-muted-foreground">
+                {t("purchases.order", { id: order.id })}
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-sm font-semibold">{formatRon(paidTotal)}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {order.status === "completed"
+                  ? t("orders.completed")
+                  : order.status === "pending"
+                    ? t("orders.pending")
+                    : order.status === "canceled"
+                      ? t("orders.canceled")
+                      : order.status === "refunded"
+                        ? t("orders.refunded")
+                        : order.status}
+              </p>
+              {refundedAmount > 0 && (
+                <p className="mt-1 text-[11px] font-semibold text-primary">
+                  {t("orders.refundedAmount", { amount: formatRon(refundedAmount) })}
+                </p>
+              )}
+            </div>
+          </article>
+        );
+      })}
     </div>
   );
 }

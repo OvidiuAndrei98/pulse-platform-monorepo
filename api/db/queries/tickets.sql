@@ -396,17 +396,26 @@ WHERE t.user_id = $1 AND o.status = 'completed'
 ORDER BY t.created_at DESC;
 
 -- name: ListUserOrders :many
-SELECT o.id, o.status, o.total_amount, o.created_at, o.stripe_payment_intent_id,
-       o.invoice_requested,
+SELECT o.id, o.status, o.total_amount,
+       ((o.total_amount::BIGINT * 100) + o.customer_ticketing_fee_bani)::BIGINT AS paid_total_bani,
+       o.stripe_amount_refunded_bani AS refunded_amount_bani,
+       o.stripe_refund_status,
+       o.created_at, o.stripe_payment_intent_id, o.invoice_requested,
        e.id AS event_id, e.title AS event_title, e.location_name, e.start_time,
        invoice.status AS invoice_status,
        invoice.external_series AS invoice_series,
        invoice.external_number AS invoice_number,
        invoice.document_url AS invoice_document_url,
-       invoice.issued_at AS invoice_issued_at
+       invoice.issued_at AS invoice_issued_at,
+       invoice_refund.status AS refund_invoice_status,
+       invoice_refund.external_series AS refund_invoice_series,
+       invoice_refund.external_number AS refund_invoice_number,
+       invoice_refund.document_url AS refund_invoice_document_url,
+       invoice_refund.issued_at AS refund_invoice_issued_at
 FROM orders o
 JOIN events e ON e.id = o.event_id
 LEFT JOIN billing_invoices invoice ON invoice.order_id = o.id
+LEFT JOIN billing_invoice_refunds invoice_refund ON invoice_refund.order_id = o.id
 WHERE o.user_id = $1
 ORDER BY o.created_at DESC;
 

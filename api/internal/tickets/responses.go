@@ -89,21 +89,29 @@ type UserTicketResponse struct {
 }
 
 type UserOrderResponse struct {
-	ID                    string `json:"id"`
-	Status                string `json:"status"`
-	TotalAmountRon        int32  `json:"totalAmountRon"`
-	CreatedAt             string `json:"createdAt"`
-	StripePaymentIntentID string `json:"stripePaymentIntentId,omitempty"`
-	EventID               string `json:"eventId"`
-	EventTitle            string `json:"eventTitle"`
-	LocationName          string `json:"locationName"`
-	StartTime             string `json:"startTime"`
-	InvoiceRequested      bool   `json:"invoiceRequested"`
-	InvoiceStatus         string `json:"invoiceStatus,omitempty"`
-	InvoiceSeries         string `json:"invoiceSeries,omitempty"`
-	InvoiceNumber         string `json:"invoiceNumber,omitempty"`
-	InvoiceDocumentURL    string `json:"invoiceDocumentUrl,omitempty"`
-	InvoiceIssuedAt       string `json:"invoiceIssuedAt,omitempty"`
+	ID                       string `json:"id"`
+	Status                   string `json:"status"`
+	TotalAmountRon           int32  `json:"totalAmountRon"`
+	PaidTotalBani            int64  `json:"paidTotalBani"`
+	RefundedAmountBani       int64  `json:"refundedAmountBani"`
+	StripeRefundStatus       string `json:"stripeRefundStatus"`
+	CreatedAt                string `json:"createdAt"`
+	StripePaymentIntentID    string `json:"stripePaymentIntentId,omitempty"`
+	EventID                  string `json:"eventId"`
+	EventTitle               string `json:"eventTitle"`
+	LocationName             string `json:"locationName"`
+	StartTime                string `json:"startTime"`
+	InvoiceRequested         bool   `json:"invoiceRequested"`
+	InvoiceStatus            string `json:"invoiceStatus,omitempty"`
+	InvoiceSeries            string `json:"invoiceSeries,omitempty"`
+	InvoiceNumber            string `json:"invoiceNumber,omitempty"`
+	InvoiceDocumentURL       string `json:"invoiceDocumentUrl,omitempty"`
+	InvoiceIssuedAt          string `json:"invoiceIssuedAt,omitempty"`
+	RefundInvoiceStatus      string `json:"refundInvoiceStatus,omitempty"`
+	RefundInvoiceSeries      string `json:"refundInvoiceSeries,omitempty"`
+	RefundInvoiceNumber      string `json:"refundInvoiceNumber,omitempty"`
+	RefundInvoiceDocumentURL string `json:"refundInvoiceDocumentUrl,omitempty"`
+	RefundInvoiceIssuedAt    string `json:"refundInvoiceIssuedAt,omitempty"`
 }
 
 type ValidationEventResponse struct {
@@ -224,20 +232,28 @@ func MapUserTicket(ticket db.GetUserTicketsRow) UserTicketResponse {
 
 func MapUserOrder(order db.ListUserOrdersRow) UserOrderResponse {
 	return UserOrderResponse{
-		ID:                    common.UUIDToString(order.ID),
-		Status:                string(order.Status),
-		TotalAmountRon:        order.TotalAmount,
-		CreatedAt:             common.TimestampToString(order.CreatedAt),
-		StripePaymentIntentID: order.StripePaymentIntentID.String,
-		EventID:               common.UUIDToString(order.EventID),
-		EventTitle:            order.EventTitle,
-		LocationName:          order.LocationName,
-		StartTime:             common.TimestampToString(order.StartTime),
-		InvoiceRequested:      order.InvoiceRequested,
-		InvoiceStatus:         order.InvoiceStatus.String,
-		InvoiceSeries:         order.InvoiceSeries.String,
-		InvoiceNumber:         order.InvoiceNumber.String,
-		InvoiceDocumentURL:    order.InvoiceDocumentUrl.String,
-		InvoiceIssuedAt:       common.TimestampToString(order.InvoiceIssuedAt),
+		ID:                       common.UUIDToString(order.ID),
+		Status:                   string(order.Status),
+		TotalAmountRon:           order.TotalAmount,
+		PaidTotalBani:            order.PaidTotalBani,
+		RefundedAmountBani:       order.RefundedAmountBani,
+		StripeRefundStatus:       order.StripeRefundStatus,
+		CreatedAt:                common.TimestampToString(order.CreatedAt),
+		StripePaymentIntentID:    order.StripePaymentIntentID.String,
+		EventID:                  common.UUIDToString(order.EventID),
+		EventTitle:               order.EventTitle,
+		LocationName:             order.LocationName,
+		StartTime:                common.TimestampToString(order.StartTime),
+		InvoiceRequested:         order.InvoiceRequested,
+		InvoiceStatus:            order.InvoiceStatus.String,
+		InvoiceSeries:            order.InvoiceSeries.String,
+		InvoiceNumber:            order.InvoiceNumber.String,
+		InvoiceDocumentURL:       order.InvoiceDocumentUrl.String,
+		InvoiceIssuedAt:          common.TimestampToString(order.InvoiceIssuedAt),
+		RefundInvoiceStatus:      order.RefundInvoiceStatus.String,
+		RefundInvoiceSeries:      order.RefundInvoiceSeries.String,
+		RefundInvoiceNumber:      order.RefundInvoiceNumber.String,
+		RefundInvoiceDocumentURL: order.RefundInvoiceDocumentUrl.String,
+		RefundInvoiceIssuedAt:    common.TimestampToString(order.RefundInvoiceIssuedAt),
 	}
 }

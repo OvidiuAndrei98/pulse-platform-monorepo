@@ -517,6 +517,9 @@ model UserOrderResponse {
   id: string;
   status: string;
   totalAmountRon: int32;
+  paidTotalBani: int64;
+  refundedAmountBani: int64;
+  stripeRefundStatus: string;
   createdAt: utcDateTime;
   stripePaymentIntentId?: string;
   eventId: string;
@@ -529,6 +532,11 @@ model UserOrderResponse {
   invoiceNumber?: string;
   invoiceDocumentUrl?: string;
   invoiceIssuedAt?: utcDateTime;
+  refundInvoiceStatus?: string;
+  refundInvoiceSeries?: string;
+  refundInvoiceNumber?: string;
+  refundInvoiceDocumentUrl?: string;
+  refundInvoiceIssuedAt?: utcDateTime;
 }
 
 model CheckoutTicketItemPayload {

@@ -1,19 +1,31 @@
 package email
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"html"
 	"mime"
+	"mime/multipart"
 	"net/mail"
 	"net/smtp"
+	"net/textproto"
 	"net/url"
 	"strings"
+
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 type TicketDelivery struct {
 	TicketTypeName string
 	ValidationHash string
+}
+
+type inlineImage struct {
+	contentID string
+	filename  string
+	data      []byte
 }
 
 type Mailer struct {
@@ -66,16 +78,29 @@ func (m *Mailer) SendTicketConfirmationEmail(ctx context.Context, toEmail, event
 	}
 
 	var ticketCards strings.Builder
+	inlineImages := make([]inlineImage, 0, len(tickets))
 	for index, ticket := range tickets {
+		qrPNG, err := qrcode.Encode(ticket.ValidationHash, qrcode.Medium, 256)
+		if err != nil {
+			return fmt.Errorf("codul QR pentru bilet nu a putut fi generat: %w", err)
+		}
+		contentID := fmt.Sprintf("spottr-ticket-%d", index+1)
+		inlineImages = append(inlineImages, inlineImage{
+			contentID: contentID,
+			filename:  fmt.Sprintf("spottr-ticket-%d.png", index+1),
+			data:      qrPNG,
+		})
 		ticketCards.WriteString(fmt.Sprintf(
 			`<div style="margin-top:12px;border:1px solid #2b2b2b;border-radius:16px;background:#111;padding:16px">
 <div style="color:#ff3344;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase">Bilet %d</div>
 <div style="margin-top:7px;color:#fff;font-size:15px;font-weight:700">%s</div>
-<div style="margin-top:12px;color:#888;font-size:11px">Cod unic de acces</div>
-<div style="margin-top:5px;border-radius:10px;background:#080808;padding:10px;color:#ddd;font-family:monospace;font-size:11px;line-height:1.55;word-break:break-all">%s</div>
+<div style="margin-top:14px;text-align:center"><img src="cid:%s" width="220" height="220" alt="Cod QR bilet" style="display:inline-block;width:220px;max-width:100%%;height:auto;border:12px solid #fff;border-radius:12px;background:#fff" /></div>
+<div style="margin-top:12px;color:#888;font-size:11px">Cod de acces alternativ</div>
+<div style="margin-top:5px;border-radius:10px;background:#080808;padding:10px;color:#ddd;font-family:monospace;font-size:10px;line-height:1.55;word-break:break-all">%s</div>
 </div>`,
 			index+1,
 			html.EscapeString(ticket.TicketTypeName),
+			html.EscapeString(contentID),
 			html.EscapeString(ticket.ValidationHash),
 		))
 	}
@@ -98,7 +123,7 @@ func (m *Mailer) SendTicketConfirmationEmail(ctx context.Context, toEmail, event
 <p style="margin:0;color:#b8b8b8;font-size:14px;line-height:1.65">Biletele tale sunt pregătite. Păstrează acest mesaj și nu distribui codurile de acces.</p>
 %s
 <p style="margin:20px 0 14px;color:#999;font-size:13px;line-height:1.6">%s</p>
-<a href="%s" style="display:inline-block;border-radius:999px;background:#ff3344;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 22px">%s</a>
+<table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td bgcolor="#ff3344" style="border-radius:999px;background:#ff3344"><a href="%s" style="display:inline-block;border-radius:999px;background:#ff3344;color:#ffffff!important;-webkit-text-fill-color:#ffffff;text-decoration:none;font-weight:700;padding:13px 22px"><span style="color:#ffffff!important;-webkit-text-fill-color:#ffffff">%s</span></a></td></tr></table>
 <p style="margin:22px 0 0;border-top:1px solid #252525;padding-top:16px;color:#777;font-size:12px;line-height:1.6">Factura fiscală este emisă și trimisă separat de operatorul de facturare al organizatorului.</p>`,
 		html.EscapeString(eventTitle),
 		html.EscapeString(locationName),
@@ -115,10 +140,11 @@ func (m *Mailer) SendTicketConfirmationEmail(ctx context.Context, toEmail, event
 		"Plata a fost confirmată, iar biletele tale sunt pregătite.",
 		"Biletele tale sunt pregătite",
 		content,
+		inlineImages...,
 	)
 }
 
-func (m *Mailer) sendHTML(ctx context.Context, toEmail, subject, preheader, title, content string) error {
+func (m *Mailer) sendHTML(ctx context.Context, toEmail, subject, preheader, title, content string, inlineImages ...inlineImage) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -140,22 +166,83 @@ func (m *Mailer) sendHTML(ctx context.Context, toEmail, subject, preheader, titl
 		return fmt.Errorf("adresa destinatarului este invalida: %w", err)
 	}
 
-	body := emailLayout(preheader, title, content)
-	headers := fmt.Sprintf(
-		"From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n",
-		sender.String(),
-		recipient.String(),
-		mime.QEncoding.Encode("UTF-8", sanitizeHeader(subject)),
-	)
+	message, err := buildEmailMessage(*sender, *recipient, subject, emailLayout(preheader, title, content), inlineImages)
+	if err != nil {
+		return fmt.Errorf("mesajul email Spottr nu a putut fi construit: %w", err)
+	}
 
 	var auth smtp.Auth
 	if m.password != "" {
 		auth = smtp.PlainAuth("", m.username, m.password, m.smtpHost)
 	}
-	if err := smtp.SendMail(m.smtpHost+":"+m.smtpPort, auth, sender.Address, []string{recipient.Address}, []byte(headers+body)); err != nil {
+	if err := smtp.SendMail(m.smtpHost+":"+m.smtpPort, auth, sender.Address, []string{recipient.Address}, message); err != nil {
 		return fmt.Errorf("eroare trimitere email Spottr: %w", err)
 	}
 	return nil
+}
+
+func buildEmailMessage(sender, recipient mail.Address, subject, body string, inlineImages []inlineImage) ([]byte, error) {
+	var message bytes.Buffer
+	fmt.Fprintf(
+		&message,
+		"From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\n",
+		sender.String(),
+		recipient.String(),
+		mime.QEncoding.Encode("UTF-8", sanitizeHeader(subject)),
+	)
+
+	if len(inlineImages) == 0 {
+		message.WriteString("Content-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n")
+		message.WriteString(body)
+		return message.Bytes(), nil
+	}
+
+	related := multipart.NewWriter(&message)
+	fmt.Fprintf(&message, "Content-Type: multipart/related; boundary=%q\r\n\r\n", related.Boundary())
+
+	htmlHeaders := make(textproto.MIMEHeader)
+	htmlHeaders.Set("Content-Type", "text/html; charset=UTF-8")
+	htmlHeaders.Set("Content-Transfer-Encoding", "base64")
+	htmlPart, err := related.CreatePart(htmlHeaders)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := htmlPart.Write([]byte(encodeMIMEBase64([]byte(body)))); err != nil {
+		return nil, err
+	}
+
+	for _, image := range inlineImages {
+		imageHeaders := make(textproto.MIMEHeader)
+		imageHeaders.Set("Content-Type", "image/png; name="+mime.QEncoding.Encode("UTF-8", image.filename))
+		imageHeaders.Set("Content-Transfer-Encoding", "base64")
+		imageHeaders.Set("Content-ID", "<"+sanitizeHeader(image.contentID)+">")
+		imageHeaders.Set("Content-Disposition", "inline; filename="+mime.QEncoding.Encode("UTF-8", image.filename))
+		imagePart, err := related.CreatePart(imageHeaders)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := imagePart.Write([]byte(encodeMIMEBase64(image.data))); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := related.Close(); err != nil {
+		return nil, err
+	}
+	return message.Bytes(), nil
+}
+
+func encodeMIMEBase64(data []byte) string {
+	encoded := base64.StdEncoding.EncodeToString(data)
+	var wrapped strings.Builder
+	for len(encoded) > 76 {
+		wrapped.WriteString(encoded[:76])
+		wrapped.WriteString("\r\n")
+		encoded = encoded[76:]
+	}
+	wrapped.WriteString(encoded)
+	wrapped.WriteString("\r\n")
+	return wrapped.String()
 }
 
 func emailLayout(preheader, title, content string) string {
