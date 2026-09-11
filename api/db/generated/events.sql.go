@@ -464,10 +464,11 @@ SELECT
     
     COALESCE(
         (
-            SELECT SUM(tt.tickets_sold * tt.price_ron) 
-            FROM ticket_types tt 
-            WHERE tt.event_id = e.id
-        ), 
+            SELECT SUM(oi.quantity::bigint * oi.unit_price_ron::bigint)
+            FROM order_items oi
+            JOIN orders o ON o.id = oi.order_id
+            WHERE o.event_id = e.id AND o.status = 'completed'
+        ),
         0
     )::bigint AS total_revenue_ron,
 
@@ -917,7 +918,12 @@ SELECT
         WHERE event_id = e.id
     ) AS total_check_ins,
     COALESCE(SUM(tt.tickets_sold), 0)::bigint AS total_tickets_sold,
-    COALESCE(SUM(tt.tickets_sold * tt.price_ron), 0)::bigint AS total_revenue_ron,
+    COALESCE((
+        SELECT SUM(oi.quantity::bigint * oi.unit_price_ron::bigint)
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE o.event_id = e.id AND o.status = 'completed'
+    ), 0)::bigint AS total_revenue_ron,
     (SELECT COUNT(*)::bigint FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'interested') AS interested_count,
     (SELECT COUNT(*)::bigint FROM event_rsvps r WHERE r.event_id = e.id AND r.status = 'going' AND NOT EXISTS (
         SELECT 1 FROM tickets t

@@ -235,6 +235,10 @@ func (app *Application) BuildRouter() http.Handler {
 		ApproveEventCancellation:       stripeCheckoutHandler.HandleAdminApproveEventCancellation,
 		RejectEventCancellation:        stripeCheckoutHandler.HandleAdminRejectEventCancellation,
 		RetryEventCancellation:         stripeCheckoutHandler.HandleAdminRetryEventCancellation,
+		ListOrganizerRefundAttention:   stripeCheckoutHandler.HandleListOrganizerRefundsRequiringAttention,
+		ReconcileOrganizerRefund:       stripeCheckoutHandler.HandleReconcileOrganizerRefundAttention,
+		ListAdminRefundAttention:       stripeCheckoutHandler.HandleAdminListRefundsRequiringAttention,
+		ReconcileAdminRefund:           stripeCheckoutHandler.HandleAdminReconcileRefundAttention,
 
 		// Interactions / Checkins
 		CreateCheckIn: interactionsHandler.HandleCreateCheckIn,

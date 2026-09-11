@@ -215,6 +215,58 @@ func (q *Queries) FinalizeEmptyCancellationRequests(ctx context.Context) (int64,
 	return result.RowsAffected(), nil
 }
 
+const getAdminRefundAttentionOrder = `-- name: GetAdminRefundAttentionOrder :one
+SELECT orders.id, orders.user_id, orders.event_id, orders.email, orders.stripe_payment_intent_id, orders.status, orders.total_amount, orders.created_at, orders.stripe_checkout_session_id, orders.platform_fee_bani, orders.ticket_email_sent_at, orders.promo_code_id, orders.discount_amount_ron, orders.invoice_requested, orders.billing_type, orders.billing_name, orders.billing_tax_id, orders.billing_registration_number, orders.billing_address, orders.billing_city, orders.billing_county, orders.billing_country, orders.billing_sector, orders.completed_at, orders.customer_ticketing_fee_bani, orders.stripe_livemode, orders.stripe_connected_account_id, orders.stripe_charge_type, orders.stripe_charge_id, orders.stripe_amount_refunded_bani, orders.stripe_refund_status, orders.stripe_refund_needs_attention, orders.stripe_refund_updated_at, orders.automatic_invoice_refund_enabled, orders.platform_fee_status, orders.platform_fee_refunded_bani, orders.refund_origin
+FROM orders
+WHERE orders.id = $1
+  AND orders.stripe_refund_needs_attention IS TRUE
+`
+
+func (q *Queries) GetAdminRefundAttentionOrder(ctx context.Context, orderID pgtype.UUID) (Orders, error) {
+	row := q.db.QueryRow(ctx, getAdminRefundAttentionOrder, orderID)
+	var i Orders
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.EventID,
+		&i.Email,
+		&i.StripePaymentIntentID,
+		&i.Status,
+		&i.TotalAmount,
+		&i.CreatedAt,
+		&i.StripeCheckoutSessionID,
+		&i.PlatformFeeBani,
+		&i.TicketEmailSentAt,
+		&i.PromoCodeID,
+		&i.DiscountAmountRon,
+		&i.InvoiceRequested,
+		&i.BillingType,
+		&i.BillingName,
+		&i.BillingTaxID,
+		&i.BillingRegistrationNumber,
+		&i.BillingAddress,
+		&i.BillingCity,
+		&i.BillingCounty,
+		&i.BillingCountry,
+		&i.BillingSector,
+		&i.CompletedAt,
+		&i.CustomerTicketingFeeBani,
+		&i.StripeLivemode,
+		&i.StripeConnectedAccountID,
+		&i.StripeChargeType,
+		&i.StripeChargeID,
+		&i.StripeAmountRefundedBani,
+		&i.StripeRefundStatus,
+		&i.StripeRefundNeedsAttention,
+		&i.StripeRefundUpdatedAt,
+		&i.AutomaticInvoiceRefundEnabled,
+		&i.PlatformFeeStatus,
+		&i.PlatformFeeRefundedBani,
+		&i.RefundOrigin,
+	)
+	return i, err
+}
+
 const getOrderRefundExecutionData = `-- name: GetOrderRefundExecutionData :one
 SELECT operation.id, operation.order_id, operation.cancellation_request_id, operation.source, operation.fee_policy, operation.status, operation.stripe_refund_id, operation.stripe_application_fee_id, operation.stripe_fee_refund_id, operation.refund_amount_bani, operation.application_fee_refunded_bani, operation.attempt_count, operation.next_attempt_at, operation.error_message, operation.created_at, operation.updated_at,
        orders.stripe_payment_intent_id,
@@ -358,6 +410,65 @@ func (q *Queries) GetOrganizerEventCancellationRequest(ctx context.Context, arg 
 	return i, err
 }
 
+const getOrganizerRefundAttentionOrder = `-- name: GetOrganizerRefundAttentionOrder :one
+SELECT orders.id, orders.user_id, orders.event_id, orders.email, orders.stripe_payment_intent_id, orders.status, orders.total_amount, orders.created_at, orders.stripe_checkout_session_id, orders.platform_fee_bani, orders.ticket_email_sent_at, orders.promo_code_id, orders.discount_amount_ron, orders.invoice_requested, orders.billing_type, orders.billing_name, orders.billing_tax_id, orders.billing_registration_number, orders.billing_address, orders.billing_city, orders.billing_county, orders.billing_country, orders.billing_sector, orders.completed_at, orders.customer_ticketing_fee_bani, orders.stripe_livemode, orders.stripe_connected_account_id, orders.stripe_charge_type, orders.stripe_charge_id, orders.stripe_amount_refunded_bani, orders.stripe_refund_status, orders.stripe_refund_needs_attention, orders.stripe_refund_updated_at, orders.automatic_invoice_refund_enabled, orders.platform_fee_status, orders.platform_fee_refunded_bani, orders.refund_origin
+FROM orders
+JOIN events ON events.id = orders.event_id
+WHERE orders.id = $1
+  AND events.organizer_id = $2
+  AND orders.stripe_refund_needs_attention IS TRUE
+`
+
+type GetOrganizerRefundAttentionOrderParams struct {
+	OrderID     pgtype.UUID `json:"order_id"`
+	OrganizerID pgtype.UUID `json:"organizer_id"`
+}
+
+func (q *Queries) GetOrganizerRefundAttentionOrder(ctx context.Context, arg GetOrganizerRefundAttentionOrderParams) (Orders, error) {
+	row := q.db.QueryRow(ctx, getOrganizerRefundAttentionOrder, arg.OrderID, arg.OrganizerID)
+	var i Orders
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.EventID,
+		&i.Email,
+		&i.StripePaymentIntentID,
+		&i.Status,
+		&i.TotalAmount,
+		&i.CreatedAt,
+		&i.StripeCheckoutSessionID,
+		&i.PlatformFeeBani,
+		&i.TicketEmailSentAt,
+		&i.PromoCodeID,
+		&i.DiscountAmountRon,
+		&i.InvoiceRequested,
+		&i.BillingType,
+		&i.BillingName,
+		&i.BillingTaxID,
+		&i.BillingRegistrationNumber,
+		&i.BillingAddress,
+		&i.BillingCity,
+		&i.BillingCounty,
+		&i.BillingCountry,
+		&i.BillingSector,
+		&i.CompletedAt,
+		&i.CustomerTicketingFeeBani,
+		&i.StripeLivemode,
+		&i.StripeConnectedAccountID,
+		&i.StripeChargeType,
+		&i.StripeChargeID,
+		&i.StripeAmountRefundedBani,
+		&i.StripeRefundStatus,
+		&i.StripeRefundNeedsAttention,
+		&i.StripeRefundUpdatedAt,
+		&i.AutomaticInvoiceRefundEnabled,
+		&i.PlatformFeeStatus,
+		&i.PlatformFeeRefundedBani,
+		&i.RefundOrigin,
+	)
+	return i, err
+}
+
 const listAdminEventCancellationRequests = `-- name: ListAdminEventCancellationRequests :many
 SELECT request.id, request.event_id, request.organizer_id, request.previous_event_status, request.previous_publish_at, request.previous_is_live, request.reason, request.evidence_url, request.status, request.fee_policy, request.admin_note, request.reviewed_by, request.reviewed_at, request.completed_at, request.created_at, request.updated_at,
        event.title AS event_title,
@@ -449,6 +560,187 @@ func (q *Queries) ListAdminEventCancellationRequests(ctx context.Context) ([]Lis
 			&i.SucceededRefunds,
 			&i.PendingRefunds,
 			&i.FailedRefunds,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAdminRefundsRequiringAttention = `-- name: ListAdminRefundsRequiringAttention :many
+SELECT orders.id AS order_id,
+       orders.event_id,
+       event.title AS event_title,
+       event.organizer_id,
+       users.email AS organizer_email,
+       profile.company_name,
+       orders.email AS buyer_email,
+       ((orders.total_amount::BIGINT * 100) + orders.customer_ticketing_fee_bani)::BIGINT AS customer_total_bani,
+       orders.stripe_amount_refunded_bani AS refunded_amount_bani,
+       GREATEST(0, ((orders.total_amount::BIGINT * 100) + orders.customer_ticketing_fee_bani) - orders.stripe_amount_refunded_bani)::BIGINT AS remaining_amount_bani,
+       orders.platform_fee_bani::BIGINT AS platform_fee_bani,
+       orders.platform_fee_status,
+       orders.stripe_refund_status,
+       COALESCE(orders.refund_origin, 'stripe_dashboard')::TEXT AS refund_origin,
+       COALESCE(operation.status, 'needs_review')::TEXT AS operation_status,
+       operation.error_message,
+       COALESCE((SELECT SUM(items.quantity)::BIGINT FROM order_items items WHERE items.order_id = orders.id), 0)::BIGINT AS ticket_count,
+       COALESCE(orders.stripe_livemode, FALSE)::BOOLEAN AS stripe_livemode,
+       orders.created_at AS purchased_at,
+       COALESCE(orders.stripe_refund_updated_at, operation.updated_at, orders.created_at) AS updated_at
+FROM orders
+JOIN events event ON event.id = orders.event_id
+JOIN users ON users.id = event.organizer_id
+JOIN organizer_profiles profile ON profile.user_id = event.organizer_id
+LEFT JOIN order_refund_operations operation ON operation.order_id = orders.id
+WHERE orders.stripe_refund_needs_attention IS TRUE
+ORDER BY COALESCE(orders.stripe_refund_updated_at, operation.updated_at, orders.created_at) DESC
+`
+
+type ListAdminRefundsRequiringAttentionRow struct {
+	OrderID             pgtype.UUID        `json:"order_id"`
+	EventID             pgtype.UUID        `json:"event_id"`
+	EventTitle          string             `json:"event_title"`
+	OrganizerID         pgtype.UUID        `json:"organizer_id"`
+	OrganizerEmail      string             `json:"organizer_email"`
+	CompanyName         string             `json:"company_name"`
+	BuyerEmail          string             `json:"buyer_email"`
+	CustomerTotalBani   int64              `json:"customer_total_bani"`
+	RefundedAmountBani  int64              `json:"refunded_amount_bani"`
+	RemainingAmountBani int64              `json:"remaining_amount_bani"`
+	PlatformFeeBani     int64              `json:"platform_fee_bani"`
+	PlatformFeeStatus   string             `json:"platform_fee_status"`
+	StripeRefundStatus  string             `json:"stripe_refund_status"`
+	RefundOrigin        string             `json:"refund_origin"`
+	OperationStatus     string             `json:"operation_status"`
+	ErrorMessage        pgtype.Text        `json:"error_message"`
+	TicketCount         int64              `json:"ticket_count"`
+	StripeLivemode      bool               `json:"stripe_livemode"`
+	PurchasedAt         pgtype.Timestamptz `json:"purchased_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListAdminRefundsRequiringAttention(ctx context.Context) ([]ListAdminRefundsRequiringAttentionRow, error) {
+	rows, err := q.db.Query(ctx, listAdminRefundsRequiringAttention)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAdminRefundsRequiringAttentionRow
+	for rows.Next() {
+		var i ListAdminRefundsRequiringAttentionRow
+		if err := rows.Scan(
+			&i.OrderID,
+			&i.EventID,
+			&i.EventTitle,
+			&i.OrganizerID,
+			&i.OrganizerEmail,
+			&i.CompanyName,
+			&i.BuyerEmail,
+			&i.CustomerTotalBani,
+			&i.RefundedAmountBani,
+			&i.RemainingAmountBani,
+			&i.PlatformFeeBani,
+			&i.PlatformFeeStatus,
+			&i.StripeRefundStatus,
+			&i.RefundOrigin,
+			&i.OperationStatus,
+			&i.ErrorMessage,
+			&i.TicketCount,
+			&i.StripeLivemode,
+			&i.PurchasedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOrganizerRefundsRequiringAttention = `-- name: ListOrganizerRefundsRequiringAttention :many
+SELECT orders.id AS order_id,
+       orders.event_id,
+       event.title AS event_title,
+       event.organizer_id,
+       orders.email AS buyer_email,
+       ((orders.total_amount::BIGINT * 100) + orders.customer_ticketing_fee_bani)::BIGINT AS customer_total_bani,
+       orders.stripe_amount_refunded_bani AS refunded_amount_bani,
+       GREATEST(0, ((orders.total_amount::BIGINT * 100) + orders.customer_ticketing_fee_bani) - orders.stripe_amount_refunded_bani)::BIGINT AS remaining_amount_bani,
+       orders.platform_fee_bani::BIGINT AS platform_fee_bani,
+       orders.platform_fee_status,
+       orders.stripe_refund_status,
+       COALESCE(orders.refund_origin, 'stripe_dashboard')::TEXT AS refund_origin,
+       COALESCE(operation.status, 'needs_review')::TEXT AS operation_status,
+       operation.error_message,
+       COALESCE((SELECT SUM(items.quantity)::BIGINT FROM order_items items WHERE items.order_id = orders.id), 0)::BIGINT AS ticket_count,
+       COALESCE(orders.stripe_livemode, FALSE)::BOOLEAN AS stripe_livemode,
+       orders.created_at AS purchased_at,
+       COALESCE(orders.stripe_refund_updated_at, operation.updated_at, orders.created_at) AS updated_at
+FROM orders
+JOIN events event ON event.id = orders.event_id
+LEFT JOIN order_refund_operations operation ON operation.order_id = orders.id
+WHERE event.organizer_id = $1
+  AND orders.stripe_refund_needs_attention IS TRUE
+ORDER BY COALESCE(orders.stripe_refund_updated_at, operation.updated_at, orders.created_at) DESC
+`
+
+type ListOrganizerRefundsRequiringAttentionRow struct {
+	OrderID             pgtype.UUID        `json:"order_id"`
+	EventID             pgtype.UUID        `json:"event_id"`
+	EventTitle          string             `json:"event_title"`
+	OrganizerID         pgtype.UUID        `json:"organizer_id"`
+	BuyerEmail          string             `json:"buyer_email"`
+	CustomerTotalBani   int64              `json:"customer_total_bani"`
+	RefundedAmountBani  int64              `json:"refunded_amount_bani"`
+	RemainingAmountBani int64              `json:"remaining_amount_bani"`
+	PlatformFeeBani     int64              `json:"platform_fee_bani"`
+	PlatformFeeStatus   string             `json:"platform_fee_status"`
+	StripeRefundStatus  string             `json:"stripe_refund_status"`
+	RefundOrigin        string             `json:"refund_origin"`
+	OperationStatus     string             `json:"operation_status"`
+	ErrorMessage        pgtype.Text        `json:"error_message"`
+	TicketCount         int64              `json:"ticket_count"`
+	StripeLivemode      bool               `json:"stripe_livemode"`
+	PurchasedAt         pgtype.Timestamptz `json:"purchased_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListOrganizerRefundsRequiringAttention(ctx context.Context, organizerID pgtype.UUID) ([]ListOrganizerRefundsRequiringAttentionRow, error) {
+	rows, err := q.db.Query(ctx, listOrganizerRefundsRequiringAttention, organizerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrganizerRefundsRequiringAttentionRow
+	for rows.Next() {
+		var i ListOrganizerRefundsRequiringAttentionRow
+		if err := rows.Scan(
+			&i.OrderID,
+			&i.EventID,
+			&i.EventTitle,
+			&i.OrganizerID,
+			&i.BuyerEmail,
+			&i.CustomerTotalBani,
+			&i.RefundedAmountBani,
+			&i.RemainingAmountBani,
+			&i.PlatformFeeBani,
+			&i.PlatformFeeStatus,
+			&i.StripeRefundStatus,
+			&i.RefundOrigin,
+			&i.OperationStatus,
+			&i.ErrorMessage,
+			&i.TicketCount,
+			&i.StripeLivemode,
+			&i.PurchasedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

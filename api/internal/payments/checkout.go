@@ -620,7 +620,7 @@ func (h *CheckoutHandler) ReconcileChargeRefund(ctx context.Context, charge stri
 		return tx.Commit(ctx)
 	}
 
-	fullRefund := charge.Refunded || (charge.Amount > 0 && charge.AmountRefunded >= charge.Amount)
+	fullRefund := stripeChargeFullyRefunded(charge)
 	refundStatus := "partial"
 	needsAttention := true
 	if fullRefund {
@@ -702,6 +702,10 @@ func (h *CheckoutHandler) ReconcileChargeRefund(ctx context.Context, charge stri
 			}
 		}
 	} else {
+		refundOrigin := "stripe_dashboard"
+		if operationErr == nil && operation.Source == "event_cancellation" {
+			refundOrigin = operation.Source
+		}
 		_, operationErr = qtx.UpsertManualRefundOperation(ctx, db.UpsertManualRefundOperationParams{
 			OrderID: order.ID, FeePolicy: "review", Status: "needs_review", StripeRefundID: pgtype.Text{}, RefundAmountBani: charge.AmountRefunded,
 		})
@@ -709,7 +713,7 @@ func (h *CheckoutHandler) ReconcileChargeRefund(ctx context.Context, charge stri
 			return operationErr
 		}
 		if err := qtx.MarkOrderPlatformFeePending(ctx, db.MarkOrderPlatformFeePendingParams{
-			OrderID: order.ID, Status: "needs_review", RefundOrigin: optionalText("stripe_dashboard"), NeedsAttention: true,
+			OrderID: order.ID, Status: "needs_review", RefundOrigin: optionalText(refundOrigin), NeedsAttention: true,
 		}); err != nil {
 			return err
 		}
@@ -788,6 +792,10 @@ func stripePaymentIntentID(paymentIntent *stripe.PaymentIntent) string {
 		return ""
 	}
 	return paymentIntent.ID
+}
+
+func stripeChargeFullyRefunded(charge stripe.Charge) bool {
+	return charge.Refunded || (charge.Amount > 0 && charge.AmountRefunded >= charge.Amount)
 }
 
 func stripeChargeID(charge *stripe.Charge) string {

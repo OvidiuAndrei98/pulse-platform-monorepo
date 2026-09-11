@@ -50,6 +50,36 @@ type CancellationRequestResponse struct {
 	UpdatedAt           string `json:"updatedAt"`
 }
 
+type RefundAttentionResponse struct {
+	OrderID             string `json:"orderId"`
+	EventID             string `json:"eventId"`
+	EventTitle          string `json:"eventTitle"`
+	OrganizerID         string `json:"organizerId"`
+	OrganizerEmail      string `json:"organizerEmail,omitempty"`
+	CompanyName         string `json:"companyName,omitempty"`
+	BuyerEmail          string `json:"buyerEmail"`
+	CustomerTotalBani   int64  `json:"customerTotalBani"`
+	RefundedAmountBani  int64  `json:"refundedAmountBani"`
+	RemainingAmountBani int64  `json:"remainingAmountBani"`
+	PlatformFeeBani     int64  `json:"platformFeeBani"`
+	PlatformFeeStatus   string `json:"platformFeeStatus"`
+	StripeRefundStatus  string `json:"stripeRefundStatus"`
+	RefundOrigin        string `json:"refundOrigin"`
+	OperationStatus     string `json:"operationStatus"`
+	ErrorMessage        string `json:"errorMessage,omitempty"`
+	TicketCount         int64  `json:"ticketCount"`
+	StripeLivemode      bool   `json:"stripeLivemode"`
+	PurchasedAt         string `json:"purchasedAt"`
+	UpdatedAt           string `json:"updatedAt"`
+}
+
+type RefundReconciliationResponse struct {
+	RequiresAttention  bool   `json:"requiresAttention"`
+	RefundStatus       string `json:"refundStatus"`
+	RefundedAmountBani int64  `json:"refundedAmountBani"`
+	CustomerTotalBani  int64  `json:"customerTotalBani"`
+}
+
 type createCancellationRequest struct {
 	Reason      string `json:"reason"`
 	EvidenceURL string `json:"evidenceUrl"`
@@ -135,6 +165,156 @@ func (h *CheckoutHandler) HandleGetEventCancellationRequest(w http.ResponseWrite
 		return
 	}
 	router.RespondWithJSON(w, http.StatusOK, mapCancellationRequest(request))
+}
+
+func (h *CheckoutHandler) HandleListOrganizerRefundsRequiringAttention(w http.ResponseWriter, r *http.Request) {
+	organizerID, ok := authenticatedUUID(w, r)
+	if !ok {
+		return
+	}
+	rows, err := h.queries.ListOrganizerRefundsRequiringAttention(r.Context(), organizerID)
+	if err != nil {
+		log.Printf("list organizer refund attention failed: organizer=%s err=%v", common.UUIDToString(organizerID), err)
+		router.RespondWithError(w, http.StatusInternalServerError, "Refundurile care necesita atentie nu au putut fi incarcate")
+		return
+	}
+	result := make([]RefundAttentionResponse, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, RefundAttentionResponse{
+			OrderID: common.UUIDToString(row.OrderID), EventID: common.UUIDToString(row.EventID),
+			EventTitle: row.EventTitle, OrganizerID: common.UUIDToString(row.OrganizerID), BuyerEmail: row.BuyerEmail,
+			CustomerTotalBani: row.CustomerTotalBani, RefundedAmountBani: row.RefundedAmountBani,
+			RemainingAmountBani: row.RemainingAmountBani, PlatformFeeBani: row.PlatformFeeBani,
+			PlatformFeeStatus: row.PlatformFeeStatus, StripeRefundStatus: row.StripeRefundStatus,
+			RefundOrigin: row.RefundOrigin, OperationStatus: row.OperationStatus, ErrorMessage: row.ErrorMessage.String,
+			TicketCount: row.TicketCount, StripeLivemode: row.StripeLivemode,
+			PurchasedAt: common.TimestampToString(row.PurchasedAt), UpdatedAt: common.TimestampToString(row.UpdatedAt),
+		})
+	}
+	router.RespondWithJSON(w, http.StatusOK, result)
+}
+
+func (h *CheckoutHandler) HandleAdminListRefundsRequiringAttention(w http.ResponseWriter, r *http.Request) {
+	rows, err := h.queries.ListAdminRefundsRequiringAttention(r.Context())
+	if err != nil {
+		log.Printf("list admin refund attention failed: %v", err)
+		router.RespondWithError(w, http.StatusInternalServerError, "Refundurile care necesita atentie nu au putut fi incarcate")
+		return
+	}
+	result := make([]RefundAttentionResponse, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, RefundAttentionResponse{
+			OrderID: common.UUIDToString(row.OrderID), EventID: common.UUIDToString(row.EventID),
+			EventTitle: row.EventTitle, OrganizerID: common.UUIDToString(row.OrganizerID),
+			OrganizerEmail: row.OrganizerEmail, CompanyName: row.CompanyName, BuyerEmail: row.BuyerEmail,
+			CustomerTotalBani: row.CustomerTotalBani, RefundedAmountBani: row.RefundedAmountBani,
+			RemainingAmountBani: row.RemainingAmountBani, PlatformFeeBani: row.PlatformFeeBani,
+			PlatformFeeStatus: row.PlatformFeeStatus, StripeRefundStatus: row.StripeRefundStatus,
+			RefundOrigin: row.RefundOrigin, OperationStatus: row.OperationStatus, ErrorMessage: row.ErrorMessage.String,
+			TicketCount: row.TicketCount, StripeLivemode: row.StripeLivemode,
+			PurchasedAt: common.TimestampToString(row.PurchasedAt), UpdatedAt: common.TimestampToString(row.UpdatedAt),
+		})
+	}
+	router.RespondWithJSON(w, http.StatusOK, result)
+}
+
+func (h *CheckoutHandler) HandleReconcileOrganizerRefundAttention(w http.ResponseWriter, r *http.Request) {
+	organizerID, ok := authenticatedUUID(w, r)
+	if !ok {
+		return
+	}
+	orderID, ok := pathUUID(w, r, "id", "ID-ul comenzii este invalid")
+	if !ok {
+		return
+	}
+	order, err := h.queries.GetOrganizerRefundAttentionOrder(r.Context(), db.GetOrganizerRefundAttentionOrderParams{
+		OrderID: orderID, OrganizerID: organizerID,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		router.RespondWithError(w, http.StatusNotFound, "Comanda nu mai necesita verificare sau nu apartine organizatorului")
+		return
+	}
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Comanda nu a putut fi incarcata")
+		return
+	}
+	h.reconcileRefundAttention(w, r, order)
+}
+
+func (h *CheckoutHandler) HandleAdminReconcileRefundAttention(w http.ResponseWriter, r *http.Request) {
+	orderID, ok := pathUUID(w, r, "id", "ID-ul comenzii este invalid")
+	if !ok {
+		return
+	}
+	order, err := h.queries.GetAdminRefundAttentionOrder(r.Context(), orderID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		router.RespondWithError(w, http.StatusNotFound, "Comanda nu mai necesita verificare")
+		return
+	}
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Comanda nu a putut fi incarcata")
+		return
+	}
+	h.reconcileRefundAttention(w, r, order)
+}
+
+func (h *CheckoutHandler) reconcileRefundAttention(w http.ResponseWriter, r *http.Request, order db.Orders) {
+	charge, connectedAccountID, err := h.retrieveOrderCharge(r.Context(), order)
+	if err != nil {
+		log.Printf("refund attention Stripe refresh failed: order=%s err=%v", common.UUIDToString(order.ID), err)
+		router.RespondWithError(w, http.StatusBadGateway, "Statusul refundului nu a putut fi verificat in Stripe")
+		return
+	}
+	fullRefund := stripeChargeFullyRefunded(*charge)
+	status := order.StripeRefundStatus
+	if status == "" {
+		status = "none"
+	}
+	if charge.AmountRefunded > 0 || fullRefund {
+		status = "partial"
+		if err := h.ReconcileChargeRefund(r.Context(), *charge, connectedAccountID, charge.Livemode); err != nil {
+			log.Printf("refund attention reconciliation failed: order=%s charge=%s err=%v", common.UUIDToString(order.ID), charge.ID, err)
+			router.RespondWithError(w, http.StatusInternalServerError, "Statusul refundului nu a putut fi reconciliat")
+			return
+		}
+	}
+	if fullRefund {
+		status = "succeeded"
+	}
+	router.RespondWithJSON(w, http.StatusOK, RefundReconciliationResponse{
+		RequiresAttention: !fullRefund, RefundStatus: status,
+		RefundedAmountBani: charge.AmountRefunded, CustomerTotalBani: charge.Amount,
+	})
+}
+
+func (h *CheckoutHandler) retrieveOrderCharge(ctx context.Context, order db.Orders) (*stripe.Charge, string, error) {
+	connectedAccountID := ""
+	if order.StripeChargeType.String == directChargeType && order.StripeConnectedAccountID.Valid {
+		connectedAccountID = order.StripeConnectedAccountID.String
+	}
+	chargeID := order.StripeChargeID.String
+	if chargeID == "" && order.StripePaymentIntentID.Valid {
+		params := &stripe.PaymentIntentRetrieveParams{}
+		if connectedAccountID != "" {
+			params.SetStripeAccount(connectedAccountID)
+		}
+		intent, err := h.client.V1PaymentIntents.Retrieve(ctx, order.StripePaymentIntentID.String, params)
+		if err != nil {
+			return nil, connectedAccountID, err
+		}
+		if intent.LatestCharge != nil {
+			chargeID = intent.LatestCharge.ID
+		}
+	}
+	if chargeID == "" {
+		return nil, connectedAccountID, errors.New("charge-ul Stripe al comenzii nu poate fi identificat")
+	}
+	params := &stripe.ChargeRetrieveParams{}
+	if connectedAccountID != "" {
+		params.SetStripeAccount(connectedAccountID)
+	}
+	charge, err := h.client.V1Charges.Retrieve(ctx, chargeID, params)
+	return charge, connectedAccountID, err
 }
 
 func (h *CheckoutHandler) HandleAdminListEventCancellationRequests(w http.ResponseWriter, r *http.Request) {

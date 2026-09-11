@@ -477,26 +477,28 @@ export function EventDetailsSheet({
   if (!isDesktop) {
     return (
       <>
-        <Drawer
-          open={Boolean(activeEvent) && !checkoutOpen}
-          onOpenChange={(open) => !open && !checkoutOpen && handleClose()}
-          modal={!checkoutOpen}
-          dismissible={!checkoutOpen}
-          shouldScaleBackground={false}
-          closeThreshold={0.35}
-          fixed
-        >
-          <DrawerContent className="h-[82svh] max-h-[46rem] overflow-hidden rounded-t-4xl border-none bg-[#050505] p-0 touch-none [&>div:first-child]:hidden">
-            <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
+        {!checkoutOpen && (
+          <Drawer
+            open={Boolean(activeEvent)}
+            onOpenChange={(open) => !open && handleClose()}
+            modal
+            dismissible
+            shouldScaleBackground={false}
+            closeThreshold={0.35}
+            fixed
+          >
+            <DrawerContent className="h-[82svh] max-h-[46rem] overflow-hidden rounded-t-4xl border-none bg-[#050505] p-0 touch-none [&>div:first-child]:hidden">
+              <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
 
-            {/* HANDLE OPTIMIZAT: Randat hardware direct (translate-z-0), fara efecte de blur care cauzeaza delay */}
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-8 items-center justify-center bg-gradient-to-b from-black/60 to-transparent transform-gpu translate-z-0">
-              <div className="h-1.5 w-12 rounded-full bg-white/70 shadow-sm" />
-            </div>
+              {/* HANDLE OPTIMIZAT: Randat hardware direct (translate-z-0), fara efecte de blur care cauzeaza delay */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-8 items-center justify-center bg-gradient-to-b from-black/60 to-transparent transform-gpu translate-z-0">
+                <div className="h-1.5 w-12 rounded-full bg-white/70 shadow-sm" />
+              </div>
 
-            {sheetContent}
-          </DrawerContent>
-        </Drawer>
+              {sheetContent}
+            </DrawerContent>
+          </Drawer>
+        )}
         <TicketCheckoutDrawer event={event} quantities={qty} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
       </>
     );

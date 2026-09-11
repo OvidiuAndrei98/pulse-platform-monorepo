@@ -100,6 +100,38 @@ export interface paths {
         patch: operations["AdminOperations_reviewOrganizerVerification"];
         trace?: never;
     };
+    "/admin/refunds-attention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminOperations_listRefundsRequiringAttention"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/refunds-attention/{id}/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminOperations_reconcileRefundRequiringAttention"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/forgot-password": {
         parameters: {
             query?: never;
@@ -378,6 +410,40 @@ export interface paths {
         get: operations["DashboardOperations_getPlatformCommissionInvoices"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/finance/refunds-attention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Refundurile parțiale sau neclare care necesită verificare pentru organizator */
+        get: operations["DashboardOperations_listRefundsRequiringAttention"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/finance/refunds-attention/{id}/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reîncarcă statusul refundului direct din Stripe și îl reconciliază */
+        post: operations["DashboardOperations_reconcileRefundRequiringAttention"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1976,6 +2042,48 @@ export interface components {
             /** Format: int64 */
             ticketsSoldCount: number;
         };
+        RefundAttentionResponse: {
+            orderId: string;
+            eventId: string;
+            eventTitle: string;
+            organizerId: string;
+            organizerEmail?: string;
+            companyName?: string;
+            buyerEmail: string;
+            /** Format: int64 */
+            customerTotalBani: number;
+            /** Format: int64 */
+            refundedAmountBani: number;
+            /** Format: int64 */
+            remainingAmountBani: number;
+            /** Format: int64 */
+            platformFeeBani: number;
+            /** @enum {string} */
+            platformFeeStatus: "earned" | "refund_pending" | "refunded" | "needs_review";
+            /** @enum {string} */
+            stripeRefundStatus: "none" | "pending" | "partial" | "succeeded" | "failed" | "requires_action";
+            /** @enum {string} */
+            refundOrigin: "event_cancellation" | "stripe_dashboard";
+            /** @enum {string} */
+            operationStatus: "pending" | "processing" | "stripe_pending" | "succeeded" | "failed" | "needs_review";
+            errorMessage?: string;
+            /** Format: int64 */
+            ticketCount: number;
+            stripeLivemode: boolean;
+            /** Format: date-time */
+            purchasedAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        RefundReconciliationResponse: {
+            requiresAttention: boolean;
+            /** @enum {string} */
+            refundStatus: "none" | "pending" | "partial" | "succeeded" | "failed" | "requires_action";
+            /** Format: int64 */
+            refundedAmountBani: number;
+            /** Format: int64 */
+            customerTotalBani: number;
+        };
         ReviewEventCancellationPayload: {
             /** @enum {string} */
             feePolicy?: "retain" | "refund";
@@ -2359,6 +2467,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrganizerProfile"];
+                };
+            };
+        };
+    };
+    AdminOperations_listRefundsRequiringAttention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundAttentionResponse"][];
+                };
+            };
+        };
+    };
+    AdminOperations_reconcileRefundRequiringAttention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundReconciliationResponse"];
                 };
             };
         };
@@ -2923,6 +3073,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlatformCommissionInvoiceResponse"][];
+                };
+            };
+        };
+    };
+    DashboardOperations_listRefundsRequiringAttention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundAttentionResponse"][];
+                };
+            };
+        };
+    };
+    DashboardOperations_reconcileRefundRequiringAttention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundReconciliationResponse"];
                 };
             };
         };

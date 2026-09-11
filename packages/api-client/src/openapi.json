@@ -201,6 +201,54 @@
         }
       }
     },
+    "/admin/refunds-attention": {
+      "get": {
+        "operationId": "AdminOperations_listRefundsRequiringAttention",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RefundAttentionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/refunds-attention/{id}/reconcile": {
+      "post": {
+        "operationId": "AdminOperations_reconcileRefundRequiringAttention",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundReconciliationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/forgot-password": {
       "post": {
         "operationId": "AuthOperations_forgotPassword",
@@ -926,6 +974,56 @@
                   "items": {
                     "$ref": "#/components/schemas/PlatformCommissionInvoiceResponse"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/finance/refunds-attention": {
+      "get": {
+        "operationId": "DashboardOperations_listRefundsRequiringAttention",
+        "summary": "Refundurile parțiale sau neclare care necesită verificare pentru organizator",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RefundAttentionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/finance/refunds-attention/{id}/reconcile": {
+      "post": {
+        "operationId": "DashboardOperations_reconcileRefundRequiringAttention",
+        "summary": "Reîncarcă statusul refundului direct din Stripe și îl reconciliază",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundReconciliationResponse"
                 }
               }
             }
@@ -5197,6 +5295,156 @@
             "format": "int64"
           },
           "ticketsSoldCount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RefundAttentionResponse": {
+        "type": "object",
+        "required": [
+          "orderId",
+          "eventId",
+          "eventTitle",
+          "organizerId",
+          "buyerEmail",
+          "customerTotalBani",
+          "refundedAmountBani",
+          "remainingAmountBani",
+          "platformFeeBani",
+          "platformFeeStatus",
+          "stripeRefundStatus",
+          "refundOrigin",
+          "operationStatus",
+          "ticketCount",
+          "stripeLivemode",
+          "purchasedAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "orderId": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "eventTitle": {
+            "type": "string"
+          },
+          "organizerId": {
+            "type": "string"
+          },
+          "organizerEmail": {
+            "type": "string"
+          },
+          "companyName": {
+            "type": "string"
+          },
+          "buyerEmail": {
+            "type": "string"
+          },
+          "customerTotalBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "refundedAmountBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "remainingAmountBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "platformFeeBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "platformFeeStatus": {
+            "type": "string",
+            "enum": [
+              "earned",
+              "refund_pending",
+              "refunded",
+              "needs_review"
+            ]
+          },
+          "stripeRefundStatus": {
+            "type": "string",
+            "enum": [
+              "none",
+              "pending",
+              "partial",
+              "succeeded",
+              "failed",
+              "requires_action"
+            ]
+          },
+          "refundOrigin": {
+            "type": "string",
+            "enum": [
+              "event_cancellation",
+              "stripe_dashboard"
+            ]
+          },
+          "operationStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "stripe_pending",
+              "succeeded",
+              "failed",
+              "needs_review"
+            ]
+          },
+          "errorMessage": {
+            "type": "string"
+          },
+          "ticketCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stripeLivemode": {
+            "type": "boolean"
+          },
+          "purchasedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RefundReconciliationResponse": {
+        "type": "object",
+        "required": [
+          "requiresAttention",
+          "refundStatus",
+          "refundedAmountBani",
+          "customerTotalBani"
+        ],
+        "properties": {
+          "requiresAttention": {
+            "type": "boolean"
+          },
+          "refundStatus": {
+            "type": "string",
+            "enum": [
+              "none",
+              "pending",
+              "partial",
+              "succeeded",
+              "failed",
+              "requires_action"
+            ]
+          },
+          "refundedAmountBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "customerTotalBani": {
             "type": "integer",
             "format": "int64"
           }

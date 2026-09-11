@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BadgeDollarSign,
   BookOpenText,
@@ -17,10 +17,13 @@ import {
 import {
   type OrganizerFinanceEvent,
   type PlatformCommissionInvoice,
+  type RefundAttentionItem,
 } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { formatEventDate } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { RefundAttentionList } from "@/app/dashboard/components/RefundAttentionList";
 
 const formatRon = (amount: number) =>
   new Intl.NumberFormat("ro-RO", {
@@ -44,30 +47,44 @@ export default function FinancePage() {
   const [stripeReady, setStripeReady] = useState(false);
   const [stripeDashboardLoading, setStripeDashboardLoading] = useState(false);
   const [stripeDashboardError, setStripeDashboardError] = useState("");
+  const [refunds, setRefunds] = useState<RefundAttentionItem[]>([]);
+  const [refundsLoading, setRefundsLoading] = useState(true);
+  const [refundsError, setRefundsError] = useState("");
+  const [reconcilingOrderId, setReconcilingOrderId] = useState<string>();
+
+  const loadFinance = useCallback(async (showLoading = true) => {
+    if (!user) return;
+    if (showLoading) setLoading(true);
+    setError("");
+    try {
+      setItems(await user.getOrganizerFinance());
+    } catch {
+      setError(t("finance.loadFailed"));
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  }, [t, user]);
 
   useEffect(() => {
+    void loadFinance();
+  }, [loadFinance]);
+
+  const loadRefunds = useCallback(async (showLoading = true) => {
     if (!user) return;
-
-    let active = true;
-    setLoading(true);
-    setError("");
-
-    void user
-      .getOrganizerFinance()
-      .then((data) => {
-        if (active) setItems(data);
-      })
-      .catch(() => {
-        if (active) setError(t("finance.loadFailed"));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
+    if (showLoading) setRefundsLoading(true);
+    setRefundsError("");
+    try {
+      setRefunds(await user.listOrganizerRefundsRequiringAttention());
+    } catch {
+      setRefundsError(t("refundAttention.loadFailed"));
+    } finally {
+      if (showLoading) setRefundsLoading(false);
+    }
   }, [t, user]);
+
+  useEffect(() => {
+    void loadRefunds();
+  }, [loadRefunds]);
 
   useEffect(() => {
     if (!user) return;
@@ -132,6 +149,22 @@ export default function FinancePage() {
     }
   };
 
+  const reconcileRefund = async (orderId: string) => {
+    if (!user || reconcilingOrderId) return;
+    setReconcilingOrderId(orderId);
+    try {
+      const result = await user.reconcileOrganizerRefund(orderId);
+      toast[result.requiresAttention ? "info" : "success"](
+        t(result.requiresAttention ? "refundAttention.stillPartial" : "refundAttention.fullyRefunded"),
+      );
+      await Promise.all([loadRefunds(false), loadFinance(false)]);
+    } catch {
+      toast.error(t("refundAttention.checkFailed"));
+    } finally {
+      setReconcilingOrderId(undefined);
+    }
+  };
+
   const totals = useMemo(
     () =>
       items.reduce(
@@ -147,7 +180,8 @@ export default function FinancePage() {
     [items],
   );
   const platformFeeRon = totals.platformFeeBani / 100;
-  const estimatedPayoutRon = totals.grossRevenueRon + totals.customerTicketingFeeBani / 100 - platformFeeRon;
+  const customerTotalRon = totals.grossRevenueRon + totals.customerTicketingFeeBani / 100;
+  const estimatedPayoutRon = customerTotalRon - platformFeeRon;
   const sales = items.filter((item) => item.ticketsSold > 0 || item.platformFeeBani > 0);
   const salesPageCount = Math.max(1, Math.ceil(sales.length / SALES_PAGE_SIZE));
   const visibleSales = sales.slice(
@@ -212,14 +246,14 @@ export default function FinancePage() {
             <FinanceMetric
               icon={CircleDollarSign}
               label={t("finance.grossRevenue")}
-              value={formatRon(totals.grossRevenueRon)}
-              detail={t("finance.completedOrders")}
+              value={formatRon(customerTotalRon)}
+              detail={t("finance.customerTotalDetail")}
             />
             <FinanceMetric
               icon={BadgeDollarSign}
               label={t("finance.glowFee")}
               value={formatRon(platformFeeRon)}
-              detail="4% + 2,50 RON / bilet"
+              detail={t("finance.feeFormula")}
               accent="muted"
             />
             <FinanceMetric
@@ -246,6 +280,16 @@ export default function FinancePage() {
               {t("finance.refundsNeedAttention", { count: totals.refundsNeedingAttention })}
             </p>
           )}
+
+          <div className="mt-8">
+            <RefundAttentionList
+              items={refunds}
+              loading={refundsLoading}
+              error={refundsError}
+              reconcilingOrderId={reconcilingOrderId}
+              onReconcile={(orderId) => void reconcileRefund(orderId)}
+            />
+          </div>
 
           <section className="mt-8">
             <div className="mb-3 flex items-center justify-between gap-3">
@@ -274,6 +318,8 @@ export default function FinancePage() {
                 <div className="divide-y divide-white/10">
                   {visibleSales.map((item) => {
                     const commissionRon = item.platformFeeBani / 100;
+                    const eventCustomerTotalRon =
+                      item.grossRevenueRon + item.customerTicketingFeeBani / 100;
                     return (
                       <article
                         key={item.eventId}
@@ -294,7 +340,7 @@ export default function FinancePage() {
                         />
                         <FinanceCell
                           label={t("finance.revenue")}
-                          value={formatRon(item.grossRevenueRon)}
+                          value={formatRon(eventCustomerTotalRon)}
                         />
                         <FinanceCell
                           label={t("finance.commission")}
@@ -303,9 +349,7 @@ export default function FinancePage() {
                         />
                         <FinanceCell
                           label={t("finance.estimate")}
-                          value={formatRon(
-                            item.grossRevenueRon + item.customerTicketingFeeBani / 100 - commissionRon,
-                          )}
+                          value={formatRon(eventCustomerTotalRon - commissionRon)}
                           primary
                         />
                       </article>

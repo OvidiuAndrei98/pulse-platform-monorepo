@@ -36,6 +36,8 @@ export type BillingInvoice = ReadableSchema<"BillingInvoiceResponse">;
 export type OrganizerProfile = ReadableSchema<"OrganizerProfile">;
 export type OrganizerVerificationRequest = ReadableSchema<"OrganizerVerificationRequest">;
 export type EventCancellationRequest = ReadableSchema<"EventCancellationRequestResponse">;
+export type RefundAttentionItem = ReadableSchema<"RefundAttentionResponse">;
+export type RefundReconciliation = ReadableSchema<"RefundReconciliationResponse">;
 export type ValidationEvent = ReadableSchema<"ValidationEventResponse">;
 export type SocialFeedItem = ReadableSchema<"SocialFeedItemResponse">;
 export type OrganizerEventUpdate = ReadableSchema<"OrganizerEventUpdateResponse">;
@@ -316,6 +318,26 @@ export class User {
 
   async getOrganizerFinance(): Promise<OrganizerFinanceEvent[]> {
     return ApiClient.instance.get("/dashboard/finance");
+  }
+
+  async listOrganizerRefundsRequiringAttention(): Promise<RefundAttentionItem[]> {
+    return ApiClient.instance.get("/dashboard/finance/refunds-attention");
+  }
+
+  async reconcileOrganizerRefund(orderId: string): Promise<RefundReconciliation> {
+    return ApiClient.instance.post("/dashboard/finance/refunds-attention/{id}/reconcile", {
+      params: { path: { id: orderId } },
+    });
+  }
+
+  async listAdminRefundsRequiringAttention(): Promise<RefundAttentionItem[]> {
+    return ApiClient.instance.get("/admin/refunds-attention");
+  }
+
+  async reconcileAdminRefund(orderId: string): Promise<RefundReconciliation> {
+    return ApiClient.instance.post("/admin/refunds-attention/{id}/reconcile", {
+      params: { path: { id: orderId } },
+    });
   }
 
   async getPlatformCommissionInvoices(): Promise<PlatformCommissionInvoice[]> {

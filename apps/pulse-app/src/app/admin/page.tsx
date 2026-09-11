@@ -18,8 +18,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { type EventCancellationRequest, type OrganizerVerificationRequest } from "@/core/DataProvider";
+import {
+  type EventCancellationRequest,
+  type OrganizerVerificationRequest,
+  type RefundAttentionItem,
+} from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { RefundAttentionList } from "@/app/dashboard/components/RefundAttentionList";
 
 type VerificationStatus = "pending" | "approved" | "rejected";
 type StatusFilter = "all" | VerificationStatus;
@@ -39,6 +44,10 @@ export default function AdminPage() {
   const [cancellationsLoading, setCancellationsLoading] = useState(true);
   const [cancellationTarget, setCancellationTarget] = useState<{ request: EventCancellationRequest; action: "retain" | "refund" | "reject" }>();
   const [adminNote, setAdminNote] = useState("");
+  const [refunds, setRefunds] = useState<RefundAttentionItem[]>([]);
+  const [refundsLoading, setRefundsLoading] = useState(true);
+  const [refundsError, setRefundsError] = useState("");
+  const [reconcilingOrderId, setReconcilingOrderId] = useState<string>();
 
   const loadRequests = useCallback(async () => {
     if (!user) return;
@@ -71,6 +80,41 @@ export default function AdminPage() {
   useEffect(() => {
     void loadCancellations();
   }, [loadCancellations]);
+
+  const loadRefunds = useCallback(async () => {
+    if (!user) return;
+    setRefundsLoading(true);
+    setRefundsError("");
+    try {
+      setRefunds(await user.listAdminRefundsRequiringAttention());
+    } catch {
+      setRefundsError(t("refundAttention.loadFailed"));
+    } finally {
+      setRefundsLoading(false);
+    }
+  }, [t, user]);
+
+  useEffect(() => {
+    void loadRefunds();
+  }, [loadRefunds]);
+
+  const reconcileRefund = async (orderId: string) => {
+    if (!user || reconcilingOrderId) return;
+    setReconcilingOrderId(orderId);
+    try {
+      const result = await user.reconcileAdminRefund(orderId);
+      if (result.requiresAttention) {
+        toast.info(t("refundAttention.stillPartial"));
+      } else {
+        toast.success(t("refundAttention.fullyRefunded"));
+      }
+      await Promise.all([loadRefunds(), loadCancellations()]);
+    } catch {
+      toast.error(t("refundAttention.checkFailed"));
+    } finally {
+      setReconcilingOrderId(undefined);
+    }
+  };
 
   const confirmCancellation = async () => {
     if (!user || !cancellationTarget) return;
@@ -168,12 +212,12 @@ export default function AdminPage() {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => { void loadRequests(); void loadCancellations(); }}
-              disabled={loading || cancellationsLoading}
+              onClick={() => { void loadRequests(); void loadCancellations(); void loadRefunds(); }}
+              disabled={loading || cancellationsLoading || refundsLoading}
               className="grid h-10 w-10 place-items-center rounded-lg border border-white/15 transition hover:bg-white/5 disabled:opacity-50"
               aria-label={t("admin.refresh")}
             >
-              <RefreshCw className={`h-4 w-4 ${loading || cancellationsLoading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`h-4 w-4 ${loading || cancellationsLoading || refundsLoading ? "animate-spin" : ""}`} />
             </button>
             <button
               type="button"
@@ -222,6 +266,15 @@ export default function AdminPage() {
             </article>
           )) : <div className="rounded-2xl border border-dashed border-white/15 px-5 py-10 text-center text-sm text-muted-foreground">{t("adminCancellations.empty")}</div>}
         </section>
+
+        <RefundAttentionList
+          items={refunds}
+          loading={refundsLoading}
+          error={refundsError}
+          admin
+          reconcilingOrderId={reconcilingOrderId}
+          onReconcile={(orderId) => void reconcileRefund(orderId)}
+        />
 
         <section>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">

@@ -678,6 +678,36 @@ model OrganizerFinanceEventResponse {
   refundsNeedingAttention: int64;
 }
 
+model RefundAttentionResponse {
+  orderId: string;
+  eventId: string;
+  eventTitle: string;
+  organizerId: string;
+  organizerEmail?: string;
+  companyName?: string;
+  buyerEmail: string;
+  customerTotalBani: int64;
+  refundedAmountBani: int64;
+  remainingAmountBani: int64;
+  platformFeeBani: int64;
+  platformFeeStatus: "earned" | "refund_pending" | "refunded" | "needs_review";
+  stripeRefundStatus: "none" | "pending" | "partial" | "succeeded" | "failed" | "requires_action";
+  refundOrigin: "event_cancellation" | "stripe_dashboard";
+  operationStatus: "pending" | "processing" | "stripe_pending" | "succeeded" | "failed" | "needs_review";
+  errorMessage?: string;
+  ticketCount: int64;
+  stripeLivemode: boolean;
+  purchasedAt: utcDateTime;
+  updatedAt: utcDateTime;
+}
+
+model RefundReconciliationResponse {
+  requiresAttention: boolean;
+  refundStatus: "none" | "pending" | "partial" | "succeeded" | "failed" | "requires_action";
+  refundedAmountBani: int64;
+  customerTotalBani: int64;
+}
+
 model PlatformCommissionInvoiceResponse {
   id: string;
   provider: "oblio" | "smartbill";
@@ -1123,6 +1153,16 @@ interface DashboardOperations {
   getFinance(): OrganizerFinanceEventResponse[];
 
   @get
+  @route("/finance/refunds-attention")
+  @summary("Refundurile parțiale sau neclare care necesită verificare pentru organizator")
+  listRefundsRequiringAttention(): RefundAttentionResponse[];
+
+  @post
+  @route("/finance/refunds-attention/{id}/reconcile")
+  @summary("Reîncarcă statusul refundului direct din Stripe și îl reconciliază")
+  reconcileRefundRequiringAttention(@path id: string): RefundReconciliationResponse;
+
+  @get
   @route("/finance/invoices")
   @summary("Facturile lunare emise de SPOTTR pentru comisioanele organizatorului")
   getPlatformCommissionInvoices(): PlatformCommissionInvoiceResponse[];
@@ -1449,6 +1489,14 @@ interface AdminOperations {
     @statusCode statusCode: 202;
     @body response: { status: "refunding" };
   };
+
+  @get
+  @route("/refunds-attention")
+  listRefundsRequiringAttention(): RefundAttentionResponse[];
+
+  @post
+  @route("/refunds-attention/{id}/reconcile")
+  reconcileRefundRequiringAttention(@path id: string): RefundReconciliationResponse;
 }
 
 @route("/ticket-validation/quick-access")

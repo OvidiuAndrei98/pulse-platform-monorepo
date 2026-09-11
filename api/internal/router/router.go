@@ -95,6 +95,10 @@ type HandlersConfig struct {
 	ApproveEventCancellation       http.HandlerFunc
 	RejectEventCancellation        http.HandlerFunc
 	RetryEventCancellation         http.HandlerFunc
+	ListOrganizerRefundAttention   http.HandlerFunc
+	ReconcileOrganizerRefund       http.HandlerFunc
+	ListAdminRefundAttention       http.HandlerFunc
+	ReconcileAdminRefund           http.HandlerFunc
 
 	// Interactions / Checkins
 	CreateCheckIn http.HandlerFunc
@@ -362,6 +366,8 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				// --- ORGANIZER PROFILE ---
 				r.Get("/dashboard/finance", cfg.GetOrganizerFinance)
 				r.Get("/dashboard/finance/invoices", cfg.ListPlatformInvoices)
+				r.Get("/dashboard/finance/refunds-attention", cfg.ListOrganizerRefundAttention)
+				r.Post("/dashboard/finance/refunds-attention/{id}/reconcile", cfg.ReconcileOrganizerRefund)
 				r.Get("/dashboard/invoicing/settings", cfg.GetInvoicingSettings)
 				r.Post("/dashboard/invoicing/options", cfg.GetInvoicingProviderOptions)
 				r.Put("/dashboard/invoicing/settings", cfg.SaveInvoicingSettings)
@@ -393,6 +399,8 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Post("/admin/event-cancellations/{id}/approve", cfg.ApproveEventCancellation)
 				r.Post("/admin/event-cancellations/{id}/reject", cfg.RejectEventCancellation)
 				r.Post("/admin/event-cancellations/{id}/retry", cfg.RetryEventCancellation)
+				r.Get("/admin/refunds-attention", cfg.ListAdminRefundAttention)
+				r.Post("/admin/refunds-attention/{id}/reconcile", cfg.ReconcileAdminRefund)
 			})
 		})
 	})

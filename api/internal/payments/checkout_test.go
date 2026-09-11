@@ -4,9 +4,31 @@ import "testing"
 
 import (
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/stripe/stripe-go/v85"
 
 	db "pulse-api/db/generated"
 )
+
+func TestStripeChargeFullyRefunded(t *testing.T) {
+	tests := []struct {
+		name   string
+		charge stripe.Charge
+		want   bool
+	}{
+		{name: "partial amount", charge: stripe.Charge{Amount: 10000, AmountRefunded: 4000}, want: false},
+		{name: "full cumulative amount", charge: stripe.Charge{Amount: 10000, AmountRefunded: 10000}, want: true},
+		{name: "Stripe refunded flag", charge: stripe.Charge{Amount: 10000, AmountRefunded: 9000, Refunded: true}, want: true},
+		{name: "zero amount is not a refund", charge: stripe.Charge{}, want: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := stripeChargeFullyRefunded(test.charge); got != test.want {
+				t.Fatalf("stripeChargeFullyRefunded() = %t, want %t", got, test.want)
+			}
+		})
+	}
+}
 
 func TestCalculatePlatformFeeBani(t *testing.T) {
 	tests := []struct {

@@ -27,6 +27,75 @@ WHERE request.event_id = sqlc.arg(event_id)
 ORDER BY request.created_at DESC
 LIMIT 1;
 
+-- name: ListOrganizerRefundsRequiringAttention :many
+SELECT orders.id AS order_id,
+       orders.event_id,
+       event.title AS event_title,
+       event.organizer_id,
+       orders.email AS buyer_email,
+       ((orders.total_amount::BIGINT * 100) + orders.customer_ticketing_fee_bani)::BIGINT AS customer_total_bani,
+       orders.stripe_amount_refunded_bani AS refunded_amount_bani,
+       GREATEST(0, ((orders.total_amount::BIGINT * 100) + orders.customer_ticketing_fee_bani) - orders.stripe_amount_refunded_bani)::BIGINT AS remaining_amount_bani,
+       orders.platform_fee_bani::BIGINT AS platform_fee_bani,
+       orders.platform_fee_status,
+       orders.stripe_refund_status,
+       COALESCE(orders.refund_origin, 'stripe_dashboard')::TEXT AS refund_origin,
+       COALESCE(operation.status, 'needs_review')::TEXT AS operation_status,
+       operation.error_message,
+       COALESCE((SELECT SUM(items.quantity)::BIGINT FROM order_items items WHERE items.order_id = orders.id), 0)::BIGINT AS ticket_count,
+       COALESCE(orders.stripe_livemode, FALSE)::BOOLEAN AS stripe_livemode,
+       orders.created_at AS purchased_at,
+       COALESCE(orders.stripe_refund_updated_at, operation.updated_at, orders.created_at) AS updated_at
+FROM orders
+JOIN events event ON event.id = orders.event_id
+LEFT JOIN order_refund_operations operation ON operation.order_id = orders.id
+WHERE event.organizer_id = sqlc.arg(organizer_id)
+  AND orders.stripe_refund_needs_attention IS TRUE
+ORDER BY COALESCE(orders.stripe_refund_updated_at, operation.updated_at, orders.created_at) DESC;
+
+-- name: ListAdminRefundsRequiringAttention :many
+SELECT orders.id AS order_id,
+       orders.event_id,
+       event.title AS event_title,
+       event.organizer_id,
+       users.email AS organizer_email,
+       profile.company_name,
+       orders.email AS buyer_email,
+       ((orders.total_amount::BIGINT * 100) + orders.customer_ticketing_fee_bani)::BIGINT AS customer_total_bani,
+       orders.stripe_amount_refunded_bani AS refunded_amount_bani,
+       GREATEST(0, ((orders.total_amount::BIGINT * 100) + orders.customer_ticketing_fee_bani) - orders.stripe_amount_refunded_bani)::BIGINT AS remaining_amount_bani,
+       orders.platform_fee_bani::BIGINT AS platform_fee_bani,
+       orders.platform_fee_status,
+       orders.stripe_refund_status,
+       COALESCE(orders.refund_origin, 'stripe_dashboard')::TEXT AS refund_origin,
+       COALESCE(operation.status, 'needs_review')::TEXT AS operation_status,
+       operation.error_message,
+       COALESCE((SELECT SUM(items.quantity)::BIGINT FROM order_items items WHERE items.order_id = orders.id), 0)::BIGINT AS ticket_count,
+       COALESCE(orders.stripe_livemode, FALSE)::BOOLEAN AS stripe_livemode,
+       orders.created_at AS purchased_at,
+       COALESCE(orders.stripe_refund_updated_at, operation.updated_at, orders.created_at) AS updated_at
+FROM orders
+JOIN events event ON event.id = orders.event_id
+JOIN users ON users.id = event.organizer_id
+JOIN organizer_profiles profile ON profile.user_id = event.organizer_id
+LEFT JOIN order_refund_operations operation ON operation.order_id = orders.id
+WHERE orders.stripe_refund_needs_attention IS TRUE
+ORDER BY COALESCE(orders.stripe_refund_updated_at, operation.updated_at, orders.created_at) DESC;
+
+-- name: GetOrganizerRefundAttentionOrder :one
+SELECT orders.*
+FROM orders
+JOIN events ON events.id = orders.event_id
+WHERE orders.id = sqlc.arg(order_id)
+  AND events.organizer_id = sqlc.arg(organizer_id)
+  AND orders.stripe_refund_needs_attention IS TRUE;
+
+-- name: GetAdminRefundAttentionOrder :one
+SELECT orders.*
+FROM orders
+WHERE orders.id = sqlc.arg(order_id)
+  AND orders.stripe_refund_needs_attention IS TRUE;
+
 -- name: ListAdminEventCancellationRequests :many
 SELECT request.*,
        event.title AS event_title,
