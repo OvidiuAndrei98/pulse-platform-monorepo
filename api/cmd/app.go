@@ -35,6 +35,9 @@ type Application struct {
 
 // InitApplication configurează pool-ul de conexiuni, refolosit și local și în Lambda
 func InitApplication() (*Application, error) {
+	if _, err := auth.JWTSigningKey(); err != nil {
+		return nil, err
+	}
 	dbHost := os.Getenv("DB_HOST")
 	if dbHost == "" {
 		dbHost = "localhost"
@@ -178,7 +181,6 @@ func (app *Application) BuildRouter() http.Handler {
 		GetMe:                       usersHandler.HandleGetMe,
 		UpdateMe:                    usersHandler.HandleUpdateMe,
 		UploadUserAvatar:            usersHandler.HandleUploadAvatar,
-		CreateUser:                  usersHandler.HandleCreateUser,
 		GetUser:                     usersHandler.HandleGetUser,
 		GetUserTickets:              ticketingHandler.HandleGetUserTickets,
 		GetUserOrders:               ticketingHandler.HandleGetUserOrders,

@@ -43,10 +43,10 @@ func (h *Handler) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 }
 
 type UpdateMeRequest struct {
-	Username                 string  `json:"username"`
-	Bio                      *string `json:"bio"`
-	PreferredLanguage        string  `json:"preferredLanguage"`
-	ShowAttendancePublicly   *bool   `json:"showAttendancePublicly"`
+	Username               string  `json:"username"`
+	Bio                    *string `json:"bio"`
+	PreferredLanguage      string  `json:"preferredLanguage"`
+	ShowAttendancePublicly *bool   `json:"showAttendancePublicly"`
 }
 
 func (h *Handler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
@@ -90,10 +90,10 @@ func (h *Handler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	updated, err := h.Queries.UpdateUserProfile(r.Context(), db.UpdateUserProfileParams{
-		ID:                uuid,
-		Column2:           req.Username,
-		Bio:               bio,
-		PreferredLanguage: req.PreferredLanguage,
+		ID:                     uuid,
+		Column2:                req.Username,
+		Bio:                    bio,
+		PreferredLanguage:      req.PreferredLanguage,
 		ShowAttendancePublicly: showAttendancePublicly,
 	})
 	if err != nil {
@@ -102,22 +102,6 @@ func (h *Handler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	router.RespondWithJSON(w, http.StatusOK, MapUpdateUserProfileRow(updated))
-}
-
-func (h *Handler) HandleCreateUser(w http.ResponseWriter, r *http.Request) {
-	var params db.CreateUserParams
-	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-		router.RespondWithError(w, http.StatusBadRequest, "Request body invalid: "+err.Error())
-		return
-	}
-
-	user, err := h.Queries.CreateUser(r.Context(), params)
-	if err != nil {
-		router.RespondWithError(w, http.StatusInternalServerError, "Nu s-a putut crea utilizatorul: "+err.Error())
-		return
-	}
-
-	router.RespondWithJSON(w, http.StatusCreated, MapUser(user))
 }
 
 func (h *Handler) HandleGetUser(w http.ResponseWriter, r *http.Request) {

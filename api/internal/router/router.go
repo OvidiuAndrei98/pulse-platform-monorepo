@@ -40,7 +40,6 @@ type HandlersConfig struct {
 	GetMe                    http.HandlerFunc
 	UpdateMe                 http.HandlerFunc
 	UploadUserAvatar         http.HandlerFunc
-	CreateUser               http.HandlerFunc
 	GetUser                  http.HandlerFunc
 	GetUserTickets           http.HandlerFunc
 	GetUserOrders            http.HandlerFunc
@@ -277,7 +276,6 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 
 			// --- USERS ---
 			r.Route("/users", func(r chi.Router) {
-				r.Post("/", cfg.CreateUser)
 				r.Get("/me", cfg.GetMe)
 				r.Put("/me", cfg.UpdateMe)
 				r.Post("/me/avatar", cfg.UploadUserAvatar)

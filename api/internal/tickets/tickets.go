@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -758,8 +757,8 @@ func (h *Handler) HandleCreateScannerSession(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	jwtSecret := []byte(strings.TrimSpace(os.Getenv("JWT_SECRET")))
-	if len(jwtSecret) == 0 {
+	jwtSecret, err := auth.JWTSigningKey()
+	if err != nil {
 		router.RespondWithError(w, http.StatusServiceUnavailable, "Sesiunea de scanare nu este configurata")
 		return
 	}

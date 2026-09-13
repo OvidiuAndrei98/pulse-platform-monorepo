@@ -74,6 +74,7 @@ type Querier interface {
 	DeleteRevokedInvitationTicket(ctx context.Context, arg DeleteRevokedInvitationTicketParams) (int64, error)
 	DeleteUnissuedBillingInvoiceForRefund(ctx context.Context, orderID pgtype.UUID) (int64, error)
 	DeleteUnissuedBillingInvoicesForRefundedOrders(ctx context.Context) (int64, error)
+	DeleteUserPasswordResetTokens(ctx context.Context, userID pgtype.UUID) error
 	DeleteUserToken(ctx context.Context, arg DeleteUserTokenParams) error
 	EditEvent(ctx context.Context, arg EditEventParams) (Events, error)
 	FinalizeCompletedCancellationRequests(ctx context.Context) (int64, error)
@@ -170,6 +171,7 @@ type Querier interface {
 	LockOrganizerEventUpdates(ctx context.Context, dollar_1 string) error
 	LockPromotionEvent(ctx context.Context, eventID pgtype.UUID) error
 	LockPublishedEventForCheckout(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error)
+	LockUserForPasswordReset(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error)
 	MarkAllNotificationsRead(ctx context.Context, userID pgtype.UUID) error
 	MarkBillingInvoiceFailed(ctx context.Context, arg MarkBillingInvoiceFailedParams) (BillingInvoices, error)
 	MarkBillingInvoiceIssued(ctx context.Context, arg MarkBillingInvoiceIssuedParams) (BillingInvoices, error)

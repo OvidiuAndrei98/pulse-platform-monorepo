@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	"pulse-api/internal/router"
@@ -38,14 +37,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		tokenString := parts[1]
 
-		jwtSecret := []byte(os.Getenv("JWT_SECRET"))
-
-		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("algoritm de semnare neasteptat: %v", t.Header["alg"])
-			}
-			return jwtSecret, nil
-		})
+		token, err := parseSession(tokenString)
 
 		if err != nil || !token.Valid {
 			router.RespondWithError(w, http.StatusUnauthorized, "Token invalid sau expirat")
@@ -63,7 +55,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		userIDStr, ok := claims["sub"].(string)
-		if !ok {
+		if !ok || userIDStr == "" {
 			router.RespondWithError(w, http.StatusUnauthorized, "Token-ul nu contine ID-ul utilizatorului")
 			return
 		}
@@ -90,12 +82,7 @@ func ScannerAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		token, err := jwt.Parse(parts[1], func(t *jwt.Token) (interface{}, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("algoritm de semnare neasteptat: %v", t.Header["alg"])
-			}
-			return []byte(os.Getenv("JWT_SECRET")), nil
-		})
+		token, err := parseSession(parts[1])
 		if err != nil || !token.Valid {
 			router.RespondWithError(w, http.StatusUnauthorized, "Sesiunea de scanare este expirata sau invalida")
 			return

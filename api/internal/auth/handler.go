@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	db "pulse-api/db/generated"
@@ -16,6 +16,7 @@ import (
 	"log"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -279,7 +280,11 @@ func issueUserJWT(user db.Users) (string, error) {
 		"iat":  time.Now().Unix(),
 	})
 
-	return token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	key, err := JWTSigningKey()
+	if err != nil {
+		return "", err
+	}
+	return token.SignedString(key)
 }
 
 type ForgotPasswordRequest struct {
@@ -292,22 +297,39 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusBadRequest, "Body invalid")
 		return
 	}
+	// Keep the public response identical, including persistence failures.
+	defer router.RespondWithJSON(w, http.StatusOK, map[string]string{
+		"message": "Dacă emailul există în sistem, un link de resetare a fost trimis.",
+	})
 
 	// 1. Verificăm dacă userul există
 	user, err := h.Queries.GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
 		// Securitate: Întoarcem 200 chiar dacă userul nu există, ca să nu dăm indicii atacatorilor
-		router.RespondWithJSON(w, http.StatusOK, map[string]string{"message": "Dacă emailul există în sistem, un link de resetare a fost trimis."})
+		if !errors.Is(err, pgx.ErrNoRows) {
+			log.Print("password reset user lookup failed")
+		}
 		return
 	}
 
 	plainToken, hashedToken, err := GenerateSecureToken()
 	if err != nil {
-		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la generarea token-ului")
+		log.Print("password reset token generation failed")
 		return
 	}
 
-	_, err = h.Queries.InsertUserToken(r.Context(), db.InsertUserTokenParams{
+	tx, err := h.Pool.BeginTx(r.Context(), pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		log.Print("password reset token transaction failed")
+		return
+	}
+	defer tx.Rollback(context.Background())
+	qtx := h.Queries.WithTx(tx)
+	if _, err = qtx.LockUserForPasswordReset(r.Context(), user.ID); err != nil {
+		log.Print("password reset token user lock failed")
+		return
+	}
+	_, err = qtx.InsertUserToken(r.Context(), db.InsertUserTokenParams{
 		UserID:    user.ID,
 		TokenHash: hashedToken,
 		Type:      "password_reset",
@@ -317,18 +339,24 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 	if err != nil {
-		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la salvarea token-ului")
+		log.Print("password reset token persistence failed")
+		return
+	}
+	if err = tx.Commit(r.Context()); err != nil {
+		log.Print("password reset token commit failed")
 		return
 	}
 
 	if h.EmailSender != nil {
-		go h.EmailSender.SendPasswordResetEmail(r.Context(), user.Email, plainToken)
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := h.EmailSender.SendPasswordResetEmail(ctx, user.Email, plainToken); err != nil {
+				// Do not log provider errors: they may contain the reset URL.
+				log.Print("password reset email delivery failed")
+			}
+		}()
 	}
-
-	router.RespondWithJSON(w, http.StatusOK, map[string]string{
-		"message":         "Dacă emailul există în sistem, un link de resetare a fost trimis.",
-		"token_test_only": plainToken, // Scoate asta când treci în producție!
-	})
 }
 
 type ResetPasswordRequest struct {
@@ -343,8 +371,8 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(req.NewPassword) < 6 {
-		router.RespondWithError(w, http.StatusBadRequest, "Parola trebuie să aibă cel puțin 6 caractere")
+	if len(req.NewPassword) < 6 || len(req.NewPassword) > 72 {
+		router.RespondWithError(w, http.StatusBadRequest, "Parola trebuie să aibă între 6 și 72 de bytes (caracterele Unicode pot ocupa mai mulți bytes)")
 		return
 	}
 
@@ -368,7 +396,27 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.Queries.UpdateUserPassword(r.Context(), db.UpdateUserPasswordParams{
+	// Serialize resets for the entire user, not just one token. A second
+	// statement after the lock sees tokens consumed by a concurrent reset.
+	tx, err := h.Pool.BeginTx(r.Context(), pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Resetarea nu a putut fi salvata")
+		return
+	}
+	defer tx.Rollback(context.Background())
+	qtx := h.Queries.WithTx(tx)
+	if _, err = qtx.LockUserForPasswordReset(r.Context(), dbToken.UserID); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Resetarea nu a putut fi salvata")
+		return
+	}
+	validated, err := qtx.GetUserTokenByHash(r.Context(), db.GetUserTokenByHashParams{
+		TokenHash: hashedToken, Type: "password_reset",
+	})
+	if err != nil || validated.UserID != dbToken.UserID {
+		router.RespondWithError(w, http.StatusUnauthorized, "Token invalid sau expirat")
+		return
+	}
+	err = qtx.UpdateUserPassword(r.Context(), db.UpdateUserPasswordParams{
 		ID: dbToken.UserID,
 		PasswordHash: pgtype.Text{
 			String: newHash,
@@ -381,10 +429,14 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 6. Ștergem token-ul din DB ca să nu mai poată fi folosit a doua oară
-	_ = h.Queries.DeleteUserToken(r.Context(), db.DeleteUserTokenParams{
-		TokenHash: dbToken.TokenHash,
-		Type:      "password_reset",
-	})
+	if err = qtx.DeleteUserPasswordResetTokens(r.Context(), dbToken.UserID); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Resetarea nu a putut fi salvata")
+		return
+	}
+	if err = tx.Commit(r.Context()); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Resetarea nu a putut fi salvata")
+		return
+	}
 
 	router.RespondWithJSON(w, http.StatusOK, map[string]string{"message": "Parola a fost resetată cu succes!"})
 }

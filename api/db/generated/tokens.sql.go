@@ -11,6 +11,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deleteUserPasswordResetTokens = `-- name: DeleteUserPasswordResetTokens :exec
+DELETE FROM user_tokens WHERE user_id = $1 AND type = 'password_reset'
+`
+
+func (q *Queries) DeleteUserPasswordResetTokens(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUserPasswordResetTokens, userID)
+	return err
+}
+
 const deleteUserToken = `-- name: DeleteUserToken :exec
 DELETE FROM user_tokens
 WHERE token_hash = $1
@@ -32,7 +41,7 @@ SELECT id, user_id, token_hash, type, expires_at, created_at
 FROM user_tokens
 WHERE token_hash = $1
   AND type = $2
-  AND expires_at > NOW()
+  AND expires_at > clock_timestamp()
 `
 
 type GetUserTokenByHashParams struct {
@@ -84,4 +93,15 @@ func (q *Queries) InsertUserToken(ctx context.Context, arg InsertUserTokenParams
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const lockUserForPasswordReset = `-- name: LockUserForPasswordReset :one
+SELECT id FROM users WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockUserForPasswordReset(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockUserForPasswordReset, id)
+	var id_2 pgtype.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
 }
