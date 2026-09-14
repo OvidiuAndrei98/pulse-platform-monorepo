@@ -87,12 +87,12 @@ tasks:
       - docker compose down -v
 
   db:setup:
-    desc: "Configurează automat userul și baza de date folosind init.sql, apoi rulează migrările"
+    desc: "Configurează automat userul și baza de date folosind init_db.sql, apoi rulează migrările"
     cmds:
       - cmd: powershell -ExecutionPolicy Bypass -File ./setup_db.ps1
         platforms: [windows]
 
-      - cmd: psql -U postgres -f init.sql
+      - cmd: psql -v ON_ERROR_STOP=1 -U postgres -f init_db.sql
         platforms: [darwin]
 
       - task: db:migrate
@@ -122,11 +122,19 @@ tasks:
   db:migrate:
     desc: "Rulează toate migrările pendinte pe baza de date locală"
     dir: "{{.GO_APP_DIR}}"
+    env:
+      GOOSE_DRIVER: postgres
+      GOOSE_DBSTRING: "host=localhost user={{.DB_USER}} password={{.DB_PASSWORD}} dbname={{.DB_NAME}} sslmode=disable"
+      GOOSE_MIGRATION_DIR: internal/database/migrations
     cmds:
-      - go run github.com/pressly/goose/v3/cmd/goose@v3.20.0 -dir internal/database/migrations postgres "host=localhost user={{.DB_USER}} password={{.DB_PASSWORD}} dbname={{.DB_NAME}} sslmode=disable" up
+      - go run github.com/pressly/goose/v3/cmd/goose@v3.20.0 up
 
   db:rollback:
     desc: "Face rollback la ultima migrare aplicată"
     dir: "{{.GO_APP_DIR}}"
+    env:
+      GOOSE_DRIVER: postgres
+      GOOSE_DBSTRING: "host=localhost user={{.DB_USER}} password={{.DB_PASSWORD}} dbname={{.DB_NAME}} sslmode=disable"
+      GOOSE_MIGRATION_DIR: internal/database/migrations
     cmds:
-      - go run github.com/pressly/goose/v3/cmd/goose@v3.20.0 -dir internal/database/migrations postgres "host=localhost user={{.DB_USER}} password={{.DB_PASSWORD}} dbname={{.DB_NAME}} sslmode=disable" down
+      - go run github.com/pressly/goose/v3/cmd/goose@v3.20.0 down

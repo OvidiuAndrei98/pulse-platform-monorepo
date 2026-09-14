@@ -2,10 +2,14 @@ package app
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	db "pulse-api/db/generated"
@@ -33,58 +37,118 @@ type Application struct {
 	Refunds   *payments.CheckoutHandler
 }
 
+type databaseSettings struct {
+	host        string
+	port        string
+	user        string
+	password    string
+	name        string
+	sslMode     string
+	sslRootCert string
+}
+
+func loadDatabaseSettings() (databaseSettings, error) {
+	settings := databaseSettings{
+		host:     strings.TrimSpace(os.Getenv("DB_HOST")),
+		port:     strings.TrimSpace(os.Getenv("DB_PORT")),
+		user:     strings.TrimSpace(os.Getenv("DB_USER")),
+		password: os.Getenv("DB_PASSWORD"),
+		name:     strings.TrimSpace(os.Getenv("DB_NAME")),
+		sslMode:  strings.ToLower(strings.TrimSpace(os.Getenv("DB_SSLMODE"))),
+	}
+	if settings.host == "" {
+		settings.host = "localhost"
+	} else if unwrappedHost := strings.Trim(settings.host, "[]"); net.ParseIP(unwrappedHost) != nil {
+		// net.JoinHostPort adds IPv6 brackets itself.
+		settings.host = unwrappedHost
+	}
+	if settings.port == "" {
+		settings.port = "5432"
+	}
+	if settings.user == "" {
+		settings.user = "pulse_user"
+	}
+	if settings.name == "" {
+		settings.name = "pulse_db"
+	}
+
+	lowerPassword := strings.ToLower(settings.password)
+	if len(settings.password) < 16 || strings.TrimSpace(settings.password) == "" ||
+		strings.Contains(lowerPassword, "changeme") || strings.Contains(lowerPassword, "change-me") ||
+		strings.Contains(lowerPassword, "dbpassword") || strings.Contains(lowerPassword, "replace-me") {
+		return databaseSettings{}, errors.New("DB_PASSWORD must be explicitly configured with at least 16 characters and must not be a placeholder")
+	}
+	port, err := strconv.Atoi(settings.port)
+	if err != nil || port < 1 || port > 65535 {
+		return databaseSettings{}, errors.New("DB_PORT must be a valid TCP port")
+	}
+
+	localHost := isLoopbackDatabaseHost(settings.host)
+	if settings.sslMode == "" {
+		if !localHost {
+			return databaseSettings{}, errors.New("DB_SSLMODE must be verify-full for a non-loopback database host")
+		}
+		settings.sslMode = "disable"
+	}
+	if settings.sslMode != "disable" && settings.sslMode != "verify-full" {
+		return databaseSettings{}, errors.New("DB_SSLMODE must be disable for local development or verify-full with certificate validation")
+	}
+	if !localHost && settings.sslMode != "verify-full" {
+		return databaseSettings{}, errors.New("non-loopback database connections require DB_SSLMODE=verify-full")
+	}
+	if settings.sslMode == "verify-full" {
+		settings.sslRootCert = strings.TrimSpace(os.Getenv("DB_SSLROOTCERT"))
+		if settings.sslRootCert == "" {
+			return databaseSettings{}, errors.New("DB_SSLROOTCERT is required when DB_SSLMODE=verify-full")
+		}
+		certificate, err := os.Stat(settings.sslRootCert)
+		if err != nil || !certificate.Mode().IsRegular() {
+			return databaseSettings{}, errors.New("DB_SSLROOTCERT must reference a readable certificate file")
+		}
+	}
+	return settings, nil
+}
+
+func isLoopbackDatabaseHost(host string) bool {
+	if strings.EqualFold(strings.TrimSpace(host), "localhost") {
+		return true
+	}
+	ip := net.ParseIP(strings.Trim(host, "[]"))
+	return ip != nil && ip.IsLoopback()
+}
+
+func databaseConnectionURL(settings databaseSettings) string {
+	query := url.Values{}
+	query.Set("sslmode", settings.sslMode)
+	if settings.sslRootCert != "" {
+		query.Set("sslrootcert", settings.sslRootCert)
+	}
+	return (&url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(settings.user, settings.password),
+		Host:     net.JoinHostPort(settings.host, settings.port),
+		Path:     settings.name,
+		RawQuery: query.Encode(),
+	}).String()
+}
+
 // InitApplication configurează pool-ul de conexiuni, refolosit și local și în Lambda
 func InitApplication() (*Application, error) {
 	if _, err := auth.JWTSigningKey(); err != nil {
 		return nil, err
 	}
-	dbHost := os.Getenv("DB_HOST")
-	if dbHost == "" {
-		dbHost = "localhost"
+	settings, err := loadDatabaseSettings()
+	if err != nil {
+		return nil, fmt.Errorf("invalid database configuration: %w", err)
 	}
-
-	dbPort := os.Getenv("DB_PORT")
-	if dbPort == "" {
-		dbPort = "5432"
-	}
-
-	dbUser := os.Getenv("DB_USER")
-	if dbUser == "" {
-		dbUser = "pulse_user"
-	}
-
-	dbPassword := os.Getenv("DB_PASSWORD")
-	if dbPassword == "" {
-		dbPassword = "Codelab1233q!"
-	}
-
-	dbName := os.Getenv("DB_NAME")
-	if dbName == "" {
-		dbName = "pulse_db"
-	}
-
-	dbSSLMode := os.Getenv("DB_SSLMODE")
-	if dbSSLMode == "" {
-		dbSSLMode = "disable"
-	}
-
-	query := url.Values{}
-	query.Set("sslmode", dbSSLMode)
-
-	dbURL := (&url.URL{
-		Scheme:   "postgres",
-		User:     url.UserPassword(dbUser, dbPassword),
-		Host:     net.JoinHostPort(dbHost, dbPort),
-		Path:     dbName,
-		RawQuery: query.Encode(),
-	}).String()
+	dbURL := databaseConnectionURL(settings)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("database connection configuration could not be parsed")
 	}
 
 	config.MaxConns = 15
@@ -93,12 +157,12 @@ func InitApplication() (*Application, error) {
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("database connection pool could not be created")
 	}
 
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
-		return nil, err
+		return nil, errors.New("database connection health check failed")
 	}
 
 	queries := db.New(pool)

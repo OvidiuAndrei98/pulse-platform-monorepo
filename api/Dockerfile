@@ -14,13 +14,18 @@ RUN mkdir -p /out \
 FROM alpine:3.22
 
 RUN apk add --no-cache ca-certificates \
-    && adduser -D -H appuser
+    && adduser -D -H appuser \
+    && wget -q -O /etc/ssl/certs/aws-rds-global-bundle.pem \
+        https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem \
+    && test -s /etc/ssl/certs/aws-rds-global-bundle.pem \
+    && chmod 0444 /etc/ssl/certs/aws-rds-global-bundle.pem
 
 COPY --from=build /out/pulse-api /pulse-api
 COPY --from=build /out/goose /goose
 COPY --from=build /src/internal/database/migrations /migrations
 
 USER appuser
+ENV DB_SSLROOTCERT=/etc/ssl/certs/aws-rds-global-bundle.pem
 EXPOSE 8080
 
 CMD ["/pulse-api"]
