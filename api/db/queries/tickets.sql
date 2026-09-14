@@ -117,7 +117,8 @@ ORDER BY e.start_time DESC;
 -- name: UpdateOrderCheckoutSession :exec
 UPDATE orders
 SET stripe_checkout_session_id = $2,
-    stripe_livemode = sqlc.arg(stripe_livemode)::BOOLEAN
+    stripe_livemode = sqlc.arg(stripe_livemode)::BOOLEAN,
+    stripe_payment_intent_id = COALESCE(sqlc.narg(stripe_payment_intent_id)::TEXT, stripe_payment_intent_id)
 WHERE id = $1;
 
 -- name: SetOrderStripeLivemode :exec
@@ -161,6 +162,19 @@ WHERE stripe_payment_intent_id = $1;
 SELECT * FROM orders
 WHERE stripe_charge_id = $1;
 
+-- name: BindPendingOrderStripePayment :one
+UPDATE orders
+SET stripe_payment_intent_id = sqlc.arg(stripe_payment_intent_id)::TEXT,
+    stripe_charge_id = sqlc.arg(stripe_charge_id)::TEXT,
+    stripe_refund_needs_attention = TRUE,
+    stripe_refund_updated_at = CURRENT_TIMESTAMP
+WHERE id = sqlc.arg(id)
+  AND status = 'pending'
+  AND stripe_checkout_session_id = sqlc.arg(stripe_checkout_session_id)::TEXT
+  AND (orders.stripe_payment_intent_id IS NULL OR orders.stripe_payment_intent_id = sqlc.arg(stripe_payment_intent_id)::TEXT)
+  AND (orders.stripe_charge_id IS NULL OR orders.stripe_charge_id = sqlc.arg(stripe_charge_id)::TEXT)
+RETURNING *;
+
 -- name: UpdateOrderRefundState :exec
 UPDATE orders
 SET stripe_charge_id = COALESCE(NULLIF(sqlc.arg(stripe_charge_id)::TEXT, ''), stripe_charge_id),
@@ -170,6 +184,12 @@ SET stripe_charge_id = COALESCE(NULLIF(sqlc.arg(stripe_charge_id)::TEXT, ''), st
     stripe_refund_updated_at = CURRENT_TIMESTAMP,
     status = CASE WHEN sqlc.arg(mark_refunded)::BOOLEAN THEN 'refunded'::order_status ELSE status END
 WHERE id = sqlc.arg(id);
+
+-- name: MarkOrderRefundNeedsAttention :exec
+UPDATE orders
+SET stripe_refund_needs_attention = TRUE,
+    stripe_refund_updated_at = CURRENT_TIMESTAMP
+WHERE id = $1;
 
 -- name: UpdateOrderStatus :exec
 UPDATE orders

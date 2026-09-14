@@ -3,6 +3,7 @@ package payments
 import "testing"
 
 import (
+	"errors"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stripe/stripe-go/v85"
 
@@ -117,6 +118,89 @@ func TestStripeOrderContextMatchesLegacyPlatformEvent(t *testing.T) {
 	}
 	if stripeOrderContextMatches(order, "acct_legacy") {
 		t.Fatal("expected a connected-account event to be rejected for a legacy destination charge")
+	}
+}
+
+func TestValidateRefundedChargeRequiresImmutablePaymentContext(t *testing.T) {
+	baseOrder := db.Orders{
+		StripePaymentIntentID:    pgtype.Text{String: "pi_expected", Valid: true},
+		StripeConnectedAccountID: pgtype.Text{String: "acct_expected", Valid: true},
+		StripeChargeType:         pgtype.Text{String: directChargeType, Valid: true},
+		StripeLivemode:           pgtype.Bool{Bool: true, Valid: true},
+		TotalAmount:              10,
+		CustomerTicketingFeeBani: 290,
+	}
+	baseCharge := stripe.Charge{
+		ID:             "ch_expected",
+		PaymentIntent:  &stripe.PaymentIntent{ID: "pi_expected"},
+		Amount:         1290,
+		AmountRefunded: 1290,
+		Currency:       stripe.CurrencyRON,
+		Livemode:       true,
+	}
+
+	tests := []struct {
+		name      string
+		mutate    func(*db.Orders, *stripe.Charge)
+		accountID string
+		liveMode  bool
+		wantError bool
+	}{
+		{name: "valid direct charge", accountID: "acct_expected", liveMode: true},
+		{name: "wrong payment intent", accountID: "acct_expected", liveMode: true, wantError: true, mutate: func(_ *db.Orders, charge *stripe.Charge) { charge.PaymentIntent.ID = "pi_other" }},
+		{name: "wrong total", accountID: "acct_expected", liveMode: true, wantError: true, mutate: func(_ *db.Orders, charge *stripe.Charge) { charge.Amount++ }},
+		{name: "wrong currency", accountID: "acct_expected", liveMode: true, wantError: true, mutate: func(_ *db.Orders, charge *stripe.Charge) { charge.Currency = stripe.CurrencyEUR }},
+		{name: "wrong connected account", accountID: "acct_other", liveMode: true, wantError: true},
+		{name: "missing persisted livemode", accountID: "acct_expected", liveMode: true, wantError: true, mutate: func(order *db.Orders, _ *stripe.Charge) { order.StripeLivemode.Valid = false }},
+		{name: "event mode mismatch", accountID: "acct_expected", liveMode: false, wantError: true},
+		{name: "refund exceeds charge", accountID: "acct_expected", liveMode: true, wantError: true, mutate: func(_ *db.Orders, charge *stripe.Charge) { charge.AmountRefunded = charge.Amount + 1 }},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			order := baseOrder
+			charge := baseCharge
+			paymentIntent := *baseCharge.PaymentIntent
+			charge.PaymentIntent = &paymentIntent
+			if test.mutate != nil {
+				test.mutate(&order, &charge)
+			}
+			err := validateRefundedCharge(order, charge, test.accountID, test.liveMode)
+			if (err != nil) != test.wantError {
+				t.Fatalf("validateRefundedCharge() error = %v, wantError=%t", err, test.wantError)
+			}
+			if err != nil && !errors.Is(err, errStripeRefundBindingMismatch) {
+				t.Fatalf("unexpected error type: %v", err)
+			}
+		})
+	}
+}
+
+func TestValidateRefundedDestinationChargeRequiresStoredDestination(t *testing.T) {
+	order := db.Orders{
+		StripePaymentIntentID:    pgtype.Text{String: "pi_legacy", Valid: true},
+		StripeConnectedAccountID: pgtype.Text{String: "acct_destination", Valid: true},
+		StripeChargeType:         pgtype.Text{String: "destination", Valid: true},
+		StripeLivemode:           pgtype.Bool{Bool: true, Valid: true},
+		TotalAmount:              5,
+	}
+	charge := stripe.Charge{
+		ID:             "ch_legacy",
+		PaymentIntent:  &stripe.PaymentIntent{ID: "pi_legacy"},
+		Amount:         500,
+		AmountRefunded: 500,
+		Currency:       stripe.CurrencyRON,
+		Livemode:       true,
+		TransferData: &stripe.ChargeTransferData{
+			Destination: &stripe.Account{ID: "acct_destination"},
+		},
+	}
+	if err := validateRefundedCharge(order, charge, "", true); err != nil {
+		t.Fatalf("valid destination Charge rejected: %v", err)
+	}
+	charge.TransferData.Destination.ID = "acct_other"
+	if err := validateRefundedCharge(order, charge, "", true); !errors.Is(err, errStripeRefundBindingMismatch) {
+		t.Fatalf("wrong destination was not rejected: %v", err)
 	}
 }
 

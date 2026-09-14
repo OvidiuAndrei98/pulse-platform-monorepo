@@ -24,6 +24,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stripe/stripe-go/v85"
@@ -35,16 +36,20 @@ const (
 	checkoutExpiration       = 30 * time.Minute
 )
 
+var errStripeRefundBindingMismatch = errors.New("refundul Stripe nu corespunde platii originale")
+
 type CheckoutHandler struct {
-	queries               *db.Queries
-	db                    *pgxpool.Pool
-	client                *stripe.Client
-	appURL                string
-	mailer                *email.Mailer
-	invoicing             *invoicing.Service
-	configured            bool
-	expectedLiveMode      bool
-	expectedLiveModeKnown bool
+	queries                 *db.Queries
+	db                      *pgxpool.Pool
+	client                  *stripe.Client
+	appURL                  string
+	mailer                  *email.Mailer
+	invoicing               *invoicing.Service
+	configured              bool
+	expectedLiveMode        bool
+	expectedLiveModeKnown   bool
+	retrieveSession         func(context.Context, string, string) (*stripe.CheckoutSession, error)
+	afterPendingRefundBound func()
 }
 
 type CheckoutItemRequest struct {
@@ -253,6 +258,7 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 		ID:                      order.ID,
 		StripeCheckoutSessionID: pgtype.Text{String: session.ID, Valid: true},
 		StripeLivemode:          session.Livemode,
+		StripePaymentIntentID:   pgtype.Text{String: stripePaymentIntentID(session.PaymentIntent), Valid: session.PaymentIntent != nil && session.PaymentIntent.ID != ""},
 	}); err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Sesiunea de plata nu a putut fi salvata")
 		return
@@ -529,6 +535,10 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 	}); err != nil {
 		return err
 	}
+	if order.Status == db.OrderStatusPending && order.StripeRefundNeedsAttention {
+		log.Printf("SECURITY checkout fulfillment held for refund review: order=%s payment_intent=%s", common.UUIDToString(order.ID), paymentIntentID)
+		return tx.Commit(ctx)
+	}
 	if order.Status == db.OrderStatusCompleted {
 		if err := tx.Commit(ctx); err != nil {
 			return err
@@ -647,10 +657,53 @@ func (h *CheckoutHandler) FailCheckout(ctx context.Context, orderID, paymentInte
 func (h *CheckoutHandler) ReconcileChargeRefund(ctx context.Context, charge stripe.Charge, connectedAccountID string, liveMode bool) error {
 	order, err := h.findStripeOrder(ctx, charge.Metadata, stripePaymentIntentID(charge.PaymentIntent), charge.ID)
 	if errors.Is(err, pgx.ErrNoRows) {
+		log.Printf("SECURITY Stripe refund could not be associated with an order: charge=%s payment_intent=%s account=%s", charge.ID, stripePaymentIntentID(charge.PaymentIntent), connectedAccountID)
 		return nil
 	}
 	if err != nil {
-		return err
+		if order.ID.Valid && errors.Is(err, errStripeRefundBindingMismatch) {
+			if order.Status == db.OrderStatusPending && order.StripeCheckoutSessionID.Valid {
+				boundOrder, bindErr := h.bindPendingRefundFromCheckoutSession(ctx, order, charge, connectedAccountID, liveMode)
+				if bindErr == nil {
+					order = boundOrder
+					err = nil
+					if h.afterPendingRefundBound != nil {
+						h.afterPendingRefundBound()
+					}
+				} else if !errors.Is(bindErr, errStripeRefundBindingMismatch) {
+					return bindErr
+				} else {
+					// Another webhook may have completed or bound the order while the
+					// Checkout Session was being retrieved. Resolve immutable IDs once
+					// more before treating the event as suspicious.
+					refreshed, refreshErr := h.findStripeOrder(ctx, charge.Metadata, stripePaymentIntentID(charge.PaymentIntent), charge.ID)
+					if refreshErr == nil {
+						order = refreshed
+						err = nil
+					} else if !errors.Is(refreshErr, pgx.ErrNoRows) && !errors.Is(refreshErr, errStripeRefundBindingMismatch) {
+						return refreshErr
+					} else {
+						if refreshed.ID.Valid {
+							order = refreshed
+						}
+						err = errors.Join(err, bindErr, refreshErr)
+					}
+				}
+			}
+			if err != nil {
+				if accountErr := validateStripeChargeAccountContext(order, charge, connectedAccountID); accountErr == nil && order.StripeLivemode.Valid && order.StripeLivemode.Bool == liveMode && charge.Livemode == liveMode {
+					return h.flagRefundBindingForReview(ctx, order, charge.ID, err)
+				}
+				log.Printf("SECURITY rejected unbound Stripe refund without changing an order: charge=%s payment_intent=%s reason=%v", charge.ID, stripePaymentIntentID(charge.PaymentIntent), err)
+				return nil
+			}
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if err := validateRefundedCharge(order, charge, connectedAccountID, liveMode); err != nil {
+		return h.flagRefundBindingForReview(ctx, order, charge.ID, err)
 	}
 
 	tx, err := h.db.Begin(ctx)
@@ -664,11 +717,15 @@ func (h *CheckoutHandler) ReconcileChargeRefund(ctx context.Context, charge stri
 	if err != nil {
 		return err
 	}
-	if !stripeOrderContextMatches(order, connectedAccountID) {
-		return errors.New("contextul contului Stripe nu corespunde refundului")
-	}
-	if order.StripeLivemode.Valid && order.StripeLivemode.Bool != liveMode {
-		return errors.New("mediul Stripe din refund nu corespunde comenzii")
+	if err := validateRefundedCharge(order, charge, connectedAccountID, liveMode); err != nil {
+		if flagErr := qtx.MarkOrderRefundNeedsAttention(ctx, order.ID); flagErr != nil {
+			return errors.Join(err, flagErr)
+		}
+		if commitErr := tx.Commit(ctx); commitErr != nil {
+			return errors.Join(err, commitErr)
+		}
+		log.Printf("SECURITY Stripe refund requires review after order lock: order=%s charge=%s reason=%v", common.UUIDToString(order.ID), charge.ID, err)
+		return nil
 	}
 	if charge.AmountRefunded < order.StripeAmountRefundedBani {
 		return tx.Commit(ctx)
@@ -682,7 +739,7 @@ func (h *CheckoutHandler) ReconcileChargeRefund(ctx context.Context, charge stri
 		needsAttention = false
 	}
 
-	if fullRefund && order.Status == db.OrderStatusCompleted {
+	if fullRefund && (order.Status == db.OrderStatusCompleted || order.Status == db.OrderStatusPending) {
 		items, itemsErr := qtx.GetOrderItems(ctx, order.ID)
 		if itemsErr != nil {
 			return itemsErr
@@ -795,23 +852,37 @@ func (h *CheckoutHandler) RecordRefundEvent(ctx context.Context, refund stripe.R
 	}
 	order, err := h.findStripeOrder(ctx, refund.Metadata, stripePaymentIntentID(refund.PaymentIntent), stripeChargeID(refund.Charge))
 	if errors.Is(err, pgx.ErrNoRows) {
+		log.Printf("SECURITY Stripe refund status could not be associated with an order: refund=%s charge=%s payment_intent=%s account=%s", refund.ID, stripeChargeID(refund.Charge), stripePaymentIntentID(refund.PaymentIntent), connectedAccountID)
 		return nil
 	}
 	if err != nil {
+		if order.ID.Valid && errors.Is(err, errStripeRefundBindingMismatch) {
+			// Refund status events do not contain a trustworthy cumulative amount.
+			// Never let mutable metadata alone place a pending order on hold;
+			// charge.refunded performs the authoritative, verified reconciliation.
+			log.Printf("SECURITY rejected unbound Stripe refund status event without changing an order: refund=%s charge=%s reason=%v", refund.ID, stripeChargeID(refund.Charge), err)
+			return nil
+		}
 		return err
 	}
 	if !stripeOrderContextMatches(order, connectedAccountID) {
-		return errors.New("contextul contului Stripe nu corespunde refundului")
+		return h.flagRefundBindingForReview(ctx, order, stripeChargeID(refund.Charge), fmt.Errorf("%w: refund account differs from the order", errStripeRefundBindingMismatch))
 	}
-	if order.StripeLivemode.Valid && order.StripeLivemode.Bool != liveMode {
-		return errors.New("mediul Stripe din refund nu corespunde comenzii")
+	if !order.StripeLivemode.Valid || order.StripeLivemode.Bool != liveMode {
+		return h.flagRefundBindingForReview(ctx, order, stripeChargeID(refund.Charge), fmt.Errorf("%w: refund mode differs from the order", errStripeRefundBindingMismatch))
+	}
+	if order.Status == db.OrderStatusRefunded || order.StripeAmountRefundedBani > 0 {
+		// A delayed status from an individual refund attempt must not regress the
+		// authoritative cumulative state written from charge.refunded.
+		return nil
 	}
 	status := string(refund.Status)
+	needsAttention := true
 	switch refund.Status {
-	case stripe.RefundStatusPending, stripe.RefundStatusFailed, stripe.RefundStatusRequiresAction, stripe.RefundStatusCanceled:
-		if refund.Status == stripe.RefundStatusCanceled {
-			status = "failed"
-		}
+	case stripe.RefundStatusPending, stripe.RefundStatusRequiresAction:
+	case stripe.RefundStatusFailed, stripe.RefundStatusCanceled:
+		status = "failed"
+		needsAttention = false
 	default:
 		return nil
 	}
@@ -820,25 +891,225 @@ func (h *CheckoutHandler) RecordRefundEvent(ctx context.Context, refund stripe.R
 		StripeChargeID:     stripeChargeID(refund.Charge),
 		AmountRefundedBani: order.StripeAmountRefundedBani,
 		RefundStatus:       status,
-		NeedsAttention:     true,
+		NeedsAttention:     needsAttention,
 		MarkRefunded:       false,
 	})
 }
 
 func (h *CheckoutHandler) findStripeOrder(ctx context.Context, metadata map[string]string, paymentIntentID, chargeID string) (db.Orders, error) {
+	var resolved db.Orders
+	resolvedByImmutableID := false
+	if paymentIntentID != "" {
+		order, err := h.queries.GetOrderByStripePaymentIntent(ctx, pgtype.Text{String: paymentIntentID, Valid: true})
+		if err == nil {
+			resolved = order
+			resolvedByImmutableID = true
+		}
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return db.Orders{}, err
+		}
+	}
+	if chargeID != "" {
+		order, err := h.queries.GetOrderByStripeChargeID(ctx, pgtype.Text{String: chargeID, Valid: true})
+		if err == nil {
+			if resolvedByImmutableID && order.ID != resolved.ID {
+				return resolved, fmt.Errorf("%w: PaymentIntent and Charge resolve to different orders", errStripeRefundBindingMismatch)
+			}
+			resolved = order
+			resolvedByImmutableID = true
+		}
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return db.Orders{}, err
+		}
+	}
+	if resolvedByImmutableID {
+		return validateResolvedStripeOrder(resolved, metadata, paymentIntentID, chargeID)
+	}
 	if orderID := firstStripeMetadata(metadata, "spottr_order_id", "pulse_order_id"); orderID != "" {
 		var parsedOrderID pgtype.UUID
 		if err := parsedOrderID.Scan(orderID); err == nil && parsedOrderID.Valid {
-			return h.queries.GetOrderForUpdate(ctx, parsedOrderID)
+			order, lookupErr := h.queries.GetOrderForUpdate(ctx, parsedOrderID)
+			if lookupErr != nil {
+				return db.Orders{}, lookupErr
+			}
+			if !stripeOrderHasExactPaymentIdentifier(order, paymentIntentID, chargeID) {
+				return order, fmt.Errorf("%w: metadata order is not bound to the PaymentIntent or Charge", errStripeRefundBindingMismatch)
+			}
+			return validateResolvedStripeOrder(order, metadata, paymentIntentID, chargeID)
 		}
 	}
-	if paymentIntentID != "" {
-		return h.queries.GetOrderByStripePaymentIntent(ctx, pgtype.Text{String: paymentIntentID, Valid: true})
-	}
-	if chargeID != "" {
-		return h.queries.GetOrderByStripeChargeID(ctx, pgtype.Text{String: chargeID, Valid: true})
-	}
 	return db.Orders{}, pgx.ErrNoRows
+}
+
+func validateResolvedStripeOrder(order db.Orders, metadata map[string]string, paymentIntentID, chargeID string) (db.Orders, error) {
+	if order.StripePaymentIntentID.Valid && paymentIntentID != "" && order.StripePaymentIntentID.String != paymentIntentID {
+		return order, fmt.Errorf("%w: PaymentIntent differs from the stored order", errStripeRefundBindingMismatch)
+	}
+	if order.StripeChargeID.Valid && chargeID != "" && order.StripeChargeID.String != chargeID {
+		return order, fmt.Errorf("%w: Charge differs from the stored order", errStripeRefundBindingMismatch)
+	}
+	if !stripeOrderHasExactPaymentIdentifier(order, paymentIntentID, chargeID) {
+		return db.Orders{}, fmt.Errorf("%w: no immutable payment identifier matched", errStripeRefundBindingMismatch)
+	}
+	if metadataOrderID := firstStripeMetadata(metadata, "spottr_order_id", "pulse_order_id"); metadataOrderID != "" && metadataOrderID != common.UUIDToString(order.ID) {
+		log.Printf("SECURITY ignoring mismatched Stripe refund metadata: resolved_order=%s metadata_order=%s payment_intent=%s charge=%s", common.UUIDToString(order.ID), metadataOrderID, paymentIntentID, chargeID)
+	}
+	return order, nil
+}
+
+func stripeOrderHasExactPaymentIdentifier(order db.Orders, paymentIntentID, chargeID string) bool {
+	return (paymentIntentID != "" && order.StripePaymentIntentID.Valid && order.StripePaymentIntentID.String == paymentIntentID) ||
+		(chargeID != "" && order.StripeChargeID.Valid && order.StripeChargeID.String == chargeID)
+}
+
+func validateRefundedCharge(order db.Orders, charge stripe.Charge, connectedAccountID string, liveMode bool) error {
+	if !stripeOrderHasExactPaymentIdentifier(order, stripePaymentIntentID(charge.PaymentIntent), charge.ID) {
+		return fmt.Errorf("%w: Charge identifiers are not bound to the order", errStripeRefundBindingMismatch)
+	}
+	if !order.StripeLivemode.Valid || order.StripeLivemode.Bool != liveMode || charge.Livemode != liveMode {
+		return fmt.Errorf("%w: Stripe mode differs from the stored order or event", errStripeRefundBindingMismatch)
+	}
+	if charge.Currency != stripe.CurrencyRON {
+		return fmt.Errorf("%w: unexpected currency %q", errStripeRefundBindingMismatch, charge.Currency)
+	}
+	expectedAmount := int64(order.TotalAmount)*100 + int64(order.CustomerTicketingFeeBani)
+	if expectedAmount <= 0 || charge.Amount != expectedAmount {
+		return fmt.Errorf("%w: expected %d bani, Charge contains %d", errStripeRefundBindingMismatch, expectedAmount, charge.Amount)
+	}
+	if charge.AmountRefunded < 0 || charge.AmountRefunded > charge.Amount {
+		return fmt.Errorf("%w: invalid cumulative refunded amount %d", errStripeRefundBindingMismatch, charge.AmountRefunded)
+	}
+	return validateStripeChargeAccountContext(order, charge, connectedAccountID)
+}
+
+func validateStripeChargeAccountContext(order db.Orders, charge stripe.Charge, connectedAccountID string) error {
+	if order.StripeChargeType.Valid && order.StripeChargeType.String == directChargeType {
+		if !order.StripeConnectedAccountID.Valid || connectedAccountID == "" || connectedAccountID != order.StripeConnectedAccountID.String {
+			return fmt.Errorf("%w: direct Charge account differs from the order", errStripeRefundBindingMismatch)
+		}
+		return nil
+	}
+	if !order.StripeChargeType.Valid || order.StripeChargeType.String != "destination" || connectedAccountID != "" || !order.StripeConnectedAccountID.Valid ||
+		charge.TransferData == nil || charge.TransferData.Destination == nil || charge.TransferData.Destination.ID != order.StripeConnectedAccountID.String {
+		return fmt.Errorf("%w: destination Charge account differs from the order", errStripeRefundBindingMismatch)
+	}
+	return nil
+}
+
+func (h *CheckoutHandler) retrieveCheckoutSession(ctx context.Context, sessionID, connectedAccountID string) (*stripe.CheckoutSession, error) {
+	if h.retrieveSession != nil {
+		return h.retrieveSession(ctx, sessionID, connectedAccountID)
+	}
+	if h.client == nil {
+		return nil, errors.New("Stripe checkout client is not configured")
+	}
+	params := &stripe.CheckoutSessionRetrieveParams{}
+	if connectedAccountID != "" {
+		params.SetStripeAccount(connectedAccountID)
+	}
+	return h.client.V1CheckoutSessions.Retrieve(ctx, sessionID, params)
+}
+
+func (h *CheckoutHandler) bindPendingRefundFromCheckoutSession(ctx context.Context, order db.Orders, charge stripe.Charge, connectedAccountID string, liveMode bool) (db.Orders, error) {
+	if order.Status != db.OrderStatusPending || !order.StripeCheckoutSessionID.Valid || order.StripeCheckoutSessionID.String == "" {
+		return db.Orders{}, fmt.Errorf("%w: pending order has no Checkout Session anchor", errStripeRefundBindingMismatch)
+	}
+	paymentIntentID := stripePaymentIntentID(charge.PaymentIntent)
+	if paymentIntentID == "" || charge.ID == "" {
+		return db.Orders{}, fmt.Errorf("%w: refunded Charge has no immutable identifiers", errStripeRefundBindingMismatch)
+	}
+	if err := validatePendingRefundChargeSnapshot(order, charge, connectedAccountID, liveMode); err != nil {
+		return db.Orders{}, err
+	}
+	retrieveAccountID := ""
+	if order.StripeChargeType.Valid && order.StripeChargeType.String == directChargeType {
+		retrieveAccountID = order.StripeConnectedAccountID.String
+	}
+	session, err := h.retrieveCheckoutSession(ctx, order.StripeCheckoutSessionID.String, retrieveAccountID)
+	if err != nil {
+		return db.Orders{}, err
+	}
+	if err := validateRefundCheckoutSession(order, charge, session, liveMode); err != nil {
+		return db.Orders{}, err
+	}
+
+	tx, err := h.db.Begin(ctx)
+	if err != nil {
+		return db.Orders{}, err
+	}
+	defer tx.Rollback(ctx)
+	qtx := h.queries.WithTx(tx)
+	locked, err := qtx.GetOrderForUpdate(ctx, order.ID)
+	if err != nil {
+		return db.Orders{}, err
+	}
+	if locked.Status != db.OrderStatusPending || !locked.StripeCheckoutSessionID.Valid || locked.StripeCheckoutSessionID.String != session.ID ||
+		!locked.StripeLivemode.Valid || locked.StripeLivemode.Bool != liveMode {
+		return db.Orders{}, fmt.Errorf("%w: pending order changed during Checkout Session verification", errStripeRefundBindingMismatch)
+	}
+	if err := validatePendingRefundChargeSnapshot(locked, charge, connectedAccountID, liveMode); err != nil {
+		return db.Orders{}, err
+	}
+	bound, err := qtx.BindPendingOrderStripePayment(ctx, db.BindPendingOrderStripePaymentParams{
+		ID:                      locked.ID,
+		StripePaymentIntentID:   paymentIntentID,
+		StripeChargeID:          charge.ID,
+		StripeCheckoutSessionID: session.ID,
+	})
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.Is(err, pgx.ErrNoRows) || (errors.As(err, &pgErr) && pgErr.Code == "23505") {
+			return db.Orders{}, fmt.Errorf("%w: pending payment identifiers changed or are already bound", errStripeRefundBindingMismatch)
+		}
+		return db.Orders{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return db.Orders{}, err
+	}
+	log.Printf("Stripe pending order payment bound through verified Checkout Session: order=%s session=%s payment_intent=%s charge=%s", common.UUIDToString(bound.ID), session.ID, paymentIntentID, charge.ID)
+	return bound, nil
+}
+
+func validatePendingRefundChargeSnapshot(order db.Orders, charge stripe.Charge, connectedAccountID string, liveMode bool) error {
+	if !order.StripeLivemode.Valid || order.StripeLivemode.Bool != liveMode || charge.Livemode != liveMode {
+		return fmt.Errorf("%w: Stripe mode differs from the pending order or event", errStripeRefundBindingMismatch)
+	}
+	if charge.Currency != stripe.CurrencyRON {
+		return fmt.Errorf("%w: unexpected currency %q", errStripeRefundBindingMismatch, charge.Currency)
+	}
+	expectedAmount := int64(order.TotalAmount)*100 + int64(order.CustomerTicketingFeeBani)
+	if expectedAmount <= 0 || charge.Amount != expectedAmount || charge.AmountRefunded < 0 || charge.AmountRefunded > charge.Amount {
+		return fmt.Errorf("%w: refunded Charge amount differs from the pending order", errStripeRefundBindingMismatch)
+	}
+	return validateStripeChargeAccountContext(order, charge, connectedAccountID)
+}
+
+func validateRefundCheckoutSession(order db.Orders, charge stripe.Charge, session *stripe.CheckoutSession, liveMode bool) error {
+	if session == nil || session.ID != order.StripeCheckoutSessionID.String || session.ClientReferenceID != common.UUIDToString(order.ID) {
+		return fmt.Errorf("%w: Checkout Session identity differs from the pending order", errStripeRefundBindingMismatch)
+	}
+	if session.Mode != stripe.CheckoutSessionModePayment || session.Status != stripe.CheckoutSessionStatusComplete || session.PaymentStatus != stripe.CheckoutSessionPaymentStatusPaid {
+		return fmt.Errorf("%w: Checkout Session is not a completed payment", errStripeRefundBindingMismatch)
+	}
+	if session.PaymentIntent == nil || session.PaymentIntent.ID == "" || session.PaymentIntent.ID != stripePaymentIntentID(charge.PaymentIntent) {
+		return fmt.Errorf("%w: Checkout Session PaymentIntent differs from the refunded Charge", errStripeRefundBindingMismatch)
+	}
+	expectedAmount := int64(order.TotalAmount)*100 + int64(order.CustomerTicketingFeeBani)
+	if session.Livemode != liveMode || session.Currency != stripe.CurrencyRON || session.AmountTotal != expectedAmount {
+		return fmt.Errorf("%w: Checkout Session mode, currency, or amount differs from the order", errStripeRefundBindingMismatch)
+	}
+	return nil
+}
+
+func (h *CheckoutHandler) flagRefundBindingForReview(ctx context.Context, order db.Orders, chargeID string, reason error) error {
+	if !order.ID.Valid {
+		return reason
+	}
+	if err := h.queries.MarkOrderRefundNeedsAttention(ctx, order.ID); err != nil {
+		return errors.Join(reason, err)
+	}
+	log.Printf("SECURITY Stripe refund requires review: order=%s charge=%s reason=%v", common.UUIDToString(order.ID), chargeID, reason)
+	return nil
 }
 
 func stripePaymentIntentID(paymentIntent *stripe.PaymentIntent) string {

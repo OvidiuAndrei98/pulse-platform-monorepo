@@ -22,6 +22,7 @@ type Querier interface {
 	AssignGuestTicketsToUser(ctx context.Context, userID pgtype.UUID) error
 	BackfillBillingInvoiceRefunds(ctx context.Context) (int64, error)
 	BackfillBillingInvoices(ctx context.Context) (int64, error)
+	BindPendingOrderStripePayment(ctx context.Context, arg BindPendingOrderStripePaymentParams) (Orders, error)
 	CancelAbandonedPromotionReservations(ctx context.Context, expiresBefore pgtype.Timestamptz) error
 	CancelPendingPromotionCampaign(ctx context.Context, id pgtype.UUID) error
 	ClaimBillingInvoiceRefunds(ctx context.Context, batchSize int32) ([]BillingInvoiceRefunds, error)
@@ -196,6 +197,7 @@ type Querier interface {
 	MarkOrderPlatformFeeRefunded(ctx context.Context, arg MarkOrderPlatformFeeRefundedParams) error
 	MarkOrderPlatformFeeRetained(ctx context.Context, arg MarkOrderPlatformFeeRetainedParams) error
 	MarkOrderRefundFailed(ctx context.Context, arg MarkOrderRefundFailedParams) error
+	MarkOrderRefundNeedsAttention(ctx context.Context, id pgtype.UUID) error
 	MarkOrderRefundSubmitted(ctx context.Context, arg MarkOrderRefundSubmittedParams) error
 	MarkPlatformCommissionInvoiceFailed(ctx context.Context, arg MarkPlatformCommissionInvoiceFailedParams) (PlatformCommissionInvoices, error)
 	MarkPlatformCommissionInvoiceIssued(ctx context.Context, arg MarkPlatformCommissionInvoiceIssuedParams) (PlatformCommissionInvoices, error)

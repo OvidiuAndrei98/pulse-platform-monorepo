@@ -57,6 +57,77 @@ func (q *Queries) AssignGuestTicketsToUser(ctx context.Context, userID pgtype.UU
 	return err
 }
 
+const bindPendingOrderStripePayment = `-- name: BindPendingOrderStripePayment :one
+UPDATE orders
+SET stripe_payment_intent_id = $1::TEXT,
+    stripe_charge_id = $2::TEXT,
+    stripe_refund_needs_attention = TRUE,
+    stripe_refund_updated_at = CURRENT_TIMESTAMP
+WHERE id = $3
+  AND status = 'pending'
+  AND stripe_checkout_session_id = $4::TEXT
+  AND (orders.stripe_payment_intent_id IS NULL OR orders.stripe_payment_intent_id = $1::TEXT)
+  AND (orders.stripe_charge_id IS NULL OR orders.stripe_charge_id = $2::TEXT)
+RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin
+`
+
+type BindPendingOrderStripePaymentParams struct {
+	StripePaymentIntentID   string      `json:"stripe_payment_intent_id"`
+	StripeChargeID          string      `json:"stripe_charge_id"`
+	ID                      pgtype.UUID `json:"id"`
+	StripeCheckoutSessionID string      `json:"stripe_checkout_session_id"`
+}
+
+func (q *Queries) BindPendingOrderStripePayment(ctx context.Context, arg BindPendingOrderStripePaymentParams) (Orders, error) {
+	row := q.db.QueryRow(ctx, bindPendingOrderStripePayment,
+		arg.StripePaymentIntentID,
+		arg.StripeChargeID,
+		arg.ID,
+		arg.StripeCheckoutSessionID,
+	)
+	var i Orders
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.EventID,
+		&i.Email,
+		&i.StripePaymentIntentID,
+		&i.Status,
+		&i.TotalAmount,
+		&i.CreatedAt,
+		&i.StripeCheckoutSessionID,
+		&i.PlatformFeeBani,
+		&i.TicketEmailSentAt,
+		&i.PromoCodeID,
+		&i.DiscountAmountRon,
+		&i.InvoiceRequested,
+		&i.BillingType,
+		&i.BillingName,
+		&i.BillingTaxID,
+		&i.BillingRegistrationNumber,
+		&i.BillingAddress,
+		&i.BillingCity,
+		&i.BillingCounty,
+		&i.BillingCountry,
+		&i.BillingSector,
+		&i.CompletedAt,
+		&i.CustomerTicketingFeeBani,
+		&i.StripeLivemode,
+		&i.StripeConnectedAccountID,
+		&i.StripeChargeType,
+		&i.StripeChargeID,
+		&i.StripeAmountRefundedBani,
+		&i.StripeRefundStatus,
+		&i.StripeRefundNeedsAttention,
+		&i.StripeRefundUpdatedAt,
+		&i.AutomaticInvoiceRefundEnabled,
+		&i.PlatformFeeStatus,
+		&i.PlatformFeeRefundedBani,
+		&i.RefundOrigin,
+	)
+	return i, err
+}
+
 const completeOfflineTicketValidation = `-- name: CompleteOfflineTicketValidation :exec
 UPDATE offline_ticket_validations
 SET ticket_id = $2,
@@ -1898,6 +1969,18 @@ func (q *Queries) MarkInvitationValidated(ctx context.Context, id pgtype.UUID) (
 	return validated_at, err
 }
 
+const markOrderRefundNeedsAttention = `-- name: MarkOrderRefundNeedsAttention :exec
+UPDATE orders
+SET stripe_refund_needs_attention = TRUE,
+    stripe_refund_updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+`
+
+func (q *Queries) MarkOrderRefundNeedsAttention(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, markOrderRefundNeedsAttention, id)
+	return err
+}
+
 const markTicketEmailSent = `-- name: MarkTicketEmailSent :exec
 UPDATE orders
 SET ticket_email_sent_at = CURRENT_TIMESTAMP
@@ -1978,7 +2061,8 @@ func (q *Queries) SetOrderStripeLivemode(ctx context.Context, arg SetOrderStripe
 const updateOrderCheckoutSession = `-- name: UpdateOrderCheckoutSession :exec
 UPDATE orders
 SET stripe_checkout_session_id = $2,
-    stripe_livemode = $3::BOOLEAN
+    stripe_livemode = $3::BOOLEAN,
+    stripe_payment_intent_id = COALESCE($4::TEXT, stripe_payment_intent_id)
 WHERE id = $1
 `
 
@@ -1986,10 +2070,16 @@ type UpdateOrderCheckoutSessionParams struct {
 	ID                      pgtype.UUID `json:"id"`
 	StripeCheckoutSessionID pgtype.Text `json:"stripe_checkout_session_id"`
 	StripeLivemode          bool        `json:"stripe_livemode"`
+	StripePaymentIntentID   pgtype.Text `json:"stripe_payment_intent_id"`
 }
 
 func (q *Queries) UpdateOrderCheckoutSession(ctx context.Context, arg UpdateOrderCheckoutSessionParams) error {
-	_, err := q.db.Exec(ctx, updateOrderCheckoutSession, arg.ID, arg.StripeCheckoutSessionID, arg.StripeLivemode)
+	_, err := q.db.Exec(ctx, updateOrderCheckoutSession,
+		arg.ID,
+		arg.StripeCheckoutSessionID,
+		arg.StripeLivemode,
+		arg.StripePaymentIntentID,
+	)
 	return err
 }
 
