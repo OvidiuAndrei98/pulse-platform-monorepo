@@ -295,6 +295,27 @@ type EventArtists struct {
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 }
 
+type EventBannerAssets struct {
+	ID                     pgtype.UUID        `json:"id"`
+	OwnerID                pgtype.UUID        `json:"owner_id"`
+	S3Key                  string             `json:"s3_key"`
+	Status                 string             `json:"status"`
+	DeleteAfter            pgtype.Timestamptz `json:"delete_after"`
+	DeletionLeaseID        pgtype.UUID        `json:"deletion_lease_id"`
+	DeletionLeaseExpiresAt pgtype.Timestamptz `json:"deletion_lease_expires_at"`
+	DeleteAttempts         int32              `json:"delete_attempts"`
+	LastError              pgtype.Text        `json:"last_error"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+}
+
+type EventBannerReferences struct {
+	EventID   pgtype.UUID        `json:"event_id"`
+	AssetID   pgtype.UUID        `json:"asset_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
 type EventCancellationRequests struct {
 	ID                  pgtype.UUID        `json:"id"`
 	EventID             pgtype.UUID        `json:"event_id"`

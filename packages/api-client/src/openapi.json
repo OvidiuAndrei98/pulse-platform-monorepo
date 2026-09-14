@@ -1261,7 +1261,7 @@
     "/dashboard/organizer/profile/{id}": {
       "get": {
         "operationId": "DashboardOperations_getProfile",
-        "summary": "Preia profilul unui organizator după ID-ul său",
+        "summary": "Preia profilul privat al organizatorului curent; administratorii pot consulta orice profil",
         "parameters": [
           {
             "name": "id",

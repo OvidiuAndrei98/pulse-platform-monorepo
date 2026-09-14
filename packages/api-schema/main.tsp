@@ -1234,7 +1234,7 @@ interface DashboardOperations {
 
   @get
   @route("/organizer/profile/{id}")
-  @summary("Preia profilul unui organizator după ID-ul său")
+  @summary("Preia profilul privat al organizatorului curent; administratorii pot consulta orice profil")
   getProfile(@path id: string): OrganizerProfile;
 
   @post

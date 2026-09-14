@@ -3,11 +3,13 @@ package events
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	db "pulse-api/db/generated"
@@ -55,7 +57,6 @@ func publicationParams(status string, raw *string) (string, pgtype.Timestamptz, 
 func (h *Handler) StartEventExpiryWorker(ctx context.Context) {
 	expireEvents := func() {
 		runCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
 		publishedIDs, err := h.Queries.PublishDueEvents(runCtx)
 		if err != nil {
 			log.Printf("scheduled publishing worker: %v", err)
@@ -68,6 +69,24 @@ func (h *Handler) StartEventExpiryWorker(ctx context.Context) {
 		}
 		if err := h.Queries.CompleteEndedEvents(runCtx); err != nil {
 			log.Printf("event expiry worker: %v", err)
+		}
+		if _, err := h.Queries.RemoveStaleEventBannerReferences(runCtx); err != nil {
+			log.Printf("event banner stale reference cleanup: %v", err)
+		} else if err := h.Queries.ReconcileLegacyEventBannerReferences(runCtx); err != nil {
+			log.Printf("event banner registry reconciliation: %v", err)
+		} else if _, err := h.Queries.ScheduleAllUnreferencedEventBannerAssets(runCtx); err != nil {
+			log.Printf("event banner orphan scheduling: %v", err)
+		}
+		cancel()
+
+		// Keep cleanup disabled through mixed-version deployments. Old API tasks
+		// do not register banner references, so enable this only after they drain.
+		if strings.EqualFold(strings.TrimSpace(os.Getenv("EVENT_BANNER_GC_ENABLED")), "true") {
+			gcCtx, gcCancel := context.WithTimeout(ctx, 30*time.Second)
+			defer gcCancel()
+			if err := h.cleanupDueEventBanners(gcCtx, deleteStoredEventBanner); err != nil {
+				log.Printf("event banner cleanup worker: %v", err)
+			}
 		}
 	}
 
@@ -116,6 +135,12 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusForbidden, "Configureaza Stripe inainte de a adauga bilete")
 		return
 	}
+	if req.BannerUrl != "" {
+		if _, ok := ownedEventBannerKey(req.BannerUrl, userIDStr); !ok {
+			router.RespondWithError(w, http.StatusBadRequest, "Bannerul trebuie incarcat din contul organizatorului curent")
+			return
+		}
+	}
 
 	if req.GooglePlaceId == "" {
 		router.RespondWithError(w, http.StatusBadRequest, "Date incomplete: locația este obligatorie")
@@ -158,6 +183,15 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback(ctx)
 
 	qtx := h.Queries.WithTx(tx)
+	claimedBannerAsset, err := claimEventBannerAsset(ctx, qtx, organizerUUID, pgtype.UUID{}, req.BannerUrl)
+	if errors.Is(err, errEventBannerAssetUnavailable) {
+		router.RespondWithError(w, http.StatusBadRequest, "Bannerul nu mai este disponibil. Incarca-l din nou")
+		return
+	}
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Bannerul nu a putut fi rezervat")
+		return
+	}
 
 	newEvent, err := qtx.CreateEvent(ctx, db.CreateEventParams{
 		OrganizerID:                organizerUUID,
@@ -180,6 +214,10 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la crearea evenimentului: "+err.Error())
+		return
+	}
+	if err := applyEventBannerReference(ctx, qtx, newEvent.ID, pgtype.UUID{}, claimedBannerAsset); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Bannerul evenimentului nu a putut fi salvat")
 		return
 	}
 
@@ -290,7 +328,12 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	previousBannerURL := existingEvent.BannerUrl.String
+	if req.BannerURL != nil && *req.BannerURL != "" {
+		if _, ok := ownedEventBannerKey(*req.BannerURL, userID); !ok {
+			router.RespondWithError(w, http.StatusBadRequest, "Bannerul trebuie incarcat din contul organizatorului curent")
+			return
+		}
+	}
 	if req.Vibe == "" {
 		router.RespondWithError(w, http.StatusBadRequest, "Vibe is required")
 		return
@@ -332,6 +375,30 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback(r.Context())
 
 	qtx := h.Queries.WithTx(tx)
+	if _, err := qtx.LockOwnedEventForBannerChange(r.Context(), db.LockOwnedEventForBannerChangeParams{
+		ID: eventUUID, OrganizerID: organizerUUID,
+	}); err != nil {
+		router.RespondWithError(w, http.StatusConflict, "Evenimentul nu mai poate fi modificat")
+		return
+	}
+	currentBannerAsset, err := currentEventBannerAsset(r.Context(), qtx, eventUUID)
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Bannerul curent nu a putut fi verificat")
+		return
+	}
+	requestedBannerURL := ""
+	if req.BannerURL != nil {
+		requestedBannerURL = *req.BannerURL
+	}
+	claimedBannerAsset, err := claimEventBannerAsset(r.Context(), qtx, organizerUUID, currentBannerAsset, requestedBannerURL)
+	if errors.Is(err, errEventBannerAssetUnavailable) {
+		router.RespondWithError(w, http.StatusBadRequest, "Bannerul nu mai este disponibil. Incarca-l din nou")
+		return
+	}
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Bannerul nu a putut fi rezervat")
+		return
+	}
 	bannerURL := pgtype.Text{}
 	if req.BannerURL != nil && *req.BannerURL != "" {
 		bannerURL = pgtype.Text{String: *req.BannerURL, Valid: true}
@@ -362,6 +429,10 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la salvarea evenimentului: "+err.Error())
 		return
 	}
+	if err := applyEventBannerReference(r.Context(), qtx, eventUUID, currentBannerAsset, claimedBannerAsset); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Bannerul evenimentului nu a putut fi actualizat")
+		return
+	}
 
 	// 5. Procesare Bilete (Upsert: Update dacă are ID, Insert dacă nu are ID)
 	for _, t := range req.TicketTypes {
@@ -370,11 +441,15 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 
 		var ticketUUID pgtype.UUID
 		if t.ID != nil && *t.ID != "" {
-			_ = ticketUUID.Scan(*t.ID)
+			if err := ticketUUID.Scan(*t.ID); err != nil || !ticketUUID.Valid {
+				router.RespondWithError(w, http.StatusBadRequest, "ID-ul tipului de bilet este invalid")
+				return
+			}
 		}
 
 		if ticketUUID.Valid {
-			err = qtx.UpdateTicketType(r.Context(), db.UpdateTicketTypeParams{
+			var rowsAffected int64
+			rowsAffected, err = qtx.UpdateTicketTypeForEvent(r.Context(), db.UpdateTicketTypeForEventParams{
 				ID:          ticketUUID,
 				Name:        t.Name,
 				PriceRon:    t.PriceRon,
@@ -382,7 +457,12 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 				Description: pgtype.Text{String: t.Description, Valid: true},
 				StartSales:  pgtype.Timestamptz{Time: startSales, Valid: true},
 				EndSales:    pgtype.Timestamptz{Time: endSales, Valid: true},
+				EventID:     eventUUID,
 			})
+			if err == nil && rowsAffected != 1 {
+				router.RespondWithError(w, http.StatusBadRequest, "Tipul de bilet nu apartine acestui eveniment")
+				return
+			}
 		} else {
 			err = qtx.CreateTicketType(r.Context(), db.CreateTicketTypeParams{
 				EventID:     eventUUID,
@@ -416,12 +496,6 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 	if existingEvent.Status != "published" && event.Status == "published" {
 		if err := h.Queries.CreateOrganizerEventNotifications(r.Context(), event.ID); err != nil {
 			log.Printf("organizer event notification failed for event %s: %v", idStr, err)
-		}
-	}
-
-	if previousBannerURL != event.BannerUrl.String {
-		if err := deleteManagedEventBanner(r.Context(), previousBannerURL); err != nil {
-			log.Printf("event banner cleanup failed after update for event %s: %v", idStr, err)
 		}
 	}
 
@@ -461,6 +535,26 @@ func (h *Handler) HandleDeleteEvent(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback(r.Context())
 
 	qtx := h.Queries.WithTx(tx)
+	var organizerUUID pgtype.UUID
+	if err := organizerUUID.Scan(userID); err != nil || !organizerUUID.Valid {
+		router.RespondWithError(w, http.StatusBadRequest, "ID organizator invalid")
+		return
+	}
+	if _, err := qtx.LockOwnedEventForBannerChange(r.Context(), db.LockOwnedEventForBannerChangeParams{
+		ID: eventUUID, OrganizerID: organizerUUID,
+	}); err != nil {
+		router.RespondWithError(w, http.StatusConflict, "Evenimentul nu mai poate fi sters")
+		return
+	}
+	currentBannerAsset, err := currentEventBannerAsset(r.Context(), qtx, eventUUID)
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Bannerul curent nu a putut fi verificat")
+		return
+	}
+	if _, err := claimEventBannerAsset(r.Context(), qtx, organizerUUID, currentBannerAsset, ""); err != nil {
+		router.RespondWithError(w, http.StatusConflict, "Bannerul evenimentului este procesat. Incearca din nou")
+		return
+	}
 	completedOrders, err := qtx.CountCompletedOrdersForEvent(r.Context(), eventUUID)
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Vanzarile evenimentului nu au putut fi verificate")
@@ -492,12 +586,13 @@ func (h *Handler) HandleDeleteEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la ștergerea evenimentului")
 		return
 	}
+	if err := applyEventBannerReference(r.Context(), qtx, eventUUID, currentBannerAsset, pgtype.UUID{}); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Bannerul evenimentului nu a putut fi programat pentru stergere")
+		return
+	}
 	if err := tx.Commit(r.Context()); err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la finalizarea stergerii evenimentului")
 		return
-	}
-	if err := deleteManagedEventBanner(r.Context(), existingEvent.BannerUrl.String); err != nil {
-		log.Printf("event banner cleanup failed after delete for event %s: %v", idStr, err)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

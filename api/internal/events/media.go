@@ -5,13 +5,17 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
+	db "pulse-api/db/generated"
 	"pulse-api/internal/auth"
 	"pulse-api/internal/router"
 
@@ -19,6 +23,8 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const (
@@ -27,7 +33,12 @@ const (
 	eventBannerPrefix       = "events/"
 	avatarPrefix            = "avatars/"
 	organizerUpdatePrefix   = "organizer-updates/"
+	eventBannerOrphanGrace  = 72 * time.Hour
+	eventBannerRetryDelay   = 15 * time.Minute
+	maxBannerDeletesPerTick = 10
 )
+
+var errEventBannerAssetUnavailable = errors.New("event banner asset is unavailable")
 
 func (h *Handler) HandleUploadEventBanner(w http.ResponseWriter, r *http.Request) {
 	bucket := os.Getenv("S3_BUCKET")
@@ -39,6 +50,11 @@ func (h *Handler) HandleUploadEventBanner(w http.ResponseWriter, r *http.Request
 
 	userID, err := auth.GetUserIDFromContext(r.Context())
 	if err != nil {
+		router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat")
+		return
+	}
+	var ownerID pgtype.UUID
+	if err := ownerID.Scan(userID); err != nil || !ownerID.Valid {
 		router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat")
 		return
 	}
@@ -72,6 +88,14 @@ func (h *Handler) HandleUploadEventBanner(w http.ResponseWriter, r *http.Request
 		router.RespondWithError(w, http.StatusInternalServerError, "Nu s-a putut initializa stocarea imaginilor")
 		return
 	}
+	asset, err := h.Queries.CreatePendingEventBannerAsset(r.Context(), db.CreatePendingEventBannerAssetParams{
+		OwnerID: ownerID,
+		S3Key:   key,
+	})
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Imaginea nu a putut fi inregistrata")
+		return
+	}
 
 	_, err = s3.NewFromConfig(awsCfg).PutObject(r.Context(), &s3.PutObjectInput{
 		Bucket:       aws.String(bucket),
@@ -81,7 +105,18 @@ func (h *Handler) HandleUploadEventBanner(w http.ResponseWriter, r *http.Request
 		CacheControl: aws.String("public, max-age=31536000, immutable"),
 	})
 	if err != nil {
+		// Keep the pending row. The GC worker removes a possibly successful but
+		// unacknowledged S3 upload only after a 24-hour safety interval.
 		router.RespondWithError(w, http.StatusInternalServerError, "Imaginea nu a putut fi incarcata")
+		return
+	}
+	rowsAffected, err := h.Queries.MarkEventBannerAssetReady(r.Context(), db.MarkEventBannerAssetReadyParams{
+		ID:          asset.ID,
+		OwnerID:     ownerID,
+		DeleteAfter: pgtype.Timestamptz{Time: time.Now().Add(eventBannerOrphanGrace), Valid: true},
+	})
+	if err != nil || rowsAffected != 1 {
+		router.RespondWithError(w, http.StatusInternalServerError, "Imaginea a fost incarcata, dar nu a putut fi finalizata")
 		return
 	}
 
@@ -142,30 +177,8 @@ func randomObjectID() (string, error) {
 	return hex.EncodeToString(randomBytes), nil
 }
 
-func deleteManagedEventBanner(ctx context.Context, bannerURL string) error {
-	key, ok := managedEventBannerKey(bannerURL)
-	if !ok {
-		return nil
-	}
-
-	bucket := os.Getenv("S3_BUCKET")
-	if bucket == "" {
-		return fmt.Errorf("S3_BUCKET is not configured")
-	}
-
-	awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
-	if err != nil {
-		return err
-	}
-	_, err = s3.NewFromConfig(awsCfg).DeleteObject(ctx, &s3.DeleteObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-	})
-	return err
-}
-
-func managedEventBannerKey(bannerURL string) (string, bool) {
-	if bannerURL == "" {
+func ownedEventBannerKey(bannerURL, ownerID string) (string, bool) {
+	if bannerURL == "" || ownerID == "" {
 		return "", false
 	}
 
@@ -176,18 +189,150 @@ func managedEventBannerKey(bannerURL string) (string, bool) {
 	}
 
 	parsedBannerURL, err := url.Parse(bannerURL)
-	if err != nil || parsedBannerURL.Scheme != baseURL.Scheme || parsedBannerURL.Host != baseURL.Host {
+	if err != nil || parsedBannerURL.Scheme != baseURL.Scheme || parsedBannerURL.Host != baseURL.Host ||
+		parsedBannerURL.User != nil || parsedBannerURL.RawQuery != "" || parsedBannerURL.Fragment != "" || parsedBannerURL.RawPath != "" {
 		return "", false
 	}
 
-	pathPrefix := strings.TrimRight(baseURL.Path, "/") + "/api/v1/media/"
+	pathPrefix := strings.TrimRight(baseURL.Path, "/") + "/api/v1/media/" + eventBannerPrefix + ownerID + "/"
 	if !strings.HasPrefix(parsedBannerURL.Path, pathPrefix) {
 		return "", false
 	}
 
-	key, err := url.PathUnescape(strings.TrimPrefix(parsedBannerURL.Path, pathPrefix))
-	if err != nil || !strings.HasPrefix(key, eventBannerPrefix) || strings.Contains(key, "..") {
+	filename := strings.TrimPrefix(parsedBannerURL.Path, pathPrefix)
+	parts := strings.Split(filename, ".")
+	if len(parts) != 2 || len(parts[0]) != 32 || strings.Trim(parts[0], "0123456789abcdef") != "" ||
+		(parts[1] != "jpg" && parts[1] != "png" && parts[1] != "webp") {
 		return "", false
 	}
-	return key, true
+	return eventBannerPrefix + ownerID + "/" + filename, true
+}
+
+func currentEventBannerAsset(ctx context.Context, queries *db.Queries, eventID pgtype.UUID) (pgtype.UUID, error) {
+	assetID, err := queries.GetEventBannerReference(ctx, eventID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return pgtype.UUID{}, nil
+	}
+	return assetID, err
+}
+
+// claimEventBannerAsset locks current and next assets in stable UUID order.
+// The caller must run this inside the same transaction that updates the event.
+func claimEventBannerAsset(ctx context.Context, queries *db.Queries, ownerID, currentAssetID pgtype.UUID, bannerURL string) (pgtype.UUID, error) {
+	var nextAssetID pgtype.UUID
+	var key string
+	if bannerURL != "" {
+		var ok bool
+		key, ok = ownedEventBannerKey(bannerURL, ownerID.String())
+		if !ok {
+			return pgtype.UUID{}, errEventBannerAssetUnavailable
+		}
+		var err error
+		nextAssetID, err = queries.FindReadyEventBannerAsset(ctx, db.FindReadyEventBannerAssetParams{OwnerID: ownerID, S3Key: key})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return pgtype.UUID{}, errEventBannerAssetUnavailable
+		}
+		if err != nil {
+			return pgtype.UUID{}, err
+		}
+	}
+
+	first, second := currentAssetID, nextAssetID
+	if !first.Valid {
+		first = second
+	}
+	if !second.Valid {
+		second = first
+	}
+	if first.Valid {
+		locked, err := queries.LockEventBannerAssetPair(ctx, db.LockEventBannerAssetPairParams{ID: first, ID_2: second})
+		if err != nil {
+			return pgtype.UUID{}, err
+		}
+		expected := 1
+		if first != second {
+			expected = 2
+		}
+		if len(locked) != expected {
+			return pgtype.UUID{}, errEventBannerAssetUnavailable
+		}
+	}
+	if nextAssetID.Valid {
+		rowsAffected, err := queries.ActivateReadyEventBannerAsset(ctx, db.ActivateReadyEventBannerAssetParams{
+			ID: nextAssetID, OwnerID: ownerID, S3Key: key,
+		})
+		if err != nil {
+			return pgtype.UUID{}, err
+		}
+		if rowsAffected != 1 {
+			return pgtype.UUID{}, errEventBannerAssetUnavailable
+		}
+	}
+	return nextAssetID, nil
+}
+
+func applyEventBannerReference(ctx context.Context, queries *db.Queries, eventID, currentAssetID, nextAssetID pgtype.UUID) error {
+	if nextAssetID.Valid {
+		if err := queries.UpsertEventBannerReference(ctx, db.UpsertEventBannerReferenceParams{EventID: eventID, AssetID: nextAssetID}); err != nil {
+			return err
+		}
+	} else if err := queries.DeleteEventBannerReference(ctx, eventID); err != nil {
+		return err
+	}
+	if currentAssetID.Valid && currentAssetID != nextAssetID {
+		_, err := queries.ScheduleEventBannerAssetDeletionIfUnreferenced(ctx, db.ScheduleEventBannerAssetDeletionIfUnreferencedParams{
+			ID: currentAssetID, DeleteAfter: pgtype.Timestamptz{Time: time.Now().Add(eventBannerOrphanGrace), Valid: true},
+		})
+		return err
+	}
+	return nil
+}
+
+func deleteStoredEventBanner(ctx context.Context, key string) error {
+	bucket := os.Getenv("S3_BUCKET")
+	if bucket == "" {
+		return errors.New("S3_BUCKET is not configured")
+	}
+	awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = s3.NewFromConfig(awsCfg).DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
+	return err
+}
+
+// cleanupDueEventBanners is gated at the caller during deployment. The
+// delete function is injectable so crash/retry behavior can be tested without S3.
+func (h *Handler) cleanupDueEventBanners(ctx context.Context, deleteObject func(context.Context, string) error) error {
+	for count := 0; count < maxBannerDeletesPerTick; count++ {
+		asset, err := h.Queries.ClaimDueEventBannerAssetDeletion(ctx)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if err := deleteObject(ctx, asset.S3Key); err != nil {
+			_, recordErr := h.Queries.RecordEventBannerAssetDeletionFailure(ctx, db.RecordEventBannerAssetDeletionFailureParams{
+				ID: asset.ID, DeletionLeaseID: asset.DeletionLeaseID,
+				LastError:              pgtype.Text{String: "object deletion failed", Valid: true},
+				DeletionLeaseExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(eventBannerRetryDelay), Valid: true},
+			})
+			if recordErr != nil {
+				return recordErr
+			}
+			log.Printf("event banner deletion failed for asset %s", asset.ID.String())
+			continue
+		}
+		rowsAffected, err := h.Queries.CompleteEventBannerAssetDeletion(ctx, db.CompleteEventBannerAssetDeletionParams{
+			ID: asset.ID, DeletionLeaseID: asset.DeletionLeaseID,
+		})
+		if err != nil {
+			return err
+		}
+		if rowsAffected != 1 {
+			log.Printf("event banner deletion completion fenced for asset %s", asset.ID.String())
+		}
+	}
+	return nil
 }

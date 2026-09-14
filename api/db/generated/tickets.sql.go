@@ -2047,7 +2047,7 @@ func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusPa
 	return err
 }
 
-const updateTicketType = `-- name: UpdateTicketType :exec
+const updateTicketTypeForEvent = `-- name: UpdateTicketTypeForEvent :execrows
 UPDATE ticket_types
 SET 
     name = $2,
@@ -2057,9 +2057,10 @@ SET
     end_sales = $6,
     description = $7
 WHERE id = $1
+  AND event_id = $8
 `
 
-type UpdateTicketTypeParams struct {
+type UpdateTicketTypeForEventParams struct {
 	ID          pgtype.UUID        `json:"id"`
 	Name        string             `json:"name"`
 	PriceRon    int32              `json:"price_ron"`
@@ -2067,10 +2068,11 @@ type UpdateTicketTypeParams struct {
 	StartSales  pgtype.Timestamptz `json:"start_sales"`
 	EndSales    pgtype.Timestamptz `json:"end_sales"`
 	Description pgtype.Text        `json:"description"`
+	EventID     pgtype.UUID        `json:"event_id"`
 }
 
-func (q *Queries) UpdateTicketType(ctx context.Context, arg UpdateTicketTypeParams) error {
-	_, err := q.db.Exec(ctx, updateTicketType,
+func (q *Queries) UpdateTicketTypeForEvent(ctx context.Context, arg UpdateTicketTypeForEventParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateTicketTypeForEvent,
 		arg.ID,
 		arg.Name,
 		arg.PriceRon,
@@ -2078,8 +2080,12 @@ func (q *Queries) UpdateTicketType(ctx context.Context, arg UpdateTicketTypePara
 		arg.StartSales,
 		arg.EndSales,
 		arg.Description,
+		arg.EventID,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const validateTicketOnce = `-- name: ValidateTicketOnce :one

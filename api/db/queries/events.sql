@@ -185,6 +185,12 @@ SET title = $2,
 WHERE id = $1
 RETURNING *; -- RETURNING * va aduce status-ul modificat
 
+-- name: LockOwnedEventForBannerChange :one
+SELECT id
+FROM events
+WHERE id = $1 AND organizer_id = $2
+FOR UPDATE;
+
 -- name: PublishDueEvents :many
 UPDATE events
 SET status = 'published', publish_at = NULL, was_published = TRUE

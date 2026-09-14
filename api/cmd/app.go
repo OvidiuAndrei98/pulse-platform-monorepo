@@ -181,7 +181,6 @@ func (app *Application) BuildRouter() http.Handler {
 		GetMe:                       usersHandler.HandleGetMe,
 		UpdateMe:                    usersHandler.HandleUpdateMe,
 		UploadUserAvatar:            usersHandler.HandleUploadAvatar,
-		GetUser:                     usersHandler.HandleGetUser,
 		GetUserTickets:              ticketingHandler.HandleGetUserTickets,
 		GetUserOrders:               ticketingHandler.HandleGetUserOrders,
 		GetSavedEvents:              eventsHandler.HandleListSavedEvents,

@@ -1056,15 +1056,34 @@ func (q *Queries) ListEventsWithStats(ctx context.Context, organizerID pgtype.UU
 	return items, nil
 }
 
-const publishDueEvents = `-- name: PublishDueEvents :many
+const lockOwnedEventForBannerChange = `-- name: LockOwnedEventForBannerChange :one
 
+SELECT id
+FROM events
+WHERE id = $1 AND organizer_id = $2
+FOR UPDATE
+`
+
+type LockOwnedEventForBannerChangeParams struct {
+	ID          pgtype.UUID `json:"id"`
+	OrganizerID pgtype.UUID `json:"organizer_id"`
+}
+
+// RETURNING * va aduce status-ul modificat
+func (q *Queries) LockOwnedEventForBannerChange(ctx context.Context, arg LockOwnedEventForBannerChangeParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockOwnedEventForBannerChange, arg.ID, arg.OrganizerID)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const publishDueEvents = `-- name: PublishDueEvents :many
 UPDATE events
 SET status = 'published', publish_at = NULL, was_published = TRUE
 WHERE status = 'scheduled' AND publish_at <= CURRENT_TIMESTAMP
 RETURNING id
 `
 
-// RETURNING * va aduce status-ul modificat
 func (q *Queries) PublishDueEvents(ctx context.Context) ([]pgtype.UUID, error) {
 	rows, err := q.db.Query(ctx, publishDueEvents)
 	if err != nil {

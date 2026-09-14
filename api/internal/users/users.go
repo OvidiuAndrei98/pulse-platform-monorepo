@@ -8,7 +8,6 @@ import (
 	"pulse-api/internal/auth"
 	"pulse-api/internal/router"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -102,23 +101,4 @@ func (h *Handler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	router.RespondWithJSON(w, http.StatusOK, MapUpdateUserProfileRow(updated))
-}
-
-func (h *Handler) HandleGetUser(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-
-	var uuid pgtype.UUID
-	err := uuid.Scan(idStr)
-	if err != nil || !uuid.Valid {
-		router.RespondWithError(w, http.StatusBadRequest, "ID-ul (UUID) furnizat este invalid")
-		return
-	}
-
-	user, err := h.Queries.GetUserByID(r.Context(), uuid)
-	if err != nil {
-		router.RespondWithError(w, http.StatusNotFound, "Utilizatorul nu a fost găsit")
-		return
-	}
-
-	router.RespondWithJSON(w, http.StatusOK, MapUser(user))
 }

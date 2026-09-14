@@ -46,6 +46,13 @@ func TestLegacyCreateUserRouteRemoved(t *testing.T) {
 				t.Fatalf("%s %s still reachable: %d", role, path, w.Code)
 			}
 		}
+		r := httptest.NewRequest("GET", "/api/v1/users/ea79b1ed-99b1-4000-a000-000000000001", nil)
+		r.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		if w.Code != 404 {
+			t.Fatalf("private user lookup remains reachable for %s: %d", role, w.Code)
+		}
 	}
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, httptest.NewRequest("POST", "/api/v1/auth/register", strings.NewReader(`{}`)))

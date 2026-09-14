@@ -40,7 +40,6 @@ type HandlersConfig struct {
 	GetMe                    http.HandlerFunc
 	UpdateMe                 http.HandlerFunc
 	UploadUserAvatar         http.HandlerFunc
-	GetUser                  http.HandlerFunc
 	GetUserTickets           http.HandlerFunc
 	GetUserOrders            http.HandlerFunc
 	GetSavedEvents           http.HandlerFunc
@@ -285,7 +284,6 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Get("/me/hidden-categories", cfg.ListHiddenCategories)
 				r.Post("/me/hidden-categories", cfg.HideEventCategory)
 				r.Delete("/me/hidden-categories/{category}", cfg.ShowEventCategory)
-				r.Get("/{id}", cfg.GetUser)
 			})
 
 			r.Route("/notifications", func(r chi.Router) {

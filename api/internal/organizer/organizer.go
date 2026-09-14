@@ -215,6 +215,20 @@ func (h *Handler) HandleGetOrganizerProfile(w http.ResponseWriter, r *http.Reque
 		router.RespondWithError(w, http.StatusBadRequest, "ID-ul utilizatorului din URL este invalid")
 		return
 	}
+	viewerID, err := auth.GetUserIDFromContext(ctx)
+	if err != nil {
+		router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat")
+		return
+	}
+	viewerRole, err := auth.GetRoleFromContext(ctx)
+	if err != nil {
+		router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat")
+		return
+	}
+	if viewerID != userID.String() && viewerRole != "admin" {
+		router.RespondWithError(w, http.StatusForbidden, "Nu ai permisiunea sa accesezi acest profil")
+		return
+	}
 
 	profile, err := h.Queries.GetOrganizerProfile(ctx, userID)
 	if err != nil {

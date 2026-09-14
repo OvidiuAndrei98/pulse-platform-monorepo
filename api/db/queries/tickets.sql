@@ -288,7 +288,7 @@ INSERT INTO tickets (order_id, ticket_type_id, user_id, validation_hash)
 VALUES ($1, $2, $3, $4)
 RETURNING *;
 
--- name: UpdateTicketType :exec
+-- name: UpdateTicketTypeForEvent :execrows
 UPDATE ticket_types
 SET 
     name = $2,
@@ -297,7 +297,8 @@ SET
     start_sales = $5,
     end_sales = $6,
     description = $7
-WHERE id = $1;
+WHERE id = $1
+  AND event_id = $8;
 
 -- name: GetTicketByHash :one
 SELECT t.*, tt.name as ticket_type_name, e.title as event_title, e.id as event_id
