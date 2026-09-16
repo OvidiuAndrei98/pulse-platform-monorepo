@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "pulse-api/db/generated"
+	"pulse-api/internal/abuse"
 )
 
 // Explicit opt-in, localhost-only throwaway database. Never reads DATABASE_URL.
@@ -74,11 +76,18 @@ func securityDB(t *testing.T) (*Handler, *pgxpool.Pool, string) {
 	CREATE TABLE user_tokens (id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 	user_id uuid NOT NULL REFERENCES users(id), token_hash varchar(64) NOT NULL UNIQUE,
 	type text NOT NULL CHECK (type IN ('activation','password_reset')),
-	expires_at timestamptz NOT NULL, created_at timestamptz DEFAULT now());`)
+	expires_at timestamptz NOT NULL, created_at timestamptz DEFAULT now());
+	CREATE TABLE request_rate_limits (scope varchar(64) NOT NULL, subject_hash bytea NOT NULL,
+	attempt_count integer NOT NULL, window_end timestamptz NOT NULL,
+	updated_at timestamptz NOT NULL DEFAULT clock_timestamp(), PRIMARY KEY(scope,subject_hash));`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewHandler(db.New(pool), pool, nil), pool, schema
+	protection, err := abuse.NewProtection(pool, []byte("01234567890123456789012345678901"), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return NewHandler(db.New(pool), pool, nil, protection), pool, schema
 }
 
 func seedReset(t *testing.T, h *Handler) (db.Users, string, string) {
@@ -349,13 +358,44 @@ func TestSecurityForgotSerializesWithReset(t *testing.T) {
 }
 
 func TestSecurityRegisterCannotAssignAdmin(t *testing.T) {
-	h, _, _ := securityDB(t)
+	h, pool, _ := securityDB(t)
 	w := authRequest(h.HandleRegister, `{"username":"ordinary","email":"ordinary@example.invalid","password":"secure-password","role":"admin","is_active":true,"password_hash":"injected","google_id":"injected"}`)
-	if w.Code != 201 {
-		t.Fatalf("register: %d %s", w.Code, w.Body.String())
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("register mass assignment status: %d %s", w.Code, w.Body.String())
 	}
-	u, err := h.Queries.GetUserByEmail(context.Background(), "ordinary@example.invalid")
-	if err != nil || u.Role.String != "user" || u.IsActive.Bool || u.GoogleID.Valid || !CheckPasswordHash("secure-password", u.PasswordHash.String) {
-		t.Fatal("privileged mass assignment", err)
+	var count int
+	if err := pool.QueryRow(context.Background(), `SELECT COUNT(*) FROM users WHERE email='ordinary@example.invalid'`).Scan(&count); err != nil || count != 0 {
+		t.Fatal("mass-assignment request created a user", err)
+	}
+}
+
+type countingResetSender struct{ count atomic.Int32 }
+
+func (*countingResetSender) SendActivationEmail(context.Context, string, string) error { return nil }
+func (s *countingResetSender) SendPasswordResetEmail(context.Context, string, string) error {
+	s.count.Add(1)
+	return nil
+}
+
+func TestSecurityForgotPasswordEmailCooldownBoundsDeliveryAndTokens(t *testing.T) {
+	h, pool, _ := securityDB(t)
+	_, _, _ = seedReset(t, h)
+	sender := &countingResetSender{}
+	h.EmailSender = sender
+	for attempt := 0; attempt < 6; attempt++ {
+		response := authRequest(h.ForgotPassword, `{"email":"test@example.invalid"}`)
+		if response.Code != http.StatusOK {
+			t.Fatalf("attempt %d status=%d", attempt, response.Code)
+		}
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for sender.count.Load() < 3 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if sender.count.Load() != 3 {
+		t.Fatalf("emails sent=%d, want 3", sender.count.Load())
+	}
+	if countReset(t, pool) != 1 {
+		t.Fatalf("active reset tokens=%d, want 1", countReset(t, pool))
 	}
 }

@@ -3,13 +3,16 @@ package auth
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"net/mail"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	db "pulse-api/db/generated"
+	"pulse-api/internal/abuse"
 	"pulse-api/internal/common"
 	"pulse-api/internal/router"
 
@@ -43,7 +46,13 @@ type Handler struct {
 	Pool        *pgxpool.Pool
 	EmailSender EmailSender
 	googleOAuth GoogleOAuthConfig
+	Abuse       *abuse.Protection
 }
+
+const (
+	maxAuthJSONBytes  = 8 << 10
+	dummyPasswordHash = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
+)
 
 func (h *Handler) claimGuestPurchases(ctx context.Context, userID pgtype.UUID) {
 	if err := h.Queries.AssignGuestOrdersToUser(ctx, userID); err != nil {
@@ -56,27 +65,40 @@ func (h *Handler) claimGuestPurchases(ctx context.Context, userID pgtype.UUID) {
 }
 
 // NewHandler este constructorul pentru Handler-ul de auth
-func NewHandler(queries *db.Queries, pool *pgxpool.Pool, emailSender EmailSender) *Handler {
+func NewHandler(queries *db.Queries, pool *pgxpool.Pool, emailSender EmailSender, abuseProtection *abuse.Protection) *Handler {
 	return &Handler{
 		Queries:     queries,
 		Pool:        pool,
 		EmailSender: emailSender,
+		Abuse:       abuseProtection,
 	}
 }
 
 func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		router.RespondWithError(w, http.StatusBadRequest, "Request body invalid: "+err.Error())
+	if !router.DecodeJSON(w, r, &req, maxAuthJSONBytes) {
 		return
 	}
+	req.Username = strings.TrimSpace(req.Username)
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 
-	if len(req.Username) < 3 || len(req.Username) > 50 {
+	if utf8.RuneCountInString(req.Username) < 3 || utf8.RuneCountInString(req.Username) > 50 {
 		router.RespondWithError(w, http.StatusBadRequest, "Username-ul trebuie să aibă între 3 și 50 de caractere")
 		return
 	}
-	if len(req.Password) < 6 {
-		router.RespondWithError(w, http.StatusBadRequest, "Parola trebuie să aibă cel puțin 6 caractere")
+	if len(req.Email) > 100 {
+		router.RespondWithError(w, http.StatusBadRequest, "Adresa de email este invalida")
+		return
+	}
+	if address, err := mail.ParseAddress(req.Email); err != nil || address.Address != req.Email {
+		router.RespondWithError(w, http.StatusBadRequest, "Adresa de email este invalida")
+		return
+	}
+	if len(req.Password) < 8 || len(req.Password) > 72 {
+		router.RespondWithError(w, http.StatusBadRequest, "Parola trebuie să aibă între 8 și 72 de bytes")
+		return
+	}
+	if h.Abuse != nil && !h.Abuse.Enforce(r.Context(), w, "auth_register_email", req.Email, 3, time.Hour) {
 		return
 	}
 
@@ -159,8 +181,10 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 	if h.EmailSender != nil {
 		go func() {
-			if err := h.EmailSender.SendActivationEmail(ctx, user.Email, plainToken); err != nil {
-				log.Printf("activation email failed for %s: %v", user.Email, err)
+			emailCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := h.EmailSender.SendActivationEmail(emailCtx, user.Email, plainToken); err != nil {
+				log.Print("activation email delivery failed")
 			}
 		}()
 	}
@@ -177,7 +201,7 @@ func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleActivate(w http.ResponseWriter, r *http.Request) {
 	// 1. Extragem token-ul primit în query string
 	plaintextToken := r.URL.Query().Get("token")
-	if plaintextToken == "" {
+	if plaintextToken == "" || len(plaintextToken) > 128 {
 		http.Error(w, "Token-ul lipsește sau este invalid", http.StatusBadRequest)
 		return
 	}
@@ -238,27 +262,40 @@ type LoginResponse struct {
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+	if !router.DecodeJSON(w, r, &req, maxAuthJSONBytes) {
+		return
+	}
+	req.Email = strings.TrimSpace(req.Email)
+	normalizedEmail := strings.ToLower(req.Email)
+	if len(req.Email) == 0 || len(req.Email) > 100 || len(req.Password) > 72 {
+		router.RespondWithError(w, http.StatusUnauthorized, "Email sau parolă incorectă")
+		return
+	}
+	if h.Abuse != nil && !h.Abuse.Enforce(r.Context(), w, "auth_login_email", normalizedEmail, 10, 15*time.Minute) {
 		return
 	}
 
 	user, err := h.Queries.GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
-		log.Printf("Login user lookup failed: %v", err)
+		CheckPasswordHash(req.Password, dummyPasswordHash)
+		if !errors.Is(err, pgx.ErrNoRows) {
+			log.Print("Login user lookup failed")
+		}
 		router.RespondWithError(w, http.StatusUnauthorized, "Email sau parolă incorectă")
 		return
 	}
 
-	if !user.IsActive.Bool {
-		log.Print("Login rejected: account inactive")
-		router.RespondWithError(w, http.StatusForbidden, "Contul nu este activat. Te rugăm să îți verifici email-ul.")
-		return
+	passwordHash := user.PasswordHash.String
+	if !user.PasswordHash.Valid || passwordHash == "" {
+		passwordHash = dummyPasswordHash
 	}
-	if !CheckPasswordHash(req.Password, user.PasswordHash.String) {
-		log.Print("Login rejected: invalid password")
+	if !CheckPasswordHash(req.Password, passwordHash) || !user.PasswordHash.Valid || !user.IsActive.Bool {
+		log.Print("Login rejected")
 		router.RespondWithError(w, http.StatusUnauthorized, "Email sau parolă incorectă")
 		return
+	}
+	if h.Abuse != nil {
+		_ = h.Abuse.Clear(r.Context(), "auth_login_email", normalizedEmail)
 	}
 	h.claimGuestPurchases(r.Context(), user.ID)
 
@@ -293,14 +330,32 @@ type ForgotPasswordRequest struct {
 
 func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	var req ForgotPasswordRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		router.RespondWithError(w, http.StatusBadRequest, "Body invalid")
+	if !router.DecodeJSON(w, r, &req, maxAuthJSONBytes) {
 		return
 	}
 	// Keep the public response identical, including persistence failures.
 	defer router.RespondWithJSON(w, http.StatusOK, map[string]string{
 		"message": "Dacă emailul există în sistem, un link de resetare a fost trimis.",
 	})
+	req.Email = strings.TrimSpace(req.Email)
+	normalizedEmail := strings.ToLower(req.Email)
+	if len(req.Email) == 0 || len(req.Email) > 100 {
+		return
+	}
+	if address, err := mail.ParseAddress(req.Email); err != nil || address.Address != req.Email {
+		return
+	}
+	if h.Abuse != nil {
+		decision, err := h.Abuse.Consume(r.Context(), "auth_forgot_email", normalizedEmail, 3, time.Hour)
+		// Preserve the same public response for cooldown and limiter failures.
+		if err != nil || !decision.Allowed {
+			return
+		}
+		decision, err = h.Abuse.Consume(r.Context(), "auth_forgot_email_daily", normalizedEmail, 5, 24*time.Hour)
+		if err != nil || !decision.Allowed {
+			return
+		}
+	}
 
 	// 1. Verificăm dacă userul există
 	user, err := h.Queries.GetUserByEmail(r.Context(), req.Email)
@@ -327,6 +382,10 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	qtx := h.Queries.WithTx(tx)
 	if _, err = qtx.LockUserForPasswordReset(r.Context(), user.ID); err != nil {
 		log.Print("password reset token user lock failed")
+		return
+	}
+	if err = qtx.DeleteUserPasswordResetTokens(r.Context(), user.ID); err != nil {
+		log.Print("password reset old token cleanup failed")
 		return
 	}
 	_, err = qtx.InsertUserToken(r.Context(), db.InsertUserTokenParams{
@@ -366,13 +425,20 @@ type ResetPasswordRequest struct {
 
 func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var req ResetPasswordRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		router.RespondWithError(w, http.StatusBadRequest, "Body invalid")
+	if !router.DecodeJSON(w, r, &req, maxAuthJSONBytes) {
 		return
 	}
+	req.Token = strings.TrimSpace(req.Token)
 
-	if len(req.NewPassword) < 6 || len(req.NewPassword) > 72 {
-		router.RespondWithError(w, http.StatusBadRequest, "Parola trebuie să aibă între 6 și 72 de bytes (caracterele Unicode pot ocupa mai mulți bytes)")
+	if len(req.Token) == 0 || len(req.Token) > 128 {
+		router.RespondWithError(w, http.StatusUnauthorized, "Token invalid sau expirat")
+		return
+	}
+	if len(req.NewPassword) < 8 || len(req.NewPassword) > 72 {
+		router.RespondWithError(w, http.StatusBadRequest, "Parola trebuie să aibă între 8 și 72 de bytes (caracterele Unicode pot ocupa mai mulți bytes)")
+		return
+	}
+	if h.Abuse != nil && !h.Abuse.Enforce(r.Context(), w, "auth_reset_token", HashPlainToken(req.Token), 5, 15*time.Minute) {
 		return
 	}
 

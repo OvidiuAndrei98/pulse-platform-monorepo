@@ -47,7 +47,7 @@ func TestStripeWebhookIgnoresTestEventWhenLiveKeyIsConfigured(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/stripe/webhook", strings.NewReader(string(signedPayload.Payload)))
 	req.Header.Set("Stripe-Signature", signedPayload.Header)
 	response := httptest.NewRecorder()
-	checkout := NewCheckoutHandler(nil, nil, "sk_live_example", "", nil, nil)
+	checkout := NewCheckoutHandler(nil, nil, "sk_live_example", "", nil, nil, nil)
 
 	NewWebhookHandler(secret, checkout, nil).HandleStripeWebhook(response, req)
 

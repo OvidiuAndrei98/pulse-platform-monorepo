@@ -31,7 +31,7 @@ function ResetPasswordContent() {
       setError(t("auth.invalidReset"));
       return;
     }
-    if (password.length < 6) {
+    if (password.length < 8) {
       setError(t("auth.shortPassword"));
       return;
     }
@@ -67,11 +67,11 @@ function ResetPasswordContent() {
         <div className="space-y-4">
           <label className="block">
             <span className="mb-2 block text-sm font-semibold">{t("auth.newPassword")}</span>
-            <input type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required className="h-12 w-full rounded-lg border border-white/15 bg-white/[0.035] px-3 text-sm outline-none transition focus:border-primary/60" />
+            <input type="password" autoComplete="new-password" minLength={8} maxLength={72} value={password} onChange={(event) => setPassword(event.target.value)} required className="h-12 w-full rounded-lg border border-white/15 bg-white/[0.035] px-3 text-sm outline-none transition focus:border-primary/60" />
           </label>
           <label className="block">
             <span className="mb-2 block text-sm font-semibold">{t("auth.confirmPassword")}</span>
-            <input type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required className="h-12 w-full rounded-lg border border-white/15 bg-white/[0.035] px-3 text-sm outline-none transition focus:border-primary/60" />
+            <input type="password" autoComplete="new-password" minLength={8} maxLength={72} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required className="h-12 w-full rounded-lg border border-white/15 bg-white/[0.035] px-3 text-sm outline-none transition focus:border-primary/60" />
           </label>
         </div>
         {error && <p className="mt-4 border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300">{error}</p>}

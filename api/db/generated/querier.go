@@ -188,6 +188,7 @@ type Querier interface {
 	MarkBillingInvoiceIssued(ctx context.Context, arg MarkBillingInvoiceIssuedParams) (BillingInvoices, error)
 	MarkBillingInvoiceRefundFailed(ctx context.Context, arg MarkBillingInvoiceRefundFailedParams) (BillingInvoiceRefunds, error)
 	MarkBillingInvoiceRefundIssued(ctx context.Context, arg MarkBillingInvoiceRefundIssuedParams) (BillingInvoiceRefunds, error)
+	MarkCheckoutReservationForReview(ctx context.Context, arg MarkCheckoutReservationForReviewParams) error
 	MarkEventBannerAssetReady(ctx context.Context, arg MarkEventBannerAssetReadyParams) (int64, error)
 	MarkInvitationValidated(ctx context.Context, id pgtype.UUID) (pgtype.Timestamptz, error)
 	MarkNotificationRead(ctx context.Context, arg MarkNotificationReadParams) error
@@ -201,6 +202,11 @@ type Querier interface {
 	MarkOrderRefundSubmitted(ctx context.Context, arg MarkOrderRefundSubmittedParams) error
 	MarkPlatformCommissionInvoiceFailed(ctx context.Context, arg MarkPlatformCommissionInvoiceFailedParams) (PlatformCommissionInvoices, error)
 	MarkPlatformCommissionInvoiceIssued(ctx context.Context, arg MarkPlatformCommissionInvoiceIssuedParams) (PlatformCommissionInvoices, error)
+	// A process may stop after the local reservation commits but before the Stripe
+	// session ID is persisted. Even after the external session lifetime, age does
+	// not prove that payment did not complete before expiry and its webhook was
+	// delayed. Quarantine the unknown outcome; never release inventory blindly.
+	MarkStaleSessionlessCheckoutReservationsForReview(ctx context.Context) (int64, error)
 	MarkTicketEmailSent(ctx context.Context, id pgtype.UUID) error
 	PromoteUserToOrganizer(ctx context.Context, id pgtype.UUID) (Users, error)
 	PromotionCampaignOverlaps(ctx context.Context, arg PromotionCampaignOverlapsParams) (bool, error)

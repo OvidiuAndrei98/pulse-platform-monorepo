@@ -136,7 +136,7 @@ export const resources = {
         registerHint:
           "Discover events, keep tickets close, and connect with people you go out with.",
         username: "Username",
-        minCharacters: "At least 6 characters",
+        minCharacters: "At least 8 characters",
         organizerAccount: "Organizer account",
         organizerHint: "For companies that publish events and sell tickets.",
         companyName: "Company name",
@@ -167,7 +167,7 @@ export const resources = {
         newPassword: "New password",
         confirmPassword: "Confirm password",
         invalidReset: "The reset link is invalid or incomplete.",
-        shortPassword: "Your password must contain at least 6 characters.",
+        shortPassword: "Your password must contain at least 8 characters.",
         passwordsMismatch: "Passwords do not match.",
         passwordResetFailed: "Your password could not be reset.",
         saving: "Saving...",
@@ -1505,7 +1505,7 @@ export const resources = {
         registerHint:
           "Descopera evenimente, pastreaza biletele aproape si conecteaza-te cu oamenii cu care iesi.",
         username: "Username",
-        minCharacters: "Minimum 6 caractere",
+        minCharacters: "Minimum 8 caractere",
         organizerAccount: "Cont de organizator",
         organizerHint:
           "Pentru firme care publica si vand bilete la evenimente.",
@@ -1535,7 +1535,7 @@ export const resources = {
         newPassword: "Parola noua",
         confirmPassword: "Confirma parola",
         invalidReset: "Linkul de resetare este invalid sau incomplet.",
-        shortPassword: "Parola trebuie sa aiba cel putin 6 caractere.",
+        shortPassword: "Parola trebuie sa aiba cel putin 8 caractere.",
         passwordsMismatch: "Parolele nu coincid.",
         passwordResetFailed: "Parola nu a putut fi resetata.",
         saving: "Se salveaza...",

@@ -208,6 +208,7 @@ export default function RegisterPage() {
               type="email"
               autoComplete="email"
               required
+              maxLength={100}
               value={email}
               onChange={(inputEvent) => setEmail(inputEvent.target.value)}
               className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/45"
@@ -221,7 +222,8 @@ export default function RegisterPage() {
               type="password"
               autoComplete="new-password"
               required
-              minLength={6}
+              minLength={8}
+              maxLength={72}
               value={password}
               onChange={(inputEvent) => setPassword(inputEvent.target.value)}
               className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/45"
@@ -235,7 +237,8 @@ export default function RegisterPage() {
               type="password"
               autoComplete="new-password"
               required
-              minLength={6}
+              minLength={8}
+              maxLength={72}
               value={passwordConfirmation}
               onChange={(inputEvent) => setPasswordConfirmation(inputEvent.target.value)}
               className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/45"

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	db "pulse-api/db/generated"
+	"pulse-api/internal/abuse"
 	"pulse-api/internal/auth"
 	"pulse-api/internal/email"
 	"pulse-api/internal/events"
@@ -35,6 +36,7 @@ type Application struct {
 	Pool      *pgxpool.Pool
 	Invoicing *invoicing.Service
 	Refunds   *payments.CheckoutHandler
+	Abuse     *abuse.Protection
 }
 
 type databaseSettings struct {
@@ -134,7 +136,8 @@ func databaseConnectionURL(settings databaseSettings) string {
 
 // InitApplication configurează pool-ul de conexiuni, refolosit și local și în Lambda
 func InitApplication() (*Application, error) {
-	if _, err := auth.JWTSigningKey(); err != nil {
+	jwtSigningKey, err := auth.JWTSigningKey()
+	if err != nil {
 		return nil, err
 	}
 	settings, err := loadDatabaseSettings()
@@ -166,10 +169,16 @@ func InitApplication() (*Application, error) {
 	}
 
 	queries := db.New(pool)
+	abuseProtection, err := abuse.NewProtection(pool, jwtSigningKey, os.Getenv("TRUSTED_PROXY_CIDRS"))
+	if err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("invalid abuse protection configuration: %w", err)
+	}
 	return &Application{
 		Queries:   queries,
 		Pool:      pool,
 		Invoicing: invoicing.NewService(queries, os.Getenv("INVOICING_ENCRYPTION_KEY")),
+		Abuse:     abuseProtection,
 	}, nil
 }
 
@@ -186,7 +195,7 @@ func (app *Application) BuildRouter() http.Handler {
 	)
 
 	// 1. Instanțiem modulele din internal cu dependențele necesare
-	authHandler := auth.NewHandler(app.Queries, app.Pool, mailerService)
+	authHandler := auth.NewHandler(app.Queries, app.Pool, mailerService, app.Abuse)
 	authHandler.ConfigureGoogleOAuth(auth.GoogleOAuthConfig{
 		ClientID:        os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
 		ClientSecret:    os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
@@ -204,7 +213,7 @@ func (app *Application) BuildRouter() http.Handler {
 	requireAdmin := auth.RequireRole("admin")
 	organizerHandler := organizer.NewHandler(app.Queries)
 	ticketingHandler := tickets.NewHandler(app.Queries, app.Pool, os.Getenv("PUBLIC_APP_URL"))
-	stripeCheckoutHandler := payments.NewCheckoutHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), mailerService, app.Invoicing)
+	stripeCheckoutHandler := payments.NewCheckoutHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), mailerService, app.Invoicing, app.Abuse)
 	app.Refunds = stripeCheckoutHandler
 	promotionHandler := promotions.NewHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"))
 	stripeWebhookHandler := payments.NewWebhookHandler(os.Getenv("STRIPE_WEBHOOK_SECRET"), stripeCheckoutHandler, promotionHandler)
@@ -230,6 +239,7 @@ func (app *Application) BuildRouter() http.Handler {
 		ScannerAuthMiddleware:  scannerAuthMiddleware,
 		OrganizerMiddleware:    requireOrganizer,
 		AdminMiddleware:        requireAdmin,
+		RateLimit:              app.Abuse.Middleware,
 
 		// Auth
 		Register:             authHandler.HandleRegister,
@@ -391,5 +401,11 @@ func (app *Application) StartRefundWorker(ctx context.Context) {
 func (app *Application) StartCheckoutReconciliationWorker(ctx context.Context) {
 	if app.Refunds != nil {
 		app.Refunds.StartCheckoutReconciliationWorker(ctx)
+	}
+}
+
+func (app *Application) StartAbuseProtectionWorker(ctx context.Context) {
+	if app.Abuse != nil {
+		app.Abuse.StartCleanupWorker(ctx)
 	}
 }

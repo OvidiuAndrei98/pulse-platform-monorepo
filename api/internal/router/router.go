@@ -25,6 +25,7 @@ type HandlersConfig struct {
 	ScannerAuthMiddleware  func(http.Handler) http.Handler
 	OrganizerMiddleware    func(http.Handler) http.Handler // RequireRole("organizer", "admin")
 	AdminMiddleware        func(http.Handler) http.Handler // RequireRole("admin")
+	RateLimit              func(scope string, limit int, window time.Duration) func(http.Handler) http.Handler
 
 	// Auth
 	Register             http.HandlerFunc
@@ -182,7 +183,6 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 	}
 
 	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
@@ -214,11 +214,17 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 	})
 
 	r.Route("/api/v1", func(r chi.Router) {
+		rateLimit := cfg.RateLimit
+		if rateLimit == nil {
+			rateLimit = func(_ string, _ int, _ time.Duration) func(http.Handler) http.Handler {
+				return func(next http.Handler) http.Handler { return next }
+			}
+		}
 		r.Get("/media/*", cfg.GetEventBanner)
 		r.Post("/stripe/webhook", cfg.StripeWebhook)
 		r.Post("/stripe/connect/webhook", cfg.StripeConnectWebhook)
-		r.Post("/checkout/reconcile", cfg.ReconcileCheckout)
-		r.Post("/ticket-validation/quick-access/session", cfg.CreateScannerSession)
+		r.With(rateLimit("checkout_reconcile_ip", 30, 10*time.Minute)).Post("/checkout/reconcile", cfg.ReconcileCheckout)
+		r.With(rateLimit("scanner_session_ip", 10, 15*time.Minute)).Post("/ticket-validation/quick-access/session", cfg.CreateScannerSession)
 		r.Group(func(r chi.Router) {
 			if cfg.ScannerAuthMiddleware != nil {
 				r.Use(cfg.ScannerAuthMiddleware)
@@ -228,16 +234,16 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 
 		// --- AUTH (Public) ---
 		r.Route("/auth", func(r chi.Router) {
-			r.Post("/login", cfg.Login)
+			r.With(rateLimit("auth_login_ip", 20, 15*time.Minute)).Post("/login", cfg.Login)
 			if cfg.GoogleLogin != nil && cfg.GoogleCallback != nil {
-				r.Get("/google", cfg.GoogleLogin)
-				r.Get("/google/callback", cfg.GoogleCallback)
+				r.With(rateLimit("auth_google_ip", 30, 10*time.Minute)).Get("/google", cfg.GoogleLogin)
+				r.With(rateLimit("auth_google_callback_ip", 30, 10*time.Minute)).Get("/google/callback", cfg.GoogleCallback)
 			}
-			r.Post("/register", cfg.Register)
-			r.Post("/forgot-password", cfg.ForgotPassword)
-			r.Post("/reset-password", cfg.ResetPassword)
+			r.With(rateLimit("auth_register_ip", 5, time.Hour)).Post("/register", cfg.Register)
+			r.With(rateLimit("auth_forgot_ip", 10, time.Hour)).Post("/forgot-password", cfg.ForgotPassword)
+			r.With(rateLimit("auth_reset_ip", 10, 15*time.Minute)).Post("/reset-password", cfg.ResetPassword)
 			if cfg.Activate != nil {
-				r.Get("/activate", cfg.Activate)
+				r.With(rateLimit("auth_activate_ip", 20, 15*time.Minute)).Get("/activate", cfg.Activate)
 			}
 		})
 
@@ -260,8 +266,8 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			r.Get("/{id}/updates", cfg.GetEventUpdates)
 			r.Get("/{id}/comments", cfg.GetComments)
 			r.Get("/{id}/ticket-types", cfg.GetEventTicketTypes)
-			r.Post("/{id}/promo-code/validate", cfg.ValidatePromoCode)
-			r.With(optionalAuthMiddleware).Post("/{id}/tickets/purchase", cfg.PurchaseTickets)
+			r.With(rateLimit("promo_validate_ip", 30, 10*time.Minute)).Post("/{id}/promo-code/validate", cfg.ValidatePromoCode)
+			r.With(rateLimit("checkout_create_ip", 10, 10*time.Minute), optionalAuthMiddleware).Post("/{id}/tickets/purchase", cfg.PurchaseTickets)
 		})
 		r.With(optionalAuthMiddleware).Get("/promotions/active", cfg.ListActivePromotions)
 		r.With(optionalAuthMiddleware).Post("/promotions/{id}/track", cfg.TrackPromotionMetric)
@@ -375,7 +381,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Get("/dashboard/promotions/plans", cfg.ListPromotionPlans)
 				r.Get("/dashboard/promotions/availability", cfg.GetPromotionAvailability)
 				r.Get("/dashboard/promotions", cfg.ListPromotionCampaigns)
-				r.Post("/dashboard/promotions/checkout", cfg.CreatePromotionCheckout)
+				r.With(rateLimit("promotion_checkout_ip", 10, 10*time.Minute)).Post("/dashboard/promotions/checkout", cfg.CreatePromotionCheckout)
 				r.Post("/dashboard/organizer/profile", cfg.CreateOrganizerProfile)
 				r.Get("/dashboard/organizer/profile/{id}", cfg.GetOrganizerProfile)
 				r.Post("/dashboard/organizer/agreement", cfg.AcceptOrganizerAgreement)

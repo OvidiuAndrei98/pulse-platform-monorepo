@@ -736,8 +736,7 @@ func (h *Handler) HandleRevokeScannerAccess(w http.ResponseWriter, r *http.Reque
 
 func (h *Handler) HandleCreateScannerSession(w http.ResponseWriter, r *http.Request) {
 	var req CreateScannerSessionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		router.RespondWithError(w, http.StatusBadRequest, "Request body invalid")
+	if !router.DecodeJSON(w, r, &req, 4<<10) {
 		return
 	}
 	req.Token = strings.TrimSpace(req.Token)

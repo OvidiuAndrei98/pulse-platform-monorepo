@@ -2,7 +2,6 @@ package promotions
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -30,6 +29,8 @@ const (
 	promotionReservationDuration = 10 * time.Minute
 	homeBannerCapacity           = 5
 )
+
+const maxPromotionJSONBytes = 8 << 10
 
 type Handler struct {
 	queries    *db.Queries
@@ -267,8 +268,7 @@ func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
 		Placement string `json:"placement"`
 		StartDate string `json:"startDate"`
 	}
-	if json.NewDecoder(r.Body).Decode(&body) != nil {
-		router.RespondWithError(w, http.StatusBadRequest, "Datele promovarii sunt invalide")
+	if !router.DecodeJSON(w, r, &body, maxPromotionJSONBytes) {
 		return
 	}
 	plan, exists := planByID(body.Plan, body.Placement)
@@ -485,7 +485,10 @@ func (h *Handler) HandleTrackMetric(w http.ResponseWriter, r *http.Request) {
 		Metric    string `json:"metric"`
 		ViewerKey string `json:"viewerKey"`
 	}
-	if json.NewDecoder(r.Body).Decode(&body) != nil || (body.Metric != "impression" && body.Metric != "click") || len(body.ViewerKey) < 8 || len(body.ViewerKey) > 100 {
+	if !router.DecodeJSON(w, r, &body, maxPromotionJSONBytes) {
+		return
+	}
+	if (body.Metric != "impression" && body.Metric != "click") || len(body.ViewerKey) < 8 || len(body.ViewerKey) > 100 {
 		router.RespondWithError(w, http.StatusBadRequest, "Metric invalid")
 		return
 	}

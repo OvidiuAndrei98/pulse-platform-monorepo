@@ -70,12 +70,12 @@ INSERT INTO orders (
     promo_code_id, discount_amount_ron, invoice_requested, billing_type,
     billing_name, billing_tax_id, billing_registration_number, billing_address,
     billing_city, billing_county, billing_sector, billing_country,
-    stripe_connected_account_id, stripe_charge_type
+    stripe_connected_account_id, stripe_charge_type, reservation_ip_hash
 )
 VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
     $11, $12, $13, $14, $15, $16, $17, $18, $19,
-    $20, $21
+    $20, $21, $22
 )
 RETURNING *;
 
@@ -144,6 +144,32 @@ WHERE status = 'pending'
   AND created_at <= CURRENT_TIMESTAMP - INTERVAL '15 seconds'
 ORDER BY created_at ASC
 LIMIT 50;
+
+-- name: MarkCheckoutReservationForReview :exec
+INSERT INTO checkout_reservation_reviews (order_id, reason)
+VALUES ($1, $2)
+ON CONFLICT (order_id) DO NOTHING;
+
+-- name: MarkStaleSessionlessCheckoutReservationsForReview :execrows
+-- A process may stop after the local reservation commits but before the Stripe
+-- session ID is persisted. Even after the external session lifetime, age does
+-- not prove that payment did not complete before expiry and its webhook was
+-- delayed. Quarantine the unknown outcome; never release inventory blindly.
+INSERT INTO checkout_reservation_reviews (order_id, reason)
+SELECT id, 'external_outcome_unknown'
+FROM orders
+WHERE status = 'pending'
+  AND stripe_checkout_session_id IS NULL
+  AND stripe_connected_account_id IS NOT NULL
+  AND stripe_charge_type = 'direct'
+  AND created_at <= CURRENT_TIMESTAMP - INTERVAL '35 minutes'
+  AND NOT EXISTS (
+      SELECT 1 FROM checkout_reservation_reviews review
+      WHERE review.order_id = orders.id
+  )
+ORDER BY created_at ASC
+LIMIT 50
+ON CONFLICT (order_id) DO NOTHING;
 
 -- name: ListRecentCompletedOrdersWithPendingTicketEmail :many
 SELECT * FROM orders

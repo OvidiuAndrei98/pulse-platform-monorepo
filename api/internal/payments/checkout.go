@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	db "pulse-api/db/generated"
+	"pulse-api/internal/abuse"
 	"pulse-api/internal/auth"
 	"pulse-api/internal/common"
 	"pulse-api/internal/email"
@@ -31,12 +31,18 @@ import (
 )
 
 const (
-	platformFeePercent       = int64(4)
-	platformFeePerTicketBani = int64(250)
-	checkoutExpiration       = 30 * time.Minute
+	platformFeePercent            = int64(4)
+	platformFeePerTicketBani      = int64(250)
+	checkoutExpiration            = 30 * time.Minute
+	maxCheckoutJSONBytes          = 32 << 10
+	maxActiveCheckoutOrders       = 3
+	maxActiveReservedTickets      = 16
+	maxActiveCheckoutOrdersPerIP  = 5
+	maxActiveReservedTicketsPerIP = 32
 )
 
 var errStripeRefundBindingMismatch = errors.New("refundul Stripe nu corespunde platii originale")
+var errTooManyActiveCheckoutReservations = errors.New("too many active checkout reservations")
 
 type CheckoutHandler struct {
 	queries                 *db.Queries
@@ -50,6 +56,7 @@ type CheckoutHandler struct {
 	expectedLiveModeKnown   bool
 	retrieveSession         func(context.Context, string, string) (*stripe.CheckoutSession, error)
 	afterPendingRefundBound func()
+	abuse                   *abuse.Protection
 }
 
 type CheckoutItemRequest struct {
@@ -97,7 +104,7 @@ type checkoutItem struct {
 	unitPrice  int32
 }
 
-func NewCheckoutHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, appURL string, mailer *email.Mailer, invoicingService *invoicing.Service) *CheckoutHandler {
+func NewCheckoutHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, appURL string, mailer *email.Mailer, invoicingService *invoicing.Service, abuseProtection *abuse.Protection) *CheckoutHandler {
 	if appURL == "" {
 		appURL = "http://localhost:3000"
 	}
@@ -113,6 +120,7 @@ func NewCheckoutHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, a
 		configured:            stripeSecret != "",
 		expectedLiveMode:      expectedLiveMode,
 		expectedLiveModeKnown: expectedLiveModeKnown,
+		abuse:                 abuseProtection,
 	}
 }
 
@@ -148,12 +156,15 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	}
 
 	var req CreateCheckoutRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		router.RespondWithError(w, http.StatusBadRequest, "Datele comenzii sunt invalide")
+	if !router.DecodeJSON(w, r, &req, maxCheckoutJSONBytes) {
 		return
 	}
 
 	req.Email = strings.TrimSpace(req.Email)
+	if len(req.Email) == 0 || len(req.Email) > 255 {
+		router.RespondWithError(w, http.StatusBadRequest, "Adresa de email este invalida")
+		return
+	}
 	if address, err := mail.ParseAddress(req.Email); err != nil || address.Address != req.Email {
 		router.RespondWithError(w, http.StatusBadRequest, "Adresa de email este invalida")
 		return
@@ -175,15 +186,29 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	}
 
 	userID := optionalUserID(r.Context())
+	checkoutSubject := "guest:" + strings.ToLower(req.Email)
+	if userID.Valid {
+		checkoutSubject = "user:" + common.UUIDToString(userID)
+	}
+	if h.abuse != nil && !h.abuse.Enforce(r.Context(), w, "checkout_identity_event", checkoutSubject+":"+common.UUIDToString(eventID), 5, 10*time.Minute) {
+		return
+	}
+	var reservationIPHash []byte
+	if h.abuse != nil {
+		reservationIPHash = h.abuse.SubjectDigest("checkout_reservation_ip", h.abuse.ClientIP(r))
+	}
 	items, totalTicketCount, ok := parseCheckoutItems(w, req.Items)
 	if !ok {
 		return
 	}
 
-	order, checkoutItems, eventTitle, eventIDString, organizerStripeAccount, organizerAbsorbsServiceFee, err := h.reserveOrder(r.Context(), eventID, userID, req.Email, items, totalTicketCount, req.PromoCode, billingDetails)
+	order, checkoutItems, eventTitle, eventIDString, organizerStripeAccount, organizerAbsorbsServiceFee, err := h.reserveOrder(r.Context(), eventID, userID, req.Email, reservationIPHash, items, totalTicketCount, req.PromoCode, billingDetails)
 	if err != nil {
 		var requestError *checkoutRequestError
 		if errors.As(err, &requestError) {
+			if requestError.status == http.StatusTooManyRequests {
+				w.Header().Set("Retry-After", "300")
+			}
 			router.RespondWithError(w, requestError.status, requestError.message)
 			return
 		}
@@ -241,11 +266,23 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	}
 
 	session, err := h.client.V1CheckoutSessions.Create(r.Context(), params)
+	createOutcomeUnknown := err != nil && !isDefinitiveStripeCreateFailure(err)
+	if createOutcomeUnknown {
+		// Stripe idempotency makes this retry return the original Session when the
+		// first response was lost after Stripe committed it.
+		retryCtx, retryCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		session, err = h.client.V1CheckoutSessions.Create(retryCtx, params)
+		retryCancel()
+	}
 	if err != nil {
-		_ = h.failOrder(r.Context(), order.ID, "", organizerStripeAccount)
-		if isStripeAccountMissing(err) {
+		if createOutcomeUnknown {
+			h.markCheckoutReservationForReview(order.ID, "stripe_create_outcome_unknown")
+		} else if failErr := h.failOrder(r.Context(), order.ID, "", organizerStripeAccount); failErr != nil {
+			log.Printf("definitive Stripe checkout failure reservation cleanup failed: order=%s", common.UUIDToString(order.ID))
+		}
+		if !createOutcomeUnknown && isStripeAccountMissing(err) {
 			if _, clearErr := h.queries.ClearOrganizerStripeAccount(r.Context(), pgtype.Text{String: organizerStripeAccount, Valid: true}); clearErr != nil && !errors.Is(clearErr, pgx.ErrNoRows) {
-				log.Printf("Stripe account cleanup failed after checkout destination disappeared: account=%s err=%v", organizerStripeAccount, clearErr)
+				log.Print("Stripe account cleanup failed after checkout destination disappeared")
 			}
 			router.RespondWithError(w, http.StatusConflict, "Organizatorul trebuie sa reconecteze contul Stripe inainte de a putea accepta plati")
 			return
@@ -253,13 +290,45 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 		router.RespondWithError(w, http.StatusBadGateway, "Sesiunea de plata Stripe nu a putut fi creata")
 		return
 	}
+	if session == nil || strings.TrimSpace(session.ID) == "" || strings.TrimSpace(session.URL) == "" {
+		h.markCheckoutReservationForReview(order.ID, "stripe_create_outcome_unknown")
+		router.RespondWithError(w, http.StatusBadGateway, "Sesiunea de plata Stripe nu a putut fi confirmata")
+		return
+	}
 
-	if err := h.queries.UpdateOrderCheckoutSession(r.Context(), db.UpdateOrderCheckoutSessionParams{
-		ID:                      order.ID,
-		StripeCheckoutSessionID: pgtype.Text{String: session.ID, Valid: true},
-		StripeLivemode:          session.Livemode,
-		StripePaymentIntentID:   pgtype.Text{String: stripePaymentIntentID(session.PaymentIntent), Valid: session.PaymentIntent != nil && session.PaymentIntent.ID != ""},
-	}); err != nil {
+	updateSession := func(ctx context.Context) error {
+		return h.queries.UpdateOrderCheckoutSession(ctx, db.UpdateOrderCheckoutSessionParams{
+			ID:                      order.ID,
+			StripeCheckoutSessionID: pgtype.Text{String: session.ID, Valid: true},
+			StripeLivemode:          session.Livemode,
+			StripePaymentIntentID:   pgtype.Text{String: stripePaymentIntentID(session.PaymentIntent), Valid: session.PaymentIntent != nil && session.PaymentIntent.ID != ""},
+		})
+	}
+	updateErr := updateSession(r.Context())
+	if updateErr != nil {
+		// Retry once before invalidating the external session. Never release local
+		// inventory while a payable Stripe Checkout Session may still exist.
+		retryCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		updateErr = updateSession(retryCtx)
+		cancel()
+	}
+	if updateErr != nil {
+		expireParams := &stripe.CheckoutSessionExpireParams{}
+		expireParams.SetStripeAccount(organizerStripeAccount)
+		expireCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		expiredSession, expireErr := h.client.V1CheckoutSessions.Expire(expireCtx, session.ID, expireParams)
+		cancel()
+		if checkoutSessionConfirmedExpired(expiredSession, expireErr) {
+			cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			failErr := h.failOrder(cleanupCtx, order.ID, "", organizerStripeAccount)
+			cleanupCancel()
+			if failErr != nil {
+				log.Printf("checkout session expired but reservation cleanup failed: order=%s", common.UUIDToString(order.ID))
+			}
+		} else {
+			log.Printf("checkout session persistence and safe expiration failed: order=%s", common.UUIDToString(order.ID))
+			h.markCheckoutReservationForReview(order.ID, "stripe_session_outcome_unknown")
+		}
 		router.RespondWithError(w, http.StatusInternalServerError, "Sesiunea de plata nu a putut fi salvata")
 		return
 	}
@@ -268,6 +337,31 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 		CheckoutURL: session.URL,
 		OrderID:     common.UUIDToString(order.ID),
 	})
+}
+
+func isDefinitiveStripeCreateFailure(err error) bool {
+	var stripeErr *stripe.Error
+	if !errors.As(err, &stripeErr) {
+		return false
+	}
+	status := stripeErr.HTTPStatusCode
+	return status >= http.StatusBadRequest && status < http.StatusInternalServerError &&
+		status != http.StatusRequestTimeout && status != http.StatusConflict && status != http.StatusTooManyRequests
+}
+
+func checkoutSessionConfirmedExpired(session *stripe.CheckoutSession, err error) bool {
+	return err == nil && session != nil && session.Status == stripe.CheckoutSessionStatusExpired
+}
+
+func (h *CheckoutHandler) markCheckoutReservationForReview(orderID pgtype.UUID, reason string) {
+	reviewCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := h.queries.MarkCheckoutReservationForReview(reviewCtx, db.MarkCheckoutReservationForReviewParams{
+		OrderID: orderID,
+		Reason:  reason,
+	}); err != nil {
+		log.Printf("checkout reservation review marker failed: order=%s", common.UUIDToString(orderID))
+	}
 }
 
 // HandleReconcileCheckout is an idempotent fallback for delayed or missed
@@ -279,14 +373,20 @@ func (h *CheckoutHandler) HandleReconcileCheckout(w http.ResponseWriter, r *http
 	}
 
 	var req ReconcileCheckoutRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		router.RespondWithError(w, http.StatusBadRequest, "Datele sesiunii de plata sunt invalide")
+	if !router.DecodeJSON(w, r, &req, maxCheckoutJSONBytes) {
 		return
 	}
 	req.SessionID = strings.TrimSpace(req.SessionID)
 	req.EventID = strings.TrimSpace(req.EventID)
 	if req.SessionID == "" || req.EventID == "" {
 		router.RespondWithError(w, http.StatusBadRequest, "Sesiunea de plata este invalida")
+		return
+	}
+	if len(req.SessionID) > 255 || len(req.EventID) > 64 {
+		router.RespondWithError(w, http.StatusBadRequest, "Sesiunea de plata este invalida")
+		return
+	}
+	if h.abuse != nil && !h.abuse.Enforce(r.Context(), w, "checkout_reconcile_session", req.SessionID, 10, 10*time.Minute) {
 		return
 	}
 
@@ -296,7 +396,7 @@ func (h *CheckoutHandler) HandleReconcileCheckout(w http.ResponseWriter, r *http
 			router.RespondWithError(w, http.StatusNotFound, "Sesiunea de plata nu a fost gasita")
 			return
 		}
-		log.Printf("checkout success reconciliation failed: session=%s err=%v", req.SessionID, err)
+		log.Printf("checkout success reconciliation failed: event=%s", req.EventID)
 		router.RespondWithError(w, http.StatusBadGateway, "Confirmarea platii este temporar indisponibila")
 		return
 	}
@@ -314,14 +414,17 @@ func (h *CheckoutHandler) HandleValidatePromoCode(w http.ResponseWriter, r *http
 	var req struct {
 		Code string `json:"code"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		router.RespondWithError(w, http.StatusBadRequest, "Date invalide")
+	if !router.DecodeJSON(w, r, &req, maxCheckoutJSONBytes) {
 		return
 	}
 
 	code := strings.ToUpper(strings.TrimSpace(req.Code))
 	if code == "" {
 		router.RespondWithError(w, http.StatusBadRequest, "Codul promo este obligatoriu")
+		return
+	}
+	if len(code) > 64 {
+		router.RespondWithError(w, http.StatusBadRequest, "Codul promo este invalid, expirat sau epuizat")
 		return
 	}
 
@@ -344,7 +447,7 @@ func (h *CheckoutHandler) HandleValidatePromoCode(w http.ResponseWriter, r *http
 	})
 }
 
-func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgtype.UUID, email string, requested map[string]int32, totalTicketCount int32, rawPromoCode string, billing BillingDetailsRequest) (db.Orders, []checkoutItem, string, string, string, bool, error) {
+func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgtype.UUID, email string, reservationIPHash []byte, requested map[string]int32, totalTicketCount int32, rawPromoCode string, billing BillingDetailsRequest) (db.Orders, []checkoutItem, string, string, string, bool, error) {
 	tx, err := h.db.Begin(ctx)
 	if err != nil {
 		return db.Orders{}, nil, "", "", "", false, err
@@ -375,6 +478,16 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	profile, err := qtx.GetOrganizerProfile(ctx, event.OrganizerID)
 	if err != nil || !organizer.CanSellTickets(profile) || !profile.StripeAccountID.Valid {
 		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusConflict, message: "Organizatorul nu poate accepta plati pentru acest eveniment"}
+	}
+
+	if err := enforceActiveCheckoutReservationCap(ctx, tx, eventID, userID, email, reservationIPHash, totalTicketCount); err != nil {
+		if !errors.Is(err, errTooManyActiveCheckoutReservations) {
+			return db.Orders{}, nil, "", "", "", false, err
+		}
+		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{
+			status:  http.StatusTooManyRequests,
+			message: "Ai deja prea multe rezervari de plata active pentru acest eveniment",
+		}
 	}
 
 	keys := make([]string, 0, len(requested))
@@ -478,6 +591,7 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 		BillingCountry:            billing.Country,
 		StripeConnectedAccountID:  pgtype.Text{String: profile.StripeAccountID.String, Valid: true},
 		StripeChargeType:          pgtype.Text{String: directChargeType, Valid: true},
+		ReservationIpHash:         reservationIPHash,
 	})
 	if err != nil {
 		return db.Orders{}, nil, "", "", "", false, err
@@ -504,6 +618,71 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	}
 
 	return order, items, event.Title, common.UUIDToString(eventID), profile.StripeAccountID.String, event.OrganizerAbsorbsServiceFee, nil
+}
+
+func enforceActiveCheckoutReservationCap(ctx context.Context, tx pgx.Tx, eventID, userID pgtype.UUID, email string, reservationIPHash []byte, requestedTickets int32) error {
+	reservationIdentity := "guest:" + strings.ToLower(strings.TrimSpace(email))
+	if userID.Valid {
+		reservationIdentity = "user:" + common.UUIDToString(userID)
+	}
+	eventKey := common.UUIDToString(eventID)
+	lockKeys := []string{"checkout-reservation:" + eventKey + ":" + reservationIdentity}
+	if len(reservationIPHash) > 0 {
+		lockKeys = append(lockKeys, "checkout-reservation-ip:"+eventKey+":"+hex.EncodeToString(reservationIPHash))
+	}
+	// Every transaction takes the same deterministic lock order so requests
+	// sharing either identity or IP cannot deadlock while being serialized.
+	sort.Strings(lockKeys)
+	for _, lockKey := range lockKeys {
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, lockKey); err != nil {
+			return err
+		}
+	}
+
+	var activeOrders, activeTickets int64
+	var err error
+	if userID.Valid {
+		err = tx.QueryRow(ctx, `
+SELECT COUNT(DISTINCT o.id), COALESCE(SUM(oi.quantity), 0)
+FROM orders o
+LEFT JOIN order_items oi ON oi.order_id = o.id
+WHERE o.event_id = $1
+  AND o.status = 'pending'
+  AND o.user_id = $2`,
+			eventID, userID).Scan(&activeOrders, &activeTickets)
+	} else {
+		err = tx.QueryRow(ctx, `
+SELECT COUNT(DISTINCT o.id), COALESCE(SUM(oi.quantity), 0)
+FROM orders o
+LEFT JOIN order_items oi ON oi.order_id = o.id
+WHERE o.event_id = $1
+  AND o.status = 'pending'
+  AND o.user_id IS NULL
+  AND lower(o.email) = lower($2)`,
+			eventID, email).Scan(&activeOrders, &activeTickets)
+	}
+	if err != nil {
+		return err
+	}
+	if activeOrders >= maxActiveCheckoutOrders || activeTickets+int64(requestedTickets) > maxActiveReservedTickets {
+		return errTooManyActiveCheckoutReservations
+	}
+	if len(reservationIPHash) > 0 {
+		if err := tx.QueryRow(ctx, `
+SELECT COUNT(DISTINCT o.id), COALESCE(SUM(oi.quantity), 0)
+FROM orders o
+LEFT JOIN order_items oi ON oi.order_id = o.id
+WHERE o.event_id = $1
+  AND o.status = 'pending'
+  AND o.reservation_ip_hash = $2`,
+			eventID, reservationIPHash).Scan(&activeOrders, &activeTickets); err != nil {
+			return err
+		}
+		if activeOrders >= maxActiveCheckoutOrdersPerIP || activeTickets+int64(requestedTickets) > maxActiveReservedTicketsPerIP {
+			return errTooManyActiveCheckoutReservations
+		}
+	}
+	return nil
 }
 
 func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymentIntentID, orderID, connectedAccountID string, liveMode bool) error {
@@ -551,7 +730,24 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 		}
 		return nil
 	}
-	if order.Status != db.OrderStatusPending || (order.StripeCheckoutSessionID.Valid && order.StripeCheckoutSessionID.String != sessionID) {
+	if order.Status != db.OrderStatusPending {
+		return tx.Commit(ctx)
+	}
+	// Never fulfill from metadata alone. A connected-account operator can create
+	// their own Stripe objects and choose metadata, while only the exact Session
+	// ID persisted by SPOTTR proves this is the checkout we created with the
+	// expected application fee. Sessionless orders remain quarantined until an
+	// operator verifies and binds the external outcome.
+	if !order.StripeCheckoutSessionID.Valid || order.StripeCheckoutSessionID.String == "" {
+		if err := qtx.MarkCheckoutReservationForReview(ctx, db.MarkCheckoutReservationForReviewParams{
+			OrderID: order.ID,
+			Reason:  "unbound_completed_session",
+		}); err != nil {
+			return err
+		}
+		return tx.Commit(ctx)
+	}
+	if order.StripeCheckoutSessionID.String != sessionID || paymentIntentID == "" {
 		return tx.Commit(ctx)
 	}
 
@@ -1237,6 +1433,11 @@ func normalizeBillingDetails(details BillingDetailsRequest) (BillingDetailsReque
 	}
 	if details.Country == "" {
 		details.Country = "Romania"
+	}
+	if len(details.Name) > 255 || len(details.TaxID) > 32 || len(details.RegistrationNumber) > 64 ||
+		len(details.Address) > 500 || len(details.City) > 128 || len(details.County) > 128 ||
+		len(details.Sector) > 16 || len(details.Country) > 64 {
+		return BillingDetailsRequest{}, errors.New("datele de facturare depasesc lungimea permisa")
 	}
 	if details.Type != "individual" && details.Type != "company" {
 		return BillingDetailsRequest{}, errors.New("tipul datelor de facturare este invalid")

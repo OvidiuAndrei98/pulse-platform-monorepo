@@ -273,6 +273,13 @@ type CheckIns struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type CheckoutReservationReviews struct {
+	OrderID    pgtype.UUID        `json:"order_id"`
+	Reason     string             `json:"reason"`
+	DetectedAt pgtype.Timestamptz `json:"detected_at"`
+	ResolvedAt pgtype.Timestamptz `json:"resolved_at"`
+}
+
 type Comments struct {
 	ID        pgtype.UUID        `json:"id"`
 	EventID   pgtype.UUID        `json:"event_id"`
@@ -530,6 +537,7 @@ type Orders struct {
 	PlatformFeeStatus             string             `json:"platform_fee_status"`
 	PlatformFeeRefundedBani       int64              `json:"platform_fee_refunded_bani"`
 	RefundOrigin                  pgtype.Text        `json:"refund_origin"`
+	ReservationIpHash             []byte             `json:"reservation_ip_hash"`
 }
 
 type OrganizerFollows struct {
@@ -635,6 +643,14 @@ type PromotionMetricEvents struct {
 	ViewerKey  string             `json:"viewer_key"`
 	Metric     string             `json:"metric"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+}
+
+type RequestRateLimits struct {
+	Scope        string             `json:"scope"`
+	SubjectHash  []byte             `json:"subject_hash"`
+	AttemptCount int32              `json:"attempt_count"`
+	WindowEnd    pgtype.Timestamptz `json:"window_end"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 type SavedEvents struct {
