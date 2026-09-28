@@ -1,5 +1,7 @@
 "use client";
 
+import { useBackLayer } from "@/lib/navigation/useBackLayer";
+
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import type { Html5Qrcode } from "html5-qrcode";
 import {
@@ -175,6 +177,7 @@ export function QrCameraScanner({
     }
   };
 
+  useBackLayer(running, () => { void stopScanner(); });
   useEffect(() => () => { void stopScanner(); }, []);
 
   const scannerOverlay = fullScreen && (starting || running) ? (

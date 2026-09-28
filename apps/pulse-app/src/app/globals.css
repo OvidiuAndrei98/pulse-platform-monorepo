@@ -84,6 +84,11 @@
 }
 
 @layer base {
+  /* Keep the layout viewport (including fixed navigation) the same width
+     before/after asynchronous content introduces a classic scrollbar.
+     Overlay scrollbars on phones do not reserve a gutter. */
+  html { scrollbar-gutter: stable; }
+
   * {
     border-color: var(--color-border);
     scrollbar-width: thin;
@@ -329,4 +334,12 @@ html.capacitor-native body::before {
   content: "";
   pointer-events: none;
   background: #0b0e0c;
+}
+:root { --bottom-nav-blur: 16px; }
+@media (min-width: 48rem) {
+  :root { --bottom-nav-blur: 40px; }
+}
+[data-bottom-nav-glass] {
+  -webkit-backdrop-filter: blur(var(--bottom-nav-blur));
+  backdrop-filter: blur(var(--bottom-nav-blur));
 }

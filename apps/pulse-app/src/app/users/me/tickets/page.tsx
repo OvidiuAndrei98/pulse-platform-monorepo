@@ -1,6 +1,13 @@
 "use client";
 
+import { useBackLayer } from "@/lib/navigation/useBackLayer";
+
+import { useNavigationState } from "@/lib/navigation/useNavigationState";
+import { RequestError } from "@/components/ui/RequestFeedback";
+import { useClientQuery } from "@/lib/useClientQuery";
+
 import Link from "next/link";
+import { BackLink } from "@/components/BackLink";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -48,23 +55,16 @@ export default function TicketsPage() {
   const { user, loading } = useDataProvider();
   const { t } = useTranslation();
   const router = useRouter();
-  const [tickets, setTickets] = useState<UserTicket[]>([]);
-  const [pending, setPending] = useState(true);
+  const { data: tickets, pending, error, retry } = useClientQuery<UserTicket[]>(
+    user ? `tickets:${user.properties.id}` : null,
+    () => ApiClient.instance.get("/users/me/tickets"), [],
+  );
   const [openTicket, setOpenTicket] = useState<UserTicket | null>(null);
-  const [tab, setTab] = useState<TicketTab>("active");
+  const [tab, setTab] = useNavigationState<TicketTab>("tickets-tab:" + (user?.properties.id ?? "guest"), "active");
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/login");
+    if (!loading && !user) router.replace("/login?returnTo=%2Fusers%2Fme%2Ftickets");
   }, [loading, router, user]);
-
-  useEffect(() => {
-    if (!user) return;
-    ApiClient.instance
-      .get("/users/me/tickets")
-      .then((response) => setTickets(response as UserTicket[]))
-      .catch(() => setTickets([]))
-      .finally(() => setPending(false));
-  }, [user]);
 
   const activeTickets = useMemo(
     () => tickets.filter((ticket) => !ticket.isValidated && !isExpired(ticket)),
@@ -91,17 +91,17 @@ export default function TicketsPage() {
 
   return (
     <main className="app-page-spacing mx-auto min-h-screen max-w-3xl text-foreground">
-      <Link
+      <BackLink
         href="/users/me"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-primary"
       >
         <ChevronLeft className="h-4 w-4" /> {t("tickets.profile")}
-      </Link>
+      </BackLink>
 
       <div className="mt-5">
         <h1 className="text-2xl font-semibold">{t("tickets.title")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t("tickets.count", { count: tickets.length })}
+          {loading || !user || pending ? t("common.loading") : error ? "" : t("tickets.count", { count: tickets.length })}
         </p>
       </div>
 
@@ -145,14 +145,14 @@ export default function TicketsPage() {
                     : "bg-white/10 text-white/70" // Subtle & clean când e inactiv
                 }`}
               >
-                {count}
+                {pending || loading || !user || error ? "—" : count}
               </span>
             </button>
           );
         })}
       </div>
 
-      {pending ? (
+      {loading || !user || pending ? (
         <div className="mt-6 space-y-5">
           {Array.from({ length: 2 }, (_, index) => (
             <section
@@ -170,6 +170,8 @@ export default function TicketsPage() {
             </section>
           ))}
         </div>
+      ) : error ? (
+        <RequestError onRetry={retry} className="mt-7" />
       ) : selectedTickets.length === 0 ? (
         <div className="mt-7 rounded-lg border border-dashed border-white/15 px-5 py-12 text-center">
           <Ticket className="mx-auto h-6 w-6 text-primary" />
@@ -271,6 +273,7 @@ function TicketPreview({
 }) {
   const { t } = useTranslation();
   const [isDesktop, setIsDesktop] = useState(false);
+  useBackLayer(true, onClose);
 
   useEffect(() => {
     const query = window.matchMedia("(min-width: 768px)");
@@ -324,6 +327,7 @@ function TicketPreview({
   if (!isDesktop) {
     return (
       <Drawer
+        historyBack={false}
         open
         onOpenChange={(open) => !open && onClose()}
         shouldScaleBackground={false}

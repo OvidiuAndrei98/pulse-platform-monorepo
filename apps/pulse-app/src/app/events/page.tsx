@@ -1,20 +1,22 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useCachedClientQuery } from "@/lib/useCachedClientQuery";
+import { useDataProvider } from "@/core/DataProviderContext";
 import dynamic from "next/dynamic";
-import { useSearchParams } from "next/navigation";
+import { useDiscoveryState } from "@/features/events/useDiscoveryState";
+import { RequestError, RequestProgress } from "@/components/ui/RequestFeedback";
 import { useTranslation } from "react-i18next";
 import { FiltersSheet } from "@/components/FiltersSheet";
 import { Event, PromotedEvent, PublicEventsService } from "@/core/DataProvider";
 import {
   cityCenters,
   defaultEventFilters,
-  eventDateFilters,
 } from "@/features/events/constants";
 import { EventBrowseCard } from "@/features/events/components/EventBrowseCard";
 import { EventViewToggle } from "@/features/events/components/EventViewToggle";
 import { getEventDateRange } from "@/features/events/dateFilters";
-import { Coordinates, EventFilters } from "@/features/events/types";
+import { Coordinates } from "@/features/events/types";
 import { EventCardSkeleton, PageLoadingState } from "@/components/ui/loading";
 import {
   mixFeedPromotions,
@@ -35,12 +37,6 @@ const EventsMapLayout = dynamic(
     ),
   },
 );
-
-function getDateFilter(value: string | null) {
-  return eventDateFilters.includes(value as (typeof eventDateFilters)[number])
-    ? value!
-    : defaultEventFilters.date;
-}
 
 function trackFeedPromotion(
   campaign: PromotedEvent | undefined,
@@ -75,31 +71,15 @@ export default function EventsPage() {
 
 function EventsPageContent() {
   const { t } = useTranslation();
-  const searchParams = useSearchParams();
-  const requestedDate = getDateFilter(searchParams.get("date"));
-  const hasDateInUrl = searchParams.has("date");
-  const [filters, setFilters] = useState<EventFilters>(() => ({
-    ...defaultEventFilters,
-    date: requestedDate,
-  }));
-  const [view, setView] = useState<"list" | "map">("list");
-  const [events, setEvents] = useState<Event[]>([]);
-  const [promotions, setPromotions] = useState<PromotedEvent[]>([]);
+  const { filters, setFilters, view, setView, ready } = useDiscoveryState();
+  const { user, loading: authLoading } = useDataProvider();
   const [promotionSeed] = useState(
     () => `${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
-  const [eventsLoading, setEventsLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const selectedCityCenter = filters.city
     ? (cityCenters[filters.city] ?? null)
     : null;
-
-  useEffect(() => {
-    setFilters({
-      ...defaultEventFilters,
-      date: hasDateInUrl ? requestedDate : defaultEventFilters.date,
-    });
-  }, [hasDateInUrl, requestedDate]);
 
   const eventQuery = useMemo(() => {
     const dateRange = getEventDateRange(filters.date);
@@ -114,31 +94,23 @@ function EventsPageContent() {
     };
   }, [filters.categories, filters.city, filters.date, filters.vibes]);
 
-  useEffect(() => {
-    let active = true;
-    setEventsLoading(true);
-
-    Promise.all([
-      PublicEventsService.getPublicEvents(eventQuery),
-      PublicEventsService.getPromotedEvents().catch(() => []),
-    ])
-      .then(([nextEvents, nextPromotions]) => {
-        if (!active) return;
-        setEvents(nextEvents);
-        setPromotions(nextPromotions);
-      })
-      .catch((error) => {
-        console.error("Failed to filter events:", error);
-        if (active) setEvents([]);
-      })
-      .finally(() => {
-        if (active) setEventsLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [eventQuery]);
+  // Use the filter values, not the generated current-time ISO string, as the key.
+  // Filters still reset on tab re-entry; only matching results are reused.
+  const discoveryKey = JSON.stringify(["discovery", user?.properties.id ?? "guest", filters.date,
+    filters.city, [...filters.categories].sort(), [...filters.vibes].sort(), new Date().toDateString()]);
+  const discovery = useCachedClientQuery(
+    ready && !authLoading ? discoveryKey : null,
+    () => PublicEventsService.getPublicEvents(eventQuery), [] as Event[],
+  );
+  const promotionQuery = useCachedClientQuery(
+    !authLoading ? `promotions:${user?.properties.id ?? "guest"}` : null,
+    () => PublicEventsService.getPromotedEvents(), [] as PromotedEvent[],
+  );
+  const events = discovery.data;
+  const promotions = promotionQuery.data;
+  const eventsLoading = !ready || authLoading || discovery.pending;
+  const eventsError = Boolean(discovery.error);
+  const retry = discovery.retry;
 
   const feedPromotions = useMemo(
     () => promotions.filter((campaign) => campaign.placement === "feed"),
@@ -175,19 +147,10 @@ function EventsPageContent() {
 
   return (
     <div className="relative h-dvh overflow-hidden overscroll-none text-foreground">
-      <div
-        className={`relative h-full ${
-          view === "map"
-            ? "app-page-gutter pointer-events-none fixed inset-x-0 top-0 z-30 mx-auto max-w-7xl pt-[20px] lg:static lg:pointer-events-auto lg:pt-10"
-            : "flex flex-col"
-        }`}
-      >
-        <div
-          className={`relative z-20 flex flex-wrap items-start justify-between gap-3 sm:items-center ${view === "list" ? "app-page-gutter mx-auto w-full max-w-7xl pt-10" : ""}`}
-        >
-          <div
-            className={`flex  items-center gap-2 sm:w-auto ${view === "map" ? "pointer-events-auto" : ""}`}
-          >
+      <div className="relative flex h-full flex-col">
+        {/* Keep the toolbar in the same page flow, including native safe-area spacing. */}
+        <div className="app-page-gutter pointer-events-none relative z-30 mx-auto flex w-full max-w-7xl shrink-0 flex-wrap items-start justify-between gap-3 pt-10 sm:items-center">
+          <div className="pointer-events-auto flex items-center gap-2 sm:w-auto">
             <EventViewToggle view={view} onChange={setView} />
             <FiltersSheet value={filters} onChange={setFilters} />
           </div>
@@ -195,14 +158,15 @@ function EventsPageContent() {
 
         {view === "list" ? (
           <>
-            <div className="mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div data-nav-scroll="events-list" className="mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
               <div className="app-page-gutter mx-auto w-full max-w-7xl pb-28">
+                {(eventsError || Boolean(discovery.refreshError)) && <RequestError onRetry={retry} className="mb-5" />}
                 <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-4 lg:grid-cols-3">
                   {eventsLoading
                     ? Array.from({ length: 6 }, (_, index) => (
                         <EventCardSkeleton key={index} />
                       ))
-                    : displayedEvents.map((event) => (
+                    : !eventsError && displayedEvents.map((event) => (
                         <EventBrowseCard
                           key={event.id}
                           event={event}
@@ -213,7 +177,7 @@ function EventsPageContent() {
                         />
                       ))}
                 </div>
-                {!eventsLoading && !displayedEvents.length && (
+                {!eventsLoading && !eventsError && !displayedEvents.length && (
                   <div className="mx-auto mt-12 max-w-md border border-dashed border-white/15 px-5 py-10 text-center">
                     <p className="text-sm font-medium">{t("events.noMatch")}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -234,7 +198,12 @@ function EventsPageContent() {
             </div>
           </>
         ) : (
-          <div className="pointer-events-auto fixed inset-0 z-0 w-screen max-w-none bg-transparent lg:static lg:mt-5 lg:w-auto">
+          <div className="pointer-events-auto fixed inset-0 z-0 w-screen max-w-none bg-transparent lg:static lg:mx-auto lg:mt-5 lg:w-full lg:max-w-7xl lg:px-8">
+            {(eventsLoading || eventsError) && (
+              <div className="fixed inset-x-5 bottom-28 z-[1100] mx-auto max-w-md">
+                {eventsLoading ? <RequestProgress label={t("feedback.updatingEvents")} className="rounded-2xl border border-white/10 bg-[#141414] p-4 shadow-lg" /> : <RequestError onRetry={retry} />}
+              </div>
+            )}
             <EventsMapLayout
               events={displayedEvents}
               distanceKm={filters.distance}

@@ -1,5 +1,7 @@
 "use client";
 
+import { useBackLayer } from "@/lib/navigation/useBackLayer";
+
 import { useEffect, useState } from "react";
 import { QrCode } from "lucide-react";
 import { ApiClient } from "@packages/api-client/src/Client";
@@ -19,6 +21,7 @@ export function ProfileConnectionQr() {
   const { user } = useDataProvider();
   const { t } = useTranslation();
   const [showCode, setShowCode] = useState(false);
+  useBackLayer(showCode, () => setShowCode(false));
   const [message, setMessage] = useState("");
   const [isDesktop, setIsDesktop] = useState(false);
 
@@ -100,7 +103,7 @@ export function ProfileConnectionQr() {
           </section>
         </div>
       ) : showCode ? (
-        <Drawer open={showCode} onOpenChange={setShowCode}>
+        <Drawer historyBack={false} open={showCode} onOpenChange={setShowCode}>
           <DrawerContent className="max-h-[86svh] bg-[#101311]">
             <DrawerHeader>
               <DrawerTitle>{t("qr.quickConnect")}</DrawerTitle>

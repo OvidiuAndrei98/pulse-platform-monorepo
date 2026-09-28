@@ -55,7 +55,7 @@ export default function NewEventPage() {
   };
 
   return (
-    <div className="relative text-foreground antialiased pb-[110px]">
+    <div className="relative pb-[calc(8rem+var(--native-safe-bottom,0px))] text-foreground antialiased">
       <div className="app-page-spacing mx-auto max-w-3xl">
         <Link
           href="/dashboard/events"
@@ -71,7 +71,14 @@ export default function NewEventPage() {
           </h1>
         </div>
 
-        <EventForm initialValues={template} onSubmit={handleSave} />
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {t("eventEditor.createHint")}
+        </p>
+        <EventForm
+          mode="create"
+          initialValues={template}
+          onSubmit={handleSave}
+        />
       </div>
     </div>
   );

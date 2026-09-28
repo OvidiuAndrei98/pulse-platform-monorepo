@@ -6,6 +6,7 @@ import {
   ApiClient,
 } from "@packages/api-client/src/Client";
 import { useEffect, useState } from "react";
+import { clearClientQueryCache } from "@/lib/clientQueryCache";
 
 type UserFields = ReadableSchema<"User">;
 export type UserData = ReadableSchema<"User">;
@@ -78,6 +79,7 @@ function deleteKeysWithPrefix<T>(map: Map<string, T>, prefix: string): void {
  * Public, session-independent event caches are intentionally preserved.
  */
 export function clearSessionCaches(userId: string): void {
+  clearClientQueryCache();
   if (!userId) return;
 
   friendsCache.delete(userId);
@@ -386,7 +388,8 @@ export class User {
       params: { path: { userId: profileId } },
       body: { status },
     });
-    friendsCache.delete(this._properties.id);
+    const cached = friendsCache.get(this._properties.id);
+    if (cached) cached.timestamp = 0;
   }
 
   async removeFriend(profileId: string): Promise<void> {
@@ -675,38 +678,21 @@ export class User {
   }
 
   private _events?: Event[];
+  private _eventsUpdatedAt = 0;
   private _eventsPromise?: Promise<Event[]>;
   private _eventsError?: Error;
 
-  private async _getEvents(): Promise<Event[]> {
-    if (this._eventsPromise) {
-      return await this._eventsPromise;
-    }
-
-    let resolve!: (events: Event[]) => void;
-    let reject!: (error: Error) => void;
-    this._eventsPromise = new Promise((r1, r2) => {
-      resolve = r1;
-      reject = r2;
-    });
-
-    try {
-      const events = await ApiClient.instance.get("/events");
-      this._events = events;
-      this._eventsPromise = undefined;
-      this._eventsError = undefined;
-      this.eventsObserversDidChange();
-      resolve(events);
-      return events;
-    } catch (e) {
-      const err = e instanceof Error ? e : new Error(`Unknown error: ${e}`);
-      this._events = undefined;
-      this._eventsPromise = undefined;
-      this._eventsError = err;
-      this.eventsObserversDidChange();
-      reject(err);
-      throw err;
-    }
+  private _getEvents(): Promise<Event[]> {
+    if (this._eventsPromise) return this._eventsPromise;
+    this._eventsError = undefined;
+    this._eventsPromise = ApiClient.instance.get("/events")
+      .then((events) => { this._events = events; this._eventsUpdatedAt = Date.now(); return events; })
+      .catch((error) => {
+        this._eventsError = error instanceof Error ? error : new Error(String(error));
+        throw this._eventsError;
+      })
+      .finally(() => { this._eventsPromise = undefined; this.eventsObserversDidChange(); });
+    return this._eventsPromise;
   }
 
   get eventsPromise() {
@@ -719,7 +705,7 @@ export class User {
 
   get events(): readonly Event[] {
     if (!this._events && !this._eventsError && !this._eventsPromise) {
-      this._getEvents();
+      void this._getEvents().catch(() => undefined);
     }
     return this._events ?? [];
   }
@@ -758,14 +744,16 @@ export class User {
     events: readonly Event[];
     eventsLoading: boolean;
     eventsError?: Error;
+    refresh: () => void;
   } {
+    const [attempt, setAttempt] = useState(0);
     const [events, setEvents] = useState<readonly Event[]>(
       () => user?.events ?? publicEventsCache?.data ?? [],
     );
     const [eventsLoading, setEventsLoading] = useState(() =>
-      user ? !!user.eventsPromise : !publicEventsCache,
+      user ? user._events === undefined : !publicEventsCache,
     );
-    const [eventsError, setEventsError] = useState(() => user?.eventsError);
+    const [eventsError, setEventsError] = useState(() => user?._events === undefined ? user?.eventsError : undefined);
 
     const userId = user?.properties?.id;
 
@@ -777,8 +765,8 @@ export class User {
 
       if (user) {
         setEvents(user.events ?? []);
-        setEventsLoading(!!user.eventsPromise);
-        setEventsError(user.eventsError);
+        setEventsLoading(user._events === undefined && !!user.eventsPromise);
+        setEventsError(user._events === undefined ? user.eventsError : undefined);
 
         const observer = (
           updatedEvents: Event[],
@@ -786,11 +774,14 @@ export class User {
           error?: Error,
         ) => {
           setEvents(updatedEvents);
-          setEventsLoading(loading);
-          setEventsError(error);
+          setEventsLoading(loading && user._events === undefined);
+          setEventsError(user._events === undefined ? error : undefined);
         };
 
         user.addEventsObserver(observer);
+        if (Date.now() - user._eventsUpdatedAt > PUBLIC_CACHE_TTL) {
+          void user._getEvents().catch(() => undefined);
+        }
         return () => {
           user.removeEventsObserver(observer);
         };
@@ -808,7 +799,7 @@ export class User {
         return;
       }
 
-      setEventsLoading(true);
+      setEventsLoading(!publicEventsCache);
 
       if (!publicEventsPromise) {
         publicEventsPromise = PublicEventsService.getPublicEvents()
@@ -832,7 +823,7 @@ export class User {
         })
         .catch((err) => {
           if (isMounted) {
-            setEventsError(err instanceof Error ? err : new Error(String(err)));
+            if (!publicEventsCache) setEventsError(err instanceof Error ? err : new Error(String(err)));
           }
         })
         .finally(() => {
@@ -844,25 +835,35 @@ export class User {
       return () => {
         isMounted = false;
       };
-    }, [userId, user, authLoading]);
+    }, [userId, user, authLoading, attempt]);
 
-    return { events, eventsLoading, eventsError };
+    const refresh = () => {
+      setEventsError(undefined);
+      setEventsLoading(user ? user._events === undefined : !publicEventsCache);
+      if (user) { void user._getEvents().catch(() => undefined); }
+      else { if (publicEventsCache) publicEventsCache.timestamp = 0; setAttempt((value) => value + 1); }
+    };
+    return { events, eventsLoading, eventsError, refresh };
   }
 
   async listHiddenCategories(): Promise<string[]> {
-    return ApiClient.instance.get("/users/me/hidden-categories");
+    const categories = await ApiClient.instance.get("/users/me/hidden-categories");
+    // An empty collection can arrive as JSON null instead of an array.
+    return categories ?? [];
   }
 
   async hideEventCategory(category: string): Promise<void> {
     await ApiClient.instance.post("/users/me/hidden-categories", { body: { category } });
     this._events = undefined;
-    await this._getEvents();
+    void this._getEvents().catch(() => undefined);
+    this.eventsObserversDidChange();
   }
 
   async showEventCategory(category: string): Promise<void> {
     await ApiClient.instance.delete("/users/me/hidden-categories/{category}", { params: { path: { category } } });
     this._events = undefined;
-    await this._getEvents();
+    void this._getEvents().catch(() => undefined);
+    this.eventsObserversDidChange();
   }
 
   async listInvitations(eventId: string): Promise<InvitationTicket[]> {
@@ -1086,11 +1087,11 @@ export class User {
       .get("/friends")
       .then((friends) => {
         const data = friends as PublicProfile[];
-        friendsCache.set(viewerId, { data, timestamp: Date.now() });
+        if (friendsPromises.get(viewerId) === request) friendsCache.set(viewerId, { data, timestamp: Date.now() });
         return data;
       })
       .finally(() => {
-        friendsPromises.delete(viewerId);
+        if (friendsPromises.get(viewerId) === request) friendsPromises.delete(viewerId);
       });
 
     friendsPromises.set(viewerId, request);
@@ -1101,7 +1102,9 @@ export class User {
     friends: readonly PublicProfile[];
     friendsLoading: boolean;
     friendsError?: Error;
+    refresh: () => void;
   } {
+    const [attempt, setAttempt] = useState(0);
     const viewerId = user?.properties.id;
     const cached = viewerId ? friendsCache.get(viewerId) : undefined;
     const [friends, setFriends] = useState<readonly PublicProfile[]>(
@@ -1129,7 +1132,7 @@ export class User {
         return;
       }
 
-      setFriendsLoading(true);
+      setFriendsLoading(!currentCached);
       setFriendsError(undefined);
       User.getFriends(user.properties.id)
         .then((data) => {
@@ -1137,8 +1140,7 @@ export class User {
         })
         .catch((error) => {
           if (!isMounted) return;
-          setFriends([]);
-          setFriendsError(error instanceof Error ? error : new Error(String(error)));
+          if (!currentCached) setFriendsError(error instanceof Error ? error : new Error(String(error)));
         })
         .finally(() => {
           if (isMounted) setFriendsLoading(false);
@@ -1147,9 +1149,14 @@ export class User {
       return () => {
         isMounted = false;
       };
-    }, [user, viewerId]);
+    }, [user, viewerId, attempt]);
 
-    return { friends, friendsLoading, friendsError };
+    const refresh = () => {
+      const cached = viewerId ? friendsCache.get(viewerId) : undefined;
+      if (cached) cached.timestamp = 0;
+      setAttempt((value) => value + 1);
+    };
+    return { friends, friendsLoading, friendsError, refresh };
   }
 
   static async getSocialFeed(viewerId: string): Promise<SocialFeedItem[]> {
@@ -1165,11 +1172,11 @@ export class User {
       .get("/feed")
       .then((items) => {
         const data = items as SocialFeedItem[];
-        socialFeedCache.set(viewerId, { data, timestamp: Date.now() });
+        if (socialFeedPromises.get(viewerId) === request) socialFeedCache.set(viewerId, { data, timestamp: Date.now() });
         return data;
       })
       .finally(() => {
-        socialFeedPromises.delete(viewerId);
+        if (socialFeedPromises.get(viewerId) === request) socialFeedPromises.delete(viewerId);
       });
 
     socialFeedPromises.set(viewerId, request);
@@ -1180,7 +1187,9 @@ export class User {
     items: readonly SocialFeedItem[];
     feedLoading: boolean;
     feedError?: Error;
+    refresh: () => void;
   } {
+    const [attempt, setAttempt] = useState(0);
     const viewerId = user?.properties.id;
     const cached = viewerId ? socialFeedCache.get(viewerId) : undefined;
     const [items, setItems] = useState<readonly SocialFeedItem[]>(
@@ -1208,7 +1217,7 @@ export class User {
         return;
       }
 
-      setFeedLoading(true);
+      setFeedLoading(!currentCached);
       setFeedError(undefined);
       User.getSocialFeed(user.properties.id)
         .then((data) => {
@@ -1216,8 +1225,7 @@ export class User {
         })
         .catch((error) => {
           if (!isMounted) return;
-          setItems([]);
-          setFeedError(error instanceof Error ? error : new Error(String(error)));
+          if (!currentCached) setFeedError(error instanceof Error ? error : new Error(String(error)));
         })
         .finally(() => {
           if (isMounted) setFeedLoading(false);
@@ -1226,9 +1234,14 @@ export class User {
       return () => {
         isMounted = false;
       };
-    }, [user, viewerId]);
+    }, [user, viewerId, attempt]);
 
-    return { items, feedLoading, feedError };
+    const refresh = () => {
+      const cached = viewerId ? socialFeedCache.get(viewerId) : undefined;
+      if (cached) cached.timestamp = 0;
+      setAttempt((value) => value + 1);
+    };
+    return { items, feedLoading, feedError, refresh };
   }
 
   static async getEventUpdates(eventId: string): Promise<OrganizerEventUpdate[]> {

@@ -1,5 +1,9 @@
 "use client";
 
+import { routeForPlatform } from "@/lib/native/navigation";
+import { useBackLayer } from "@/lib/navigation/useBackLayer";
+import { RequestError, RequestProgress } from "@/components/ui/RequestFeedback";
+
 import { AnimatePresence, motion } from "framer-motion";
 import { Search, X, ArrowUpRight, BadgeCheck, UserRound } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -24,8 +28,13 @@ type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 
 export function SearchPopover({ events }: SearchPopoverProps) {
   const [open, setOpen] = useState(false);
+  useBackLayer(open, () => setOpen(false));
   const [query, setQuery] = useState("");
   const [profiles, setProfiles] = useState<PublicProfile[]>([]);
+  const [profileQuery, setProfileQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { t } = useTranslation();
@@ -50,16 +59,24 @@ export function SearchPopover({ events }: SearchPopoverProps) {
   useEffect(() => {
     if (!open || q.length < 2) {
       setProfiles([]);
+      setSearching(false);
+      setSearchError(false);
+      setProfileQuery("");
       return;
     }
+    let active = true;
+    setSearching(true);
+    setSearchError(false);
     const timer = window.setTimeout(() => {
       ApiClient.instance
         .get("/profiles/search", { params: { query: { q } } })
-        .then((data) => setProfiles(data as PublicProfile[]))
-        .catch(() => setProfiles([]));
+        .then((data) => { if (active) { setProfiles(data as PublicProfile[]); setProfileQuery(q); } })
+        .catch(() => { if (active) { setSearchError(true); setProfiles([]); setProfileQuery(q); } })
+        .finally(() => { if (active) setSearching(false); });
     }, 180);
-    return () => window.clearTimeout(timer);
-  }, [open, q]);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [open, q, attempt]);
+  const resultsPending = searching || (q.length >= 2 && profileQuery !== q);
 
   const matchedEvents = useMemo(() => {
     if (!q) return [];
@@ -88,7 +105,8 @@ export function SearchPopover({ events }: SearchPopoverProps) {
   }, [events]);
 
   const navigate = (href: string) => {
-    router.push(href);
+    window.dispatchEvent(new window.Event("spottr:layer-navigation"));
+    router.push(routeForPlatform(href));
     setOpen(false);
   };
 
@@ -205,9 +223,9 @@ export function SearchPopover({ events }: SearchPopoverProps) {
               {q.length >= 2 && (
                 <Section
                   title={t("search.peopleAndOrganizers")}
-                  count={profiles.length}
+                  count={resultsPending || searchError ? undefined : profiles.length}
                 >
-                  {profiles.map((profile) => (
+                  {resultsPending ? <RequestProgress label={t("feedback.searching")} className="px-3 py-5" /> : searchError ? <RequestError onRetry={() => setAttempt((value) => value + 1)} /> : profiles.map((profile) => (
                     <ResultRow
                       key={profile.id}
                       icon={
@@ -228,7 +246,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
                       onClick={() => navigate(`/users/${profile.id}`)}
                     />
                   ))}
-                  {profiles.length === 0 && (
+                  {!resultsPending && !searchError && profiles.length === 0 && (
                     <Empty>{t("search.noProfiles")}</Empty>
                   )}
                 </Section>
@@ -267,7 +285,7 @@ function Section({
   children,
 }: {
   title: string;
-  count: number;
+  count?: number;
   children: React.ReactNode;
 }) {
   return (
@@ -276,9 +294,9 @@ function Section({
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {title}
         </span>
-        <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-muted-foreground">
+        {count !== undefined && <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-muted-foreground">
           {count}
-        </span>
+        </span>}
       </div>
       <div className="space-y-1">{children}</div>
     </section>

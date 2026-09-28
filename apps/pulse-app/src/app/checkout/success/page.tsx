@@ -6,13 +6,15 @@ import { AlertCircle, CheckCircle2, LoaderCircle, Mail, Ticket, UserRoundPlus } 
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
 import { ApiClient } from "@packages/api-client/src/Client";
+import { checkPaymentConfirmation, type ConfirmationResult } from "@/features/checkout/confirmation";
 
-type ConfirmationStatus = "checking" | "pending" | "completed" | "failed";
+type ConfirmationStatus = "checking" | "invalid" | ConfirmationResult;
 
 export default function CheckoutSuccessPage() {
   const { user, loading } = useDataProvider();
   const { t } = useTranslation();
   const [confirmationStatus, setConfirmationStatus] = useState<ConfirmationStatus>("checking");
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -20,39 +22,19 @@ export default function CheckoutSuccessPage() {
     const sessionId = params.get("session_id");
     const eventId = params.get("event_id");
     if (!sessionId || !eventId) {
-      setConfirmationStatus("failed");
+      setConfirmationStatus("invalid");
       return;
     }
 
-    const reconcile = async () => {
-      for (let attempt = 0; attempt < 4 && active; attempt += 1) {
-        try {
-          const result = await ApiClient.instance.post("/checkout/reconcile", {
-            body: { sessionId, eventId },
-          });
-          if (!active) return;
-          if (result.status === "completed") {
-            setConfirmationStatus("completed");
-            return;
-          }
-          if (result.status === "failed" || result.status === "refunded") {
-            setConfirmationStatus("failed");
-            return;
-          }
-          setConfirmationStatus("pending");
-        } catch {
-          if (!active) return;
-          setConfirmationStatus(attempt === 3 ? "failed" : "pending");
-        }
-        await new Promise((resolve) => window.setTimeout(resolve, 1500));
-      }
-    };
-
-    void reconcile();
+    setConfirmationStatus("checking");
+    void checkPaymentConfirmation(
+      () => ApiClient.instance.post("/checkout/reconcile", { body: { sessionId, eventId } }),
+      () => active,
+    ).then((status) => { if (active && status) setConfirmationStatus(status); });
     return () => {
       active = false;
     };
-  }, []);
+  }, [attempt]);
 
   if (loading) {
     return (
@@ -68,28 +50,37 @@ export default function CheckoutSuccessPage() {
 
   const hasAccount = Boolean(user);
   const isCompleted = confirmationStatus === "completed";
-  const isFailed = confirmationStatus === "failed";
+  const isFailed = confirmationStatus === "failed" || confirmationStatus === "invalid";
+  const canRetry = confirmationStatus === "pending" || confirmationStatus === "unavailable";
+  const titleKey = confirmationStatus === "pending" ? "feedback.confirmationPending"
+    : confirmationStatus === "unavailable" ? "feedback.confirmationUnavailable"
+    : isCompleted ? "checkoutSuccess.confirmed" : isFailed ? "checkoutSuccess.problem" : "checkoutSuccess.confirming";
+  const hintKey = confirmationStatus === "pending" ? "feedback.confirmationPendingHint"
+    : confirmationStatus === "unavailable" ? "feedback.confirmationUnavailableHint"
+    : confirmationStatus === "invalid" ? "feedback.confirmationInvalid"
+    : isCompleted ? "checkoutSuccess.confirmedHint" : isFailed ? "checkoutSuccess.problemHint" : "checkoutSuccess.confirmationHint";
 
   return (
     <main className="flex min-h-screen items-center justify-center px-5 pb-28 pt-10">
       <section className="w-full max-w-xl border border-primary/25 bg-background/80 p-6 text-center sm:p-8">
         <span className={`mx-auto grid h-14 w-14 place-items-center rounded-full border ${isFailed ? "border-destructive/35 bg-destructive/15 text-destructive" : "border-primary/35 bg-primary/15 text-primary"}`}>
-          {isCompleted ? <CheckCircle2 className="h-7 w-7" /> : isFailed ? <AlertCircle className="h-7 w-7" /> : <LoaderCircle className="h-7 w-7 animate-spin" />}
+          {isCompleted ? <CheckCircle2 className="h-7 w-7" /> : confirmationStatus === "checking" ? <LoaderCircle className="h-7 w-7 animate-spin" /> : <AlertCircle className="h-7 w-7" />}
         </span>
         <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-primary">{t("checkoutSuccess.thanks")}</p>
-        <h1 className="mt-2 text-2xl font-bold sm:text-3xl">
-          {t(isCompleted ? "checkoutSuccess.confirmed" : isFailed ? "checkoutSuccess.problem" : "checkoutSuccess.confirming")}
+        <h1 aria-live="polite" className="mt-2 text-2xl font-bold sm:text-3xl">
+          {t(titleKey)}
         </h1>
         <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-muted-foreground">
-          {t(isCompleted ? "checkoutSuccess.confirmedHint" : isFailed ? "checkoutSuccess.problemHint" : "checkoutSuccess.confirmationHint")}
+          {t(hintKey)}
         </p>
+        {canRetry && <button type="button" onClick={() => { setConfirmationStatus("checking"); setAttempt((value) => value + 1); }} className="mt-5 min-h-11 rounded-full bg-primary px-6 font-semibold text-white">{t("feedback.checkAgain")}</button>}
 
-        {!isFailed && hasAccount ? (
+        {isCompleted && hasAccount ? (
           <div className="mt-7 border border-white/10 bg-white/[0.03] p-5 text-left">
             <div className="flex gap-3"><Ticket className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><div><h2 className="font-semibold">{t("checkoutSuccess.ticketsInAccount")}</h2><p className="mt-1 text-sm leading-5 text-muted-foreground">{t("checkoutSuccess.ticketsInAccountHint")}</p></div></div>
             <Link href="/users/me" className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground"><Ticket className="h-4 w-4" /> {t("checkoutSuccess.viewTickets")}</Link>
           </div>
-        ) : !isFailed ? (
+        ) : isCompleted ? (
           <div className="mt-7 border border-white/10 bg-white/[0.03] p-5 text-left">
             <div className="flex gap-3"><Mail className="mt-0.5 h-5 w-5 shrink-0 text-primary" /><div><h2 className="font-semibold">{t("checkoutSuccess.ticketsByEmail")}</h2><p className="mt-1 text-sm leading-5 text-muted-foreground">{t("checkoutSuccess.ticketsByEmailHint")}</p></div></div>
             <Link href="/register" className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground"><UserRoundPlus className="h-4 w-4" /> {t("auth.createAccount")}</Link>

@@ -2,8 +2,15 @@
 
 import * as React from "react";
 import { Drawer as DrawerPrimitive } from "vaul";
+import { useBackLayer } from "@/lib/navigation/useBackLayer";
 
-export const Drawer = DrawerPrimitive.Root;
+export function Drawer({ historyBack = true, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root> & { historyBack?: boolean }) {
+  useBackLayer(historyBack && Boolean(props.open), () => {
+    if (props.dismissible === false) return false;
+    props.onOpenChange?.(false);
+  });
+  return <DrawerPrimitive.Root {...props} />;
+}
 export const DrawerTrigger = DrawerPrimitive.Trigger;
 export const DrawerClose = DrawerPrimitive.Close;
 export const DrawerPortal = DrawerPrimitive.Portal;
@@ -22,17 +29,21 @@ DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName;
 
 export const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
->(({ className = "", children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content> & { showHandle?: boolean }
+>(({ className = "", children, showHandle = true, ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay />
     <DrawerPrimitive.Content
       ref={ref}
-      className={`fixed inset-x-0 bottom-0 z-[100] flex flex-col rounded-t-2xl border border-white/15  text-foreground shadow-2xl ${className}`}
+      className={`fixed inset-x-0 bottom-0 z-[100] flex flex-col overflow-visible rounded-t-2xl border border-white/15 text-foreground shadow-2xl ${className}`}
       {...props}
     >
-      <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-white/30" />
-      {children}
+      {/* Vaul extends the surface below the drawer with ::after during upward
+          overscroll. Clip the content here, leaving that extension visible. */}
+      <div data-drawer-body className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ borderRadius: "inherit" }}>
+        {showHandle && <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-white/30" />}
+        {children}
+      </div>
     </DrawerPrimitive.Content>
   </DrawerPortal>
 ));

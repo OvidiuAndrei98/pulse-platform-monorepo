@@ -1,5 +1,13 @@
 "use client";
 
+import { useCachedClientQuery } from "@/lib/useCachedClientQuery";
+import { RequestError } from "@/components/ui/RequestFeedback";
+import { SavedEventCard } from "@/components/profile/SavedEventCard";
+
+import { useBackLayer } from "@/lib/navigation/useBackLayer";
+
+import { useNavigationState } from "@/lib/navigation/useNavigationState";
+
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
@@ -14,17 +22,15 @@ import { PasswordResetRequest } from "@/components/profile/PasswordResetRequest"
 import { LanguagePreferenceRow } from "@/components/profile/LanguagePreferenceRow";
 import { AttendancePrivacyRow } from "@/components/profile/AttendancePrivacyRow";
 import { HiddenEventCategories } from "@/components/profile/HiddenEventCategories";
-import { useEventDetails } from "@/components/EventDetailsSheet";
 import {
   formatEventDate,
-  formatEventDateShort,
   formatEventTime,
 } from "@/features/events/dateFormat";
 import Link from "next/link";
 import { useState } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { useTranslation } from "react-i18next";
-import { PageLoadingState } from "@/components/ui/loading";
+import { ProfileLoadingState } from "@/components/ui/loading";
 import {
   QrCode,
   Ticket,
@@ -101,16 +107,26 @@ function groupTicketsByEvent(tickets: TicketData[]) {
 
 export default function MePage() {
   const { t } = useTranslation();
-  const { open: openEventDetails } = useEventDetails();
   const { user, loading, logout, isOrganizer, updateSessionUser } =
     useDataProvider();
   const router = useRouter();
-  const [tab, setTab] = useState<"active" | "history">("active");
+  const [tab, setTab] = useNavigationState<"active" | "history">("profile-tab:" + (user?.properties.id ?? "guest"), "active");
   const [openTicket, setOpenTicket] = useState<TicketData | null>(null);
-  const [savedEvents, setSavedEvents] = useState<Event[]>([]);
-  const [savedEventsLoading, setSavedEventsLoading] = useState(true);
-  const [tickets, setTickets] = useState<TicketData[]>([]);
-  const [ticketsLoading, setTicketsLoading] = useState(true);
+  useBackLayer(Boolean(openTicket), () => setOpenTicket(null));
+  const savedQuery = useCachedClientQuery<Event[]>(user ? 'saved-events:' + user.properties.id : null, () => user!.getSavedEvents(), []);
+  const { data: savedEvents, pending: savedEventsLoading } = savedQuery;
+  const ticketsQuery = useCachedClientQuery<TicketData[]>(user ? 'profile-tickets:' + user.properties.id : null, async () => {
+    const response: UserTicket[] = await ApiClient.instance.get("/users/me/tickets");
+    return response.map((ticket) => ({
+      id: ticket.id, eventId: ticket.eventId, event: ticket.eventTitle,
+      date: formatEventDate(ticket.startTime), time: formatEventTime(ticket.startTime),
+      location: ticket.locationName, type: ticket.ticketTypeName, hash: ticket.validationHash,
+      startTime: ticket.startTime, endTime: ticket.endTime, isValidated: ticket.isValidated,
+      priceRon: ticket.priceRon, organizerCompanyName: ticket.organizerCompanyName,
+      organizerCui: ticket.organizerCui, organizerFiscalAddress: ticket.organizerFiscalAddress,
+    }));
+  }, []);
+  const { data: tickets, pending: ticketsLoading } = ticketsQuery;
   const [validationEvents, setValidationEvents] = useState<ValidationEvent[]>(
     [],
   );
@@ -120,7 +136,7 @@ export default function MePage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.replace("/login");
+      router.replace("/login?returnTo=%2Fusers%2Fme");
     }
   }, [loading, user, router]);
 
@@ -130,16 +146,7 @@ export default function MePage() {
     }
   }, [isOrganizer, loading, router]);
 
-  useEffect(() => {
-    if (!user) return;
-    user
-      .getSavedEvents()
-      .then(setSavedEvents)
-      .catch((error) =>
-        console.error("Nu s-au putut incarca evenimentele salvate:", error),
-      )
-      .finally(() => setSavedEventsLoading(false));
-  }, [user]);
+
 
   useEffect(() => {
     if (!user || isOrganizer) return;
@@ -149,36 +156,7 @@ export default function MePage() {
       .catch(() => setValidationEvents([]));
   }, [user, isOrganizer]);
 
-  useEffect(() => {
-    if (!user) return;
-    ApiClient.instance
-      .get("/users/me/tickets")
-      .then((response: UserTicket[]) =>
-        setTickets(
-          response.map((ticket) => {
-            return {
-              id: ticket.id,
-              eventId: ticket.eventId,
-              event: ticket.eventTitle,
-              date: formatEventDate(ticket.startTime),
-              time: formatEventTime(ticket.startTime),
-              location: ticket.locationName,
-              type: ticket.ticketTypeName,
-              hash: ticket.validationHash,
-              startTime: ticket.startTime,
-              endTime: ticket.endTime,
-              isValidated: ticket.isValidated,
-              priceRon: ticket.priceRon,
-              organizerCompanyName: ticket.organizerCompanyName,
-              organizerCui: ticket.organizerCui,
-              organizerFiscalAddress: ticket.organizerFiscalAddress,
-            };
-          }),
-        ),
-      )
-      .catch((error) => console.error("Nu s-au putut incarca biletele:", error))
-      .finally(() => setTicketsLoading(false));
-  }, [user]);
+
 
   const handleLogout = () => {
     logout();
@@ -187,7 +165,7 @@ export default function MePage() {
 
   if (loading) {
     return (
-      <PageLoadingState label={t("common.loading")} className="min-h-screen" />
+      <ProfileLoadingState />
     );
   }
 
@@ -312,53 +290,36 @@ export default function MePage() {
 
           <div className="md:col-span-8 space-y-8">
             <section className="md:border md:border-white/5 md:bg-white/[0.01] md:p-6 md:rounded-[26px]">
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-3 flex items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
                   <Bookmark className="h-4 w-4 text-primary" />{" "}
                   {t("userProfile.savedEvents")}
                 </h2>
-                <span className="text-xs text-muted-foreground">
-                  {savedEvents.length}
-                </span>
+                {!savedEventsLoading && !savedQuery.error && savedEvents.length > 4 && (
+                  <Link
+                    href="/users/me/saved-events"
+                    className="ml-1 inline-flex h-8 shrink-0 items-center rounded-full text-xs font-semibold text-primary transition-opacity hover:opacity-80"
+                  >
+                    {t("common.seeAll")}
+                  </Link>
+                )}
               </div>
+              {Boolean(savedQuery.refreshError) && <RequestError onRetry={savedQuery.retry} className="mb-3" />}
               {savedEventsLoading ? (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="h-20 animate-pulse border border-white/10 bg-white/[0.04]" />
                   <div className="h-20 animate-pulse border border-white/10 bg-white/[0.04]" />
                 </div>
+              ) : savedQuery.error ? (
+                <RequestError onRetry={savedQuery.retry} />
               ) : savedEvents.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-white/10 px-4 py-8 text-center text-sm text-muted-foreground">
                   {t("userProfile.noSavedEvents")}
                 </p>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {savedEvents.map((event) => (
-                    <button
-                      type="button"
-                      key={event.id}
-                      onClick={() => openEventDetails(event)}
-                      className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-left transition hover:bg-white/[0.06]"
-                    >
-                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-white/5">
-                        {event.bannerUrl && (
-                          <img
-                            src={event.bannerUrl}
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">
-                          {event.title}
-                        </p>
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {event.locationName} ·{" "}
-                          {formatEventDateShort(event.startTime)}
-                        </p>
-                      </div>
-                      <Bookmark className="h-4 w-4 shrink-0 fill-primary text-primary" />
-                    </button>
+                  {savedEvents.slice(0, 4).map((event) => (
+                    <SavedEventCard key={event.id} event={event} />
                   ))}
                 </div>
               )}
@@ -439,13 +400,16 @@ export default function MePage() {
               </div>
 
               {/* RENDER MOBIL */}
+              {Boolean(ticketsQuery.refreshError) && <RequestError onRetry={ticketsQuery.retry} className="mb-3" />}
               <div className="md:hidden">
                 {tab === "active" ? (
                   ticketsLoading ? (
                     <TicketStackSkeleton />
+                  ) : ticketsQuery.error ? (
+                    <RequestError onRetry={ticketsQuery.retry} />
                   ) : activeTicketGroups.length ? (
                     <>
-                      <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
+                      <div data-nav-scroll="profile-saved-events" className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
                         {activeTicketGroups.map((group) => (
                           <TicketEventStack
                             key={group[0].eventId}
@@ -517,13 +481,15 @@ export default function MePage() {
               <div className="hidden md:grid md:grid-cols-1 md:gap-6">
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                    <Ticket className="h-4 w-4" /> {t("userProfile.activeTickets", { count: activeTickets.length })}
+                    <Ticket className="h-4 w-4" /> {ticketsLoading ? t("common.loading") : ticketsQuery.error ? t("tickets.title") : t("userProfile.activeTickets", { count: activeTickets.length })}
                   </h3>
                   {ticketsLoading ? (
                     <div className="grid grid-cols-2 gap-3">
                       <TicketStackSkeleton />
                       <TicketStackSkeleton />
                     </div>
+                  ) : ticketsQuery.error ? (
+                    <RequestError onRetry={ticketsQuery.retry} />
                   ) : activeTicketGroups.length ? (
                     <>
                       <div className="grid grid-cols-2 gap-3">

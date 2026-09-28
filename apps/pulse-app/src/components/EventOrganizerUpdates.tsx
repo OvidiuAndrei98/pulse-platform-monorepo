@@ -23,9 +23,9 @@ export function EventOrganizerUpdates({
         <h3 className="text-sm font-semibold text-foreground/90">
           {t("organizerUpdates.title")}
         </h3>
-        <div className="mt-3 flex gap-3 overflow-hidden">
+        <div className="mt-3 flex gap-3 overflow-hidden pb-1">
           {[0, 1].map((item) => (
-            <div key={item} className="h-40 min-w-[10.5rem] animate-pulse rounded-2xl bg-white/[0.05]" />
+            <div key={item} className="h-44 w-48 shrink-0 animate-pulse rounded-2xl bg-white/[0.05] sm:w-56" />
           ))}
         </div>
       </section>
@@ -43,12 +43,13 @@ export function EventOrganizerUpdates({
         {updates.map((update) => (
           <article
             key={update.id}
-            className="group relative h-44 min-w-[12rem] snap-start overflow-hidden rounded-2xl border border-white/10 bg-black sm:min-w-[14rem]"
+            className="group relative h-44 w-48 shrink-0 snap-start overflow-hidden rounded-2xl border border-white/10 bg-black sm:w-56"
           >
             <img
               src={update.imageUrl}
               alt=""
-              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+              loading="lazy"
+              className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 p-3">
