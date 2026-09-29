@@ -98,3 +98,41 @@ test('unmounted queries are bounded while actively viewed data remains cached', 
   assert.equal(c.readClientQuery('active').data[0], 'visible');
   unsubscribe();
 });
+
+test('fresh queries honor their TTL while an explicit refresh bypasses it', async () => {
+  const c = cache();
+  let calls = 0;
+  const load = async () => [++calls];
+  await c.refreshClientQuery('ttl', load, { staleTimeMs: 60_000 });
+  await c.refreshClientQuery('ttl', load, { staleTimeMs: 60_000 });
+  assert.equal(calls, 1);
+  await c.refreshClientQuery('ttl', load, { staleTimeMs: 60_000, force: true });
+  assert.equal(calls, 2);
+  assert.equal(c.readClientQuery('ttl').data[0], 2);
+});
+
+test('imperative readers reuse the same cached query and stale data survives refresh failure', async () => {
+  const c = cache();
+  let calls = 0;
+  const first = await c.getClientQuery('profile', async () => ({ name: `user-${++calls}` }), 60_000);
+  const second = await c.getClientQuery('profile', async () => ({ name: `user-${++calls}` }), 60_000);
+  assert.equal(first, second);
+  assert.equal(calls, 1);
+  await c.refreshClientQuery('profile', async () => { throw new Error('offline'); }, { force: true });
+  const stale = await c.getClientQuery('profile', async () => { throw new Error('offline'); }, 60_000);
+  assert.equal(stale.name, 'user-1');
+});
+
+test('one mutation can update every matching display query without touching other keys', async () => {
+  const c = cache();
+  await c.refreshClientQuery('events:guest', async () => [{ id: 'event', saved: false }]);
+  await c.refreshClientQuery('events:user', async () => [{ id: 'event', saved: false }]);
+  await c.refreshClientQuery('friends:user', async () => [{ id: 'friend' }]);
+  c.updateClientQueries(
+    key => key.startsWith('events:'),
+    rows => rows.map(row => ({ ...row, saved: true })),
+  );
+  assert.equal(c.readClientQuery('events:guest').data[0].saved, true);
+  assert.equal(c.readClientQuery('events:user').data[0].saved, true);
+  assert.equal(c.readClientQuery('friends:user').data[0].saved, undefined);
+});
