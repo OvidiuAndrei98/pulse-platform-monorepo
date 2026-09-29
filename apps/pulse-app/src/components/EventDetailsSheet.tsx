@@ -186,6 +186,22 @@ export function EventDetailsSheet({
 
     // On mobile, preserve the current checkout step until Vaul finishes its
     // exit. Replacing it with event details mid-slide changes focus and layout.
+    // Vaul's onAnimationEnd only runs for changes requested inside the drawer,
+    // not when navigation sets the controlled open prop to false. Wait for the
+    // actual surface animation so those exits also release the body scroll lock.
+    let cancelled = false;
+    const frame = window.requestAnimationFrame(() => {
+      const animations = mobileSheetRef.current?.getAnimations() ?? [];
+      void Promise.allSettled(animations.map(animation => animation.finished)).then(() => {
+        if (cancelled || activeEventRef.current) return;
+        setDisplayedEvent(null);
+        setCheckoutOpen(false);
+      });
+    });
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+    };
   }, [activeEvent, isDesktop]);
 
   useEffect(() => {

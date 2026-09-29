@@ -8,7 +8,25 @@ import (
 	"net/mail"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestTicketCardUsesSharedTemplateAndEscapesValues(t *testing.T) {
+	ticket := TicketDelivery{ID: "ticket-123", TicketTypeName: `VIP <script> & {{title}}`, StartTime: time.Date(2026, 9, 29, 18, 30, 0, 0, time.UTC)}
+	card := renderTicketCard(ticket, `Night <img onerror="bad">`, "Bucuresti & friends", "spottr-ticket-1")
+	for _, expected := range []string{`data-ticket-pass="true"`, "#ff0044", `src="cid:spottr-ticket-1"`, "29.09.2026 · 21:30", "ticket-123", "&lt;script&gt; &amp; {{title}}", "Bucuresti &amp; friends"} {
+		if !strings.Contains(card, expected) {
+			t.Fatalf("missing %q", expected)
+		}
+	}
+	if strings.Contains(card, `<img onerror=`) {
+		t.Fatal("unescaped event title")
+	}
+	ticket.StartTime = time.Date(2026, 12, 1, 18, 30, 0, 0, time.UTC)
+	if !strings.Contains(renderTicketCard(ticket, "Night", "Venue", "qr"), "01.12.2026 · 20:30") {
+		t.Fatal("winter timezone is incorrect")
+	}
+}
 
 func TestEmailLayoutUsesSpottrBrandAndEscapesDynamicText(t *testing.T) {
 	result := emailLayout("preview <unsafe>", "title <unsafe>", "<p>trusted content</p>")

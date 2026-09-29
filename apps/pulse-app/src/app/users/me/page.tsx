@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { Event } from "@/core/DataProvider";
 import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
-import { TicketQrCode } from "@/components/tickets/TicketQrCode";
+import { TicketPass } from "@/components/tickets/TicketPass";
 import { TicketPdfButton } from "@/components/tickets/TicketPdfButton";
 import { ProfileConnectionQr } from "@/components/social/ProfileConnectionQr";
 import { ProfileAvatarUpload } from "@/components/profile/ProfileAvatarUpload";
@@ -794,46 +794,18 @@ function TicketModal({
           >
             <X className="h-4 w-4" />
           </button>
-          <div className="mt-4 flex items-center gap-2 md:mt-6">
-            <span className="rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">
-              {ticket.type}
-            </span>
-            <span className="text-[11px] text-muted-foreground">
-              {ticket.id}
-            </span>
-          </div>
-          <h3 className="mt-2 text-xl font-bold leading-snug tracking-tight text-white">
-            {ticket.event}
-          </h3>
-          <div className="mt-6 flex justify-center">
-            <div className="rounded-2xl bg-white p-4 shadow-xl">
-              <TicketQrCode value={ticket.hash} size={220} />
-            </div>
-          </div>
-          <div className="mt-6 space-y-3 border-t border-b border-white/5 py-4 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="h-4 w-4 shrink-0" />
-              <span>
-                {ticket.date} · {ticket.time}
-              </span>
-            </div>
-            <a
-              href={`https://maps.google.com/?q=${encodeURIComponent(ticket.location)}`}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-start gap-2 text-primary underline-offset-2 hover:underline"
-            >
-              <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-              <span className="leading-tight">{ticket.location}</span>
-            </a>
-          </div>
+          <div className="mt-10"><TicketPass ticket={{
+            id: ticket.id, eventTitle: ticket.event, ticketTypeName: ticket.type,
+            validationHash: ticket.hash, startTime: ticket.startTime ?? "", locationName: ticket.location,
+          }} /></div>
+          <a href={`https://maps.google.com/?q=${encodeURIComponent(ticket.location)}`} target="_blank" rel="noreferrer" className="mt-4 flex min-h-11 items-center gap-2 text-sm text-primary"><MapPin className="h-4 w-4" />{ticket.location}</a>
           <TicketPdfButton
             ticket={{
               id: ticket.id,
               eventTitle: ticket.event,
               ticketTypeName: ticket.type,
               validationHash: ticket.hash,
-              startTime: ticket.startTime ?? new Date().toISOString(),
+              startTime: ticket.startTime ?? "",
               locationName: ticket.location,
               priceRon: ticket.priceRon,
               organizerCompanyName: ticket.organizerCompanyName,

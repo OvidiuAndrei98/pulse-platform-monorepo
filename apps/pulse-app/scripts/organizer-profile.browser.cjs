@@ -75,6 +75,25 @@ async function run() {
     await delay(250);
   };
   const button = (text) => `Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === ${JSON.stringify(text)})`;
+  const checkVerticalScroll = async (width, context) => {
+    await evaluate("window.dispatchEvent(new Event('spottr:cancel-scroll-restore')); window.scrollTo({top:0,behavior:'instant'})");
+    await delay(550);
+    if (width < 768) {
+      await call('Emulation.setTouchEmulationEnabled', { enabled: true });
+      await call('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{x:170,y:600}] });
+      await delay(30);
+      for (const y of [570,530,480,430,380]) {
+        await call('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{x:170,y}] });
+        await delay(40);
+      }
+      await call('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    } else {
+      await call('Input.dispatchMouseEvent', {type:'mouseWheel',x:300,y:600,deltaX:0,deltaY:300});
+    }
+    await delay(600);
+    const state = await evaluate(`({y:scrollY,body:document.body.style.cssText,overflow:getComputedStyle(document.body).overflowY,lock:document.body.getAttribute('data-scroll-locked'),drawers:document.querySelectorAll('[data-vaul-drawer]').length})`);
+    assert.ok(state.y > 50, context + ': vertical scrolling works: ' + JSON.stringify(state));
+  };
 
   // Intercept every API call before hydration. No real account or payment is used.
   await call("Page.addScriptToEvaluateOnNewDocument", { source: `
@@ -148,6 +167,7 @@ async function run() {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: width < 768 });
     await navigate('/profiles?userId=test-organizer');
     await until("document.querySelectorAll('[data-organizer-events=upcoming] [data-event-card]').length === 4 && document.querySelector('[data-organizer-events=past] [data-event-card]')");
+    await checkVerticalScroll(width, 'Direct organizer visit');
     const geometry = await evaluate(`(() => {
       const cards = [...document.querySelectorAll('[data-organizer-events=upcoming] [data-event-card]')].map(e => e.getBoundingClientRect().toJSON());
       return { cards, overflow: document.documentElement.scrollWidth > innerWidth, heading: document.querySelector('h1').textContent };
@@ -195,6 +215,7 @@ async function run() {
     await evaluate('history.back()');
     await until("!document.querySelector('[data-organizer-info]')");
     assert.ok(await evaluate("location.pathname === '/profiles' && document.querySelector('[data-organizer-profile]') !== null"), 'Back dismisses Info without leaving the organizer');
+    await checkVerticalScroll(width, 'After closing Info');
     await evaluate(`Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === 'Follow').click()`);
     await until("window.__organizer.follows === 1 && Array.from(document.querySelectorAll('button')).some(b => b.textContent.trim() === 'Following' && !b.disabled)");
     await evaluate("document.querySelector('button[aria-label=\"Share profile\"]').click()");
@@ -207,6 +228,12 @@ async function run() {
       await until("!new URLSearchParams(location.search).has('eventId') && !document.querySelector('[data-nav-scroll^=\"event-sheet:\"]')");
     }
     await until("document.body.innerText.includes('See you on the dance floor')");
+    await evaluate("document.querySelector('[data-organizer-events=upcoming] [data-event-card]').click()");
+    await until("Array.from(document.querySelectorAll('[data-nav-scroll^=\"event-sheet:\"] button')).some(b => b.textContent.includes('Night Collective'))");
+    await delay(550);
+    await evaluate("Array.from(document.querySelectorAll('[data-nav-scroll^=\"event-sheet:\"] button')).find(b => b.textContent.includes('Night Collective')).click()");
+    await until("location.pathname === '/users/test-organizer' && document.querySelector('[data-organizer-profile]') && !document.querySelector('[data-nav-scroll^=\"event-sheet:\"]')");
+    await checkVerticalScroll(width, 'Organizer reached from event sheet');
     // Screenshot the normal page, after both event sheets have closed.
     await evaluate("window.dispatchEvent(new Event('spottr:cancel-scroll-restore')); window.scrollTo(0,0)");
     await delay(550);

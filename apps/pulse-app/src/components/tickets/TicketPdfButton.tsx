@@ -3,36 +3,13 @@
 import { useState } from "react";
 import QRCode from "qrcode";
 import { Download } from "lucide-react";
-import { formatEventDateTime } from "@/features/events/dateFormat";
+import { renderTicketPass, escapeTicketHtml as escapeHtml, type PrintableTicket } from "./ticketDesign";
 import { useTranslation } from "react-i18next";
-
-type PrintableTicket = {
-  id: string;
-  eventTitle: string;
-  ticketTypeName: string;
-  validationHash: string;
-  startTime: string;
-  locationName: string;
-  priceRon?: number;
-  organizerCompanyName?: string;
-  organizerCui?: string;
-  organizerFiscalAddress?: string;
-};
 
 type TicketPdfButtonProps = {
   ticket: PrintableTicket;
   className?: string;
 };
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>'"]/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "'": "&#39;",
-    "\"": "&quot;",
-  })[character] ?? character);
-}
 
 async function openTicketPdf(ticket: PrintableTicket, t: (key: string, options?: Record<string, unknown>) => string, language: string) {
   const printWindow = window.open("", "_blank", "popup,width=760,height=900");
@@ -43,11 +20,11 @@ async function openTicketPdf(ticket: PrintableTicket, t: (key: string, options?:
 
   const qrCode = await QRCode.toDataURL(ticket.validationHash, {
     width: 480,
-    margin: 1,
+    margin: 4,
     errorCorrectionLevel: "M",
     color: { dark: "#000000", light: "#ffffff" },
   });
-  const date = formatEventDateTime(ticket.startTime);
+  const card = renderTicketPass(ticket, qrCode, t);
   const price = ticket.priceRon;
   const formatRon = (amount: number) => `${new Intl.NumberFormat(language === "ro" ? "ro-RO" : "en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)} RON`;
   const organizerDetails = ticket.organizerCompanyName
@@ -65,45 +42,23 @@ async function openTicketPdf(ticket: PrintableTicket, t: (key: string, options?:
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>${escapeHtml(ticket.eventTitle)} - ${escapeHtml(t("ticketPdf.ticket"))}</title>
         <style>
-          @page { size: A4; margin: 18mm; }
+          @page { size: A4; margin: 12mm; }
           * { box-sizing: border-box; }
-          body { margin: 0; background: #101311; color: #f5f7f5; font-family: Arial, Helvetica, sans-serif; }
-          main { width: min(100%, 680px); margin: 40px auto; border: 1px solid #2d3830; background: #111612; }
-          header { padding: 32px; border-bottom: 1px solid #2d3830; }
-          .eyebrow { margin: 0 0 12px; color: #8cff5a; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
-          h1 { margin: 0; font-size: 28px; line-height: 1.15; }
-          .type { display: inline-block; margin-top: 16px; border: 1px solid #4d8d37; border-radius: 999px; padding: 5px 9px; color: #8cff5a; font-size: 12px; font-weight: 700; }
-          section { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 28px; padding: 32px; align-items: center; }
-          .details { display: block; padding: 24px 32px; border-top: 1px solid #2d3830; }
-          .details h2 { margin: 0 0 18px; font-size: 14px; }
-          dl { margin: 0; display: grid; gap: 20px; }
-          dt { margin-bottom: 5px; color: #aab2ac; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-          dd { margin: 0; font-size: 15px; line-height: 1.45; }
-          .id { color: #aab2ac; font-family: monospace; font-size: 11px; overflow-wrap: anywhere; }
-          img { display: block; width: 220px; height: 220px; background: white; padding: 10px; }
-          footer { padding: 20px 32px; border-top: 1px solid #2d3830; color: #aab2ac; font-size: 12px; }
-          @media print { body { background: #fff; color: #111; } main { margin: 0 auto; border-color: #ccd4cc; background: #fff; } header, footer { border-color: #ccd4cc; } .eyebrow, .type { color: #2e7d32; } .type { border-color: #2e7d32; } dt, .id, footer { color: #536055; } }
-          @media (max-width: 560px) { main { margin: 0; } section { grid-template-columns: 1fr; } img { width: min(100%, 260px); height: auto; } }
+          body { margin: 0; background: #000; color: #fff; font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          main { max-width: 440px; margin: 24px auto; }
+          [data-ticket-pass] { break-inside: avoid; }
+          .details { padding: 20px 22px; margin-top: 16px; border: 1px solid #343434; border-radius: 24px; background: #0a0a0a; break-inside: avoid; }
+          .details h2 { margin: 0 0 12px; color: #ff0044; font-size: 13px; }
+          dl { margin: 0; } dt { margin-top: 12px; color: #999; font-size: 10px; } dd { margin: 4px 0 0; color: #fff; font-size: 12px; overflow-wrap: anywhere; }
+          @media print { body { background: #fff; } main { margin: 0 auto; } }
+          @media (max-width: 480px) { main { margin: 12px; } }
         </style>
       </head>
       <body>
         <main>
-          <header>
-            <p class="eyebrow">${escapeHtml(t("ticketPdf.glowTicket"))}</p>
-            <h1>${escapeHtml(ticket.eventTitle)}</h1>
-            <span class="type">${escapeHtml(ticket.ticketTypeName)}</span>
-          </header>
-          <section>
-            <dl>
-              <div><dt>${escapeHtml(t("ticketPdf.dateAndTime"))}</dt><dd>${escapeHtml(date)}</dd></div>
-              <div><dt>${escapeHtml(t("ticketPdf.location"))}</dt><dd>${escapeHtml(ticket.locationName)}</dd></div>
-              <div><dt>${escapeHtml(t("ticketPdf.ticketCode"))}</dt><dd class="id">${escapeHtml(ticket.id)}</dd></div>
-            </dl>
-            <img src="${qrCode}" alt="${escapeHtml(t("ticketPdf.ticketQr"))}" />
-          </section>
+          ${card}
           ${organizerDetails}
           ${paymentDetails}
-          <footer>${escapeHtml(t("ticketPdf.validationHint"))}</footer>
         </main>
         <script>window.onload = () => window.print(); window.onafterprint = () => window.close();<\/script>
       </body>
