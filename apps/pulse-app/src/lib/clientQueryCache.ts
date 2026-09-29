@@ -3,8 +3,10 @@ type Snapshot<T> = {
   hasData: boolean;
   refreshing: boolean;
   error: unknown;
+  updatedAt: number;
 };
 type Entry = { snapshot: Snapshot<unknown>; request?: Promise<void> };
+type RefreshOptions = { staleTimeMs?: number; force?: boolean };
 const entries = new Map<string, Entry>();
 const listeners = new Map<string, Set<() => void>>();
 const MAX_ENTRIES = 80;
@@ -27,16 +29,43 @@ export function subscribeClientQuery(key: string, listener: () => void) {
   };
 }
 
-export function refreshClientQuery<T>(key: string, load: () => Promise<T>): Promise<void> {
+export function refreshClientQuery<T>(
+  key: string,
+  load: () => Promise<T>,
+  options: RefreshOptions = {},
+): Promise<void> {
   const existing = entries.get(key);
   if (existing?.request) return existing.request;
-  const entry: Entry = existing ?? { snapshot: { data: undefined, hasData: false, refreshing: false, error: null } };
+  const staleTimeMs = options.staleTimeMs ?? 0;
+  if (
+    !options.force &&
+    existing?.snapshot.hasData &&
+    !existing.snapshot.error &&
+    Date.now() - existing.snapshot.updatedAt < staleTimeMs
+  ) {
+    return Promise.resolve();
+  }
+  const entry: Entry = existing ?? {
+    snapshot: {
+      data: undefined,
+      hasData: false,
+      refreshing: false,
+      error: null,
+      updatedAt: 0,
+    },
+  };
   entries.delete(key);
   entries.set(key, entry);
   entry.snapshot = { ...entry.snapshot, refreshing: true, error: null };
   entry.request = Promise.resolve().then(load).then((data) => {
     if (entries.get(key) !== entry) return;
-    entry.snapshot = { data, hasData: true, refreshing: false, error: null };
+    entry.snapshot = {
+      data,
+      hasData: true,
+      refreshing: false,
+      error: null,
+      updatedAt: Date.now(),
+    };
   }, (error: unknown) => {
     if (entries.get(key) !== entry) return;
     entry.snapshot = { ...entry.snapshot, refreshing: false, error };
@@ -57,8 +86,37 @@ export function refreshClientQuery<T>(key: string, load: () => Promise<T>): Prom
 export function updateClientQuery<T>(key: string, update: (data: T) => T) {
   const current = readClientQuery<T>(key);
   if (!current?.hasData) return;
-  entries.set(key, { snapshot: { data: update(current.data as T), hasData: true, refreshing: false, error: null } });
+  entries.set(key, {
+    snapshot: {
+      data: update(current.data as T),
+      hasData: true,
+      refreshing: false,
+      error: null,
+      updatedAt: Date.now(),
+    },
+  });
   notify(key);
+}
+
+export function updateClientQueries<T>(
+  matches: (key: string) => boolean,
+  update: (data: T, key: string) => T,
+) {
+  for (const key of [...entries.keys()]) {
+    if (matches(key)) updateClientQuery<T>(key, (data) => update(data, key));
+  }
+}
+
+export async function getClientQuery<T>(
+  key: string,
+  load: () => Promise<T>,
+  staleTimeMs = 0,
+): Promise<T> {
+  await refreshClientQuery(key, load, { staleTimeMs });
+  const snapshot = readClientQuery<T>(key);
+  if (snapshot?.hasData) return snapshot.data as T;
+  if (snapshot?.error != null) throw snapshot.error;
+  throw new Error(`Client query ${key} did not return data`);
 }
 
 // Clear on logout; in-flight responses cannot repopulate the new session.

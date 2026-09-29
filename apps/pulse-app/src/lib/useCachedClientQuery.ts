@@ -5,16 +5,24 @@ import { readClientQuery, refreshClientQuery, subscribeClientQuery, updateClient
 
 // Only opt in display data. Checkout/payment state must always be checked live.
 // Cache keys must include the account and all parameters that affect the result.
-export function useCachedClientQuery<T>(key: string | null, load: () => Promise<T>, initial: T) {
+export function useCachedClientQuery<T>(
+  key: string | null,
+  load: () => Promise<T>,
+  initial: T,
+  options: { staleTimeMs?: number } = {},
+) {
   const loader = useRef(load);
   loader.current = load;
+  const staleTimeMs = options.staleTimeMs ?? 0;
   const subscribe = useCallback((listener: () => void) => key ? subscribeClientQuery(key, listener) : () => {}, [key]);
   const snapshot = useCallback(() => key ? readClientQuery<T>(key) : undefined, [key]);
   const state = useSyncExternalStore(subscribe, snapshot, () => undefined);
-  const retry = useCallback(() => {
-    if (key) void refreshClientQuery(key, loader.current);
-  }, [key]);
-  useEffect(retry, [retry]);
+  const retry = useCallback(() => (
+    key ? refreshClientQuery(key, loader.current, { force: true }) : Promise.resolve()
+  ), [key]);
+  useEffect(() => {
+    if (key) void refreshClientQuery(key, loader.current, { staleTimeMs });
+  }, [key, staleTimeMs]);
   const setData = useCallback((update: (data: T) => T) => {
     if (key) updateClientQuery(key, update);
   }, [key]);
