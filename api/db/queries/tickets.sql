@@ -229,7 +229,8 @@ WHERE id = sqlc.arg(id);
 
 -- name: ListOrderTicketEmailDetails :many
 SELECT o.email, o.user_id, o.ticket_email_sent_at, e.title AS event_title,
-       e.location_name, tt.name AS ticket_type_name, t.validation_hash
+       e.location_name, tt.name AS ticket_type_name, t.validation_hash,
+       t.id AS ticket_id, e.start_time
 FROM orders o
 JOIN events e ON e.id = o.event_id
 JOIN tickets t ON t.order_id = o.id

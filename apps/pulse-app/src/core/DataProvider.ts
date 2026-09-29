@@ -5,7 +5,14 @@ import {
   WritableSchema,
   ApiClient,
 } from "@packages/api-client/src/Client";
-import { useEffect, useState } from "react";
+import {
+  clearClientQueryCache,
+  getClientQuery,
+  refreshClientQuery,
+  updateClientQueries,
+  updateClientQuery,
+} from "@/lib/clientQueryCache";
+import { useCachedClientQuery } from "@/lib/useCachedClientQuery";
 
 type UserFields = ReadableSchema<"User">;
 export type UserData = ReadableSchema<"User">;
@@ -44,60 +51,38 @@ export type OrganizerEventUpdate = ReadableSchema<"OrganizerEventUpdateResponse"
 export type AppNotification = ReadableSchema<"NotificationResponse">;
 export type NotificationList = ReadableSchema<"NotificationListResponse">;
 
-let publicEventsCache: { data: Event[]; timestamp: number } | null = null;
-let publicEventsPromise: Promise<Event[]> | null = null;
 const PUBLIC_CACHE_TTL = 2 * 60 * 1000;
 const EVENT_FRIENDS_CACHE_TTL = 2 * 60 * 1000;
 const SOCIAL_CACHE_TTL = 60 * 1000;
 
-type CachedValue<T> = { data: T; timestamp: number };
+const queryKey = {
+  events: (viewerId: string) => `events:${viewerId}`,
+  organizerEvents: (organizerId: string) => `organizer-events:${organizerId}`,
+  friends: (viewerId: string) => `friends:${viewerId}`,
+  socialFeed: (viewerId: string) => `social-feed:${viewerId}`,
+  notifications: (viewerId: string) => `notifications:${viewerId}`,
+  eventUpdates: (eventId: string) => `event-updates:${eventId}`,
+  organizerUpdates: (organizerId: string) => `organizer-updates:${organizerId}`,
+  eventFriends: (viewerId: string, eventId: string) =>
+    `event-friends:${viewerId}:${eventId}`,
+  publicProfile: (viewerId: string, profileId: string) =>
+    `public-profile:${viewerId}:${profileId}`,
+};
 
-const eventFriendsCache = new Map<string, CachedValue<EventAttendee[]>>();
-const eventFriendsPromises = new Map<string, Promise<EventAttendee[]>>();
-const publicProfileCache = new Map<string, CachedValue<PublicProfile>>();
-const publicProfilePromises = new Map<string, Promise<PublicProfile>>();
-const friendsCache = new Map<string, CachedValue<PublicProfile[]>>();
-const friendsPromises = new Map<string, Promise<PublicProfile[]>>();
-const socialFeedCache = new Map<string, CachedValue<SocialFeedItem[]>>();
-const socialFeedPromises = new Map<string, Promise<SocialFeedItem[]>>();
-const notificationCache = new Map<string, CachedValue<NotificationList>>();
-const notificationPromises = new Map<string, Promise<NotificationList>>();
-const eventUpdatesCache = new Map<string, CachedValue<OrganizerEventUpdate[]>>();
-const eventUpdatesPromises = new Map<string, Promise<OrganizerEventUpdate[]>>();
-const organizerUpdatesCache = new Map<string, CachedValue<OrganizerEventUpdate[]>>();
-const organizerUpdatesPromises = new Map<string, Promise<OrganizerEventUpdate[]>>();
-
-function deleteKeysWithPrefix<T>(map: Map<string, T>, prefix: string): void {
-  for (const key of map.keys()) {
-    if (key.startsWith(prefix)) map.delete(key);
-  }
-}
+const asError = (error: unknown): Error | undefined =>
+  error == null
+    ? undefined
+    : error instanceof Error
+      ? error
+      : new Error(String(error));
 
 /**
- * Removes all module-level data tied to an authenticated session.
- * Public, session-independent event caches are intentionally preserved.
+ * Removes display data on logout so an in-flight response or a subsequent
+ * account on the same device cannot inherit the previous session's data.
  */
 export function clearSessionCaches(userId: string): void {
-  if (!userId) return;
-
-  friendsCache.delete(userId);
-  friendsPromises.delete(userId);
-  socialFeedCache.delete(userId);
-  socialFeedPromises.delete(userId);
-  notificationCache.delete(userId);
-  notificationPromises.delete(userId);
-
-  // These caches use `${viewerId}:${resourceId}` as their key.
-  const viewerPrefix = `${userId}:`;
-  deleteKeysWithPrefix(eventFriendsCache, viewerPrefix);
-  deleteKeysWithPrefix(eventFriendsPromises, viewerPrefix);
-  deleteKeysWithPrefix(publicProfileCache, viewerPrefix);
-  deleteKeysWithPrefix(publicProfilePromises, viewerPrefix);
-
-  // Organizer updates are public, but clearing the current organizer's entry
-  // prevents a new session from inheriting locally stale mutations.
-  organizerUpdatesCache.delete(userId);
-  organizerUpdatesPromises.delete(userId);
+  void userId;
+  clearClientQueryCache();
 }
 
 function markNotificationReadInList(
@@ -114,43 +99,6 @@ function markNotificationReadInList(
       item.id === notificationId ? { ...item, isRead: true } : item,
     ),
   };
-}
-
-function useOrganizerUpdatesCache(
-  key: string,
-  getUpdates: (id: string) => Promise<OrganizerEventUpdate[]>,
-  cache: Map<string, CachedValue<OrganizerEventUpdate[]>>,
-): { updates: readonly OrganizerEventUpdate[]; updatesLoading: boolean } {
-  const cached = cache.get(key);
-  const [updates, setUpdates] = useState<readonly OrganizerEventUpdate[]>(
-    () => cached?.data ?? [],
-  );
-  const [updatesLoading, setUpdatesLoading] = useState(() => !cached);
-
-  useEffect(() => {
-    if (!key) {
-      setUpdates([]);
-      setUpdatesLoading(false);
-      return;
-    }
-    let active = true;
-    const current = cache.get(key);
-    setUpdates(current?.data ?? []);
-    if (current && Date.now() - current.timestamp < SOCIAL_CACHE_TTL) {
-      setUpdatesLoading(false);
-      return;
-    }
-    setUpdatesLoading(true);
-    getUpdates(key)
-      .then((data) => active && setUpdates(data))
-      .catch(() => active && setUpdates([]))
-      .finally(() => active && setUpdatesLoading(false));
-    return () => {
-      active = false;
-    };
-  }, [cache, getUpdates, key]);
-
-  return { updates, updatesLoading };
 }
 
 export class User {
@@ -288,7 +236,7 @@ export class User {
       params: { path: { id: eventId } },
       body: { reason, evidenceUrl: evidenceUrl || undefined },
     });
-    await this._getOrganizerEvents();
+    await this.refreshOrganizerEvents();
     return request;
   }
 
@@ -386,7 +334,11 @@ export class User {
       params: { path: { userId: profileId } },
       body: { status },
     });
-    friendsCache.delete(this._properties.id);
+    void refreshClientQuery(
+      queryKey.friends(this._properties.id),
+      () => ApiClient.instance.get("/friends") as Promise<PublicProfile[]>,
+      { force: true },
+    );
   }
 
   async removeFriend(profileId: string): Promise<void> {
@@ -394,132 +346,49 @@ export class User {
       params: { path: { userId: profileId } },
     });
 
-    const cachedFriends = friendsCache.get(this._properties.id);
-    if (cachedFriends) {
-      friendsCache.set(this._properties.id, {
-        data: cachedFriends.data.filter((friend) => friend.id !== profileId),
-        timestamp: Date.now(),
-      });
-    }
-    socialFeedCache.delete(this._properties.id);
+    updateClientQuery<PublicProfile[]>(
+      queryKey.friends(this._properties.id),
+      (friends) => friends.filter((friend) => friend.id !== profileId),
+    );
+    void refreshClientQuery(
+      queryKey.socialFeed(this._properties.id),
+      () => ApiClient.instance.get("/feed") as Promise<SocialFeedItem[]>,
+      { force: true },
+    );
   }
 
   async markAllNotificationsRead(): Promise<void> {
     await ApiClient.instance.post("/notifications/read-all");
-    const cached = notificationCache.get(this._properties.id);
-    if (cached) {
-      notificationCache.set(this._properties.id, {
-        data: {
-          ...cached.data,
-          unreadCount: 0,
-          items: cached.data.items.map((notification) => ({
-            ...notification,
-            isRead: true,
-          })),
-        },
-        timestamp: Date.now(),
-      });
-    }
+    updateClientQuery<NotificationList>(
+      queryKey.notifications(this._properties.id),
+      (notifications) => ({
+        ...notifications,
+        unreadCount: 0,
+        items: notifications.items.map((notification) => ({
+          ...notification,
+          isRead: true,
+        })),
+      }),
+    );
   }
 
   async markNotificationRead(notificationId: string): Promise<void> {
     await ApiClient.instance.post("/notifications/{id}/read", {
       params: { path: { id: notificationId } },
     });
-    const cached = notificationCache.get(this._properties.id);
-    if (cached) {
-      notificationCache.set(this._properties.id, {
-        data: markNotificationReadInList(cached.data, notificationId),
-        timestamp: Date.now(),
-      });
-    }
+    updateClientQuery<NotificationList>(
+      queryKey.notifications(this._properties.id),
+      (notifications) =>
+        markNotificationReadInList(notifications, notificationId),
+    );
   }
 
-  private _organizerEvents?: Event[];
-  private _organizerEventsPromise?: Promise<Event[]>;
-  private _organizerEventsError?: Error;
-
-  get organizerEventsPromise() {
-    return this._organizerEventsPromise;
-  }
-
-  get organizerEventsError(): Error | undefined {
-    return this._organizerEventsError;
-  }
-
-  get organizerEvents(): readonly Event[] {
-    if (
-      !this._organizerEvents &&
-      !this._organizerEventsError &&
-      !this._organizerEventsPromise
-    ) {
-      this._getOrganizerEvents();
-    }
-    return this._organizerEvents ?? [];
-  }
-
-  private async _getOrganizerEvents(): Promise<Event[]> {
-    if (this._organizerEventsPromise) {
-      return await this._organizerEventsPromise;
-    }
-
-    let resolve!: (events: Event[]) => void;
-    let reject!: (error: Error) => void;
-
-    this._organizerEventsPromise = new Promise((r1, r2) => {
-      resolve = r1;
-      reject = r2;
-    });
-
-    try {
-      const events = await ApiClient.instance.get("/dashboard/events");
-      this._organizerEvents = events;
-      this._organizerEventsPromise = undefined;
-      this._organizerEventsError = undefined;
-
-      resolve(events);
-      this._organizerEventsDidChange();
-      return events;
-    } catch (e) {
-      const err = e instanceof Error ? e : new Error(`Unknown error: ${e}`);
-      this._organizerEventsPromise = undefined;
-      this._organizerEventsError = err;
-
-      reject(err);
-      this._organizerEventsDidChange();
-      throw err;
-    }
-  }
-
-  private _organizerEventsObservers: ((
-    events: Event[],
-    loading: boolean,
-    error?: Error,
-  ) => void)[] = [];
-
-  private _organizerEventsDidChange() {
-    for (const observer of this._organizerEventsObservers) {
-      observer(
-        this._organizerEvents ?? [],
-        !!this._organizerEventsPromise,
-        this._organizerEventsError,
-      );
-    }
-  }
-
-  addOrganizerEventsObserver(
-    observer: (events: Event[], loading: boolean, error?: Error) => void,
-  ) {
-    this._organizerEventsObservers.push(observer);
-  }
-
-  removeOrganizerEventsObserver(
-    observer: (events: Event[], loading: boolean, error?: Error) => void,
-  ) {
-    const index = this._organizerEventsObservers.indexOf(observer);
-    if (index !== -1) {
-      this._organizerEventsObservers.splice(index, 1);
-    }
+  private refreshOrganizerEvents(): Promise<void> {
+    return refreshClientQuery(
+      queryKey.organizerEvents(this._properties.id),
+      () => ApiClient.instance.get("/dashboard/events"),
+      { force: true },
+    );
   }
 
   static useOrganizerEvents(user?: User): {
@@ -527,43 +396,18 @@ export class User {
     eventsLoading: boolean;
     eventsError?: Error;
   } {
-    const [events, setEvents] = useState<readonly Event[]>(
-      () => user?.organizerEvents ?? [],
+    const organizerId = user?.properties.id;
+    const query = useCachedClientQuery<Event[]>(
+      organizerId ? queryKey.organizerEvents(organizerId) : null,
+      () => ApiClient.instance.get("/dashboard/events"),
+      [],
+      { staleTimeMs: PUBLIC_CACHE_TTL },
     );
-    const [eventsLoading, setEventsLoading] = useState(
-      () => !!user?.organizerEventsPromise,
-    );
-    const [eventsError, setEventsError] = useState(
-      () => user?.organizerEventsError,
-    );
-
-    const userId = user?.properties?.id;
-
-    useEffect(() => {
-      if (!user) return;
-
-      setEvents(user.organizerEvents);
-      setEventsLoading(!!user.organizerEventsPromise);
-      setEventsError(user.organizerEventsError);
-
-      const observer = (
-        updatedEvents: Event[],
-        loading: boolean,
-        error?: Error,
-      ) => {
-        setEvents(updatedEvents);
-        setEventsLoading(loading);
-        setEventsError(error);
-      };
-
-      user.addOrganizerEventsObserver(observer);
-
-      return () => {
-        user.removeOrganizerEventsObserver(observer);
-      };
-    }, [userId, user]);
-
-    return { events, eventsLoading, eventsError };
+    return {
+      events: query.data,
+      eventsLoading: query.pending,
+      eventsError: asError(query.error),
+    };
   }
 
   async handleCreateEvent(
@@ -574,7 +418,7 @@ export class User {
         body: eventData,
       });
 
-      await this._getOrganizerEvents();
+      await this.refreshOrganizerEvents();
       return newEvent;
     } catch (error) {
       console.error("Failed to create event:", error);
@@ -594,7 +438,7 @@ export class User {
           params: { path: { id: eventId } },
         },
       );
-      await this._getOrganizerEvents();
+      await this.refreshOrganizerEvents();
       return updatedEvent;
     } catch (error) {
       console.error("Failed to update event:", error);
@@ -607,7 +451,7 @@ export class User {
       await ApiClient.instance.delete(`/dashboard/events/{id}`, {
         params: { path: { id: eventId } },
       });
-      await this._getOrganizerEvents();
+      await this.refreshOrganizerEvents();
     } catch (error) {
       console.error("Failed to delete event:", error);
       throw error;
@@ -645,14 +489,22 @@ export class User {
   }
 
   private updateCachedEventFavorite(eventId: string, favorite: boolean) {
-    if (!this._events) return;
-
-    this._events = this._events.map((event) =>
-      event.id === eventId
-        ? { ...event, stats: { ...event.stats, isFavorited: favorite } }
-        : event,
+    updateClientQueries<Event[]>(
+      (key) =>
+        key.startsWith("events:") ||
+        key.startsWith("saved-events:") ||
+        key.startsWith('["discovery",'),
+      (events, key) => {
+        if (!favorite && key.startsWith("saved-events:")) {
+          return events.filter((event) => event.id !== eventId);
+        }
+        return events.map((event) =>
+          event.id === eventId
+            ? { ...event, stats: { ...event.stats, isFavorited: favorite } }
+            : event,
+        );
+      },
     );
-    this.eventsObserversDidChange();
   }
 
   async handleCreateTicketTier(
@@ -674,83 +526,6 @@ export class User {
     }
   }
 
-  private _events?: Event[];
-  private _eventsPromise?: Promise<Event[]>;
-  private _eventsError?: Error;
-
-  private async _getEvents(): Promise<Event[]> {
-    if (this._eventsPromise) {
-      return await this._eventsPromise;
-    }
-
-    let resolve!: (events: Event[]) => void;
-    let reject!: (error: Error) => void;
-    this._eventsPromise = new Promise((r1, r2) => {
-      resolve = r1;
-      reject = r2;
-    });
-
-    try {
-      const events = await ApiClient.instance.get("/events");
-      this._events = events;
-      this._eventsPromise = undefined;
-      this._eventsError = undefined;
-      this.eventsObserversDidChange();
-      resolve(events);
-      return events;
-    } catch (e) {
-      const err = e instanceof Error ? e : new Error(`Unknown error: ${e}`);
-      this._events = undefined;
-      this._eventsPromise = undefined;
-      this._eventsError = err;
-      this.eventsObserversDidChange();
-      reject(err);
-      throw err;
-    }
-  }
-
-  get eventsPromise() {
-    return this._eventsPromise;
-  }
-
-  get eventsError(): Error | undefined {
-    return this._eventsError;
-  }
-
-  get events(): readonly Event[] {
-    if (!this._events && !this._eventsError && !this._eventsPromise) {
-      this._getEvents();
-    }
-    return this._events ?? [];
-  }
-
-  private _eventsObservers: ((
-    events: Event[],
-    loading: boolean,
-    error?: Error,
-  ) => void)[] = [];
-
-  private eventsObserversDidChange() {
-    for (const observer of this._eventsObservers) {
-      observer(this._events ?? [], !!this._eventsPromise, this._eventsError);
-    }
-  }
-
-  private addEventsObserver(
-    observer: (events: Event[], loading: boolean, error?: Error) => void,
-  ) {
-    this._eventsObservers.push(observer);
-  }
-
-  private removeEventsObserver(
-    observer: (events: Event[], loading: boolean, error?: Error) => void,
-  ) {
-    const index = this._eventsObservers.indexOf(observer);
-    if (index !== -1) {
-      this._eventsObservers.splice(index, 1);
-    }
-  }
-
   static useEvents(
     user?: User,
     authLoading?: boolean,
@@ -758,111 +533,50 @@ export class User {
     events: readonly Event[];
     eventsLoading: boolean;
     eventsError?: Error;
+    refresh: () => void;
   } {
-    const [events, setEvents] = useState<readonly Event[]>(
-      () => user?.events ?? publicEventsCache?.data ?? [],
-    );
-    const [eventsLoading, setEventsLoading] = useState(() =>
-      user ? !!user.eventsPromise : !publicEventsCache,
-    );
-    const [eventsError, setEventsError] = useState(() => user?.eventsError);
-
     const userId = user?.properties?.id;
-
-    useEffect(() => {
-      if (authLoading) {
-        setEventsLoading(true);
-        return;
-      }
-
-      if (user) {
-        setEvents(user.events ?? []);
-        setEventsLoading(!!user.eventsPromise);
-        setEventsError(user.eventsError);
-
-        const observer = (
-          updatedEvents: Event[],
-          loading: boolean,
-          error?: Error,
-        ) => {
-          setEvents(updatedEvents);
-          setEventsLoading(loading);
-          setEventsError(error);
-        };
-
-        user.addEventsObserver(observer);
-        return () => {
-          user.removeEventsObserver(observer);
-        };
-      }
-
-      let isMounted = true;
-      const now = Date.now();
-
-      if (
-        publicEventsCache &&
-        now - publicEventsCache.timestamp < PUBLIC_CACHE_TTL
-      ) {
-        setEvents(publicEventsCache.data);
-        setEventsLoading(false);
-        return;
-      }
-
-      setEventsLoading(true);
-
-      if (!publicEventsPromise) {
-        publicEventsPromise = PublicEventsService.getPublicEvents()
-          .then((data) => {
-            publicEventsCache = { data, timestamp: Date.now() };
-            publicEventsPromise = null;
-            return data;
-          })
-          .catch((err) => {
-            publicEventsPromise = null;
-            throw err;
-          });
-      }
-
-      publicEventsPromise
-        .then((fetchedEvents) => {
-          if (isMounted) {
-            setEvents(fetchedEvents);
-            setEventsError(undefined);
-          }
-        })
-        .catch((err) => {
-          if (isMounted) {
-            setEventsError(err instanceof Error ? err : new Error(String(err)));
-          }
-        })
-        .finally(() => {
-          if (isMounted) {
-            setEventsLoading(false);
-          }
-        });
-
-      return () => {
-        isMounted = false;
-      };
-    }, [userId, user, authLoading]);
-
-    return { events, eventsLoading, eventsError };
+    const query = useCachedClientQuery<Event[]>(
+      authLoading ? null : queryKey.events(userId ?? "guest"),
+      () =>
+        user
+          ? ApiClient.instance.get("/events")
+          : PublicEventsService.getPublicEvents(),
+      [],
+      { staleTimeMs: PUBLIC_CACHE_TTL },
+    );
+    return {
+      events: query.data,
+      eventsLoading: Boolean(authLoading) || query.pending,
+      eventsError: asError(query.error),
+      refresh: () => {
+        void query.retry();
+      },
+    };
   }
 
   async listHiddenCategories(): Promise<string[]> {
-    return ApiClient.instance.get("/users/me/hidden-categories");
+    const categories = await ApiClient.instance.get("/users/me/hidden-categories");
+    // An empty collection can arrive as JSON null instead of an array.
+    return categories ?? [];
   }
 
   async hideEventCategory(category: string): Promise<void> {
     await ApiClient.instance.post("/users/me/hidden-categories", { body: { category } });
-    this._events = undefined;
-    await this._getEvents();
+    void refreshClientQuery(
+      queryKey.events(this._properties.id),
+      () => ApiClient.instance.get("/events"),
+      { force: true },
+    );
   }
 
   async showEventCategory(category: string): Promise<void> {
     await ApiClient.instance.delete("/users/me/hidden-categories/{category}", { params: { path: { category } } });
-    this._events = undefined;
-    await this._getEvents();
+    void refreshClientQuery(
+      queryKey.events(this._properties.id),
+      () => ApiClient.instance.get("/events"),
+      { force: true },
+    );
   }
 
   async listInvitations(eventId: string): Promise<InvitationTicket[]> {
@@ -931,9 +645,23 @@ export class User {
       params: { path: { id: eventId } },
       body: payload,
     });
-    eventUpdatesCache.delete(eventId);
-    organizerUpdatesCache.delete(this._properties.id);
-    socialFeedCache.clear();
+    await Promise.all([
+      refreshClientQuery(
+        queryKey.eventUpdates(eventId),
+        () => ApiClient.instance.get("/events/{id}/updates", { params: { path: { id: eventId } } }),
+        { force: true },
+      ),
+      refreshClientQuery(
+        queryKey.organizerUpdates(this._properties.id),
+        () => ApiClient.instance.get("/organizers/{id}/updates", { params: { path: { id: this._properties.id } } }),
+        { force: true },
+      ),
+      refreshClientQuery(
+        queryKey.socialFeed(this._properties.id),
+        () => ApiClient.instance.get("/feed"),
+        { force: true },
+      ),
+    ]);
     return update;
   }
 
@@ -941,36 +669,33 @@ export class User {
     await ApiClient.instance.delete("/dashboard/events/{id}/updates/{updateId}", {
       params: { path: { id: eventId, updateId } },
     });
-    eventUpdatesCache.delete(eventId);
-    organizerUpdatesCache.delete(this._properties.id);
-    socialFeedCache.clear();
+    await Promise.all([
+      refreshClientQuery(
+        queryKey.eventUpdates(eventId),
+        () => ApiClient.instance.get("/events/{id}/updates", { params: { path: { id: eventId } } }),
+        { force: true },
+      ),
+      refreshClientQuery(
+        queryKey.organizerUpdates(this._properties.id),
+        () => ApiClient.instance.get("/organizers/{id}/updates", { params: { path: { id: this._properties.id } } }),
+        { force: true },
+      ),
+      refreshClientQuery(
+        queryKey.socialFeed(this._properties.id),
+        () => ApiClient.instance.get("/feed"),
+        { force: true },
+      ),
+    ]);
   }
 
   static async getNotifications(
     viewerId: string,
     force = false,
   ): Promise<NotificationList> {
-    const cached = notificationCache.get(viewerId);
-    if (!force && cached && Date.now() - cached.timestamp < SOCIAL_CACHE_TTL) {
-      return cached.data;
-    }
-
-    const pending = notificationPromises.get(viewerId);
-    if (!force && pending) return pending;
-
-    const request = ApiClient.instance
-      .get("/notifications")
-      .then((response) => {
-        const data = response as NotificationList;
-        notificationCache.set(viewerId, { data, timestamp: Date.now() });
-        return data;
-      })
-      .finally(() => {
-        notificationPromises.delete(viewerId);
-      });
-
-    notificationPromises.set(viewerId, request);
-    return request;
+    const key = queryKey.notifications(viewerId);
+    const load = () => ApiClient.instance.get("/notifications") as Promise<NotificationList>;
+    if (force) await refreshClientQuery(key, load, { force: true });
+    return getClientQuery(key, load, SOCIAL_CACHE_TTL);
   }
 
   static useNotifications(user: User | undefined): {
@@ -982,335 +707,158 @@ export class User {
     markRead: (notificationId: string) => void;
   } {
     const viewerId = user?.properties.id;
-    const cached = viewerId ? notificationCache.get(viewerId) : undefined;
-    const [data, setData] = useState<NotificationList | undefined>(
-      () => cached?.data,
+    const query = useCachedClientQuery<NotificationList | undefined>(
+      viewerId ? queryKey.notifications(viewerId) : null,
+      () => ApiClient.instance.get("/notifications") as Promise<NotificationList>,
+      undefined,
+      { staleTimeMs: SOCIAL_CACHE_TTL },
     );
-    const [notificationsLoading, setNotificationsLoading] = useState(
-      () => Boolean(viewerId && !cached),
-    );
-    const [notificationsError, setNotificationsError] = useState<Error | undefined>();
-
-    const refresh = async () => {
-      if (!user) return;
-      setNotificationsLoading(true);
-      try {
-        const updated = await User.getNotifications(user.properties.id, true);
-        setData(updated);
-        setNotificationsError(undefined);
-      } catch (error) {
-        setNotificationsError(
-          error instanceof Error ? error : new Error(String(error)),
-        );
-      } finally {
-        setNotificationsLoading(false);
-      }
-    };
-
-    useEffect(() => {
-      if (!user) {
-        setData(undefined);
-        setNotificationsLoading(false);
-        setNotificationsError(undefined);
-        return;
-      }
-
-      let isMounted = true;
-      const currentCached = notificationCache.get(user.properties.id);
-      setData(currentCached?.data);
-      if (currentCached && Date.now() - currentCached.timestamp < SOCIAL_CACHE_TTL) {
-        setNotificationsLoading(false);
-        return;
-      }
-
-      setNotificationsLoading(true);
-      User.getNotifications(user.properties.id)
-        .then((response) => {
-          if (isMounted) {
-            setData(response);
-            setNotificationsError(undefined);
-          }
-        })
-        .catch((error) => {
-          if (isMounted) {
-            setNotificationsError(
-              error instanceof Error ? error : new Error(String(error)),
-            );
-          }
-        })
-        .finally(() => {
-          if (isMounted) setNotificationsLoading(false);
-        });
-
-      return () => {
-        isMounted = false;
-      };
-    }, [user, viewerId]);
 
     const markRead = (notificationId: string) => {
       if (!user) return;
-      setData((current) => {
-        if (!current) return current;
-        const updated = markNotificationReadInList(current, notificationId);
-        notificationCache.set(user.properties.id, {
-          data: updated,
-          timestamp: Date.now(),
-        });
-        return updated;
-      });
+      updateClientQuery<NotificationList>(
+        queryKey.notifications(user.properties.id),
+        (notifications) => markNotificationReadInList(notifications, notificationId),
+      );
       void user.markNotificationRead(notificationId).catch(() => {
-        void refresh();
+        void query.retry();
       });
     };
 
     return {
-      notifications: data?.items ?? [],
-      unreadCount: data?.unreadCount ?? 0,
-      notificationsLoading,
-      notificationsError,
-      refresh,
+      notifications: query.data?.items ?? [],
+      unreadCount: query.data?.unreadCount ?? 0,
+      notificationsLoading: query.pending,
+      notificationsError: asError(query.error),
+      refresh: query.retry,
       markRead,
     };
   }
 
   static async getFriends(viewerId: string): Promise<PublicProfile[]> {
-    const cached = friendsCache.get(viewerId);
-    if (cached && Date.now() - cached.timestamp < SOCIAL_CACHE_TTL) {
-      return cached.data;
-    }
-
-    const pending = friendsPromises.get(viewerId);
-    if (pending) return pending;
-
-    const request = ApiClient.instance
-      .get("/friends")
-      .then((friends) => {
-        const data = friends as PublicProfile[];
-        friendsCache.set(viewerId, { data, timestamp: Date.now() });
-        return data;
-      })
-      .finally(() => {
-        friendsPromises.delete(viewerId);
-      });
-
-    friendsPromises.set(viewerId, request);
-    return request;
+    return getClientQuery(
+      queryKey.friends(viewerId),
+      () => ApiClient.instance.get("/friends") as Promise<PublicProfile[]>,
+      SOCIAL_CACHE_TTL,
+    );
   }
 
   static useFriends(user: User | undefined): {
     friends: readonly PublicProfile[];
     friendsLoading: boolean;
     friendsError?: Error;
+    refresh: () => void;
   } {
     const viewerId = user?.properties.id;
-    const cached = viewerId ? friendsCache.get(viewerId) : undefined;
-    const [friends, setFriends] = useState<readonly PublicProfile[]>(
-      () => cached?.data ?? [],
+    const query = useCachedClientQuery<PublicProfile[]>(
+      viewerId ? queryKey.friends(viewerId) : null,
+      () => ApiClient.instance.get("/friends") as Promise<PublicProfile[]>,
+      [],
+      { staleTimeMs: SOCIAL_CACHE_TTL },
     );
-    const [friendsLoading, setFriendsLoading] = useState(
-      () => Boolean(viewerId && !cached),
-    );
-    const [friendsError, setFriendsError] = useState<Error | undefined>();
-
-    useEffect(() => {
-      if (!user) {
-        setFriends([]);
-        setFriendsLoading(false);
-        setFriendsError(undefined);
-        return;
-      }
-
-      let isMounted = true;
-      const currentCached = friendsCache.get(user.properties.id);
-      setFriends(currentCached?.data ?? []);
-      if (currentCached && Date.now() - currentCached.timestamp < SOCIAL_CACHE_TTL) {
-        setFriendsLoading(false);
-        setFriendsError(undefined);
-        return;
-      }
-
-      setFriendsLoading(true);
-      setFriendsError(undefined);
-      User.getFriends(user.properties.id)
-        .then((data) => {
-          if (isMounted) setFriends(data);
-        })
-        .catch((error) => {
-          if (!isMounted) return;
-          setFriends([]);
-          setFriendsError(error instanceof Error ? error : new Error(String(error)));
-        })
-        .finally(() => {
-          if (isMounted) setFriendsLoading(false);
-        });
-
-      return () => {
-        isMounted = false;
-      };
-    }, [user, viewerId]);
-
-    return { friends, friendsLoading, friendsError };
+    return {
+      friends: query.data,
+      friendsLoading: query.pending,
+      friendsError: asError(query.error),
+      refresh: () => { void query.retry(); },
+    };
   }
 
   static async getSocialFeed(viewerId: string): Promise<SocialFeedItem[]> {
-    const cached = socialFeedCache.get(viewerId);
-    if (cached && Date.now() - cached.timestamp < SOCIAL_CACHE_TTL) {
-      return cached.data;
-    }
-
-    const pending = socialFeedPromises.get(viewerId);
-    if (pending) return pending;
-
-    const request = ApiClient.instance
-      .get("/feed")
-      .then((items) => {
-        const data = items as SocialFeedItem[];
-        socialFeedCache.set(viewerId, { data, timestamp: Date.now() });
-        return data;
-      })
-      .finally(() => {
-        socialFeedPromises.delete(viewerId);
-      });
-
-    socialFeedPromises.set(viewerId, request);
-    return request;
+    return getClientQuery(
+      queryKey.socialFeed(viewerId),
+      () => ApiClient.instance.get("/feed") as Promise<SocialFeedItem[]>,
+      SOCIAL_CACHE_TTL,
+    );
   }
 
   static useSocialFeed(user: User | undefined): {
     items: readonly SocialFeedItem[];
     feedLoading: boolean;
     feedError?: Error;
+    refresh: () => void;
   } {
     const viewerId = user?.properties.id;
-    const cached = viewerId ? socialFeedCache.get(viewerId) : undefined;
-    const [items, setItems] = useState<readonly SocialFeedItem[]>(
-      () => cached?.data ?? [],
+    const query = useCachedClientQuery<SocialFeedItem[]>(
+      viewerId ? queryKey.socialFeed(viewerId) : null,
+      () => ApiClient.instance.get("/feed") as Promise<SocialFeedItem[]>,
+      [],
+      { staleTimeMs: SOCIAL_CACHE_TTL },
     );
-    const [feedLoading, setFeedLoading] = useState(
-      () => Boolean(viewerId && !cached),
-    );
-    const [feedError, setFeedError] = useState<Error | undefined>();
-
-    useEffect(() => {
-      if (!user) {
-        setItems([]);
-        setFeedLoading(false);
-        setFeedError(undefined);
-        return;
-      }
-
-      let isMounted = true;
-      const currentCached = socialFeedCache.get(user.properties.id);
-      setItems(currentCached?.data ?? []);
-      if (currentCached && Date.now() - currentCached.timestamp < SOCIAL_CACHE_TTL) {
-        setFeedLoading(false);
-        setFeedError(undefined);
-        return;
-      }
-
-      setFeedLoading(true);
-      setFeedError(undefined);
-      User.getSocialFeed(user.properties.id)
-        .then((data) => {
-          if (isMounted) setItems(data);
-        })
-        .catch((error) => {
-          if (!isMounted) return;
-          setItems([]);
-          setFeedError(error instanceof Error ? error : new Error(String(error)));
-        })
-        .finally(() => {
-          if (isMounted) setFeedLoading(false);
-        });
-
-      return () => {
-        isMounted = false;
-      };
-    }, [user, viewerId]);
-
-    return { items, feedLoading, feedError };
+    return {
+      items: query.data,
+      feedLoading: query.pending,
+      feedError: asError(query.error),
+      refresh: () => { void query.retry(); },
+    };
   }
 
   static async getEventUpdates(eventId: string): Promise<OrganizerEventUpdate[]> {
-    const cached = eventUpdatesCache.get(eventId);
-    if (cached && Date.now() - cached.timestamp < SOCIAL_CACHE_TTL) return cached.data;
-    const pending = eventUpdatesPromises.get(eventId);
-    if (pending) return pending;
-    const request = ApiClient.instance
-      .get("/events/{id}/updates", { params: { path: { id: eventId } } })
-      .then((updates) => {
-        const data = updates as OrganizerEventUpdate[];
-        eventUpdatesCache.set(eventId, { data, timestamp: Date.now() });
-        return data;
-      })
-      .finally(() => eventUpdatesPromises.delete(eventId));
-    eventUpdatesPromises.set(eventId, request);
-    return request;
+    return getClientQuery(
+      queryKey.eventUpdates(eventId),
+      () => ApiClient.instance.get("/events/{id}/updates", {
+        params: { path: { id: eventId } },
+      }) as Promise<OrganizerEventUpdate[]>,
+      SOCIAL_CACHE_TTL,
+    );
   }
 
   static async getOrganizerUpdates(organizerId: string): Promise<OrganizerEventUpdate[]> {
-    const cached = organizerUpdatesCache.get(organizerId);
-    if (cached && Date.now() - cached.timestamp < SOCIAL_CACHE_TTL) return cached.data;
-    const pending = organizerUpdatesPromises.get(organizerId);
-    if (pending) return pending;
-    const request = ApiClient.instance
-      .get("/organizers/{id}/updates", { params: { path: { id: organizerId } } })
-      .then((updates) => {
-        const data = updates as OrganizerEventUpdate[];
-        organizerUpdatesCache.set(organizerId, { data, timestamp: Date.now() });
-        return data;
-      })
-      .finally(() => organizerUpdatesPromises.delete(organizerId));
-    organizerUpdatesPromises.set(organizerId, request);
-    return request;
+    return getClientQuery(
+      queryKey.organizerUpdates(organizerId),
+      () => ApiClient.instance.get("/organizers/{id}/updates", {
+        params: { path: { id: organizerId } },
+      }) as Promise<OrganizerEventUpdate[]>,
+      SOCIAL_CACHE_TTL,
+    );
   }
 
   static useEventUpdates(eventId: string): {
     updates: readonly OrganizerEventUpdate[];
     updatesLoading: boolean;
   } {
-    return useOrganizerUpdatesCache(eventId, User.getEventUpdates, eventUpdatesCache);
+    const query = useCachedClientQuery<OrganizerEventUpdate[]>(
+      eventId ? queryKey.eventUpdates(eventId) : null,
+      () => ApiClient.instance.get("/events/{id}/updates", {
+        params: { path: { id: eventId } },
+      }) as Promise<OrganizerEventUpdate[]>,
+      [],
+      { staleTimeMs: SOCIAL_CACHE_TTL },
+    );
+    return { updates: query.data, updatesLoading: query.pending };
   }
 
   static useOrganizerUpdates(organizerId: string): {
     updates: readonly OrganizerEventUpdate[];
     updatesLoading: boolean;
   } {
-    return useOrganizerUpdatesCache(organizerId, User.getOrganizerUpdates, organizerUpdatesCache);
+    const query = useCachedClientQuery<OrganizerEventUpdate[]>(
+      organizerId ? queryKey.organizerUpdates(organizerId) : null,
+      () => ApiClient.instance.get("/organizers/{id}/updates", {
+        params: { path: { id: organizerId } },
+      }) as Promise<OrganizerEventUpdate[]>,
+      [],
+      { staleTimeMs: SOCIAL_CACHE_TTL },
+    );
+    return { updates: query.data, updatesLoading: query.pending };
   }
 
   static async getEventFriends(
     eventId: string,
     viewerId: string,
   ): Promise<EventAttendee[]> {
-    const cacheKey = `${viewerId}:${eventId}`;
-    const cached = eventFriendsCache.get(cacheKey);
-
-    if (
-      cached &&
-      Date.now() - cached.timestamp < EVENT_FRIENDS_CACHE_TTL
-    ) {
-      return cached.data;
-    }
-
-    const pending = eventFriendsPromises.get(cacheKey);
-    if (pending) return pending;
-
-    const request = ApiClient.instance
-      .get("/events/{id}/attendees", { params: { path: { id: eventId } } })
-      .then((attendees) => {
+    return getClientQuery(
+      queryKey.eventFriends(viewerId, eventId),
+      () => ApiClient.instance
+        .get("/events/{id}/attendees", { params: { path: { id: eventId } } })
+        .then((attendees) => {
         const friends = (attendees as EventAttendee[]).filter(
           (attendee) => attendee.relationship === "friends",
         );
-        eventFriendsCache.set(cacheKey, { data: friends, timestamp: Date.now() });
         return friends;
-      })
-      .finally(() => {
-        eventFriendsPromises.delete(cacheKey);
-      });
-
-    eventFriendsPromises.set(cacheKey, request);
-    return request;
+        }),
+      EVENT_FRIENDS_CACHE_TTL,
+    );
   }
 
   static useEventFriends(
@@ -1322,90 +870,34 @@ export class User {
     friendsError?: Error;
   } {
     const viewerId = user?.properties.id;
-    const cacheKey = viewerId ? `${viewerId}:${eventId}` : "";
-    const cached = cacheKey ? eventFriendsCache.get(cacheKey) : undefined;
-    const [friends, setFriends] = useState<readonly EventAttendee[]>(
-      () => cached?.data ?? [],
+    const query = useCachedClientQuery<EventAttendee[]>(
+      viewerId && eventId ? queryKey.eventFriends(viewerId, eventId) : null,
+      () => ApiClient.instance
+        .get("/events/{id}/attendees", { params: { path: { id: eventId } } })
+        .then((attendees) => (attendees as EventAttendee[]).filter(
+          (attendee) => attendee.relationship === "friends",
+        )),
+      [],
+      { staleTimeMs: EVENT_FRIENDS_CACHE_TTL },
     );
-    const [friendsLoading, setFriendsLoading] = useState(
-      () => Boolean(viewerId && !cached),
-    );
-    const [friendsError, setFriendsError] = useState<Error | undefined>();
-
-    useEffect(() => {
-      if (!user || !eventId) {
-        setFriends([]);
-        setFriendsLoading(false);
-        setFriendsError(undefined);
-        return;
-      }
-
-      const currentCacheKey = `${user.properties.id}:${eventId}`;
-      const currentCached = eventFriendsCache.get(currentCacheKey);
-      let isMounted = true;
-
-      setFriends(currentCached?.data ?? []);
-
-      if (currentCached && Date.now() - currentCached.timestamp < EVENT_FRIENDS_CACHE_TTL) {
-        setFriends(currentCached.data);
-        setFriendsLoading(false);
-        setFriendsError(undefined);
-        return;
-      }
-
-      setFriendsLoading(true);
-      setFriendsError(undefined);
-      User.getEventFriends(eventId, user.properties.id)
-        .then((data) => {
-          if (isMounted) setFriends(data);
-        })
-        .catch((error) => {
-          if (isMounted) {
-            setFriends([]);
-            setFriendsError(
-              error instanceof Error ? error : new Error(String(error)),
-            );
-          }
-        })
-        .finally(() => {
-          if (isMounted) setFriendsLoading(false);
-        });
-
-      return () => {
-        isMounted = false;
-      };
-    }, [eventId, user, viewerId]);
-
-    return { friends, friendsLoading, friendsError };
+    return {
+      friends: query.data,
+      friendsLoading: query.pending,
+      friendsError: asError(query.error),
+    };
   }
 
   static async getPublicProfile(
     profileId: string,
     viewerId = "guest",
   ): Promise<PublicProfile> {
-    const cacheKey = `${viewerId}:${profileId}`;
-    const cached = publicProfileCache.get(cacheKey);
-
-    if (cached && Date.now() - cached.timestamp < PUBLIC_CACHE_TTL) {
-      return cached.data;
-    }
-
-    const pending = publicProfilePromises.get(cacheKey);
-    if (pending) return pending;
-
-    const request = ApiClient.instance
-      .get("/profiles/{id}", { params: { path: { id: profileId } } })
-      .then((profile) => {
-        const data = profile as PublicProfile;
-        publicProfileCache.set(cacheKey, { data, timestamp: Date.now() });
-        return data;
-      })
-      .finally(() => {
-        publicProfilePromises.delete(cacheKey);
-      });
-
-    publicProfilePromises.set(cacheKey, request);
-    return request;
+    return getClientQuery(
+      queryKey.publicProfile(viewerId, profileId),
+      () => ApiClient.instance.get("/profiles/{id}", {
+        params: { path: { id: profileId } },
+      }) as Promise<PublicProfile>,
+      PUBLIC_CACHE_TTL,
+    );
   }
 
   static async getPublicEventById(id: string): Promise<Event> {

@@ -13,11 +13,14 @@ import (
 	"net/textproto"
 	"net/url"
 	"strings"
+	"time"
 
 	qrcode "github.com/skip2/go-qrcode"
 )
 
 type TicketDelivery struct {
+	ID             string
+	StartTime      time.Time
 	TicketTypeName string
 	ValidationHash string
 }
@@ -54,7 +57,7 @@ func (m *Mailer) SendActivationEmail(ctx context.Context, toEmail, token string)
 	activationLink := fmt.Sprintf("%s/api/v1/auth/activate?token=%s", m.publicAPIURL, url.QueryEscape(token))
 	content := fmt.Sprintf(
 		`<p style="margin:0 0 18px;color:#b8b8b8;font-size:15px;line-height:1.65">Bun venit pe Spottr. Confirmă adresa de email pentru a-ți activa contul.</p>
-<a href="%s" style="display:inline-block;border-radius:999px;background:#ff3344;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 22px">Activează contul</a>
+<a href="%s" style="display:inline-block;border-radius:999px;background:#ff0044;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 22px">Activează contul</a>
 <p style="margin:22px 0 0;color:#777;font-size:12px;line-height:1.6">Dacă nu ai creat acest cont, poți ignora mesajul.</p>`,
 		html.EscapeString(activationLink),
 	)
@@ -65,7 +68,7 @@ func (m *Mailer) SendPasswordResetEmail(ctx context.Context, toEmail, token stri
 	resetLink := fmt.Sprintf("%s/reset-password?token=%s", m.publicAppURL, url.QueryEscape(token))
 	content := fmt.Sprintf(
 		`<p style="margin:0 0 18px;color:#b8b8b8;font-size:15px;line-height:1.65">Am primit o solicitare de resetare a parolei contului tău Spottr.</p>
-<a href="%s" style="display:inline-block;border-radius:999px;background:#ff3344;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 22px">Resetează parola</a>
+<a href="%s" style="display:inline-block;border-radius:999px;background:#ff0044;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 22px">Resetează parola</a>
 <p style="margin:22px 0 0;color:#777;font-size:12px;line-height:1.6">Dacă nu ai cerut resetarea parolei, nu trebuie să faci nimic.</p>`,
 		html.EscapeString(resetLink),
 	)
@@ -90,19 +93,10 @@ func (m *Mailer) SendTicketConfirmationEmail(ctx context.Context, toEmail, event
 			filename:  fmt.Sprintf("spottr-ticket-%d.png", index+1),
 			data:      qrPNG,
 		})
-		ticketCards.WriteString(fmt.Sprintf(
-			`<div style="margin-top:12px;border:1px solid #2b2b2b;border-radius:16px;background:#111;padding:16px">
-<div style="color:#ff3344;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase">Bilet %d</div>
-<div style="margin-top:7px;color:#fff;font-size:15px;font-weight:700">%s</div>
-<div style="margin-top:14px;text-align:center"><img src="cid:%s" width="220" height="220" alt="Cod QR bilet" style="display:inline-block;width:220px;max-width:100%%;height:auto;border:12px solid #fff;border-radius:12px;background:#fff" /></div>
-<div style="margin-top:12px;color:#888;font-size:11px">Cod de acces alternativ</div>
-<div style="margin-top:5px;border-radius:10px;background:#080808;padding:10px;color:#ddd;font-family:monospace;font-size:10px;line-height:1.55;word-break:break-all">%s</div>
-</div>`,
-			index+1,
-			html.EscapeString(ticket.TicketTypeName),
-			html.EscapeString(contentID),
-			html.EscapeString(ticket.ValidationHash),
-		))
+		ticketCards.WriteString(`<div style="margin-top:20px">`)
+		ticketCards.WriteString(renderTicketCard(ticket, eventTitle, locationName, contentID))
+		// Keep the existing manual-entry fallback outside the visual ticket.
+		ticketCards.WriteString(fmt.Sprintf(`<div style="max-width:440px;margin:10px auto 0;color:#999;font-size:10px;line-height:1.6;word-break:break-all">Cod de acces alternativ<br>%s</div></div>`, html.EscapeString(ticket.ValidationHash)))
 	}
 
 	buttonLabel := "Creează cont Spottr"
@@ -116,14 +110,14 @@ func (m *Mailer) SendTicketConfirmationEmail(ctx context.Context, toEmail, event
 
 	content := fmt.Sprintf(
 		`<div style="margin-bottom:20px;border-radius:16px;background:#111;padding:18px">
-<div style="color:#ff3344;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase">Plată confirmată</div>
+<div style="color:#ff0044;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase">Plată confirmată</div>
 <div style="margin-top:8px;color:#fff;font-size:20px;font-weight:800;line-height:1.3">%s</div>
 <div style="margin-top:7px;color:#999;font-size:14px">%s</div>
 </div>
 <p style="margin:0;color:#b8b8b8;font-size:14px;line-height:1.65">Biletele tale sunt pregătite. Păstrează acest mesaj și nu distribui codurile de acces.</p>
 %s
 <p style="margin:20px 0 14px;color:#999;font-size:13px;line-height:1.6">%s</p>
-<table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td bgcolor="#ff3344" style="border-radius:999px;background:#ff3344"><a href="%s" style="display:inline-block;border-radius:999px;background:#ff3344;color:#ffffff!important;-webkit-text-fill-color:#ffffff;text-decoration:none;font-weight:700;padding:13px 22px"><span style="color:#ffffff!important;-webkit-text-fill-color:#ffffff">%s</span></a></td></tr></table>
+<table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td bgcolor="#ff0044" style="border-radius:999px;background:#ff0044"><a href="%s" style="display:inline-block;border-radius:999px;background:#ff0044;color:#ffffff!important;-webkit-text-fill-color:#ffffff;text-decoration:none;font-weight:700;padding:13px 22px"><span style="color:#ffffff!important;-webkit-text-fill-color:#ffffff">%s</span></a></td></tr></table>
 <p style="margin:22px 0 0;border-top:1px solid #252525;padding-top:16px;color:#777;font-size:12px;line-height:1.6">Factura fiscală este emisă și trimisă separat de operatorul de facturare al organizatorului.</p>`,
 		html.EscapeString(eventTitle),
 		html.EscapeString(locationName),
@@ -252,7 +246,7 @@ func emailLayout(preheader, title, content string) string {
 <div style="display:none;max-height:0;overflow:hidden;opacity:0">%s</div>
 <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="background:#080808"><tr><td align="center" style="padding:28px 14px">
 <table role="presentation" width="100%%" cellspacing="0" cellpadding="0" style="max-width:580px;border:1px solid #242424;border-radius:22px;background:#0d0d0d;overflow:hidden">
-<tr><td style="padding:24px 24px 18px;border-bottom:1px solid #242424"><div style="color:#fff;font-size:18px;font-weight:900;letter-spacing:.24em">SPOTTR<span style="color:#ff3344">.</span></div></td></tr>
+<tr><td style="padding:24px 24px 18px;border-bottom:1px solid #242424"><div style="color:#fff;font-size:18px;font-weight:900;letter-spacing:.24em">SPOTTR<span style="color:#ff0044">.</span></div></td></tr>
 <tr><td style="padding:26px 24px"><h1 style="margin:0 0 18px;color:#fff;font-size:26px;line-height:1.2">%s</h1>%s</td></tr>
 <tr><td style="padding:18px 24px;border-top:1px solid #242424;color:#666;font-size:11px">spottr.ro</td></tr>
 </table></td></tr></table></body></html>`,

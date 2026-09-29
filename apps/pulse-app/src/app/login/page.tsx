@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { BackLink } from "@/components/BackLink";
+import { safeInternalPath } from "@/lib/navigation/state";
+import { routeForPlatform } from "@/lib/native/navigation";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -28,13 +31,13 @@ export default function LoginPage() {
     if (typeof window === "undefined") return "";
     const value =
       new URLSearchParams(window.location.search).get("returnTo") || "";
-    return value.startsWith("/") && !value.startsWith("//") ? value : "";
+    return safeInternalPath(value, "");
   });
 
   useEffect(() => {
     if (!loading && user) {
       if (returnTo) {
-        router.replace(returnTo);
+        router.replace(routeForPlatform(returnTo));
       } else if (user.properties.role === "admin") {
         router.replace("/admin");
       } else if (user.properties.role === "organizer") {
@@ -43,7 +46,7 @@ export default function LoginPage() {
         router.replace("/users/me");
       }
     }
-  }, [loading, router, user]);
+  }, [loading, returnTo, router, user]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -88,13 +91,13 @@ export default function LoginPage() {
             {t("common.back")}
           </button>
         ) : (
-          <Link
+          <BackLink
             href="/"
             aria-label={t("common.back")}
             className="grid h-12 w-12 place-items-center rounded-full bg-black/35 text-white backdrop-blur-md transition hover:bg-black/55"
           >
             <X className="h-6 w-6" />
-          </Link>
+          </BackLink>
         )}
 
         <section

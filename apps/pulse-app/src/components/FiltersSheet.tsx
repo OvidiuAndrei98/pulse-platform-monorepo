@@ -1,5 +1,7 @@
 "use client";
 
+import { useBackLayer } from "@/lib/navigation/useBackLayer";
+
 import { AnimatePresence, motion } from "framer-motion";
 import { SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -17,6 +19,7 @@ type FiltersSheetProps = {
 export function FiltersSheet({ value, onChange }: FiltersSheetProps = {}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  useBackLayer(open, () => setOpen(false));
   const [filters, setFilters] = useState<EventFilters>(
     value ?? defaultEventFilters,
   );
@@ -24,8 +27,8 @@ export function FiltersSheet({ value, onChange }: FiltersSheetProps = {}) {
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {
-    if (value) setFilters(value);
-  }, [value]);
+    if (open && value) setFilters(value);
+  }, [value, open]);
 
   useEffect(() => {
     if (!open) return;

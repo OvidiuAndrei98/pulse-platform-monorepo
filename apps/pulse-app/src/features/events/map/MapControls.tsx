@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { LocateFixed, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
 import { useMap } from "react-leaflet";
@@ -19,7 +20,10 @@ export function MapControls({
   const { t } = useTranslation();
   const map = useMap();
   const [locating, setLocating] = useState(false);
+  const locatingRef = useRef(false);
   const handleRecenter = async () => {
+    if (locatingRef.current) return;
+    locatingRef.current = true;
     setLocating(true);
     try {
       onLocate(
@@ -29,7 +33,12 @@ export function MapControls({
           timeout: 20_000,
         }),
       );
+    } catch (error) {
+      const code = (error as { code?: number | string })?.code;
+      const denied = code === 1 || (error instanceof Error && /DENIED|permission/i.test(error.message));
+      toast.error(t(denied ? "feedback.locationDenied" : code === 3 ? "feedback.locationTimeout" : "feedback.locationUnavailable"));
     } finally {
+      locatingRef.current = false;
       setLocating(false);
     }
   };

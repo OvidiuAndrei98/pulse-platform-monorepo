@@ -14,12 +14,16 @@ export function ThemedSelect({
   options,
   placeholder,
   icon: Icon,
+  id, invalid, describedBy,
 }: {
   value: string;
   onChange: (value: string) => void;
   options: ThemedSelectOption[];
   placeholder: string;
   icon?: LucideIcon;
+  id?: string;
+  invalid?: boolean;
+  describedBy?: string;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -44,6 +48,9 @@ export function ThemedSelect({
   return (
     <div ref={rootRef} className="relative">
       <button
+        id={id}
+        aria-invalid={invalid}
+        aria-describedby={describedBy}
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}

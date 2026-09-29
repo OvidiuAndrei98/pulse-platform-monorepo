@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import Link from "next/link";
+import { BackLink } from "@/components/BackLink";
 import {
   ArrowRight,
   BadgeCheck,
@@ -317,13 +318,13 @@ function AuthScene({
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
       </div>
       <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-[max(2rem,calc(var(--native-safe-bottom)+1.5rem))] pt-[max(1.5rem,calc(var(--native-safe-top)+1rem))] sm:px-7 md:mx-0 md:w-1/2 md:max-w-none md:px-16 md:py-10 lg:px-24">
-        <Link
+        <BackLink
           href="/"
           aria-label={backLabel}
           className="grid h-12 w-12 place-items-center rounded-full bg-black/35 text-white backdrop-blur-md transition hover:bg-black/55"
         >
           <X className="h-6 w-6" />
-        </Link>
+        </BackLink>
         <div className="my-auto w-full py-8">{children}</div>
       </div>
     </main>

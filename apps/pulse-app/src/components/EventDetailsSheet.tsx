@@ -17,6 +17,10 @@ import {
   Ticket as TicketIcon,
 } from "lucide-react";
 import Image from "next/image";
+import { useNavigationState } from "@/lib/navigation/useNavigationState";
+import { RequestError, RequestProgress } from "@/components/ui/RequestFeedback";
+import { externalHistoryState, isClientRoute, LAYER } from "@/lib/navigation/state";
+import { dismissEventHistory } from "@/lib/navigation/dismissEventHistory";
 import { usePathname, useRouter } from "next/navigation";
 import { Event, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
@@ -35,6 +39,7 @@ import { shareEvent } from "@/lib/native/share";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { toast } from "sonner";
+import { TicketTypeSelector } from "@/features/checkout/TicketTypeSelector";
 import { TicketCheckoutDrawer } from "@/features/checkout/TicketCheckoutDrawer";
 
 interface EventDetailsContextType {
@@ -48,58 +53,72 @@ const EventDetailsContext = createContext<EventDetailsContextType | undefined>(
 );
 
 export function EventDetailsProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "error">("idle");
+  const [attempt, setAttempt] = useState(0);
+  const knownEvents = useRef(new Map<string, Event>());
+  const closingEvent = useRef<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
-  const suppressEventRestoreRef = useRef(false);
-
-  const open = (event: Event) => setSelectedEvent(event);
-  const close = () => setSelectedEvent(null);
-
-  const openOrganizerProfile = (organizerId: string, returnTo: string) => {
-    suppressEventRestoreRef.current = true;
-    window.history.replaceState(window.history.state, "", returnTo);
-    setSelectedEvent(null);
-    const destination = routeForPlatform(
-      `/users/${organizerId}?returnTo=${encodeURIComponent(returnTo)}`,
-    );
-    router.push(destination);
+  const open = (event: Event) => {
+    closingEvent.current = null;
+    knownEvents.current.set(event.id, event);
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("eventId") === event.id) { setSelectedEvent(event); return; }
+    url.searchParams.set("eventId", event.id);
+    window.history.pushState(externalHistoryState({ __spottrEvent: true, [LAYER]: undefined }), "", url);
+    setSelectedEvent(event);
   };
-
-  useEffect(() => {
-    if (suppressEventRestoreRef.current) return;
-    // Mobile static routes use eventId for dashboard editing too. Only the
-    // public discovery route may restore the Event Details sheet from it.
-    if (pathname !== "/events") return;
+  const close = () => {
     const eventId = new URLSearchParams(window.location.search).get("eventId");
-    if (!eventId || selectedEvent?.id === eventId) return;
-
-    let active = true;
-    User.getPublicEventById(eventId)
-      .then((event) => active && setSelectedEvent(event))
-      .catch(() => undefined);
-
-    return () => {
-      active = false;
-    };
-  }, [pathname, selectedEvent?.id]);
-
+    if (eventId && closingEvent.current === eventId) return;
+    closingEvent.current = eventId;
+    setLoadState("idle");
+    setSelectedEvent(null);
+    dismissEventHistory();
+  };
+  const openOrganizerProfile = (organizerId: string, returnTo: string) => {
+    setSelectedEvent(null);
+    router.push(routeForPlatform('/users/' + organizerId + '?returnTo=' + encodeURIComponent(returnTo)));
+  };
   useEffect(() => {
-    if (pathname?.startsWith("/users/")) {
-      suppressEventRestoreRef.current = false;
-    }
-  }, [pathname]);
-
-  useEffect(() => {
-    // Dashboard event IDs identify editor records, never public event sheets.
-    if (pathname?.startsWith("/dashboard")) {
+    let request = 0;
+    const restore = () => {
+      const current = ++request;
+      const eventId = isClientRoute(window.location.pathname) && !window.location.pathname.startsWith("/auth")
+        ? new URLSearchParams(window.location.search).get("eventId") : null;
+      if (eventId && closingEvent.current === eventId) return;
+      closingEvent.current = null;
+      if (!eventId) { setSelectedEvent(null); setLoadState("idle"); return; }
+      const cached = knownEvents.current.get(eventId);
+      if (cached) { setSelectedEvent(cached); setLoadState("idle"); return; }
       setSelectedEvent(null);
-    }
-  }, [pathname]);
+      setLoadState("loading");
+      User.getPublicEventById(eventId).then((event) => {
+        if (current === request) {
+          knownEvents.current.set(eventId, event);
+          setSelectedEvent(event);
+          setLoadState("idle");
+        }
+      }).catch(() => { if (current === request) { setSelectedEvent(null); setLoadState("error"); } });
+    };
+    restore();
+    window.addEventListener("popstate", restore);
+    window.addEventListener("spottr:navigation", restore);
+    return () => { request++; window.removeEventListener("popstate", restore); window.removeEventListener("spottr:navigation", restore); };
+  }, [pathname, attempt]);
 
   return (
     <EventDetailsContext.Provider value={{ open, close, selectedEvent }}>
       {children}
+      <Drawer open={loadState !== "idle"} historyBack={false} onOpenChange={(open) => { if (!open) close(); }}>
+        <DrawerContent className="bg-[#101010] px-5 pb-10">
+          <DrawerTitle className="py-4">{t("search.events")}</DrawerTitle>
+          {loadState === "loading" ? <RequestProgress className="py-10" /> : <RequestError onRetry={() => setAttempt((value) => value + 1)} />}
+          <button type="button" onClick={close} className="mt-4 min-h-11 text-sm text-white/60">{t("common.close")}</button>
+        </DrawerContent>
+      </Drawer>
       <EventDetailsSheet
         event={selectedEvent}
         onClose={close}
@@ -134,26 +153,24 @@ export function EventDetailsSheet({
   const [displayedEvent, setDisplayedEvent] = useState<Event | null>(
     activeEvent,
   );
-  const [qty, setQty] = useState<Record<string, number>>({});
+  const [qty, setQty] = useNavigationState<Record<string, number>>("event-selection:" + (user?.properties.id ?? "guest") + ":" + (displayedEvent?.id ?? "none"), {});
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const mobileSheetRef = useRef<HTMLDivElement>(null);
   const [favorited, setFavorited] = useState(false);
+  const favoriteLock = useRef(false);
+  const [savingFavorite, setSavingFavorite] = useState(false);
   const [shared, setShared] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const activeEventRef = useRef(activeEvent);
+  activeEventRef.current = activeEvent;
 
-  const handleClose = (clearReturnEvent = true) => {
-    setCheckoutOpen(false);
-    if (isDesktop) setDisplayedEvent(null);
+  const handleClose = (_clearReturnEvent = true) => {
+    if (checkoutBusy) return;
+    if (isDesktop) { setCheckoutOpen(false); setDisplayedEvent(null); }
     onClose();
 
-    const url = new URL(window.location.href);
-    if (clearReturnEvent && url.searchParams.has("eventId")) {
-      url.searchParams.delete("eventId");
-      window.history.replaceState(
-        window.history.state,
-        "",
-        `${url.pathname}${url.search}${url.hash}`,
-      );
-    }
+
   };
 
   useEffect(() => {
@@ -167,8 +184,24 @@ export function EventDetailsSheet({
       return;
     }
 
-    const closeTimer = window.setTimeout(() => setDisplayedEvent(null), 350);
-    return () => window.clearTimeout(closeTimer);
+    // On mobile, preserve the current checkout step until Vaul finishes its
+    // exit. Replacing it with event details mid-slide changes focus and layout.
+    // Vaul's onAnimationEnd only runs for changes requested inside the drawer,
+    // not when navigation sets the controlled open prop to false. Wait for the
+    // actual surface animation so those exits also release the body scroll lock.
+    let cancelled = false;
+    const frame = window.requestAnimationFrame(() => {
+      const animations = mobileSheetRef.current?.getAnimations() ?? [];
+      void Promise.allSettled(animations.map(animation => animation.finished)).then(() => {
+        if (cancelled || activeEventRef.current) return;
+        setDisplayedEvent(null);
+        setCheckoutOpen(false);
+      });
+    });
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+    };
   }, [activeEvent, isDesktop]);
 
   useEffect(() => {
@@ -182,7 +215,6 @@ export function EventDetailsSheet({
 
   useEffect(() => {
     if (activeEvent) {
-      setQty({});
       setCheckoutOpen(false);
       setFavorited(Boolean(activeEvent.stats?.isFavorited));
       setShared(false);
@@ -200,7 +232,55 @@ export function EventDetailsSheet({
       document.body.style.overflow = "";
       window.removeEventListener("keydown", onKey);
     };
-  }, [displayedEvent]);
+  }, [displayedEvent, checkoutBusy]);
+
+  // Keep the top edge stable when the keyboard opens; only shrink the content.
+  // Vaul's automatic input repositioning is disabled for this sheet.
+  useEffect(() => {
+    if (!activeEvent || isDesktop) return;
+    const panel = mobileSheetRef.current;
+    if (!panel) return;
+    const viewport = window.visualViewport;
+    let frame = 0;
+    let baseHeight = panel.getBoundingClientRect().height;
+    let baseViewportHeight = window.innerHeight;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const visibleHeight = viewport?.height ?? window.innerHeight;
+        const offsetTop = viewport?.offsetTop ?? 0;
+        const keyboardOpen = baseViewportHeight - visibleHeight > 120;
+        if (!keyboardOpen) {
+          panel.style.height = "";
+          panel.style.bottom = "";
+          baseHeight = panel.getBoundingClientRect().height;
+          baseViewportHeight = window.innerHeight;
+          return;
+        }
+        const top = Math.max(offsetTop, baseViewportHeight - baseHeight);
+        panel.style.height = `${Math.max(0, offsetTop + visibleHeight - top)}px`;
+        panel.style.bottom = `${Math.max(0, window.innerHeight - offsetTop - visibleHeight)}px`;
+        const focused = document.activeElement;
+        if (focused instanceof HTMLElement && panel.contains(focused)) {
+          const bounds = focused.getBoundingClientRect();
+          if (bounds.bottom > offsetTop + visibleHeight - 90 || bounds.top < top + 100) {
+            focused.scrollIntoView({ block: "nearest" });
+          }
+        }
+      });
+    };
+    viewport?.addEventListener("resize", update);
+    viewport?.addEventListener("scroll", update);
+    window.addEventListener("resize", update);
+    panel.addEventListener("focusin", update);
+    return () => {
+      cancelAnimationFrame(frame);
+      viewport?.removeEventListener("resize", update);
+      viewport?.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      panel.removeEventListener("focusin", update);
+    };
+  }, [activeEvent?.id, displayedEvent?.id, isDesktop]);
 
   if (!displayedEvent) return null;
 
@@ -226,12 +306,6 @@ export function EventDetailsSheet({
         ? t("eventSheet.selectTickets")
         : t("eventSheet.continue", { count, total: formatRon(total) });
 
-  const setTierQty = (id: string, delta: number) =>
-    setQty((q) => ({
-      ...q,
-      [id]: Math.max(0, Math.min(8, (q[id] ?? 0) + delta)),
-    }));
-
   const handleShare = async () => {
     try {
       await shareEvent(event);
@@ -239,17 +313,24 @@ export function EventDetailsSheet({
       window.setTimeout(() => setShared(false), 1800);
     } catch (error) {
       if ((error as DOMException).name === "AbortError") return;
+      toast.error(t("feedback.shareFailed"));
     }
   };
 
   const toggleFavorite = async () => {
-    if (!user) return;
+    if (!user || favoriteLock.current) return;
+    favoriteLock.current = true;
+    setSavingFavorite(true);
     const nextFavorite = !favorited;
     setFavorited(nextFavorite);
     try {
       await user.setEventFavorite(event.id, nextFavorite);
     } catch {
       setFavorited(!nextFavorite);
+      toast.error(t("feedback.actionFailed"));
+    } finally {
+      favoriteLock.current = false;
+      setSavingFavorite(false);
     }
   };
 
@@ -292,7 +373,7 @@ export function EventDetailsSheet({
 
   const sheetContent = (
     <>
-      <div className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-y-none touch-pan-y">
+      <div data-nav-scroll={"event-sheet:" + event.id} className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-y-none touch-pan-y">
         {/* HEADER CU IMAGINE SI OVERLAY */}
         <div className="relative">
           <div className="relative h-64 w-full overflow-hidden bg-neutral-950 md:h-72">
@@ -308,7 +389,7 @@ export function EventDetailsSheet({
             )}
 
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-transparent to-black/95" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#050505]/95 via-[#050505]/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
           </div>
 
           {/* BADGES (LIVE / DATA / COMPLET) */}
@@ -379,40 +460,12 @@ export function EventDetailsSheet({
                 {t("eventSheet.tickets")}
               </h3>
               <div className="mt-3 space-y-2.5">
-                {ticketTypes.map((t) => (
-                  <div
-                    key={t.id}
-                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3.5 transition-colors hover:bg-white/[0.05]"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-white">{t.name}</p>
-                      <p className="mt-0.5 text-xs font-semibold text-primary">
-                        {t.priceRon} RON
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setTierQty(t.id, -1)}
-                        disabled={isFinished}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-sm font-bold transition hover:bg-white/10 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        -
-                      </button>
-                      <span className="w-5 text-center text-sm font-semibold text-white">
-                        {qty[t.id] ?? 0}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setTierQty(t.id, 1)}
-                        disabled={isFinished}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/30 bg-primary/20 text-sm font-bold text-primary transition hover:bg-primary/30 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                <TicketTypeSelector
+                  tickets={ticketTypes}
+                  quantities={qty}
+                  onChange={setQty}
+                  disabled={isFinished || isOwnEvent}
+                />
               </div>
 
               {isFinished && (
@@ -431,6 +484,8 @@ export function EventDetailsSheet({
           <button
             type="button"
             onClick={toggleFavorite}
+            disabled={savingFavorite}
+            aria-busy={savingFavorite}
             aria-label={
               favorited
                 ? t("eventSheet.removeFavorite")
@@ -474,32 +529,59 @@ export function EventDetailsSheet({
       </div>
     </>
   );
+  const interactiveContent = (
+    <>
+      <div className={checkoutOpen ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
+        {sheetContent}
+      </div>
+      <TicketCheckoutDrawer
+        key={event.id}
+        event={event}
+        quantities={qty}
+        onQuantitiesChange={setQty}
+        open={checkoutOpen}
+        historyBack={Boolean(activeEvent)}
+        embedded
+        onBusyChange={setCheckoutBusy}
+        onClose={() => setCheckoutOpen(false)}
+      />
+    </>
+  );
   if (!isDesktop) {
     return (
       <>
-        {!checkoutOpen && (
           <Drawer
+            historyBack={false}
             open={Boolean(activeEvent)}
             onOpenChange={(open) => !open && handleClose()}
+            onAnimationEnd={(open) => {
+              if (!open && !activeEventRef.current) {
+                setDisplayedEvent(null);
+                setCheckoutOpen(false);
+              }
+            }}
             modal
-            dismissible
+            dismissible={!checkoutBusy}
+            repositionInputs={false}
             shouldScaleBackground={false}
             closeThreshold={0.35}
             fixed
           >
-            <DrawerContent className="h-[82svh] max-h-[46rem] overflow-hidden rounded-t-4xl border-none bg-[#050505] p-0 touch-none [&>div:first-child]:hidden">
+            <DrawerContent ref={mobileSheetRef} showHandle={false} className="h-[82svh] max-h-[46rem] rounded-t-4xl border-none bg-black p-0 touch-none">
               <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
 
-              {/* HANDLE OPTIMIZAT: Randat hardware direct (translate-z-0), fara efecte de blur care cauzeaza delay */}
-              <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-8 items-center justify-center bg-gradient-to-b from-black/60 to-transparent transform-gpu translate-z-0">
-                <div className="h-1.5 w-12 rounded-full bg-white/70 shadow-sm" />
+              {/* Fade out before the overlay ends, so its lower edge stays invisible. */}
+              <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-8 items-center justify-center">
+                <div
+                  className="absolute inset-x-0 top-0 h-16"
+                  style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.46) 15%, rgba(0,0,0,0.24) 35%, rgba(0,0,0,0.08) 60%, rgba(0,0,0,0.015) 80%, rgba(0,0,0,0) 92%, rgba(0,0,0,0) 100%)" }}
+                />
+                <div className="relative h-1.5 w-12 rounded-full bg-white/70 shadow-sm" />
               </div>
 
-              {sheetContent}
+              {interactiveContent}
             </DrawerContent>
           </Drawer>
-        )}
-        <TicketCheckoutDrawer event={event} quantities={qty} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
       </>
     );
   }
@@ -516,12 +598,11 @@ export function EventDetailsSheet({
           exit={{ y: 24, opacity: 0 }}
           transition={{ type: "spring", damping: 28, stiffness: 260 }}
           onClick={(clickEvent) => clickEvent.stopPropagation()}
-          className="relative z-10 flex h-[min(88vh,49rem)] w-[calc(100%-1.5rem)] max-w-2xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#050505] text-foreground shadow-2xl backdrop-blur-xl cursor-default"
+          className="relative z-10 flex h-[min(88vh,49rem)] w-[calc(100%-1.5rem)] max-w-2xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-black text-foreground shadow-2xl backdrop-blur-xl cursor-default"
         >
-          {sheetContent}
+          {interactiveContent}
         </motion.div>
       </div>
-      <TicketCheckoutDrawer event={event} quantities={qty} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
     </>
   );
 }

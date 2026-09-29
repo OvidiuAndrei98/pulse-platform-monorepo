@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BackLink } from "@/components/BackLink";
 import { ArrowLeft, Check, Loader2, Mail } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -28,9 +29,9 @@ export default function ForgotPasswordPage() {
   return (
     <main className="min-h-dvh bg-black px-5 pb-10 pt-[max(1.5rem,calc(var(--native-safe-top)+1rem))] text-white sm:px-7">
       <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-md flex-col">
-        <Link href="/login" className="inline-flex h-12 w-fit items-center gap-2 rounded-full bg-white/5 px-4 text-sm font-medium text-white transition hover:bg-white/10">
+        <BackLink href="/login" className="inline-flex h-12 w-fit items-center gap-2 rounded-full bg-white/5 px-4 text-sm font-medium text-white transition hover:bg-white/10">
           <ArrowLeft className="h-4 w-4" /> {t("auth.backToLogin")}
-        </Link>
+        </BackLink>
 
         <section className="my-auto w-full py-10">
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/30">

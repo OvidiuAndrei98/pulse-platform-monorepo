@@ -71,6 +71,7 @@ export function HomeEventCarousel({
       {events.length ? (
         <div
           ref={railRef}
+          data-nav-scroll={"home-carousel:" + title}
           className="app-page-gutter mx-auto mt-2 flex max-w-7xl snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2 scroll-pl-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {events.map((event) => (

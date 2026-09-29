@@ -8,7 +8,7 @@ import {
   type ReadableSchema,
 } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
-import { TicketQrCode } from "@/components/tickets/TicketQrCode";
+import { TicketPass } from "@/components/tickets/TicketPass";
 import { TicketPdfButton } from "@/components/tickets/TicketPdfButton";
 import { formatEventDate } from "@/features/events/dateFormat";
 import { formatRon } from "@/features/events/serviceFee";
@@ -347,39 +347,8 @@ function TicketPreview({
         >
           <X className="h-4 w-4" />
         </button>
-        <div className="mt-4 flex items-center gap-2 md:mt-6">
-          <span className="rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">
-            {ticket.ticketTypeName}
-          </span>
-          <span className="text-[11px] text-muted-foreground">{ticket.id}</span>
-        </div>
-        <h2 className="mt-2 text-xl font-bold leading-snug tracking-tight text-white">
-          {ticket.eventTitle}
-        </h2>
-        <div className="mt-6 flex justify-center">
-          <div className="rounded-2xl bg-white p-4 shadow-xl">
-            <TicketQrCode
-              value={ticket.validationHash}
-              size={220}
-              alt={t("purchases.ticketQr")}
-            />
-          </div>
-        </div>
-        <div className="mt-6 space-y-3 border-y border-white/5 py-4 text-sm">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Calendar className="h-4 w-4 shrink-0" />
-            <span>{formatEventDate(ticket.startTime)}</span>
-          </div>
-          <a
-            href={`https://maps.google.com/?q=${encodeURIComponent(ticket.locationName)}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-start gap-2 text-primary underline-offset-2 hover:underline"
-          >
-            <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
-            <span className="leading-tight">{ticket.locationName}</span>
-          </a>
-        </div>
+        <div className="mt-10"><TicketPass ticket={ticket} /></div>
+        <a href={`https://maps.google.com/?q=${encodeURIComponent(ticket.locationName)}`} target="_blank" rel="noreferrer" className="mt-4 flex min-h-11 items-center gap-2 text-sm text-primary"><MapPin className="h-4 w-4" />{ticket.locationName}</a>
         <TicketPdfButton
           ticket={ticket}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-xs font-medium text-white transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-60"

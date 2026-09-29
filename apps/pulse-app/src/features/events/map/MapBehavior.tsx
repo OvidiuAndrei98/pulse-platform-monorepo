@@ -3,6 +3,7 @@ import L from "leaflet";
 import { useMap, useMapEvents } from "react-leaflet";
 import { Event } from "@/core/DataProvider";
 import { Coordinates } from "@/features/events/types";
+import { readNavigationState, writeNavigationState } from "@/lib/navigation/state";
 
 export function MapViewportController({
   userLocation,
@@ -16,13 +17,25 @@ export function MapViewportController({
   const map = useMap();
 
   useEffect(() => {
+    const key = `map:${cityCenter?.join(",") ?? "nearby"}:${distanceKm}`;
+    const saved = readNavigationState<{ center: Coordinates; zoom: number } | null>(key, null);
     const location = cityCenter ?? userLocation ?? [44.4268, 26.1025];
     const radiusMeters = Math.max(1, distanceKm) * 1000;
-    map.fitBounds(L.latLng(location).toBounds(radiusMeters), {
+    if (saved) map.setView(saved.center, saved.zoom, { animate: false });
+    else map.fitBounds(L.latLng(location).toBounds(radiusMeters), {
       padding: [40, 40],
       maxZoom: 15,
       animate: true,
     });
+    const save = () => {
+      const center = map.getCenter();
+      writeNavigationState(key, { center: [center.lat, center.lng], zoom: map.getZoom() });
+    };
+    save();
+    map.on("moveend", save);
+    // MapContainer can destroy Leaflet before child effects are cleaned up.
+    // Persist while the map is alive, never read its panes during teardown.
+    return () => { map.off("moveend", save); };
   }, [cityCenter, distanceKm, map, userLocation]);
 
   return null;

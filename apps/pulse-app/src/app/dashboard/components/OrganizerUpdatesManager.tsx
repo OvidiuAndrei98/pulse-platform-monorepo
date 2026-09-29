@@ -79,13 +79,13 @@ export function OrganizerUpdatesManager({
   };
 
   return (
-    <section className="mt-8 rounded-3xl border border-white/[0.06] bg-white/[0.02] p-5">
+    <section className="mt-8 pb-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-2">
           <Megaphone className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground/80">{t("organizerUpdates.manageTitle")}</h2>
-            <p className="mt-0.5 max-w-[500px] text-[11px] leading-5 text-muted-foreground/50">
+            <h2 className="text-lg font-semibold tracking-tight">{t("organizerUpdates.manageTitle")}</h2>
+            <p className="mt-1 max-w-md text-sm leading-6 text-muted-foreground">
               {t("organizerUpdates.manageHint")}
             </p>
           </div>
