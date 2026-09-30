@@ -369,3 +369,7 @@ html.capacitor-native body::before {
     scroll-padding-block: 0.75rem 4rem;
   }
 }
+@keyframes help-fill {
+  from { width: 0; }
+  to { width: 100%; }
+}

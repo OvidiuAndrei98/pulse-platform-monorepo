@@ -5,6 +5,7 @@ import { RequestError } from "@/components/ui/RequestFeedback";
 import { SavedEventCard } from "@/components/profile/SavedEventCard";
 
 import { useNavigationState } from "@/lib/navigation/useNavigationState";
+import { routeForPlatform } from "@/lib/native/navigation";
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -42,6 +43,7 @@ import {
   Mail,
   Sparkles,
   Bookmark,
+  ShieldCheck,
 } from "lucide-react";
 
 type TicketData = {
@@ -174,6 +176,12 @@ export default function MePage() {
       (!ticket.endTime || new Date(ticket.endTime).getTime() >= Date.now()),
   );
   const activeTicketGroups = groupTicketsByEvent(activeTickets);
+  const activeValidatedEvent = tickets.find(
+    (ticket) =>
+      ticket.isValidated &&
+      Boolean(ticket.endTime) &&
+      new Date(ticket.endTime!).getTime() + 24 * 60 * 60 * 1000 >= Date.now(),
+  );
 
   const toggleRow = (rowId: string) => {
     setActiveRow(activeRow === rowId ? null : rowId);
@@ -199,6 +207,26 @@ export default function MePage() {
                 </div>
               </div>
             </header>
+
+            {!isOrganizer && activeValidatedEvent && (
+              <Link
+                href={routeForPlatform(`/events/${activeValidatedEvent.eventId}/group`)}
+                className="flex items-center gap-3 rounded-[26px] border border-emerald-400/30 bg-emerald-400/[0.09] p-4 text-left transition hover:bg-emerald-400/[0.14]"
+              >
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-emerald-400 text-black">
+                  <ShieldCheck className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">
+                    {t("safetyGroup.activeEvent", { event: activeValidatedEvent.event })}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    {t("safetyGroup.openGroup")}
+                  </span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-emerald-300" />
+              </Link>
+            )}
 
             {!isOrganizer && validationEvents.length > 0 && (
               <Link

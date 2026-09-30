@@ -24,6 +24,7 @@ import (
 	"pulse-api/internal/payments"
 	"pulse-api/internal/promotions"
 	"pulse-api/internal/router"
+	"pulse-api/internal/safetygroups"
 	"pulse-api/internal/spotify"
 	"pulse-api/internal/tickets"
 	"pulse-api/internal/users"
@@ -208,6 +209,7 @@ func (app *Application) BuildRouter() http.Handler {
 	interactionsHandler := interactions.NewHandler(app.Queries)
 	usersHandler := users.NewHandler(app.Queries)
 	notificationsHandler := notifications.NewHandler(app.Queries)
+	safetyGroupsHandler := safetygroups.NewHandler(app.Pool, app.Abuse)
 	authMiddleware := auth.AuthMiddleware
 	scannerAuthMiddleware := auth.ScannerAuthMiddleware
 	requireOrganizer := auth.RequireRole("organizer", "admin")
@@ -268,6 +270,12 @@ func (app *Application) BuildRouter() http.Handler {
 		GetBillingDetails:           usersHandler.HandleGetBillingDetails,
 		SaveBillingDetails:          usersHandler.HandleSaveBillingDetails,
 		DeleteBillingDetails:        usersHandler.HandleDeleteBillingDetails,
+		GetEventSafetyGroup:         safetyGroupsHandler.HandleGet,
+		CreateEventSafetyGroup:      safetyGroupsHandler.HandleCreate,
+		RespondEventSafetyGroup:     safetyGroupsHandler.HandleRespond,
+		SendSafetyGroupMessage:      safetyGroupsHandler.HandleMessage,
+		SendSafetyGroupHelp:         safetyGroupsHandler.HandleHelp,
+		ResolveSafetyGroupHelp:      safetyGroupsHandler.HandleHelpResolved,
 		ListOrganizerVerifications:  organizerHandler.HandleAdminListOrganizerVerifications,
 		ReviewOrganizerVerification: organizerHandler.HandleAdminReviewOrganizerVerification,
 
@@ -413,4 +421,8 @@ func (app *Application) StartAbuseProtectionWorker(ctx context.Context) {
 	if app.Abuse != nil {
 		app.Abuse.StartCleanupWorker(ctx)
 	}
+}
+
+func (app *Application) StartSafetyGroupCleanupWorker(ctx context.Context) {
+	safetygroups.NewHandler(app.Pool, app.Abuse).StartCleanupWorker(ctx)
 }

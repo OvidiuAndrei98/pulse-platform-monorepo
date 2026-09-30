@@ -210,6 +210,72 @@ model NotificationListResponse {
   unreadCount: int64;
 }
 
+model SafetyGroupMemberResponse {
+  userId: string;
+  username: string;
+  avatarUrl?: string;
+  status: "pending" | "accepted";
+}
+
+model SafetyGroupMessageResponse {
+  id: string;
+  senderId: string;
+  senderUsername: string;
+  senderAvatarUrl?: string;
+  kind: "message" | "help" | "help_resolved" | "system";
+  content: string;
+  createdAt: utcDateTime;
+}
+
+model EligibleSafetyFriendResponse {
+  userId: string;
+  username: string;
+  avatarUrl?: string;
+}
+
+model EventSafetyGroupResponse {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventLocation: string;
+  startTime: utcDateTime;
+  endTime: utcDateTime;
+  expiresAt: utcDateTime;
+  ownerId: string;
+  currentMemberStatus: "pending" | "accepted";
+  canSendHelp: boolean;
+  currentUserNeedsHelp: boolean;
+  members: SafetyGroupMemberResponse[];
+  messages: SafetyGroupMessageResponse[];
+}
+
+model EventSafetyGroupEnvelopeResponse {
+  canCreate: boolean;
+  ticketValidated: boolean;
+  group?: EventSafetyGroupResponse;
+  eligibleFriends: EligibleSafetyFriendResponse[];
+}
+
+model CreateEventSafetyGroupPayload {
+  friendIds: string[];
+}
+
+model SafetyGroupInviteResponsePayload {
+  status: "accepted" | "declined";
+}
+
+model SafetyGroupMessagePayload {
+  content: string;
+}
+
+model CreatedResourceResponse {
+  id: string;
+}
+
+model SuccessResponse {
+  success: boolean;
+}
+
 model EventResponse {
   id: string;
   organizerId: string;
@@ -1066,6 +1132,51 @@ interface EventOperations {
   @get
   @route("/{id}/attendees")
   getAttendees(@path id: string): EventAttendeeResponse[];
+
+  @summary("Obtine grupul privat si starea de siguranta pentru participant")
+  @get
+  @route("/{id}/safety-group")
+  getSafetyGroup(@path id: string): EventSafetyGroupEnvelopeResponse;
+
+  @summary("Creeaza grupul privat al participantului pentru eveniment")
+  @post
+  @route("/{id}/safety-group")
+  createSafetyGroup(
+    @path id: string,
+    @body payload: CreateEventSafetyGroupPayload,
+  ): CreatedResourceResponse;
+
+  @summary("Accepta sau refuza invitatia in grup")
+  @post
+  @route("/{id}/safety-group/respond")
+  respondSafetyGroup(
+    @path id: string,
+    @body payload: SafetyGroupInviteResponsePayload,
+  ): SuccessResponse;
+
+  @summary("Trimite un mesaj efemer in grup")
+  @post
+  @route("/{id}/safety-group/messages")
+  sendSafetyGroupMessage(
+    @path id: string,
+    @body payload: SafetyGroupMessagePayload,
+  ): CreatedResourceResponse;
+
+  @summary("Trimite o alerta de ajutor prietenilor din grup")
+  @post
+  @route("/{id}/safety-group/help")
+  sendSafetyGroupHelp(
+    @path id: string,
+    @body payload: SafetyGroupMessagePayload,
+  ): CreatedResourceResponse;
+
+  @summary("Anunta grupul ca alerta de ajutor este rezolvata")
+  @post
+  @route("/{id}/safety-group/help-resolved")
+  resolveSafetyGroupHelp(
+    @path id: string,
+    @body payload: SafetyGroupMessagePayload,
+  ): CreatedResourceResponse;
 
   @summary("Detalii eveniment public după ID (folosește în spate clauza unificată ListEvents din DB)")
   @get

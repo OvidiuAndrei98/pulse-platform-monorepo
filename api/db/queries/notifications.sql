@@ -45,13 +45,40 @@ SELECT
 FROM notifications notification
 LEFT JOIN users actor ON actor.id = notification.actor_id
 WHERE notification.user_id = $1
+  AND (notification.expires_at IS NULL OR notification.expires_at > CURRENT_TIMESTAMP)
+  AND (
+    notification.type NOT LIKE 'safety_%'
+    OR EXISTS (
+      SELECT 1
+      FROM tickets ticket
+      JOIN orders order_row ON order_row.id = ticket.order_id
+      WHERE order_row.event_id = notification.event_id
+        AND order_row.status = 'completed'
+        AND (ticket.user_id = notification.user_id
+          OR (ticket.user_id IS NULL AND order_row.user_id = notification.user_id))
+    )
+  )
 ORDER BY notification.created_at DESC
 LIMIT $2;
 
 -- name: CountUnreadNotifications :one
 SELECT COUNT(*)::bigint
 FROM notifications
-WHERE user_id = $1 AND read_at IS NULL;
+WHERE user_id = $1
+  AND read_at IS NULL
+  AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+  AND (
+    type NOT LIKE 'safety_%'
+    OR EXISTS (
+      SELECT 1
+      FROM tickets ticket
+      JOIN orders order_row ON order_row.id = ticket.order_id
+      WHERE order_row.event_id = notifications.event_id
+        AND order_row.status = 'completed'
+        AND (ticket.user_id = notifications.user_id
+          OR (ticket.user_id IS NULL AND order_row.user_id = notifications.user_id))
+    )
+  );
 
 -- name: MarkAllNotificationsRead :exec
 UPDATE notifications
