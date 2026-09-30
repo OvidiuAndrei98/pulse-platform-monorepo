@@ -22,7 +22,7 @@ function normalizeQuantity(value: string) {
 }
 
 export function InvitationManager({ event, readOnly = false }: { event: Event; readOnly?: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useDataProvider();
   const [items, setItems] = useState<InvitationTicket[]>([]);
   const [label, setLabel] = useState("");
@@ -81,18 +81,10 @@ export function InvitationManager({ event, readOnly = false }: { event: Event; r
     }
   };
 
-  const pdfCopy = () => ({
-    invitation: t("invitations.general"),
-    dateAndTime: t("ticketPdf.dateAndTime"),
-    location: t("ticketPdf.location"),
-    ticketCode: t("ticketPdf.ticketCode"),
-    validationHint: t("ticketPdf.validationHint"),
-  });
-
   const downloadBatch = async (batch: InvitationBatch) => {
     setBatchBusy(batch.id);
     try {
-      const pdf = await createInvitationBatchPdf(event, batch.items, pdfCopy());
+      const pdf = await createInvitationBatchPdf(event, batch.items, t, i18n.language);
       downloadPdfBlob(pdf.blob, pdf.fileName);
       toast.success(t("invitations.downloaded", { count: pdf.count }));
     } catch {
@@ -105,7 +97,7 @@ export function InvitationManager({ event, readOnly = false }: { event: Event; r
   const shareBatch = async (batch: InvitationBatch) => {
     setBatchBusy(batch.id);
     try {
-      const pdf = await createInvitationBatchPdf(event, batch.items, pdfCopy());
+      const pdf = await createInvitationBatchPdf(event, batch.items, t, i18n.language);
       const file = new File([pdf.blob], pdf.fileName, { type: "application/pdf" });
       if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
         await navigator.share({ title: batch.label, text: event.title, files: [file] });

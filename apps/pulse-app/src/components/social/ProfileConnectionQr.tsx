@@ -5,7 +5,7 @@ import { useBackLayer } from "@/lib/navigation/useBackLayer";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { QrCode } from "lucide-react";
-import { ApiClient } from "@packages/api-client/src/Client";
+import { ApiClient, ApiError } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
 import { TicketQrCode } from "@/components/tickets/TicketQrCode";
@@ -37,11 +37,16 @@ export function ProfileConnectionQr() {
   if (!user) return null;
   const value = `glow://friend/${user.properties.id}`;
   const connect = async (scanned: string) => {
+    setMessage("");
     const match = scanned.match(
-      /^(?:glow|pulse):\/\/friend\/([0-9a-f-]{36})$/i,
+      /^(?:glow|pulse):\/\/friend\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
     );
     if (!match) {
       setMessage(t("qr.invalidConnection"));
+      return;
+    }
+    if (match[1].toLowerCase() === user.properties.id.toLowerCase()) {
+      setMessage(t("qr.ownCode"));
       return;
     }
     try {
@@ -49,8 +54,10 @@ export function ProfileConnectionQr() {
         params: { path: { userId: match[1] } },
       });
       setMessage(t("qr.connected"));
-    } catch {
-      setMessage(t("qr.connectionFailed"));
+    } catch (error) {
+      setMessage(error instanceof ApiError
+        ? t(error.status === 401 ? "qr.sessionExpired" : "qr.connectionRejected", { status: error.status })
+        : t("qr.connectionOffline"));
     }
   };
 
@@ -76,7 +83,7 @@ export function ProfileConnectionQr() {
         {/* Butonul de actiune - ocupa latimea containerului in sidebar */}
         <button
           type="button"
-          onClick={() => setShowCode(true)}
+          onClick={() => { setMessage(""); setShowCode(true); }}
           className="flex h-9 w-full shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/5 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/10 active:scale-95 xl:w-auto"
         >
           {t("qr.myCode")}
@@ -103,7 +110,7 @@ export function ProfileConnectionQr() {
             <p className="mt-1 text-center text-sm text-muted-foreground">
               {t("qr.showOrScanOther")}
             </p>
-            <ConnectionContent value={value} onScan={connect} message={message} />
+            <ConnectionContent value={value} onScan={connect} message={message} onStart={() => setMessage("")} />
           </section>
         </div>, document.body
       )) : (
@@ -113,7 +120,7 @@ export function ProfileConnectionQr() {
               <DrawerTitle>{t("qr.quickConnect")}</DrawerTitle>
               <DrawerDescription>{t("qr.showOrScanOther")}</DrawerDescription>
             </DrawerHeader>
-            {showCode && <ConnectionContent value={value} onScan={connect} message={message} />}
+            {showCode && <ConnectionContent value={value} onScan={connect} message={message} onStart={() => setMessage("")} />}
           </DrawerContent>
         </Drawer>
       )}
@@ -125,10 +132,12 @@ function ConnectionContent({
   value,
   onScan,
   message,
+  onStart,
 }: {
   value: string;
   onScan: (value: string) => Promise<void>;
   message: string;
+  onStart: () => void;
 }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<"code" | "scan">("code");
@@ -136,7 +145,7 @@ function ConnectionContent({
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div role="group" aria-label={t("qr.quickConnect")} className="mb-5 grid grid-cols-2 gap-1 rounded-full bg-white/5 p-1">
         {(["code", "scan"] as const).map(item => (
-          <button key={item} type="button" aria-pressed={mode === item} onClick={() => setMode(item)}
+          <button key={item} type="button" aria-pressed={mode === item} onClick={() => { onStart(); setMode(item); }}
             className={`min-h-11 rounded-full px-3 text-sm font-semibold ${mode === item ? "bg-primary text-white" : "text-muted-foreground"}`}>
             {t(item === "code" ? "qr.myCode" : "qr.scanQr")}
           </button>
@@ -146,7 +155,7 @@ function ConnectionContent({
         <div className="mx-auto mb-3 w-fit rounded-xl bg-white p-3">
           <TicketQrCode value={value} size={180} alt={t("qr.profileCode")} />
         </div>
-      ) : <QrCameraScanner onScan={onScan} className="w-full" />}
+      ) : <QrCameraScanner onScan={onScan} onStart={onStart} className="w-full" />}
       {message && <p role="status" className="mt-4 text-center text-sm text-primary">{message}</p>}
     </div>
   );

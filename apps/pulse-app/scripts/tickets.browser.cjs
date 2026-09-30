@@ -76,6 +76,7 @@ async function run() {
   };
   const button = (text) => `Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === ${JSON.stringify(text)})`;
   const friendQr = await require('qrcode').toDataURL('glow://friend/11111111-2222-4333-8444-555555555555',{width:360,margin:4});
+  const ownQr = await require('qrcode').toDataURL('glow://friend/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',{width:360,margin:4});
 
   await call("Page.addScriptToEvaluateOnNewDocument", { source: `
     localStorage.setItem('pulse_token', 'mock-tickets-test');
@@ -90,7 +91,7 @@ async function run() {
       const canvas=document.createElement('canvas');canvas.width=canvas.height=360;
       const stream=canvas.captureStream(10);
       if (window.__qrStream) {
-        const img = new Image();img.src=${JSON.stringify(friendQr)};await img.decode();
+        const img = new Image();img.src=window.__ownQr ? ${JSON.stringify(ownQr)} : ${JSON.stringify(friendQr)};await img.decode();
         canvas.getContext('2d').drawImage(img,0,0,360,360);
       } else {canvas.getContext('2d').fillRect(0,0,360,360);}
       window.__streams.push(stream);return stream;
@@ -125,7 +126,7 @@ async function run() {
       if (!url.pathname.includes('/api/v1/')) return originalFetch(input, init);
       const route = url.pathname.split('/api/v1')[1];
       const reply = (data, status=200) => new Response(JSON.stringify(data), {status, headers:{'Content-Type':'application/json'}});
-      if (route === '/users/me') return reply({id:'ticket-user',username:'Test User',role:location.pathname.startsWith('/dashboard')?'organizer':'user',email:'test@example.com',preferredLanguage:'en'});
+      if (route === '/users/me') return reply({id:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',username:'Test User',role:location.pathname.startsWith('/dashboard')?'organizer':'user',email:'test@example.com',preferredLanguage:'en'});
       if (route.startsWith('/dashboard/organizer/profile/')) return reply({isVerified:true,verificationStatus:'approved',stripeChargesEnabled:true,stripePayoutsEnabled:true});
       if (route === '/dashboard/events/mobile') {
         const event={id:'mobile',organizerId:'ticket-user',title:'VAT fixture',description:'A complete fixture event description',category:'house',vibe:'indoor',status:'draft',city:'Bucuresti',locationName:'Test venue',googlePlaceId:'test',latitude:44,longitude:26,startTime:'2099-10-01T18:00:00Z',endTime:'2099-10-02T04:00:00Z',organizerAbsorbsServiceFee:false,lineup:[],stats:{},ticketTypes:[{id:'11111111-2222-4333-8444-555555555555',name:'General Access',priceRon:50,capacity:100,startSales:'2099-01-01T12:00:00Z',endSales:'2099-10-01T17:00:00Z'},{id:'11111111-2222-4333-8444-666666666666',name:'VIP Access',priceRon:100,capacity:100,startSales:'2099-01-01T12:00:00Z',endSales:'2099-10-01T17:00:00Z'}]};
@@ -134,7 +135,7 @@ async function run() {
       }
       if (route === '/dashboard/events/mobile/invitations' && init?.method==='POST') {window.__api.invitation=JSON.parse(init.body);return reply([]);}
       if (route === '/users/me/tickets') { window.__api.calls++; await new Promise(resolve => setTimeout(resolve,120)); return window.__api.fail ? reply({title:'Unavailable'},503) : reply(window.__api.empty ? [] : tickets); }
-      if (route.startsWith('/friends/connect/')) { window.__api.connections++; return reply({}); }
+      if (route.startsWith('/friends/connect/')) { window.__api.connections++; return reply({},window.__connectionStatus || 200); }
       return reply([]);
     };
     const createObjectURL = URL.createObjectURL.bind(URL);
@@ -169,6 +170,7 @@ async function run() {
     assert.equal(await evaluate("window.__pdfBlob.slice(0,5).text()"),'%PDF-','Download is a real PDF document');
     assert.ok(await evaluate("window.__pdfMarkup.includes('85.70') && window.__pdfMarkup.includes('5.70') && window.__pdfMarkup.includes('14.87')"),'PDF includes saved total, fee and included VAT');
     assert.ok(await evaluate("!window.__pdfMarkup.includes('Test Organizer') && !window.__pdfMarkup.includes('class=\"warning\"')"),'PDF omits company data and warning panel');
+    assert.ok(await evaluate("!window.__pdfMarkup.includes('See invoice')"),'PDF does not refer users to an invoice');
     if (process.env.TICKETS_SCREENSHOT && width === 390) {
       const png = await evaluate('window.__pdfImage');
       if (png) fs.writeFileSync(process.env.TICKETS_SCREENSHOT.replace('.png','-pdf.png'),Buffer.from(png.split(',')[1],'base64'));
@@ -233,6 +235,24 @@ async function run() {
     await until("window.__api.connections===1 && window.__streams.every(s=>s.getTracks().every(t=>t.readyState==='ended'))");
     await delay(300);
     assert.equal(await evaluate('window.__api.connections'),1,'QR causes one connection request');
+    if (height === 667) {
+      const scanAgain = async () => evaluate("Array.from(document.querySelectorAll('[role=dialog] button')).find(b => b.textContent.trim()==='Scan QR' && !b.hasAttribute('aria-pressed')).click()");
+      await evaluate('window.__ownQr=true');
+      await scanAgain();
+      await until("document.querySelector('[role=status]')?.textContent.includes('your own code')");
+      assert.equal(await evaluate('window.__api.connections'),1,'Own QR never sends a connection request');
+      await evaluate('window.__ownQr=false; window.__connectionStatus=500');
+      await scanAgain();
+      await until("document.querySelector('[role=status]')?.textContent.includes('HTTP 500')");
+      await evaluate('window.__qrStream=false');
+      await scanAgain();
+      await until("document.querySelector('[role=dialog] video')?.srcObject?.active");
+      await delay(1200);
+      assert.equal(await evaluate("Boolean(document.querySelector('[role=dialog] [role=status]'))"),false,'New camera attempt clears stale connection errors');
+      assert.equal(await evaluate('window.__api.connections'),2,'Blank camera frames never initiate a connection');
+      await evaluate("Array.from(document.querySelectorAll('[role=dialog] button')).find(b => b.textContent.trim()==='Stop camera').click()");
+      await until("window.__streams.every(s=>s.getTracks().every(t=>t.readyState==='ended'))");
+    }
     await evaluate('window.__qrStream=false; history.back()');
     await until("!document.querySelector('[role=dialog]') && getComputedStyle(document.body).pointerEvents !== 'none'");
     // Close while permission/startup is still outstanding: no late camera leak.
@@ -271,14 +291,17 @@ async function run() {
   const batch = await evaluate(`(async () => {
     const designExports = {};
     new Function('require','exports',${JSON.stringify(compiled('ticketDesign.ts'))})(() => (${JSON.stringify(design)}),designExports);
+    const pdfExports = {};
+    new Function('require','exports',${JSON.stringify(compiled('ticketPdf.ts'))})(name => name === './ticketDesign' ? designExports : name === 'jspdf' ? window.jspdf : name === 'html2canvas' ? window.html2canvas : {toDataURL:async () => ${JSON.stringify(qr)}},pdfExports);
     const exports = {};
-    new Function('require','exports',${JSON.stringify(compiled('invitationBatchPdf.ts'))})(name => name === './ticketDesign' ? designExports : name === 'jspdf' ? window.jspdf : name === 'html2canvas' ? window.html2canvas : {toDataURL:async () => ${JSON.stringify(qr)}},exports);
+    new Function('require','exports',${JSON.stringify(compiled('invitationBatchPdf.ts'))})(() => pdfExports,exports);
     const before = document.querySelectorAll('iframe').length;
     const result = await exports.createInvitationBatchPdf({title:'Noapte în București <test>',startTime:'2099-10-01T18:00:00Z',locationName:'Venue'},[
       {id:'second',status:'active',batchIndex:2,label:'Guest',validationHash:'two'},
       {id:'cancelled',status:'revoked',batchIndex:3,label:'Guest',validationHash:'cancelled'},
       {id:'first',status:'active',batchIndex:1,label:'Guest',validationHash:'one'}
-    ],{invitation:'Invitation',dateAndTime:'Date',location:'Location',ticketCode:'Ticket code',validationHint:'Show at entry'});
+    ],key => key,'en');
+    if (!window.__pdfMarkup.includes('data-ticket-pdf') || window.__pdfMarkup.includes('See invoice') || window.__pdfMarkup.includes('class="vat"')) throw new Error('Batch must use the shared PDF without invented VAT');
     const bytes = new Uint8Array(await result.blob.arrayBuffer());
     const pdf = new TextDecoder('latin1').decode(bytes);
     return {count:result.count,size:result.blob.size,pages:pdf.split('/Type /Page' + String.fromCharCode(10)).length - 1,clean:document.querySelectorAll('iframe').length === before,header:pdf.slice(0,5)};
@@ -287,7 +310,7 @@ async function run() {
   assert.equal(batch.pages,2);
   assert.equal(batch.header,'%PDF-');
   assert.ok(batch.size > 10000 && batch.clean);
-  console.log('PASS batch PDF uses the shared card, skips revoked invitations and cleans up its renderer');
+  console.log('PASS batch PDF uses the shared A4 design, skips revoked invitations and cleans up its renderer');
   await call('Emulation.setDeviceMetricsOverride', { width:390,height:844,deviceScaleFactor:1,mobile:true });
   await navigate('/dashboard/events/mobile');
   await until("document.querySelector('#event-editor-form')");

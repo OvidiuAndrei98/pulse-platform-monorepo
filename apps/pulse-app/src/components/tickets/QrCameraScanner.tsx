@@ -17,6 +17,7 @@ import { isNativePlatform } from "@/lib/native/platform";
 type QrCameraScannerProps = {
   disabled?: boolean;
   onScan: (value: string) => void | Promise<void>;
+  onStart?: () => void;
   fullScreen?: boolean;
   continuous?: boolean;
   eventTitle?: string;
@@ -28,6 +29,7 @@ type QrCameraScannerProps = {
 export function QrCameraScanner({
   disabled,
   onScan,
+  onStart,
   fullScreen = false,
   continuous = false,
   eventTitle,
@@ -78,6 +80,7 @@ export function QrCameraScanner({
     if (disabled || starting || running) return;
     setStarting(true);
     setError("");
+    onStart?.();
     hasScannedRef.current = false;
     processingScanRef.current = false;
     lastScannedValueRef.current = "";

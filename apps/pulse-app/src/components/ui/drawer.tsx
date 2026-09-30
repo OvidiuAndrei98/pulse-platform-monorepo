@@ -29,13 +29,13 @@ DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName;
 
 export const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content> & { showHandle?: boolean }
->(({ className = "", children, showHandle = true, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content> & { showHandle?: boolean; sideInset?: boolean }
+>(({ className = "", children, showHandle = true, sideInset = false, ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay />
     <DrawerPrimitive.Content
       ref={ref}
-      className={`fixed inset-x-0 bottom-0 z-[100] flex flex-col overflow-visible rounded-t-2xl border border-white/15 text-foreground shadow-2xl ${className}`}
+      className={`fixed ${sideInset ? "w-full md:inset-x-0" : "inset-x-0"} bottom-0 z-[100] flex flex-col overflow-hidden rounded-t-2xl border border-white/15 text-foreground shadow-2xl outline-none ${className}`}
       {...props}
     >
       {/* Vaul extends the surface below the drawer with ::after during upward

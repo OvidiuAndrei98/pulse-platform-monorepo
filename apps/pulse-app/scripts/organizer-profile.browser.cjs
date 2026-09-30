@@ -80,10 +80,11 @@ async function run() {
     await delay(550);
     if (width < 768) {
       await call('Emulation.setTouchEmulationEnabled', { enabled: true });
-      await call('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{x:170,y:600}] });
+      // Swipe the page gutter, not an event rail that owns horizontal gestures.
+      await call('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{x:12,y:600}] });
       await delay(30);
       for (const y of [570,530,480,430,380]) {
-        await call('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{x:170,y}] });
+        await call('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{x:12,y}] });
         await delay(40);
       }
       await call('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
@@ -142,7 +143,7 @@ async function run() {
     const profile = { id: 'test-organizer', username: 'nightcollective', organizerName: 'Night Collective', role: 'organizer',
       avatarUrl: '/spottr-logo-192.png', bio: 'Music, friends and nights to remember.', organizerVerified: true,
       relationship: 'none', followsOrganizer: false, followerCount: 218, eventCount: 12, ticketsSoldCount: 1250 };
-    const event = { organizerId: profile.id, organizerName: profile.organizerName, title: 'Night Session', locationName: 'Test venue', city: 'Bucuresti', category: 'TECHNO', bannerUrl: '/party-event.png', latitude: 44.4, longitude: 26.1, ticketTypes: [], stats: { isFavorited: false, goingCount: 0 } };
+    const event = { organizerId: profile.id, organizerName: profile.organizerName, title: 'Night Session', locationName: 'Test venue', city: 'Bucuresti', category: 'TECHNO', bannerUrl: '/party-event.png', latitude: 44.4, longitude: 26.1, ticketTypes: [{ id: 'test-tier', name: 'General', priceRon: 150, stock: 100 }], stats: { isFavorited: false, goingCount: 0 } };
     const upcoming = [3,1,4,2].map(id => ({ ...event, id: 'upcoming-' + id, title: 'Night Session ' + id, startTime: '2099-10-0' + id + 'T18:00:00Z', endTime: '2099-10-0' + (id + 1) + 'T04:00:00Z' }));
     const past = [2,4,1,3].map(id => ({ ...event, id: 'past-' + id, title: 'Last edition ' + id, startTime: '2020-10-0' + id + 'T18:00:00Z', endTime: '2020-10-0' + (id + 1) + 'T04:00:00Z' }));
     window.fetch = async (input, init) => {
@@ -163,7 +164,22 @@ async function run() {
     };
     Object.defineProperty(navigator, 'share', { configurable: true, value: async data => { window.__sharedProfile = data; } });
   ` });
-  for (const width of [390,1280]) {
+  const checkSheet = async (selector, width) => {
+    await delay(550);
+    const bounds = await evaluate(`(() => {
+      const panel = document.querySelector(${JSON.stringify(selector)});
+      panel.focus();
+      const r = panel.getBoundingClientRect();
+      return { left: r.left, right: innerWidth - r.right, overflow: panel.scrollWidth > panel.clientWidth, outline: getComputedStyle(panel).outlineStyle };
+    })()`);
+    assert.equal(bounds.overflow, false, 'Sheet content stays inside its narrower surface');
+    assert.equal(bounds.outline, 'none', 'The dialog container has no browser-blue focus outline');
+    if (width < 768) {
+      assert.equal(bounds.left, 12, 'Mobile sheet has a 12px left gutter');
+      assert.equal(bounds.right, 12, 'Mobile sheet has a 12px right gutter');
+    }
+  };
+  for (const width of [320,390,1280]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: width < 768 });
     await navigate('/profiles?userId=test-organizer');
     await until("document.querySelectorAll('[data-organizer-events=upcoming] [data-event-card]').length === 4 && document.querySelector('[data-organizer-events=past] [data-event-card]')");
@@ -210,6 +226,7 @@ async function run() {
     })()`), 'Followers and ticket sales separate the event sliders');
     await evaluate(`Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === 'Info').click()`);
     await until("document.querySelector('[data-organizer-info]')?.textContent.includes('Music, friends and nights to remember.')");
+    await checkSheet('[data-organizer-info]', width);
     assert.equal(await evaluate("document.querySelector('[data-organizer-info] [data-organizer-stats]').textContent"), await evaluate("document.querySelector('main [data-organizer-stats]').textContent"));
     await delay(550);
     await evaluate('history.back()');
@@ -224,6 +241,41 @@ async function run() {
     for (const kind of ['upcoming','past']) {
       await evaluate(`document.querySelector('[data-organizer-events=${kind}] [data-event-card]').click()`);
       await until("new URLSearchParams(location.search).has('eventId') && document.querySelector('[data-nav-scroll^=\"event-sheet:\"]')");
+      if (width < 768) {
+        await checkSheet('[data-vaul-drawer]', width);
+        if (kind === 'upcoming') {
+          await evaluate("document.querySelector('[data-vaul-drawer] input[type=radio]').click()");
+          await until("document.querySelector('[data-drawer-body]').lastElementChild.textContent.includes('Continue')");
+        }
+        assert.ok(await evaluate(`(() => {
+          const footer = document.querySelector('[data-drawer-body]').lastElementChild;
+          const r = footer.getBoundingClientRect();
+          return [...footer.querySelectorAll('button')].every(button => {
+            const b = button.getBoundingClientRect();
+            return b.left >= r.left && b.right <= r.right && button.scrollWidth <= button.clientWidth;
+          });
+        })()`), 'Footer actions and the price fit without clipping');
+        const buttons = await evaluate(`(() => {
+          const footer = document.querySelector('[data-drawer-body]').lastElementChild;
+          return [...footer.querySelectorAll('button[aria-label]')].map(button => {
+            const r = button.getBoundingClientRect(), s = getComputedStyle(button);
+            return { width: r.width, height: r.height, radius: s.borderRadius, overflow: s.overflow, highlight: s.webkitTapHighlightColor };
+          });
+        })()`);
+        assert.equal(buttons.length, 2, 'Bookmark and share buttons are present');
+        for (const button of buttons) {
+          assert.equal(button.width, 44);
+          assert.equal(button.height, 44);
+          assert.ok(button.radius === '50%' || parseFloat(button.radius) >= 22);
+          assert.equal(button.overflow, 'hidden');
+          assert.equal(button.highlight, 'rgba(0, 0, 0, 0)');
+        }
+        await call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
+        await call('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
+        await evaluate("document.querySelector('[data-drawer-body]').lastElementChild.querySelector('button').focus()");
+        await delay(250);
+        assert.ok(await evaluate("document.activeElement.matches(':focus-visible') && getComputedStyle(document.activeElement).boxShadow !== 'none'"), 'Bookmark retains a visible keyboard focus ring');
+      }
       await evaluate('history.back()');
       await until("!new URLSearchParams(location.search).has('eventId') && !document.querySelector('[data-nav-scroll^=\"event-sheet:\"]')");
     }

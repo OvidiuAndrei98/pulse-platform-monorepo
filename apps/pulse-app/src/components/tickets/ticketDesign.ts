@@ -1,5 +1,5 @@
-// The email service embeds this same template into its binary. Keep ticket
-// markup here identical across browser previews, print/PDF, and email clients.
+// The email service embeds this pass template into its binary. PDF documents
+// use the dedicated shared A4 renderer in ticketPdf.ts.
 import design from "../../../../../api/internal/email/ticket-design.json";
 
 export type PrintableTicket = {

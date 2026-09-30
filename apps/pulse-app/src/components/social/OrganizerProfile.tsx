@@ -86,7 +86,7 @@ export function OrganizerProfile({ profile, returnTo, upcomingEvents, pastEvents
         </div>
       </div>
     </main>
-    <DrawerContent data-organizer-info className="mx-auto max-h-[85svh] max-w-xl rounded-t-4xl border-white/10 bg-black">
+      <DrawerContent data-organizer-info sideInset className="mx-auto max-h-[85svh] max-w-xl rounded-t-4xl border-white/10 bg-black">
       <DrawerHeader className="relative shrink-0 px-6 pb-5 pt-5 text-left">
         <DrawerTitle className="pr-12 text-xl tracking-tight">{t("publicProfile.aboutOrganizer")}</DrawerTitle>
         <DrawerDescription>@{profile.username}</DrawerDescription>
