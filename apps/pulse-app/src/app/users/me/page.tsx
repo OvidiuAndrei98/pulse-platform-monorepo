@@ -631,8 +631,8 @@ export default function MePage() {
                     {t("userProfile.helpText")}
                   </p>
                 </Row>
-                <Row icon={ChevronRight} label={t("userProfile.terms")} />
-                <Row icon={ChevronRight} label={t("userProfile.privacy")} />
+                <Row icon={ChevronRight} label={t("userProfile.terms")} onClick={() => router.push("/legal/terms")} />
+                <Row icon={ChevronRight} label={t("userProfile.privacy")} onClick={() => router.push("/legal/privacy")} />
               </div>
             </section>
 
@@ -684,10 +684,10 @@ function Row({
     <div className="border-b border-white/5 last:border-b-0">
       {/* Zona superioară interactivă (Butonul standard) */}
       <button
-        onClick={isExpandable ? onClick : undefined}
-        disabled={!isExpandable}
+        onClick={onClick}
+        disabled={!onClick}
         className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition ${
-          isExpandable
+          onClick
             ? "hover:bg-white/[0.04] cursor-pointer"
             : "cursor-default"
         } ${danger ? "text-red-400" : "text-white"}`}

@@ -256,10 +256,10 @@ export function EventsMapView({
         .user-location-dot {
           width: 18px;
           height: 18px;
-          background-color: #84cc16;
+          background-color: var(--primary, #ff0044);
           border: 2px solid #ffffff;
           border-radius: 50%;
-          box-shadow: 0 0 12px rgba(132, 204, 22, 0.6);
+          box-shadow: 0 0 12px rgba(255, 0, 68, 0.6);
           margin: 3px;
         }
       `}</style>

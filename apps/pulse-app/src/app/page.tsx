@@ -202,11 +202,15 @@ export default function Home() {
                 alt={t("common.logoAlt")}
                 width={40}
                 height={40}
-                className="h-8 w-8 md:h-10 md:w-10"
+                className="h-8 w-8 md:hidden"
               />
-              <span className="hidden md:block text-md md:text-lg font-black uppercase tracking-[0.10em] text-foreground">
-                SPOTTR<span className="text-primary">.</span>
-              </span>
+              <Image
+                src="/spottr-logo-desktop.svg"
+                alt={t("common.logoAlt")}
+                width={1902}
+                height={318}
+                className="hidden h-8 w-auto md:block"
+              />
             </div>
             <div className="flex items-center gap-2">
               {user && <NotificationsPopover />}
