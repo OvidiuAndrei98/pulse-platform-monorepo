@@ -3,11 +3,12 @@
 import { routeForPlatform } from "@/lib/native/navigation";
 import { useBackLayer } from "@/lib/navigation/useBackLayer";
 import { RequestError, RequestProgress } from "@/components/ui/RequestFeedback";
+import { sidePanelWidth } from "@/components/ui/sidePanel";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Search, X, ArrowUpRight, BadgeCheck, UserRound } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Event } from "@/core/DataProvider";
@@ -28,7 +29,16 @@ type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 
 export function SearchPopover({ events }: SearchPopoverProps) {
   const [open, setOpen] = useState(false);
-  useBackLayer(open, () => setOpen(false));
+  const [historyDismissed, setHistoryDismissed] = useState(false);
+  useBackLayer(open, () => {
+    // iOS already slides the history snapshot away during an edge swipe.
+    // Remove the live surface before the next paint instead of replaying its
+    // exit animation over the revealed page. Also handles system Back in native.
+    flushSync(() => {
+      setHistoryDismissed(true);
+      setOpen(false);
+    });
+  });
   const [query, setQuery] = useState("");
   const [profiles, setProfiles] = useState<PublicProfile[]>([]);
   const [profileQuery, setProfileQuery] = useState("");
@@ -70,11 +80,27 @@ export function SearchPopover({ events }: SearchPopoverProps) {
     const timer = window.setTimeout(() => {
       ApiClient.instance
         .get("/profiles/search", { params: { query: { q } } })
-        .then((data) => { if (active) { setProfiles(data as PublicProfile[]); setProfileQuery(q); } })
-        .catch(() => { if (active) { setSearchError(true); setProfiles([]); setProfileQuery(q); } })
-        .finally(() => { if (active) setSearching(false); });
+        .then((data) => {
+          if (active) {
+            setProfiles(data as PublicProfile[]);
+            setProfileQuery(q);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setSearchError(true);
+            setProfiles([]);
+            setProfileQuery(q);
+          }
+        })
+        .finally(() => {
+          if (active) setSearching(false);
+        });
     }, 180);
-    return () => { active = false; window.clearTimeout(timer); };
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
   }, [open, q, attempt]);
   const resultsPending = searching || (q.length >= 2 && profileQuery !== q);
 
@@ -110,7 +136,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
     setOpen(false);
   };
 
-  const drawer = (
+  const drawer = historyDismissed ? null : (
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-[200]">
@@ -128,7 +154,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
             role="dialog"
             aria-modal="true"
             aria-label={t("search.open")}
-            className="absolute inset-y-0 right-0 flex w-full flex-col overflow-hidden border-l border-white/10 bg-[#0d0e0d] shadow-[-24px_0_70px_rgba(0,0,0,0.45)] md:w-[46vw] md:min-w-[480px] md:max-w-[680px]"
+            className={`absolute inset-y-0 right-0 flex ${sidePanelWidth} flex-col overflow-hidden md:border-l border-white/10 bg-[#030001] shadow-[-24px_0_70px_rgba(0,0,0,0.45)]`}
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -143,11 +169,8 @@ export function SearchPopover({ events }: SearchPopoverProps) {
               aria-hidden
               className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_0%,rgba(255,0,68,0.12),transparent_38%)]"
             />
-            <header className="relative flex items-center justify-between border-b border-white/[0.08] px-5 pb-5 pt-[max(1.25rem,var(--native-safe-top))] md:px-8 md:pt-8">
+            <header className="relative flex items-center justify-between  border-white/[0.08] px-5  pt-[max(1.25rem,var(--native-safe-top))] md:px-8 md:pt-8">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">
-                  SPOTTR
-                </p>
                 <h2 className="mt-1 text-xl font-semibold tracking-tight">
                   {t("search.open")}
                 </h2>
@@ -162,8 +185,8 @@ export function SearchPopover({ events }: SearchPopoverProps) {
               </button>
             </header>
 
-            <div className="relative px-5 pt-5 md:px-8 md:pt-7">
-              <div className="flex h-14 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.055] px-4 transition focus-within:border-primary/50 focus-within:bg-white/[0.07]">
+            <div className="relative px-5 pt-3 md:px-8 ">
+              <div className="flex h-16 items-center gap-3 rounded-2xl  px-5 text-white/70 ring-1 ring-white/20 backdrop-blur-md transition focus-within:bg-primary/10 focus-within:text-primary focus-within:ring-2 focus-within:ring-primary focus-within:shadow-lg focus-within:shadow-primary/25">
                 <Search className="h-5 w-5 shrink-0 text-primary" />
                 <input
                   ref={inputRef}
@@ -171,7 +194,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder={t("search.placeholder")}
-                  className="h-full min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
+                  className="h-full min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-muted-foreground"
                 />
                 {query && (
                   <button
@@ -223,29 +246,42 @@ export function SearchPopover({ events }: SearchPopoverProps) {
               {q.length >= 2 && (
                 <Section
                   title={t("search.peopleAndOrganizers")}
-                  count={resultsPending || searchError ? undefined : profiles.length}
+                  count={
+                    resultsPending || searchError ? undefined : profiles.length
+                  }
                 >
-                  {resultsPending ? <RequestProgress label={t("feedback.searching")} className="px-3 py-5" /> : searchError ? <RequestError onRetry={() => setAttempt((value) => value + 1)} /> : profiles.map((profile) => (
-                    <ResultRow
-                      key={profile.id}
-                      icon={
-                        profile.role === "organizer" ? BadgeCheck : UserRound
-                      }
-                      title={
-                        profile.role === "organizer"
-                          ? profile.organizerName || profile.username
-                          : `@${profile.username}`
-                      }
-                      meta={
-                        profile.role === "organizer"
-                          ? t("search.organizerMeta", {
-                              username: profile.username,
-                            })
-                          : profile.bio || t("search.publicProfile")
-                      }
-                      onClick={() => navigate(`/users/${profile.id}`)}
+                  {resultsPending ? (
+                    <RequestProgress
+                      label={t("feedback.searching")}
+                      className="px-3 py-5"
                     />
-                  ))}
+                  ) : searchError ? (
+                    <RequestError
+                      onRetry={() => setAttempt((value) => value + 1)}
+                    />
+                  ) : (
+                    profiles.map((profile) => (
+                      <ResultRow
+                        key={profile.id}
+                        icon={
+                          profile.role === "organizer" ? BadgeCheck : UserRound
+                        }
+                        title={
+                          profile.role === "organizer"
+                            ? profile.organizerName || profile.username
+                            : `@${profile.username}`
+                        }
+                        meta={
+                          profile.role === "organizer"
+                            ? t("search.organizerMeta", {
+                                username: profile.username,
+                              })
+                            : profile.bio || t("search.publicProfile")
+                        }
+                        onClick={() => navigate(`/users/${profile.id}`)}
+                      />
+                    ))
+                  )}
                   {!resultsPending && !searchError && profiles.length === 0 && (
                     <Empty>{t("search.noProfiles")}</Empty>
                   )}
@@ -264,7 +300,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
         type="button"
         aria-label={t("search.open")}
         aria-expanded={open}
-        onClick={() => setOpen(true)}
+        onClick={() => { setHistoryDismissed(false); setOpen(true); }}
         className="group flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-[11px] text-sm  transition hover:border-white/20 hover:bg-white/[0.08] text-foreground active:scale-95 md:px-4"
       >
         <Search className="h-4 w-4 transition-colors text-primary" />
@@ -294,9 +330,11 @@ function Section({
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {title}
         </span>
-        {count !== undefined && <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-muted-foreground">
-          {count}
-        </span>}
+        {count !== undefined && (
+          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-muted-foreground">
+            {count}
+          </span>
+        )}
       </div>
       <div className="space-y-1">{children}</div>
     </section>

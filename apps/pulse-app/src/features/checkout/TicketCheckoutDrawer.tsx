@@ -1,5 +1,7 @@
 "use client";
 
+import { sidePanelWidth } from "@/components/ui/sidePanel";
+
 import { useBackLayer } from "@/lib/navigation/useBackLayer";
 import { checkoutEmailError } from "./validateEmail";
 
@@ -88,12 +90,17 @@ export function TicketCheckoutDrawer({
     emptyInvoiceDetails(user?.properties.username ?? ""),
   );
   const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const billingErrors = billingAttempted ? getInvoiceFieldErrors(invoiceDetails) : {};
+  const billingErrors = billingAttempted
+    ? getInvoiceFieldErrors(invoiceDetails)
+    : {};
   const emailError = billingAttempted ? checkoutEmailError(guestEmail) : null;
   const busy = isCheckingOut || savingBilling;
   useBackLayer(open && historyBack, () => {
     if (busy) return false;
-    if (step !== "tickets") { setStep(step === "summary" ? "billing" : "tickets"); return false; }
+    if (step !== "tickets") {
+      setStep(step === "summary" ? "billing" : "tickets");
+      return false;
+    }
     onClose();
   });
   const promo = useEventPromoCode(event.id);
@@ -211,10 +218,15 @@ export function TicketCheckoutDrawer({
   };
   const validateBilling = () => {
     setBillingAttempted(true);
-    if (checkoutEmailError(guestEmail) || validateInvoiceDetails(invoiceDetails)) {
+    if (
+      checkoutEmailError(guestEmail) ||
+      validateInvoiceDetails(invoiceDetails)
+    ) {
       changeStep("billing");
       requestAnimationFrame(() => {
-        const invalid = scrollRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+        const invalid = scrollRef.current?.querySelector<HTMLElement>(
+          '[aria-invalid="true"]',
+        );
         invalid?.focus({ preventScroll: true });
         invalid?.scrollIntoView({ block: "nearest" });
       });
@@ -612,7 +624,15 @@ export function TicketCheckoutDrawer({
             placeholder={t("checkout.emailPlaceholder")}
             className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/[0.035] px-3.5 text-base outline-none transition placeholder:text-muted-foreground focus:border-primary/60 aria-[invalid=true]:border-red-400/70 sm:text-sm"
           />
-          {emailError && <p id={id + "-email-error"} role="alert" className="mt-1.5 text-xs text-red-400">{t(emailError)}</p>}
+          {emailError && (
+            <p
+              id={id + "-email-error"}
+              role="alert"
+              className="mt-1.5 text-xs text-red-400"
+            >
+              {t(emailError)}
+            </p>
+          )}
           {!user && (
             <GoogleSignInButton
               returnTo={`/events/${event.id}?checkout=1`}
@@ -746,7 +766,7 @@ export function TicketCheckoutDrawer({
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 34 }}
-            className="pointer-events-auto fixed right-0 top-0 z-[231] flex h-[100dvh] w-full max-w-lg flex-col overflow-hidden border-l border-white/10 bg-[#080909] text-foreground shadow-2xl"
+            className={`pointer-events-auto fixed right-0 top-0 z-[231] flex h-[100dvh] ${sidePanelWidth} flex-col overflow-hidden md:border-l border-white/10 bg-[#080909] text-foreground shadow-2xl`}
           >
             {content}
           </motion.aside>
@@ -803,7 +823,7 @@ function StepCard({
       className={
         "rounded-3xl border bg-[#151112] p-4 sm:p-5 " +
         (active
-          ? "border-primary/60 shadow-[0_6px_25px_-15px_var(--color-primary)]"
+          ? "border-primary/60 shadow-[0_4px_20px_-10px_var(--color-primary)]"
           : "border-transparent")
       }
     >

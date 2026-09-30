@@ -50,6 +50,7 @@ export const resources = {
       },
       home: {
         hello: "Hello, {{name}}",
+        exploreTonight_zero: "NO EVENTS TONIGHT",
         exploreTonight_one: "TONIGHT · {{count}} EVENTS",
         exploreTonight_other: "TONIGHT · {{count}} EVENTS",
         tonight: "Tonight",
@@ -1542,6 +1543,7 @@ export const resources = {
       },
       home: {
         hello: "Salut, {{name}}",
+        exploreTonight_zero: "E LINIȘTE ASTĂ SEARĂ",
         exploreTonight_one: "Descopera {{count}} eveniment in seara asta",
         exploreTonight_other: "Descopera {{count}} evenimente in seara asta",
         tonight: "In seara asta",
