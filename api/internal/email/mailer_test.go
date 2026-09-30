@@ -46,6 +46,38 @@ func TestSanitizeHeaderRemovesLineBreaks(t *testing.T) {
 	}
 }
 
+func TestResolveDeliveryRecipientUsesOriginalRecipientWithoutOverride(t *testing.T) {
+	mailer := NewMailer("smtp.example.com", "587", "hello@spottr.ro", "user", "password", "https://api.spottr.ro", "https://spottr.ro", "")
+	recipient, subject, err := mailer.resolveDeliveryRecipient("buyer@example.com", "Biletele tale")
+	if err != nil {
+		t.Fatalf("resolveDeliveryRecipient() error = %v", err)
+	}
+	if recipient.Address != "buyer@example.com" || subject != "Biletele tale" {
+		t.Fatalf("recipient=%q subject=%q", recipient.Address, subject)
+	}
+}
+
+func TestResolveDeliveryRecipientRedirectsStagingEmail(t *testing.T) {
+	mailer := NewMailer("smtp.example.com", "587", "staging@spottr.ro", "user", "password", "https://api-staging.spottr.ro", "https://dev.spottr.ro", "contact@code-lab.ro")
+	recipient, subject, err := mailer.resolveDeliveryRecipient("buyer@example.com", "Biletele tale")
+	if err != nil {
+		t.Fatalf("resolveDeliveryRecipient() error = %v", err)
+	}
+	if recipient.Address != "contact@code-lab.ro" {
+		t.Fatalf("recipient = %q", recipient.Address)
+	}
+	if subject != "[STAGING -> buyer@example.com] Biletele tale" {
+		t.Fatalf("subject = %q", subject)
+	}
+}
+
+func TestResolveDeliveryRecipientRejectsInvalidOverride(t *testing.T) {
+	mailer := NewMailer("smtp.example.com", "587", "staging@spottr.ro", "user", "password", "https://api-staging.spottr.ro", "https://dev.spottr.ro", "not an email")
+	if _, _, err := mailer.resolveDeliveryRecipient("buyer@example.com", "Biletele tale"); err == nil {
+		t.Fatal("expected invalid override error")
+	}
+}
+
 func TestBuildEmailMessageEmbedsInlineTicketQR(t *testing.T) {
 	message, err := buildEmailMessage(
 		mail.Address{Name: "SPOTTR", Address: "hello@spottr.ro"},

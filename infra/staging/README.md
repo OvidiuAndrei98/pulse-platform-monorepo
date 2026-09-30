@@ -50,8 +50,9 @@ API.
 
 - `EVENT_BANNER_GC_ENABLED=false` for the first deployment;
 - platform commission invoicing disabled;
-- no production SMTP credentials; use a test inbox or an explicit recipient
-  allow-list;
+- a dedicated staging Resend credential; never reuse the production key;
+- every staging email is forcibly redirected to `contact@code-lab.ro`, with
+  the intended recipient shown in the subject;
 - a dedicated media bucket;
 - Stripe keys beginning with `sk_test_` only;
 - ECS desired count `0` by default;
@@ -134,6 +135,54 @@ Start staging for a test session and stop it afterwards:
 ./infra/staging/Set-SpottrStagingCapacity.ps1 -DesiredCount 0
 ```
 
+## Routine deployments
+
+Frontend changes are deployed by Vercel whenever a committed change is pushed
+to the persistent `staging` branch. Vercel must keep
+`NEXT_PUBLIC_API_URL=https://api-staging.spottr.ro/api/v1` scoped to that
+branch.
+
+For API changes, commit everything on `staging`, start Docker Desktop, log in
+to AWS, and run:
+
+```powershell
+task deploy:staging
+```
+
+The task invokes `infra/staging/Deploy-SpottrStagingApi.ps1`.
+
+The script refuses dirty worktrees, non-`staging` branches, unexpected AWS
+accounts, concurrent deploys, unstable services, and any autoscaling or
+scheduled action that could restart the service during migrations. Its AWS
+account, stack, cluster, service, repository, and URLs are fixed in the script
+and cannot be redirected with command-line parameters.
+
+It runs the Go tests, builds a `staging-<git-sha>` image, pushes it to ECR,
+resolves its immutable digest, updates only the `spottr-staging-api` stack, and
+then explicitly scales `pulse-api-staging-service` to zero even if
+CloudFormation had an empty changeset. Goose runs only after ECS reports zero
+desired, running, and pending tasks. The script then starts one task, verifies
+that task uses the task definition produced by the stack, checks the staging
+health endpoint, and records the verified commit and image digest in SSM at
+`/spottr/deployments/staging/verified-commit`. Production accepts only that
+exact verified commit. The script never updates `pulse-api-service`.
+
+The marker proves that the deploy, migrations, ECS revision checks, and health
+endpoint completed. It does not claim that every product flow or database
+integration test ran; perform the required checkout, webhook, refund, email,
+and invoicing smoke tests in staging before promoting a risky release.
+
+The staging deployment lock is
+`/spottr/deploy-locks/api-staging`. A clean success releases it automatically.
+If staging changed before a failure, the lock is intentionally retained. Check
+CloudFormation, ECS tasks/events, the migration task, and CloudWatch logs
+before restoring the service; delete the lock only after confirming no deploy
+is still active.
+
+Database bootstrap is a one-time environment operation and is not part of a
+routine deploy. Goose migrations are applied on every API deploy before the
+new staging API starts.
+
 ## Stripe sandbox secrets
 
 Open `pulse-api/app-staging` in AWS Secrets Manager and edit its key/value
@@ -144,7 +193,21 @@ pairs. Do not put these values in Git, shell scripts, tickets, or chat:
 - `STRIPE_CONNECT_WEBHOOK_SECRET`: signing secret for the connected-accounts
   endpoint;
 - `INVOICING_ENCRYPTION_KEY`: a separate base64-encoded 32-byte key;
-- `SMTP_PASSWORD`: leave empty until a test-only mail provider is configured.
+- `SMTP_PASSWORD`: a dedicated Resend API key for staging.
+
+Create a separate sending-only API key in Resend, then store it without putting
+the value in command history:
+
+```powershell
+./infra/staging/Set-SpottrStagingSmtpPassword.ps1
+```
+
+The staging task definition uses `smtp.resend.com:587`, authenticates as
+`resend`, and sends from `SPOTTR Staging <staging@spottr.ro>`. The verified
+`spottr.ro` domain must authorize that sender. `SMTP_RECIPIENT_OVERRIDE` is
+fixed to `contact@code-lab.ro`, so activation, password reset, ticket, and
+reconciliation emails generated for any test address are delivered only to
+that inbox. Their subject starts with `[STAGING -> intended@example.com]`.
 
 Generate the invoicing key in Windows PowerShell and paste the output directly
 into Secrets Manager:

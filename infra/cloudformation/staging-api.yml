@@ -263,13 +263,15 @@ Resources:
             - Name: SPOTTR_INVOICING_PROVIDER
               Value: ""
             - Name: SMTP_HOST
-              Value: ""
+              Value: smtp.resend.com
             - Name: SMTP_PORT
-              Value: ""
+              Value: "587"
             - Name: SMTP_FROM
-              Value: staging@spottr.ro
+              Value: "SPOTTR Staging <staging@spottr.ro>"
             - Name: SMTP_USERNAME
-              Value: ""
+              Value: resend
+            - Name: SMTP_RECIPIENT_OVERRIDE
+              Value: contact@code-lab.ro
           Secrets:
             - Name: DB_USER
               ValueFrom: !Sub "${StagingDatabaseCredentials}:username::"

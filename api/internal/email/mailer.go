@@ -32,24 +32,26 @@ type inlineImage struct {
 }
 
 type Mailer struct {
-	smtpHost     string
-	smtpPort     string
-	from         string
-	username     string
-	password     string
-	publicAPIURL string
-	publicAppURL string
+	smtpHost          string
+	smtpPort          string
+	from              string
+	username          string
+	password          string
+	publicAPIURL      string
+	publicAppURL      string
+	recipientOverride string
 }
 
-func NewMailer(host, port, from, username, password, publicAPIURL, publicAppURL string) *Mailer {
+func NewMailer(host, port, from, username, password, publicAPIURL, publicAppURL, recipientOverride string) *Mailer {
 	return &Mailer{
-		smtpHost:     strings.TrimSpace(host),
-		smtpPort:     strings.TrimSpace(port),
-		from:         strings.TrimSpace(from),
-		username:     strings.TrimSpace(username),
-		password:     password,
-		publicAPIURL: strings.TrimRight(publicAPIURL, "/"),
-		publicAppURL: strings.TrimRight(publicAppURL, "/"),
+		smtpHost:          strings.TrimSpace(host),
+		smtpPort:          strings.TrimSpace(port),
+		from:              strings.TrimSpace(from),
+		username:          strings.TrimSpace(username),
+		password:          password,
+		publicAPIURL:      strings.TrimRight(publicAPIURL, "/"),
+		publicAppURL:      strings.TrimRight(publicAppURL, "/"),
+		recipientOverride: strings.TrimSpace(recipientOverride),
 	}
 }
 
@@ -155,12 +157,12 @@ func (m *Mailer) sendHTML(ctx context.Context, toEmail, subject, preheader, titl
 	if sender.Name == "" {
 		sender.Name = "SPOTTR"
 	}
-	recipient, err := mail.ParseAddress(strings.TrimSpace(toEmail))
+	recipient, deliverySubject, err := m.resolveDeliveryRecipient(toEmail, subject)
 	if err != nil {
-		return fmt.Errorf("adresa destinatarului este invalida: %w", err)
+		return err
 	}
 
-	message, err := buildEmailMessage(*sender, *recipient, subject, emailLayout(preheader, title, content), inlineImages)
+	message, err := buildEmailMessage(*sender, recipient, deliverySubject, emailLayout(preheader, title, content), inlineImages)
 	if err != nil {
 		return fmt.Errorf("mesajul email Spottr nu a putut fi construit: %w", err)
 	}
@@ -173,6 +175,23 @@ func (m *Mailer) sendHTML(ctx context.Context, toEmail, subject, preheader, titl
 		return fmt.Errorf("eroare trimitere email Spottr: %w", err)
 	}
 	return nil
+}
+
+func (m *Mailer) resolveDeliveryRecipient(toEmail, subject string) (mail.Address, string, error) {
+	intendedRecipient, err := mail.ParseAddress(strings.TrimSpace(toEmail))
+	if err != nil {
+		return mail.Address{}, "", fmt.Errorf("adresa destinatarului este invalida: %w", err)
+	}
+	if m.recipientOverride == "" {
+		return *intendedRecipient, subject, nil
+	}
+
+	overrideRecipient, err := mail.ParseAddress(m.recipientOverride)
+	if err != nil {
+		return mail.Address{}, "", fmt.Errorf("SMTP_RECIPIENT_OVERRIDE este invalid: %w", err)
+	}
+	deliverySubject := fmt.Sprintf("[STAGING -> %s] %s", intendedRecipient.Address, subject)
+	return *overrideRecipient, deliverySubject, nil
 }
 
 func buildEmailMessage(sender, recipient mail.Address, subject, body string, inlineImages []inlineImage) ([]byte, error) {

@@ -71,6 +71,18 @@ tasks:
       - task: build:backend:local
       - task: build:frontend
 
+  deploy:staging:
+    desc: "Testeaza, construieste si publica API-ul numai in staging"
+    platforms: [windows]
+    cmds:
+      - powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./infra/staging/Deploy-SpottrStagingApi.ps1
+
+  deploy:production:
+    desc: "Promoveaza in productie exact imaginea API verificata in staging"
+    platforms: [windows]
+    cmds:
+      - powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./infra/production/Deploy-SpottrProductionApi.ps1
+
   db:up:
     desc: "Pornește containerul de PostgreSQL în fundal"
     cmds:

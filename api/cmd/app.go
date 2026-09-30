@@ -192,6 +192,7 @@ func (app *Application) BuildRouter() http.Handler {
 		os.Getenv("SMTP_PASSWORD"),
 		os.Getenv("PUBLIC_API_URL"),
 		os.Getenv("PUBLIC_APP_URL"),
+		os.Getenv("SMTP_RECIPIENT_OVERRIDE"),
 	)
 
 	// 1. Instanțiem modulele din internal cu dependențele necesare
