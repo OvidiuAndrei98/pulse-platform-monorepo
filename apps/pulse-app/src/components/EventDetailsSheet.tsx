@@ -156,6 +156,7 @@ export function EventDetailsSheet({
   );
   const [qty, setQty] = useNavigationState<Record<string, number>>("event-selection:" + (user?.properties.id ?? "guest") + ":" + (displayedEvent?.id ?? "none"), {});
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutVisited, setCheckoutVisited] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const mobileSheetRef = useRef<HTMLDivElement>(null);
   const [favorited, setFavorited] = useState(false);
@@ -217,6 +218,7 @@ export function EventDetailsSheet({
   useEffect(() => {
     if (activeEvent) {
       setCheckoutOpen(false);
+      setCheckoutVisited(false);
       setFavorited(Boolean(activeEvent.stats?.isFavorited));
       setShared(false);
     }
@@ -293,6 +295,7 @@ export function EventDetailsSheet({
       return;
     }
     if (count === 0) return;
+    setCheckoutVisited(true);
     setCheckoutOpen(true);
   };
 
@@ -498,7 +501,7 @@ export function EventDetailsSheet({
       <>
         <Drawer
           historyBack={false}
-          open={Boolean(activeEvent) && !checkoutOpen}
+          open={Boolean(activeEvent)}
           onOpenChange={(open) => !open && !checkoutOpen && handleClose()}
           onAnimationEnd={(open) => {
             if (!open && !activeEventRef.current) {
@@ -506,14 +509,24 @@ export function EventDetailsSheet({
               setCheckoutOpen(false);
             }
           }}
-          modal
-          dismissible={!checkoutBusy}
+          modal={!checkoutOpen}
+          dismissible={!checkoutBusy && !checkoutOpen}
           repositionInputs={false}
           shouldScaleBackground={false}
           closeThreshold={0.35}
           fixed
         >
-          <DrawerContent ref={mobileSheetRef} showHandle={false} sideInset lockDocument={false} className="h-[90svh] max-h-none rounded-t-4xl border-none bg-black p-0 touch-none">
+          {/* Switching modal mode remounts Vaul's content. Keep the already-open
+              sheet still beneath checkout and when returning from it. */}
+          <DrawerContent
+            ref={mobileSheetRef}
+            showHandle={false}
+            sideInset
+            lockDocument={false}
+            inert={checkoutOpen}
+            style={{ animation: activeEvent && checkoutVisited ? "none" : undefined }}
+            className="h-[90svh] max-h-none rounded-t-4xl border-none bg-black p-0 touch-none"
+          >
             <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
 
             {/* Fade out before the overlay ends, so its lower edge stays invisible. */}

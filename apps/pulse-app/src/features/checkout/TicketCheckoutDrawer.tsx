@@ -1,12 +1,20 @@
 "use client";
 
 import { sidePanelWidth } from "@/components/ui/sidePanel";
-import { revealDrawerField, useDrawerViewport } from "@/components/ui/useDrawerViewport";
+import {
+  revealDrawerField,
+  useDrawerViewport,
+} from "@/components/ui/useDrawerViewport";
 
 import { useBackLayer } from "@/lib/navigation/useBackLayer";
 import { checkoutEmailError } from "./validateEmail";
 
-import { AnimatePresence, animate, motion, useMotionValue } from "framer-motion";
+import {
+  AnimatePresence,
+  animate,
+  motion,
+  useMotionValue,
+} from "framer-motion";
 import { Capacitor } from "@capacitor/core";
 import {
   ArrowLeft,
@@ -20,7 +28,16 @@ import {
   Ticket,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import { createPortal, flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -166,7 +183,9 @@ export function TicketCheckoutDrawer({
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    setNativeSwipeEnabled(Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios");
+    setNativeSwipeEnabled(
+      Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios",
+    );
   }, []);
 
   useEffect(() => {
@@ -187,9 +206,21 @@ export function TicketCheckoutDrawer({
   };
 
   const startEdgeSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!nativeSwipeEnabled || !historyBack || busy || event.pointerType !== "touch") return;
-    if (event.clientX - event.currentTarget.getBoundingClientRect().left > 32) return;
-    if ((event.target as HTMLElement).closest("button, a, input, select, textarea, [role='button']")) return;
+    if (
+      !nativeSwipeEnabled ||
+      !historyBack ||
+      busy ||
+      event.pointerType !== "touch"
+    )
+      return;
+    if (event.clientX - event.currentTarget.getBoundingClientRect().left > 32)
+      return;
+    if (
+      (event.target as HTMLElement).closest(
+        "button, a, input, select, textarea, [role='button']",
+      )
+    )
+      return;
     edgeSwipe.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -207,17 +238,25 @@ export function TicketCheckoutDrawer({
     const distance = event.clientX - gesture.startX;
     const vertical = Math.abs(event.clientY - gesture.startY);
     if (!gesture.active) {
-      if (vertical > 10 && vertical > Math.abs(distance)) { edgeSwipe.current = null; return; }
+      if (vertical > 10 && vertical > Math.abs(distance)) {
+        edgeSwipe.current = null;
+        return;
+      }
       if (distance < 10 || distance < vertical * 1.2) return;
       gesture.active = true;
       event.currentTarget.setPointerCapture(event.pointerId);
     }
-    gesture.velocity = ((event.clientX - gesture.lastX) / Math.max(1, event.timeStamp - gesture.lastTime)) * 1000;
+    gesture.velocity =
+      ((event.clientX - gesture.lastX) /
+        Math.max(1, event.timeStamp - gesture.lastTime)) *
+      1000;
     gesture.lastX = event.clientX;
     gesture.lastTime = event.timeStamp;
     swipeX.set(Math.max(0, distance));
-    // Keep the page behind the closed event sheet obscured until it reopens.
-    swipeBackdropOpacity.set(Math.max(0.8, 1 - distance / Math.max(320, window.innerWidth)));
+    // Reveal the event sheet progressively as the checkout follows the finger.
+    swipeBackdropOpacity.set(
+      Math.max(0, 1 - distance / (window.innerWidth * 0.5)),
+    );
   };
 
   const endEdgeSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -229,7 +268,11 @@ export function TicketCheckoutDrawer({
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
     const distance = Math.max(0, event.clientX - gesture.startX);
-    if (!busy && (distance > Math.min(120, window.innerWidth * 0.28) || (distance > 35 && gesture.velocity > 600))) {
+    if (
+      !busy &&
+      (distance > Math.min(120, window.innerWidth * 0.28) ||
+        (distance > 35 && gesture.velocity > 600))
+    ) {
       onClose();
     } else {
       resetEdgeSwipe();
@@ -273,7 +316,13 @@ export function TicketCheckoutDrawer({
     setBillingAttempted(false);
     setGuestEmail(user?.properties.email ?? "");
     setInvoiceDetails(emptyInvoiceDetails(user?.properties.username ?? ""));
-  }, [event.id, resetCheckoutPending, userId, user?.properties.email, user?.properties.username]);
+  }, [
+    event.id,
+    resetCheckoutPending,
+    userId,
+    user?.properties.email,
+    user?.properties.username,
+  ]);
 
   useEffect(() => {
     if (!open) return;
@@ -565,326 +614,338 @@ export function TicketCheckoutDrawer({
           </ol>
         </header>
         <div className="space-y-3 px-4 pt-3">
-        <div data-drawer-keyboard-hide className="mb-5 flex items-center gap-3 px-1">
-          <div className="shrink-0 border-r border-white/20 pr-3 text-center text-white/55">
-            <span className="block text-2xl font-bold leading-none">
-              {eventDate.toLocaleDateString(i18n.language, { day: "2-digit" })}
-            </span>
-            <span className="mt-1 block text-xs uppercase">
-              {eventDate.toLocaleDateString(i18n.language, { month: "short" })}
-            </span>
+          <div
+            data-drawer-keyboard-hide
+            className="mb-5 flex items-center gap-3 px-1"
+          >
+            <div className="shrink-0 border-r border-white/20 pr-3 text-center text-white/55">
+              <span className="block text-2xl font-bold leading-none">
+                {eventDate.toLocaleDateString(i18n.language, {
+                  day: "2-digit",
+                })}
+              </span>
+              <span className="mt-1 block text-xs uppercase">
+                {eventDate.toLocaleDateString(i18n.language, {
+                  month: "short",
+                })}
+              </span>
+            </div>
+            <div className="min-w-0">
+              <p className="break-words text-lg font-semibold leading-tight">
+                {event.title}
+              </p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-primary">
+                {event.category}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="break-words text-lg font-semibold leading-tight">
-              {event.title}
-            </p>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-primary">
-              {event.category}
-            </p>
-          </div>
-        </div>
-        <StepCard
-          number={1}
-          title={t("checkout.tickets")}
-          hint={t("checkout.ticketStepHint")}
-          active={step === "tickets"}
-          completed={furthestStep > 0}
-          summary={ticketSummary}
-          onEdit={() => changeStep("tickets")}
-          disabled={busy}
-        >
-          <div className="divide-y divide-white/10">
-            {selectedTickets.map((ticket) => (
-              <div key={ticket.id} className="first:pt-0">
-                <p className="break-words text-lg font-bold text-primary">
-                  {ticket.name}
-                </p>
-                <p className="mt-1 text-base font-semibold text-primary">
-                  {formatRon(ticket.priceRon)}
-                </p>
-                {ticket.description && (
-                  <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-white/50">
-                    {ticket.description}
+          <StepCard
+            number={1}
+            title={t("checkout.tickets")}
+            hint={t("checkout.ticketStepHint")}
+            active={step === "tickets"}
+            completed={furthestStep > 0}
+            summary={ticketSummary}
+            onEdit={() => changeStep("tickets")}
+            disabled={busy}
+          >
+            <div className="divide-y divide-white/10">
+              {selectedTickets.map((ticket) => (
+                <div key={ticket.id} className="first:pt-0">
+                  <p className="break-words text-lg font-bold text-primary">
+                    {ticket.name}
                   </p>
-                )}
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  <span className="text-sm text-white/70">
-                    {t("checkout.quantity")}
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      disabled={busy || (quantities[ticket.id] ?? 0) <= 1}
-                      onClick={() =>
-                        onQuantitiesChange({
-                          ...quantities,
-                          [ticket.id]: Math.max(
-                            1,
-                            (quantities[ticket.id] ?? 0) - 1,
-                          ),
-                        })
-                      }
-                      aria-label={t("checkout.decreaseQuantity", {
-                        name: ticket.name,
-                      })}
-                      className="grid h-10 w-10 place-items-center rounded-full border border-white/40 disabled:opacity-25"
-                    >
-                      <Minus className="h-5 w-5" />
-                    </button>
-                    <span
-                      className="min-w-5 text-center text-base"
-                      aria-live="polite"
-                    >
-                      {quantities[ticket.id] ?? 0}
+                  <p className="mt-1 text-base font-semibold text-primary">
+                    {formatRon(ticket.priceRon)}
+                  </p>
+                  {ticket.description && (
+                    <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-white/50">
+                      {ticket.description}
+                    </p>
+                  )}
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <span className="text-sm text-white/70">
+                      {t("checkout.quantity")}
                     </span>
-                    <button
-                      type="button"
-                      disabled={busy || (quantities[ticket.id] ?? 0) >= 8}
-                      onClick={() =>
-                        onQuantitiesChange({
-                          ...quantities,
-                          [ticket.id]: Math.min(
-                            8,
-                            (quantities[ticket.id] ?? 0) + 1,
-                          ),
-                        })
-                      }
-                      aria-label={t("checkout.increaseQuantity", {
-                        name: ticket.name,
-                      })}
-                      className="grid h-10 w-10 place-items-center rounded-full border border-white/70 disabled:opacity-25"
-                    >
-                      <Plus className="h-5 w-5" />
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        disabled={busy || (quantities[ticket.id] ?? 0) <= 1}
+                        onClick={() =>
+                          onQuantitiesChange({
+                            ...quantities,
+                            [ticket.id]: Math.max(
+                              1,
+                              (quantities[ticket.id] ?? 0) - 1,
+                            ),
+                          })
+                        }
+                        aria-label={t("checkout.decreaseQuantity", {
+                          name: ticket.name,
+                        })}
+                        className="grid h-10 w-10 place-items-center rounded-full border border-white/40 disabled:opacity-25"
+                      >
+                        <Minus className="h-5 w-5" />
+                      </button>
+                      <span
+                        className="min-w-5 text-center text-base"
+                        aria-live="polite"
+                      >
+                        {quantities[ticket.id] ?? 0}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={busy || (quantities[ticket.id] ?? 0) >= 8}
+                        onClick={() =>
+                          onQuantitiesChange({
+                            ...quantities,
+                            [ticket.id]: Math.min(
+                              8,
+                              (quantities[ticket.id] ?? 0) + 1,
+                            ),
+                          })
+                        }
+                        aria-label={t("checkout.increaseQuantity", {
+                          name: ticket.name,
+                        })}
+                        className="grid h-10 w-10 place-items-center rounded-full border border-white/70 disabled:opacity-25"
+                      >
+                        <Plus className="h-5 w-5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 border-t border-white/10 pt-4">
-            {" "}
-            <PromoCodeField
-              code={promo.code}
-              applied={promo.applied}
-              error={promo.error}
-              isValidating={promo.isValidating}
-              onChange={promo.setCode}
-              onApply={() => void promo.apply()}
-              onClear={promo.clear}
-            />
-          </div>
-          {prices}
-        </StepCard>
-        <StepCard
-          number={2}
-          title={t("checkout.billingPayment")}
-          hint={t("checkout.billingStepHint")}
-          active={step === "billing"}
-          completed={furthestStep > 1}
-          summary={
-            invoiceDetails.name + " \u00b7 " + t("checkout.stripePayment")
-          }
-          onEdit={() => changeStep("billing")}
-          disabled={
-            busy || !ticketCount || Boolean(promo.code && !promo.applied)
-          }
-        >
-          <div className="mb-5 flex items-center gap-3 rounded-2xl border border-primary/60 bg-primary/5 p-4">
-            <CreditCard className="h-5 w-5 shrink-0 text-primary" />
-            <div>
-              <p className="text-sm font-semibold">
-                {t("checkout.stripePayment")}
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-white/50">
-                {t("checkout.stripeRedirectHint")}
-              </p>
+              ))}
             </div>
-            <Check className="ml-auto h-4 w-4 shrink-0 text-primary" />
-          </div>
-          <label
-            className="block text-sm font-semibold"
-            htmlFor={id + "-email"}
-          >
-            {t("eventSheet.emailForTickets")}
-          </label>
-          <input
-            required
-            id={id + "-email"}
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            value={guestEmail}
-            aria-invalid={Boolean(emailError)}
-            aria-describedby={emailError ? id + "-email-error" : undefined}
-            onChange={(inputEvent) => setGuestEmail(inputEvent.target.value)}
-            placeholder={t("checkout.emailPlaceholder")}
-            className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/[0.035] px-3.5 text-base outline-none transition placeholder:text-muted-foreground focus:border-primary/60 aria-[invalid=true]:border-red-400/70 sm:text-sm"
-          />
-          {emailError && (
-            <p
-              id={id + "-email-error"}
-              role="alert"
-              className="mt-1.5 text-xs text-red-400"
-            >
-              {t(emailError)}
-            </p>
-          )}
-          {!user && (
-            <GoogleSignInButton
-              returnTo={`/events/${event.id}?checkout=1`}
-              className="mt-3 h-11 rounded-xl text-xs"
-            />
-          )}
-          {billingLoading ? (
-            <div className="mt-4 flex min-h-20 items-center justify-center rounded-xl border border-white/10 bg-white/[0.02]">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              <span className="sr-only">{t("common.loading")}</span>
-            </div>
-          ) : (
-            <>
-              {savedBilling && (
-                <div
-                  role="radiogroup"
-                  aria-label={t("checkout.billingDetailsChoice")}
-                  className="mt-4 space-y-2"
-                >
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={billingSource === "saved"}
-                    disabled={busy}
-                    onClick={() => {
-                      setBillingSource("saved");
-                      setInvoiceDetails({ ...savedBilling });
-                      setBillingAttempted(false);
-                      setRememberBilling(false);
-                    }}
-                    className={`w-full rounded-xl border p-3.5 text-left transition disabled:opacity-40 ${
-                      billingSource === "saved"
-                        ? "border-primary/70 bg-primary/10"
-                        : "border-white/10 bg-white/[0.02]"
-                    }`}
-                  >
-                    <span className="block text-sm font-semibold">
-                      {t("checkout.useSavedBilling")}
-                    </span>
-                    <span className="mt-1 block break-words text-xs leading-5 text-white/55">
-                      {savedBilling.name}
-                      {" \u00b7 "}
-                      {savedBilling.address}, {savedBilling.city}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={billingSource === "new"}
-                    disabled={busy}
-                    onClick={() => {
-                      setBillingSource("new");
-                      setInvoiceDetails({ ...savedBilling });
-                      setBillingAttempted(false);
-                      setRememberBilling(true);
-                    }}
-                    className={`w-full rounded-xl border p-3.5 text-left text-sm font-semibold transition disabled:opacity-40 ${
-                      billingSource === "new"
-                        ? "border-primary/70 bg-primary/10"
-                        : "border-white/10 bg-white/[0.02]"
-                    }`}
-                  >
-                    {t("checkout.useOtherBilling")}
-                  </button>
-                </div>
-              )}
-
-              {billingSource === "saved" && savedBilling ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void forgetBilling()}
-                  className="mt-2 min-h-10 text-xs text-white/50 underline disabled:opacity-40"
-                >
-                  {t("checkout.removeSavedBilling")}
-                </button>
-              ) : (
-                <>
-                  <InvoiceDetailsFields
-                    value={invoiceDetails}
-                    onChange={setInvoiceDetails}
-                    idPrefix={id}
-                    errors={billingErrors}
-                  />
-
-                  {user && (
-                    <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={rememberBilling}
-                        disabled={busy}
-                        onChange={(event) =>
-                          setRememberBilling(event.target.checked)
-                        }
-                        className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-                      />
-                      <span>
-                        {t(
-                          savedBilling
-                            ? "checkout.replaceSavedBilling"
-                            : "checkout.rememberBilling",
-                        )}
-                        <span className="mt-1 block text-xs leading-5 text-white/45">
-                          {t("checkout.rememberBillingHint")}
-                        </span>
-                      </span>
-                    </label>
-                  )}
-                </>
-              )}
-            </>
-          )}
-        </StepCard>
-        <StepCard
-          number={3}
-          title={t("checkout.orderSummary")}
-          hint={t("checkout.summaryStepHint")}
-          active={step === "summary"}
-          completed={false}
-        >
-          <div className="space-y-2 text-sm">
-            {selectedTickets.map((ticket) => (
-              <PriceRow
-                key={ticket.id}
-                label={quantities[ticket.id] + " \u00d7 " + ticket.name}
-                value={formatRon(
-                  (quantities[ticket.id] ?? 0) * ticket.priceRon,
-                )}
+            <div className="mt-4 border-t border-white/10 pt-4">
+              {" "}
+              <PromoCodeField
+                code={promo.code}
+                applied={promo.applied}
+                error={promo.error}
+                isValidating={promo.isValidating}
+                onChange={promo.setCode}
+                onApply={() => void promo.apply()}
+                onClear={promo.clear}
               />
-            ))}
-          </div>
-          {prices}
-          <div className="mt-5 space-y-1 border-t border-white/10 pt-4 text-xs leading-5 text-white/55">
-            <p className="break-all">{guestEmail}</p>
-            <p className="font-semibold text-white/80">{invoiceDetails.name}</p>
-            {invoiceDetails.type === "company" && (
-              <p>
-                {invoiceDetails.taxId} {invoiceDetails.registrationNumber}
+            </div>
+            {prices}
+          </StepCard>
+          <StepCard
+            number={2}
+            title={t("checkout.billingPayment")}
+            hint={t("checkout.billingStepHint")}
+            active={step === "billing"}
+            completed={furthestStep > 1}
+            summary={
+              invoiceDetails.name + " \u00b7 " + t("checkout.stripePayment")
+            }
+            onEdit={() => changeStep("billing")}
+            disabled={
+              busy || !ticketCount || Boolean(promo.code && !promo.applied)
+            }
+          >
+            <div className="mb-5 flex items-center gap-3 rounded-2xl border border-primary/60 bg-primary/5 p-4">
+              <CreditCard className="h-5 w-5 shrink-0 text-primary" />
+              <div>
+                <p className="text-sm font-semibold">
+                  {t("checkout.stripePayment")}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-white/50">
+                  {t("checkout.stripeRedirectHint")}
+                </p>
+              </div>
+              <Check className="ml-auto h-4 w-4 shrink-0 text-primary" />
+            </div>
+            <label
+              className="block text-sm font-semibold"
+              htmlFor={id + "-email"}
+            >
+              {t("eventSheet.emailForTickets")}
+            </label>
+            <input
+              required
+              id={id + "-email"}
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={guestEmail}
+              aria-invalid={Boolean(emailError)}
+              aria-describedby={emailError ? id + "-email-error" : undefined}
+              onChange={(inputEvent) => setGuestEmail(inputEvent.target.value)}
+              placeholder={t("checkout.emailPlaceholder")}
+              className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/[0.035] px-3.5 text-base outline-none transition placeholder:text-muted-foreground focus:border-primary/60 aria-[invalid=true]:border-red-400/70 sm:text-sm"
+            />
+            {emailError && (
+              <p
+                id={id + "-email-error"}
+                role="alert"
+                className="mt-1.5 text-xs text-red-400"
+              >
+                {t(emailError)}
               </p>
             )}
-            <p className="break-words">
-              {[
-                invoiceDetails.address,
-                invoiceDetails.city,
-                invoiceDetails.sector || invoiceDetails.county,
-                invoiceDetails.country,
-              ]
-                .filter(Boolean)
-                .join(", ")}
-            </p>
-            <p>{t("checkout.stripePayment")}</p>
-          </div>
-        </StepCard>
+            {!user && (
+              <GoogleSignInButton
+                returnTo={`/events/${event.id}?checkout=1`}
+                className="mt-3 h-11 rounded-xl text-xs"
+              />
+            )}
+            {billingLoading ? (
+              <div className="mt-4 flex min-h-20 items-center justify-center rounded-xl border border-white/10 bg-white/[0.02]">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span className="sr-only">{t("common.loading")}</span>
+              </div>
+            ) : (
+              <>
+                {savedBilling && (
+                  <div
+                    role="radiogroup"
+                    aria-label={t("checkout.billingDetailsChoice")}
+                    className="mt-4 space-y-2"
+                  >
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={billingSource === "saved"}
+                      disabled={busy}
+                      onClick={() => {
+                        setBillingSource("saved");
+                        setInvoiceDetails({ ...savedBilling });
+                        setBillingAttempted(false);
+                        setRememberBilling(false);
+                      }}
+                      className={`w-full rounded-xl border p-3.5 text-left transition disabled:opacity-40 ${
+                        billingSource === "saved"
+                          ? "border-primary/70 bg-primary/10"
+                          : "border-white/10 bg-white/[0.02]"
+                      }`}
+                    >
+                      <span className="block text-sm font-semibold">
+                        {t("checkout.useSavedBilling")}
+                      </span>
+                      <span className="mt-1 block break-words text-xs leading-5 text-white/55">
+                        {savedBilling.name}
+                        {" \u00b7 "}
+                        {savedBilling.address}, {savedBilling.city}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={billingSource === "new"}
+                      disabled={busy}
+                      onClick={() => {
+                        setBillingSource("new");
+                        setInvoiceDetails({ ...savedBilling });
+                        setBillingAttempted(false);
+                        setRememberBilling(true);
+                      }}
+                      className={`w-full rounded-xl border p-3.5 text-left text-sm font-semibold transition disabled:opacity-40 ${
+                        billingSource === "new"
+                          ? "border-primary/70 bg-primary/10"
+                          : "border-white/10 bg-white/[0.02]"
+                      }`}
+                    >
+                      {t("checkout.useOtherBilling")}
+                    </button>
+                  </div>
+                )}
+
+                {billingSource === "saved" && savedBilling ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void forgetBilling()}
+                    className="mt-2 min-h-10 text-xs text-white/50 underline disabled:opacity-40"
+                  >
+                    {t("checkout.removeSavedBilling")}
+                  </button>
+                ) : (
+                  <>
+                    <InvoiceDetailsFields
+                      value={invoiceDetails}
+                      onChange={setInvoiceDetails}
+                      idPrefix={id}
+                      errors={billingErrors}
+                    />
+
+                    {user && (
+                      <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={rememberBilling}
+                          disabled={busy}
+                          onChange={(event) =>
+                            setRememberBilling(event.target.checked)
+                          }
+                          className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                        />
+                        <span>
+                          {t(
+                            savedBilling
+                              ? "checkout.replaceSavedBilling"
+                              : "checkout.rememberBilling",
+                          )}
+                          <span className="mt-1 block text-xs leading-5 text-white/45">
+                            {t("checkout.rememberBillingHint")}
+                          </span>
+                        </span>
+                      </label>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </StepCard>
+          <StepCard
+            number={3}
+            title={t("checkout.orderSummary")}
+            hint={t("checkout.summaryStepHint")}
+            active={step === "summary"}
+            completed={false}
+          >
+            <div className="space-y-2 text-sm">
+              {selectedTickets.map((ticket) => (
+                <PriceRow
+                  key={ticket.id}
+                  label={quantities[ticket.id] + " \u00d7 " + ticket.name}
+                  value={formatRon(
+                    (quantities[ticket.id] ?? 0) * ticket.priceRon,
+                  )}
+                />
+              ))}
+            </div>
+            {prices}
+            <div className="mt-5 space-y-1 border-t border-white/10 pt-4 text-xs leading-5 text-white/55">
+              <p className="break-all">{guestEmail}</p>
+              <p className="font-semibold text-white/80">
+                {invoiceDetails.name}
+              </p>
+              {invoiceDetails.type === "company" && (
+                <p>
+                  {invoiceDetails.taxId} {invoiceDetails.registrationNumber}
+                </p>
+              )}
+              <p className="break-words">
+                {[
+                  invoiceDetails.address,
+                  invoiceDetails.city,
+                  invoiceDetails.sector || invoiceDetails.county,
+                  invoiceDetails.country,
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              </p>
+              <p>{t("checkout.stripePayment")}</p>
+            </div>
+          </StepCard>
         </div>
       </div>
-      <footer data-drawer-keyboard-footer className="relative z-10 flex shrink-0 items-center gap-2.5 bg-linear-to-b from-black/10 via-black/70 to-black px-2 py-4">
+      <footer
+        data-drawer-keyboard-footer
+        className="relative z-10 flex shrink-0 items-center gap-2.5 bg-linear-to-b from-black/10 via-black/70 to-black px-4 pt-3 pb-7"
+      >
         <button
           type="button"
           onClick={() =>
@@ -898,7 +959,7 @@ export function TicketCheckoutDrawer({
             promo.isValidating ||
             Boolean(promo.code && !promo.applied)
           }
-          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:opacity-90 disabled:opacity-40 disabled:shadow-none"
+          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-8 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:opacity-90 disabled:opacity-40 disabled:shadow-none"
         >
           {busy ? (
             <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
@@ -921,51 +982,56 @@ export function TicketCheckoutDrawer({
 
   if (!mounted) return null;
 
-  return createPortal(historyDismissed ? null : (
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, transition: { duration: 0.32, delay: 0.06 } }}
-            transition={{ duration: 0.22 }}
-            className="pointer-events-none fixed inset-0 z-[230]"
-          >
-            <motion.button
-              type="button"
-              aria-label={t("common.close")}
-              style={{ opacity: swipeBackdropOpacity }}
-              onClick={() => !busy && onClose()}
-              className="pointer-events-auto absolute inset-0 bg-black/75 backdrop-blur-sm"
-            />
-          </motion.div>
-          <motion.aside
-            ref={panelRef}
-            data-drawer-viewport
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={id + "-title"}
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 320, damping: 34 }}
-            className={`pointer-events-auto fixed right-0 top-0 z-[231] h-[100dvh] ${sidePanelWidth}`}
-          >
+  return createPortal(
+    historyDismissed ? null : (
+      <AnimatePresence>
+        {open && (
+          <>
             <motion.div
-              style={{ x: swipeX, touchAction: nativeSwipeEnabled ? "pan-y" : undefined }}
-              onPointerDownCapture={startEdgeSwipe}
-              onPointerMoveCapture={moveEdgeSwipe}
-              onPointerUpCapture={endEdgeSwipe}
-              onPointerCancelCapture={cancelEdgeSwipe}
-              className="flex h-full flex-col overflow-hidden border-white/10 bg-[#080909] text-foreground shadow-2xl md:border-l"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, transition: { duration: 0.32, delay: 0.06 } }}
+              transition={{ duration: 0.22 }}
+              className="pointer-events-none fixed inset-0 z-[230]"
             >
-              {content}
+              <motion.button
+                type="button"
+                aria-label={t("common.close")}
+                style={{ opacity: swipeBackdropOpacity }}
+                onClick={() => !busy && onClose()}
+                className="pointer-events-auto absolute inset-0 bg-black/75 backdrop-blur-sm"
+              />
             </motion.div>
-          </motion.aside>
-        </>
-      )}
-    </AnimatePresence>),
+            <motion.aside
+              ref={panelRef}
+              data-drawer-viewport
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={id + "-title"}
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 320, damping: 34 }}
+              className={`pointer-events-auto fixed right-0 top-0 z-[231] h-[100dvh] ${sidePanelWidth}`}
+            >
+              <motion.div
+                style={{
+                  x: swipeX,
+                  touchAction: nativeSwipeEnabled ? "pan-y" : undefined,
+                }}
+                onPointerDownCapture={startEdgeSwipe}
+                onPointerMoveCapture={moveEdgeSwipe}
+                onPointerUpCapture={endEdgeSwipe}
+                onPointerCancelCapture={cancelEdgeSwipe}
+                className="flex h-full flex-col overflow-hidden border-white/10 bg-[#080909] text-foreground shadow-2xl md:border-l"
+              >
+                {content}
+              </motion.div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+    ),
     document.body,
   );
 }
