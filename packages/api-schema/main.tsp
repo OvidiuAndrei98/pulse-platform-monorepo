@@ -30,6 +30,22 @@ model UserMinResponse {
   avatarUrl?: string;
 }
 
+model BillingDetails {
+  type: "individual" | "company";
+  name: string;
+  taxId: string;
+  registrationNumber: string;
+  address: string;
+  city: string;
+  county: string;
+  sector: string;
+  country: string;
+}
+
+model SavedBillingDetailsResponse {
+  details?: BillingDetails;
+}
+
 // --- MODELELE UNIFICATE (ALINIATE CU GO / POSTGRESQL) ---
 
 model TicketTypeResponse {
@@ -908,6 +924,20 @@ interface UserOperations {
   @delete
   @route("/me/hidden-categories/{category}")
   showEventCategory(@path category: string): {
+    @statusCode statusCode: 204;
+  };
+
+  @get
+  @route("/me/billing-details")
+  getBillingDetails(): SavedBillingDetailsResponse;
+
+  @put
+  @route("/me/billing-details")
+  saveBillingDetails(@body payload: BillingDetails): BillingDetails;
+
+  @delete
+  @route("/me/billing-details")
+  deleteBillingDetails(): {
     @statusCode statusCode: 204;
   };
 }

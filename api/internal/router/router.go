@@ -50,6 +50,9 @@ type HandlersConfig struct {
 	ListHiddenCategories     http.HandlerFunc
 	HideEventCategory        http.HandlerFunc
 	ShowEventCategory        http.HandlerFunc
+	GetBillingDetails        http.HandlerFunc
+	SaveBillingDetails       http.HandlerFunc
+	DeleteBillingDetails     http.HandlerFunc
 
 	// Events
 	CreateEvent                    http.HandlerFunc
@@ -290,6 +293,9 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Get("/me/hidden-categories", cfg.ListHiddenCategories)
 				r.Post("/me/hidden-categories", cfg.HideEventCategory)
 				r.Delete("/me/hidden-categories/{category}", cfg.ShowEventCategory)
+				r.Get("/me/billing-details", cfg.GetBillingDetails)
+				r.Put("/me/billing-details", cfg.SaveBillingDetails)
+				r.Delete("/me/billing-details", cfg.DeleteBillingDetails)
 			})
 
 			r.Route("/notifications", func(r chi.Router) {

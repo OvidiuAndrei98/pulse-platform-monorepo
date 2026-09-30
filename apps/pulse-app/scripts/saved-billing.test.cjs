@@ -9,60 +9,46 @@ const source = fs.readFileSync(path.join(__dirname, "../src/features/checkout/sa
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
 const details = { type: "company", name: "Test Company", taxId: "RO123", registrationNumber: "J1/1/2026", address: "Test street 1", city: "Cluj-Napoca", county: "Cluj", sector: "", country: "Romania" };
 
-function storage(native = false) {
-  const web = new Map();
-  const secure = new Map();
+function client(response = { details }) {
+  const calls = [];
+  const instance = {
+    get: async (route) => { calls.push(["get", route]); return response; },
+    put: async (route, options) => { calls.push(["put", route, options]); return options.body; },
+    delete: async (route) => { calls.push(["delete", route]); },
+  };
   const api = {};
   vm.runInNewContext(compiled, {
     exports: api,
-    require: (name) => name.includes("secure-storage") ? { SecureStorage: {
-      getItem: async (key) => secure.get(key) ?? null,
-      setItem: async (key, value) => { secure.set(key, value); },
-      removeItem: async (key) => { secure.delete(key); },
-    } } : { isNativePlatform: () => native },
-    window: { localStorage: {
-      getItem: (key) => web.get(key) ?? null,
-      setItem: (key, value) => { web.set(key, value); },
-      removeItem: (key) => { web.delete(key); },
-    } },
+    require: () => ({ ApiClient: { instance } }),
   });
-  return { api, web, secure };
+  return { api, calls };
 }
 
-test("saved addresses persist, are account scoped, and can be removed", async () => {
-  const { api } = storage();
-  await api.saveBillingDetails(details, "account-a");
+test("authenticated billing details are loaded from the account API", async () => {
+  const { api, calls } = client();
   assert.equal(JSON.stringify(await api.readSavedBillingDetails("account-a")), JSON.stringify(details));
-  assert.equal(await api.readSavedBillingDetails("account-b"), null);
-  assert.equal(await api.readSavedBillingDetails(), null);
-  await api.saveBillingDetails({ ...details, name: "Guest" });
-  await api.removeSavedBillingDetails("account-a");
+  assert.deepEqual(calls, [["get", "/users/me/billing-details"]]);
+});
+
+test("an account without saved details returns null", async () => {
+  const { api } = client({});
   assert.equal(await api.readSavedBillingDetails("account-a"), null);
-  assert.equal((await api.readSavedBillingDetails()).name, "Guest");
 });
 
-test("native persistence uses secure storage and keeps web storage empty", async () => {
-  const { api, web, secure } = storage(true);
-  await api.saveBillingDetails(details, "account-a");
-  assert.equal(web.size, 0);
-  assert.equal(secure.size, 1);
-  assert.equal((await api.readSavedBillingDetails("account-a")).taxId, details.taxId);
+test("guests do not read or persist reusable billing details", async () => {
+  const { api, calls } = client();
+  assert.equal(await api.readSavedBillingDetails(), null);
+  await assert.rejects(api.saveBillingDetails(details), /AUTHENTICATED_USER_REQUIRED/);
+  await api.removeSavedBillingDetails();
+  assert.deepEqual(calls, []);
+});
+
+test("saving replaces the account billing profile and deleting removes it", async () => {
+  const { api, calls } = client();
+  assert.equal(JSON.stringify(await api.saveBillingDetails(details, "account-a")), JSON.stringify(details));
   await api.removeSavedBillingDetails("account-a");
-  assert.equal(secure.size, 0);
-});
-
-test("corrupt or incomplete saved data is ignored and unknown fields are discarded", () => {
-  const { api } = storage();
-  for (const raw of [null, "{", "null", "[]", JSON.stringify({ ...details, city: 12 }), JSON.stringify({ ...details, type: "invalid" })]) {
-    assert.equal(api.parseSavedBillingDetails(raw), null);
-  }
-  const restored = api.parseSavedBillingDetails(JSON.stringify({ ...details, cardNumber: "not-an-address-field" }));
-  assert.equal(restored.cardNumber, undefined);
-  assert.equal(restored.address, details.address);
-});
-
-test("storage errors are surfaced so checkout can continue without claiming a save", async () => {
-  const { api, web } = storage();
-  web.set = () => { throw new Error("Storage unavailable"); };
-  await assert.rejects(api.saveBillingDetails(details), /Storage unavailable/);
+  assert.equal(calls[0][0], "put");
+  assert.equal(calls[0][1], "/users/me/billing-details");
+  assert.equal(JSON.stringify(calls[0][2].body), JSON.stringify(details));
+  assert.deepEqual(calls[1], ["delete", "/users/me/billing-details"]);
 });

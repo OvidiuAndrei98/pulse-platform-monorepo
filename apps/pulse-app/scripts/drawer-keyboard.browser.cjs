@@ -80,17 +80,21 @@ async function run() {
   await call("Page.addScriptToEvaluateOnNewDocument", { source: `
     localStorage.setItem('pulse_token', 'mock-feedback-test');
     const originalFetch = window.fetch.bind(window);
-    window.__api = { fail: false, payment: 'pending', requests: [] };
+    window.__api = { fail: false, payment: 'pending', requests: [], billing: null };
     const organizer = { id: 'test-organizer', username: 'testorganizer', organizerName: 'Test Organizer', role: 'organizer', relationship: 'none', followsOrganizer: false, followerCount: 7, friendCount: 0, eventCount: 0, bio: '' };
     window.fetch = async (input, init) => {
       const url = new URL(typeof input === 'string' ? input : input.url, location.origin);
       if (!url.pathname.includes('/api/v1/')) return originalFetch(input, init);
       const route = url.pathname.split('/api/v1')[1];
       const state = window.__api;
+      const method = (init?.method || (typeof input !== 'string' && input.method) || 'GET').toUpperCase();
       state.requests.push(route + url.search);
       const respond = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
       const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
       if (route === '/users/me') return respond({ id: 'test-user', username: 'Test User', email: 'test@example.com', role: location.pathname.startsWith('/dashboard') ? 'organizer' : 'user', preferredLanguage: 'en' });
+      if (route === '/users/me/billing-details' && method === 'GET') return respond(state.billing ? { details: state.billing } : {});
+      if (route === '/users/me/billing-details' && method === 'PUT') { state.billing = JSON.parse(init.body); return respond(state.billing); }
+      if (route === '/users/me/billing-details' && method === 'DELETE') { state.billing = null; return new Response(null, { status: 204 }); }
       if (route.startsWith('/dashboard/organizer/profile/')) return respond({isVerified:true,verificationStatus:'approved',stripeChargesEnabled:true,stripePayoutsEnabled:true});
       if (route === '/dashboard/events/mobile') return respond({id:'mobile',organizerId:'test-user',title:'Keyboard fixture',description:'A complete test event description',category:'house',vibe:'indoor',status:'published',city:'Bucuresti',locationName:'Test venue',latitude:44,longitude:26,startTime:'2099-10-01T18:00:00Z',endTime:'2099-10-02T04:00:00Z',organizerAbsorbsServiceFee:false,lineup:[],stats:{},ticketTypes:[]});
       if (route === '/profiles/search') {
@@ -178,6 +182,24 @@ async function run() {
   assert.equal(await evaluate('document.body.style.position'),'');
   assert.equal(await evaluate('document.body.style.overflow'),'');
   console.log('PASS checkout: lower fields, viewport pan, restore, pinch zoom and keyboard-open dismissal');
+
+  await navigate('/events/test-event');
+  await evaluate("window.__api.billing = {type:'company',name:'Saved Company',taxId:'RO123',registrationNumber:'J1/1/2026',address:'Saved street 1',city:'Cluj-Napoca',county:'Cluj',sector:'',country:'Romania'}");
+  await until("document.querySelector('input[type=radio]')");
+  await evaluate("document.querySelector('input[type=radio]').click(); Array.from(document.querySelectorAll('button')).find(b=>b.textContent.trim().startsWith('Continue')).click()");
+  await until("document.querySelector('[role=dialog]')");
+  await evaluate(button('Next')+'.click()');
+  await until("Array.from(document.querySelectorAll('[role=dialog] button')).some(button=>button.textContent.includes('Use these details'))");
+  assert.equal(await evaluate("Boolean(document.querySelector('input[id$=\"-billing-name\"]'))"), false, 'Saved billing selection hides the form');
+  await evaluate("Array.from(document.querySelectorAll('[role=dialog] button')).find(button=>button.textContent.includes('Use or edit different details')).click()");
+  await until("document.querySelector('input[id$=\"-billing-name\"]')");
+  assert.equal(await evaluate("document.querySelector('input[type=checkbox]').checked"), true, 'Editing defaults to replacing the saved profile');
+  await evaluate("(() => { const input=document.querySelector('input[id$=\"-billing-name\"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'Updated Company'); input.dispatchEvent(new Event('input',{bubbles:true})); })()");
+  await evaluate(button('Continue to summary')+'.click()');
+  await until("window.__api.billing?.name === 'Updated Company' && document.querySelector('[role=dialog]')?.textContent.includes('Step 3 of 3')");
+  await evaluate("document.querySelector('[role=dialog] header button:last-child').click()");
+  await until("!document.querySelector('[role=dialog]')");
+  console.log('PASS saved billing hides the form and edited details replace the account profile');
 
   await navigate('/');
   await until("document.querySelector('button[aria-label=Search]')");

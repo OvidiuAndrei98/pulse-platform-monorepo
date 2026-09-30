@@ -63,3 +63,28 @@ INSERT INTO user_hidden_event_categories (user_id, category) VALUES ($1, UPPER($
 
 -- name: ShowEventCategory :exec
 DELETE FROM user_hidden_event_categories WHERE user_id = $1 AND category = UPPER($2);
+
+-- name: GetUserBillingDetails :one
+SELECT user_id, billing_type, name, tax_id, registration_number, address, city, county, sector, country, updated_at
+FROM user_billing_details
+WHERE user_id = $1;
+
+-- name: UpsertUserBillingDetails :one
+INSERT INTO user_billing_details (
+    user_id, billing_type, name, tax_id, registration_number, address, city, county, sector, country
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+ON CONFLICT (user_id) DO UPDATE SET
+    billing_type = EXCLUDED.billing_type,
+    name = EXCLUDED.name,
+    tax_id = EXCLUDED.tax_id,
+    registration_number = EXCLUDED.registration_number,
+    address = EXCLUDED.address,
+    city = EXCLUDED.city,
+    county = EXCLUDED.county,
+    sector = EXCLUDED.sector,
+    country = EXCLUDED.country,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING user_id, billing_type, name, tax_id, registration_number, address, city, county, sector, country, updated_at;
+
+-- name: DeleteUserBillingDetails :exec
+DELETE FROM user_billing_details WHERE user_id = $1;

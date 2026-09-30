@@ -74,6 +74,8 @@ export function TicketCheckoutDrawer({
   const userId = user?.properties.id;
   const id = useId();
   const [savedBilling, setSavedBilling] = useState<InvoiceDetails | null>(null);
+  const [billingSource, setBillingSource] = useState<"saved" | "new">("new");
+  const [billingLoading, setBillingLoading] = useState(false);
   const [rememberBilling, setRememberBilling] = useState(false);
   const [savingBilling, setSavingBilling] = useState(false);
   const [furthestStep, setFurthestStep] = useState(0);
@@ -148,6 +150,8 @@ export function TicketCheckoutDrawer({
   useEffect(() => {
     setStep("tickets");
     setFurthestStep(0);
+    setBillingSource("new");
+    setBillingLoading(false);
     setRememberBilling(false);
     submittingRef.current = false;
     setBillingAttempted(false);
@@ -183,17 +187,34 @@ export function TicketCheckoutDrawer({
   }, [open]);
 
   useEffect(() => {
+    if (!open) {
+      setBillingLoading(false);
+      return;
+    }
     let active = true;
     setSavedBilling(null);
+    setBillingSource("new");
+    setRememberBilling(false);
+    setBillingLoading(Boolean(userId));
     readSavedBillingDetails(userId)
       .then((value) => {
-        if (active) setSavedBilling(value);
+        if (!active) return;
+        setSavedBilling(value);
+        if (value) {
+          setInvoiceDetails({ ...value });
+          setBillingSource("saved");
+        }
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (active && userId) toast.error(t("checkout.billingLoadFailed"));
+      })
+      .finally(() => {
+        if (active) setBillingLoading(false);
+      });
     return () => {
       active = false;
     };
-  }, [userId, open]);
+  }, [userId, open, t]);
 
   const changeStep = (next: "tickets" | "billing" | "summary") => {
     if (busy) return;
@@ -221,6 +242,7 @@ export function TicketCheckoutDrawer({
   const continueStep = async () => {
     if (
       busy ||
+      billingLoading ||
       !ticketCount ||
       promo.isValidating ||
       Boolean(promo.code && !promo.applied)
@@ -232,11 +254,14 @@ export function TicketCheckoutDrawer({
       return;
     }
     if (!validateBilling()) return;
-    if (rememberBilling) {
+    if (userId && billingSource === "new" && rememberBilling) {
       setSavingBilling(true);
       try {
-        await saveBillingDetails(invoiceDetails, userId);
-        setSavedBilling({ ...invoiceDetails });
+        const saved = await saveBillingDetails(invoiceDetails, userId);
+        setSavedBilling(saved);
+        setInvoiceDetails(saved);
+        setBillingSource("saved");
+        setRememberBilling(false);
       } catch {
         toast.error(t("checkout.billingSaveFailed"));
       } finally {
@@ -252,6 +277,8 @@ export function TicketCheckoutDrawer({
     try {
       await removeSavedBillingDetails(userId);
       setSavedBilling(null);
+      setBillingSource("new");
+      setInvoiceDetails(emptyInvoiceDetails(user?.properties.username ?? ""));
       setRememberBilling(false);
     } catch {
       toast.error(t("checkout.billingRemoveFailed"));
@@ -560,39 +587,6 @@ export function TicketCheckoutDrawer({
             </div>
             <Check className="ml-auto h-4 w-4 shrink-0 text-primary" />
           </div>
-          {savedBilling && (
-            <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.035] p-3.5">
-              <p className="text-sm font-semibold">
-                {t("checkout.savedBilling")}
-              </p>
-              <p className="mt-1 break-words text-xs leading-5 text-white/55">
-                {savedBilling.name}
-                {" \u00b7 "}
-                {savedBilling.address}, {savedBilling.city}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    setInvoiceDetails({ ...savedBilling });
-                    setRememberBilling(false);
-                  }}
-                  className="min-h-10 text-sm font-semibold text-primary disabled:opacity-40"
-                >
-                  {t("checkout.useSavedBilling")}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void forgetBilling()}
-                  className="min-h-10 text-xs text-white/50 underline disabled:opacity-40"
-                >
-                  {t("checkout.removeSavedBilling")}
-                </button>
-              </div>
-            </div>
-          )}
           <label
             className="block text-sm font-semibold"
             htmlFor={id + "-email"}
@@ -627,28 +621,112 @@ export function TicketCheckoutDrawer({
               className="mt-3 h-11 rounded-xl text-xs"
             />
           )}
-          <InvoiceDetailsFields
-            value={invoiceDetails}
-            onChange={setInvoiceDetails}
-            idPrefix={id}
-            errors={billingErrors}
-          />
+          {billingLoading ? (
+            <div className="mt-4 flex min-h-20 items-center justify-center rounded-xl border border-white/10 bg-white/[0.02]">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <span className="sr-only">{t("common.loading")}</span>
+            </div>
+          ) : (
+            <>
+              {savedBilling && (
+                <div
+                  role="radiogroup"
+                  aria-label={t("checkout.billingDetailsChoice")}
+                  className="mt-4 space-y-2"
+                >
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={billingSource === "saved"}
+                    disabled={busy}
+                    onClick={() => {
+                      setBillingSource("saved");
+                      setInvoiceDetails({ ...savedBilling });
+                      setBillingAttempted(false);
+                      setRememberBilling(false);
+                    }}
+                    className={`w-full rounded-xl border p-3.5 text-left transition disabled:opacity-40 ${
+                      billingSource === "saved"
+                        ? "border-primary/70 bg-primary/10"
+                        : "border-white/10 bg-white/[0.02]"
+                    }`}
+                  >
+                    <span className="block text-sm font-semibold">
+                      {t("checkout.useSavedBilling")}
+                    </span>
+                    <span className="mt-1 block break-words text-xs leading-5 text-white/55">
+                      {savedBilling.name}
+                      {" \u00b7 "}
+                      {savedBilling.address}, {savedBilling.city}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={billingSource === "new"}
+                    disabled={busy}
+                    onClick={() => {
+                      setBillingSource("new");
+                      setInvoiceDetails({ ...savedBilling });
+                      setBillingAttempted(false);
+                      setRememberBilling(true);
+                    }}
+                    className={`w-full rounded-xl border p-3.5 text-left text-sm font-semibold transition disabled:opacity-40 ${
+                      billingSource === "new"
+                        ? "border-primary/70 bg-primary/10"
+                        : "border-white/10 bg-white/[0.02]"
+                    }`}
+                  >
+                    {t("checkout.useOtherBilling")}
+                  </button>
+                </div>
+              )}
 
-          <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={rememberBilling}
-              disabled={busy}
-              onChange={(event) => setRememberBilling(event.target.checked)}
-              className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
-            />
-            <span>
-              {t("checkout.rememberBilling")}
-              <span className="mt-1 block text-xs leading-5 text-white/45">
-                {t("checkout.rememberBillingHint")}
-              </span>
-            </span>
-          </label>
+              {billingSource === "saved" && savedBilling ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void forgetBilling()}
+                  className="mt-2 min-h-10 text-xs text-white/50 underline disabled:opacity-40"
+                >
+                  {t("checkout.removeSavedBilling")}
+                </button>
+              ) : (
+                <>
+                  <InvoiceDetailsFields
+                    value={invoiceDetails}
+                    onChange={setInvoiceDetails}
+                    idPrefix={id}
+                    errors={billingErrors}
+                  />
+
+                  {user && (
+                    <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={rememberBilling}
+                        disabled={busy}
+                        onChange={(event) =>
+                          setRememberBilling(event.target.checked)
+                        }
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                      />
+                      <span>
+                        {t(
+                          savedBilling
+                            ? "checkout.replaceSavedBilling"
+                            : "checkout.rememberBilling",
+                        )}
+                        <span className="mt-1 block text-xs leading-5 text-white/45">
+                          {t("checkout.rememberBillingHint")}
+                        </span>
+                      </span>
+                    </label>
+                  )}
+                </>
+              )}
+            </>
+          )}
         </StepCard>
         <StepCard
           number={3}
@@ -699,6 +777,7 @@ export function TicketCheckoutDrawer({
           }
           disabled={
             busy ||
+            billingLoading ||
             purchaseUnavailable ||
             !ticketCount ||
             promo.isValidating ||

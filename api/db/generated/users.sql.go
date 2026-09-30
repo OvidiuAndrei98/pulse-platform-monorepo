@@ -57,6 +57,54 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (Users, 
 	return i, err
 }
 
+const deleteUserBillingDetails = `-- name: DeleteUserBillingDetails :exec
+DELETE FROM user_billing_details WHERE user_id = $1
+`
+
+func (q *Queries) DeleteUserBillingDetails(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUserBillingDetails, userID)
+	return err
+}
+
+const getUserBillingDetails = `-- name: GetUserBillingDetails :one
+SELECT user_id, billing_type, name, tax_id, registration_number, address, city, county, sector, country, updated_at
+FROM user_billing_details
+WHERE user_id = $1
+`
+
+type GetUserBillingDetailsRow struct {
+	UserID             pgtype.UUID        `json:"user_id"`
+	BillingType        string             `json:"billing_type"`
+	Name               string             `json:"name"`
+	TaxID              string             `json:"tax_id"`
+	RegistrationNumber string             `json:"registration_number"`
+	Address            string             `json:"address"`
+	City               string             `json:"city"`
+	County             string             `json:"county"`
+	Sector             string             `json:"sector"`
+	Country            string             `json:"country"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) GetUserBillingDetails(ctx context.Context, userID pgtype.UUID) (GetUserBillingDetailsRow, error) {
+	row := q.db.QueryRow(ctx, getUserBillingDetails, userID)
+	var i GetUserBillingDetailsRow
+	err := row.Scan(
+		&i.UserID,
+		&i.BillingType,
+		&i.Name,
+		&i.TaxID,
+		&i.RegistrationNumber,
+		&i.Address,
+		&i.City,
+		&i.County,
+		&i.Sector,
+		&i.Country,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id, preferred_language, show_attendance_publicly FROM users WHERE email = $1 LIMIT 1
 `
@@ -373,6 +421,81 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.PreferredLanguage,
 		&i.ShowAttendancePublicly,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const upsertUserBillingDetails = `-- name: UpsertUserBillingDetails :one
+INSERT INTO user_billing_details (
+    user_id, billing_type, name, tax_id, registration_number, address, city, county, sector, country
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+ON CONFLICT (user_id) DO UPDATE SET
+    billing_type = EXCLUDED.billing_type,
+    name = EXCLUDED.name,
+    tax_id = EXCLUDED.tax_id,
+    registration_number = EXCLUDED.registration_number,
+    address = EXCLUDED.address,
+    city = EXCLUDED.city,
+    county = EXCLUDED.county,
+    sector = EXCLUDED.sector,
+    country = EXCLUDED.country,
+    updated_at = CURRENT_TIMESTAMP
+RETURNING user_id, billing_type, name, tax_id, registration_number, address, city, county, sector, country, updated_at
+`
+
+type UpsertUserBillingDetailsParams struct {
+	UserID             pgtype.UUID `json:"user_id"`
+	BillingType        string      `json:"billing_type"`
+	Name               string      `json:"name"`
+	TaxID              string      `json:"tax_id"`
+	RegistrationNumber string      `json:"registration_number"`
+	Address            string      `json:"address"`
+	City               string      `json:"city"`
+	County             string      `json:"county"`
+	Sector             string      `json:"sector"`
+	Country            string      `json:"country"`
+}
+
+type UpsertUserBillingDetailsRow struct {
+	UserID             pgtype.UUID        `json:"user_id"`
+	BillingType        string             `json:"billing_type"`
+	Name               string             `json:"name"`
+	TaxID              string             `json:"tax_id"`
+	RegistrationNumber string             `json:"registration_number"`
+	Address            string             `json:"address"`
+	City               string             `json:"city"`
+	County             string             `json:"county"`
+	Sector             string             `json:"sector"`
+	Country            string             `json:"country"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) UpsertUserBillingDetails(ctx context.Context, arg UpsertUserBillingDetailsParams) (UpsertUserBillingDetailsRow, error) {
+	row := q.db.QueryRow(ctx, upsertUserBillingDetails,
+		arg.UserID,
+		arg.BillingType,
+		arg.Name,
+		arg.TaxID,
+		arg.RegistrationNumber,
+		arg.Address,
+		arg.City,
+		arg.County,
+		arg.Sector,
+		arg.Country,
+	)
+	var i UpsertUserBillingDetailsRow
+	err := row.Scan(
+		&i.UserID,
+		&i.BillingType,
+		&i.Name,
+		&i.TaxID,
+		&i.RegistrationNumber,
+		&i.Address,
+		&i.City,
+		&i.County,
+		&i.Sector,
+		&i.Country,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

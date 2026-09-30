@@ -696,6 +696,21 @@ type Tickets struct {
 	ValidatedByScannerAccessID pgtype.UUID        `json:"validated_by_scanner_access_id"`
 }
 
+type UserBillingDetails struct {
+	UserID             pgtype.UUID        `json:"user_id"`
+	BillingType        string             `json:"billing_type"`
+	Name               string             `json:"name"`
+	TaxID              string             `json:"tax_id"`
+	RegistrationNumber string             `json:"registration_number"`
+	Address            string             `json:"address"`
+	City               string             `json:"city"`
+	County             string             `json:"county"`
+	Sector             string             `json:"sector"`
+	Country            string             `json:"country"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
 type UserHiddenEventCategories struct {
 	UserID    pgtype.UUID        `json:"user_id"`
 	Category  string             `json:"category"`

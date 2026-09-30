@@ -3189,6 +3189,59 @@
         }
       }
     },
+    "/users/me/billing-details": {
+      "get": {
+        "operationId": "UserOperations_getBillingDetails",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedBillingDetailsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "UserOperations_saveBillingDetails",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingDetails"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillingDetails"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "UserOperations_deleteBillingDetails",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      }
+    },
     "/users/me/hidden-categories": {
       "get": {
         "operationId": "UserOperations_listHiddenCategories",
@@ -3428,6 +3481,53 @@
               "SPOTIFY",
               "MANUAL"
             ]
+          }
+        }
+      },
+      "BillingDetails": {
+        "type": "object",
+        "required": [
+          "type",
+          "name",
+          "taxId",
+          "registrationNumber",
+          "address",
+          "city",
+          "county",
+          "sector",
+          "country"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "individual",
+              "company"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "taxId": {
+            "type": "string"
+          },
+          "registrationNumber": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "county": {
+            "type": "string"
+          },
+          "sector": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
           }
         }
       },
@@ -5574,6 +5674,14 @@
               "approved",
               "rejected"
             ]
+          }
+        }
+      },
+      "SavedBillingDetailsResponse": {
+        "type": "object",
+        "properties": {
+          "details": {
+            "$ref": "#/components/schemas/BillingDetails"
           }
         }
       },

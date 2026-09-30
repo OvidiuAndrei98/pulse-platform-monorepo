@@ -111,6 +111,7 @@ async function run() {
       const respond = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
       const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
       if (route === '/users/me') return respond({ id: 'test-user', username: 'Test User', email: 'test@example.com', role: 'user', preferredLanguage: 'en' });
+      if (route === '/users/me/billing-details') return respond({});
       if (route === '/profiles/search') {
         const q = url.searchParams.get('q');
         await wait(q === 'older' ? 1100 : 80);

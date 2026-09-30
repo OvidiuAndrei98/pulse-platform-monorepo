@@ -265,6 +265,9 @@ func (app *Application) BuildRouter() http.Handler {
 		ListHiddenCategories:        usersHandler.HandleListHiddenCategories,
 		HideEventCategory:           usersHandler.HandleHideCategory,
 		ShowEventCategory:           usersHandler.HandleShowCategory,
+		GetBillingDetails:           usersHandler.HandleGetBillingDetails,
+		SaveBillingDetails:          usersHandler.HandleSaveBillingDetails,
+		DeleteBillingDetails:        usersHandler.HandleDeleteBillingDetails,
 		ListOrganizerVerifications:  organizerHandler.HandleAdminListOrganizerVerifications,
 		ReviewOrganizerVerification: organizerHandler.HandleAdminReviewOrganizerVerification,
 

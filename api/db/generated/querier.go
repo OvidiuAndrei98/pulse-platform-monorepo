@@ -80,6 +80,7 @@ type Querier interface {
 	DeleteRevokedInvitationTicket(ctx context.Context, arg DeleteRevokedInvitationTicketParams) (int64, error)
 	DeleteUnissuedBillingInvoiceForRefund(ctx context.Context, orderID pgtype.UUID) (int64, error)
 	DeleteUnissuedBillingInvoicesForRefundedOrders(ctx context.Context) (int64, error)
+	DeleteUserBillingDetails(ctx context.Context, userID pgtype.UUID) error
 	DeleteUserPasswordResetTokens(ctx context.Context, userID pgtype.UUID) error
 	DeleteUserToken(ctx context.Context, arg DeleteUserTokenParams) error
 	EditEvent(ctx context.Context, arg EditEventParams) (Events, error)
@@ -133,6 +134,7 @@ type Querier interface {
 	GetTicketByHash(ctx context.Context, validationHash string) (GetTicketByHashRow, error)
 	GetTicketTypeForUpdate(ctx context.Context, id pgtype.UUID) (TicketTypes, error)
 	GetTicketTypesForEvent(ctx context.Context, eventID pgtype.UUID) ([]TicketTypes, error)
+	GetUserBillingDetails(ctx context.Context, userID pgtype.UUID) (GetUserBillingDetailsRow, error)
 	GetUserByEmail(ctx context.Context, email string) (Users, error)
 	GetUserByGoogleID(ctx context.Context, googleID pgtype.Text) (Users, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (Users, error)
@@ -257,6 +259,7 @@ type Querier interface {
 	UpsertEventRsvp(ctx context.Context, arg UpsertEventRsvpParams) error
 	UpsertManualRefundOperation(ctx context.Context, arg UpsertManualRefundOperationParams) (OrderRefundOperations, error)
 	UpsertOrganizerInvoicingSettings(ctx context.Context, arg UpsertOrganizerInvoicingSettingsParams) (OrganizerInvoicingSettings, error)
+	UpsertUserBillingDetails(ctx context.Context, arg UpsertUserBillingDetailsParams) (UpsertUserBillingDetailsRow, error)
 	ValidateTicketOnce(ctx context.Context, arg ValidateTicketOnceParams) (pgtype.Timestamptz, error)
 }
 

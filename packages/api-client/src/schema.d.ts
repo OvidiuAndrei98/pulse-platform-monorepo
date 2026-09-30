@@ -1376,6 +1376,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/billing-details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["UserOperations_getBillingDetails"];
+        put: operations["UserOperations_saveBillingDetails"];
+        post?: never;
+        delete: operations["UserOperations_deleteBillingDetails"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/users/me/hidden-categories": {
         parameters: {
             query?: never;
@@ -1490,6 +1506,18 @@ export interface components {
             isHeadliner?: boolean;
             /** @enum {string} */
             source: "SPOTIFY" | "MANUAL";
+        };
+        BillingDetails: {
+            /** @enum {string} */
+            type: "individual" | "company";
+            name: string;
+            taxId: string;
+            registrationNumber: string;
+            address: string;
+            city: string;
+            county: string;
+            sector: string;
+            country: string;
         };
         BillingDetailsPayload: {
             /** @enum {string} */
@@ -2127,6 +2155,9 @@ export interface components {
         ReviewOrganizerVerificationPayload: {
             /** @enum {string} */
             status: "approved" | "rejected";
+        };
+        SavedBillingDetailsResponse: {
+            details?: components["schemas"]["BillingDetails"];
         };
         ScannerAccessResponse: {
             id: string;
@@ -4824,6 +4855,68 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["User"];
                 };
+            };
+        };
+    };
+    UserOperations_getBillingDetails: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedBillingDetailsResponse"];
+                };
+            };
+        };
+    };
+    UserOperations_saveBillingDetails: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingDetails"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingDetails"];
+                };
+            };
+        };
+    };
+    UserOperations_deleteBillingDetails: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
