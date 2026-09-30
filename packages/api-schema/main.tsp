@@ -261,6 +261,7 @@ model OrganizerProfile {
   userId: string;
   companyName: string;
   cui: string;
+  fiscalAddress: string;
   isVerified: boolean;
   verificationStatus: "pending" | "approved" | "rejected";
   caenCode?: string;
@@ -456,7 +457,16 @@ model CreatePromotionCheckoutPayload {
   plan: "one_day" | "thu_sat" | "full_week";
   placement: "home_banner" | "feed";
   startDate: string;
-  billingDetails: BillingDetailsPayload;
+  billingDetails: PromotionBillingDetailsPayload;
+}
+
+model PromotionBillingDetailsPayload {
+  registrationNumber?: string;
+  address: string;
+  city: string;
+  county: string;
+  sector?: string;
+  country: string;
 }
 
 model PromotionCheckoutResponse {

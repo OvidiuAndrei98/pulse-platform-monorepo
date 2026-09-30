@@ -34,6 +34,33 @@ const (
 
 const maxPromotionJSONBytes = 8 << 10
 
+type promotionBillingDetailsRequest struct {
+	RegistrationNumber string `json:"registrationNumber"`
+	Address            string `json:"address"`
+	City               string `json:"city"`
+	County             string `json:"county"`
+	Sector             string `json:"sector"`
+	Country            string `json:"country"`
+}
+
+func normalizePromotionBillingDetails(
+	details promotionBillingDetailsRequest,
+	companyName string,
+	companyCUI string,
+) (users.BillingDetails, error) {
+	return users.NormalizeBillingDetails(users.BillingDetails{
+		Type:               "company",
+		Name:               companyName,
+		TaxID:              companyCUI,
+		RegistrationNumber: details.RegistrationNumber,
+		Address:            details.Address,
+		City:               details.City,
+		County:             details.County,
+		Sector:             details.Sector,
+		Country:            details.Country,
+	})
+}
+
 type Handler struct {
 	queries    *db.Queries
 	pool       *pgxpool.Pool
@@ -306,27 +333,23 @@ func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		EventID        string               `json:"eventId"`
-		Plan           string               `json:"plan"`
-		Placement      string               `json:"placement"`
-		StartDate      string               `json:"startDate"`
-		BillingDetails users.BillingDetails `json:"billingDetails"`
+		EventID        string                         `json:"eventId"`
+		Plan           string                         `json:"plan"`
+		Placement      string                         `json:"placement"`
+		StartDate      string                         `json:"startDate"`
+		BillingDetails promotionBillingDetailsRequest `json:"billingDetails"`
 	}
 	if !router.DecodeJSON(w, r, &body, maxPromotionJSONBytes) {
 		return
 	}
-	billing, err := users.NormalizeBillingDetails(body.BillingDetails)
-	if err != nil {
-		router.RespondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
 	var invoiceConfig invoicing.PromotionInvoiceConfig
 	if h.modeKnown && h.liveMode {
-		invoiceConfig, err = h.invoicing.PromotionInvoiceConfig()
-		if err != nil {
+		configuredInvoice, configErr := h.invoicing.PromotionInvoiceConfig()
+		if configErr != nil {
 			router.RespondWithError(w, http.StatusServiceUnavailable, "Facturarea SPOTTR nu este disponibila momentan")
 			return
 		}
+		invoiceConfig = configuredInvoice
 	}
 	plan, exists := planByID(body.Plan, body.Placement)
 	if !exists {
@@ -351,6 +374,20 @@ func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
 	organizer, err := h.queries.GetUserByID(r.Context(), organizerID)
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Datele organizatorului nu au putut fi incarcate")
+		return
+	}
+	organizerProfile, err := h.queries.GetOrganizerProfile(r.Context(), organizerID)
+	if err != nil || organizerProfile.VerificationStatus != db.VerificationStatusTypeApproved {
+		router.RespondWithError(w, http.StatusForbidden, "Firma organizatorului trebuie sa fie verificata")
+		return
+	}
+	billing, err := normalizePromotionBillingDetails(
+		body.BillingDetails,
+		organizerProfile.CompanyName,
+		organizerProfile.Cui,
+	)
+	if err != nil {
+		router.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if event.Status != "published" || event.EndTime.Time.Before(endsAt) {

@@ -86,3 +86,39 @@ func TestBannerReservationPolicy(t *testing.T) {
 		t.Fatalf("reservation duration = %v, expected 10m", promotionReservationDuration)
 	}
 }
+
+func TestPromotionBillingUsesVerifiedOrganizerIdentity(t *testing.T) {
+	billing, err := normalizePromotionBillingDetails(
+		promotionBillingDetailsRequest{
+			RegistrationNumber: "J40/123/2026",
+			Address:            "Strada Exemplu 1",
+			City:               "Cluj-Napoca",
+			County:             "Cluj",
+			Country:            "Romania",
+		},
+		"Firma Oficiala SRL",
+		"RO12345678",
+	)
+	if err != nil {
+		t.Fatalf("normalizePromotionBillingDetails returned error: %v", err)
+	}
+	if billing.Type != "company" || billing.Name != "Firma Oficiala SRL" || billing.TaxID != "RO12345678" {
+		t.Fatalf("promotion billing did not use the organizer identity: %#v", billing)
+	}
+}
+
+func TestPromotionBillingRequiresVerifiedCompanyIdentity(t *testing.T) {
+	_, err := normalizePromotionBillingDetails(
+		promotionBillingDetailsRequest{
+			Address: "Strada Exemplu 1",
+			City:    "Cluj-Napoca",
+			County:  "Cluj",
+			Country: "Romania",
+		},
+		"",
+		"",
+	)
+	if err == nil {
+		t.Fatal("expected missing organizer identity to be rejected")
+	}
+}

@@ -1665,7 +1665,7 @@ export interface components {
             /** @enum {string} */
             placement: "home_banner" | "feed";
             startDate: string;
-            billingDetails: components["schemas"]["BillingDetailsPayload"];
+            billingDetails: components["schemas"]["PromotionBillingDetailsPayload"];
         };
         CreateScannerAccessPayload: {
             label: string;
@@ -1955,6 +1955,7 @@ export interface components {
             userId: string;
             companyName: string;
             cui: string;
+            fiscalAddress: string;
             isVerified: boolean;
             /** @enum {string} */
             verificationStatus: "pending" | "approved" | "rejected";
@@ -2050,6 +2051,14 @@ export interface components {
             capacity: number;
             /** Format: int32 */
             availableSlots: number;
+        };
+        PromotionBillingDetailsPayload: {
+            registrationNumber?: string;
+            address: string;
+            city: string;
+            county: string;
+            sector?: string;
+            country: string;
         };
         PromotionCampaignResponse: {
             id: string;
