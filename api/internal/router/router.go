@@ -102,6 +102,7 @@ type HandlersConfig struct {
 	ReconcileOrganizerRefund       http.HandlerFunc
 	ListAdminRefundAttention       http.HandlerFunc
 	ReconcileAdminRefund           http.HandlerFunc
+	ListPromotionInvoiceAttention  http.HandlerFunc
 
 	// Interactions / Checkins
 	CreateCheckIn http.HandlerFunc
@@ -411,6 +412,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Post("/admin/event-cancellations/{id}/retry", cfg.RetryEventCancellation)
 				r.Get("/admin/refunds-attention", cfg.ListAdminRefundAttention)
 				r.Post("/admin/refunds-attention/{id}/reconcile", cfg.ReconcileAdminRefund)
+				r.Get("/admin/promotion-invoices-attention", cfg.ListPromotionInvoiceAttention)
 			})
 		})
 	})

@@ -32,16 +32,14 @@ func (h *CheckoutHandler) reconcileCheckoutSession(ctx context.Context, sessionI
 		}
 		return "completed", orderID, nil
 	}
-	if order.Status == db.OrderStatusFailed || order.Status == db.OrderStatusRefunded {
+	if order.Status == db.OrderStatusRefunded {
 		return string(order.Status), orderID, nil
 	}
 	if !order.StripeConnectedAccountID.Valid || strings.TrimSpace(order.StripeConnectedAccountID.String) == "" {
 		return "", "", errors.New("comanda nu are contul Stripe conectat")
 	}
 
-	params := &stripe.CheckoutSessionRetrieveParams{}
-	params.SetStripeAccount(order.StripeConnectedAccountID.String)
-	session, err := h.client.V1CheckoutSessions.Retrieve(ctx, sessionID, params)
+	session, err := h.retrieveCheckoutSession(ctx, sessionID, order.StripeConnectedAccountID.String)
 	if err != nil {
 		return "", "", err
 	}
@@ -75,13 +73,34 @@ func (h *CheckoutHandler) reconcileCheckoutSession(ctx context.Context, sessionI
 			}
 			return "", "", err
 		}
-		return "completed", orderID, nil
-	case stripe.CheckoutSessionStatusExpired:
-		if err := h.FailCheckout(ctx, orderID, "", order.StripeConnectedAccountID.String); err != nil {
+		updated, err := h.queries.GetOrderByCheckoutSession(ctx, pgtype.Text{String: sessionID, Valid: true})
+		if err != nil {
 			return "", "", err
 		}
-		return "failed", orderID, nil
+		if updated.Status == db.OrderStatusCompleted {
+			return "completed", orderID, nil
+		}
+		// A paid Session can require a refund when an old release race cannot
+		// restore capacity. Never show a successful confirmation without tickets.
+		if updated.StripeRefundNeedsAttention {
+			return "failed", orderID, nil
+		}
+		return string(updated.Status), orderID, nil
+	case stripe.CheckoutSessionStatusExpired:
+		if err := h.ReleaseExpiredCheckout(ctx, *session, order.StripeConnectedAccountID.String); err != nil {
+			return "", "", err
+		}
+		// Completion and expiry deliveries may race. Return the committed local
+		// state after the row-locked transition instead of assuming expiry won.
+		updated, err := h.queries.GetOrderByCheckoutSession(ctx, pgtype.Text{String: sessionID, Valid: true})
+		if err != nil {
+			return "", "", err
+		}
+		return string(updated.Status), orderID, nil
 	default:
+		if order.Status == db.OrderStatusFailed {
+			return "failed", orderID, nil
+		}
 		return "pending", orderID, nil
 	}
 }

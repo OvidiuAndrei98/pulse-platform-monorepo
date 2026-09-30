@@ -456,6 +456,7 @@ model CreatePromotionCheckoutPayload {
   plan: "one_day" | "thu_sat" | "full_week";
   placement: "home_banner" | "feed";
   startDate: string;
+  billingDetails: BillingDetailsPayload;
 }
 
 model PromotionCheckoutResponse {
@@ -477,6 +478,31 @@ model PromotionCampaignResponse {
   clicksCount: int64;
   ctr: decimal;
   createdAt: utcDateTime;
+  invoiceStatus?: "pending" | "processing" | "dispatching" | "issued" | "failed" | "needs_review";
+  invoiceSeries?: string;
+  invoiceNumber?: string;
+  invoiceDocumentUrl?: string;
+  invoiceIssuedAt?: utcDateTime;
+  invoiceRefundStatus?: "none" | "pending" | "partial" | "full" | "failed" | "needs_review";
+  invoiceRefundedRon?: float64;
+  attentionRequired: boolean;
+  attentionReason?: string;
+}
+
+model PromotionInvoiceAttentionResponse {
+  id: string;
+  campaignId: string;
+  eventTitle: string;
+  organizerId: string;
+  customerEmail: string;
+  amountRon: float64;
+  paymentIntentId?: string;
+  invoiceStatus?: string;
+  refundStatus?: string;
+  refundedAmountRon: float64;
+  reason: string;
+  createdAt: utcDateTime;
+  updatedAt: utcDateTime;
 }
 
 model PromotedEventResponse {
@@ -1566,6 +1592,10 @@ interface AdminOperations {
   @post
   @route("/refunds-attention/{id}/reconcile")
   reconcileRefundRequiringAttention(@path id: string): RefundReconciliationResponse;
+
+  @get
+  @route("/promotion-invoices-attention")
+  listPromotionInvoicesRequiringAttention(): PromotionInvoiceAttentionResponse[];
 }
 
 @route("/ticket-validation/quick-access")

@@ -45,6 +45,7 @@ export type OrganizerVerificationRequest = ReadableSchema<"OrganizerVerification
 export type EventCancellationRequest = ReadableSchema<"EventCancellationRequestResponse">;
 export type RefundAttentionItem = ReadableSchema<"RefundAttentionResponse">;
 export type RefundReconciliation = ReadableSchema<"RefundReconciliationResponse">;
+export type PromotionInvoiceAttention = ReadableSchema<"PromotionInvoiceAttentionResponse">;
 export type ValidationEvent = ReadableSchema<"ValidationEventResponse">;
 export type SocialFeedItem = ReadableSchema<"SocialFeedItemResponse">;
 export type OrganizerEventUpdate = ReadableSchema<"OrganizerEventUpdateResponse">;
@@ -286,6 +287,10 @@ export class User {
     return ApiClient.instance.post("/admin/refunds-attention/{id}/reconcile", {
       params: { path: { id: orderId } },
     });
+  }
+
+  async listPromotionInvoicesRequiringAttention(): Promise<PromotionInvoiceAttention[]> {
+    return ApiClient.instance.get("/admin/promotion-invoices-attention");
   }
 
   async getPlatformCommissionInvoices(): Promise<PlatformCommissionInvoice[]> {

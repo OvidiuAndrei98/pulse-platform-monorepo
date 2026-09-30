@@ -684,6 +684,19 @@ func (q *Queries) GetAvailablePromoCodeForUpdate(ctx context.Context, arg GetAva
 	return i, err
 }
 
+const getEventStatusForCheckoutUpdate = `-- name: GetEventStatusForCheckoutUpdate :one
+SELECT status FROM events
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) GetEventStatusForCheckoutUpdate(ctx context.Context, id pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getEventStatusForCheckoutUpdate, id)
+	var status string
+	err := row.Scan(&status)
+	return status, err
+}
+
 const getInvitationForValidation = `-- name: GetInvitationForValidation :one
 SELECT i.id, i.label, COALESCE(tt.name, '') AS ticket_type,
        i.validated_at, i.revoked_at
@@ -812,6 +825,60 @@ WHERE stripe_checkout_session_id = $1
 
 func (q *Queries) GetOrderByCheckoutSession(ctx context.Context, stripeCheckoutSessionID pgtype.Text) (Orders, error) {
 	row := q.db.QueryRow(ctx, getOrderByCheckoutSession, stripeCheckoutSessionID)
+	var i Orders
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.EventID,
+		&i.Email,
+		&i.StripePaymentIntentID,
+		&i.Status,
+		&i.TotalAmount,
+		&i.CreatedAt,
+		&i.StripeCheckoutSessionID,
+		&i.PlatformFeeBani,
+		&i.TicketEmailSentAt,
+		&i.PromoCodeID,
+		&i.DiscountAmountRon,
+		&i.InvoiceRequested,
+		&i.BillingType,
+		&i.BillingName,
+		&i.BillingTaxID,
+		&i.BillingRegistrationNumber,
+		&i.BillingAddress,
+		&i.BillingCity,
+		&i.BillingCounty,
+		&i.BillingCountry,
+		&i.BillingSector,
+		&i.CompletedAt,
+		&i.CustomerTicketingFeeBani,
+		&i.StripeLivemode,
+		&i.StripeConnectedAccountID,
+		&i.StripeChargeType,
+		&i.StripeChargeID,
+		&i.StripeAmountRefundedBani,
+		&i.StripeRefundStatus,
+		&i.StripeRefundNeedsAttention,
+		&i.StripeRefundUpdatedAt,
+		&i.AutomaticInvoiceRefundEnabled,
+		&i.PlatformFeeStatus,
+		&i.PlatformFeeRefundedBani,
+		&i.RefundOrigin,
+		&i.ReservationIpHash,
+		&i.TicketVatPercentage,
+		&i.TicketVatName,
+	)
+	return i, err
+}
+
+const getOrderByCheckoutSessionForUpdate = `-- name: GetOrderByCheckoutSessionForUpdate :one
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash, ticket_vat_percentage, ticket_vat_name FROM orders
+WHERE stripe_checkout_session_id = $1
+FOR UPDATE
+`
+
+func (q *Queries) GetOrderByCheckoutSessionForUpdate(ctx context.Context, stripeCheckoutSessionID pgtype.Text) (Orders, error) {
+	row := q.db.QueryRow(ctx, getOrderByCheckoutSessionForUpdate, stripeCheckoutSessionID)
 	var i Orders
 	err := row.Scan(
 		&i.ID,
@@ -1648,6 +1715,7 @@ func (q *Queries) ListOrganizerFinanceEvents(ctx context.Context, organizerID pg
 const listPendingDirectChargeCheckoutsForReconciliation = `-- name: ListPendingDirectChargeCheckoutsForReconciliation :many
 SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash, ticket_vat_percentage, ticket_vat_name FROM orders
 WHERE status = 'pending'
+  AND stripe_refund_needs_attention IS FALSE
   AND stripe_checkout_session_id IS NOT NULL
   AND stripe_connected_account_id IS NOT NULL
   AND stripe_charge_type = 'direct'
@@ -2128,6 +2196,41 @@ type RemoveValidationStaffParams struct {
 func (q *Queries) RemoveValidationStaff(ctx context.Context, arg RemoveValidationStaffParams) error {
 	_, err := q.db.Exec(ctx, removeValidationStaff, arg.EventID, arg.UserID)
 	return err
+}
+
+const restoreReleasedPromoCodeRedemption = `-- name: RestoreReleasedPromoCodeRedemption :execrows
+UPDATE promo_codes
+SET redemptions_count = redemptions_count + 1
+WHERE id = $1
+  AND (max_redemptions IS NULL OR redemptions_count + 1 <= max_redemptions)
+`
+
+func (q *Queries) RestoreReleasedPromoCodeRedemption(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, restoreReleasedPromoCodeRedemption, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const restoreReleasedTicketReservation = `-- name: RestoreReleasedTicketReservation :execrows
+UPDATE ticket_types
+SET tickets_sold = tickets_sold + $1::INTEGER
+WHERE id = $2
+  AND tickets_sold + $1::INTEGER <= capacity
+`
+
+type RestoreReleasedTicketReservationParams struct {
+	TicketsSold int32       `json:"tickets_sold"`
+	ID          pgtype.UUID `json:"id"`
+}
+
+func (q *Queries) RestoreReleasedTicketReservation(ctx context.Context, arg RestoreReleasedTicketReservationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, restoreReleasedTicketReservation, arg.TicketsSold, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const revokeInvitationTicket = `-- name: RevokeInvitationTicket :execrows

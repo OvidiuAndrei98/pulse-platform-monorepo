@@ -3,6 +3,7 @@ package users
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -29,7 +30,10 @@ type billingDetailsEnvelope struct {
 	Details *BillingDetails `json:"details,omitempty"`
 }
 
-func normalizeBillingDetails(details BillingDetails) (BillingDetails, error) {
+// NormalizeBillingDetails validates and canonicalizes invoice identity data.
+// It is shared by ticket and promotion purchase flows so stored profiles and
+// immutable invoice snapshots follow exactly the same rules.
+func NormalizeBillingDetails(details BillingDetails) (BillingDetails, error) {
 	details.Type = strings.TrimSpace(details.Type)
 	details.Name = strings.TrimSpace(details.Name)
 	details.TaxID = strings.TrimSpace(details.TaxID)
@@ -60,16 +64,34 @@ func normalizeBillingDetails(details BillingDetails) (BillingDetails, error) {
 		details.RegistrationNumber = ""
 	}
 
-	city := strings.ToLower(details.City)
-	country := strings.ToLower(details.Country)
+	normalizeLocation := func(value string) string {
+		return strings.NewReplacer(
+			"ă", "a", "â", "a", "î", "i", "ș", "s", "ş", "s", "ț", "t", "ţ", "t",
+		).Replace(strings.ToLower(value))
+	}
+	city := normalizeLocation(details.City)
+	country := normalizeLocation(details.Country)
 	isBucharest := (country == "romania" || country == "ro") && (city == "bucuresti" || city == "bucharest")
 	if isBucharest {
-		if details.Sector == "" {
+		validSector := false
+		for sector := 1; sector <= 6; sector++ {
+			canonical := fmt.Sprintf("Sector %d", sector)
+			if strings.EqualFold(details.Sector, canonical) {
+				details.Sector = canonical
+				validSector = true
+				break
+			}
+		}
+		if !validSector {
 			return BillingDetails{}, errors.New("sectorul este obligatoriu pentru Bucuresti")
 		}
+		details.City = "Bucuresti"
 		details.County = "Bucuresti"
-	} else if details.County == "" {
-		return BillingDetails{}, errors.New("judetul este obligatoriu")
+	} else {
+		details.Sector = ""
+		if details.County == "" {
+			return BillingDetails{}, errors.New("judetul este obligatoriu")
+		}
 	}
 
 	return details, nil
@@ -129,7 +151,7 @@ func (h *Handler) HandleSaveBillingDetails(w http.ResponseWriter, r *http.Reques
 		router.RespondWithError(w, http.StatusBadRequest, "Request body invalid")
 		return
 	}
-	details, err := normalizeBillingDetails(request)
+	details, err := NormalizeBillingDetails(request)
 	if err != nil {
 		router.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return

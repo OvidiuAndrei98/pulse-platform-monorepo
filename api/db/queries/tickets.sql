@@ -44,6 +44,12 @@ UPDATE ticket_types
 SET tickets_sold = tickets_sold + $2
 WHERE id = $1;
 
+-- name: RestoreReleasedTicketReservation :execrows
+UPDATE ticket_types
+SET tickets_sold = tickets_sold + sqlc.arg(tickets_sold)::INTEGER
+WHERE id = sqlc.arg(id)
+  AND tickets_sold + sqlc.arg(tickets_sold)::INTEGER <= capacity;
+
 -- name: DecrementTicketsSold :exec
 UPDATE ticket_types
 SET tickets_sold = GREATEST(0, tickets_sold - $2)
@@ -53,6 +59,12 @@ WHERE id = $1;
 UPDATE promo_codes
 SET redemptions_count = redemptions_count + 1
 WHERE id = $1;
+
+-- name: RestoreReleasedPromoCodeRedemption :execrows
+UPDATE promo_codes
+SET redemptions_count = redemptions_count + 1
+WHERE id = $1
+  AND (max_redemptions IS NULL OR redemptions_count + 1 <= max_redemptions);
 
 -- name: DecrementPromoCodeRedemption :exec
 UPDATE promo_codes
@@ -143,13 +155,24 @@ SELECT * FROM orders
 WHERE id = $1
 FOR UPDATE;
 
+-- name: GetEventStatusForCheckoutUpdate :one
+SELECT status FROM events
+WHERE id = $1
+FOR UPDATE;
+
 -- name: GetOrderByCheckoutSession :one
 SELECT * FROM orders
 WHERE stripe_checkout_session_id = $1;
 
+-- name: GetOrderByCheckoutSessionForUpdate :one
+SELECT * FROM orders
+WHERE stripe_checkout_session_id = $1
+FOR UPDATE;
+
 -- name: ListPendingDirectChargeCheckoutsForReconciliation :many
 SELECT * FROM orders
 WHERE status = 'pending'
+  AND stripe_refund_needs_attention IS FALSE
   AND stripe_checkout_session_id IS NOT NULL
   AND stripe_connected_account_id IS NOT NULL
   AND stripe_charge_type = 'direct'

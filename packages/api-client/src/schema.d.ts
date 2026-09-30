@@ -100,6 +100,22 @@ export interface paths {
         patch: operations["AdminOperations_reviewOrganizerVerification"];
         trace?: never;
     };
+    "/admin/promotion-invoices-attention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminOperations_listPromotionInvoicesRequiringAttention"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/refunds-attention": {
         parameters: {
             query?: never;
@@ -1649,6 +1665,7 @@ export interface components {
             /** @enum {string} */
             placement: "home_banner" | "feed";
             startDate: string;
+            billingDetails: components["schemas"]["BillingDetailsPayload"];
         };
         CreateScannerAccessPayload: {
             label: string;
@@ -2058,10 +2075,42 @@ export interface components {
             ctr: number;
             /** Format: date-time */
             createdAt: string;
+            /** @enum {string} */
+            invoiceStatus?: "pending" | "processing" | "dispatching" | "issued" | "failed" | "needs_review";
+            invoiceSeries?: string;
+            invoiceNumber?: string;
+            invoiceDocumentUrl?: string;
+            /** Format: date-time */
+            invoiceIssuedAt?: string;
+            /** @enum {string} */
+            invoiceRefundStatus?: "none" | "pending" | "partial" | "full" | "failed" | "needs_review";
+            /** Format: double */
+            invoiceRefundedRon?: number;
+            attentionRequired: boolean;
+            attentionReason?: string;
         };
         PromotionCheckoutResponse: {
             checkoutUrl: string;
             campaignId: string;
+        };
+        PromotionInvoiceAttentionResponse: {
+            id: string;
+            campaignId: string;
+            eventTitle: string;
+            organizerId: string;
+            customerEmail: string;
+            /** Format: double */
+            amountRon: number;
+            paymentIntentId?: string;
+            invoiceStatus?: string;
+            refundStatus?: string;
+            /** Format: double */
+            refundedAmountRon: number;
+            reason: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
         };
         PromotionPlanResponse: {
             /** @enum {string} */
@@ -2556,6 +2605,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrganizerProfile"];
+                };
+            };
+        };
+    };
+    AdminOperations_listPromotionInvoicesRequiringAttention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionInvoiceAttentionResponse"][];
                 };
             };
         };

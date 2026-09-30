@@ -18,10 +18,12 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Service struct {
 	queries           *db.Queries
+	pool              *pgxpool.Pool
 	cipher            *credentialCipher
 	cipherErr         error
 	providers         map[string]invoiceProvider
@@ -30,12 +32,13 @@ type Service struct {
 	wake              chan struct{}
 }
 
-func NewService(queries *db.Queries, encryptionKey string) *Service {
+func NewService(queries *db.Queries, pool *pgxpool.Pool, encryptionKey string) *Service {
 	cipher, cipherErr := newCredentialCipher(encryptionKey)
 	platformConfig, platformConfigErr := loadPlatformInvoiceConfig()
 	client := &http.Client{Timeout: 20 * time.Second}
 	return &Service{
 		queries:           queries,
+		pool:              pool,
 		cipher:            cipher,
 		cipherErr:         cipherErr,
 		platformConfig:    platformConfig,
@@ -336,6 +339,11 @@ func (s *Service) backfill(ctx context.Context) {
 	if _, err := s.queries.BackfillBillingInvoiceRefunds(ctx); err != nil && ctx.Err() == nil {
 		log.Printf("invoice refund backfill failed: %v", err)
 	}
+	if count, err := s.queries.MarkStalePromotionInvoiceDispatchesForReview(ctx); err != nil && ctx.Err() == nil {
+		log.Printf("stale promotion invoice dispatch cleanup failed: %v", err)
+	} else if count > 0 {
+		log.Printf("moved %d ambiguous promotion invoice dispatches to manual review", count)
+	}
 }
 
 func (s *Service) processAvailable(ctx context.Context) {
@@ -358,6 +366,144 @@ func (s *Service) processAvailable(ctx context.Context) {
 	}
 	s.processInvoiceRefunds(ctx)
 	s.processPlatformInvoices(ctx)
+	s.processPromotionInvoices(ctx)
+}
+
+func (s *Service) processPromotionInvoices(ctx context.Context) {
+	if !s.platformConfig.Enabled || s.platformConfigErr != nil {
+		return
+	}
+	jobs, err := s.queries.ClaimPromotionInvoices(ctx, 2)
+	if err != nil {
+		if ctx.Err() == nil {
+			log.Printf("promotion invoice jobs claim failed: %v", err)
+		}
+		return
+	}
+	for index, job := range jobs {
+		if index > 0 {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(400 * time.Millisecond):
+			}
+		}
+		s.processPromotionInvoice(ctx, job)
+	}
+}
+
+func (s *Service) processPromotionInvoice(ctx context.Context, job db.PromotionInvoices) {
+	fail := func(err error, needsReview bool) {
+		retrySeconds := int32(math.Min(3600, 15*math.Pow(2, float64(max(0, job.AttemptCount-1)))))
+		if _, markErr := s.queries.MarkPromotionInvoiceFailed(ctx, db.MarkPromotionInvoiceFailedParams{
+			ID: job.ID, ClaimToken: job.ClaimToken, NeedsReview: needsReview,
+			ErrorMessage: pgtype.Text{String: truncateError(err), Valid: true}, RetrySeconds: retrySeconds,
+		}); markErr != nil {
+			log.Printf("promotion invoice failure could not be persisted: invoice=%s err=%v", common.UUIDToString(job.ID), markErr)
+		}
+	}
+
+	if s.pool == nil {
+		fail(errors.New("baza de date pentru facturarea promovarii nu este disponibila"), true)
+		return
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		fail(fmt.Errorf("start promotion invoice lock transaction: %w", err), false)
+		return
+	}
+	defer tx.Rollback(ctx)
+	qtx := s.queries.WithTx(tx)
+	if err := qtx.LockPromotionPaymentIntent(ctx, job.PaymentIntentID); err != nil {
+		fail(fmt.Errorf("lock promotion payment: %w", err), false)
+		return
+	}
+	data, err := qtx.GetPromotionInvoiceIssueData(ctx, job.ID)
+	if err != nil {
+		fail(fmt.Errorf("load promotion invoice data: %w", err), errors.Is(err, pgx.ErrNoRows))
+		return
+	}
+	if !data.StripeLivemode {
+		fail(errors.New("factura de promovare nu apartine unei plati Stripe live"), true)
+		return
+	}
+	if data.Provider != s.platformConfig.Provider ||
+		data.IssuerAccountEmail != s.platformConfig.AccountEmail ||
+		data.IssuerCompanyVatCode != s.platformConfig.CompanyVATCode {
+		fail(errors.New("configuratia emitentului SPOTTR s-a schimbat; este necesara verificarea manuala"), true)
+		return
+	}
+	provider, ok := s.providers[data.Provider]
+	if !ok {
+		fail(errors.New("operator de facturare SPOTTR necunoscut"), true)
+		return
+	}
+	vatPercentage, err := numericToFloat(data.VatPercentage)
+	if err != nil {
+		fail(err, true)
+		return
+	}
+	if !data.ClaimToken.Valid || data.PaymentIntentID == "" || data.AmountBani <= 0 {
+		fail(errors.New("snapshotul facturii de promovare este incomplet"), true)
+		return
+	}
+
+	started, err := qtx.BeginPromotionInvoiceDispatch(ctx, db.BeginPromotionInvoiceDispatchParams{
+		ID: data.ID, ClaimToken: data.ClaimToken,
+	})
+	if err != nil {
+		fail(fmt.Errorf("start promotion invoice dispatch: %w", err), false)
+		return
+	}
+	if started != 1 {
+		return
+	}
+	if err := tx.Commit(ctx); err != nil {
+		fail(fmt.Errorf("commit promotion invoice dispatch: %w", err), false)
+		return
+	}
+
+	invoiceID := common.UUIDToString(data.ID)
+	totalRon := float64(data.AmountBani) / 100
+	period := data.StartsAt.Time.In(bucharestLocation()).Format("02.01.2006") + " - " +
+		data.EndsAt.Time.In(bucharestLocation()).AddDate(0, 0, -1).Format("02.01.2006")
+	serviceName := "Servicii de promovare eveniment SPOTTR"
+	requestContext, cancel := context.WithTimeout(ctx, 25*time.Second)
+	defer cancel()
+	result, err := provider.Issue(requestContext, InvoiceRequest{
+		InvoiceID: invoiceID, OrderID: "promotion-" + invoiceID,
+		PaymentIntentID: data.PaymentIntentID, IssueDate: data.CreatedAt.Time.In(bucharestLocation()),
+		CustomerEmail: data.CustomerEmail, CustomerType: data.BillingType,
+		CustomerName: data.BillingName, CustomerTaxID: data.BillingTaxID,
+		CustomerRegNumber: data.BillingRegistrationNumber, CustomerAddress: data.BillingAddress,
+		CustomerCity: data.BillingCity, CustomerCounty: data.BillingCounty,
+		CustomerSector: data.BillingSector, CustomerCountry: data.BillingCountry,
+		CustomerVATPayer: strings.HasPrefix(strings.ToUpper(strings.TrimSpace(data.BillingTaxID)), "RO"),
+		VATPayerKnown:    data.BillingType != "company" || strings.HasPrefix(strings.ToUpper(strings.TrimSpace(data.BillingTaxID)), "RO"),
+		EventTitle:       fmt.Sprintf("%s: %s (%s)", serviceName, data.EventTitle, period),
+		Total:            totalRon,
+		Items:            []InvoiceItem{{Name: serviceName, Code: "SPOTTR-PROMOTION-" + strings.ToUpper(string(data.Placement)), Quantity: 1, UnitPrice: totalRon}},
+		AccountEmail:     data.IssuerAccountEmail, APIToken: s.platformConfig.APIToken,
+		CompanyVATCode: data.IssuerCompanyVatCode, SeriesName: data.IssuerSeriesName,
+		VATName: data.VatName, VATPercentage: vatPercentage, SendEmail: data.SendEmail,
+		SendToSPV: data.SendToSpv, PaymentType: data.PaymentType,
+		PaymentReference: data.PaymentIntentID,
+		InternalNote:     fmt.Sprintf("Promovare SPOTTR %s, plan %s, pozitionare %s, perioada %s", data.EventTitle, data.Plan, data.Placement, period),
+	})
+	if err != nil {
+		// Once dispatch has begun, any transport failure can be ambiguous. Even
+		// Oblio's stable idempotency key is preserved, but manual review is safer.
+		fail(err, true)
+		return
+	}
+	updated, err := s.queries.MarkPromotionInvoiceIssued(ctx, db.MarkPromotionInvoiceIssuedParams{
+		ID: data.ID, ClaimToken: data.ClaimToken,
+		ExternalSeries: optionalText(result.Series), ExternalNumber: optionalText(result.Number),
+		ExternalDocumentID: optionalText(result.DocumentID), DocumentUrl: optionalText(result.DocumentURL),
+	})
+	if err != nil || updated != 1 {
+		log.Printf("issued promotion invoice has ambiguous persistence: invoice=%s provider=%s series=%s number=%s err=%v", invoiceID, data.Provider, result.Series, result.Number, err)
+	}
 }
 
 func (s *Service) processInvoiceRefunds(ctx context.Context) {

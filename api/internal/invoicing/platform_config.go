@@ -22,6 +22,47 @@ type PlatformInvoiceConfig struct {
 	PaymentType    string
 }
 
+// PromotionInvoiceConfig is safe to persist as an immutable fiscal snapshot.
+// The API token is intentionally excluded; credentials may rotate and remain
+// confined to runtime configuration.
+type PromotionInvoiceConfig struct {
+	Provider       string
+	AccountEmail   string
+	CompanyVATCode string
+	SeriesName     string
+	VATName        string
+	VATPercentage  float64
+	SendEmail      bool
+	SendToSPV      bool
+	PaymentType    string
+}
+
+func (s *Service) PromotionInvoiceConfig() (PromotionInvoiceConfig, error) {
+	if s == nil {
+		return PromotionInvoiceConfig{}, errors.New("serviciul de facturare SPOTTR nu este disponibil")
+	}
+	if s.platformConfigErr != nil {
+		return PromotionInvoiceConfig{}, s.platformConfigErr
+	}
+	if !s.platformConfig.Enabled {
+		return PromotionInvoiceConfig{}, errors.New("facturarea SPOTTR nu este configurata")
+	}
+	if !s.platformConfig.SendEmail {
+		return PromotionInvoiceConfig{}, errors.New("trimiterea pe email a facturilor SPOTTR trebuie activata pentru promovari")
+	}
+	return PromotionInvoiceConfig{
+		Provider:       s.platformConfig.Provider,
+		AccountEmail:   s.platformConfig.AccountEmail,
+		CompanyVATCode: s.platformConfig.CompanyVATCode,
+		SeriesName:     s.platformConfig.SeriesName,
+		VATName:        s.platformConfig.VATName,
+		VATPercentage:  s.platformConfig.VATPercentage,
+		SendEmail:      s.platformConfig.SendEmail,
+		SendToSPV:      s.platformConfig.SendToSPV,
+		PaymentType:    s.platformConfig.PaymentType,
+	}, nil
+}
+
 func loadPlatformInvoiceConfig() (PlatformInvoiceConfig, error) {
 	provider := strings.ToLower(strings.TrimSpace(os.Getenv("SPOTTR_INVOICING_PROVIDER")))
 	if provider == "" {

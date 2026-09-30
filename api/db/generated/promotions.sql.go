@@ -24,14 +24,48 @@ func (q *Queries) ActivateScheduledPromotionCampaigns(ctx context.Context) error
 	return err
 }
 
-const cancelAbandonedPromotionReservations = `-- name: CancelAbandonedPromotionReservations :exec
-UPDATE promotion_campaigns
-SET status = 'cancelled'
-WHERE status = 'pending_payment'
-  AND stripe_checkout_session_id IS NULL
-  AND created_at <= $1
+const beginPromotionInvoiceDispatch = `-- name: BeginPromotionInvoiceDispatch :execrows
+UPDATE promotion_invoices
+SET status = 'dispatching', updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+  AND claim_token = $2
+  AND status = 'processing'
+  AND NOT EXISTS (
+      SELECT 1 FROM promotion_refund_states refund
+      WHERE refund.payment_intent_id = promotion_invoices.payment_intent_id
+        AND refund.status IN ('pending', 'partial', 'full')
+  )
 `
 
+type BeginPromotionInvoiceDispatchParams struct {
+	ID         pgtype.UUID `json:"id"`
+	ClaimToken pgtype.UUID `json:"claim_token"`
+}
+
+func (q *Queries) BeginPromotionInvoiceDispatch(ctx context.Context, arg BeginPromotionInvoiceDispatchParams) (int64, error) {
+	result, err := q.db.Exec(ctx, beginPromotionInvoiceDispatch, arg.ID, arg.ClaimToken)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const cancelAbandonedPromotionReservations = `-- name: CancelAbandonedPromotionReservations :exec
+INSERT INTO promotion_checkout_reviews (campaign_id, reason, status)
+SELECT campaign.id, 'stale_sessionless_checkout', 'needs_review'
+FROM promotion_campaigns campaign
+WHERE campaign.status = 'pending_payment'
+  AND campaign.stripe_checkout_session_id IS NULL
+  AND campaign.created_at <= $1
+ON CONFLICT (campaign_id) DO UPDATE SET
+    reason = promotion_checkout_reviews.reason,
+    status = 'needs_review',
+    updated_at = CURRENT_TIMESTAMP
+`
+
+// A missing local session can mean Stripe created one but the HTTP request or
+// database write failed. Never release this capacity automatically: quarantine
+// it for reconciliation instead.
 func (q *Queries) CancelAbandonedPromotionReservations(ctx context.Context, expiresBefore pgtype.Timestamptz) error {
 	_, err := q.db.Exec(ctx, cancelAbandonedPromotionReservations, expiresBefore)
 	return err
@@ -47,6 +81,151 @@ WHERE id = $1
 func (q *Queries) CancelPendingPromotionCampaign(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, cancelPendingPromotionCampaign, id)
 	return err
+}
+
+const cancelPendingPromotionCampaignForCheckout = `-- name: CancelPendingPromotionCampaignForCheckout :exec
+UPDATE promotion_campaigns
+SET status = 'cancelled'
+WHERE id = $1
+  AND status = 'pending_payment'
+  AND stripe_checkout_session_id = $2::TEXT
+`
+
+type CancelPendingPromotionCampaignForCheckoutParams struct {
+	ID                      pgtype.UUID `json:"id"`
+	StripeCheckoutSessionID string      `json:"stripe_checkout_session_id"`
+}
+
+func (q *Queries) CancelPendingPromotionCampaignForCheckout(ctx context.Context, arg CancelPendingPromotionCampaignForCheckoutParams) error {
+	_, err := q.db.Exec(ctx, cancelPendingPromotionCampaignForCheckout, arg.ID, arg.StripeCheckoutSessionID)
+	return err
+}
+
+const cancelPromotionCampaignForKnownRefund = `-- name: CancelPromotionCampaignForKnownRefund :execrows
+UPDATE promotion_campaigns
+SET status = 'cancelled',
+    stripe_payment_intent_id = COALESCE(stripe_payment_intent_id, $1::TEXT),
+    stripe_livemode = COALESCE(stripe_livemode, $2::BOOLEAN),
+    paid_at = COALESCE(paid_at, CURRENT_TIMESTAMP)
+WHERE id = $3
+  AND status = 'pending_payment'
+  AND stripe_checkout_session_id = $4::TEXT
+  AND EXISTS (
+      SELECT 1 FROM promotion_refund_states refund
+      WHERE refund.payment_intent_id = $1::TEXT
+        AND refund.status IN ('pending', 'partial', 'full')
+  )
+`
+
+type CancelPromotionCampaignForKnownRefundParams struct {
+	PaymentIntentID         string      `json:"payment_intent_id"`
+	StripeLivemode          bool        `json:"stripe_livemode"`
+	ID                      pgtype.UUID `json:"id"`
+	StripeCheckoutSessionID string      `json:"stripe_checkout_session_id"`
+}
+
+func (q *Queries) CancelPromotionCampaignForKnownRefund(ctx context.Context, arg CancelPromotionCampaignForKnownRefundParams) (int64, error) {
+	result, err := q.db.Exec(ctx, cancelPromotionCampaignForKnownRefund,
+		arg.PaymentIntentID,
+		arg.StripeLivemode,
+		arg.ID,
+		arg.StripeCheckoutSessionID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const claimPromotionInvoices = `-- name: ClaimPromotionInvoices :many
+WITH claimable AS (
+    SELECT id
+    FROM promotion_invoices
+    WHERE attempt_count < 8
+      AND (
+        (status IN ('pending', 'failed') AND next_attempt_at <= CURRENT_TIMESTAMP)
+        OR (status = 'processing' AND updated_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes')
+      )
+    ORDER BY next_attempt_at ASC, created_at ASC
+    FOR UPDATE SKIP LOCKED
+    LIMIT $1
+)
+UPDATE promotion_invoices invoice
+SET status = 'processing',
+    claim_token = gen_random_uuid(),
+    attempt_count = attempt_count + 1,
+    error_message = NULL,
+    updated_at = CURRENT_TIMESTAMP
+FROM claimable
+WHERE invoice.id = claimable.id
+RETURNING invoice.id, invoice.campaign_id, invoice.organizer_id, invoice.event_id, invoice.payment_intent_id, invoice.stripe_livemode, invoice.provider, invoice.issuer_account_email, invoice.issuer_company_vat_code, invoice.issuer_series_name, invoice.vat_name, invoice.vat_percentage, invoice.send_email, invoice.send_to_spv, invoice.payment_type, invoice.customer_email, invoice.billing_type, invoice.billing_name, invoice.billing_tax_id, invoice.billing_registration_number, invoice.billing_address, invoice.billing_city, invoice.billing_county, invoice.billing_sector, invoice.billing_country, invoice.event_title, invoice.plan, invoice.placement, invoice.starts_at, invoice.ends_at, invoice.amount_bani, invoice.currency, invoice.status, invoice.claim_token, invoice.attempt_count, invoice.next_attempt_at, invoice.external_series, invoice.external_number, invoice.external_document_id, invoice.document_url, invoice.error_message, invoice.refunded_amount_bani, invoice.refund_status, invoice.issued_at, invoice.created_at, invoice.updated_at
+`
+
+func (q *Queries) ClaimPromotionInvoices(ctx context.Context, batchSize int32) ([]PromotionInvoices, error) {
+	rows, err := q.db.Query(ctx, claimPromotionInvoices, batchSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PromotionInvoices
+	for rows.Next() {
+		var i PromotionInvoices
+		if err := rows.Scan(
+			&i.ID,
+			&i.CampaignID,
+			&i.OrganizerID,
+			&i.EventID,
+			&i.PaymentIntentID,
+			&i.StripeLivemode,
+			&i.Provider,
+			&i.IssuerAccountEmail,
+			&i.IssuerCompanyVatCode,
+			&i.IssuerSeriesName,
+			&i.VatName,
+			&i.VatPercentage,
+			&i.SendEmail,
+			&i.SendToSpv,
+			&i.PaymentType,
+			&i.CustomerEmail,
+			&i.BillingType,
+			&i.BillingName,
+			&i.BillingTaxID,
+			&i.BillingRegistrationNumber,
+			&i.BillingAddress,
+			&i.BillingCity,
+			&i.BillingCounty,
+			&i.BillingSector,
+			&i.BillingCountry,
+			&i.EventTitle,
+			&i.Plan,
+			&i.Placement,
+			&i.StartsAt,
+			&i.EndsAt,
+			&i.AmountBani,
+			&i.Currency,
+			&i.Status,
+			&i.ClaimToken,
+			&i.AttemptCount,
+			&i.NextAttemptAt,
+			&i.ExternalSeries,
+			&i.ExternalNumber,
+			&i.ExternalDocumentID,
+			&i.DocumentUrl,
+			&i.ErrorMessage,
+			&i.RefundedAmountBani,
+			&i.RefundStatus,
+			&i.IssuedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const completeExpiredPromotionCampaigns = `-- name: CompleteExpiredPromotionCampaigns :exec
@@ -69,20 +248,59 @@ INSERT INTO promotion_campaigns (
     placement,
     starts_at,
     ends_at,
-    amount_bani
+    amount_bani,
+    billing_email,
+    billing_type,
+    billing_name,
+    billing_tax_id,
+    billing_registration_number,
+    billing_address,
+    billing_city,
+    billing_county,
+    billing_sector,
+    billing_country,
+    invoice_provider,
+    invoice_issuer_account_email,
+    invoice_issuer_company_vat_code,
+    invoice_issuer_series_name,
+    invoice_vat_name,
+    invoice_vat_percentage,
+    invoice_send_email,
+    invoice_send_to_spv,
+    invoice_payment_type
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+        $18, $19, $20, $21, $22, $23, $24, $25, $26)
 RETURNING id
 `
 
 type CreatePromotionCampaignParams struct {
-	EventID     pgtype.UUID        `json:"event_id"`
-	OrganizerID pgtype.UUID        `json:"organizer_id"`
-	Plan        PromotionPlan      `json:"plan"`
-	Placement   PromotionPlacement `json:"placement"`
-	StartsAt    pgtype.Timestamptz `json:"starts_at"`
-	EndsAt      pgtype.Timestamptz `json:"ends_at"`
-	AmountBani  int32              `json:"amount_bani"`
+	EventID                     pgtype.UUID        `json:"event_id"`
+	OrganizerID                 pgtype.UUID        `json:"organizer_id"`
+	Plan                        PromotionPlan      `json:"plan"`
+	Placement                   PromotionPlacement `json:"placement"`
+	StartsAt                    pgtype.Timestamptz `json:"starts_at"`
+	EndsAt                      pgtype.Timestamptz `json:"ends_at"`
+	AmountBani                  int32              `json:"amount_bani"`
+	BillingEmail                string             `json:"billing_email"`
+	BillingType                 string             `json:"billing_type"`
+	BillingName                 string             `json:"billing_name"`
+	BillingTaxID                string             `json:"billing_tax_id"`
+	BillingRegistrationNumber   string             `json:"billing_registration_number"`
+	BillingAddress              string             `json:"billing_address"`
+	BillingCity                 string             `json:"billing_city"`
+	BillingCounty               string             `json:"billing_county"`
+	BillingSector               string             `json:"billing_sector"`
+	BillingCountry              string             `json:"billing_country"`
+	InvoiceProvider             string             `json:"invoice_provider"`
+	InvoiceIssuerAccountEmail   string             `json:"invoice_issuer_account_email"`
+	InvoiceIssuerCompanyVatCode string             `json:"invoice_issuer_company_vat_code"`
+	InvoiceIssuerSeriesName     string             `json:"invoice_issuer_series_name"`
+	InvoiceVatName              string             `json:"invoice_vat_name"`
+	InvoiceVatPercentage        pgtype.Numeric     `json:"invoice_vat_percentage"`
+	InvoiceSendEmail            bool               `json:"invoice_send_email"`
+	InvoiceSendToSpv            bool               `json:"invoice_send_to_spv"`
+	InvoicePaymentType          string             `json:"invoice_payment_type"`
 }
 
 func (q *Queries) CreatePromotionCampaign(ctx context.Context, arg CreatePromotionCampaignParams) (pgtype.UUID, error) {
@@ -94,37 +312,196 @@ func (q *Queries) CreatePromotionCampaign(ctx context.Context, arg CreatePromoti
 		arg.StartsAt,
 		arg.EndsAt,
 		arg.AmountBani,
+		arg.BillingEmail,
+		arg.BillingType,
+		arg.BillingName,
+		arg.BillingTaxID,
+		arg.BillingRegistrationNumber,
+		arg.BillingAddress,
+		arg.BillingCity,
+		arg.BillingCounty,
+		arg.BillingSector,
+		arg.BillingCountry,
+		arg.InvoiceProvider,
+		arg.InvoiceIssuerAccountEmail,
+		arg.InvoiceIssuerCompanyVatCode,
+		arg.InvoiceIssuerSeriesName,
+		arg.InvoiceVatName,
+		arg.InvoiceVatPercentage,
+		arg.InvoiceSendEmail,
+		arg.InvoiceSendToSpv,
+		arg.InvoicePaymentType,
 	)
 	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err
 }
 
-const fulfillPromotionCampaign = `-- name: FulfillPromotionCampaign :execrows
-UPDATE promotion_campaigns
-SET status = CASE
-        WHEN starts_at <= CURRENT_TIMESTAMP THEN 'active'::promotion_status
-        ELSE 'scheduled'::promotion_status
-    END,
-    stripe_payment_intent_id = NULLIF($3::text, ''),
-    paid_at = CURRENT_TIMESTAMP
-WHERE id = $1
-  AND status = 'pending_payment'
-  AND stripe_checkout_session_id = $2
+const flagPromotionCheckoutReview = `-- name: FlagPromotionCheckoutReview :exec
+INSERT INTO promotion_checkout_reviews (
+    campaign_id, reason, stripe_checkout_session_id, stripe_payment_intent_id, stripe_livemode
+) VALUES (
+    $1, $2, NULLIF($3::TEXT, ''),
+    NULLIF($4::TEXT, ''), $5::BOOLEAN
+)
+ON CONFLICT (campaign_id) DO UPDATE SET
+    reason = EXCLUDED.reason,
+    stripe_checkout_session_id = COALESCE(EXCLUDED.stripe_checkout_session_id, promotion_checkout_reviews.stripe_checkout_session_id),
+    stripe_payment_intent_id = COALESCE(EXCLUDED.stripe_payment_intent_id, promotion_checkout_reviews.stripe_payment_intent_id),
+    stripe_livemode = COALESCE(EXCLUDED.stripe_livemode, promotion_checkout_reviews.stripe_livemode),
+    status = 'needs_review',
+    updated_at = CURRENT_TIMESTAMP
 `
 
-type FulfillPromotionCampaignParams struct {
-	ID                      pgtype.UUID `json:"id"`
-	StripeCheckoutSessionID pgtype.Text `json:"stripe_checkout_session_id"`
-	PaymentIntentID         string      `json:"payment_intent_id"`
+type FlagPromotionCheckoutReviewParams struct {
+	CampaignID              pgtype.UUID `json:"campaign_id"`
+	Reason                  string      `json:"reason"`
+	StripeCheckoutSessionID string      `json:"stripe_checkout_session_id"`
+	StripePaymentIntentID   string      `json:"stripe_payment_intent_id"`
+	StripeLivemode          pgtype.Bool `json:"stripe_livemode"`
 }
 
-func (q *Queries) FulfillPromotionCampaign(ctx context.Context, arg FulfillPromotionCampaignParams) (int64, error) {
-	result, err := q.db.Exec(ctx, fulfillPromotionCampaign, arg.ID, arg.StripeCheckoutSessionID, arg.PaymentIntentID)
+func (q *Queries) FlagPromotionCheckoutReview(ctx context.Context, arg FlagPromotionCheckoutReviewParams) error {
+	_, err := q.db.Exec(ctx, flagPromotionCheckoutReview,
+		arg.CampaignID,
+		arg.Reason,
+		arg.StripeCheckoutSessionID,
+		arg.StripePaymentIntentID,
+		arg.StripeLivemode,
+	)
+	return err
+}
+
+const fulfillLegacyPromotionCampaignForReview = `-- name: FulfillLegacyPromotionCampaignForReview :execrows
+WITH legacy AS (
+    UPDATE promotion_campaigns
+    SET status = CASE WHEN starts_at <= CURRENT_TIMESTAMP THEN 'active'::promotion_status ELSE 'scheduled'::promotion_status END,
+        stripe_payment_intent_id = NULLIF($2::TEXT, ''),
+        stripe_livemode = $3::BOOLEAN,
+        paid_at = CURRENT_TIMESTAMP
+    WHERE promotion_campaigns.id = $4
+      AND promotion_campaigns.status = 'pending_payment'
+      AND promotion_campaigns.stripe_checkout_session_id = $1::TEXT
+      AND promotion_campaigns.stripe_livemode IS NULL
+      AND NULLIF($2::TEXT, '') IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM promotion_refund_states refund
+        WHERE refund.payment_intent_id = $2::TEXT
+          AND refund.status IN ('pending', 'partial', 'full')
+      )
+    RETURNING id
+)
+INSERT INTO promotion_checkout_reviews (
+    campaign_id, reason, stripe_checkout_session_id, stripe_payment_intent_id, stripe_livemode
+)
+SELECT id, 'legacy_paid_missing_fiscal_snapshot', $1,
+       $2, $3
+FROM legacy
+ON CONFLICT (campaign_id) DO UPDATE SET
+    reason = EXCLUDED.reason,
+    stripe_payment_intent_id = EXCLUDED.stripe_payment_intent_id,
+    stripe_livemode = EXCLUDED.stripe_livemode,
+    status = 'needs_review', updated_at = CURRENT_TIMESTAMP
+`
+
+type FulfillLegacyPromotionCampaignForReviewParams struct {
+	StripeCheckoutSessionID pgtype.Text `json:"stripe_checkout_session_id"`
+	PaymentIntentID         pgtype.Text `json:"payment_intent_id"`
+	StripeLivemode          pgtype.Bool `json:"stripe_livemode"`
+	ID                      pgtype.UUID `json:"id"`
+}
+
+func (q *Queries) FulfillLegacyPromotionCampaignForReview(ctx context.Context, arg FulfillLegacyPromotionCampaignForReviewParams) (int64, error) {
+	result, err := q.db.Exec(ctx, fulfillLegacyPromotionCampaignForReview,
+		arg.StripeCheckoutSessionID,
+		arg.PaymentIntentID,
+		arg.StripeLivemode,
+		arg.ID,
+	)
 	if err != nil {
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const fulfillPromotionCampaign = `-- name: FulfillPromotionCampaign :one
+WITH fulfilled AS (
+    UPDATE promotion_campaigns
+    SET status = CASE
+            WHEN starts_at <= CURRENT_TIMESTAMP THEN 'active'::promotion_status
+            ELSE 'scheduled'::promotion_status
+        END,
+        stripe_payment_intent_id = NULLIF($1::text, ''),
+        paid_at = CURRENT_TIMESTAMP
+    WHERE promotion_campaigns.id = $2
+      AND promotion_campaigns.status = 'pending_payment'
+      AND promotion_campaigns.stripe_checkout_session_id = $3::TEXT
+      AND promotion_campaigns.stripe_livemode = $4::BOOLEAN
+      AND (promotion_campaigns.stripe_livemode IS FALSE OR NULLIF($1::text, '') IS NOT NULL)
+      AND NOT EXISTS (
+        SELECT 1 FROM promotion_refund_states refund
+        WHERE refund.payment_intent_id = $1::TEXT
+          AND refund.status IN ('pending', 'partial', 'full')
+      )
+      AND (
+        promotion_campaigns.stripe_livemode IS FALSE
+        OR (
+          promotion_campaigns.invoice_provider IN ('oblio', 'smartbill')
+          AND promotion_campaigns.invoice_issuer_account_email <> ''
+          AND promotion_campaigns.invoice_issuer_company_vat_code <> ''
+          AND promotion_campaigns.invoice_issuer_series_name <> ''
+        )
+      )
+    RETURNING id, event_id, organizer_id, plan, status, starts_at, ends_at, amount_bani, impressions_count, clicks_count, stripe_checkout_session_id, stripe_payment_intent_id, paid_at, created_at, placement, stripe_livemode, billing_email, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_sector, billing_country, invoice_provider, invoice_issuer_account_email, invoice_issuer_company_vat_code, invoice_issuer_series_name, invoice_vat_name, invoice_vat_percentage, invoice_send_email, invoice_send_to_spv, invoice_payment_type
+), queued_invoice AS (
+INSERT INTO promotion_invoices (
+    campaign_id, organizer_id, event_id, payment_intent_id, stripe_livemode,
+    provider, issuer_account_email, issuer_company_vat_code, issuer_series_name,
+    vat_name, vat_percentage, send_email, send_to_spv, payment_type,
+    customer_email, billing_type, billing_name, billing_tax_id,
+    billing_registration_number, billing_address, billing_city, billing_county,
+    billing_sector, billing_country, event_title, plan, placement, starts_at,
+    ends_at, amount_bani
+)
+SELECT campaign.id, campaign.organizer_id, campaign.event_id,
+       campaign.stripe_payment_intent_id, campaign.stripe_livemode,
+       campaign.invoice_provider, campaign.invoice_issuer_account_email,
+       campaign.invoice_issuer_company_vat_code, campaign.invoice_issuer_series_name,
+       campaign.invoice_vat_name, campaign.invoice_vat_percentage,
+       campaign.invoice_send_email, campaign.invoice_send_to_spv,
+       campaign.invoice_payment_type, campaign.billing_email,
+       campaign.billing_type, campaign.billing_name, campaign.billing_tax_id,
+       campaign.billing_registration_number, campaign.billing_address,
+       campaign.billing_city, campaign.billing_county, campaign.billing_sector,
+       campaign.billing_country, event.title, campaign.plan, campaign.placement,
+       campaign.starts_at, campaign.ends_at, campaign.amount_bani
+FROM fulfilled campaign
+JOIN events event ON event.id = campaign.event_id
+WHERE campaign.stripe_livemode IS TRUE
+  AND campaign.stripe_payment_intent_id IS NOT NULL
+ON CONFLICT (campaign_id) DO NOTHING
+RETURNING id
+)
+SELECT EXISTS (SELECT 1 FROM fulfilled) AS fulfilled
+`
+
+type FulfillPromotionCampaignParams struct {
+	PaymentIntentID         string      `json:"payment_intent_id"`
+	ID                      pgtype.UUID `json:"id"`
+	StripeCheckoutSessionID string      `json:"stripe_checkout_session_id"`
+	StripeLivemode          bool        `json:"stripe_livemode"`
+}
+
+func (q *Queries) FulfillPromotionCampaign(ctx context.Context, arg FulfillPromotionCampaignParams) (bool, error) {
+	row := q.db.QueryRow(ctx, fulfillPromotionCampaign,
+		arg.PaymentIntentID,
+		arg.ID,
+		arg.StripeCheckoutSessionID,
+		arg.StripeLivemode,
+	)
+	var fulfilled bool
+	err := row.Scan(&fulfilled)
+	return fulfilled, err
 }
 
 const getPromotionCampaignStatusForCheckout = `-- name: GetPromotionCampaignStatusForCheckout :one
@@ -144,6 +521,64 @@ func (q *Queries) GetPromotionCampaignStatusForCheckout(ctx context.Context, arg
 	var status PromotionStatus
 	err := row.Scan(&status)
 	return status, err
+}
+
+const getPromotionInvoiceIssueData = `-- name: GetPromotionInvoiceIssueData :one
+SELECT id, campaign_id, organizer_id, event_id, payment_intent_id, stripe_livemode, provider, issuer_account_email, issuer_company_vat_code, issuer_series_name, vat_name, vat_percentage, send_email, send_to_spv, payment_type, customer_email, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_sector, billing_country, event_title, plan, placement, starts_at, ends_at, amount_bani, currency, status, claim_token, attempt_count, next_attempt_at, external_series, external_number, external_document_id, document_url, error_message, refunded_amount_bani, refund_status, issued_at, created_at, updated_at FROM promotion_invoices WHERE id = $1
+`
+
+func (q *Queries) GetPromotionInvoiceIssueData(ctx context.Context, id pgtype.UUID) (PromotionInvoices, error) {
+	row := q.db.QueryRow(ctx, getPromotionInvoiceIssueData, id)
+	var i PromotionInvoices
+	err := row.Scan(
+		&i.ID,
+		&i.CampaignID,
+		&i.OrganizerID,
+		&i.EventID,
+		&i.PaymentIntentID,
+		&i.StripeLivemode,
+		&i.Provider,
+		&i.IssuerAccountEmail,
+		&i.IssuerCompanyVatCode,
+		&i.IssuerSeriesName,
+		&i.VatName,
+		&i.VatPercentage,
+		&i.SendEmail,
+		&i.SendToSpv,
+		&i.PaymentType,
+		&i.CustomerEmail,
+		&i.BillingType,
+		&i.BillingName,
+		&i.BillingTaxID,
+		&i.BillingRegistrationNumber,
+		&i.BillingAddress,
+		&i.BillingCity,
+		&i.BillingCounty,
+		&i.BillingSector,
+		&i.BillingCountry,
+		&i.EventTitle,
+		&i.Plan,
+		&i.Placement,
+		&i.StartsAt,
+		&i.EndsAt,
+		&i.AmountBani,
+		&i.Currency,
+		&i.Status,
+		&i.ClaimToken,
+		&i.AttemptCount,
+		&i.NextAttemptAt,
+		&i.ExternalSeries,
+		&i.ExternalNumber,
+		&i.ExternalDocumentID,
+		&i.DocumentUrl,
+		&i.ErrorMessage,
+		&i.RefundedAmountBani,
+		&i.RefundStatus,
+		&i.IssuedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const homeBannerPromotionPeakOccupancy = `-- name: HomeBannerPromotionPeakOccupancy :one
@@ -241,12 +676,111 @@ func (q *Queries) ListActivePromotionCampaignEvents(ctx context.Context, userID 
 	return items, nil
 }
 
+const listAdminPromotionInvoiceAttention = `-- name: ListAdminPromotionInvoiceAttention :many
+SELECT
+    invoice.id AS attention_id,
+    invoice.campaign_id,
+    invoice.event_title,
+    invoice.organizer_id,
+    invoice.customer_email,
+    invoice.amount_bani,
+    invoice.payment_intent_id,
+    invoice.status AS invoice_status,
+    invoice.refund_status,
+    invoice.refunded_amount_bani,
+    (CASE
+      WHEN invoice.refund_status = 'needs_review' THEN 'promotion_invoice_refund_requires_reconciliation'
+      ELSE COALESCE(invoice.error_message, 'promotion_invoice_issue_requires_reconciliation')
+    END)::TEXT AS reason,
+    invoice.created_at,
+    invoice.updated_at
+FROM promotion_invoices invoice
+WHERE invoice.status = 'needs_review'
+   OR invoice.refund_status = 'needs_review'
+UNION ALL
+SELECT
+    review.id AS attention_id,
+    campaign.id AS campaign_id,
+    event.title AS event_title,
+    campaign.organizer_id,
+    app_user.email AS customer_email,
+    campaign.amount_bani,
+    COALESCE(review.stripe_payment_intent_id, campaign.stripe_payment_intent_id, '')::TEXT AS payment_intent_id,
+    ''::TEXT AS invoice_status,
+    ''::TEXT AS refund_status,
+    0::INT AS refunded_amount_bani,
+    review.reason::TEXT AS reason,
+    review.created_at,
+    review.updated_at
+FROM promotion_checkout_reviews review
+JOIN promotion_campaigns campaign ON campaign.id = review.campaign_id
+JOIN events event ON event.id = campaign.event_id
+JOIN users app_user ON app_user.id = campaign.organizer_id
+WHERE review.status = 'needs_review'
+  AND NOT EXISTS (
+      SELECT 1 FROM promotion_invoices invoice
+      WHERE invoice.campaign_id = campaign.id
+        AND (invoice.status = 'needs_review' OR invoice.refund_status = 'needs_review')
+  )
+ORDER BY updated_at DESC
+`
+
+type ListAdminPromotionInvoiceAttentionRow struct {
+	AttentionID        pgtype.UUID        `json:"attention_id"`
+	CampaignID         pgtype.UUID        `json:"campaign_id"`
+	EventTitle         string             `json:"event_title"`
+	OrganizerID        pgtype.UUID        `json:"organizer_id"`
+	CustomerEmail      string             `json:"customer_email"`
+	AmountBani         int32              `json:"amount_bani"`
+	PaymentIntentID    string             `json:"payment_intent_id"`
+	InvoiceStatus      string             `json:"invoice_status"`
+	RefundStatus       string             `json:"refund_status"`
+	RefundedAmountBani int32              `json:"refunded_amount_bani"`
+	Reason             string             `json:"reason"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListAdminPromotionInvoiceAttention(ctx context.Context) ([]ListAdminPromotionInvoiceAttentionRow, error) {
+	rows, err := q.db.Query(ctx, listAdminPromotionInvoiceAttention)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAdminPromotionInvoiceAttentionRow
+	for rows.Next() {
+		var i ListAdminPromotionInvoiceAttentionRow
+		if err := rows.Scan(
+			&i.AttentionID,
+			&i.CampaignID,
+			&i.EventTitle,
+			&i.OrganizerID,
+			&i.CustomerEmail,
+			&i.AmountBani,
+			&i.PaymentIntentID,
+			&i.InvoiceStatus,
+			&i.RefundStatus,
+			&i.RefundedAmountBani,
+			&i.Reason,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listExpiredPromotionCheckoutReservations = `-- name: ListExpiredPromotionCheckoutReservations :many
 SELECT id, stripe_checkout_session_id
 FROM promotion_campaigns
 WHERE status = 'pending_payment'
   AND stripe_checkout_session_id IS NOT NULL
-  AND created_at <= $1
+  AND promotion_campaigns.created_at <= $1
 ORDER BY created_at
 LIMIT 50
 `
@@ -289,26 +823,53 @@ SELECT
     campaign.amount_bani,
     campaign.impressions_count,
     campaign.clicks_count,
-    campaign.created_at
+    campaign.created_at,
+    invoice.status AS invoice_status,
+    invoice.external_series AS invoice_series,
+    invoice.external_number AS invoice_number,
+    invoice.document_url AS invoice_document_url,
+    invoice.issued_at AS invoice_issued_at,
+    invoice.refund_status AS invoice_refund_status,
+    COALESCE(invoice.refunded_amount_bani, 0)::INT AS invoice_refunded_amount_bani,
+    COALESCE(invoice.status = 'needs_review'
+      OR invoice.refund_status = 'needs_review'
+      OR review.status = 'needs_review', FALSE)::BOOLEAN AS attention_required,
+    COALESCE(CASE
+      WHEN invoice.refund_status = 'needs_review' THEN 'promotion_invoice_refund_requires_reconciliation'
+      WHEN invoice.status = 'needs_review' THEN 'promotion_invoice_issue_requires_reconciliation'
+      WHEN review.status = 'needs_review' THEN review.reason
+      ELSE NULL
+    END, '')::TEXT AS attention_reason
 FROM promotion_campaigns campaign
 JOIN events event ON event.id = campaign.event_id
+LEFT JOIN promotion_invoices invoice ON invoice.campaign_id = campaign.id
+LEFT JOIN promotion_checkout_reviews review ON review.campaign_id = campaign.id
 WHERE campaign.organizer_id = $1
 ORDER BY campaign.created_at DESC
 `
 
 type ListPromotionCampaignsRow struct {
-	ID               pgtype.UUID        `json:"id"`
-	EventID          pgtype.UUID        `json:"event_id"`
-	EventTitle       string             `json:"event_title"`
-	Plan             PromotionPlan      `json:"plan"`
-	Placement        PromotionPlacement `json:"placement"`
-	Status           PromotionStatus    `json:"status"`
-	StartsAt         pgtype.Timestamptz `json:"starts_at"`
-	EndsAt           pgtype.Timestamptz `json:"ends_at"`
-	AmountBani       int32              `json:"amount_bani"`
-	ImpressionsCount int64              `json:"impressions_count"`
-	ClicksCount      int64              `json:"clicks_count"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	ID                        pgtype.UUID        `json:"id"`
+	EventID                   pgtype.UUID        `json:"event_id"`
+	EventTitle                string             `json:"event_title"`
+	Plan                      PromotionPlan      `json:"plan"`
+	Placement                 PromotionPlacement `json:"placement"`
+	Status                    PromotionStatus    `json:"status"`
+	StartsAt                  pgtype.Timestamptz `json:"starts_at"`
+	EndsAt                    pgtype.Timestamptz `json:"ends_at"`
+	AmountBani                int32              `json:"amount_bani"`
+	ImpressionsCount          int64              `json:"impressions_count"`
+	ClicksCount               int64              `json:"clicks_count"`
+	CreatedAt                 pgtype.Timestamptz `json:"created_at"`
+	InvoiceStatus             pgtype.Text        `json:"invoice_status"`
+	InvoiceSeries             pgtype.Text        `json:"invoice_series"`
+	InvoiceNumber             pgtype.Text        `json:"invoice_number"`
+	InvoiceDocumentUrl        pgtype.Text        `json:"invoice_document_url"`
+	InvoiceIssuedAt           pgtype.Timestamptz `json:"invoice_issued_at"`
+	InvoiceRefundStatus       pgtype.Text        `json:"invoice_refund_status"`
+	InvoiceRefundedAmountBani int32              `json:"invoice_refunded_amount_bani"`
+	AttentionRequired         bool               `json:"attention_required"`
+	AttentionReason           string             `json:"attention_reason"`
 }
 
 func (q *Queries) ListPromotionCampaigns(ctx context.Context, organizerID pgtype.UUID) ([]ListPromotionCampaignsRow, error) {
@@ -333,6 +894,15 @@ func (q *Queries) ListPromotionCampaigns(ctx context.Context, organizerID pgtype
 			&i.ImpressionsCount,
 			&i.ClicksCount,
 			&i.CreatedAt,
+			&i.InvoiceStatus,
+			&i.InvoiceSeries,
+			&i.InvoiceNumber,
+			&i.InvoiceDocumentUrl,
+			&i.InvoiceIssuedAt,
+			&i.InvoiceRefundStatus,
+			&i.InvoiceRefundedAmountBani,
+			&i.AttentionRequired,
+			&i.AttentionReason,
 		); err != nil {
 			return nil, err
 		}
@@ -362,6 +932,105 @@ func (q *Queries) LockPromotionEvent(ctx context.Context, eventID pgtype.UUID) e
 	return err
 }
 
+const lockPromotionPaymentIntent = `-- name: LockPromotionPaymentIntent :exec
+SELECT pg_advisory_xact_lock(hashtextextended('promotion-payment:' || $1::text, 0))
+`
+
+func (q *Queries) LockPromotionPaymentIntent(ctx context.Context, paymentIntentID string) error {
+	_, err := q.db.Exec(ctx, lockPromotionPaymentIntent, paymentIntentID)
+	return err
+}
+
+const markPromotionInvoiceFailed = `-- name: MarkPromotionInvoiceFailed :execrows
+UPDATE promotion_invoices
+SET status = CASE WHEN $1::BOOLEAN THEN 'needs_review' ELSE 'failed' END,
+    claim_token = NULL,
+    error_message = $2,
+    next_attempt_at = CURRENT_TIMESTAMP + make_interval(secs => $3::INT),
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $4
+  AND claim_token = $5
+  AND status IN ('processing', 'dispatching')
+`
+
+type MarkPromotionInvoiceFailedParams struct {
+	NeedsReview  bool        `json:"needs_review"`
+	ErrorMessage pgtype.Text `json:"error_message"`
+	RetrySeconds int32       `json:"retry_seconds"`
+	ID           pgtype.UUID `json:"id"`
+	ClaimToken   pgtype.UUID `json:"claim_token"`
+}
+
+func (q *Queries) MarkPromotionInvoiceFailed(ctx context.Context, arg MarkPromotionInvoiceFailedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markPromotionInvoiceFailed,
+		arg.NeedsReview,
+		arg.ErrorMessage,
+		arg.RetrySeconds,
+		arg.ID,
+		arg.ClaimToken,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const markPromotionInvoiceIssued = `-- name: MarkPromotionInvoiceIssued :execrows
+UPDATE promotion_invoices
+SET status = 'issued', claim_token = NULL,
+    external_series = $1,
+    external_number = $2,
+    external_document_id = $3,
+    document_url = $4,
+    error_message = NULL, issued_at = CURRENT_TIMESTAMP,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $5
+  AND claim_token = $6
+  AND status = 'dispatching'
+`
+
+type MarkPromotionInvoiceIssuedParams struct {
+	ExternalSeries     pgtype.Text `json:"external_series"`
+	ExternalNumber     pgtype.Text `json:"external_number"`
+	ExternalDocumentID pgtype.Text `json:"external_document_id"`
+	DocumentUrl        pgtype.Text `json:"document_url"`
+	ID                 pgtype.UUID `json:"id"`
+	ClaimToken         pgtype.UUID `json:"claim_token"`
+}
+
+func (q *Queries) MarkPromotionInvoiceIssued(ctx context.Context, arg MarkPromotionInvoiceIssuedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markPromotionInvoiceIssued,
+		arg.ExternalSeries,
+		arg.ExternalNumber,
+		arg.ExternalDocumentID,
+		arg.DocumentUrl,
+		arg.ID,
+		arg.ClaimToken,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const markStalePromotionInvoiceDispatchesForReview = `-- name: MarkStalePromotionInvoiceDispatchesForReview :execrows
+UPDATE promotion_invoices
+SET status = 'needs_review',
+    claim_token = NULL,
+    error_message = COALESCE(error_message, 'Rezultatul emiterii este necunoscut; verifica furnizorul inainte de orice reluare.'),
+    updated_at = CURRENT_TIMESTAMP
+WHERE status = 'dispatching'
+  AND updated_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'
+`
+
+func (q *Queries) MarkStalePromotionInvoiceDispatchesForReview(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, markStalePromotionInvoiceDispatchesForReview)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const promotionCampaignOverlaps = `-- name: PromotionCampaignOverlaps :one
 SELECT EXISTS (
     SELECT 1
@@ -381,6 +1050,50 @@ type PromotionCampaignOverlapsParams struct {
 
 func (q *Queries) PromotionCampaignOverlaps(ctx context.Context, arg PromotionCampaignOverlapsParams) (bool, error) {
 	row := q.db.QueryRow(ctx, promotionCampaignOverlaps, arg.EventID, arg.EndsAt, arg.StartsAt)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const promotionFiscalReviewExists = `-- name: PromotionFiscalReviewExists :one
+SELECT EXISTS (
+    SELECT 1 FROM promotion_checkout_reviews
+    WHERE campaign_id = $1
+      AND status = 'needs_review'
+      AND reason = 'legacy_paid_missing_fiscal_snapshot'
+)
+`
+
+func (q *Queries) PromotionFiscalReviewExists(ctx context.Context, campaignID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, promotionFiscalReviewExists, campaignID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const promotionInvoiceExists = `-- name: PromotionInvoiceExists :one
+SELECT EXISTS (
+    SELECT 1 FROM promotion_invoices WHERE campaign_id = $1
+)
+`
+
+func (q *Queries) PromotionInvoiceExists(ctx context.Context, campaignID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, promotionInvoiceExists, campaignID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const promotionRefundStateExists = `-- name: PromotionRefundStateExists :one
+SELECT EXISTS (
+    SELECT 1 FROM promotion_refund_states
+    WHERE payment_intent_id = $1
+      AND status IN ('pending', 'partial', 'full')
+)
+`
+
+func (q *Queries) PromotionRefundStateExists(ctx context.Context, paymentIntentID string) (bool, error) {
+	row := q.db.QueryRow(ctx, promotionRefundStateExists, paymentIntentID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -454,18 +1167,125 @@ func (q *Queries) RecordPromotionImpression(ctx context.Context, arg RecordPromo
 	return err
 }
 
+const recordPromotionRefundState = `-- name: RecordPromotionRefundState :one
+WITH resolved AS (
+    SELECT candidate.id
+    FROM (
+        SELECT campaign.id
+        FROM promotion_campaigns campaign
+        WHERE (campaign.stripe_livemode IS NULL OR campaign.stripe_livemode = $1::BOOLEAN)
+          AND (
+            campaign.stripe_payment_intent_id = $2::TEXT
+            OR (
+              campaign.id = $3::UUID
+              AND (campaign.stripe_payment_intent_id IS NULL OR campaign.stripe_payment_intent_id = $2::TEXT)
+            )
+          )
+        UNION
+        SELECT invoice.campaign_id
+        FROM promotion_invoices invoice
+        WHERE invoice.payment_intent_id = $2::TEXT
+          AND invoice.stripe_livemode = $1::BOOLEAN
+    ) candidate
+    LIMIT 1
+), stored AS (
+    INSERT INTO promotion_refund_states (
+        payment_intent_id, campaign_id, stripe_refund_id, stripe_charge_id,
+        stripe_livemode, refunded_amount_bani, charge_amount_bani, status
+    )
+    SELECT $2, resolved.id,
+           NULLIF($4::TEXT, ''), NULLIF($5::TEXT, ''),
+           $1, $6, $7, $8
+    FROM resolved
+    ON CONFLICT (payment_intent_id) DO UPDATE SET
+        campaign_id = COALESCE(EXCLUDED.campaign_id, promotion_refund_states.campaign_id),
+        stripe_refund_id = COALESCE(EXCLUDED.stripe_refund_id, promotion_refund_states.stripe_refund_id),
+        stripe_charge_id = COALESCE(EXCLUDED.stripe_charge_id, promotion_refund_states.stripe_charge_id),
+        refunded_amount_bani = GREATEST(promotion_refund_states.refunded_amount_bani, EXCLUDED.refunded_amount_bani),
+        charge_amount_bani = GREATEST(promotion_refund_states.charge_amount_bani, EXCLUDED.charge_amount_bani),
+        status = CASE
+          WHEN promotion_refund_states.status = 'full' OR EXCLUDED.status = 'full' THEN 'full'
+          WHEN promotion_refund_states.status = 'partial' OR EXCLUDED.status = 'partial' THEN 'partial'
+          WHEN EXCLUDED.status = 'failed' THEN 'failed'
+          ELSE 'pending'
+        END,
+        updated_at = CURRENT_TIMESTAMP
+    RETURNING campaign_id, refunded_amount_bani, charge_amount_bani, status
+), updated_campaign AS (
+    UPDATE promotion_campaigns campaign
+    SET stripe_payment_intent_id = COALESCE(campaign.stripe_payment_intent_id, $2::TEXT),
+        status = CASE WHEN stored.status IN ('partial', 'full') THEN 'cancelled'::promotion_status ELSE campaign.status END
+    FROM stored
+    WHERE campaign.id = stored.campaign_id
+    RETURNING campaign.id
+), updated_invoice AS (
+    UPDATE promotion_invoices invoice
+    SET refunded_amount_bani = GREATEST(invoice.refunded_amount_bani, stored.refunded_amount_bani),
+        refund_status = CASE
+          WHEN invoice.status IN ('issued', 'dispatching') AND stored.status IN ('partial', 'full') THEN 'needs_review'
+          ELSE stored.status
+        END,
+        status = CASE
+          WHEN invoice.status IN ('pending', 'processing', 'failed') AND stored.status IN ('pending', 'partial', 'full') THEN 'needs_review'
+          ELSE invoice.status
+        END,
+        claim_token = CASE
+          WHEN invoice.status IN ('pending', 'processing', 'failed') AND stored.status IN ('pending', 'partial', 'full') THEN NULL
+          ELSE invoice.claim_token
+        END,
+        error_message = CASE
+          WHEN stored.status IN ('pending', 'partial', 'full') THEN 'Refund Stripe detectat; documentul fiscal necesita reconciliere manuala.'
+          ELSE invoice.error_message
+        END,
+        updated_at = CURRENT_TIMESTAMP
+    FROM stored
+    WHERE invoice.payment_intent_id = $2::TEXT
+    RETURNING invoice.id
+)
+SELECT EXISTS (SELECT 1 FROM resolved) AS handled
+`
+
+type RecordPromotionRefundStateParams struct {
+	StripeLivemode     bool        `json:"stripe_livemode"`
+	PaymentIntentID    string      `json:"payment_intent_id"`
+	CampaignID         pgtype.UUID `json:"campaign_id"`
+	StripeRefundID     string      `json:"stripe_refund_id"`
+	StripeChargeID     string      `json:"stripe_charge_id"`
+	RefundedAmountBani int32       `json:"refunded_amount_bani"`
+	ChargeAmountBani   int32       `json:"charge_amount_bani"`
+	RefundStatus       string      `json:"refund_status"`
+}
+
+func (q *Queries) RecordPromotionRefundState(ctx context.Context, arg RecordPromotionRefundStateParams) (bool, error) {
+	row := q.db.QueryRow(ctx, recordPromotionRefundState,
+		arg.StripeLivemode,
+		arg.PaymentIntentID,
+		arg.CampaignID,
+		arg.StripeRefundID,
+		arg.StripeChargeID,
+		arg.RefundedAmountBani,
+		arg.ChargeAmountBani,
+		arg.RefundStatus,
+	)
+	var handled bool
+	err := row.Scan(&handled)
+	return handled, err
+}
+
 const savePromotionCheckoutSession = `-- name: SavePromotionCheckoutSession :exec
 UPDATE promotion_campaigns
-SET stripe_checkout_session_id = $2
+SET stripe_checkout_session_id = $2,
+    stripe_livemode = $3
 WHERE id = $1
 `
 
 type SavePromotionCheckoutSessionParams struct {
 	ID                      pgtype.UUID `json:"id"`
 	StripeCheckoutSessionID pgtype.Text `json:"stripe_checkout_session_id"`
+	StripeLivemode          pgtype.Bool `json:"stripe_livemode"`
 }
 
 func (q *Queries) SavePromotionCheckoutSession(ctx context.Context, arg SavePromotionCheckoutSessionParams) error {
-	_, err := q.db.Exec(ctx, savePromotionCheckoutSession, arg.ID, arg.StripeCheckoutSessionID)
+	_, err := q.db.Exec(ctx, savePromotionCheckoutSession, arg.ID, arg.StripeCheckoutSessionID, arg.StripeLivemode)
 	return err
 }

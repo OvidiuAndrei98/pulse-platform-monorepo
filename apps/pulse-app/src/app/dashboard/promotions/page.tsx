@@ -23,6 +23,17 @@ import {
 } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { ThemedSelect } from "@/features/events/form/ThemedSelect";
+import {
+  emptyInvoiceDetails,
+  getInvoiceFieldErrors,
+  InvoiceDetailsFields,
+  type InvoiceDetails,
+  validateInvoiceDetails,
+} from "@/features/checkout/InvoiceDetailsFields";
+import {
+  readSavedBillingDetails,
+  saveBillingDetails,
+} from "@/features/checkout/savedBillingDetails";
 
 const toDateKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -43,7 +54,41 @@ export default function PromotionsPage() {
   const [availability, setAvailability] =
     useState<PromotionAvailability | null>(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [savedBilling, setSavedBilling] = useState<InvoiceDetails | null>(null);
+  const [billingSource, setBillingSource] = useState<"saved" | "new">("new");
+  const [billingDetails, setBillingDetails] = useState<InvoiceDetails>(() =>
+    emptyInvoiceDetails(),
+  );
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingAttempted, setBillingAttempted] = useState(false);
+  const [rememberBilling, setRememberBilling] = useState(false);
   const locale = i18n.language === "ro" ? "ro-RO" : "en-GB";
+  const billingErrors = billingAttempted
+    ? getInvoiceFieldErrors(billingDetails)
+    : {};
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    setBillingLoading(true);
+    setBillingDetails(emptyInvoiceDetails(user.properties.username ?? ""));
+    readSavedBillingDetails(user.properties.id)
+      .then((details) => {
+        if (!active) return;
+        setSavedBilling(details);
+        if (details) {
+          setBillingDetails({ ...details });
+          setBillingSource("saved");
+        } else {
+          setBillingSource("new");
+        }
+      })
+      .catch(() => active && toast.error(t("checkout.billingLoadFailed")))
+      .finally(() => active && setBillingLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [t, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -167,13 +212,34 @@ export default function PromotionsPage() {
 
   const checkout = async () => {
     if (!user || !eventId || !startDate || !selectedPlan) return;
+    setBillingAttempted(true);
+    const billingError = validateInvoiceDetails(billingDetails);
+    if (billingError) {
+      toast.error(t(billingError));
+      return;
+    }
     setCheckingOut(true);
     try {
+      if (billingSource === "new" && rememberBilling) {
+        try {
+          const saved = await saveBillingDetails(
+            billingDetails,
+            user.properties.id,
+          );
+          setSavedBilling(saved);
+          setBillingDetails(saved);
+          setBillingSource("saved");
+          setRememberBilling(false);
+        } catch {
+          toast.error(t("checkout.billingSaveFailed"));
+        }
+      }
       const result = await user.createPromotionCheckout({
         eventId,
         plan: planId,
         placement,
         startDate,
+        billingDetails,
       });
       window.location.assign(result.checkoutUrl);
     } catch (error) {
@@ -328,6 +394,79 @@ export default function PromotionsPage() {
                 </p>
               )}
             </div>
+            <div className="border-t border-white/10 pt-5">
+              <p className="mb-1 text-xs font-semibold text-muted-foreground">
+                {t("promotions.billing")}
+              </p>
+              <p className="text-xs leading-5 text-muted-foreground">
+                {t("promotions.billingHint")}
+              </p>
+              {billingLoading ? (
+                <div className="mt-4 grid min-h-20 place-items-center rounded-xl border border-white/10 bg-white/[0.02]">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                </div>
+              ) : (
+                <>
+                  {savedBilling && (
+                    <div role="radiogroup" aria-label={t("checkout.billingDetailsChoice")} className="mt-4 grid gap-2 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={billingSource === "saved"}
+                        onClick={() => {
+                          setBillingSource("saved");
+                          setBillingDetails({ ...savedBilling });
+                          setBillingAttempted(false);
+                          setRememberBilling(false);
+                        }}
+                        className={`rounded-xl border p-3.5 text-left transition ${billingSource === "saved" ? "border-primary/70 bg-primary/10" : "border-white/10 bg-white/[0.02]"}`}
+                      >
+                        <span className="block text-sm font-semibold">{t("checkout.useSavedBilling")}</span>
+                        <span className="mt-1 block break-words text-xs leading-5 text-white/55">
+                          {savedBilling.name} · {savedBilling.address}, {savedBilling.city}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={billingSource === "new"}
+                        onClick={() => {
+                          setBillingSource("new");
+                          setBillingDetails({ ...savedBilling });
+                          setBillingAttempted(false);
+                          setRememberBilling(true);
+                        }}
+                        className={`rounded-xl border p-3.5 text-left text-sm font-semibold transition ${billingSource === "new" ? "border-primary/70 bg-primary/10" : "border-white/10 bg-white/[0.02]"}`}
+                      >
+                        {t("checkout.useOtherBilling")}
+                      </button>
+                    </div>
+                  )}
+                  {billingSource === "new" || !savedBilling ? (
+                    <>
+                      <InvoiceDetailsFields
+                        value={billingDetails}
+                        onChange={setBillingDetails}
+                        idPrefix="promotion"
+                        errors={billingErrors}
+                      />
+                      <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={rememberBilling}
+                          onChange={(event) => setRememberBilling(event.target.checked)}
+                          className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                        />
+                        <span>
+                          {t(savedBilling ? "checkout.replaceSavedBilling" : "checkout.rememberBilling")}
+                          <span className="mt-1 block text-xs leading-5 text-white/45">{t("checkout.rememberBillingHint")}</span>
+                        </span>
+                      </label>
+                    </>
+                  ) : null}
+                </>
+              )}
+            </div>
             <div className="flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs text-muted-foreground">
@@ -343,7 +482,7 @@ export default function PromotionsPage() {
                 type="button"
                 onClick={() => void checkout()}
                 disabled={
-                  checkingOut || !eventId || !startDate || !selectedPlan
+                  checkingOut || billingLoading || !eventId || !startDate || !selectedPlan
                   || checkingAvailability
                   || (placement === "home_banner" && availability?.availableSlots === 0)
                 }
@@ -420,6 +559,34 @@ export default function PromotionsPage() {
               <p className="mt-3 text-right text-xs text-muted-foreground">
                 {t("promotions.paymentSummary", { amount: campaign.amountRon })}
               </p>
+              {campaign.invoiceStatus && (
+                <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-white/10 pt-3 text-xs">
+                  <span className="text-muted-foreground">
+                    {t("promotions.invoiceStatusLabel")}: {t(`promotions.invoiceStatus.${campaign.invoiceStatus}`)}
+                  </span>
+                  {campaign.invoiceDocumentUrl && (
+                    <a
+                      href={campaign.invoiceDocumentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-primary underline-offset-4 hover:underline"
+                    >
+                      {t("promotions.openInvoice")}
+                    </a>
+                  )}
+                </div>
+              )}
+              {campaign.attentionRequired && (
+                <div role="alert" className="mt-3 rounded-xl border border-amber-400/35 bg-amber-400/10 p-3 text-xs leading-5 text-amber-100">
+                  <span className="font-semibold">{t("promotions.invoiceAttentionTitle")}</span>
+                  <span className="mt-1 block">{t("promotions.invoiceAttention")}</span>
+                  {(campaign.invoiceRefundedRon ?? 0) > 0 && (
+                    <span className="mt-1 block">
+                      {t("promotions.refundedAmount", { amount: campaign.invoiceRefundedRon })}
+                    </span>
+                  )}
+                </div>
+              )}
             </article>
           ))}
           {!loading && campaigns.length === 0 && (

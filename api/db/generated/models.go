@@ -622,21 +622,102 @@ type PromoCodes struct {
 }
 
 type PromotionCampaigns struct {
+	ID                          pgtype.UUID        `json:"id"`
+	EventID                     pgtype.UUID        `json:"event_id"`
+	OrganizerID                 pgtype.UUID        `json:"organizer_id"`
+	Plan                        PromotionPlan      `json:"plan"`
+	Status                      PromotionStatus    `json:"status"`
+	StartsAt                    pgtype.Timestamptz `json:"starts_at"`
+	EndsAt                      pgtype.Timestamptz `json:"ends_at"`
+	AmountBani                  int32              `json:"amount_bani"`
+	ImpressionsCount            int64              `json:"impressions_count"`
+	ClicksCount                 int64              `json:"clicks_count"`
+	StripeCheckoutSessionID     pgtype.Text        `json:"stripe_checkout_session_id"`
+	StripePaymentIntentID       pgtype.Text        `json:"stripe_payment_intent_id"`
+	PaidAt                      pgtype.Timestamptz `json:"paid_at"`
+	CreatedAt                   pgtype.Timestamptz `json:"created_at"`
+	Placement                   PromotionPlacement `json:"placement"`
+	StripeLivemode              pgtype.Bool        `json:"stripe_livemode"`
+	BillingEmail                string             `json:"billing_email"`
+	BillingType                 string             `json:"billing_type"`
+	BillingName                 string             `json:"billing_name"`
+	BillingTaxID                string             `json:"billing_tax_id"`
+	BillingRegistrationNumber   string             `json:"billing_registration_number"`
+	BillingAddress              string             `json:"billing_address"`
+	BillingCity                 string             `json:"billing_city"`
+	BillingCounty               string             `json:"billing_county"`
+	BillingSector               string             `json:"billing_sector"`
+	BillingCountry              string             `json:"billing_country"`
+	InvoiceProvider             string             `json:"invoice_provider"`
+	InvoiceIssuerAccountEmail   string             `json:"invoice_issuer_account_email"`
+	InvoiceIssuerCompanyVatCode string             `json:"invoice_issuer_company_vat_code"`
+	InvoiceIssuerSeriesName     string             `json:"invoice_issuer_series_name"`
+	InvoiceVatName              string             `json:"invoice_vat_name"`
+	InvoiceVatPercentage        pgtype.Numeric     `json:"invoice_vat_percentage"`
+	InvoiceSendEmail            bool               `json:"invoice_send_email"`
+	InvoiceSendToSpv            bool               `json:"invoice_send_to_spv"`
+	InvoicePaymentType          string             `json:"invoice_payment_type"`
+}
+
+type PromotionCheckoutReviews struct {
 	ID                      pgtype.UUID        `json:"id"`
-	EventID                 pgtype.UUID        `json:"event_id"`
-	OrganizerID             pgtype.UUID        `json:"organizer_id"`
-	Plan                    PromotionPlan      `json:"plan"`
-	Status                  PromotionStatus    `json:"status"`
-	StartsAt                pgtype.Timestamptz `json:"starts_at"`
-	EndsAt                  pgtype.Timestamptz `json:"ends_at"`
-	AmountBani              int32              `json:"amount_bani"`
-	ImpressionsCount        int64              `json:"impressions_count"`
-	ClicksCount             int64              `json:"clicks_count"`
+	CampaignID              pgtype.UUID        `json:"campaign_id"`
+	Reason                  string             `json:"reason"`
 	StripeCheckoutSessionID pgtype.Text        `json:"stripe_checkout_session_id"`
 	StripePaymentIntentID   pgtype.Text        `json:"stripe_payment_intent_id"`
-	PaidAt                  pgtype.Timestamptz `json:"paid_at"`
+	StripeLivemode          pgtype.Bool        `json:"stripe_livemode"`
+	Status                  string             `json:"status"`
 	CreatedAt               pgtype.Timestamptz `json:"created_at"`
-	Placement               PromotionPlacement `json:"placement"`
+	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
+}
+
+type PromotionInvoices struct {
+	ID                        pgtype.UUID        `json:"id"`
+	CampaignID                pgtype.UUID        `json:"campaign_id"`
+	OrganizerID               pgtype.UUID        `json:"organizer_id"`
+	EventID                   pgtype.UUID        `json:"event_id"`
+	PaymentIntentID           string             `json:"payment_intent_id"`
+	StripeLivemode            bool               `json:"stripe_livemode"`
+	Provider                  string             `json:"provider"`
+	IssuerAccountEmail        string             `json:"issuer_account_email"`
+	IssuerCompanyVatCode      string             `json:"issuer_company_vat_code"`
+	IssuerSeriesName          string             `json:"issuer_series_name"`
+	VatName                   string             `json:"vat_name"`
+	VatPercentage             pgtype.Numeric     `json:"vat_percentage"`
+	SendEmail                 bool               `json:"send_email"`
+	SendToSpv                 bool               `json:"send_to_spv"`
+	PaymentType               string             `json:"payment_type"`
+	CustomerEmail             string             `json:"customer_email"`
+	BillingType               string             `json:"billing_type"`
+	BillingName               string             `json:"billing_name"`
+	BillingTaxID              string             `json:"billing_tax_id"`
+	BillingRegistrationNumber string             `json:"billing_registration_number"`
+	BillingAddress            string             `json:"billing_address"`
+	BillingCity               string             `json:"billing_city"`
+	BillingCounty             string             `json:"billing_county"`
+	BillingSector             string             `json:"billing_sector"`
+	BillingCountry            string             `json:"billing_country"`
+	EventTitle                string             `json:"event_title"`
+	Plan                      PromotionPlan      `json:"plan"`
+	Placement                 PromotionPlacement `json:"placement"`
+	StartsAt                  pgtype.Timestamptz `json:"starts_at"`
+	EndsAt                    pgtype.Timestamptz `json:"ends_at"`
+	AmountBani                int32              `json:"amount_bani"`
+	Currency                  string             `json:"currency"`
+	Status                    string             `json:"status"`
+	ClaimToken                pgtype.UUID        `json:"claim_token"`
+	AttemptCount              int32              `json:"attempt_count"`
+	NextAttemptAt             pgtype.Timestamptz `json:"next_attempt_at"`
+	ExternalSeries            pgtype.Text        `json:"external_series"`
+	ExternalNumber            pgtype.Text        `json:"external_number"`
+	ExternalDocumentID        pgtype.Text        `json:"external_document_id"`
+	DocumentUrl               pgtype.Text        `json:"document_url"`
+	ErrorMessage              pgtype.Text        `json:"error_message"`
+	RefundedAmountBani        int32              `json:"refunded_amount_bani"`
+	RefundStatus              string             `json:"refund_status"`
+	IssuedAt                  pgtype.Timestamptz `json:"issued_at"`
+	CreatedAt                 pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
 }
 
 type PromotionMetricEvents struct {
@@ -646,6 +727,19 @@ type PromotionMetricEvents struct {
 	ViewerKey  string             `json:"viewer_key"`
 	Metric     string             `json:"metric"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+}
+
+type PromotionRefundStates struct {
+	PaymentIntentID    string             `json:"payment_intent_id"`
+	CampaignID         pgtype.UUID        `json:"campaign_id"`
+	StripeRefundID     pgtype.Text        `json:"stripe_refund_id"`
+	StripeChargeID     pgtype.Text        `json:"stripe_charge_id"`
+	StripeLivemode     bool               `json:"stripe_livemode"`
+	RefundedAmountBani int32              `json:"refunded_amount_bani"`
+	ChargeAmountBani   int32              `json:"charge_amount_bani"`
+	Status             string             `json:"status"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
 
 type RequestRateLimits struct {

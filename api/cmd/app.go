@@ -177,7 +177,7 @@ func InitApplication() (*Application, error) {
 	return &Application{
 		Queries:   queries,
 		Pool:      pool,
-		Invoicing: invoicing.NewService(queries, os.Getenv("INVOICING_ENCRYPTION_KEY")),
+		Invoicing: invoicing.NewService(queries, pool, os.Getenv("INVOICING_ENCRYPTION_KEY")),
 		Abuse:     abuseProtection,
 	}, nil
 }
@@ -216,7 +216,7 @@ func (app *Application) BuildRouter() http.Handler {
 	ticketingHandler := tickets.NewHandler(app.Queries, app.Pool, os.Getenv("PUBLIC_APP_URL"))
 	stripeCheckoutHandler := payments.NewCheckoutHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), mailerService, app.Invoicing, app.Abuse)
 	app.Refunds = stripeCheckoutHandler
-	promotionHandler := promotions.NewHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"))
+	promotionHandler := promotions.NewHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), app.Invoicing)
 	stripeWebhookHandler := payments.NewWebhookHandler(os.Getenv("STRIPE_WEBHOOK_SECRET"), stripeCheckoutHandler, promotionHandler)
 	stripeConnectWebhookHandler := payments.NewConnectWebhookHandler(app.Queries, os.Getenv("STRIPE_CONNECT_WEBHOOK_SECRET"), stripeCheckoutHandler)
 	stripeConnectHandler := payments.NewConnectHandler(
@@ -319,6 +319,7 @@ func (app *Application) BuildRouter() http.Handler {
 		ReconcileOrganizerRefund:       stripeCheckoutHandler.HandleReconcileOrganizerRefundAttention,
 		ListAdminRefundAttention:       stripeCheckoutHandler.HandleAdminListRefundsRequiringAttention,
 		ReconcileAdminRefund:           stripeCheckoutHandler.HandleAdminReconcileRefundAttention,
+		ListPromotionInvoiceAttention:  promotionHandler.HandleAdminInvoiceAttention,
 
 		// Interactions / Checkins
 		CreateCheckIn: interactionsHandler.HandleCreateCheckIn,
@@ -387,7 +388,7 @@ func (app *Application) StartEventExpiryWorker(ctx context.Context) {
 }
 
 func (app *Application) StartPromotionReservationExpiryWorker(ctx context.Context) {
-	promotions.NewHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL")).StartReservationExpiryWorker(ctx)
+	promotions.NewHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), app.Invoicing).StartReservationExpiryWorker(ctx)
 }
 
 func (app *Application) StartInvoicingWorker(ctx context.Context) {

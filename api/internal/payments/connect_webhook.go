@@ -156,28 +156,20 @@ func (h *ConnectWebhookHandler) handleDirectChargeEvent(r *http.Request, event s
 		if event.Data == nil || json.Unmarshal(event.Data.Raw, &session) != nil {
 			return true, errors.New("invalid expired Checkout Session")
 		}
-		orderID := firstStripeMetadata(session.Metadata, "spottr_order_id", "pulse_order_id")
-		if orderID == "" {
-			return false, nil
-		}
 		if h.checkout == nil || event.Account == "" {
 			return true, errors.New("direct checkout handler or connected account is missing")
 		}
-		return true, h.checkout.FailCheckout(r.Context(), orderID, "", event.Account)
+		return true, h.checkout.ReleaseExpiredCheckout(r.Context(), session, event.Account)
 
 	case "payment_intent.payment_failed":
 		var paymentIntent stripe.PaymentIntent
 		if event.Data == nil || json.Unmarshal(event.Data.Raw, &paymentIntent) != nil {
 			return true, errors.New("invalid failed PaymentIntent")
 		}
-		orderID := firstStripeMetadata(paymentIntent.Metadata, "spottr_order_id", "pulse_order_id")
-		if orderID == "" {
-			return false, nil
-		}
-		if h.checkout == nil || event.Account == "" {
-			return true, errors.New("direct checkout handler or connected account is missing")
-		}
-		return true, h.checkout.FailCheckout(r.Context(), orderID, paymentIntent.ID, event.Account)
+		// A failed PaymentIntent is only a failed attempt. Checkout can attach a
+		// new payment method and later complete the same Session successfully.
+		log.Printf("Stripe direct payment attempt failed (reservation retained): payment_intent=%s account=%s", paymentIntent.ID, event.Account)
+		return true, nil
 
 	case "charge.refunded":
 		var charge stripe.Charge

@@ -101,7 +101,7 @@ func editEventRequest(t *testing.T, handler *Handler, ownerID, eventID pgtype.UU
 		"title": "Changed", "category": "house", "startTime": start, "endTime": end,
 		"locationName": "Venue", "city": "Bucuresti", "vibe": "social",
 		"latitude": 44.0, "longitude": 26.0, "googlePlaceId": "place",
-		"description": "Changed", "status": "draft", "ticketTypes": tickets,
+		"description": "Changed", "status": "draft", "vatPercentage": 21.0, "ticketTypes": tickets,
 	}
 	if bannerURL != "" {
 		payload["bannerUrl"] = bannerURL

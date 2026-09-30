@@ -700,6 +700,9 @@ WHERE o.event_id = $1
 }
 
 func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymentIntentID, orderID, connectedAccountID string, liveMode bool) error {
+	if strings.TrimSpace(sessionID) == "" || strings.TrimSpace(paymentIntentID) == "" {
+		return nil
+	}
 	var parsedOrderID pgtype.UUID
 	if err := parsedOrderID.Scan(orderID); err != nil || !parsedOrderID.Valid {
 		return nil
@@ -722,13 +725,48 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 	if order.StripeLivemode.Valid && order.StripeLivemode.Bool != liveMode {
 		return errors.New("mediul Stripe din webhook nu corespunde comenzii")
 	}
+	// Never fulfill from metadata alone. A connected-account operator can create
+	// their own Stripe objects and choose metadata, while only the exact Session
+	// ID persisted by SPOTTR proves this is the checkout we created with the
+	// expected application fee. Sessionless orders remain quarantined until an
+	// operator verifies and binds the external outcome.
+	if !order.StripeCheckoutSessionID.Valid || order.StripeCheckoutSessionID.String == "" {
+		if err := qtx.MarkCheckoutReservationForReview(ctx, db.MarkCheckoutReservationForReviewParams{
+			OrderID: order.ID,
+			Reason:  "unbound_completed_session",
+		}); err != nil {
+			return err
+		}
+		return tx.Commit(ctx)
+	}
+	if order.StripeCheckoutSessionID.String != sessionID {
+		return tx.Commit(ctx)
+	}
+	// Once a PaymentIntent has been bound to the order it is immutable. This
+	// prevents a valid Session ID plus attacker-controlled metadata from replacing
+	// the payment identity stored during Checkout creation or reconciliation.
+	if order.StripePaymentIntentID.Valid && order.StripePaymentIntentID.String != "" && order.StripePaymentIntentID.String != paymentIntentID {
+		return tx.Commit(ctx)
+	}
+	if order.Status == db.OrderStatusPending || order.Status == db.OrderStatusFailed {
+		// Checkout creation commonly returns before Stripe attaches its
+		// PaymentIntent. Persist the ID from the exact paid Session before any
+		// refund-review branch so the refund worker can address the real payment.
+		if err := qtx.UpdateOrderStatus(ctx, db.UpdateOrderStatusParams{
+			ID:                    order.ID,
+			Status:                order.Status,
+			StripePaymentIntentID: pgtype.Text{String: paymentIntentID, Valid: true},
+		}); err != nil {
+			return err
+		}
+	}
 	if err := qtx.SetOrderStripeLivemode(ctx, db.SetOrderStripeLivemodeParams{
 		ID:             order.ID,
 		StripeLivemode: liveMode,
 	}); err != nil {
 		return err
 	}
-	if order.Status == db.OrderStatusPending && order.StripeRefundNeedsAttention {
+	if (order.Status == db.OrderStatusPending || order.Status == db.OrderStatusFailed) && order.StripeRefundNeedsAttention {
 		log.Printf("SECURITY checkout fulfillment held for refund review: order=%s payment_intent=%s", common.UUIDToString(order.ID), paymentIntentID)
 		return tx.Commit(ctx)
 	}
@@ -744,30 +782,67 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 		}
 		return nil
 	}
-	if order.Status != db.OrderStatusPending {
+	if order.Status != db.OrderStatusPending && order.Status != db.OrderStatusFailed {
 		return tx.Commit(ctx)
 	}
-	// Never fulfill from metadata alone. A connected-account operator can create
-	// their own Stripe objects and choose metadata, while only the exact Session
-	// ID persisted by SPOTTR proves this is the checkout we created with the
-	// expected application fee. Sessionless orders remain quarantined until an
-	// operator verifies and binds the external outcome.
-	if !order.StripeCheckoutSessionID.Valid || order.StripeCheckoutSessionID.String == "" {
-		if err := qtx.MarkCheckoutReservationForReview(ctx, db.MarkCheckoutReservationForReviewParams{
-			OrderID: order.ID,
-			Reason:  "unbound_completed_session",
-		}); err != nil {
-			return err
-		}
-		return tx.Commit(ctx)
+	eventStatus, err := qtx.GetEventStatusForCheckoutUpdate(ctx, order.EventID)
+	if err != nil {
+		return err
 	}
-	if order.StripeCheckoutSessionID.String != sessionID || paymentIntentID == "" {
-		return tx.Commit(ctx)
+	if eventStatus != "published" {
+		// The payment is real, but the event entered cancellation/completion (or
+		// otherwise stopped selling) before fulfillment acquired its lock. Do not
+		// issue a ticket outside the cancellation refund snapshot.
+		return markPaidCheckoutForRefundReviewLocked(ctx, qtx, tx, order.ID, "paid_after_event_closed")
 	}
 
 	items, err := qtx.GetOrderItems(ctx, order.ID)
 	if err != nil {
 		return err
+	}
+	// Older releases treated a failed PaymentIntent attempt as terminal and
+	// released inventory. Stripe Checkout can retry that same Session and later
+	// complete successfully. Restore the reservation atomically, without ever
+	// exceeding ticket or promotion capacity, before issuing tickets.
+	if order.Status == db.OrderStatusFailed {
+		restoreTx, err := tx.Begin(ctx)
+		if err != nil {
+			return err
+		}
+		restoreQueries := h.queries.WithTx(restoreTx)
+		markForRefundReview := func() error {
+			if err := restoreTx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+				return err
+			}
+			// The parent transaction still owns the order row lock. Marking review
+			// before releasing that lock closes the race with a second completion or
+			// refund webhook.
+			return markPaidCheckoutForRefundReviewLocked(ctx, qtx, tx, order.ID, "paid_after_inventory_release")
+		}
+		for _, item := range items {
+			restored, err := restoreQueries.RestoreReleasedTicketReservation(ctx, db.RestoreReleasedTicketReservationParams{
+				ID:          item.TicketTypeID,
+				TicketsSold: item.Quantity,
+			})
+			if err != nil {
+				return err
+			}
+			if restored != 1 {
+				return markForRefundReview()
+			}
+		}
+		if order.PromoCodeID.Valid {
+			restored, err := restoreQueries.RestoreReleasedPromoCodeRedemption(ctx, order.PromoCodeID)
+			if err != nil {
+				return err
+			}
+			if restored != 1 {
+				return markForRefundReview()
+			}
+		}
+		if err := restoreTx.Commit(ctx); err != nil {
+			return err
+		}
 	}
 	for _, item := range items {
 		for range item.Quantity {
@@ -858,12 +933,80 @@ func (h *CheckoutHandler) deliverTicketConfirmation(orderID pgtype.UUID) error {
 	return nil
 }
 
-func (h *CheckoutHandler) FailCheckout(ctx context.Context, orderID, paymentIntentID, connectedAccountID string) error {
-	var parsedOrderID pgtype.UUID
-	if err := parsedOrderID.Scan(orderID); err != nil || !parsedOrderID.Valid {
+// ReleaseExpiredCheckout releases inventory only for the exact Checkout Session
+// persisted on the order. Metadata is deliberately not accepted as authority.
+func (h *CheckoutHandler) ReleaseExpiredCheckout(ctx context.Context, session stripe.CheckoutSession, connectedAccountID string) error {
+	if strings.TrimSpace(session.ID) == "" || session.Status != stripe.CheckoutSessionStatusExpired {
 		return nil
 	}
-	return h.failOrder(ctx, parsedOrderID, paymentIntentID, connectedAccountID)
+	if !h.acceptsStripeLiveMode(session.Livemode) {
+		return errors.New("mediul Stripe din sesiunea expirata nu corespunde configuratiei API")
+	}
+
+	tx, err := h.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := h.queries.WithTx(tx)
+	order, err := qtx.GetOrderByCheckoutSessionForUpdate(ctx, pgtype.Text{String: session.ID, Valid: true})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return tx.Commit(ctx)
+	}
+	if err != nil {
+		return err
+	}
+	if !stripeOrderContextMatches(order, connectedAccountID) {
+		return errors.New("contextul contului Stripe nu corespunde comenzii expirate")
+	}
+	if order.StripeLivemode.Valid && order.StripeLivemode.Bool != session.Livemode {
+		return errors.New("mediul Stripe din sesiunea expirata nu corespunde comenzii")
+	}
+	if order.Status != db.OrderStatusPending {
+		return tx.Commit(ctx)
+	}
+	if order.PromoCodeID.Valid {
+		if err := qtx.DecrementPromoCodeRedemption(ctx, order.PromoCodeID); err != nil {
+			return err
+		}
+	}
+	items, err := qtx.GetOrderItems(ctx, order.ID)
+	if err != nil {
+		return err
+	}
+	for _, item := range items {
+		if err := qtx.DecrementTicketsSold(ctx, db.DecrementTicketsSoldParams{
+			ID:          item.TicketTypeID,
+			TicketsSold: item.Quantity,
+		}); err != nil {
+			return err
+		}
+	}
+	if err := qtx.UpdateOrderStatus(ctx, db.UpdateOrderStatusParams{
+		ID:     order.ID,
+		Status: db.OrderStatusFailed,
+	}); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func markPaidCheckoutForRefundReviewLocked(ctx context.Context, qtx *db.Queries, tx pgx.Tx, orderID pgtype.UUID, reason string) error {
+	if err := qtx.MarkCheckoutReservationForReview(ctx, db.MarkCheckoutReservationForReviewParams{
+		OrderID: orderID,
+		Reason:  reason,
+	}); err != nil {
+		return err
+	}
+	if err := qtx.MarkOrderRefundNeedsAttention(ctx, orderID); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	log.Printf("SECURITY paid checkout requires refund review: order=%s reason=%s", common.UUIDToString(orderID), reason)
+	return nil
 }
 
 func (h *CheckoutHandler) ReconcileChargeRefund(ctx context.Context, charge stripe.Charge, connectedAccountID string, liveMode bool) error {

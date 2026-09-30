@@ -201,6 +201,27 @@
         }
       }
     },
+    "/admin/promotion-invoices-attention": {
+      "get": {
+        "operationId": "AdminOperations_listPromotionInvoicesRequiringAttention",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PromotionInvoiceAttentionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/refunds-attention": {
       "get": {
         "operationId": "AdminOperations_listRefundsRequiringAttention",
@@ -3956,7 +3977,8 @@
           "eventId",
           "plan",
           "placement",
-          "startDate"
+          "startDate",
+          "billingDetails"
         ],
         "properties": {
           "eventId": {
@@ -3979,6 +4001,9 @@
           },
           "startDate": {
             "type": "string"
+          },
+          "billingDetails": {
+            "$ref": "#/components/schemas/BillingDetailsPayload"
           }
         }
       },
@@ -5262,7 +5287,8 @@
           "impressionsCount",
           "clicksCount",
           "ctr",
-          "createdAt"
+          "createdAt",
+          "attentionRequired"
         ],
         "properties": {
           "id": {
@@ -5326,6 +5352,51 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "invoiceStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "processing",
+              "dispatching",
+              "issued",
+              "failed",
+              "needs_review"
+            ]
+          },
+          "invoiceSeries": {
+            "type": "string"
+          },
+          "invoiceNumber": {
+            "type": "string"
+          },
+          "invoiceDocumentUrl": {
+            "type": "string"
+          },
+          "invoiceIssuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "invoiceRefundStatus": {
+            "type": "string",
+            "enum": [
+              "none",
+              "pending",
+              "partial",
+              "full",
+              "failed",
+              "needs_review"
+            ]
+          },
+          "invoiceRefundedRon": {
+            "type": "number",
+            "format": "double"
+          },
+          "attentionRequired": {
+            "type": "boolean"
+          },
+          "attentionReason": {
+            "type": "string"
           }
         }
       },
@@ -5341,6 +5412,66 @@
           },
           "campaignId": {
             "type": "string"
+          }
+        }
+      },
+      "PromotionInvoiceAttentionResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "campaignId",
+          "eventTitle",
+          "organizerId",
+          "customerEmail",
+          "amountRon",
+          "refundedAmountRon",
+          "reason",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "campaignId": {
+            "type": "string"
+          },
+          "eventTitle": {
+            "type": "string"
+          },
+          "organizerId": {
+            "type": "string"
+          },
+          "customerEmail": {
+            "type": "string"
+          },
+          "amountRon": {
+            "type": "number",
+            "format": "double"
+          },
+          "paymentIntentId": {
+            "type": "string"
+          },
+          "invoiceStatus": {
+            "type": "string"
+          },
+          "refundStatus": {
+            "type": "string"
+          },
+          "refundedAmountRon": {
+            "type": "number",
+            "format": "double"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

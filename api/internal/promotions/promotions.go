@@ -16,7 +16,9 @@ import (
 	"pulse-api/internal/auth"
 	"pulse-api/internal/common"
 	eventapi "pulse-api/internal/events"
+	"pulse-api/internal/invoicing"
 	"pulse-api/internal/router"
+	"pulse-api/internal/users"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -38,6 +40,9 @@ type Handler struct {
 	client     *stripe.Client
 	appURL     string
 	configured bool
+	invoicing  *invoicing.Service
+	liveMode   bool
+	modeKnown  bool
 }
 
 type PlanResponse struct {
@@ -50,19 +55,28 @@ type PlanResponse struct {
 }
 
 type CampaignResponse struct {
-	ID               string    `json:"id"`
-	EventID          string    `json:"eventId"`
-	EventTitle       string    `json:"eventTitle"`
-	Plan             string    `json:"plan"`
-	Placement        string    `json:"placement"`
-	Status           string    `json:"status"`
-	StartsAt         time.Time `json:"startsAt"`
-	EndsAt           time.Time `json:"endsAt"`
-	AmountRon        int32     `json:"amountRon"`
-	ImpressionsCount int64     `json:"impressionsCount"`
-	ClicksCount      int64     `json:"clicksCount"`
-	CTR              float64   `json:"ctr"`
-	CreatedAt        time.Time `json:"createdAt"`
+	ID                  string     `json:"id"`
+	EventID             string     `json:"eventId"`
+	EventTitle          string     `json:"eventTitle"`
+	Plan                string     `json:"plan"`
+	Placement           string     `json:"placement"`
+	Status              string     `json:"status"`
+	StartsAt            time.Time  `json:"startsAt"`
+	EndsAt              time.Time  `json:"endsAt"`
+	AmountRon           int32      `json:"amountRon"`
+	ImpressionsCount    int64      `json:"impressionsCount"`
+	ClicksCount         int64      `json:"clicksCount"`
+	CTR                 float64    `json:"ctr"`
+	CreatedAt           time.Time  `json:"createdAt"`
+	InvoiceStatus       string     `json:"invoiceStatus,omitempty"`
+	InvoiceSeries       string     `json:"invoiceSeries,omitempty"`
+	InvoiceNumber       string     `json:"invoiceNumber,omitempty"`
+	InvoiceDocumentURL  string     `json:"invoiceDocumentUrl,omitempty"`
+	InvoiceIssuedAt     *time.Time `json:"invoiceIssuedAt,omitempty"`
+	InvoiceRefundStatus string     `json:"invoiceRefundStatus,omitempty"`
+	InvoiceRefundedRon  float64    `json:"invoiceRefundedRon,omitempty"`
+	AttentionRequired   bool       `json:"attentionRequired"`
+	AttentionReason     string     `json:"attentionReason,omitempty"`
 }
 
 type PromotedEventResponse struct {
@@ -71,11 +85,40 @@ type PromotedEventResponse struct {
 	Event      eventapi.EventResponse `json:"event"`
 }
 
-func NewHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, appURL string) *Handler {
+type InvoiceAttentionResponse struct {
+	ID                string  `json:"id"`
+	CampaignID        string  `json:"campaignId"`
+	EventTitle        string  `json:"eventTitle"`
+	OrganizerID       string  `json:"organizerId"`
+	CustomerEmail     string  `json:"customerEmail"`
+	AmountRon         float64 `json:"amountRon"`
+	PaymentIntentID   string  `json:"paymentIntentId,omitempty"`
+	InvoiceStatus     string  `json:"invoiceStatus,omitempty"`
+	RefundStatus      string  `json:"refundStatus,omitempty"`
+	RefundedAmountRon float64 `json:"refundedAmountRon"`
+	Reason            string  `json:"reason"`
+	CreatedAt         string  `json:"createdAt"`
+	UpdatedAt         string  `json:"updatedAt"`
+}
+
+func NewHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, appURL string, invoicingService *invoicing.Service) *Handler {
 	if appURL == "" {
 		appURL = "http://localhost:3000"
 	}
-	return &Handler{queries: queries, pool: pool, client: stripe.NewClient(stripeSecret), appURL: strings.TrimRight(appURL, "/"), configured: stripeSecret != ""}
+	liveMode, modeKnown := stripeSecretLiveMode(stripeSecret)
+	return &Handler{queries: queries, pool: pool, client: stripe.NewClient(stripeSecret), appURL: strings.TrimRight(appURL, "/"), configured: stripeSecret != "", invoicing: invoicingService, liveMode: liveMode, modeKnown: modeKnown}
+}
+
+func stripeSecretLiveMode(secret string) (bool, bool) {
+	secret = strings.TrimSpace(secret)
+	switch {
+	case strings.HasPrefix(secret, "sk_live_"), strings.HasPrefix(secret, "rk_live_"):
+		return true, true
+	case strings.HasPrefix(secret, "sk_test_"), strings.HasPrefix(secret, "rk_test_"):
+		return false, true
+	default:
+		return false, false
+	}
 }
 
 func envPrice(name string, fallback int32) int32 {
@@ -196,7 +239,7 @@ func (h *Handler) expireCheckoutReservations(ctx context.Context) {
 			if session.PaymentIntent != nil {
 				paymentIntentID = session.PaymentIntent.ID
 			}
-			if err := h.FulfillCampaign(ctx, common.UUIDToString(row.ID), sessionID, paymentIntentID); err != nil {
+			if err := h.FulfillCampaign(ctx, common.UUIDToString(row.ID), sessionID, paymentIntentID, session.Livemode); err != nil {
 				log.Printf("promotion reservation fulfillment failed: session=%s error=%v", sessionID, err)
 			}
 		}
@@ -263,13 +306,27 @@ func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		EventID   string `json:"eventId"`
-		Plan      string `json:"plan"`
-		Placement string `json:"placement"`
-		StartDate string `json:"startDate"`
+		EventID        string               `json:"eventId"`
+		Plan           string               `json:"plan"`
+		Placement      string               `json:"placement"`
+		StartDate      string               `json:"startDate"`
+		BillingDetails users.BillingDetails `json:"billingDetails"`
 	}
 	if !router.DecodeJSON(w, r, &body, maxPromotionJSONBytes) {
 		return
+	}
+	billing, err := users.NormalizeBillingDetails(body.BillingDetails)
+	if err != nil {
+		router.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	var invoiceConfig invoicing.PromotionInvoiceConfig
+	if h.modeKnown && h.liveMode {
+		invoiceConfig, err = h.invoicing.PromotionInvoiceConfig()
+		if err != nil {
+			router.RespondWithError(w, http.StatusServiceUnavailable, "Facturarea SPOTTR nu este disponibila momentan")
+			return
+		}
 	}
 	plan, exists := planByID(body.Plan, body.Placement)
 	if !exists {
@@ -339,13 +396,32 @@ func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	campaignID, err := qtx.CreatePromotionCampaign(r.Context(), db.CreatePromotionCampaignParams{
-		EventID:     eventID,
-		OrganizerID: organizerID,
-		Plan:        db.PromotionPlan(plan.ID),
-		Placement:   db.PromotionPlacement(plan.Placement),
-		StartsAt:    pgtype.Timestamptz{Time: startsAt, Valid: true},
-		EndsAt:      pgtype.Timestamptz{Time: endsAt, Valid: true},
-		AmountBani:  plan.AmountRon * 100,
+		EventID:                     eventID,
+		OrganizerID:                 organizerID,
+		Plan:                        db.PromotionPlan(plan.ID),
+		Placement:                   db.PromotionPlacement(plan.Placement),
+		StartsAt:                    pgtype.Timestamptz{Time: startsAt, Valid: true},
+		EndsAt:                      pgtype.Timestamptz{Time: endsAt, Valid: true},
+		AmountBani:                  plan.AmountRon * 100,
+		BillingEmail:                organizer.Email,
+		BillingType:                 billing.Type,
+		BillingName:                 billing.Name,
+		BillingTaxID:                billing.TaxID,
+		BillingRegistrationNumber:   billing.RegistrationNumber,
+		BillingAddress:              billing.Address,
+		BillingCity:                 billing.City,
+		BillingCounty:               billing.County,
+		BillingSector:               billing.Sector,
+		BillingCountry:              billing.Country,
+		InvoiceProvider:             invoiceConfig.Provider,
+		InvoiceIssuerAccountEmail:   invoiceConfig.AccountEmail,
+		InvoiceIssuerCompanyVatCode: invoiceConfig.CompanyVATCode,
+		InvoiceIssuerSeriesName:     invoiceConfig.SeriesName,
+		InvoiceVatName:              invoiceConfig.VATName,
+		InvoiceVatPercentage:        numeric(invoiceConfig.VATPercentage),
+		InvoiceSendEmail:            invoiceConfig.SendEmail,
+		InvoiceSendToSpv:            invoiceConfig.SendToSPV,
+		InvoicePaymentType:          invoiceConfig.PaymentType,
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Promovarea nu a putut fi pregatita")
@@ -365,59 +441,227 @@ func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
 		PaymentMethodTypes: []*string{stripe.String("card")},
 		Metadata:           map[string]string{"pulse_promotion_campaign_id": campaignIDString},
 		PaymentIntentData:  &stripe.CheckoutSessionCreatePaymentIntentDataParams{Metadata: map[string]string{"pulse_promotion_campaign_id": campaignIDString}, ReceiptEmail: stripe.String(organizer.Email)},
-		LineItems:          []*stripe.CheckoutSessionCreateLineItemParams{{Quantity: stripe.Int64(1), PriceData: &stripe.CheckoutSessionCreateLineItemPriceDataParams{Currency: stripe.String("ron"), UnitAmount: stripe.Int64(int64(plan.AmountRon) * 100), ProductData: &stripe.CheckoutSessionCreateLineItemPriceDataProductDataParams{Name: stripe.String("Promovare Pulse - " + plan.Name), Description: stripe.String(event.Title + " - " + plan.Placement)}}}},
+		LineItems:          []*stripe.CheckoutSessionCreateLineItemParams{{Quantity: stripe.Int64(1), PriceData: &stripe.CheckoutSessionCreateLineItemPriceDataParams{Currency: stripe.String("ron"), UnitAmount: stripe.Int64(int64(plan.AmountRon) * 100), ProductData: &stripe.CheckoutSessionCreateLineItemPriceDataProductDataParams{Name: stripe.String("Promovare SPOTTR - " + plan.Name), Description: stripe.String(event.Title + " - " + plan.Placement)}}}},
 	}
 	params.SetIdempotencyKey("pulse-promotion-" + campaignIDString)
 	session, err := h.client.V1CheckoutSessions.Create(r.Context(), params)
 	if err != nil {
-		_ = h.queries.CancelPendingPromotionCampaign(r.Context(), campaignID)
+		_ = h.flagCheckoutReview(r.Context(), campaignID, "stripe_session_create_outcome_unknown", "", "", pgtype.Bool{})
 		router.RespondWithError(w, http.StatusBadGateway, "Sesiunea Stripe nu a putut fi creata")
 		return
 	}
 	if err := h.queries.SavePromotionCheckoutSession(r.Context(), db.SavePromotionCheckoutSessionParams{
 		ID:                      campaignID,
 		StripeCheckoutSessionID: pgtype.Text{String: session.ID, Valid: true},
+		StripeLivemode:          pgtype.Bool{Bool: session.Livemode, Valid: true},
 	}); err != nil {
-		_, _ = h.client.V1CheckoutSessions.Expire(r.Context(), session.ID, nil)
-		_ = h.queries.CancelPendingPromotionCampaign(r.Context(), campaignID)
+		expired, expireErr := h.client.V1CheckoutSessions.Expire(r.Context(), session.ID, nil)
+		if expireErr == nil && expired != nil && expired.Status == stripe.CheckoutSessionStatusExpired {
+			_ = h.queries.CancelPendingPromotionCampaign(r.Context(), campaignID)
+		} else {
+			_ = h.flagCheckoutReview(r.Context(), campaignID, "stripe_session_persistence_outcome_unknown", session.ID, "", pgtype.Bool{Bool: session.Livemode, Valid: true})
+		}
 		router.RespondWithError(w, http.StatusInternalServerError, "Sesiunea Stripe nu a putut fi salvata")
+		return
+	}
+	if session.Livemode && invoiceConfig.Provider == "" {
+		expired, expireErr := h.client.V1CheckoutSessions.Expire(r.Context(), session.ID, nil)
+		if expireErr == nil && expired != nil && expired.Status == stripe.CheckoutSessionStatusExpired {
+			_ = h.queries.CancelPendingPromotionCampaignForCheckout(r.Context(), db.CancelPendingPromotionCampaignForCheckoutParams{ID: campaignID, StripeCheckoutSessionID: session.ID})
+		} else {
+			_ = h.flagCheckoutReview(r.Context(), campaignID, "live_checkout_without_fiscal_config", session.ID, "", pgtype.Bool{Bool: true, Valid: true})
+		}
+		router.RespondWithError(w, http.StatusServiceUnavailable, "Facturarea SPOTTR nu este disponibila momentan")
 		return
 	}
 	router.RespondWithJSON(w, http.StatusCreated, map[string]string{"checkoutUrl": session.URL, "campaignId": campaignIDString})
 }
 
-func (h *Handler) FulfillCampaign(ctx context.Context, campaignID, sessionID, paymentIntentID string) error {
+func (h *Handler) flagCheckoutReview(ctx context.Context, campaignID pgtype.UUID, reason, sessionID, paymentIntentID string, liveMode pgtype.Bool) error {
+	return h.queries.FlagPromotionCheckoutReview(ctx, db.FlagPromotionCheckoutReviewParams{
+		CampaignID: campaignID, Reason: reason, StripeCheckoutSessionID: sessionID,
+		StripePaymentIntentID: paymentIntentID, StripeLivemode: liveMode,
+	})
+}
+
+func (h *Handler) FulfillCampaign(ctx context.Context, campaignID, sessionID, paymentIntentID string, liveMode bool) error {
 	var id pgtype.UUID
 	if id.Scan(campaignID) != nil || !id.Valid {
 		return nil
 	}
-	rowsAffected, err := h.queries.FulfillPromotionCampaign(ctx, db.FulfillPromotionCampaignParams{
+	paymentIntentID = strings.TrimSpace(paymentIntentID)
+	if liveMode && paymentIntentID == "" {
+		return errors.New("plata live a promovarii nu are PaymentIntent")
+	}
+	if h.pool == nil {
+		return errors.New("baza de date pentru promovari nu este disponibila")
+	}
+	tx, err := h.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	qtx := h.queries.WithTx(tx)
+	if paymentIntentID != "" {
+		if err := qtx.LockPromotionPaymentIntent(ctx, paymentIntentID); err != nil {
+			return err
+		}
+	}
+
+	fulfilled, err := qtx.FulfillPromotionCampaign(ctx, db.FulfillPromotionCampaignParams{
 		ID:                      id,
-		StripeCheckoutSessionID: pgtype.Text{String: sessionID, Valid: true},
+		StripeCheckoutSessionID: sessionID,
 		PaymentIntentID:         paymentIntentID,
+		StripeLivemode:          liveMode,
 	})
 	if err != nil {
 		return err
 	}
-	if rowsAffected == 0 {
-		status, statusErr := h.queries.GetPromotionCampaignStatusForCheckout(ctx, db.GetPromotionCampaignStatusForCheckoutParams{
+	if !fulfilled {
+		legacyRows, legacyErr := qtx.FulfillLegacyPromotionCampaignForReview(ctx, db.FulfillLegacyPromotionCampaignForReviewParams{
+			ID: id, StripeCheckoutSessionID: pgtype.Text{String: sessionID, Valid: sessionID != ""},
+			PaymentIntentID: pgtype.Text{String: paymentIntentID, Valid: paymentIntentID != ""},
+			StripeLivemode:  pgtype.Bool{Bool: liveMode, Valid: true},
+		})
+		if legacyErr != nil {
+			return legacyErr
+		}
+		if legacyRows == 1 {
+			if err := tx.Commit(ctx); err != nil {
+				return err
+			}
+			return nil
+		}
+		refunded, refundErr := qtx.PromotionRefundStateExists(ctx, paymentIntentID)
+		if refundErr != nil {
+			return refundErr
+		}
+		if refunded {
+			_, cancelErr := qtx.CancelPromotionCampaignForKnownRefund(ctx, db.CancelPromotionCampaignForKnownRefundParams{
+				PaymentIntentID: paymentIntentID, StripeLivemode: liveMode, ID: id, StripeCheckoutSessionID: sessionID,
+			})
+			if cancelErr != nil {
+				return cancelErr
+			}
+			return tx.Commit(ctx)
+		}
+		status, statusErr := qtx.GetPromotionCampaignStatusForCheckout(ctx, db.GetPromotionCampaignStatusForCheckoutParams{
 			ID:                      id,
 			StripeCheckoutSessionID: pgtype.Text{String: sessionID, Valid: true},
 		})
 		if statusErr == nil && status != db.PromotionStatusPendingPayment && status != db.PromotionStatusCancelled {
-			return nil
+			if liveMode {
+				exists, existsErr := qtx.PromotionInvoiceExists(ctx, id)
+				if existsErr != nil {
+					return existsErr
+				}
+				reviewExists, reviewErr := qtx.PromotionFiscalReviewExists(ctx, id)
+				if reviewErr != nil {
+					return reviewErr
+				}
+				if !exists && !reviewExists {
+					return errors.New("factura promovarii nu a fost pusa in coada")
+				}
+			}
+			return tx.Commit(ctx)
 		}
 		return errors.New("campania nu a putut fi activata")
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	if liveMode && h.invoicing != nil {
+		h.invoicing.Wake()
 	}
 	return nil
 }
 
-func (h *Handler) CancelCampaign(ctx context.Context, campaignID string) error {
+func (h *Handler) RecordChargeRefund(ctx context.Context, charge stripe.Charge, liveMode bool) (bool, error) {
+	if charge.PaymentIntent == nil || strings.TrimSpace(charge.PaymentIntent.ID) == "" {
+		return false, nil
+	}
+	status := "partial"
+	if charge.Refunded || (charge.Amount > 0 && charge.AmountRefunded >= charge.Amount) {
+		status = "full"
+	}
+	campaignID := charge.Metadata["pulse_promotion_campaign_id"]
+	if campaignID == "" && charge.PaymentIntent.Metadata != nil {
+		campaignID = charge.PaymentIntent.Metadata["pulse_promotion_campaign_id"]
+	}
+	return h.recordRefund(ctx, charge.PaymentIntent.ID, campaignID, "", charge.ID, charge.AmountRefunded, charge.Amount, status, liveMode)
+}
+
+func (h *Handler) RecordRefund(ctx context.Context, refund stripe.Refund, liveMode bool) (bool, error) {
+	if refund.PaymentIntent == nil || strings.TrimSpace(refund.PaymentIntent.ID) == "" {
+		return false, nil
+	}
+	status := "pending"
+	switch refund.Status {
+	case stripe.RefundStatusSucceeded:
+		status = "partial"
+	case stripe.RefundStatusFailed, stripe.RefundStatusCanceled:
+		status = "failed"
+	}
+	campaignID := refund.Metadata["pulse_promotion_campaign_id"]
+	if campaignID == "" && refund.PaymentIntent.Metadata != nil {
+		campaignID = refund.PaymentIntent.Metadata["pulse_promotion_campaign_id"]
+	}
+	chargeID := ""
+	if refund.Charge != nil {
+		chargeID = refund.Charge.ID
+	}
+	return h.recordRefund(ctx, refund.PaymentIntent.ID, campaignID, refund.ID, chargeID, refund.Amount, 0, status, liveMode)
+}
+
+func (h *Handler) recordRefund(ctx context.Context, paymentIntentID, campaignID, refundID, chargeID string, refundedAmount, chargeAmount int64, status string, liveMode bool) (bool, error) {
+	if refundedAmount < 0 || chargeAmount < 0 || refundedAmount > int64(^uint32(0)>>1) || chargeAmount > int64(^uint32(0)>>1) {
+		return false, errors.New("valoarea refundului promovarii este invalida")
+	}
+	var campaignUUID pgtype.UUID
+	if campaignID != "" {
+		_ = campaignUUID.Scan(campaignID)
+	}
+	if h.pool == nil {
+		return false, errors.New("baza de date pentru promovari nu este disponibila")
+	}
+	tx, err := h.pool.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback(ctx)
+	qtx := h.queries.WithTx(tx)
+	if err := qtx.LockPromotionPaymentIntent(ctx, paymentIntentID); err != nil {
+		return false, err
+	}
+	handled, err := qtx.RecordPromotionRefundState(ctx, db.RecordPromotionRefundStateParams{
+		StripeLivemode: liveMode, PaymentIntentID: paymentIntentID, CampaignID: campaignUUID,
+		StripeRefundID: refundID, StripeChargeID: chargeID,
+		RefundedAmountBani: int32(refundedAmount), ChargeAmountBani: int32(chargeAmount), RefundStatus: status,
+	})
+	if err != nil {
+		return false, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
+	}
+	return handled, nil
+}
+
+func numeric(value float64) pgtype.Numeric {
+	var result pgtype.Numeric
+	_ = result.Scan(strconv.FormatFloat(value, 'f', 2, 64))
+	return result
+}
+
+func (h *Handler) CancelCampaign(ctx context.Context, campaignID, sessionID string) error {
 	var id pgtype.UUID
-	if id.Scan(campaignID) != nil || !id.Valid {
+	if id.Scan(campaignID) != nil || !id.Valid || strings.TrimSpace(sessionID) == "" {
 		return nil
 	}
-	return h.queries.CancelPendingPromotionCampaign(ctx, id)
+	return h.queries.CancelPendingPromotionCampaignForCheckout(ctx, db.CancelPendingPromotionCampaignForCheckoutParams{
+		ID:                      id,
+		StripeCheckoutSessionID: sessionID,
+	})
 }
 
 func (h *Handler) HandleListCampaigns(w http.ResponseWriter, r *http.Request) {
@@ -435,23 +679,56 @@ func (h *Handler) HandleListCampaigns(w http.ResponseWriter, r *http.Request) {
 	items := make([]CampaignResponse, 0, len(rows))
 	for _, row := range rows {
 		item := CampaignResponse{
-			ID:               common.UUIDToString(row.ID),
-			EventID:          common.UUIDToString(row.EventID),
-			EventTitle:       row.EventTitle,
-			Plan:             string(row.Plan),
-			Placement:        string(row.Placement),
-			Status:           string(row.Status),
-			StartsAt:         row.StartsAt.Time,
-			EndsAt:           row.EndsAt.Time,
-			AmountRon:        row.AmountBani / 100,
-			ImpressionsCount: row.ImpressionsCount,
-			ClicksCount:      row.ClicksCount,
-			CreatedAt:        row.CreatedAt.Time,
+			ID:                  common.UUIDToString(row.ID),
+			EventID:             common.UUIDToString(row.EventID),
+			EventTitle:          row.EventTitle,
+			Plan:                string(row.Plan),
+			Placement:           string(row.Placement),
+			Status:              string(row.Status),
+			StartsAt:            row.StartsAt.Time,
+			EndsAt:              row.EndsAt.Time,
+			AmountRon:           row.AmountBani / 100,
+			ImpressionsCount:    row.ImpressionsCount,
+			ClicksCount:         row.ClicksCount,
+			CreatedAt:           row.CreatedAt.Time,
+			InvoiceStatus:       row.InvoiceStatus.String,
+			InvoiceSeries:       row.InvoiceSeries.String,
+			InvoiceNumber:       row.InvoiceNumber.String,
+			InvoiceDocumentURL:  row.InvoiceDocumentUrl.String,
+			InvoiceRefundStatus: row.InvoiceRefundStatus.String,
+			InvoiceRefundedRon:  float64(row.InvoiceRefundedAmountBani) / 100,
+			AttentionRequired:   row.AttentionRequired,
+			AttentionReason:     row.AttentionReason,
+		}
+		if row.InvoiceIssuedAt.Valid {
+			issuedAt := row.InvoiceIssuedAt.Time
+			item.InvoiceIssuedAt = &issuedAt
 		}
 		if item.ImpressionsCount > 0 {
 			item.CTR = float64(item.ClicksCount) / float64(item.ImpressionsCount) * 100
 		}
 		items = append(items, item)
+	}
+	router.RespondWithJSON(w, http.StatusOK, items)
+}
+
+func (h *Handler) HandleAdminInvoiceAttention(w http.ResponseWriter, r *http.Request) {
+	rows, err := h.queries.ListAdminPromotionInvoiceAttention(r.Context())
+	if err != nil {
+		log.Printf("list promotion invoice attention failed: %v", err)
+		router.RespondWithError(w, http.StatusInternalServerError, "Facturile de promovare care necesita atentie nu au putut fi incarcate")
+		return
+	}
+	items := make([]InvoiceAttentionResponse, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, InvoiceAttentionResponse{
+			ID: common.UUIDToString(row.AttentionID), CampaignID: common.UUIDToString(row.CampaignID),
+			EventTitle: row.EventTitle, OrganizerID: common.UUIDToString(row.OrganizerID), CustomerEmail: row.CustomerEmail,
+			AmountRon: float64(row.AmountBani) / 100, PaymentIntentID: row.PaymentIntentID,
+			InvoiceStatus: row.InvoiceStatus, RefundStatus: row.RefundStatus,
+			RefundedAmountRon: float64(row.RefundedAmountBani) / 100, Reason: row.Reason,
+			CreatedAt: common.TimestampToString(row.CreatedAt), UpdatedAt: common.TimestampToString(row.UpdatedAt),
+		})
 	}
 	router.RespondWithJSON(w, http.StatusOK, items)
 }

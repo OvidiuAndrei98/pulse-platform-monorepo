@@ -22,14 +22,21 @@ type Querier interface {
 	AssignGuestTicketsToUser(ctx context.Context, userID pgtype.UUID) error
 	BackfillBillingInvoiceRefunds(ctx context.Context) (int64, error)
 	BackfillBillingInvoices(ctx context.Context) (int64, error)
+	BeginPromotionInvoiceDispatch(ctx context.Context, arg BeginPromotionInvoiceDispatchParams) (int64, error)
 	BindPendingOrderStripePayment(ctx context.Context, arg BindPendingOrderStripePaymentParams) (Orders, error)
+	// A missing local session can mean Stripe created one but the HTTP request or
+	// database write failed. Never release this capacity automatically: quarantine
+	// it for reconciliation instead.
 	CancelAbandonedPromotionReservations(ctx context.Context, expiresBefore pgtype.Timestamptz) error
 	CancelPendingPromotionCampaign(ctx context.Context, id pgtype.UUID) error
+	CancelPendingPromotionCampaignForCheckout(ctx context.Context, arg CancelPendingPromotionCampaignForCheckoutParams) error
+	CancelPromotionCampaignForKnownRefund(ctx context.Context, arg CancelPromotionCampaignForKnownRefundParams) (int64, error)
 	ClaimBillingInvoiceRefunds(ctx context.Context, batchSize int32) ([]BillingInvoiceRefunds, error)
 	ClaimBillingInvoices(ctx context.Context, batchSize int32) ([]BillingInvoices, error)
 	ClaimDueEventBannerAssetDeletion(ctx context.Context) (ClaimDueEventBannerAssetDeletionRow, error)
 	ClaimOrderRefundOperations(ctx context.Context, batchSize int32) ([]OrderRefundOperations, error)
 	ClaimPlatformCommissionInvoices(ctx context.Context, batchSize int32) ([]PlatformCommissionInvoices, error)
+	ClaimPromotionInvoices(ctx context.Context, batchSize int32) ([]PromotionInvoices, error)
 	ClearOrganizerStripeAccount(ctx context.Context, stripeAccountID pgtype.Text) (OrganizerProfiles, error)
 	CompleteEndedEvents(ctx context.Context) error
 	CompleteEventBannerAssetDeletion(ctx context.Context, arg CompleteEventBannerAssetDeletionParams) (int64, error)
@@ -87,8 +94,10 @@ type Querier interface {
 	FinalizeCompletedCancellationRequests(ctx context.Context) (int64, error)
 	FinalizeEmptyCancellationRequests(ctx context.Context) (int64, error)
 	FindReadyEventBannerAsset(ctx context.Context, arg FindReadyEventBannerAssetParams) (pgtype.UUID, error)
+	FlagPromotionCheckoutReview(ctx context.Context, arg FlagPromotionCheckoutReviewParams) error
 	FollowOrganizer(ctx context.Context, arg FollowOrganizerParams) error
-	FulfillPromotionCampaign(ctx context.Context, arg FulfillPromotionCampaignParams) (int64, error)
+	FulfillLegacyPromotionCampaignForReview(ctx context.Context, arg FulfillLegacyPromotionCampaignForReviewParams) (int64, error)
+	FulfillPromotionCampaign(ctx context.Context, arg FulfillPromotionCampaignParams) (bool, error)
 	GetAdminRefundAttentionOrder(ctx context.Context, orderID pgtype.UUID) (Orders, error)
 	GetAvailablePromoCode(ctx context.Context, arg GetAvailablePromoCodeParams) (GetAvailablePromoCodeRow, error)
 	GetAvailablePromoCodeForUpdate(ctx context.Context, arg GetAvailablePromoCodeForUpdateParams) (GetAvailablePromoCodeForUpdateRow, error)
@@ -99,6 +108,7 @@ type Querier interface {
 	GetEventByID(ctx context.Context, arg GetEventByIDParams) (GetEventByIDRow, error)
 	GetEventForOrganizerUpdate(ctx context.Context, id pgtype.UUID) (GetEventForOrganizerUpdateRow, error)
 	GetEventSocialSummary(ctx context.Context, arg GetEventSocialSummaryParams) (GetEventSocialSummaryRow, error)
+	GetEventStatusForCheckoutUpdate(ctx context.Context, id pgtype.UUID) (string, error)
 	GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEventWithStatsRow, error)
 	GetFriendRequests(ctx context.Context, friendID pgtype.UUID) ([]GetFriendRequestsRow, error)
 	GetFriends(ctx context.Context, userID pgtype.UUID) ([]GetFriendsRow, error)
@@ -110,6 +120,7 @@ type Querier interface {
 	GetOfflineTicketValidationByClientScanID(ctx context.Context, arg GetOfflineTicketValidationByClientScanIDParams) (GetOfflineTicketValidationByClientScanIDRow, error)
 	GetOfflineValidationSnapshotForSync(ctx context.Context, arg GetOfflineValidationSnapshotForSyncParams) (OfflineValidationSnapshots, error)
 	GetOrderByCheckoutSession(ctx context.Context, stripeCheckoutSessionID pgtype.Text) (Orders, error)
+	GetOrderByCheckoutSessionForUpdate(ctx context.Context, stripeCheckoutSessionID pgtype.Text) (Orders, error)
 	GetOrderByStripeChargeID(ctx context.Context, stripeChargeID pgtype.Text) (Orders, error)
 	GetOrderByStripePaymentIntent(ctx context.Context, stripePaymentIntentID pgtype.Text) (Orders, error)
 	GetOrderForUpdate(ctx context.Context, id pgtype.UUID) (Orders, error)
@@ -127,6 +138,7 @@ type Querier interface {
 	GetPlatformCommissionInvoiceIssueData(ctx context.Context, id pgtype.UUID) (GetPlatformCommissionInvoiceIssueDataRow, error)
 	GetPlatformCommissionInvoiceLiveTotals(ctx context.Context, arg GetPlatformCommissionInvoiceLiveTotalsParams) (GetPlatformCommissionInvoiceLiveTotalsRow, error)
 	GetPromotionCampaignStatusForCheckout(ctx context.Context, arg GetPromotionCampaignStatusForCheckoutParams) (PromotionStatus, error)
+	GetPromotionInvoiceIssueData(ctx context.Context, id pgtype.UUID) (PromotionInvoices, error)
 	GetPublicProfile(ctx context.Context, id pgtype.UUID) (GetPublicProfileRow, error)
 	GetScannerAccessByID(ctx context.Context, id pgtype.UUID) (GetScannerAccessByIDRow, error)
 	GetScannerAccessByTokenHash(ctx context.Context, tokenHash string) (GetScannerAccessByTokenHashRow, error)
@@ -151,6 +163,7 @@ type Querier interface {
 	ListActiveOrganizerUpdates(ctx context.Context, organizerID pgtype.UUID) ([]ListActiveOrganizerUpdatesRow, error)
 	ListActivePromotionCampaignEvents(ctx context.Context, userID pgtype.UUID) ([]ListActivePromotionCampaignEventsRow, error)
 	ListAdminEventCancellationRequests(ctx context.Context) ([]ListAdminEventCancellationRequestsRow, error)
+	ListAdminPromotionInvoiceAttention(ctx context.Context) ([]ListAdminPromotionInvoiceAttentionRow, error)
 	ListAdminRefundsRequiringAttention(ctx context.Context) ([]ListAdminRefundsRequiringAttentionRow, error)
 	ListBillingInvoiceItems(ctx context.Context, orderID pgtype.UUID) ([]ListBillingInvoiceItemsRow, error)
 	ListEventAttendees(ctx context.Context, eventID pgtype.UUID) ([]ListEventAttendeesRow, error)
@@ -184,6 +197,7 @@ type Querier interface {
 	// RETURNING * va aduce status-ul modificat
 	LockOwnedEventForBannerChange(ctx context.Context, arg LockOwnedEventForBannerChangeParams) (pgtype.UUID, error)
 	LockPromotionEvent(ctx context.Context, eventID pgtype.UUID) error
+	LockPromotionPaymentIntent(ctx context.Context, paymentIntentID string) error
 	LockPublishedEventForCheckout(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error)
 	LockUserForPasswordReset(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error)
 	MarkAllNotificationsRead(ctx context.Context, userID pgtype.UUID) error
@@ -205,6 +219,9 @@ type Querier interface {
 	MarkOrderRefundSubmitted(ctx context.Context, arg MarkOrderRefundSubmittedParams) error
 	MarkPlatformCommissionInvoiceFailed(ctx context.Context, arg MarkPlatformCommissionInvoiceFailedParams) (PlatformCommissionInvoices, error)
 	MarkPlatformCommissionInvoiceIssued(ctx context.Context, arg MarkPlatformCommissionInvoiceIssuedParams) (PlatformCommissionInvoices, error)
+	MarkPromotionInvoiceFailed(ctx context.Context, arg MarkPromotionInvoiceFailedParams) (int64, error)
+	MarkPromotionInvoiceIssued(ctx context.Context, arg MarkPromotionInvoiceIssuedParams) (int64, error)
+	MarkStalePromotionInvoiceDispatchesForReview(ctx context.Context) (int64, error)
 	// A process may stop after the local reservation commits but before the Stripe
 	// session ID is persisted. Even after the external session lifetime, age does
 	// not prove that payment did not complete before expiry and its webhook was
@@ -213,17 +230,23 @@ type Querier interface {
 	MarkTicketEmailSent(ctx context.Context, id pgtype.UUID) error
 	PromoteUserToOrganizer(ctx context.Context, id pgtype.UUID) (Users, error)
 	PromotionCampaignOverlaps(ctx context.Context, arg PromotionCampaignOverlapsParams) (bool, error)
+	PromotionFiscalReviewExists(ctx context.Context, campaignID pgtype.UUID) (bool, error)
+	PromotionInvoiceExists(ctx context.Context, campaignID pgtype.UUID) (bool, error)
+	PromotionRefundStateExists(ctx context.Context, paymentIntentID string) (bool, error)
 	PublishDueEvents(ctx context.Context) ([]pgtype.UUID, error)
 	ReconcileLegacyEventBannerReferences(ctx context.Context) error
 	RecordEventBannerAssetDeletionFailure(ctx context.Context, arg RecordEventBannerAssetDeletionFailureParams) (int64, error)
 	RecordPromotionClick(ctx context.Context, arg RecordPromotionClickParams) error
 	RecordPromotionImpression(ctx context.Context, arg RecordPromotionImpressionParams) error
+	RecordPromotionRefundState(ctx context.Context, arg RecordPromotionRefundStateParams) (bool, error)
 	RejectEventCancellation(ctx context.Context, arg RejectEventCancellationParams) (pgtype.UUID, error)
 	RemoveFriend(ctx context.Context, arg RemoveFriendParams) (int64, error)
 	RemoveSavedEvent(ctx context.Context, arg RemoveSavedEventParams) error
 	RemoveStaleEventBannerReferences(ctx context.Context) (int64, error)
 	RemoveValidationStaff(ctx context.Context, arg RemoveValidationStaffParams) error
 	RespondToFriendRequest(ctx context.Context, arg RespondToFriendRequestParams) error
+	RestoreReleasedPromoCodeRedemption(ctx context.Context, id pgtype.UUID) (int64, error)
+	RestoreReleasedTicketReservation(ctx context.Context, arg RestoreReleasedTicketReservationParams) (int64, error)
 	RetryBillingInvoice(ctx context.Context, arg RetryBillingInvoiceParams) (BillingInvoices, error)
 	RetryBillingInvoiceRefund(ctx context.Context, arg RetryBillingInvoiceRefundParams) (BillingInvoiceRefunds, error)
 	RetryEventCancellationRefunds(ctx context.Context, id pgtype.UUID) (int64, error)

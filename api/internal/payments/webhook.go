@@ -74,7 +74,7 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 			paymentIntentID = session.PaymentIntent.ID
 		}
 		if campaignID := session.Metadata["pulse_promotion_campaign_id"]; campaignID != "" {
-			if h.promotions == nil || h.promotions.FulfillCampaign(r.Context(), campaignID, session.ID, paymentIntentID) != nil {
+			if h.promotions == nil || h.promotions.FulfillCampaign(r.Context(), campaignID, session.ID, paymentIntentID, event.Livemode) != nil {
 				log.Printf("Stripe promotion fulfillment failed: session=%s campaign=%s", session.ID, campaignID)
 				http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
 				return
@@ -93,7 +93,7 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 		var session stripe.CheckoutSession
 		if event.Data != nil && json.Unmarshal(event.Data.Raw, &session) == nil {
 			if campaignID := session.Metadata["pulse_promotion_campaign_id"]; campaignID != "" && h.promotions != nil {
-				if err := h.promotions.CancelCampaign(r.Context(), campaignID); err != nil {
+				if err := h.promotions.CancelCampaign(r.Context(), campaignID, session.ID); err != nil {
 					http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
 					return
 				}
@@ -102,8 +102,7 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 			if h.checkout == nil {
 				break
 			}
-			orderID := firstStripeMetadata(session.Metadata, "spottr_order_id", "pulse_order_id")
-			if err := h.checkout.FailCheckout(r.Context(), orderID, "", ""); err != nil {
+			if err := h.checkout.ReleaseExpiredCheckout(r.Context(), session, ""); err != nil {
 				log.Printf("Stripe checkout release failed: session=%s err=%v", session.ID, err)
 				http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
 				return
@@ -113,22 +112,9 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 	case "payment_intent.payment_failed":
 		var paymentIntent stripe.PaymentIntent
 		if event.Data != nil && json.Unmarshal(event.Data.Raw, &paymentIntent) == nil {
-			if campaignID := paymentIntent.Metadata["pulse_promotion_campaign_id"]; campaignID != "" && h.promotions != nil {
-				if err := h.promotions.CancelCampaign(r.Context(), campaignID); err != nil {
-					http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
-					return
-				}
-				break
-			}
-			if h.checkout == nil {
-				break
-			}
-			orderID := firstStripeMetadata(paymentIntent.Metadata, "spottr_order_id", "pulse_order_id")
-			if err := h.checkout.FailCheckout(r.Context(), orderID, paymentIntent.ID, ""); err != nil {
-				log.Printf("Stripe payment failure release failed: payment_intent=%s err=%v", paymentIntent.ID, err)
-				http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
-				return
-			}
+			// A failed PaymentIntent is not terminal for its Checkout Session.
+			// Retain both ticket and promotion reservations until exact expiry.
+			log.Printf("Stripe payment attempt failed (reservation retained): payment_intent=%s", paymentIntent.ID)
 		}
 		log.Printf("Stripe payment failed: id=%s", event.ID)
 	case "charge.refunded":
@@ -136,6 +122,18 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 		if event.Data == nil || json.Unmarshal(event.Data.Raw, &charge) != nil {
 			http.Error(w, "Invalid refunded Charge", http.StatusBadRequest)
 			return
+		}
+		if h.promotions != nil {
+			handled, promotionErr := h.promotions.RecordChargeRefund(r.Context(), charge, event.Livemode)
+			if promotionErr != nil {
+				log.Printf("Stripe promotion refund reconciliation failed: charge=%s err=%v", charge.ID, promotionErr)
+				http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
+				return
+			}
+			if handled {
+				log.Printf("Stripe promotion refund reconciled: charge=%s", charge.ID)
+				break
+			}
 		}
 		if h.checkout == nil {
 			http.Error(w, "Checkout is not configured", http.StatusServiceUnavailable)
@@ -152,6 +150,18 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 		if event.Data == nil || json.Unmarshal(event.Data.Raw, &refund) != nil {
 			http.Error(w, "Invalid Refund", http.StatusBadRequest)
 			return
+		}
+		if h.promotions != nil {
+			handled, promotionErr := h.promotions.RecordRefund(r.Context(), refund, event.Livemode)
+			if promotionErr != nil {
+				log.Printf("Stripe promotion refund status update failed: refund=%s err=%v", refund.ID, promotionErr)
+				http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
+				return
+			}
+			if handled {
+				log.Printf("Stripe promotion refund status updated: refund=%s", refund.ID)
+				break
+			}
 		}
 		if h.checkout == nil {
 			http.Error(w, "Checkout is not configured", http.StatusServiceUnavailable)
