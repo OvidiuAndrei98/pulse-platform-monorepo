@@ -60,7 +60,7 @@ export function ManagementDrawer({
             transition={{ type: "spring", stiffness: 360, damping: 36 }}
             className="absolute inset-y-0 right-0 flex w-full flex-col border-l border-white/10 bg-[#0b0d0c] shadow-[-24px_0_70px_rgba(0,0,0,0.5)] sm:w-[min(30rem,92vw)]"
           >
-            <header className="flex shrink-0 items-start gap-3 border-b border-white/10 px-5 pb-4 pt-[max(1.25rem,var(--native-safe-top))] sm:px-6 sm:pt-6">
+            <header data-drawer-keyboard-header className="flex shrink-0 items-start gap-3 border-b border-white/10 px-5 pb-4 pt-[max(1.25rem,var(--native-safe-top))] sm:px-6 sm:pt-6">
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-semibold text-foreground">{title}</h2>
                 {subtitle && <p className="mt-1 text-xs leading-5 text-muted-foreground">{subtitle}</p>}
@@ -74,7 +74,7 @@ export function ManagementDrawer({
                 <X className="h-4 w-4" />
               </button>
             </header>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 pb-[max(2rem,var(--native-safe-bottom))] sm:px-6">
+            <div data-drawer-keyboard-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 pb-[max(2rem,var(--native-safe-bottom))] sm:px-6">
               {children}
             </div>
           </motion.aside>

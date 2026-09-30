@@ -343,3 +343,29 @@ html.capacitor-native body::before {
   -webkit-backdrop-filter: blur(var(--bottom-nav-blur));
   backdrop-filter: blur(var(--bottom-nav-blur));
 }
+
+/* Phone keyboards can leave less than half of the screen available. Compact
+   drawer chrome while editing; the focused field remains in the inner scroller. */
+@media (max-width: 767px), (hover: none) and (pointer: coarse) {
+  [data-drawer-viewport][data-keyboard-open="true"] [data-drawer-keyboard-hide] {
+    display: none !important;
+  }
+
+  [data-drawer-viewport][data-keyboard-open="true"] [data-drawer-keyboard-header] {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+
+  [data-drawer-viewport][data-keyboard-open="true"] [data-drawer-keyboard-footer] {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+
+  [data-drawer-viewport][data-keyboard-open="true"] [data-drawer-keyboard-control] {
+    height: 2.75rem !important;
+  }
+
+  [data-drawer-viewport][data-keyboard-open="true"] [data-drawer-keyboard-scroll] {
+    scroll-padding-block: 0.75rem 4rem;
+  }
+}

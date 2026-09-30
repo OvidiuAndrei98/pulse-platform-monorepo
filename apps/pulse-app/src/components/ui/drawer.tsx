@@ -50,7 +50,7 @@ export const DrawerContent = React.forwardRef<
       {/* Vaul extends the surface below the drawer with ::after during upward
           overscroll. Clip the content here, leaving that extension visible. */}
       <div data-drawer-body className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ borderRadius: "inherit" }}>
-        {showHandle && <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-white/30" />}
+        {showHandle && <div data-drawer-keyboard-hide className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-white/30" />}
         {children}
       </div>
     </DrawerPrimitive.Content>
@@ -63,7 +63,7 @@ export const DrawerHeader = ({
   className = "",
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={`px-5 pb-3 pt-4 text-center ${className}`} {...props} />
+  <div data-drawer-keyboard-header className={`px-5 pb-3 pt-4 text-center ${className}`} {...props} />
 );
 
 export const DrawerTitle = React.forwardRef<

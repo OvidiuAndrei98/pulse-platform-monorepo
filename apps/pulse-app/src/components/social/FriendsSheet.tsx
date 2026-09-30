@@ -73,7 +73,7 @@ export function FriendsSheet({
       fixed
     >
       <DrawerContent className="mx-auto h-[85dvh] max-h-[48rem] max-w-2xl border-white/10 bg-[#0b0b0c]">
-        <header className="flex shrink-0 items-start justify-between px-5 pb-4 pt-5">
+        <header data-drawer-keyboard-header className="flex shrink-0 items-start justify-between px-5 pb-4 pt-5">
           <div>
             <DrawerTitle className="text-left text-2xl font-semibold tracking-tight">
               {t("friends.title")}
@@ -93,6 +93,7 @@ export function FriendsSheet({
         </header>
         <div
           data-vaul-no-drag
+          data-drawer-keyboard-scroll
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(2rem,env(safe-area-inset-bottom))]"
         >
           {requestsLoading ? (

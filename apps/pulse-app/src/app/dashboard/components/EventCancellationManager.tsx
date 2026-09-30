@@ -74,7 +74,7 @@ export function EventCancellationManager({ event, onRequested }: { event: Event;
       {open && (
         <div ref={viewportRef} data-drawer-viewport className="fixed inset-0 z-[120] flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true">
           <div className="max-h-[92%] w-full overflow-y-auto overscroll-contain rounded-t-3xl border border-white/10 bg-neutral-950 p-5 pb-[max(1.25rem,var(--native-safe-bottom))] sm:max-w-lg sm:rounded-2xl">
-            <div className="flex items-center justify-between gap-3">
+            <div data-drawer-keyboard-header className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold">{t("eventCancellation.modalTitle")}</h2>
               <button type="button" onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-full border border-white/10" aria-label={t("common.close")}><X className="h-4 w-4" /></button>
             </div>

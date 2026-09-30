@@ -136,6 +136,10 @@ async function run() {
     const original = await evaluate('({height:__panel.offsetHeight,top:__panel.getBoundingClientRect().top,style:__panel.style.cssText})');
     await keyboard(420);
     assert.equal(await evaluate('__panel.dataset.keyboardOpen'),'true');
+    assert.ok(await evaluate("[...__panel.querySelectorAll('[data-drawer-keyboard-hide]')].every(node=>getComputedStyle(node).display==='none')"),'Marked drawer chrome is hidden while typing');
+    assert.ok(await evaluate("[...__panel.querySelectorAll('[data-drawer-keyboard-header]')].every(node=>parseFloat(getComputedStyle(node).paddingTop)<=8)"),'Drawer header is compact while typing');
+    assert.ok(await evaluate("[...__panel.querySelectorAll('[data-drawer-keyboard-footer]')].every(node=>parseFloat(getComputedStyle(node).paddingBottom)<=8)"),'Drawer footer is compact while typing');
+    assert.ok(await evaluate("[...__panel.querySelectorAll('[data-drawer-keyboard-control]')].every(node=>node.getBoundingClientRect().height<=44)"),'Drawer controls are compact while typing');
     const bounds = await evaluate('({top:__panel.getBoundingClientRect().top,bottom:__panel.getBoundingClientRect().bottom,fieldTop:__field.getBoundingClientRect().top,fieldBottom:__field.getBoundingClientRect().bottom,scroll:scrollY})');
     assert.ok(bounds.bottom<=421 && bounds.top>=0,JSON.stringify(bounds));
     assert.ok(bounds.fieldTop>=bounds.top && bounds.fieldBottom<=bounds.bottom,'Focused field stays visible: '+JSON.stringify(bounds));

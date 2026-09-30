@@ -339,6 +339,7 @@ export function TicketCheckoutDrawer({
   const content = (
     <>
       <header
+        data-drawer-keyboard-header
         className={
           "shrink-0 px-4 pb-3 " +
           (embedded
@@ -370,6 +371,7 @@ export function TicketCheckoutDrawer({
               {t("checkout.checkoutTitle")}
             </h2>
             <p
+              data-drawer-keyboard-hide
               className="mt-1 text-xs tracking-wider text-white/45"
               aria-live="polite"
             >
@@ -387,6 +389,7 @@ export function TicketCheckoutDrawer({
           </button>
         </div>
         <ol
+          data-drawer-keyboard-hide
           className="mt-5 flex gap-2"
           aria-label={t("checkout.checkoutTitle")}
         >
@@ -411,9 +414,10 @@ export function TicketCheckoutDrawer({
       <div
         ref={scrollRef}
         data-vaul-no-drag
+        data-drawer-keyboard-scroll
         className="min-h-0 flex-1 touch-pan-y space-y-3 overflow-y-auto overscroll-contain px-4 pb-5 pt-3 [-webkit-overflow-scrolling:touch]"
       >
-        <div className="mb-5 flex items-center gap-3 px-1">
+        <div data-drawer-keyboard-hide className="mb-5 flex items-center gap-3 px-1">
           <div className="shrink-0 border-r border-white/20 pr-3 text-center text-white/55">
             <span className="block text-2xl font-bold leading-none">
               {eventDate.toLocaleDateString(i18n.language, { day: "2-digit" })}
@@ -680,7 +684,7 @@ export function TicketCheckoutDrawer({
           </div>
         </StepCard>
       </div>
-      <footer className="relative z-10 flex shrink-0 items-center gap-2.5 bg-linear-to-b from-black/10 via-black/70 to-black px-4 pt-3 pb-7">
+      <footer data-drawer-keyboard-footer className="relative z-10 flex shrink-0 items-center gap-2.5 bg-linear-to-b from-black/10 via-black/70 to-black px-4 pt-3 pb-7">
         <button
           type="button"
           onClick={() =>
