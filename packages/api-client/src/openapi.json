@@ -4003,7 +4003,7 @@
             "type": "string"
           },
           "billingDetails": {
-            "$ref": "#/components/schemas/BillingDetailsPayload"
+            "$ref": "#/components/schemas/PromotionBillingDetailsPayload"
           }
         }
       },
@@ -4948,6 +4948,7 @@
           "userId",
           "companyName",
           "cui",
+          "fiscalAddress",
           "isVerified",
           "verificationStatus",
           "stripeChargesEnabled",
@@ -4966,6 +4967,9 @@
             "type": "string"
           },
           "cui": {
+            "type": "string"
+          },
+          "fiscalAddress": {
             "type": "string"
           },
           "isVerified": {
@@ -5269,6 +5273,35 @@
           "availableSlots": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "PromotionBillingDetailsPayload": {
+        "type": "object",
+        "required": [
+          "address",
+          "city",
+          "county",
+          "country"
+        ],
+        "properties": {
+          "registrationNumber": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "county": {
+            "type": "string"
+          },
+          "sector": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
           }
         }
       },

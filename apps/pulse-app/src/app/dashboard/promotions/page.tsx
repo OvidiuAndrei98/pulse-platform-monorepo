@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import {
+  type OrganizerProfile,
   type PromotionAvailability,
   type PromotionCampaign,
   type PromotionPlan,
@@ -23,20 +24,45 @@ import {
 } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { ThemedSelect } from "@/features/events/form/ThemedSelect";
-import {
-  emptyInvoiceDetails,
-  getInvoiceFieldErrors,
-  InvoiceDetailsFields,
-  type InvoiceDetails,
-  validateInvoiceDetails,
-} from "@/features/checkout/InvoiceDetailsFields";
+import type { InvoiceDetails } from "@/features/checkout/InvoiceDetailsFields";
 import {
   readSavedBillingDetails,
   saveBillingDetails,
 } from "@/features/checkout/savedBillingDetails";
+import {
+  emptyPromotionBillingDetails,
+  getPromotionBillingFieldErrors,
+  PromotionBillingDetailsFields,
+  type PromotionBillingDetails,
+  validatePromotionBillingDetails,
+} from "@/features/promotions/PromotionBillingDetailsFields";
 
 const toDateKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+const normalizedCUI = (value: string) =>
+  value.trim().toUpperCase().replace(/\s+/g, "").replace(/^RO/, "");
+
+const promotionBillingFromSaved = (
+  details: InvoiceDetails,
+): PromotionBillingDetails => ({
+  registrationNumber: details.registrationNumber,
+  address: details.address,
+  city: details.city,
+  county: details.county,
+  sector: details.sector,
+  country: details.country,
+});
+
+const savedCompanyBilling = (
+  details: PromotionBillingDetails,
+  profile: OrganizerProfile,
+): InvoiceDetails => ({
+  type: "company",
+  name: profile.companyName,
+  taxId: profile.cui,
+  ...details,
+});
 
 export default function PromotionsPage() {
   const { t, i18n } = useTranslation();
@@ -54,36 +80,55 @@ export default function PromotionsPage() {
   const [availability, setAvailability] =
     useState<PromotionAvailability | null>(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
-  const [savedBilling, setSavedBilling] = useState<InvoiceDetails | null>(null);
+  const [organizerProfile, setOrganizerProfile] = useState<OrganizerProfile>();
+  const [savedBilling, setSavedBilling] =
+    useState<PromotionBillingDetails | null>(null);
   const [billingSource, setBillingSource] = useState<"saved" | "new">("new");
-  const [billingDetails, setBillingDetails] = useState<InvoiceDetails>(() =>
-    emptyInvoiceDetails(),
-  );
+  const [billingDetails, setBillingDetails] =
+    useState<PromotionBillingDetails>(() => emptyPromotionBillingDetails());
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingAttempted, setBillingAttempted] = useState(false);
   const [rememberBilling, setRememberBilling] = useState(false);
   const locale = i18n.language === "ro" ? "ro-RO" : "en-GB";
   const billingErrors = billingAttempted
-    ? getInvoiceFieldErrors(billingDetails)
+    ? getPromotionBillingFieldErrors(billingDetails)
     : {};
 
   useEffect(() => {
     if (!user) return;
     let active = true;
     setBillingLoading(true);
-    setBillingDetails(emptyInvoiceDetails(user.properties.username ?? ""));
-    readSavedBillingDetails(user.properties.id)
-      .then((details) => {
+    Promise.allSettled([
+      user.getOrganizerProfile(),
+      readSavedBillingDetails(user.properties.id),
+    ])
+      .then(([profileResult, billingResult]) => {
         if (!active) return;
-        setSavedBilling(details);
-        if (details) {
-          setBillingDetails({ ...details });
+        const profile = profileResult.status === "fulfilled"
+          ? profileResult.value
+          : undefined;
+        const details = billingResult.status === "fulfilled"
+          ? billingResult.value
+          : null;
+        setOrganizerProfile(profile);
+        const reusable = profile && details?.type === "company"
+          && normalizedCUI(details.taxId) === normalizedCUI(profile.cui)
+          ? promotionBillingFromSaved(details)
+          : null;
+        setSavedBilling(reusable);
+        if (reusable) {
+          setBillingDetails({ ...reusable });
           setBillingSource("saved");
         } else {
+          setBillingDetails(
+            emptyPromotionBillingDetails(profile?.fiscalAddress ?? ""),
+          );
           setBillingSource("new");
         }
+        if (profileResult.status === "rejected" || billingResult.status === "rejected") {
+          toast.error(t("checkout.billingLoadFailed"));
+        }
       })
-      .catch(() => active && toast.error(t("checkout.billingLoadFailed")))
       .finally(() => active && setBillingLoading(false));
     return () => {
       active = false;
@@ -211,9 +256,9 @@ export default function PromotionsPage() {
   }, [placement, planId, startDate, user]);
 
   const checkout = async () => {
-    if (!user || !eventId || !startDate || !selectedPlan) return;
+    if (!user || !organizerProfile || !eventId || !startDate || !selectedPlan) return;
     setBillingAttempted(true);
-    const billingError = validateInvoiceDetails(billingDetails);
+    const billingError = validatePromotionBillingDetails(billingDetails);
     if (billingError) {
       toast.error(t(billingError));
       return;
@@ -222,10 +267,10 @@ export default function PromotionsPage() {
     try {
       if (billingSource === "new" && rememberBilling) {
         try {
-          const saved = await saveBillingDetails(
-            billingDetails,
+          const saved = promotionBillingFromSaved(await saveBillingDetails(
+            savedCompanyBilling(billingDetails, organizerProfile),
             user.properties.id,
-          );
+          ));
           setSavedBilling(saved);
           setBillingDetails(saved);
           setBillingSource("saved");
@@ -423,7 +468,7 @@ export default function PromotionsPage() {
                       >
                         <span className="block text-sm font-semibold">{t("checkout.useSavedBilling")}</span>
                         <span className="mt-1 block break-words text-xs leading-5 text-white/55">
-                          {savedBilling.name} · {savedBilling.address}, {savedBilling.city}
+                          {savedBilling.address}, {savedBilling.city}
                         </span>
                       </button>
                       <button
@@ -432,7 +477,11 @@ export default function PromotionsPage() {
                         aria-checked={billingSource === "new"}
                         onClick={() => {
                           setBillingSource("new");
-                          setBillingDetails({ ...savedBilling });
+                          setBillingDetails(
+                            emptyPromotionBillingDetails(
+                              organizerProfile?.fiscalAddress ?? "",
+                            ),
+                          );
                           setBillingAttempted(false);
                           setRememberBilling(true);
                         }}
@@ -444,7 +493,7 @@ export default function PromotionsPage() {
                   )}
                   {billingSource === "new" || !savedBilling ? (
                     <>
-                      <InvoiceDetailsFields
+                      <PromotionBillingDetailsFields
                         value={billingDetails}
                         onChange={setBillingDetails}
                         idPrefix="promotion"
@@ -483,6 +532,7 @@ export default function PromotionsPage() {
                 onClick={() => void checkout()}
                 disabled={
                   checkingOut || billingLoading || !eventId || !startDate || !selectedPlan
+                  || organizerProfile?.verificationStatus !== "approved"
                   || checkingAvailability
                   || (placement === "home_banner" && availability?.availableSlots === 0)
                 }
