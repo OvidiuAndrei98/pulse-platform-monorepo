@@ -28,6 +28,7 @@ const cartoTileUrl = `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.
   cartoBasemapKey ? `?key=${encodeURIComponent(cartoBasemapKey)}` : ""
 }`;
 
+
 export function EventsMapView({
   events,
   selectedId: selectedIdProp,
