@@ -1,0 +1,495 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Low-cost isolated SPOTTR staging API on the existing ECS, ALB, and RDS infrastructure.
+
+Parameters:
+  ApiImageUri:
+    Type: String
+    Description: Immutable ECR image URI, preferably pinned by sha256 digest.
+  StagingApiDomain:
+    Type: String
+    Default: api-staging.spottr.ro
+  StagingAppUrl:
+    Type: String
+    Default: http://localhost:3000
+    Description: Exact browser origin allowed by CORS and used in checkout redirects.
+  CertificateArn:
+    Type: String
+    Default: arn:aws:acm:eu-central-1:959222626220:certificate/43c8ba5f-a264-4638-9969-23a895187f66
+  EcsClusterName:
+    Type: String
+    Default: pulse-cluster
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Default: vpc-0c0133fabd96b3613
+  ApiSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Default: subnet-01d49ac7e58ad2085,subnet-00fb600893acf9945
+  ApiSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Default: sg-016edc4fe2d635f5b
+  HttpsListenerArn:
+    Type: String
+    Default: arn:aws:elasticloadbalancing:eu-central-1:959222626220:listener/app/pulse-api-alb/e29bc6ae7fad905b/edbdd15fe2ce5782
+  ListenerRulePriority:
+    Type: Number
+    Default: 50
+  DatabaseHost:
+    Type: String
+    Default: pulse-db.cticysowq19t.eu-central-1.rds.amazonaws.com
+  DatabasePort:
+    Type: Number
+    Default: 5432
+  DatabaseName:
+    Type: String
+    Default: spottr_staging
+    AllowedPattern: "^[a-z][a-z0-9_]{2,62}$"
+  DatabaseUser:
+    Type: String
+    Default: spottr_staging_api
+    AllowedPattern: "^[a-z][a-z0-9_]{2,62}$"
+  RdsMasterSecretArn:
+    Type: String
+    Default: arn:aws:secretsmanager:eu-central-1:959222626220:secret:rds!db-0fc93813-e360-4121-b8a1-12b41a3c4aa0-vvCSRv
+  TrustedProxyCidrs:
+    Type: String
+    Default: 172.31.32.0/20,172.31.0.0/20,172.31.16.0/20
+  DesiredCount:
+    Type: Number
+    Default: 0
+    AllowedValues: [0, 1]
+
+Resources:
+  StagingMediaBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub spottr-staging-media-${AWS::AccountId}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: AbortIncompleteUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+          - Id: ExpireNoncurrentVersions
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+      Tags:
+        - Key: Project
+          Value: Spottr
+        - Key: Environment
+          Value: staging
+
+  StagingDatabaseCredentials:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: pulse-api/app-staging-database
+      Description: Dedicated PostgreSQL credentials for SPOTTR staging.
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username":"${DatabaseUser}"}'
+        GenerateStringKey: password
+        PasswordLength: 48
+        ExcludePunctuation: true
+      Tags:
+        - Key: Project
+          Value: Spottr
+        - Key: Environment
+          Value: staging
+
+  StagingJwtSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: pulse-api/app-staging-jwt
+      Description: JWT signing secret used only by SPOTTR staging.
+      GenerateSecretString:
+        SecretStringTemplate: '{}'
+        GenerateStringKey: value
+        PasswordLength: 64
+        ExcludePunctuation: true
+      Tags:
+        - Key: Project
+          Value: Spottr
+        - Key: Environment
+          Value: staging
+
+  StagingApplicationSecrets:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: pulse-api/app-staging
+      Description: External integration credentials used only by SPOTTR staging.
+      SecretString: >-
+        {"STRIPE_SECRET_KEY":"","STRIPE_WEBHOOK_SECRET":"","STRIPE_CONNECT_WEBHOOK_SECRET":"","INVOICING_ENCRYPTION_KEY":"","SMTP_PASSWORD":""}
+      Tags:
+        - Key: Project
+          Value: Spottr
+        - Key: Environment
+          Value: staging
+
+  StagingLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/pulse-api-staging
+      RetentionInDays: 14
+
+  StagingExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pulse-staging-ecs-execution-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: read-staging-secrets
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref StagingDatabaseCredentials
+                  - !Ref StagingJwtSecret
+                  - !Ref StagingApplicationSecrets
+                  - !Ref RdsMasterSecretArn
+
+  StagingTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pulse-staging-api-task-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: staging-media-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub ${StagingMediaBucket.Arn}/events/*
+                  - !Sub ${StagingMediaBucket.Arn}/avatars/*
+                  - !Sub ${StagingMediaBucket.Arn}/organizer-updates/*
+              - Effect: Allow
+                Action:
+                  - ssmmessages:CreateControlChannel
+                  - ssmmessages:CreateDataChannel
+                  - ssmmessages:OpenControlChannel
+                  - ssmmessages:OpenDataChannel
+                Resource: "*"
+
+  StagingApiTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: pulse-api-staging
+      Cpu: "256"
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      ExecutionRoleArn: !GetAtt StagingExecutionRole.Arn
+      TaskRoleArn: !GetAtt StagingTaskRole.Arn
+      RuntimePlatform:
+        CpuArchitecture: X86_64
+        OperatingSystemFamily: LINUX
+      ContainerDefinitions:
+        - Name: pulse-api-staging
+          Image: !Ref ApiImageUri
+          Essential: true
+          PortMappings:
+            - ContainerPort: 8080
+              Protocol: tcp
+          Environment:
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: PORT
+              Value: "8080"
+            - Name: DB_HOST
+              Value: !Ref DatabaseHost
+            - Name: DB_PORT
+              Value: !Ref DatabasePort
+            - Name: DB_NAME
+              Value: !Ref DatabaseName
+            - Name: DB_SSLMODE
+              Value: verify-full
+            - Name: DB_SSLROOTCERT
+              Value: /etc/ssl/certs/aws-rds-global-bundle.pem
+            - Name: PUBLIC_API_URL
+              Value: !Sub https://${StagingApiDomain}
+            - Name: PUBLIC_APP_URL
+              Value: !Ref StagingAppUrl
+            - Name: CORS_ALLOWED_ORIGINS
+              Value: !Ref StagingAppUrl
+            - Name: TRUSTED_PROXY_CIDRS
+              Value: !Ref TrustedProxyCidrs
+            - Name: S3_BUCKET
+              Value: !Ref StagingMediaBucket
+            - Name: EVENT_BANNER_GC_ENABLED
+              Value: "false"
+            - Name: STRIPE_CONNECT_COUNTRY
+              Value: RO
+            - Name: SPOTTR_INVOICING_PROVIDER
+              Value: ""
+            - Name: SMTP_HOST
+              Value: ""
+            - Name: SMTP_PORT
+              Value: ""
+            - Name: SMTP_FROM
+              Value: staging@spottr.ro
+            - Name: SMTP_USERNAME
+              Value: ""
+          Secrets:
+            - Name: DB_USER
+              ValueFrom: !Sub "${StagingDatabaseCredentials}:username::"
+            - Name: DB_PASSWORD
+              ValueFrom: !Sub "${StagingDatabaseCredentials}:password::"
+            - Name: JWT_SECRET
+              ValueFrom: !Sub "${StagingJwtSecret}:value::"
+            - Name: STRIPE_SECRET_KEY
+              ValueFrom: !Sub "${StagingApplicationSecrets}:STRIPE_SECRET_KEY::"
+            - Name: STRIPE_WEBHOOK_SECRET
+              ValueFrom: !Sub "${StagingApplicationSecrets}:STRIPE_WEBHOOK_SECRET::"
+            - Name: STRIPE_CONNECT_WEBHOOK_SECRET
+              ValueFrom: !Sub "${StagingApplicationSecrets}:STRIPE_CONNECT_WEBHOOK_SECRET::"
+            - Name: INVOICING_ENCRYPTION_KEY
+              ValueFrom: !Sub "${StagingApplicationSecrets}:INVOICING_ENCRYPTION_KEY::"
+            - Name: SMTP_PASSWORD
+              ValueFrom: !Sub "${StagingApplicationSecrets}:SMTP_PASSWORD::"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref StagingLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+
+  StagingMigrationTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: pulse-api-staging-migrations
+      Cpu: "256"
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      ExecutionRoleArn: !GetAtt StagingExecutionRole.Arn
+      RuntimePlatform:
+        CpuArchitecture: X86_64
+        OperatingSystemFamily: LINUX
+      ContainerDefinitions:
+        - Name: migrations
+          Image: !Ref ApiImageUri
+          Essential: true
+          EntryPoint: ["/bin/sh", "-ceu"]
+          Command:
+            - >-
+              export GOOSE_DRIVER=postgres;
+              export GOOSE_DBSTRING="host=$DB_HOST port=$DB_PORT user=$DB_USER password=$DB_PASSWORD dbname=$DB_NAME sslmode=verify-full sslrootcert=/etc/ssl/certs/aws-rds-global-bundle.pem";
+              exec /goose -dir /migrations up
+          Environment:
+            - Name: DB_HOST
+              Value: !Ref DatabaseHost
+            - Name: DB_PORT
+              Value: !Ref DatabasePort
+            - Name: DB_NAME
+              Value: !Ref DatabaseName
+          Secrets:
+            - Name: DB_USER
+              ValueFrom: !Sub "${StagingDatabaseCredentials}:username::"
+            - Name: DB_PASSWORD
+              ValueFrom: !Sub "${StagingDatabaseCredentials}:password::"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref StagingLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: migrations
+
+  StagingDatabaseBootstrapTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: pulse-api-staging-db-bootstrap
+      Cpu: "256"
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      ExecutionRoleArn: !GetAtt StagingExecutionRole.Arn
+      RuntimePlatform:
+        CpuArchitecture: X86_64
+        OperatingSystemFamily: LINUX
+      ContainerDefinitions:
+        - Name: database-bootstrap
+          Image: public.ecr.aws/docker/library/postgres:17-alpine
+          Essential: true
+          EntryPoint: ["/bin/sh", "-ceu"]
+          Command:
+            - !Sub |
+                wget -q -O /tmp/aws-rds-global-bundle.pem https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+                test -s /tmp/aws-rds-global-bundle.pem
+                export PGSSLROOTCERT=/tmp/aws-rds-global-bundle.pem
+                cat <<'SQL' | psql --no-psqlrc --set=ON_ERROR_STOP=1
+                \getenv staging_password STAGING_DB_PASSWORD
+                SELECT format('CREATE ROLE ${DatabaseUser} LOGIN PASSWORD %L', :'staging_password')
+                WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DatabaseUser}')
+                \gexec
+                SELECT format('ALTER ROLE ${DatabaseUser} LOGIN PASSWORD %L', :'staging_password')
+                \gexec
+                SELECT format('CREATE DATABASE ${DatabaseName}')
+                WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_database WHERE datname = '${DatabaseName}')
+                \gexec
+                REVOKE ALL ON DATABASE ${DatabaseName} FROM PUBLIC;
+                GRANT CONNECT, CREATE, TEMPORARY ON DATABASE ${DatabaseName} TO ${DatabaseUser};
+                SQL
+                cat <<'SQL' | psql --no-psqlrc --set=ON_ERROR_STOP=1 --dbname=${DatabaseName}
+                REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+                GRANT USAGE, CREATE ON SCHEMA public TO ${DatabaseUser};
+                SQL
+          Environment:
+            - Name: PGHOST
+              Value: !Ref DatabaseHost
+            - Name: PGPORT
+              Value: !Ref DatabasePort
+            - Name: PGDATABASE
+              Value: postgres
+            - Name: PGSSLMODE
+              Value: verify-full
+          Secrets:
+            - Name: PGUSER
+              ValueFrom: !Sub "${RdsMasterSecretArn}:username::"
+            - Name: PGPASSWORD
+              ValueFrom: !Sub "${RdsMasterSecretArn}:password::"
+            - Name: STAGING_DB_PASSWORD
+              ValueFrom: !Sub "${StagingDatabaseCredentials}:password::"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref StagingLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: db-bootstrap
+
+  StagingTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: pulse-api-staging-tg
+      VpcId: !Ref VpcId
+      Protocol: HTTP
+      Port: 8080
+      TargetType: ip
+      HealthCheckEnabled: true
+      HealthCheckPath: /health
+      HealthCheckProtocol: HTTP
+      Matcher:
+        HttpCode: "200"
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: "30"
+      Tags:
+        - Key: Project
+          Value: Spottr
+        - Key: Environment
+          Value: staging
+
+  StagingListenerCertificate:
+    Type: AWS::ElasticLoadBalancingV2::ListenerCertificate
+    Properties:
+      ListenerArn: !Ref HttpsListenerArn
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
+
+  StagingListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref HttpsListenerArn
+      Priority: !Ref ListenerRulePriority
+      Conditions:
+        - Field: host-header
+          HostHeaderConfig:
+            Values:
+              - !Ref StagingApiDomain
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref StagingTargetGroup
+
+  StagingApiService:
+    Type: AWS::ECS::Service
+    DependsOn: StagingListenerRule
+    Properties:
+      ServiceName: pulse-api-staging-service
+      Cluster: !Ref EcsClusterName
+      TaskDefinition: !Ref StagingApiTaskDefinition
+      DesiredCount: !Ref DesiredCount
+      EnableExecuteCommand: true
+      PlatformVersion: 1.4.0
+      CapacityProviderStrategy:
+        - CapacityProvider: FARGATE
+          Weight: 1
+      DeploymentConfiguration:
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
+        MinimumHealthyPercent: 0
+        MaximumPercent: 200
+      HealthCheckGracePeriodSeconds: 30
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref ApiSecurityGroupId
+          Subnets: !Ref ApiSubnetIds
+      LoadBalancers:
+        - ContainerName: pulse-api-staging
+          ContainerPort: 8080
+          TargetGroupArn: !Ref StagingTargetGroup
+      Tags:
+        - Key: Project
+          Value: Spottr
+        - Key: Environment
+          Value: staging
+
+Outputs:
+  ServiceName:
+    Value: !GetAtt StagingApiService.Name
+  ApiTaskDefinitionArn:
+    Value: !Ref StagingApiTaskDefinition
+  MigrationTaskDefinitionArn:
+    Value: !Ref StagingMigrationTaskDefinition
+  DatabaseBootstrapTaskDefinitionArn:
+    Value: !Ref StagingDatabaseBootstrapTaskDefinition
+  DatabaseCredentialsSecretArn:
+    Value: !Ref StagingDatabaseCredentials
+  ApplicationSecretsArn:
+    Value: !Ref StagingApplicationSecrets
+  MediaBucketName:
+    Value: !Ref StagingMediaBucket
+  TargetGroupArn:
+    Value: !Ref StagingTargetGroup
