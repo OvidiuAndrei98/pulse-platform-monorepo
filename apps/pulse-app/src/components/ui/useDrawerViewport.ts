@@ -7,7 +7,7 @@ let unlockBody: (() => void) | undefined;
 const mobileViewport = "(max-width: 767px), (hover: none) and (pointer: coarse)";
 
 // Shared ownership prevents one nested drawer from unlocking another's page.
-function lockPage() {
+export function lockPage() {
   if (lockCount++ === 0) {
     const body = document.body;
     const keys = ["position", "top", "left", "right", "overflow"] as const;

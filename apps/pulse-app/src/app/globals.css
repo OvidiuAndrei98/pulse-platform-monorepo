@@ -347,9 +347,58 @@ html.capacitor-native body::before {
 /* Phone keyboards can leave less than half of the screen available. Compact
    drawer chrome while editing; the focused field remains in the inner scroller. */
 @media (max-width: 767px), (hover: none) and (pointer: coarse) {
-  html[data-chat-keyboard-open="true"] [data-bottom-nav],
-  [data-chat-viewport][data-keyboard-open="true"] [data-chat-keyboard-hide] {
+  html[data-chat-keyboard-open="true"] [data-bottom-nav] {
     display: none !important;
+  }
+
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-inner] {
+    padding-top: 0.25rem !important;
+  }
+
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-header] {
+    gap: 0.5rem !important;
+    padding-block: 0 !important;
+  }
+
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-back] {
+    width: 2.25rem !important;
+    height: 2.25rem !important;
+  }
+
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-header-title] {
+    font-size: 0.875rem !important;
+  }
+
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-header-subtitle],
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-event-meta],
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-members],
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-help-hint],
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-messages-header],
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-retention],
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-connection] {
+    display: none !important;
+  }
+
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-event] {
+    min-height: 1.75rem;
+    padding-bottom: 0.25rem !important;
+  }
+
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-event] h2 {
+    font-size: 0.875rem !important;
+  }
+
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-help] {
+    padding-block: 0.25rem !important;
+  }
+
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-help-control] {
+    min-height: 2.25rem !important;
+    padding-block: 0.25rem !important;
+  }
+
+  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-panel] {
+    padding-top: 0 !important;
   }
 
   [data-drawer-viewport][data-keyboard-open="true"] [data-drawer-keyboard-hide] {

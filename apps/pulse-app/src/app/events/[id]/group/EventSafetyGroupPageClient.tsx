@@ -20,6 +20,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { PointerEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { lockPage } from "@/components/ui/useDrawerViewport";
 
 type SafetyEnvelope = ReadableSchema<"EventSafetyGroupEnvelopeResponse">;
 type SafetyFriend = ReadableSchema<"EligibleSafetyFriendResponse">;
@@ -242,15 +243,15 @@ export default function EventSafetyGroupPageClient() {
     <GroupShell chat onBack={() => router.back()}>
       <div className="flex min-h-0 flex-1 flex-col">
         {connectionLost && (
-          <p data-chat-keyboard-hide role="status" className="mb-2 shrink-0 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+          <p data-chat-connection role="status" className="mb-2 shrink-0 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
             {t("safetyGroup.connectionLost")}
           </p>
         )}
 
-        <section data-chat-keyboard-hide className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 pb-3">
+        <section data-chat-event className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 pb-3">
           <div className="min-w-0">
             <h2 className="truncate text-base font-semibold">{group.eventTitle}</h2>
-            <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+            <p data-chat-event-meta className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
               <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
               <span className="truncate">{group.eventLocation}</span>
               <span aria-hidden="true">·</span>
@@ -258,7 +259,7 @@ export default function EventSafetyGroupPageClient() {
               <span className="shrink-0">{formatEventDate(group.startTime)} · {formatEventTime(group.startTime)}</span>
             </p>
           </div>
-          <div className="flex shrink-0 -space-x-2">
+          <div data-chat-members className="flex shrink-0 -space-x-2">
             {visibleMembers.map((member) => (
               member.avatarUrl ? <img key={member.userId} src={member.avatarUrl} alt={member.username} className="h-8 w-8 rounded-full border-2 border-black object-cover" />
                 : <span key={member.userId} title={member.username} className="grid h-8 w-8 place-items-center rounded-full border-2 border-black bg-[#182019] text-[11px] font-semibold">{member.username.slice(0, 1).toUpperCase()}</span>
@@ -267,19 +268,19 @@ export default function EventSafetyGroupPageClient() {
           </div>
         </section>
 
-        <section data-chat-keyboard-hide className="shrink-0 py-3">
+        <section data-chat-help className="shrink-0 py-3">
           {group.currentUserNeedsHelp ? (
-            <button disabled={working} onClick={resolveHelp} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-5 py-2.5 text-sm font-semibold text-emerald-300">
+            <button data-chat-help-control disabled={working} onClick={resolveHelp} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-5 py-2.5 text-sm font-semibold text-emerald-300">
               <Check className="h-4 w-4" /> {t("safetyGroup.iAmSafe")}
             </button>
           ) : (
             <HoldForHelp disabled={!group.canSendHelp || working} onComplete={sendHelp} />
           )}
-          {!group.canSendHelp && <p className="mt-1.5 text-center text-[11px] text-muted-foreground">{t("safetyGroup.helpAfterValidation")}</p>}
+          {!group.canSendHelp && <p data-chat-help-hint className="mt-1.5 text-center text-[11px] text-muted-foreground">{t("safetyGroup.helpAfterValidation")}</p>}
         </section>
 
-        <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.035] px-3 pt-3">
-          <div className="flex shrink-0 items-center gap-2 border-b border-white/10 px-1 pb-2.5 text-sm font-semibold"><MessageCircle className="h-4 w-4 text-primary" />{t("safetyGroup.messages")}</div>
+        <section data-chat-panel className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.035] px-3 pt-3">
+          <div data-chat-messages-header className="flex shrink-0 items-center gap-2 border-b border-white/10 px-1 pb-2.5 text-sm font-semibold"><MessageCircle className="h-4 w-4 text-primary" />{t("safetyGroup.messages")}</div>
           <div ref={messagesListRef} className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain py-3 pr-1 [scrollbar-gutter:stable]">
             <RetentionNote compact />
             {group.messages.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">{t("safetyGroup.noMessages")}</p>}
@@ -326,16 +327,23 @@ function useChatViewport(enabled: boolean) {
 
     const originalHeight = panel.style.getPropertyValue("height");
     const originalHeightPriority = panel.style.getPropertyPriority("height");
+    const originalTop = panel.style.getPropertyValue("top");
+    const originalTopPriority = panel.style.getPropertyPriority("top");
+    const unlockPage = lockPage();
     let frame = 0;
     let adjusted = false;
     let baseViewportHeight = window.innerHeight;
     let baseWidth = window.innerWidth;
     let basePanelHeight = panel.offsetHeight;
+    let basePanelTop = panel.getBoundingClientRect().top - viewport.offsetTop;
 
     const restore = () => {
       if (originalHeight) panel.style.setProperty("height", originalHeight, originalHeightPriority);
       else panel.style.removeProperty("height");
+      if (originalTop) panel.style.setProperty("top", originalTop, originalTopPriority);
+      else panel.style.removeProperty("top");
       delete panel.dataset.keyboardOpen;
+      delete panel.dataset.compactKeyboard;
       delete document.documentElement.dataset.chatKeyboardOpen;
       adjusted = false;
     };
@@ -343,6 +351,7 @@ function useChatViewport(enabled: boolean) {
       baseViewportHeight = window.innerHeight;
       baseWidth = window.innerWidth;
       basePanelHeight = panel.offsetHeight;
+      basePanelTop = panel.getBoundingClientRect().top - viewport.offsetTop;
     };
     const update = () => {
       cancelAnimationFrame(frame);
@@ -367,11 +376,12 @@ function useChatViewport(enabled: boolean) {
           return;
         }
 
-        const panelTop = panel.getBoundingClientRect().top;
-        const visibleBottom = viewport.offsetTop + viewport.height;
-        const height = Math.max(0, Math.min(basePanelHeight, visibleBottom - Math.max(viewport.offsetTop, panelTop)));
+        const height = Math.max(0, Math.min(basePanelHeight, viewport.height - basePanelTop));
+        panel.style.setProperty("top", `${viewport.offsetTop + basePanelTop}px`, "important");
         panel.style.setProperty("height", `${height}px`, "important");
         panel.dataset.keyboardOpen = "true";
+        if (height < 360) panel.dataset.compactKeyboard = "true";
+        else delete panel.dataset.compactKeyboard;
         document.documentElement.dataset.chatKeyboardOpen = "true";
         adjusted = true;
       });
@@ -392,6 +402,7 @@ function useChatViewport(enabled: boolean) {
       viewport.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
       restore();
+      unlockPage();
     };
   }, [enabled, panel]);
 
@@ -402,11 +413,11 @@ function GroupShell({ children, onBack, chat = false }: { children: React.ReactN
   const { t } = useTranslation();
   const setChatViewport = useChatViewport(chat);
   return (
-    <main ref={setChatViewport} data-chat-viewport={chat || undefined} className={`${chat ? "h-dvh overflow-hidden pb-24 data-[keyboard-open=true]:pb-2" : "min-h-screen pb-[calc(8rem+var(--native-safe-bottom))]"} bg-black text-foreground`}>
-      <div className={`app-page-gutter mx-auto max-w-2xl pt-3 ${chat ? "flex h-full min-h-0 flex-col" : ""}`}>
-        <header data-chat-keyboard-hide={chat || undefined} className="flex shrink-0 items-center gap-3 py-2.5">
-          <button type="button" onClick={onBack} aria-label={t("common.back")} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/5"><ArrowLeft /></button>
-          <div><h1 className="text-xl font-semibold">{t("safetyGroup.title")}</h1><p className="text-xs text-muted-foreground">{t("safetyGroup.private")}</p></div>
+    <main ref={setChatViewport} data-chat-viewport={chat || undefined} className={`${chat ? "fixed inset-x-0 top-[var(--native-safe-top)] h-dvh overflow-hidden pb-24 data-[keyboard-open=true]:pb-2" : "min-h-screen pb-[calc(8rem+var(--native-safe-bottom))]"} bg-black text-foreground`}>
+      <div data-chat-inner={chat || undefined} className={`app-page-gutter mx-auto max-w-2xl pt-3 ${chat ? "flex h-full min-h-0 flex-col" : ""}`}>
+        <header data-chat-header={chat || undefined} className="flex shrink-0 items-center gap-3 py-2.5">
+          <button data-chat-back={chat || undefined} type="button" onClick={onBack} aria-label={t("common.back")} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/5"><ArrowLeft /></button>
+          <div><h1 data-chat-header-title={chat || undefined} className="text-xl font-semibold">{t("safetyGroup.title")}</h1><p data-chat-header-subtitle={chat || undefined} className="text-xs text-muted-foreground">{t("safetyGroup.private")}</p></div>
         </header>
         {children}
       </div>
@@ -453,6 +464,7 @@ function HoldForHelp({ disabled, onComplete }: { disabled: boolean; onComplete: 
   useEffect(() => stop, []);
   return (
     <button
+      data-chat-help-control
       type="button"
       disabled={disabled}
       onPointerDown={start}
@@ -496,5 +508,5 @@ function HoldForHelp({ disabled, onComplete }: { disabled: boolean; onComplete: 
 
 function RetentionNote({ compact = false }: { compact?: boolean }) {
   const { t } = useTranslation();
-  return <p className={`${compact ? "mb-3 rounded-xl bg-white/[0.035] px-3 py-2 text-[10px] leading-4" : "mt-5 text-xs leading-5"} text-center text-muted-foreground`}>{t("safetyGroup.retention")}</p>;
+  return <p data-chat-retention={compact || undefined} className={`${compact ? "mb-3 rounded-xl bg-white/[0.035] px-3 py-2 text-[10px] leading-4" : "mt-5 text-xs leading-5"} text-center text-muted-foreground`}>{t("safetyGroup.retention")}</p>;
 }
