@@ -489,6 +489,7 @@ export function EventDetailsSheet({
       quantities={qty}
       onQuantitiesChange={setQty}
       open={checkoutOpen}
+      embedded={!isDesktop}
       historyBack={Boolean(activeEvent)}
       onBusyChange={setCheckoutBusy}
       onClose={() => setCheckoutOpen(false)}
@@ -496,43 +497,44 @@ export function EventDetailsSheet({
   );
   if (!isDesktop) {
     return (
-      <>
-        {!checkoutOpen && (
-          <Drawer
-            historyBack={false}
-            open={Boolean(activeEvent)}
-            onOpenChange={(open) => !open && handleClose()}
-            onAnimationEnd={(open) => {
-              if (!open && !activeEventRef.current) {
-                setDisplayedEvent(null);
-                setCheckoutOpen(false);
-              }
-            }}
-            modal
-            dismissible={!checkoutBusy}
-            repositionInputs={false}
-            shouldScaleBackground={false}
-            closeThreshold={0.35}
-            fixed
+      <Drawer
+        historyBack={false}
+        open={Boolean(activeEvent)}
+        onOpenChange={(open) => !open && handleClose()}
+        onAnimationEnd={(open) => {
+          if (!open && !activeEventRef.current) {
+            setDisplayedEvent(null);
+            setCheckoutOpen(false);
+          }
+        }}
+        modal
+        dismissible={!checkoutBusy && !checkoutOpen}
+        repositionInputs={false}
+        shouldScaleBackground={false}
+        closeThreshold={0.35}
+        fixed
+      >
+        <DrawerContent ref={mobileSheetRef} showHandle={false} sideInset className="h-[92svh] max-h-none rounded-t-4xl border-none bg-black p-0 touch-none">
+          <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
+
+          {/* Fade out before the overlay ends, so its lower edge stays invisible. */}
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-8 items-center justify-center">
+            <div
+              className="absolute inset-x-0 top-0 h-16"
+              style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.46) 15%, rgba(0,0,0,0.24) 35%, rgba(0,0,0,0.08) 60%, rgba(0,0,0,0.015) 80%, rgba(0,0,0,0) 92%, rgba(0,0,0,0) 100%)" }}
+            />
+            <div className="relative h-1.5 w-12 rounded-full bg-white/70 shadow-sm" />
+          </div>
+
+          <div
+            aria-hidden={checkoutOpen}
+            className={`${checkoutOpen ? "hidden" : "flex"} min-h-0 flex-1 flex-col`}
           >
-            <DrawerContent ref={mobileSheetRef} showHandle={false} sideInset className="h-[82svh] max-h-[46rem] rounded-t-4xl border-none bg-black p-0 touch-none">
-              <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
-
-              {/* Fade out before the overlay ends, so its lower edge stays invisible. */}
-              <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-8 items-center justify-center">
-                <div
-                  className="absolute inset-x-0 top-0 h-16"
-                  style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.46) 15%, rgba(0,0,0,0.24) 35%, rgba(0,0,0,0.08) 60%, rgba(0,0,0,0.015) 80%, rgba(0,0,0,0) 92%, rgba(0,0,0,0) 100%)" }}
-                />
-                <div className="relative h-1.5 w-12 rounded-full bg-white/70 shadow-sm" />
-              </div>
-
-              {sheetContent}
-            </DrawerContent>
-          </Drawer>
-        )}
-        {checkoutDrawer}
-      </>
+            {sheetContent}
+          </div>
+          {checkoutDrawer}
+        </DrawerContent>
+      </Drawer>
     );
   }
 
