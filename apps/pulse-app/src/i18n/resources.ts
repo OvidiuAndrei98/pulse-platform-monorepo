@@ -451,6 +451,7 @@ export const resources = {
         retention: "For privacy, this group, its messages, and safety notifications are permanently deleted 24 hours after the event ends. This in-app feature does not contact the organizer, 112, or emergency services.",
         activeEvent: "You are at {{event}}",
         openGroup: "Open your group and help button",
+        openOrCreate: "Open or create group",
       },
       search: {
         open: "Search",
@@ -2018,6 +2019,7 @@ export const resources = {
         retention: "Pentru confidentialitate, grupul, mesajele si notificarile de siguranta sunt sterse definitiv la 24 de ore dupa finalul evenimentului. Functia in-app nu contacteaza organizatorul, 112 sau serviciile de urgenta.",
         activeEvent: "Esti la {{event}}",
         openGroup: "Deschide grupul si butonul de ajutor",
+        openOrCreate: "Deschide sau creeaza grupul",
       },
       search: {
         open: "Cauta evenimente",

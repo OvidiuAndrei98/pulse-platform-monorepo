@@ -347,6 +347,11 @@ html.capacitor-native body::before {
 /* Phone keyboards can leave less than half of the screen available. Compact
    drawer chrome while editing; the focused field remains in the inner scroller. */
 @media (max-width: 767px), (hover: none) and (pointer: coarse) {
+  html[data-chat-keyboard-open="true"] [data-bottom-nav],
+  [data-chat-viewport][data-keyboard-open="true"] [data-chat-keyboard-hide] {
+    display: none !important;
+  }
+
   [data-drawer-viewport][data-keyboard-open="true"] [data-drawer-keyboard-hide] {
     display: none !important;
   }

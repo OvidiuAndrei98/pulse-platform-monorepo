@@ -5,7 +5,7 @@ export function routeForPlatform(path: string) {
 
   const url = new URL(path, window.location.origin);
   const eventGroupMatch = url.pathname.match(/^\/events\/([^/]+)\/group$/);
-  if (eventGroupMatch) return `/events/mobile/group?eventId=${encodeURIComponent(eventGroupMatch[1])}${url.search ? `&${url.search.slice(1)}` : ""}`;
+  if (eventGroupMatch) return `/events/mobile/group?groupEventId=${encodeURIComponent(eventGroupMatch[1])}${url.search ? `&${url.search.slice(1)}` : ""}`;
 
   const eventMatch = url.pathname.match(/^\/events\/([^/]+)$/);
   if (eventMatch) return `/events?eventId=${encodeURIComponent(eventMatch[1])}${url.search ? `&${url.search.slice(1)}` : ""}`;

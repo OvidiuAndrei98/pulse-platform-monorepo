@@ -860,6 +860,16 @@ function TicketEventStack({
           </button>
         ))}
       </div>
+      <Link
+        href={routeForPlatform(`/events/${event.eventId}/group`)}
+        className="flex min-h-12 items-center gap-3 border-t border-white/10 px-4 py-3 text-left text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/[0.08]"
+      >
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-400/[0.12]">
+          <ShieldCheck className="h-4 w-4" />
+        </span>
+        <span className="min-w-0 flex-1">{t("safetyGroup.openOrCreate")}</span>
+        <ChevronRight className="h-4 w-4 shrink-0" />
+      </Link>
     </div>
   );
 }

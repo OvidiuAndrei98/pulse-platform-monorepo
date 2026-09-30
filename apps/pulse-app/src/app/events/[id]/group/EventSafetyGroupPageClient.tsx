@@ -30,7 +30,7 @@ export default function EventSafetyGroupPageClient() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const { user, loading: sessionLoading } = useDataProvider();
-  const eventId = params.id === "mobile" ? searchParams.get("eventId") ?? "" : params.id;
+  const eventId = params.id === "mobile" ? searchParams.get("groupEventId") ?? "" : params.id;
   const [data, setData] = useState<SafetyEnvelope | null>(null);
   const [pending, setPending] = useState(true);
   const [working, setWorking] = useState(false);
@@ -38,7 +38,7 @@ export default function EventSafetyGroupPageClient() {
   const [connectionLost, setConnectionLost] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [message, setMessage] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesListRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async (quiet = false) => {
     if (!eventId) return;
@@ -74,7 +74,8 @@ export default function EventSafetyGroupPageClient() {
   }, [data?.group?.currentMemberStatus, load, user]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const list = messagesListRef.current;
+    if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   }, [data?.group?.messages.length]);
 
   const createGroup = async () => {
@@ -233,79 +234,177 @@ export default function EventSafetyGroupPageClient() {
     );
   }
 
+  const acceptedMembers = group.members.filter((member) => member.status === "accepted");
+  const visibleMembers = acceptedMembers.slice(0, 3);
+  const hiddenMemberCount = acceptedMembers.length - visibleMembers.length;
+
   return (
-    <GroupShell onBack={() => router.back()}>
-      {connectionLost && (
-        <p role="status" className="mt-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
-          {t("safetyGroup.connectionLost")}
-        </p>
-      )}
-      <section className="mt-3 border-b border-white/10 pb-5">
-        <h2 className="text-xl font-semibold">{group.eventTitle}</h2>
-        <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"><MapPin className="h-4 w-4 text-primary" />{group.eventLocation}</p>
-        <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"><Clock3 className="h-4 w-4 text-primary" />{formatEventDate(group.startTime)} · {formatEventTime(group.startTime)}</p>
-        <div className="mt-4 flex -space-x-2">
-          {group.members.filter((member) => member.status === "accepted").map((member) => (
-            member.avatarUrl ? <img key={member.userId} src={member.avatarUrl} alt={member.username} className="h-9 w-9 rounded-full border-2 border-black object-cover" />
-              : <span key={member.userId} title={member.username} className="grid h-9 w-9 place-items-center rounded-full border-2 border-black bg-[#182019] text-xs font-semibold">{member.username.slice(0, 1).toUpperCase()}</span>
-          ))}
-        </div>
-      </section>
-
-      <section className="mt-5">
-        {group.currentUserNeedsHelp ? (
-          <button disabled={working} onClick={resolveHelp} className="flex w-full items-center justify-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-5 py-4 font-semibold text-emerald-300">
-            <Check className="h-5 w-5" /> {t("safetyGroup.iAmSafe")}
-          </button>
-        ) : (
-          <HoldForHelp disabled={!group.canSendHelp || working} onComplete={sendHelp} />
+    <GroupShell chat onBack={() => router.back()}>
+      <div className="flex min-h-0 flex-1 flex-col">
+        {connectionLost && (
+          <p data-chat-keyboard-hide role="status" className="mb-2 shrink-0 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+            {t("safetyGroup.connectionLost")}
+          </p>
         )}
-        {!group.canSendHelp && <p className="mt-2 text-center text-xs text-muted-foreground">{t("safetyGroup.helpAfterValidation")}</p>}
-      </section>
 
-      <section className="mt-6 flex min-h-[42vh] flex-col rounded-[28px] border border-white/10 bg-white/[0.035] p-4">
-        <div className="flex items-center gap-2 border-b border-white/10 pb-3 text-sm font-semibold"><MessageCircle className="h-4 w-4 text-primary" />{t("safetyGroup.messages")}</div>
-        <div className="flex-1 space-y-3 py-4">
-          {group.messages.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">{t("safetyGroup.noMessages")}</p>}
-          {group.messages.map((item) => {
-            const mine = item.senderId === user?.properties.id;
-            const alert = item.kind === "help";
-            const resolved = item.kind === "help_resolved";
-            return (
-              <div key={item.id} className={`max-w-[88%] rounded-2xl px-4 py-3 ${mine ? "ml-auto bg-primary text-primary-foreground" : "bg-white/[0.08]"} ${alert ? "border border-red-400 bg-red-500/15 text-white" : ""} ${resolved ? "border border-emerald-400/30 bg-emerald-400/10 text-white" : ""}`}>
-                <p className="text-[11px] font-semibold opacity-70">{item.senderUsername}</p>
-                <p className="mt-1 text-sm leading-5">{item.content}</p>
-              </div>
-            );
-          })}
-          <div ref={messagesEndRef} />
-        </div>
-        <div className="flex items-end gap-2 border-t border-white/10 pt-3">
-          <textarea
-            value={message}
-            onChange={(event) => setMessage(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void sendMessage(); }
-            }}
-            maxLength={500}
-            rows={1}
-            placeholder={t("safetyGroup.messagePlaceholder")}
-            className="min-h-12 flex-1 resize-none rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-primary/60"
-          />
-          <button disabled={!message.trim() || working} onClick={sendMessage} aria-label={t("safetyGroup.send")} className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"><Send className="h-5 w-5" /></button>
-        </div>
-      </section>
-      <RetentionNote />
+        <section data-chat-keyboard-hide className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 pb-3">
+          <div className="min-w-0">
+            <h2 className="truncate text-base font-semibold">{group.eventTitle}</h2>
+            <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <span className="truncate">{group.eventLocation}</span>
+              <span aria-hidden="true">·</span>
+              <Clock3 className="h-3.5 w-3.5 shrink-0 text-primary" />
+              <span className="shrink-0">{formatEventDate(group.startTime)} · {formatEventTime(group.startTime)}</span>
+            </p>
+          </div>
+          <div className="flex shrink-0 -space-x-2">
+            {visibleMembers.map((member) => (
+              member.avatarUrl ? <img key={member.userId} src={member.avatarUrl} alt={member.username} className="h-8 w-8 rounded-full border-2 border-black object-cover" />
+                : <span key={member.userId} title={member.username} className="grid h-8 w-8 place-items-center rounded-full border-2 border-black bg-[#182019] text-[11px] font-semibold">{member.username.slice(0, 1).toUpperCase()}</span>
+            ))}
+            {hiddenMemberCount > 0 && <span className="grid h-8 w-8 place-items-center rounded-full border-2 border-black bg-white/10 text-[10px] font-semibold">+{hiddenMemberCount}</span>}
+          </div>
+        </section>
+
+        <section data-chat-keyboard-hide className="shrink-0 py-3">
+          {group.currentUserNeedsHelp ? (
+            <button disabled={working} onClick={resolveHelp} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-5 py-2.5 text-sm font-semibold text-emerald-300">
+              <Check className="h-4 w-4" /> {t("safetyGroup.iAmSafe")}
+            </button>
+          ) : (
+            <HoldForHelp disabled={!group.canSendHelp || working} onComplete={sendHelp} />
+          )}
+          {!group.canSendHelp && <p className="mt-1.5 text-center text-[11px] text-muted-foreground">{t("safetyGroup.helpAfterValidation")}</p>}
+        </section>
+
+        <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.035] px-3 pt-3">
+          <div className="flex shrink-0 items-center gap-2 border-b border-white/10 px-1 pb-2.5 text-sm font-semibold"><MessageCircle className="h-4 w-4 text-primary" />{t("safetyGroup.messages")}</div>
+          <div ref={messagesListRef} className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain py-3 pr-1 [scrollbar-gutter:stable]">
+            <RetentionNote compact />
+            {group.messages.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">{t("safetyGroup.noMessages")}</p>}
+            {group.messages.map((item) => {
+              const mine = item.senderId === user?.properties.id;
+              const alert = item.kind === "help";
+              const resolved = item.kind === "help_resolved";
+              return (
+                <div key={item.id} className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 ${mine ? "ml-auto bg-primary text-primary-foreground" : "bg-white/[0.08]"} ${alert ? "border border-red-400 bg-red-500/15 text-white" : ""} ${resolved ? "border border-emerald-400/30 bg-emerald-400/10 text-white" : ""}`}>
+                  <p className="text-[11px] font-semibold opacity-70">{item.senderUsername}</p>
+                  <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-5">{item.content}</p>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex shrink-0 items-end gap-2 border-t border-white/10 bg-black/20 py-2.5">
+            <textarea
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void sendMessage(); }
+              }}
+              maxLength={500}
+              rows={1}
+              placeholder={t("safetyGroup.messagePlaceholder")}
+              className="min-h-11 max-h-24 flex-1 resize-none overflow-y-auto rounded-2xl border border-white/10 bg-black/30 px-4 py-2.5 text-sm outline-none focus:border-primary/60"
+            />
+            <button disabled={!message.trim() || working} onClick={sendMessage} aria-label={t("safetyGroup.send")} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"><Send className="h-5 w-5" /></button>
+          </div>
+        </section>
+      </div>
     </GroupShell>
   );
 }
 
-function GroupShell({ children, onBack }: { children: React.ReactNode; onBack: () => void }) {
+function useChatViewport(enabled: boolean) {
+  const [panel, setPanel] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!enabled || !panel) return;
+    const viewport = window.visualViewport;
+    const media = window.matchMedia("(max-width: 767px), (hover: none) and (pointer: coarse)");
+    if (!viewport) return;
+
+    const originalHeight = panel.style.getPropertyValue("height");
+    const originalHeightPriority = panel.style.getPropertyPriority("height");
+    let frame = 0;
+    let adjusted = false;
+    let baseViewportHeight = window.innerHeight;
+    let baseWidth = window.innerWidth;
+    let basePanelHeight = panel.offsetHeight;
+
+    const restore = () => {
+      if (originalHeight) panel.style.setProperty("height", originalHeight, originalHeightPriority);
+      else panel.style.removeProperty("height");
+      delete panel.dataset.keyboardOpen;
+      delete document.documentElement.dataset.chatKeyboardOpen;
+      adjusted = false;
+    };
+    const measure = () => {
+      baseViewportHeight = window.innerHeight;
+      baseWidth = window.innerWidth;
+      basePanelHeight = panel.offsetHeight;
+    };
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!media.matches || Math.abs(viewport.scale - 1) > 0.01) {
+          restore();
+          return;
+        }
+        if (window.innerWidth !== baseWidth) {
+          restore();
+          measure();
+        }
+        const field = document.activeElement;
+        const editing = field instanceof HTMLElement
+          && panel.contains(field)
+          && field.matches("input,textarea,select,[contenteditable=true]");
+        const keyboardOpen = (editing || adjusted)
+          && Math.max(baseViewportHeight, window.innerHeight) - viewport.height > 100;
+        if (!keyboardOpen) {
+          restore();
+          measure();
+          return;
+        }
+
+        const panelTop = panel.getBoundingClientRect().top;
+        const visibleBottom = viewport.offsetTop + viewport.height;
+        const height = Math.max(0, Math.min(basePanelHeight, visibleBottom - Math.max(viewport.offsetTop, panelTop)));
+        panel.style.setProperty("height", `${height}px`, "important");
+        panel.dataset.keyboardOpen = "true";
+        document.documentElement.dataset.chatKeyboardOpen = "true";
+        adjusted = true;
+      });
+    };
+
+    measure();
+    update();
+    panel.addEventListener("focusin", update);
+    panel.addEventListener("focusout", update);
+    viewport.addEventListener("resize", update);
+    viewport.addEventListener("scroll", update);
+    window.addEventListener("resize", update);
+    return () => {
+      cancelAnimationFrame(frame);
+      panel.removeEventListener("focusin", update);
+      panel.removeEventListener("focusout", update);
+      viewport.removeEventListener("resize", update);
+      viewport.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      restore();
+    };
+  }, [enabled, panel]);
+
+  return setPanel;
+}
+
+function GroupShell({ children, onBack, chat = false }: { children: React.ReactNode; onBack: () => void; chat?: boolean }) {
   const { t } = useTranslation();
+  const setChatViewport = useChatViewport(chat);
   return (
-    <main className="min-h-screen bg-black pb-[calc(8rem+var(--native-safe-bottom))] text-foreground">
-      <div className="app-page-gutter mx-auto max-w-2xl pt-[max(1rem,var(--native-safe-top))]">
-        <header className="flex items-center gap-3 py-3">
+    <main ref={setChatViewport} data-chat-viewport={chat || undefined} className={`${chat ? "h-dvh overflow-hidden pb-24 data-[keyboard-open=true]:pb-2" : "min-h-screen pb-[calc(8rem+var(--native-safe-bottom))]"} bg-black text-foreground`}>
+      <div className={`app-page-gutter mx-auto max-w-2xl pt-3 ${chat ? "flex h-full min-h-0 flex-col" : ""}`}>
+        <header data-chat-keyboard-hide={chat || undefined} className="flex shrink-0 items-center gap-3 py-2.5">
           <button type="button" onClick={onBack} aria-label={t("common.back")} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/5"><ArrowLeft /></button>
           <div><h1 className="text-xl font-semibold">{t("safetyGroup.title")}</h1><p className="text-xs text-muted-foreground">{t("safetyGroup.private")}</p></div>
         </header>
@@ -328,17 +427,28 @@ function FriendChoice({ friend, selected, onToggle }: { friend: SafetyFriend; se
 function HoldForHelp({ disabled, onComplete }: { disabled: boolean; onComplete: () => Promise<void> }) {
   const { t } = useTranslation();
   const timer = useRef<number | null>(null);
+  const completedByHold = useRef(false);
   const [holding, setHolding] = useState(false);
   const stop = () => {
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = null;
     setHolding(false);
   };
+  const beginHold = () => {
+    if (disabled || timer.current !== null) return;
+    completedByHold.current = false;
+    setHolding(true);
+    timer.current = window.setTimeout(() => {
+      timer.current = null;
+      completedByHold.current = true;
+      setHolding(false);
+      void onComplete();
+    }, 1400);
+  };
   const start = (event: PointerEvent<HTMLButtonElement>) => {
     if (disabled) return;
     event.currentTarget.setPointerCapture(event.pointerId);
-    setHolding(true);
-    timer.current = window.setTimeout(() => { timer.current = null; setHolding(false); void onComplete(); }, 1400);
+    beginHold();
   };
   useEffect(() => stop, []);
   return (
@@ -349,7 +459,34 @@ function HoldForHelp({ disabled, onComplete }: { disabled: boolean; onComplete: 
       onPointerUp={stop}
       onPointerCancel={stop}
       onPointerLeave={stop}
-      className="relative flex w-full touch-none select-none items-center justify-center gap-2 overflow-hidden rounded-full border border-red-400/50 bg-red-500/10 px-5 py-4 font-semibold text-red-300 disabled:opacity-40"
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        if (!event.repeat) beginHold();
+      }}
+      onKeyUp={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          stop();
+        }
+      }}
+      onBlur={stop}
+      onClick={(event) => {
+        // Virtual screen-reader activation has no pointer hold gesture.
+        if (disabled) return;
+        if (event.detail !== 0) {
+          completedByHold.current = false;
+          return;
+        }
+        if (completedByHold.current) {
+          completedByHold.current = false;
+          return;
+        }
+        stop();
+        void onComplete();
+      }}
+      aria-label={holding ? t("safetyGroup.keepHolding") : t("safetyGroup.holdForHelp")}
+      className="relative flex min-h-11 w-full touch-none select-none items-center justify-center gap-2 overflow-hidden rounded-full border border-red-400/50 bg-red-500/10 px-5 py-2.5 text-sm font-semibold text-red-300 disabled:opacity-40"
     >
       {holding && <span className="absolute inset-y-0 left-0 animate-[help-fill_1.4s_linear_forwards] bg-red-500/25" />}
       <ShieldAlert className="relative h-5 w-5" /><span className="relative">{holding ? t("safetyGroup.keepHolding") : t("safetyGroup.holdForHelp")}</span>
@@ -357,7 +494,7 @@ function HoldForHelp({ disabled, onComplete }: { disabled: boolean; onComplete: 
   );
 }
 
-function RetentionNote() {
+function RetentionNote({ compact = false }: { compact?: boolean }) {
   const { t } = useTranslation();
-  return <p className="mt-5 text-center text-xs leading-5 text-muted-foreground">{t("safetyGroup.retention")}</p>;
+  return <p className={`${compact ? "mb-3 rounded-xl bg-white/[0.035] px-3 py-2 text-[10px] leading-4" : "mt-5 text-xs leading-5"} text-center text-muted-foreground`}>{t("safetyGroup.retention")}</p>;
 }

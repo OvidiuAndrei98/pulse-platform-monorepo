@@ -87,7 +87,9 @@ export function EventDetailsProvider({ children }: { children: ReactNode }) {
     let request = 0;
     const restore = () => {
       const current = ++request;
-      const eventId = isClientRoute(window.location.pathname) && !window.location.pathname.startsWith("/auth")
+      const eventId = isClientRoute(window.location.pathname)
+        && !window.location.pathname.startsWith("/auth")
+        && window.location.pathname !== "/events/mobile/group"
         ? new URLSearchParams(window.location.search).get("eventId") : null;
       if (eventId && closingEvent.current === eventId) return;
       closingEvent.current = null;
