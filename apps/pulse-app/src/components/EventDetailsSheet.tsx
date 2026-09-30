@@ -4,10 +4,12 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import {
   Calendar,
@@ -159,8 +161,10 @@ export function EventDetailsSheet({
   const [qty, setQty] = useNavigationState<Record<string, number>>("event-selection:" + (user?.properties.id ?? "guest") + ":" + (displayedEvent?.id ?? "none"), {});
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutVisited, setCheckoutVisited] = useState(false);
+  const [checkoutPreview, setCheckoutPreview] = useState<HTMLElement | null>(null);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const mobileSheetRef = useRef<HTMLDivElement>(null);
+  const previewHostRef = useRef<HTMLDivElement>(null);
   const [favorited, setFavorited] = useState(false);
   const favoriteLock = useRef(false);
   const [savingFavorite, setSavingFavorite] = useState(false);
@@ -169,6 +173,19 @@ export function EventDetailsSheet({
   const desktopViewportRef = useDrawerViewport(isDesktop && Boolean(displayedEvent), "panel");
   const activeEventRef = useRef(activeEvent);
   activeEventRef.current = activeEvent;
+
+  useLayoutEffect(() => {
+    const host = previewHostRef.current;
+    if (!host || !checkoutPreview) return;
+    host.append(checkoutPreview);
+    return () => checkoutPreview.remove();
+  }, [checkoutPreview]);
+
+  useEffect(() => {
+    if (checkoutOpen || !checkoutPreview) return;
+    const timer = window.setTimeout(() => setCheckoutPreview(null), 550);
+    return () => window.clearTimeout(timer);
+  }, [checkoutOpen, checkoutPreview]);
 
   const handleClose = (_clearReturnEvent = true) => {
     if (checkoutBusy) return;
@@ -221,6 +238,7 @@ export function EventDetailsSheet({
     if (activeEvent) {
       setCheckoutOpen(false);
       setCheckoutVisited(false);
+      setCheckoutPreview(null);
       setFavorited(Boolean(activeEvent.stats?.isFavorited));
       setShared(false);
     }
@@ -297,6 +315,31 @@ export function EventDetailsSheet({
       return;
     }
     if (count === 0) return;
+    if (!isDesktop && mobileSheetRef.current) {
+      // A visual copy preserves the exact image and scroll position during the
+      // interactive checkout swipe without keeping Vaul's focus trap active.
+      const source = mobileSheetRef.current;
+      const preview = source.cloneNode(true) as HTMLElement;
+      const originalNodes = source.querySelectorAll("*");
+      const previewNodes = preview.querySelectorAll("*");
+      originalNodes.forEach((node, index) => {
+        previewNodes[index].scrollTop = node.scrollTop;
+        previewNodes[index].scrollLeft = node.scrollLeft;
+      });
+      preview.removeAttribute("data-vaul-drawer");
+      preview.removeAttribute("data-drawer-viewport");
+      preview.removeAttribute("role");
+      preview.removeAttribute("aria-modal");
+      preview.querySelectorAll("[id], [data-nav-scroll]").forEach((node) => {
+        node.removeAttribute("id");
+        node.removeAttribute("data-nav-scroll");
+      });
+      preview.style.position = "absolute";
+      preview.style.transform = "none";
+      preview.style.animation = "none";
+      preview.style.transition = "none";
+      setCheckoutPreview(preview);
+    }
     setCheckoutVisited(true);
     setCheckoutOpen(true);
   };
@@ -501,9 +544,20 @@ export function EventDetailsSheet({
   if (!isDesktop) {
     return (
       <>
+        {checkoutPreview && createPortal(
+          <div
+            ref={previewHostRef}
+            aria-hidden="true"
+            inert
+            className={`pointer-events-none fixed inset-0 ${checkoutOpen ? "z-[101]" : "z-[98]"}`}
+          >
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          </div>,
+          document.body,
+        )}
         <Drawer
           historyBack={false}
-          open={Boolean(activeEvent)}
+          open={Boolean(activeEvent) && !checkoutOpen}
           onOpenChange={(open) => !open && !checkoutOpen && handleClose()}
           onAnimationEnd={(open) => {
             if (!open && !activeEventRef.current) {
@@ -511,22 +565,23 @@ export function EventDetailsSheet({
               setCheckoutOpen(false);
             }
           }}
-          modal={!checkoutOpen}
-          dismissible={!checkoutBusy && !checkoutOpen}
+          modal
+          dismissible={!checkoutBusy}
           repositionInputs={false}
           shouldScaleBackground={false}
           closeThreshold={0.35}
           fixed
         >
-          {/* Switching modal mode remounts Vaul's content. Keep the already-open
-              sheet still beneath checkout and when returning from it. */}
           <DrawerContent
             ref={mobileSheetRef}
             showHandle={false}
             sideInset
             lockDocument={false}
             inert={checkoutOpen}
-            style={{ animation: activeEvent && checkoutVisited ? "none" : undefined }}
+            style={{
+              animation: activeEvent && checkoutVisited ? "none" : undefined,
+              visibility: checkoutOpen ? "hidden" : undefined,
+            }}
             className="h-[90svh] max-h-none rounded-t-4xl border-none bg-black p-0 touch-none"
           >
             <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
