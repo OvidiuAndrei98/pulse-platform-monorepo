@@ -163,6 +163,7 @@ async function run() {
   await until("document.querySelector('input[type=radio]')");
   await evaluate("document.querySelector('input[type=radio]').click(); Array.from(document.querySelectorAll('button')).find(b=>b.textContent.trim().startsWith('Continue')).click()");
   await until("document.querySelector('[role=dialog]')");
+  assert.equal(await evaluate("document.querySelector('[role=dialog] [data-drawer-keyboard-scroll]').contains(document.querySelector('[role=dialog] header'))"), true, 'Checkout header scrolls with the form instead of staying pinned');
   await evaluate(button('Next')+'.click()');
   await until("document.querySelector('input[id$=\"-billing-country\"]')");
   await checkKeyboard('input[id$="-billing-country"]');

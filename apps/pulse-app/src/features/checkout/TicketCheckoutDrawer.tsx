@@ -56,7 +56,6 @@ export function TicketCheckoutDrawer({
   onQuantitiesChange,
   open,
   onClose,
-  embedded = false,
   historyBack = true,
   onBusyChange,
 }: {
@@ -65,7 +64,6 @@ export function TicketCheckoutDrawer({
   onQuantitiesChange: (value: Record<string, number>) => void;
   open: boolean;
   onClose: () => void;
-  embedded?: boolean;
   historyBack?: boolean;
   onBusyChange?: (busy: boolean) => void;
 }) {
@@ -80,7 +78,7 @@ export function TicketCheckoutDrawer({
   const [savingBilling, setSavingBilling] = useState(false);
   const [furthestStep, setFurthestStep] = useState(0);
   const [mounted, setMounted] = useState(false);
-  const panelRef = useDrawerViewport(open && !embedded && mounted, "panel");
+  const panelRef = useDrawerViewport(open && mounted, "panel");
   const [step, setStep] = useState<"tickets" | "billing" | "summary">(
     "tickets",
   );
@@ -161,7 +159,7 @@ export function TicketCheckoutDrawer({
   }, [event.id, userId, user?.properties.email, user?.properties.username]);
 
   useEffect(() => {
-    if (!open || embedded) return;
+    if (!open) return;
     const closeOnEscape = (keyboardEvent: KeyboardEvent) => {
       if (keyboardEvent.key === "Escape" && !busy) onClose();
     };
@@ -170,7 +168,7 @@ export function TicketCheckoutDrawer({
     return () => {
       window.removeEventListener("keydown", closeOnEscape);
     };
-  }, [embedded, busy, onClose, open]);
+  }, [busy, onClose, open]);
 
   useEffect(() => {
     onBusyChange?.(busy);
@@ -372,85 +370,81 @@ export function TicketCheckoutDrawer({
   );
   const content = (
     <>
-      <header
-        data-drawer-keyboard-header
-        className={
-          "shrink-0 px-4 pb-3 " +
-          (embedded
-            ? "pt-8"
-            : "pt-[max(1rem,calc(var(--native-safe-top)+0.75rem))]")
-        }
-      >
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() =>
-              step === "tickets"
-                ? onClose()
-                : changeStep(step === "billing" ? "tickets" : "billing")
-            }
-            aria-label={t("common.back")}
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/[0.06] disabled:opacity-40"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div className="min-w-0 flex-1 text-center">
-            <h2
-              ref={titleRef}
-              tabIndex={-1}
-              id={id + "-title"}
-              className="text-lg font-bold outline-none"
-            >
-              {t("checkout.checkoutTitle")}
-            </h2>
-            <p
-              data-drawer-keyboard-hide
-              className="mt-1 text-xs tracking-wider text-white/45"
-              aria-live="polite"
-            >
-              {t("checkout.stepOf", { step: stepIndex + 1, total: 3 })}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-            aria-label={t("checkout.backToTickets")}
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/50 hover:bg-white/5 disabled:opacity-40"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <ol
-          data-drawer-keyboard-hide
-          className="mt-5 flex gap-2"
-          aria-label={t("checkout.checkoutTitle")}
-        >
-          {[
-            t("checkout.tickets"),
-            t("checkout.billingPayment"),
-            t("checkout.orderSummary"),
-          ].map((label, index) => (
-            <li
-              key={label}
-              aria-current={index === stepIndex ? "step" : undefined}
-              className={
-                "h-1 flex-1 rounded-full " +
-                (index <= stepIndex ? "bg-primary" : "bg-white/10")
-              }
-            >
-              <span className="sr-only">{label}</span>
-            </li>
-          ))}
-        </ol>
-      </header>
       <div
         ref={scrollRef}
         data-vaul-no-drag
         data-drawer-keyboard-scroll
-        className="min-h-0 flex-1 touch-pan-y space-y-3 overflow-y-auto overscroll-contain px-4 pb-5 pt-3 [-webkit-overflow-scrolling:touch]"
+        className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain pb-5 [-webkit-overflow-scrolling:touch]"
       >
+        <header
+          data-drawer-keyboard-header
+          className="px-4 pb-3 pt-[max(1rem,calc(var(--native-safe-top)+0.75rem))]"
+        >
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                step === "tickets"
+                  ? onClose()
+                  : changeStep(step === "billing" ? "tickets" : "billing")
+              }
+              aria-label={t("common.back")}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/[0.06] disabled:opacity-40"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div className="min-w-0 flex-1 text-center">
+              <h2
+                ref={titleRef}
+                tabIndex={-1}
+                id={id + "-title"}
+                className="text-lg font-bold outline-none"
+              >
+                {t("checkout.checkoutTitle")}
+              </h2>
+              <p
+                data-drawer-keyboard-hide
+                className="mt-1 text-xs tracking-wider text-white/45"
+                aria-live="polite"
+              >
+                {t("checkout.stepOf", { step: stepIndex + 1, total: 3 })}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={busy}
+              aria-label={t("checkout.backToTickets")}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/50 hover:bg-white/5 disabled:opacity-40"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <ol
+            data-drawer-keyboard-hide
+            className="mt-5 flex gap-2"
+            aria-label={t("checkout.checkoutTitle")}
+          >
+            {[
+              t("checkout.tickets"),
+              t("checkout.billingPayment"),
+              t("checkout.orderSummary"),
+            ].map((label, index) => (
+              <li
+                key={label}
+                aria-current={index === stepIndex ? "step" : undefined}
+                className={
+                  "h-1 flex-1 rounded-full " +
+                  (index <= stepIndex ? "bg-primary" : "bg-white/10")
+                }
+              >
+                <span className="sr-only">{label}</span>
+              </li>
+            ))}
+          </ol>
+        </header>
+        <div className="space-y-3 px-4 pt-3">
         <div data-drawer-keyboard-hide className="mb-5 flex items-center gap-3 px-1">
           <div className="shrink-0 border-r border-white/20 pr-3 text-center text-white/55">
             <span className="block text-2xl font-bold leading-none">
@@ -768,6 +762,7 @@ export function TicketCheckoutDrawer({
             <p>{t("checkout.stripePayment")}</p>
           </div>
         </StepCard>
+        </div>
       </div>
       <footer data-drawer-keyboard-footer className="relative z-10 flex shrink-0 items-center gap-2.5 bg-linear-to-b from-black/10 via-black/70 to-black px-4 pt-3 pb-7">
         <button
@@ -804,11 +799,6 @@ export function TicketCheckoutDrawer({
     </>
   );
 
-  if (embedded)
-    return open ? (
-      <div className="flex min-h-0 flex-1 flex-col">{content}</div>
-    ) : null;
-
   if (!mounted) return null;
 
   return createPortal(historyDismissed ? null : (
@@ -834,7 +824,7 @@ export function TicketCheckoutDrawer({
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 34 }}
-            className={`pointer-events-auto fixed right-0 top-0 z-[231] flex h-[100dvh] ${sidePanelWidth} flex-col overflow-hidden md:border-l border-white/10 bg-[#080909] text-foreground shadow-2xl`}
+            className={`pointer-events-auto fixed right-0 top-0 z-[231] flex h-[100dvh] ${sidePanelWidth} flex-col overflow-hidden border-white/10 bg-[#080909] text-foreground shadow-2xl md:border-l`}
           >
             {content}
           </motion.aside>
@@ -891,7 +881,7 @@ function StepCard({
       className={
         "rounded-3xl border bg-[#151112] p-4 sm:p-5 " +
         (active
-          ? "border-primary/60 shadow-[0_4px_20px_-10px_var(--color-primary)]"
+          ? "border-primary/60 shadow-[0_1px_20px_-10px_var(--color-primary)]"
           : "border-transparent")
       }
     >
