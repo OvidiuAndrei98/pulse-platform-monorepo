@@ -26,6 +26,7 @@ func main() {
 	coreApp.StartRefundWorker(context.Background())
 	coreApp.StartCheckoutReconciliationWorker(context.Background())
 	coreApp.StartAbuseProtectionWorker(context.Background())
+	coreApp.StartSafetyGroupCleanupWorker(context.Background())
 
 	port := os.Getenv("PORT")
 	if port == "" {

@@ -1014,6 +1014,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{id}/safety-group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Obtine grupul privat si starea de siguranta pentru participant */
+        get: operations["EventOperations_getSafetyGroup"];
+        put?: never;
+        /** Creeaza grupul privat al participantului pentru eveniment */
+        post: operations["EventOperations_createSafetyGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{id}/safety-group/help": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trimite o alerta de ajutor prietenilor din grup */
+        post: operations["EventOperations_sendSafetyGroupHelp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{id}/safety-group/help-resolved": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Anunta grupul ca alerta de ajutor este rezolvata */
+        post: operations["EventOperations_resolveSafetyGroupHelp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{id}/safety-group/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trimite un mesaj efemer in grup */
+        post: operations["EventOperations_sendSafetyGroupMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{id}/safety-group/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accepta sau refuza invitatia in grup */
+        post: operations["EventOperations_respondSafetyGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{id}/social": {
         parameters: {
             query?: never;
@@ -1637,6 +1723,9 @@ export interface components {
             ticketTypes?: components["schemas"]["CreateTicketTypePayload"][];
             lineup?: components["schemas"]["ArtistInput"][];
         };
+        CreateEventSafetyGroupPayload: {
+            friendIds: string[];
+        };
         CreateInvitationPayload: {
             label: string;
             ticketTypeId: string;
@@ -1692,6 +1781,14 @@ export interface components {
             endSales: string;
             description?: string;
             eventId?: string;
+        };
+        CreatedResourceResponse: {
+            id: string;
+        };
+        EligibleSafetyFriendResponse: {
+            userId: string;
+            username: string;
+            avatarUrl?: string;
         };
         EventAttendeeResponse: {
             /** @enum {string} */
@@ -1766,6 +1863,31 @@ export interface components {
             ticketTypes: components["schemas"]["TicketTypeResponse"][];
             lineup: components["schemas"]["Artist"][];
             stats: components["schemas"]["EventStatsResponse"];
+        };
+        EventSafetyGroupEnvelopeResponse: {
+            canCreate: boolean;
+            ticketValidated: boolean;
+            group?: components["schemas"]["EventSafetyGroupResponse"];
+            eligibleFriends: components["schemas"]["EligibleSafetyFriendResponse"][];
+        };
+        EventSafetyGroupResponse: {
+            id: string;
+            eventId: string;
+            eventTitle: string;
+            eventLocation: string;
+            /** Format: date-time */
+            startTime: string;
+            /** Format: date-time */
+            endTime: string;
+            /** Format: date-time */
+            expiresAt: string;
+            ownerId: string;
+            /** @enum {string} */
+            currentMemberStatus: "pending" | "accepted";
+            canSendHelp: boolean;
+            currentUserNeedsHelp: boolean;
+            members: components["schemas"]["SafetyGroupMemberResponse"][];
+            messages: components["schemas"]["SafetyGroupMessageResponse"][];
         };
         EventSocialResponse: {
             /** Format: int64 */
@@ -2214,6 +2336,31 @@ export interface components {
             /** @enum {string} */
             status: "approved" | "rejected";
         };
+        SafetyGroupInviteResponsePayload: {
+            /** @enum {string} */
+            status: "accepted" | "declined";
+        };
+        SafetyGroupMemberResponse: {
+            userId: string;
+            username: string;
+            avatarUrl?: string;
+            /** @enum {string} */
+            status: "pending" | "accepted";
+        };
+        SafetyGroupMessagePayload: {
+            content: string;
+        };
+        SafetyGroupMessageResponse: {
+            id: string;
+            senderId: string;
+            senderUsername: string;
+            senderAvatarUrl?: string;
+            /** @enum {string} */
+            kind: "message" | "help" | "help_resolved" | "system";
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
         SavedBillingDetailsResponse: {
             details?: components["schemas"]["BillingDetails"];
         };
@@ -2269,6 +2416,9 @@ export interface components {
             cui: string;
             companyName: string;
             organizerAgreementVersion: string;
+        };
+        SuccessResponse: {
+            success: boolean;
         };
         SyncOfflineTicketScansPayload: {
             snapshotId: string;
@@ -4312,6 +4462,158 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventSocialResponse"];
+                };
+            };
+        };
+    };
+    EventOperations_getSafetyGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSafetyGroupEnvelopeResponse"];
+                };
+            };
+        };
+    };
+    EventOperations_createSafetyGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEventSafetyGroupPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedResourceResponse"];
+                };
+            };
+        };
+    };
+    EventOperations_sendSafetyGroupHelp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SafetyGroupMessagePayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedResourceResponse"];
+                };
+            };
+        };
+    };
+    EventOperations_resolveSafetyGroupHelp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SafetyGroupMessagePayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedResourceResponse"];
+                };
+            };
+        };
+    };
+    EventOperations_sendSafetyGroupMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SafetyGroupMessagePayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedResourceResponse"];
+                };
+            };
+        };
+    };
+    EventOperations_respondSafetyGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SafetyGroupInviteResponsePayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"];
                 };
             };
         };

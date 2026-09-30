@@ -53,6 +53,12 @@ type HandlersConfig struct {
 	GetBillingDetails        http.HandlerFunc
 	SaveBillingDetails       http.HandlerFunc
 	DeleteBillingDetails     http.HandlerFunc
+	GetEventSafetyGroup      http.HandlerFunc
+	CreateEventSafetyGroup   http.HandlerFunc
+	RespondEventSafetyGroup  http.HandlerFunc
+	SendSafetyGroupMessage   http.HandlerFunc
+	SendSafetyGroupHelp      http.HandlerFunc
+	ResolveSafetyGroupHelp   http.HandlerFunc
 
 	// Events
 	CreateEvent                    http.HandlerFunc
@@ -312,6 +318,14 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			r.Delete("/events/{id}/favorite", cfg.RemoveSavedEvent)
 			r.Put("/events/{id}/rsvp", cfg.UpdateEventRsvp)
 			r.Delete("/events/{id}/rsvp", cfg.DeleteEventRsvp)
+			r.With(rateLimit("safety_group_read_ip", 3000, time.Minute)).Get("/events/{id}/safety-group", cfg.GetEventSafetyGroup)
+			r.With(rateLimit("safety_group_create_ip", 600, time.Hour)).Post("/events/{id}/safety-group", cfg.CreateEventSafetyGroup)
+			r.With(rateLimit("safety_group_respond_ip", 1200, time.Hour)).Post("/events/{id}/safety-group/respond", cfg.RespondEventSafetyGroup)
+			r.With(rateLimit("safety_group_message_ip", 600, time.Minute)).Post("/events/{id}/safety-group/messages", cfg.SendSafetyGroupMessage)
+			// Venue Wi-Fi places many attendees behind one IP, so per-IP limits must
+			// not block legitimate safety alerts. The handler also throttles help per user.
+			r.With(rateLimit("safety_group_help_ip", 600, 5*time.Minute)).Post("/events/{id}/safety-group/help", cfg.SendSafetyGroupHelp)
+			r.With(rateLimit("safety_group_help_resolved_ip", 600, 5*time.Minute)).Post("/events/{id}/safety-group/help-resolved", cfg.ResolveSafetyGroupHelp)
 
 			// --- FRIENDS ---
 			r.Route("/friends", func(r chi.Router) {

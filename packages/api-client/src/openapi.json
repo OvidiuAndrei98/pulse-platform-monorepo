@@ -2416,6 +2416,222 @@
         }
       }
     },
+    "/events/{id}/safety-group": {
+      "get": {
+        "operationId": "EventOperations_getSafetyGroup",
+        "summary": "Obtine grupul privat si starea de siguranta pentru participant",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventSafetyGroupEnvelopeResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "EventOperations_createSafetyGroup",
+        "summary": "Creeaza grupul privat al participantului pentru eveniment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedResourceResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventSafetyGroupPayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}/safety-group/help": {
+      "post": {
+        "operationId": "EventOperations_sendSafetyGroupHelp",
+        "summary": "Trimite o alerta de ajutor prietenilor din grup",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedResourceResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SafetyGroupMessagePayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}/safety-group/help-resolved": {
+      "post": {
+        "operationId": "EventOperations_resolveSafetyGroupHelp",
+        "summary": "Anunta grupul ca alerta de ajutor este rezolvata",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedResourceResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SafetyGroupMessagePayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}/safety-group/messages": {
+      "post": {
+        "operationId": "EventOperations_sendSafetyGroupMessage",
+        "summary": "Trimite un mesaj efemer in grup",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedResourceResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SafetyGroupMessagePayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}/safety-group/respond": {
+      "post": {
+        "operationId": "EventOperations_respondSafetyGroup",
+        "summary": "Accepta sau refuza invitatia in grup",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SafetyGroupInviteResponsePayload"
+              }
+            }
+          }
+        }
+      }
+    },
     "/events/{id}/social": {
       "get": {
         "operationId": "EventOperations_getSocial",
@@ -3910,6 +4126,20 @@
           }
         }
       },
+      "CreateEventSafetyGroupPayload": {
+        "type": "object",
+        "required": [
+          "friendIds"
+        ],
+        "properties": {
+          "friendIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "CreateInvitationPayload": {
         "type": "object",
         "required": [
@@ -4088,6 +4318,35 @@
             "type": "string"
           },
           "eventId": {
+            "type": "string"
+          }
+        }
+      },
+      "CreatedResourceResponse": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        }
+      },
+      "EligibleSafetyFriendResponse": {
+        "type": "object",
+        "required": [
+          "userId",
+          "username"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatarUrl": {
             "type": "string"
           }
         }
@@ -4323,6 +4582,103 @@
           },
           "stats": {
             "$ref": "#/components/schemas/EventStatsResponse"
+          }
+        }
+      },
+      "EventSafetyGroupEnvelopeResponse": {
+        "type": "object",
+        "required": [
+          "canCreate",
+          "ticketValidated",
+          "eligibleFriends"
+        ],
+        "properties": {
+          "canCreate": {
+            "type": "boolean"
+          },
+          "ticketValidated": {
+            "type": "boolean"
+          },
+          "group": {
+            "$ref": "#/components/schemas/EventSafetyGroupResponse"
+          },
+          "eligibleFriends": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EligibleSafetyFriendResponse"
+            }
+          }
+        }
+      },
+      "EventSafetyGroupResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "eventId",
+          "eventTitle",
+          "eventLocation",
+          "startTime",
+          "endTime",
+          "expiresAt",
+          "ownerId",
+          "currentMemberStatus",
+          "canSendHelp",
+          "currentUserNeedsHelp",
+          "members",
+          "messages"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "eventTitle": {
+            "type": "string"
+          },
+          "eventLocation": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "currentMemberStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted"
+            ]
+          },
+          "canSendHelp": {
+            "type": "boolean"
+          },
+          "currentUserNeedsHelp": {
+            "type": "boolean"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SafetyGroupMemberResponse"
+            }
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SafetyGroupMessageResponse"
+            }
           }
         }
       },
@@ -5841,6 +6197,99 @@
           }
         }
       },
+      "SafetyGroupInviteResponsePayload": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "declined"
+            ]
+          }
+        }
+      },
+      "SafetyGroupMemberResponse": {
+        "type": "object",
+        "required": [
+          "userId",
+          "username",
+          "status"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted"
+            ]
+          }
+        }
+      },
+      "SafetyGroupMessagePayload": {
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        }
+      },
+      "SafetyGroupMessageResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "senderId",
+          "senderUsername",
+          "kind",
+          "content",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "senderId": {
+            "type": "string"
+          },
+          "senderUsername": {
+            "type": "string"
+          },
+          "senderAvatarUrl": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "message",
+              "help",
+              "help_resolved",
+              "system"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "SavedBillingDetailsResponse": {
         "type": "object",
         "properties": {
@@ -6029,6 +6478,17 @@
           },
           "organizerAgreementVersion": {
             "type": "string"
+          }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
           }
         }
       },

@@ -11,6 +11,7 @@ import {
   Heart,
   MessageCircle,
   Sparkles,
+  ShieldAlert,
   Ticket,
   UserPlus,
   UsersRound,
@@ -61,7 +62,11 @@ export function NotificationsPopover() {
     setOpen(false);
     if (notification.eventId) {
       window.dispatchEvent(new Event("spottr:layer-navigation"));
-      router.push(routeForPlatform(`/events/${notification.eventId}`));
+      const isSafetyNotification = notification.type === "safety_group_invite" ||
+        notification.type === "safety_help" || notification.type === "safety_help_resolved";
+      router.push(routeForPlatform(isSafetyNotification
+        ? `/events/${notification.eventId}/group`
+        : `/events/${notification.eventId}`));
     } else if (notification.actorId) {
       window.dispatchEvent(new Event("spottr:layer-navigation"));
       router.push(routeForPlatform(`/users/${notification.actorId}`));
@@ -204,7 +209,9 @@ function NotificationIcon({ notification }: { notification: AppNotification }) {
   }
 
   const Icon =
-    notification.type === "ticket_purchased"
+    notification.type.startsWith("safety_")
+      ? ShieldAlert
+      : notification.type === "ticket_purchased"
       ? Ticket
       : notification.type === "organizer_event"
         ? Calendar
