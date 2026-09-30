@@ -338,8 +338,9 @@ SELECT invoice.id AS invoice_id,
        settings.credentials_encrypted,
        settings.company_vat_code,
        settings.series_name,
-       settings.vat_name,
-       settings.vat_percentage,
+       COALESCE(orders.ticket_vat_name,
+           CASE WHEN orders.ticket_vat_percentage IS NULL OR orders.ticket_vat_percentage = settings.vat_percentage THEN settings.vat_name END, '')::TEXT AS vat_name,
+       COALESCE(orders.ticket_vat_percentage, settings.vat_percentage)::NUMERIC AS vat_percentage,
        settings.send_email,
        settings.send_to_spv,
        settings.enabled AS integration_enabled,
@@ -929,6 +930,24 @@ func (q *Queries) RetryBillingInvoiceRefund(ctx context.Context, arg RetryBillin
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const snapshotOrderInvoiceVAT = `-- name: SnapshotOrderInvoiceVAT :exec
+UPDATE orders
+SET ticket_vat_percentage = COALESCE(ticket_vat_percentage, $1::NUMERIC),
+    ticket_vat_name = COALESCE(ticket_vat_name, $2::TEXT)
+WHERE id = $3
+`
+
+type SnapshotOrderInvoiceVATParams struct {
+	VatPercentage pgtype.Numeric `json:"vat_percentage"`
+	VatName       string         `json:"vat_name"`
+	OrderID       pgtype.UUID    `json:"order_id"`
+}
+
+func (q *Queries) SnapshotOrderInvoiceVAT(ctx context.Context, arg SnapshotOrderInvoiceVATParams) error {
+	_, err := q.db.Exec(ctx, snapshotOrderInvoiceVAT, arg.VatPercentage, arg.VatName, arg.OrderID)
+	return err
 }
 
 const upsertOrganizerInvoicingSettings = `-- name: UpsertOrganizerInvoicingSettings :one

@@ -105,7 +105,7 @@ func (p *oblioProvider) Issue(ctx context.Context, invoice InvoiceRequest) (Invo
 		Price         float64 `json:"price"`
 		MeasuringUnit string  `json:"measuringUnit"`
 		VATName       string  `json:"vatName,omitempty"`
-		VATPercentage float64 `json:"vatPercentage,omitempty"`
+		VATPercentage float64 `json:"vatPercentage"`
 		VATIncluded   int     `json:"vatIncluded"`
 		Quantity      int32   `json:"quantity"`
 		ProductType   string  `json:"productType"`

@@ -126,8 +126,9 @@ SELECT invoice.id AS invoice_id,
        settings.credentials_encrypted,
        settings.company_vat_code,
        settings.series_name,
-       settings.vat_name,
-       settings.vat_percentage,
+       COALESCE(orders.ticket_vat_name,
+           CASE WHEN orders.ticket_vat_percentage IS NULL OR orders.ticket_vat_percentage = settings.vat_percentage THEN settings.vat_name END, '')::TEXT AS vat_name,
+       COALESCE(orders.ticket_vat_percentage, settings.vat_percentage)::NUMERIC AS vat_percentage,
        settings.send_email,
        settings.send_to_spv,
        settings.enabled AS integration_enabled,
@@ -143,6 +144,12 @@ WHERE invoice.id = $1;
 DELETE FROM billing_invoices
 WHERE order_id = $1
   AND status IN ('pending', 'failed', 'needs_review');
+
+-- name: SnapshotOrderInvoiceVAT :exec
+UPDATE orders
+SET ticket_vat_percentage = COALESCE(ticket_vat_percentage, sqlc.arg(vat_percentage)::NUMERIC),
+    ticket_vat_name = COALESCE(ticket_vat_name, sqlc.arg(vat_name)::TEXT)
+WHERE id = sqlc.arg(order_id);
 
 -- name: DeleteClaimedBillingInvoice :execrows
 DELETE FROM billing_invoices

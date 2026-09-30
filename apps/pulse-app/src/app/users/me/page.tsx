@@ -4,8 +4,6 @@ import { useCachedClientQuery } from "@/lib/useCachedClientQuery";
 import { RequestError } from "@/components/ui/RequestFeedback";
 import { SavedEventCard } from "@/components/profile/SavedEventCard";
 
-import { useBackLayer } from "@/lib/navigation/useBackLayer";
-
 import { useNavigationState } from "@/lib/navigation/useNavigationState";
 
 import { useEffect } from "react";
@@ -13,8 +11,7 @@ import { useRouter } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { Event } from "@/core/DataProvider";
 import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
-import { TicketPass } from "@/components/tickets/TicketPass";
-import { TicketPdfButton } from "@/components/tickets/TicketPdfButton";
+import { TicketPreview } from "@/components/tickets/TicketPreview";
 import { ProfileConnectionQr } from "@/components/social/ProfileConnectionQr";
 import { ProfileAvatarUpload } from "@/components/profile/ProfileAvatarUpload";
 import { PersonalDetailsForm } from "@/components/profile/PersonalDetailsForm";
@@ -28,7 +25,7 @@ import {
 } from "@/features/events/dateFormat";
 import Link from "next/link";
 import { useState } from "react";
-import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { ProfileLoadingState } from "@/components/ui/loading";
 import {
@@ -45,10 +42,10 @@ import {
   Mail,
   Sparkles,
   Bookmark,
-  X,
 } from "lucide-react";
 
 type TicketData = {
+  source: UserTicket;
   id: string;
   eventId: string;
   event: string;
@@ -112,12 +109,12 @@ export default function MePage() {
   const router = useRouter();
   const [tab, setTab] = useNavigationState<"active" | "history">("profile-tab:" + (user?.properties.id ?? "guest"), "active");
   const [openTicket, setOpenTicket] = useState<TicketData | null>(null);
-  useBackLayer(Boolean(openTicket), () => setOpenTicket(null));
   const savedQuery = useCachedClientQuery<Event[]>(user ? 'saved-events:' + user.properties.id : null, () => user!.getSavedEvents(), []);
   const { data: savedEvents, pending: savedEventsLoading } = savedQuery;
   const ticketsQuery = useCachedClientQuery<TicketData[]>(user ? 'profile-tickets:' + user.properties.id : null, async () => {
     const response: UserTicket[] = await ApiClient.instance.get("/users/me/tickets");
     return response.map((ticket) => ({
+      source: ticket,
       id: ticket.id, eventId: ticket.eventId, event: ticket.eventTitle,
       date: formatEventDate(ticket.startTime), time: formatEventTime(ticket.startTime),
       location: ticket.locationName, type: ticket.ticketTypeName, hash: ticket.validationHash,
@@ -653,14 +650,12 @@ export default function MePage() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {openTicket && (
-          <TicketModal
-            ticket={openTicket}
-            onClose={() => setOpenTicket(null)}
-          />
-        )}
-      </AnimatePresence>
+      {openTicket && (
+        <TicketPreview
+          ticket={openTicket.source}
+          onClose={() => setOpenTicket(null)}
+        />
+      )}
     </div>
   );
 }
@@ -741,82 +736,6 @@ function Row({
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-// Restul componentelor neschimbate (TicketModal, TabBtn, FauxQR, statusStyles) rămân exact cum erau în codul tău inițial.
-function TicketModal({
-  ticket,
-  onClose,
-}: {
-  ticket: TicketData;
-  onClose: () => void;
-}) {
-  const handleDragEnd = (_: unknown, info: PanInfo) => {
-    if (window.innerWidth < 768 && info.offset.y > 100) onClose();
-  };
-
-  return (
-    <>
-      <div
-        className="fixed inset-0 z-[9999] flex items-end justify-center sm:items-center md:justify-end"
-        onClick={onClose}
-      >
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="absolute inset-0 bg-black/70 backdrop-blur-sm md:hidden"
-        />
-        <motion.div
-          initial={window.innerWidth >= 768 ? { x: "100%" } : { y: "100%" }}
-          animate={window.innerWidth >= 768 ? { x: 0 } : { y: 0 }}
-          exit={window.innerWidth >= 768 ? { x: "100%" } : { y: "100%" }}
-          transition={{ type: "spring", damping: 28, stiffness: 260 }}
-          drag={window.innerWidth >= 768 ? false : "y"}
-          dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={{ top: 0.05, bottom: 0.75 }}
-          onDragEnd={handleDragEnd}
-          onClick={(e) => e.stopPropagation()}
-          className="relative w-full max-w-md bg-neutral-950 p-6 pb-10 border border-white/10 shadow-2xl overflow-y-auto rounded-t-3xl sm:rounded-b-3xl md:rounded-none md:h-screen md:max-w-md md:border-t-0 md:border-b-0 md:border-l md:pb-6"
-          style={{
-            backgroundImage:
-              "linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0) 40%)",
-          }}
-        >
-          <div className="absolute left-0 right-0 top-3 flex justify-center md:hidden">
-            <div className="h-1.5 w-12 rounded-full bg-white/20" />
-          </div>
-          <button
-            onClick={onClose}
-            className="absolute right-4 top-4 rounded-full border border-white/10 bg-white/5 p-1.5 text-muted-foreground transition hover:bg-white/10"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          <div className="mt-10"><TicketPass ticket={{
-            id: ticket.id, eventTitle: ticket.event, ticketTypeName: ticket.type,
-            validationHash: ticket.hash, startTime: ticket.startTime ?? "", locationName: ticket.location,
-          }} /></div>
-          <a href={`https://maps.google.com/?q=${encodeURIComponent(ticket.location)}`} target="_blank" rel="noreferrer" className="mt-4 flex min-h-11 items-center gap-2 text-sm text-primary"><MapPin className="h-4 w-4" />{ticket.location}</a>
-          <TicketPdfButton
-            ticket={{
-              id: ticket.id,
-              eventTitle: ticket.event,
-              ticketTypeName: ticket.type,
-              validationHash: ticket.hash,
-              startTime: ticket.startTime ?? "",
-              locationName: ticket.location,
-              priceRon: ticket.priceRon,
-              organizerCompanyName: ticket.organizerCompanyName,
-              organizerCui: ticket.organizerCui,
-              organizerFiscalAddress: ticket.organizerFiscalAddress,
-            }}
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-xs font-medium text-white transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-60"
-          />
-        </motion.div>
-      </div>
-    </>
   );
 }
 

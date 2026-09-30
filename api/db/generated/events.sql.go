@@ -49,9 +49,9 @@ func (q *Queries) CountEventOrders(ctx context.Context, eventID pgtype.UUID) (in
 }
 
 const createEvent = `-- name: CreateEvent :one
-INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, organizer_absorbs_service_fee, latitude, longitude, start_time, end_time, publish_at, was_published)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::BOOLEAN)
-RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status, organizer_absorbs_service_fee, publish_at, was_published
+INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, organizer_absorbs_service_fee, latitude, longitude, start_time, end_time, publish_at, was_published, vat_percentage)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::BOOLEAN, $18::NUMERIC)
+RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status, organizer_absorbs_service_fee, publish_at, was_published, vat_percentage
 `
 
 type CreateEventParams struct {
@@ -72,6 +72,7 @@ type CreateEventParams struct {
 	EndTime                    pgtype.Timestamptz `json:"end_time"`
 	PublishAt                  pgtype.Timestamptz `json:"publish_at"`
 	MarkPublished              bool               `json:"mark_published"`
+	VatPercentage              pgtype.Numeric     `json:"vat_percentage"`
 }
 
 func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Events, error) {
@@ -93,6 +94,7 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 		arg.EndTime,
 		arg.PublishAt,
 		arg.MarkPublished,
+		arg.VatPercentage,
 	)
 	var i Events
 	err := row.Scan(
@@ -117,6 +119,7 @@ func (q *Queries) CreateEvent(ctx context.Context, arg CreateEventParams) (Event
 		&i.OrganizerAbsorbsServiceFee,
 		&i.PublishAt,
 		&i.WasPublished,
+		&i.VatPercentage,
 	)
 	return i, err
 }
@@ -177,6 +180,7 @@ func (q *Queries) DeleteEventArtists(ctx context.Context, eventID pgtype.UUID) e
 const editEvent = `-- name: EditEvent :one
 UPDATE events
 SET title = $2,
+    vat_percentage = $17::NUMERIC,
     description = $3,
     category = $4,
     status = $5,
@@ -191,9 +195,9 @@ SET title = $2,
     start_time = $14,
     end_time = $15,
     publish_at = $16,
-    was_published = events.was_published OR $17::BOOLEAN
+    was_published = events.was_published OR $18::BOOLEAN
 WHERE id = $1
-RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status, organizer_absorbs_service_fee, publish_at, was_published
+RETURNING id, organizer_id, title, description, category, banner_url, location_address, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status, organizer_absorbs_service_fee, publish_at, was_published, vat_percentage
 `
 
 type EditEventParams struct {
@@ -213,6 +217,7 @@ type EditEventParams struct {
 	StartTime                  pgtype.Timestamptz `json:"start_time"`
 	EndTime                    pgtype.Timestamptz `json:"end_time"`
 	PublishAt                  pgtype.Timestamptz `json:"publish_at"`
+	VatPercentage              pgtype.Numeric     `json:"vat_percentage"`
 	MarkPublished              bool               `json:"mark_published"`
 }
 
@@ -234,6 +239,7 @@ func (q *Queries) EditEvent(ctx context.Context, arg EditEventParams) (Events, e
 		arg.StartTime,
 		arg.EndTime,
 		arg.PublishAt,
+		arg.VatPercentage,
 		arg.MarkPublished,
 	)
 	var i Events
@@ -259,6 +265,7 @@ func (q *Queries) EditEvent(ctx context.Context, arg EditEventParams) (Events, e
 		&i.OrganizerAbsorbsServiceFee,
 		&i.PublishAt,
 		&i.WasPublished,
+		&i.VatPercentage,
 	)
 	return i, err
 }
@@ -315,7 +322,7 @@ func (q *Queries) GetCommentsForEvent(ctx context.Context, arg GetCommentsForEve
 const getEventByID = `-- name: GetEventByID :one
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.latitude, e.longitude, e.start_time,
+    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.vat_percentage, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     -- Numărul total de check-ins (vizibil public)
@@ -399,6 +406,7 @@ type GetEventByIDRow struct {
 	City                       string             `json:"city"`
 	Vibe                       string             `json:"vibe"`
 	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
+	VatPercentage              pgtype.Numeric     `json:"vat_percentage"`
 	Latitude                   float64            `json:"latitude"`
 	Longitude                  float64            `json:"longitude"`
 	StartTime                  pgtype.Timestamptz `json:"start_time"`
@@ -428,6 +436,7 @@ func (q *Queries) GetEventByID(ctx context.Context, arg GetEventByIDParams) (Get
 		&i.City,
 		&i.Vibe,
 		&i.OrganizerAbsorbsServiceFee,
+		&i.VatPercentage,
 		&i.Latitude,
 		&i.Longitude,
 		&i.StartTime,
@@ -445,7 +454,7 @@ func (q *Queries) GetEventByID(ctx context.Context, arg GetEventByIDParams) (Get
 
 const getEventWithStats = `-- name: GetEventWithStats :one
 SELECT 
-    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status, e.organizer_absorbs_service_fee, e.publish_at, e.was_published,
+    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status, e.organizer_absorbs_service_fee, e.publish_at, e.was_published, e.vat_percentage,
     
     (
         SELECT COUNT(*) 
@@ -547,6 +556,7 @@ type GetEventWithStatsRow struct {
 	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
 	PublishAt                  pgtype.Timestamptz `json:"publish_at"`
 	WasPublished               bool               `json:"was_published"`
+	VatPercentage              pgtype.Numeric     `json:"vat_percentage"`
 	TotalCheckIns              int64              `json:"total_check_ins"`
 	TotalTicketsSold           int64              `json:"total_tickets_sold"`
 	TotalRevenueRon            int64              `json:"total_revenue_ron"`
@@ -582,6 +592,7 @@ func (q *Queries) GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEve
 		&i.OrganizerAbsorbsServiceFee,
 		&i.PublishAt,
 		&i.WasPublished,
+		&i.VatPercentage,
 		&i.TotalCheckIns,
 		&i.TotalTicketsSold,
 		&i.TotalRevenueRon,
@@ -719,7 +730,7 @@ func (q *Queries) GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAr
 const listEvents = `-- name: ListEvents :many
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.latitude, e.longitude, e.start_time,
+    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.vat_percentage, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     (
@@ -837,6 +848,7 @@ type ListEventsRow struct {
 	City                       string             `json:"city"`
 	Vibe                       string             `json:"vibe"`
 	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
+	VatPercentage              pgtype.Numeric     `json:"vat_percentage"`
 	Latitude                   float64            `json:"latitude"`
 	Longitude                  float64            `json:"longitude"`
 	StartTime                  pgtype.Timestamptz `json:"start_time"`
@@ -887,6 +899,7 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 			&i.City,
 			&i.Vibe,
 			&i.OrganizerAbsorbsServiceFee,
+			&i.VatPercentage,
 			&i.Latitude,
 			&i.Longitude,
 			&i.StartTime,
@@ -911,7 +924,7 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 
 const listEventsWithStats = `-- name: ListEventsWithStats :many
 SELECT 
-    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status, e.organizer_absorbs_service_fee, e.publish_at, e.was_published,
+    e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status, e.organizer_absorbs_service_fee, e.publish_at, e.was_published, e.vat_percentage,
     (
         SELECT COUNT(*)::bigint 
         FROM check_ins 
@@ -996,6 +1009,7 @@ type ListEventsWithStatsRow struct {
 	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
 	PublishAt                  pgtype.Timestamptz `json:"publish_at"`
 	WasPublished               bool               `json:"was_published"`
+	VatPercentage              pgtype.Numeric     `json:"vat_percentage"`
 	TotalCheckIns              int64              `json:"total_check_ins"`
 	TotalTicketsSold           int64              `json:"total_tickets_sold"`
 	TotalRevenueRon            int64              `json:"total_revenue_ron"`
@@ -1037,6 +1051,7 @@ func (q *Queries) ListEventsWithStats(ctx context.Context, organizerID pgtype.UU
 			&i.OrganizerAbsorbsServiceFee,
 			&i.PublishAt,
 			&i.WasPublished,
+			&i.VatPercentage,
 			&i.TotalCheckIns,
 			&i.TotalTicketsSold,
 			&i.TotalRevenueRon,

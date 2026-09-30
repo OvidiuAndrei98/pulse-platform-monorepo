@@ -265,6 +265,16 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 		})
 	}
 
+	taxRateID, err := h.eventTaxRate(r.Context(), organizerStripeAccount, order.TicketVatPercentage)
+	if err != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		cleanupErr := h.failOrder(cleanupCtx, order.ID, "", organizerStripeAccount)
+		cancel()
+		log.Printf("checkout VAT setup failed: order=%s err=%v cleanup=%v", common.UUIDToString(order.ID), err, cleanupErr)
+		router.RespondWithError(w, http.StatusBadGateway, "Configurarea TVA pentru plata nu a putut fi finalizata. Incearca din nou.")
+		return
+	}
+	applyInclusiveEventVAT(params, order.TicketVatPercentage, taxRateID)
 	session, err := h.client.V1CheckoutSessions.Create(r.Context(), params)
 	createOutcomeUnknown := err != nil && !isDefinitiveStripeCreateFailure(err)
 	if createOutcomeUnknown {
@@ -473,6 +483,10 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	}
 	if event.Status != "published" {
 		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusConflict, message: "Vanzarea biletelor pentru acest eveniment este oprita"}
+	}
+	vat, vatErr := event.VatPercentage.Float64Value()
+	if vatErr != nil || !vat.Valid || !common.SupportedEventVATRate(vat.Float64) {
+		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusConflict, message: "Organizatorul trebuie sa configureze TVA-ul evenimentului inainte de vanzarea biletelor"}
 	}
 
 	profile, err := qtx.GetOrganizerProfile(ctx, event.OrganizerID)

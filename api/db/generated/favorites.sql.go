@@ -12,7 +12,7 @@ import (
 )
 
 const listSavedEvents = `-- name: ListSavedEvents :many
-SELECT e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status, e.organizer_absorbs_service_fee, e.publish_at, e.was_published
+SELECT e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status, e.organizer_absorbs_service_fee, e.publish_at, e.was_published, e.vat_percentage
 FROM saved_events se
 JOIN events e ON e.id = se.event_id
 WHERE se.user_id = $1
@@ -50,6 +50,7 @@ func (q *Queries) ListSavedEvents(ctx context.Context, userID pgtype.UUID) ([]Ev
 			&i.OrganizerAbsorbsServiceFee,
 			&i.PublishAt,
 			&i.WasPublished,
+			&i.VatPercentage,
 		); err != nil {
 			return nil, err
 		}

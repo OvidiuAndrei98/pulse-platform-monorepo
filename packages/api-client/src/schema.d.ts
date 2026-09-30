@@ -572,7 +572,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Preia profilul unui organizator după ID-ul său */
+        /** Preia profilul privat al organizatorului curent; administratorii pot consulta orice profil */
         get: operations["DashboardOperations_getProfile"];
         put?: never;
         post?: never;
@@ -1576,6 +1576,8 @@ export interface components {
             city: string;
             vibe: string;
             organizerAbsorbsServiceFee?: boolean;
+            /** @enum {number} */
+            vatPercentage: 0 | 11 | 21;
             /** Format: decimal */
             latitude: number;
             /** Format: decimal */
@@ -1593,7 +1595,7 @@ export interface components {
         };
         CreateInvitationPayload: {
             label: string;
-            ticketTypeId?: string;
+            ticketTypeId: string;
             /** Format: int32 */
             quantity?: number;
         };
@@ -1701,6 +1703,8 @@ export interface components {
             city: string;
             vibe: string;
             organizerAbsorbsServiceFee: boolean;
+            /** Format: double */
+            vatPercentage?: number;
             /** Format: decimal */
             latitude: number;
             /** Format: decimal */
@@ -2225,6 +2229,8 @@ export interface components {
             city: string;
             vibe: string;
             organizerAbsorbsServiceFee?: boolean;
+            /** @enum {number} */
+            vatPercentage: 0 | 11 | 21;
             /** Format: decimal */
             latitude: number;
             /** Format: decimal */
@@ -2320,6 +2326,16 @@ export interface components {
             cui?: string;
         };
         UserTicketResponse: {
+            /** Format: int64 */
+            ticketPriceBani: number;
+            /** Format: int64 */
+            ticketingFeeBani: number;
+            /** Format: int64 */
+            paidTotalBani: number;
+            /** Format: double */
+            vatPercentage?: number;
+            /** Format: int64 */
+            vatAmountBani?: number;
             id: string;
             eventId: string;
             validationHash: string;

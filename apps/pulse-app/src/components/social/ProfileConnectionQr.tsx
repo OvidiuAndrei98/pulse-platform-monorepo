@@ -3,6 +3,7 @@
 import { useBackLayer } from "@/lib/navigation/useBackLayer";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { QrCode } from "lucide-react";
 import { ApiClient } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
@@ -84,13 +85,16 @@ export function ProfileConnectionQr() {
 
       {message && <p className="mt-3 text-xs text-primary">{message}</p>}
 
-      {showCode && isDesktop ? (
+      {isDesktop ? (showCode && createPortal(
         <div
           className="fixed inset-0 z-[120] hidden items-center justify-center bg-black/65 p-6 backdrop-blur-sm md:flex"
           onClick={() => setShowCode(false)}
         >
           <section
-            className="w-full max-w-md rounded-xl border border-white/15 bg-[#101311] p-6 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("qr.quickConnect")}
+            className="max-h-[calc(100dvh-3rem)] w-full max-w-md overflow-y-auto rounded-xl border border-white/15 bg-[#101311] p-6 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <p className="text-center text-base font-semibold">
@@ -99,20 +103,20 @@ export function ProfileConnectionQr() {
             <p className="mt-1 text-center text-sm text-muted-foreground">
               {t("qr.showOrScanOther")}
             </p>
-            <ConnectionContent value={value} onScan={connect} />
+            <ConnectionContent value={value} onScan={connect} message={message} />
           </section>
-        </div>
-      ) : showCode ? (
-        <Drawer historyBack={false} open={showCode} onOpenChange={setShowCode}>
-          <DrawerContent className="max-h-[86svh] bg-[#101311]">
+        </div>, document.body
+      )) : (
+        <Drawer historyBack={false} open={showCode} onOpenChange={setShowCode} shouldScaleBackground={false}>
+          <DrawerContent className="max-h-[min(80dvh,42rem)] bg-[#101311]">
             <DrawerHeader>
               <DrawerTitle>{t("qr.quickConnect")}</DrawerTitle>
               <DrawerDescription>{t("qr.showOrScanOther")}</DrawerDescription>
             </DrawerHeader>
-            <ConnectionContent value={value} onScan={connect} />
+            {showCode && <ConnectionContent value={value} onScan={connect} message={message} />}
           </DrawerContent>
         </Drawer>
-      ) : null}
+      )}
     </section>
   );
 }
@@ -120,21 +124,30 @@ export function ProfileConnectionQr() {
 function ConnectionContent({
   value,
   onScan,
+  message,
 }: {
   value: string;
   onScan: (value: string) => Promise<void>;
+  message: string;
 }) {
   const { t } = useTranslation();
+  const [mode, setMode] = useState<"code" | "scan">("code");
   return (
-    <div className="min-h-0 overflow-y-auto px-5 pb-7">
-      <div className="mt-3 flex flex-col items-center gap-5">
-        <div className="rounded-lg bg-white p-3">
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div role="group" aria-label={t("qr.quickConnect")} className="mb-5 grid grid-cols-2 gap-1 rounded-full bg-white/5 p-1">
+        {(["code", "scan"] as const).map(item => (
+          <button key={item} type="button" aria-pressed={mode === item} onClick={() => setMode(item)}
+            className={`min-h-11 rounded-full px-3 text-sm font-semibold ${mode === item ? "bg-primary text-white" : "text-muted-foreground"}`}>
+            {t(item === "code" ? "qr.myCode" : "qr.scanQr")}
+          </button>
+        ))}
+      </div>
+      {mode === "code" ? (
+        <div className="mx-auto mb-3 w-fit rounded-xl bg-white p-3">
           <TicketQrCode value={value} size={180} alt={t("qr.profileCode")} />
         </div>
-        <div className="w-full">
-          <QrCameraScanner onScan={(value) => void onScan(value)} />
-        </div>
-      </div>
+      ) : <QrCameraScanner onScan={onScan} className="w-full" />}
+      {message && <p role="status" className="mt-4 text-center text-sm text-primary">{message}</p>}
     </div>
   );
 }

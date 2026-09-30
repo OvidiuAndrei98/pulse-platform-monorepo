@@ -166,6 +166,9 @@ export function EventsMapView({
         minZoom={3}
         center={[44.4323, 26.1063]}
         zoom={12}
+        // Leaflet's CSS zoom fallback timer can fire after MapContainer is
+        // destroyed during tab navigation. Keep zoom, without that transition.
+        zoomAnimation={false}
         zoomControl={false}
         attributionControl
         dragging

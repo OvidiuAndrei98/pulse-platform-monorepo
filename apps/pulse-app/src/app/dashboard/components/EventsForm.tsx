@@ -93,6 +93,10 @@ export const eventFormSchema = z
       .default("draft"),
     publishAt: z.string().optional(),
     organizerAbsorbsServiceFee: z.boolean().default(false),
+    vatPercentage: z.number().optional().refine(
+      (value): boolean => value === 21 || value === 11 || value === 0,
+      { message: i18n.t("ticketForm.vatRequired") },
+    ),
     ticketTypes: z.array(ticketTypeSchema),
     lineup: z.array(lineupArtistSchema).default([]),
   })
@@ -156,6 +160,7 @@ function getDefaultValues(
     status: values?.status || "draft",
     publishAt: formatToDatetimeLocal(values?.publishAt),
     organizerAbsorbsServiceFee: values?.organizerAbsorbsServiceFee ?? false,
+    vatPercentage: values?.vatPercentage,
     ticketTypes:
       values?.ticketTypes?.map((ticket) => ({
         id: ticket.id,

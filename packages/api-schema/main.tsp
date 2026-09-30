@@ -207,6 +207,7 @@ model EventResponse {
   city: string;
   vibe: string;
   organizerAbsorbsServiceFee: boolean;
+  vatPercentage?: float64;
   latitude: decimal;
   longitude: decimal;
   startTime: utcDateTime;
@@ -261,6 +262,11 @@ model StripeAccountLinkResponse {
 }
 
 model UserTicketResponse {
+  ticketPriceBani: int64;
+  ticketingFeeBani: int64;
+  paidTotalBani: int64;
+  vatPercentage?: float64;
+  vatAmountBani?: int64;
   id: string;
   eventId: string;
   validationHash: string;
@@ -361,6 +367,7 @@ model CreateEventPayload {
   city: string;
   vibe: string;
   organizerAbsorbsServiceFee?: boolean;
+  vatPercentage: 0 | 11 | 21;
   latitude: decimal;
   longitude: decimal;
   startTime: utcDateTime;
@@ -382,6 +389,7 @@ model UpdateEventPayload {
   city: string;
   vibe: string;
   organizerAbsorbsServiceFee?: boolean;
+  vatPercentage: 0 | 11 | 21;
   latitude: decimal;
   longitude: decimal;
   startTime: utcDateTime;
@@ -394,7 +402,7 @@ model UpdateEventPayload {
 
 model CreateInvitationPayload {
   label: string;
-  ticketTypeId?: string;
+  ticketTypeId: string;
   quantity?: int32;
 }
 

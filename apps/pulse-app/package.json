@@ -29,7 +29,7 @@
     "@packages/api-client": "workspace:*",
     "framer-motion": "^12.42.2",
     "html2canvas": "1.4.1",
-    "html5-qrcode": "^2.3.8",
+    "jsqr": "1.4.0",
     "i18next": "^26.3.6",
     "idb": "^8.0.3",
     "jspdf": "^4.2.1",

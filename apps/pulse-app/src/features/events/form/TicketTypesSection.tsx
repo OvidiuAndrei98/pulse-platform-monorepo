@@ -30,6 +30,7 @@ export function TicketTypesSection({
   const [expanded, setExpanded] = useState<string>();
   const [adding, setAdding] = useState(false);
   const organizerAbsorbsServiceFee = form.watch("organizerAbsorbsServiceFee");
+  const vatPercentage = form.watch("vatPercentage");
 
   useEffect(() => {
     if (!user) return;
@@ -97,6 +98,23 @@ export function TicketTypesSection({
           {t("ticketForm.stripeRequired")}
         </p>
       )}
+      <fieldset disabled={readOnly} aria-describedby="event-vat-hint event-vat-error" className="mt-5 space-y-3 rounded-xl border border-white/10 p-4">
+        <legend className="px-1 text-sm font-medium">{t("ticketForm.vatLabel")}</legend>
+        {([
+          { value: 21, label: "ticketForm.vatStandard" },
+          { value: 11, label: "ticketForm.vatReduced" },
+          { value: 0, label: "ticketForm.noVat" },
+        ] as const).map((option) => (
+          <label key={option.value} className="flex min-h-11 cursor-pointer items-center gap-3 text-sm leading-5">
+            <input type="radio" name="event-vat" value={option.value} checked={vatPercentage === option.value}
+              aria-invalid={Boolean(errors.vatPercentage)} className="h-4 w-4 shrink-0 accent-primary"
+              onChange={() => form.setValue("vatPercentage", option.value, { shouldDirty: true, shouldValidate: true })} />
+            {t(option.label)}
+          </label>
+        ))}
+        <p id="event-vat-error" role={errors.vatPercentage ? "alert" : undefined} className="text-xs text-red-400">{errors.vatPercentage?.message}</p>
+        <p id="event-vat-hint" className="text-xs leading-5 text-muted-foreground">{t("ticketForm.vatHint")}</p>
+      </fieldset>
       {fields.length > 0 && (
         <fieldset disabled={readOnly} className="mt-5">
           <label className="flex cursor-pointer items-start gap-3 py-3">

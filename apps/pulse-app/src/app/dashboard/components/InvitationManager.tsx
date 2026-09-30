@@ -33,6 +33,9 @@ export function InvitationManager({ event, readOnly = false }: { event: Event; r
   const [expandedBatch, setExpandedBatch] = useState<string>();
   const [open, setOpen] = useState(false);
   const quantity = normalizeQuantity(quantityInput);
+  const validTicketType = event.ticketTypes.some((type) => type.id === ticketTypeId);
+
+  useEffect(() => { setTicketTypeId(""); }, [event.id, open]);
 
   useEffect(() => {
     if (user) user.listInvitations(event.id).then(setItems).catch(() => setItems([]));
@@ -57,17 +60,18 @@ export function InvitationManager({ event, readOnly = false }: { event: Event; r
   }, [items, t]);
 
   const create = async () => {
-    if (!user || !label.trim()) return;
+    if (!user || !label.trim() || !validTicketType) return;
     setBusy(true);
     try {
       const created = await user.createInvitation(event.id, {
         label: label.trim(),
-        ticketTypeId: ticketTypeId || undefined,
+        ticketTypeId,
         quantity,
       });
       setItems((old) => [...created, ...old]);
       setExpandedBatch(created[0]?.batchId);
       setLabel("");
+      setTicketTypeId("");
       setQuantityInput("1");
       toast.success(t("invitations.generated", { count: created.length }));
     } catch {
@@ -188,13 +192,14 @@ export function InvitationManager({ event, readOnly = false }: { event: Event; r
     <ManagementDrawer open={open} onClose={() => setOpen(false)} title={t("invitations.title")} subtitle={t(readOnly ? "invitations.readOnlySubtitle" : "invitations.subtitle")}>
       {!readOnly && <div className="grid gap-3">
         <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("invitations.labelPlaceholder")} maxLength={120} className="h-11 rounded-xl border border-white/10 bg-black/20 px-3 text-sm outline-none focus:border-primary/50" />
-        <ThemedSelect value={ticketTypeId} onChange={setTicketTypeId} placeholder={t("invitations.typePlaceholder")} icon={Gift} options={[{ value: "", label: t("invitations.general") }, ...event.ticketTypes.map((type) => ({ value: type.id, label: type.name }))]} />
+        <ThemedSelect value={validTicketType ? ticketTypeId : ""} onChange={setTicketTypeId} placeholder={t("invitations.typePlaceholder")} icon={Gift} options={event.ticketTypes.map((type) => ({ value: type.id, label: type.name }))} />
+        {!event.ticketTypes.length && <p className="text-xs text-muted-foreground">{t("invitations.noTicketTypes")}</p>}
         <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
           {t("invitations.quantity")}
           <input type="number" inputMode="numeric" min={1} max={100} value={quantityInput} onChange={(e) => setQuantityInput(e.target.value)} onBlur={() => setQuantityInput(String(quantity))} className="h-11 rounded-xl border border-white/10 bg-black/20 px-3 text-sm text-foreground outline-none focus:border-primary/50" />
           <span className="font-normal">{t("invitations.quantityHint")}</span>
         </label>
-        <button type="button" disabled={busy || !label.trim()} onClick={() => void create()} className="h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-40">
+        <button type="button" disabled={busy || !label.trim() || !validTicketType} onClick={() => void create()} className="h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-40">
           {busy ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : t("invitations.generate", { count: quantity })}
         </button>
       </div>}

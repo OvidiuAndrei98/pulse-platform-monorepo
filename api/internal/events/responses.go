@@ -42,6 +42,7 @@ type EventStatsResponse struct {
 }
 
 type EventResponse struct {
+	VATPercentage              *float64             `json:"vatPercentage,omitempty"`
 	ID                         string               `json:"id"`
 	OrganizerID                string               `json:"organizerId"`
 	Title                      string               `json:"title"`
@@ -183,6 +184,7 @@ func MapFromDBListEvents(row db.ListEventsRow) EventResponse {
 		City:                       row.City,
 		Vibe:                       row.Vibe,
 		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		VATPercentage:              vatResponse(row.VatPercentage),
 		Latitude:                   row.Latitude,
 		Longitude:                  row.Longitude,
 		StartTime:                  row.StartTime.Time,
@@ -228,6 +230,7 @@ func MapFromDBListEventsWithStats(row db.ListEventsWithStatsRow) EventResponse {
 		City:                       row.City,
 		Vibe:                       row.Vibe,
 		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		VATPercentage:              vatResponse(row.VatPercentage),
 		Latitude:                   row.Latitude,
 		Longitude:                  row.Longitude,
 		StartTime:                  row.StartTime.Time,
@@ -270,6 +273,7 @@ func MapFromDBGetEvent(row db.GetEventByIDRow) EventResponse {
 		City:                       row.City,
 		Vibe:                       row.Vibe,
 		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		VATPercentage:              vatResponse(row.VatPercentage),
 		Latitude:                   row.Latitude,
 		Longitude:                  row.Longitude,
 		StartTime:                  row.StartTime.Time,
@@ -315,6 +319,7 @@ func MapFromDBGetEventWithStats(row db.GetEventWithStatsRow) EventResponse {
 		City:                       row.City,
 		Vibe:                       row.Vibe,
 		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		VATPercentage:              vatResponse(row.VatPercentage),
 		Latitude:                   row.Latitude,
 		Longitude:                  row.Longitude,
 		StartTime:                  row.StartTime.Time,

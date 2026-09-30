@@ -1,15 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion, type PanInfo } from "framer-motion";
-import { Calendar, MapPin, QrCode, Receipt, Ticket, X } from "lucide-react";
+import { motion } from "framer-motion";
+import { Calendar, MapPin, QrCode, Receipt, Ticket } from "lucide-react";
 import {
   ApiClient,
   type ReadableSchema,
 } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
-import { TicketPass } from "@/components/tickets/TicketPass";
-import { TicketPdfButton } from "@/components/tickets/TicketPdfButton";
+import { TicketPreview } from "@/components/tickets/TicketPreview";
 import { formatEventDate } from "@/features/events/dateFormat";
 import { formatRon } from "@/features/events/serviceFee";
 import { useTranslation } from "react-i18next";
@@ -101,14 +100,12 @@ export default function DashboardPurchasesPage() {
           <OrdersList orders={orders} />
         )}
       </div>
-      <AnimatePresence>
         {openTicket && (
           <TicketPreview
             ticket={openTicket}
             onClose={() => setOpenTicket(null)}
           />
         )}
-      </AnimatePresence>
     </main>
   );
 }
@@ -295,65 +292,6 @@ function EmptyState({
       <Icon className="mx-auto h-6 w-6 text-primary" />
       <p className="mt-3 text-sm font-semibold">{title}</p>
       <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-    </div>
-  );
-}
-
-function TicketPreview({
-  ticket,
-  onClose,
-}: {
-  ticket: UserTicket;
-  onClose: () => void;
-}) {
-  const { t } = useTranslation();
-  const handleDragEnd = (_: unknown, info: PanInfo) => {
-    if (window.innerWidth < 768 && info.offset.y > 100) onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center md:justify-end">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm md:hidden"
-      />
-      <motion.section
-        initial={window.innerWidth >= 768 ? { x: "100%" } : { y: "100%" }}
-        animate={window.innerWidth >= 768 ? { x: 0 } : { y: 0 }}
-        exit={window.innerWidth >= 768 ? { x: "100%" } : { y: "100%" }}
-        transition={{ type: "spring", damping: 28, stiffness: 260 }}
-        drag={window.innerWidth >= 768 ? false : "y"}
-        dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={{ top: 0.05, bottom: 0.75 }}
-        onDragEnd={handleDragEnd}
-        onClick={(event) => event.stopPropagation()}
-        className="relative h-[min(46rem,84svh)] w-full max-w-md overflow-y-auto rounded-t-3xl border border-white/10 bg-neutral-950 p-6 pb-10 shadow-2xl sm:rounded-b-3xl md:h-screen md:max-w-md md:rounded-none md:border-y-0 md:border-r-0 md:border-l md:pb-6"
-        style={{
-          backgroundImage:
-            "linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0) 40%)",
-        }}
-      >
-        <div className="absolute left-0 right-0 top-3 flex justify-center md:hidden">
-          <div className="h-1.5 w-12 rounded-full bg-white/20" />
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t("purchases.closeTicket")}
-          className="absolute right-4 top-4 rounded-full border border-white/10 bg-white/5 p-1.5 text-muted-foreground transition hover:bg-white/10"
-        >
-          <X className="h-4 w-4" />
-        </button>
-        <div className="mt-10"><TicketPass ticket={ticket} /></div>
-        <a href={`https://maps.google.com/?q=${encodeURIComponent(ticket.locationName)}`} target="_blank" rel="noreferrer" className="mt-4 flex min-h-11 items-center gap-2 text-sm text-primary"><MapPin className="h-4 w-4" />{ticket.locationName}</a>
-        <TicketPdfButton
-          ticket={ticket}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-xs font-medium text-white transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-60"
-        />
-      </motion.section>
     </div>
   );
 }

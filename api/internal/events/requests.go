@@ -20,6 +20,7 @@ type ArtistInput struct {
 }
 
 type CreateEventRequest struct {
+	VATPercentage              *float64          `json:"vatPercentage"`
 	Title                      string            `json:"title"`
 	Description                string            `json:"description"`
 	Category                   string            `json:"category"`
@@ -50,6 +51,7 @@ type EditTicketTypeInput struct {
 }
 
 type EditEventRequest struct {
+	VATPercentage              *float64              `json:"vatPercentage"`
 	Title                      string                `json:"title"`
 	Category                   string                `json:"category"`
 	StartTime                  string                `json:"startTime"`

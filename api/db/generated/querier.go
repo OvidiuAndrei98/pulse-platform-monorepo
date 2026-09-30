@@ -129,6 +129,7 @@ type Querier interface {
 	GetPublicProfile(ctx context.Context, id pgtype.UUID) (GetPublicProfileRow, error)
 	GetScannerAccessByID(ctx context.Context, id pgtype.UUID) (GetScannerAccessByIDRow, error)
 	GetScannerAccessByTokenHash(ctx context.Context, tokenHash string) (GetScannerAccessByTokenHashRow, error)
+	GetStripeEventVATRate(ctx context.Context, arg GetStripeEventVATRateParams) (string, error)
 	GetTicketByHash(ctx context.Context, validationHash string) (GetTicketByHashRow, error)
 	GetTicketTypeForUpdate(ctx context.Context, id pgtype.UUID) (TicketTypes, error)
 	GetTicketTypesForEvent(ctx context.Context, eventID pgtype.UUID) ([]TicketTypes, error)
@@ -229,6 +230,7 @@ type Querier interface {
 	RevokeScannerAccess(ctx context.Context, arg RevokeScannerAccessParams) error
 	SaveEvent(ctx context.Context, arg SaveEventParams) error
 	SavePromotionCheckoutSession(ctx context.Context, arg SavePromotionCheckoutSessionParams) error
+	SaveStripeEventVATRate(ctx context.Context, arg SaveStripeEventVATRateParams) error
 	ScheduleAllUnreferencedEventBannerAssets(ctx context.Context) (int64, error)
 	ScheduleEventBannerAssetDeletionIfUnreferenced(ctx context.Context, arg ScheduleEventBannerAssetDeletionIfUnreferencedParams) (int64, error)
 	SearchProfiles(ctx context.Context, dollar_1 pgtype.Text) ([]SearchProfilesRow, error)
@@ -238,6 +240,7 @@ type Querier interface {
 	SetOrderStripeLivemode(ctx context.Context, arg SetOrderStripeLivemodeParams) error
 	SetOrganizerStripeAccount(ctx context.Context, arg SetOrganizerStripeAccountParams) (OrganizerProfiles, error)
 	ShowEventCategory(ctx context.Context, arg ShowEventCategoryParams) error
+	SnapshotOrderInvoiceVAT(ctx context.Context, arg SnapshotOrderInvoiceVATParams) error
 	UnfollowOrganizer(ctx context.Context, arg UnfollowOrganizerParams) error
 	UpdateOrderCheckoutSession(ctx context.Context, arg UpdateOrderCheckoutSessionParams) error
 	UpdateOrderRefundState(ctx context.Context, arg UpdateOrderRefundStateParams) error

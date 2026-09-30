@@ -583,7 +583,7 @@ export class User {
     return ApiClient.instance.get("/dashboard/events/{id}/invitations", { params: { path: { id: eventId } } });
   }
 
-  async createInvitation(eventId: string, payload: { label: string; ticketTypeId?: string; quantity?: number }): Promise<InvitationTicket[]> {
+  async createInvitation(eventId: string, payload: { label: string; ticketTypeId: string; quantity?: number }): Promise<InvitationTicket[]> {
     return ApiClient.instance.post("/dashboard/events/{id}/invitations", { params: { path: { id: eventId } }, body: payload });
   }
 

@@ -29,7 +29,7 @@ export function getErrorDestination(
   if (scheduleFields.some((field) => errors[field as keyof EventFormValues]))
     return { step: 1, section: "details" };
   if (errors.lineup) return { step: 0, section: "lineup" };
-  if (errors.ticketTypes || errors.organizerAbsorbsServiceFee)
+  if (errors.ticketTypes || errors.organizerAbsorbsServiceFee || errors.vatPercentage)
     return { step: 2, section: "tickets" };
   if (errors.status || errors.publishAt)
     return { step: 2, section: mode === "edit" ? "details" : "tickets" };

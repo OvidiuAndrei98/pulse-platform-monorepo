@@ -131,6 +131,54 @@ func TestSmartBillSendsKnownVATStatusAndOmitsUnknownStatus(t *testing.T) {
 	}
 }
 
+func TestInvoiceProvidersSendExplicitZeroVAT(t *testing.T) {
+	for _, providerName := range []string{"oblio", "smartbill"} {
+		t.Run(providerName, func(t *testing.T) {
+			var payload map[string]any
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/authorize/token" {
+					_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "fixture"})
+					return
+				}
+				if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+					t.Error(err)
+				}
+				_ = json.NewEncoder(w).Encode(map[string]any{"status": 200, "data": map[string]any{"seriesName": "FCT", "number": "1"}, "series": "FCT", "number": "1"})
+			}))
+			defer server.Close()
+			fixture := invoiceFixture()
+			fixture.VATPercentage = 0
+			fixture.VATName = "No VAT"
+			var err error
+			if providerName == "oblio" {
+				p := newOblioProvider(server.Client())
+				p.baseURL = server.URL
+				_, err = p.Issue(context.Background(), fixture)
+			} else {
+				p := newSmartBillProvider(server.Client())
+				p.baseURL = server.URL
+				_, err = p.Issue(context.Background(), fixture)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			products := payload["products"].([]any)
+			product := products[0].(map[string]any)
+			key, included := "vatPercentage", "vatIncluded"
+			if providerName == "smartbill" {
+				key, included = "taxPercentage", "isTaxIncluded"
+			}
+			value, exists := product[key]
+			if !exists || value != float64(0) {
+				t.Fatalf("zero VAT omitted: %v", product)
+			}
+			if product["price"] != float64(100) || (product[included] != true && product[included] != float64(1)) {
+				t.Fatalf("tax changed inclusive price: %v", product)
+			}
+		})
+	}
+}
+
 func invoiceFixture() InvoiceRequest {
 	return InvoiceRequest{
 		OrderID:          "order-1",

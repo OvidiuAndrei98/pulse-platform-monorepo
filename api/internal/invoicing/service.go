@@ -674,7 +674,32 @@ func (s *Service) processJob(ctx context.Context, job db.BillingInvoices) {
 		fail(err, true)
 		return
 	}
+	// Provider VAT names are not interchangeable across rates. Never send the
+	// organizer's default name together with a different event percentage.
+	if data.VatName == "" {
+		optionsCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+		options, optionsErr := provider.Options(optionsCtx, ProviderConnectionInput{Provider: data.Provider, AccountEmail: data.AccountEmail, CompanyVATCode: data.CompanyVatCode}, string(apiToken))
+		cancel()
+		if optionsErr != nil {
+			fail(optionsErr, false)
+			return
+		}
+		name, resolveErr := resolveEventVATName(options.VATRates, vatPercentage)
+		if resolveErr != nil {
+			fail(resolveErr, true)
+			return
+		}
+		data.VatName = name
+	}
 	invoiceItems := make([]InvoiceItem, 0, len(items)+1)
+	// Persist before contacting the provider, including on retry, so the ticket
+	// PDF and the issued invoice use the same historical VAT selection.
+	if err := s.queries.SnapshotOrderInvoiceVAT(ctx, db.SnapshotOrderInvoiceVATParams{
+		OrderID: data.OrderID, VatPercentage: data.VatPercentage, VatName: data.VatName,
+	}); err != nil {
+		fail(err, false)
+		return
+	}
 	for _, item := range items {
 		invoiceItems = append(invoiceItems, InvoiceItem{
 			Name:      "Bilet " + data.EventTitle + " - " + item.TicketTypeName,

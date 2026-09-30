@@ -91,7 +91,7 @@ func (p *smartBillProvider) Issue(ctx context.Context, invoice InvoiceRequest) (
 		Price              float64 `json:"price"`
 		MeasuringUnitName  string  `json:"measuringUnitName"`
 		TaxName            string  `json:"taxName,omitempty"`
-		TaxPercentage      float64 `json:"taxPercentage,omitempty"`
+		TaxPercentage      float64 `json:"taxPercentage"`
 		IsTaxIncluded      bool    `json:"isTaxIncluded"`
 		IsService          bool    `json:"isService"`
 		SaveToDB           bool    `json:"saveToDb"`

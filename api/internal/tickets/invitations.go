@@ -100,7 +100,7 @@ func (h *Handler) HandleCreateInvitation(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	var ticketTypeID pgtype.UUID
-	if req.TicketTypeID != "" && ticketTypeID.Scan(req.TicketTypeID) != nil {
+	if req.TicketTypeID == "" || ticketTypeID.Scan(req.TicketTypeID) != nil || !ticketTypeID.Valid {
 		router.RespondWithError(w, http.StatusBadRequest, "Tip de bilet invalid")
 		return
 	}

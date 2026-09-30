@@ -2,8 +2,8 @@
 
 import { useBackLayer } from "@/lib/navigation/useBackLayer";
 
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
-import type { Html5Qrcode } from "html5-qrcode";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { startWebQrCamera } from "./webQrCamera";
 import {
   BarcodeFormat,
   BarcodeScanner,
@@ -36,8 +36,10 @@ export function QrCameraScanner({
   className = "",
 }: QrCameraScannerProps) {
   const { t } = useTranslation();
-  const scannerId = `qr-scanner-${useId().replace(/:/g, "")}`;
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const cameraAbortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+  const startupRef = useRef<Promise<void> | null>(null);
   const nativeListenerRef = useRef<PluginListenerHandle | null>(null);
   const hasScannedRef = useRef(false);
   const processingScanRef = useRef(false);
@@ -54,6 +56,11 @@ export function QrCameraScanner({
   };
 
   const stopScanner = async () => {
+    cameraAbortRef.current?.abort();
+    if (mountedRef.current) { setRunning(false); setStarting(false); }
+    // Camera permission/import can resolve after the sheet closes. Wait for
+    // startup so the late stream is also stopped and cannot retain the camera.
+    await startupRef.current;
     if (isNative) {
       try {
         await BarcodeScanner.stopScan();
@@ -63,27 +70,11 @@ export function QrCameraScanner({
       await nativeListenerRef.current?.remove();
       nativeListenerRef.current = null;
       setNativeScannerActive(false);
-      setRunning(false);
-      return;
+      if (mountedRef.current) setRunning(false);
     }
-
-    const scanner = scannerRef.current;
-    scannerRef.current = null;
-    if (!scanner) return;
-    try {
-      await scanner.stop();
-    } catch {
-      // The camera can already be closed by the browser.
-    }
-    try {
-      await scanner.clear();
-    } catch {
-      // No additional cleanup is needed when the DOM node has unmounted.
-    }
-    setRunning(false);
   };
 
-  const startScanner = async () => {
+  const startScannerImpl = async () => {
     if (disabled || starting || running) return;
     setStarting(true);
     setError("");
@@ -91,6 +82,8 @@ export function QrCameraScanner({
     processingScanRef.current = false;
     lastScannedValueRef.current = "";
     lastScannedAtRef.current = 0;
+    const controller = new AbortController();
+    cameraAbortRef.current = controller;
     try {
       if (isNative) {
         const supported = await BarcodeScanner.isSupported();
@@ -101,13 +94,14 @@ export function QrCameraScanner({
           ? permission
           : await BarcodeScanner.requestPermissions();
         if (granted.camera !== "granted") throw new Error("CAMERA_PERMISSION_DENIED");
+        if (controller.signal.aborted || !mountedRef.current) return;
 
         nativeListenerRef.current = await BarcodeScanner.addListener(
           "barcodesScanned",
           ({ barcodes }) => {
             const decodedText = barcodes[0]?.rawValue ?? barcodes[0]?.displayValue;
             if (
-              !decodedText ||
+              !decodedText || !mountedRef.current || controller.signal.aborted ||
               processingScanRef.current ||
               (!continuous && hasScannedRef.current) ||
               (continuous &&
@@ -121,7 +115,9 @@ export function QrCameraScanner({
             lastScannedAtRef.current = Date.now();
             if (!continuous) void stopScanner();
 
-            void Promise.resolve(onScan(decodedText)).finally(() => {
+            void Promise.resolve().then(() => onScan(decodedText)).catch(() => {
+              if (mountedRef.current) setError(t("qr.cameraFailed"));
+            }).finally(() => {
               processingScanRef.current = false;
             });
           },
@@ -131,19 +127,19 @@ export function QrCameraScanner({
           formats: [BarcodeFormat.QrCode],
           lensFacing: LensFacing.Back,
         });
-        setRunning(true);
+        if (mountedRef.current && !controller.signal.aborted) setRunning(true);
         return;
       }
 
-      const { Html5Qrcode } = await import("html5-qrcode");
-      const scanner = new Html5Qrcode(scannerId, { verbose: false });
-      scannerRef.current = scanner;
-      await scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 230, height: 230 } },
+      // Let React mount the fullscreen viewfinder before attaching a stream.
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      if (!mountedRef.current || controller.signal.aborted) return;
+      const video = videoRef.current;
+      if (!video) throw new Error("CAMERA_VIEWFINDER_UNAVAILABLE");
+      await startWebQrCamera(video, controller.signal,
         (decodedText) => {
           if (
-            processingScanRef.current ||
+            !mountedRef.current || controller.signal.aborted || processingScanRef.current ||
             (!continuous && hasScannedRef.current) ||
             (continuous &&
               lastScannedValueRef.current === decodedText &&
@@ -156,29 +152,46 @@ export function QrCameraScanner({
           lastScannedAtRef.current = Date.now();
           if (!continuous) void stopScanner();
 
-          void Promise.resolve(onScan(decodedText)).finally(() => {
+          void Promise.resolve().then(() => onScan(decodedText)).catch(() => {
+            if (mountedRef.current) setError(t("qr.cameraFailed"));
+          }).finally(() => {
             processingScanRef.current = false;
           });
         },
-        () => undefined,
       );
-      setRunning(true);
+      if (mountedRef.current && !controller.signal.aborted) setRunning(true);
     } catch (caughtError) {
-      scannerRef.current = null;
+      const wasCancelled = controller.signal.aborted;
+      controller.abort();
       await nativeListenerRef.current?.remove();
       nativeListenerRef.current = null;
-      if (isNative) setNativeScannerActive(false);
+      if (isNative) {
+        try { await BarcodeScanner.stopScan(); } catch { /* Already stopped. */ }
+        setNativeScannerActive(false);
+      }
       const nativePluginUnavailable = isNative && /BARCODE_SCANNING_UNSUPPORTED|not implemented|not supported|unavailable|plugin/i.test(
         caughtError instanceof Error ? caughtError.message : "",
       );
-      setError(t(nativePluginUnavailable ? "qr.nativeScannerUnavailable" : "qr.cameraFailed"));
+      if (mountedRef.current && !wasCancelled) setError(t(nativePluginUnavailable ? "qr.nativeScannerUnavailable" : "qr.cameraFailed"));
     } finally {
-      setStarting(false);
+      if (mountedRef.current) setStarting(false);
     }
   };
 
-  useBackLayer(running, () => { void stopScanner(); });
-  useEffect(() => () => { void stopScanner(); }, []);
+  const startScanner = () => {
+    if (startupRef.current || !mountedRef.current) return;
+    const task = startScannerImpl();
+    startupRef.current = task;
+    void task.finally(() => { if (startupRef.current === task) startupRef.current = null; });
+  };
+
+  // Inline cameras belong to their sheet's Back layer. A second history entry
+  // can race the sheet's dismissal and leave the modal mounted over navigation.
+  useBackLayer(fullScreen && (running || starting), () => { void stopScanner(); });
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; void stopScanner(); };
+  }, []);
 
   const scannerOverlay = fullScreen && (starting || running) ? (
     <div className={`native-barcode-scanner-ui fixed inset-0 z-[200] text-white ${isNative ? "bg-transparent" : "bg-black"}`}>
@@ -202,7 +215,7 @@ export function QrCameraScanner({
       </div>
 
       <div className={`relative h-full w-full ${isNative ? "bg-transparent" : "bg-black [&_video]:h-full [&_video]:w-full [&_video]:object-cover"}`}>
-        <div id={scannerId} className="h-full w-full" />
+        {!isNative && <video ref={videoRef} muted playsInline className="h-full w-full object-cover" />}
         <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/20">
           <div className="relative h-[min(70vw,18rem)] w-[min(70vw,18rem)] max-h-[52dvh] max-w-[80vw]">
             <span className="absolute left-0 top-0 h-9 w-9 rounded-tl-xl border-l-2 border-t-2 border-primary" />
@@ -228,7 +241,10 @@ export function QrCameraScanner({
 
   return (
     <div className="space-y-2 text-center">
-      {!fullScreen && (starting || running) && <div id={scannerId} className="overflow-hidden rounded-lg border border-primary/30 bg-black" />}
+      {!fullScreen && <div className={`${starting || running ? "" : "hidden"} relative mx-auto aspect-square w-full max-w-[min(100%,36dvh,20rem)] overflow-hidden rounded-xl bg-black`}>
+        <video ref={videoRef} muted playsInline className="h-full w-full object-cover" />
+        <div className="pointer-events-none absolute inset-[14%] rounded-xl border-2 border-white/80" />
+      </div>}
       <button type="button" onClick={() => running ? void stopScanner() : void startScanner()} disabled={disabled || starting} className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/15 px-3 text-xs font-semibold transition hover:bg-white/5 disabled:opacity-50 ${className}`}>
         {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : running ? <X className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
         {starting ? t("qr.startingCamera") : running ? t("qr.stopCamera") : t("qr.scanQr")}

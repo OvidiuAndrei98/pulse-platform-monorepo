@@ -125,6 +125,11 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusBadRequest, "Request body invalid: "+err.Error())
 		return
 	}
+	vat, err := eventVAT(req.VATPercentage)
+	if err != nil {
+		router.RespondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	profile, err := h.Queries.GetOrganizerProfile(ctx, organizerUUID)
 	if err != nil || !organizer.IsVerified(profile) {
@@ -194,6 +199,7 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newEvent, err := qtx.CreateEvent(ctx, db.CreateEventParams{
+		VatPercentage:              vat,
 		OrganizerID:                organizerUUID,
 		Title:                      req.Title,
 		Description:                pgtype.Text{String: req.Description, Valid: req.Description != ""},
@@ -277,6 +283,11 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 	var req EditEventRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		router.RespondWithError(w, http.StatusBadRequest, "Format JSON invalid: "+err.Error())
+		return
+	}
+	vat, err := eventVAT(req.VATPercentage)
+	if err != nil {
+		router.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -406,6 +417,7 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 
 	// 4. Update Eveniment
 	event, err := qtx.EditEvent(r.Context(), db.EditEventParams{
+		VatPercentage:              vat,
 		ID:                         eventUUID,
 		Title:                      req.Title,
 		Category:                   req.Category,

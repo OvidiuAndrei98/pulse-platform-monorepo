@@ -10,6 +10,11 @@ export type PrintableTicket = {
   startTime: string;
   locationName: string;
   priceRon?: number;
+  ticketPriceBani?: number;
+  ticketingFeeBani?: number;
+  paidTotalBani?: number;
+  vatPercentage?: number;
+  vatAmountBani?: number;
   organizerCompanyName?: string;
   organizerCui?: string;
   organizerFiscalAddress?: string;

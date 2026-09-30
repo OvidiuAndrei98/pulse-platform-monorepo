@@ -1,6 +1,7 @@
 package tickets
 
 import (
+	"math"
 	db "pulse-api/db/generated"
 	"pulse-api/internal/common"
 )
@@ -72,20 +73,25 @@ type ValidationScanHistoryResponse struct {
 }
 
 type UserTicketResponse struct {
-	ID                     string `json:"id"`
-	EventID                string `json:"eventId"`
-	ValidationHash         string `json:"validationHash"`
-	IsValidated            bool   `json:"isValidated"`
-	ValidatedAt            string `json:"validatedAt,omitempty"`
-	TicketTypeName         string `json:"ticketTypeName"`
-	EventTitle             string `json:"eventTitle"`
-	LocationName           string `json:"locationName"`
-	StartTime              string `json:"startTime"`
-	EndTime                string `json:"endTime"`
-	PriceRon               int32  `json:"priceRon"`
-	OrganizerCompanyName   string `json:"organizerCompanyName"`
-	OrganizerCui           string `json:"organizerCui"`
-	OrganizerFiscalAddress string `json:"organizerFiscalAddress"`
+	TicketPriceBani        int64    `json:"ticketPriceBani"`
+	TicketingFeeBani       int64    `json:"ticketingFeeBani"`
+	PaidTotalBani          int64    `json:"paidTotalBani"`
+	VatPercentage          *float64 `json:"vatPercentage,omitempty"`
+	VatAmountBani          *int64   `json:"vatAmountBani,omitempty"`
+	ID                     string   `json:"id"`
+	EventID                string   `json:"eventId"`
+	ValidationHash         string   `json:"validationHash"`
+	IsValidated            bool     `json:"isValidated"`
+	ValidatedAt            string   `json:"validatedAt,omitempty"`
+	TicketTypeName         string   `json:"ticketTypeName"`
+	EventTitle             string   `json:"eventTitle"`
+	LocationName           string   `json:"locationName"`
+	StartTime              string   `json:"startTime"`
+	EndTime                string   `json:"endTime"`
+	PriceRon               int32    `json:"priceRon"`
+	OrganizerCompanyName   string   `json:"organizerCompanyName"`
+	OrganizerCui           string   `json:"organizerCui"`
+	OrganizerFiscalAddress string   `json:"organizerFiscalAddress"`
 }
 
 type UserOrderResponse struct {
@@ -212,7 +218,10 @@ func MapTicketValidationResponse(t db.GetTicketByHashRow) TicketValidationRespon
 }
 
 func MapUserTicket(ticket db.GetUserTicketsRow) UserTicketResponse {
-	return UserTicketResponse{
+	result := UserTicketResponse{
+		TicketPriceBani:        ticket.TicketPriceBani,
+		TicketingFeeBani:       ticket.TicketFeeBani,
+		PaidTotalBani:          ticket.TicketPriceBani + ticket.TicketFeeBani,
 		ID:                     common.UUIDToString(ticket.ID),
 		EventID:                common.UUIDToString(ticket.EventID),
 		ValidationHash:         ticket.ValidationHash,
@@ -228,6 +237,13 @@ func MapUserTicket(ticket db.GetUserTicketsRow) UserTicketResponse {
 		OrganizerCui:           ticket.OrganizerCui,
 		OrganizerFiscalAddress: ticket.OrganizerFiscalAddress,
 	}
+	if rate, err := ticket.TicketVatPercentage.Float64Value(); err == nil && rate.Valid {
+		result.VatPercentage = &rate.Float64
+		// Prices already include VAT; never add it a second time to the total.
+		vat := int64(math.Round(float64(result.PaidTotalBani) * rate.Float64 / (100 + rate.Float64)))
+		result.VatAmountBani = &vat
+	}
+	return result
 }
 
 func MapUserOrder(order db.ListUserOrdersRow) UserOrderResponse {

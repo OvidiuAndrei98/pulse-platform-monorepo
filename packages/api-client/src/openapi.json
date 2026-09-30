@@ -3704,6 +3704,7 @@
           "locationName",
           "city",
           "vibe",
+          "vatPercentage",
           "latitude",
           "longitude",
           "startTime",
@@ -3737,6 +3738,14 @@
           },
           "organizerAbsorbsServiceFee": {
             "type": "boolean"
+          },
+          "vatPercentage": {
+            "type": "number",
+            "enum": [
+              0,
+              11,
+              21
+            ]
           },
           "latitude": {
             "type": "number",
@@ -3783,7 +3792,8 @@
       "CreateInvitationPayload": {
         "type": "object",
         "required": [
-          "label"
+          "label",
+          "ticketTypeId"
         ],
         "properties": {
           "label": {
@@ -4142,6 +4152,10 @@
           },
           "organizerAbsorbsServiceFee": {
             "type": "boolean"
+          },
+          "vatPercentage": {
+            "type": "number",
+            "format": "double"
           },
           "latitude": {
             "type": "number",
@@ -5885,6 +5899,7 @@
           "locationName",
           "city",
           "vibe",
+          "vatPercentage",
           "latitude",
           "longitude",
           "startTime",
@@ -5921,6 +5936,14 @@
           },
           "organizerAbsorbsServiceFee": {
             "type": "boolean"
+          },
+          "vatPercentage": {
+            "type": "number",
+            "enum": [
+              0,
+              11,
+              21
+            ]
           },
           "latitude": {
             "type": "number",
@@ -6223,6 +6246,9 @@
       "UserTicketResponse": {
         "type": "object",
         "required": [
+          "ticketPriceBani",
+          "ticketingFeeBani",
+          "paidTotalBani",
           "id",
           "eventId",
           "validationHash",
@@ -6238,6 +6264,26 @@
           "organizerFiscalAddress"
         ],
         "properties": {
+          "ticketPriceBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ticketingFeeBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "paidTotalBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "vatPercentage": {
+            "type": "number",
+            "format": "double"
+          },
+          "vatAmountBani": {
+            "type": "integer",
+            "format": "int64"
+          },
           "id": {
             "type": "string"
           },

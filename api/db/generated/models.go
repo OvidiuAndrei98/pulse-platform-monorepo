@@ -409,6 +409,7 @@ type Events struct {
 	OrganizerAbsorbsServiceFee bool               `json:"organizer_absorbs_service_fee"`
 	PublishAt                  pgtype.Timestamptz `json:"publish_at"`
 	WasPublished               bool               `json:"was_published"`
+	VatPercentage              pgtype.Numeric     `json:"vat_percentage"`
 }
 
 type Friendships struct {
@@ -538,6 +539,8 @@ type Orders struct {
 	PlatformFeeRefundedBani       int64              `json:"platform_fee_refunded_bani"`
 	RefundOrigin                  pgtype.Text        `json:"refund_origin"`
 	ReservationIpHash             []byte             `json:"reservation_ip_hash"`
+	TicketVatPercentage           pgtype.Numeric     `json:"ticket_vat_percentage"`
+	TicketVatName                 pgtype.Text        `json:"ticket_vat_name"`
 }
 
 type OrganizerFollows struct {
@@ -657,6 +660,13 @@ type SavedEvents struct {
 	UserID    pgtype.UUID        `json:"user_id"`
 	EventID   pgtype.UUID        `json:"event_id"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type StripeEventVatRates struct {
+	ConnectedAccountID string         `json:"connected_account_id"`
+	Livemode           bool           `json:"livemode"`
+	Percentage         pgtype.Numeric `json:"percentage"`
+	StripeTaxRateID    string         `json:"stripe_tax_rate_id"`
 }
 
 type TicketTypes struct {

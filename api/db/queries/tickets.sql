@@ -70,14 +70,26 @@ INSERT INTO orders (
     promo_code_id, discount_amount_ron, invoice_requested, billing_type,
     billing_name, billing_tax_id, billing_registration_number, billing_address,
     billing_city, billing_county, billing_sector, billing_country,
-    stripe_connected_account_id, stripe_charge_type, reservation_ip_hash
+    stripe_connected_account_id, stripe_charge_type, reservation_ip_hash,
+    ticket_vat_percentage, ticket_vat_name
 )
 VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
     $11, $12, $13, $14, $15, $16, $17, $18, $19,
-    $20, $21, $22
+    $20, $21, $22,
+    (SELECT e.vat_percentage FROM events e WHERE e.id = $2),
+    (SELECT s.vat_name FROM organizer_invoicing_settings s JOIN events e ON e.organizer_id = s.organizer_id WHERE e.id = $2 AND s.enabled AND s.vat_percentage = e.vat_percentage)
 )
 RETURNING *;
+
+-- name: GetStripeEventVATRate :one
+SELECT stripe_tax_rate_id FROM stripe_event_vat_rates
+WHERE connected_account_id = $1 AND livemode = $2 AND percentage = $3;
+
+-- name: SaveStripeEventVATRate :exec
+INSERT INTO stripe_event_vat_rates(connected_account_id, livemode, percentage, stripe_tax_rate_id)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (connected_account_id, livemode, percentage) DO NOTHING;
 
 -- name: ListOrganizerFinanceEvents :many
 SELECT
@@ -428,16 +440,32 @@ SET ticket_id = $2,
 WHERE id = $1;
 
 -- name: GetUserTickets :many
+WITH amounts AS (
+    SELECT t.id,
+           SUM(COALESCE(oi.unit_price_ron, tt.price_ron)::BIGINT) OVER (PARTITION BY t.order_id) AS weight_total,
+           SUM(COALESCE(oi.unit_price_ron, tt.price_ron)::BIGINT) OVER (PARTITION BY t.order_id ORDER BY t.id) AS weight_end,
+           COALESCE(oi.unit_price_ron, tt.price_ron)::BIGINT AS weight
+    FROM tickets t
+    JOIN ticket_types tt ON tt.id = t.ticket_type_id
+    LEFT JOIN order_items oi ON oi.order_id = t.order_id AND oi.ticket_type_id = t.ticket_type_id
+    WHERE t.order_id IN (SELECT own.order_id FROM tickets own WHERE own.user_id = $1)
+)
 SELECT t.*, tt.name AS ticket_type_name, e.id AS event_id, e.title AS event_title,
        e.location_name, e.start_time, e.end_time,
        COALESCE(oi.unit_price_ron, tt.price_ron) AS unit_price_ron,
        COALESCE(op.company_name, '') AS organizer_company_name,
        COALESCE(op.cui, '') AS organizer_cui,
-       COALESCE(op.fiscal_address, '') AS organizer_fiscal_address
+       COALESCE(op.fiscal_address, '') AS organizer_fiscal_address,
+       o.ticket_vat_percentage,
+       COALESCE(FLOOR(o.total_amount::NUMERIC * 100 * a.weight_end / NULLIF(a.weight_total, 0))
+        - FLOOR(o.total_amount::NUMERIC * 100 * (a.weight_end - a.weight) / NULLIF(a.weight_total, 0)), 0)::BIGINT AS ticket_price_bani,
+       COALESCE(FLOOR(o.customer_ticketing_fee_bani::NUMERIC * a.weight_end / NULLIF(a.weight_total, 0))
+        - FLOOR(o.customer_ticketing_fee_bani::NUMERIC * (a.weight_end - a.weight) / NULLIF(a.weight_total, 0)), 0)::BIGINT AS ticket_fee_bani
 FROM tickets t
 JOIN ticket_types tt ON t.ticket_type_id = tt.id
 JOIN events e ON tt.event_id = e.id
 JOIN orders o ON o.id = t.order_id
+JOIN amounts a ON a.id = t.id
 LEFT JOIN order_items oi ON oi.order_id = t.order_id AND oi.ticket_type_id = t.ticket_type_id
 LEFT JOIN organizer_profiles op ON op.user_id = e.organizer_id
 WHERE t.user_id = $1 AND o.status = 'completed'

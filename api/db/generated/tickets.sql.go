@@ -68,7 +68,7 @@ WHERE id = $3
   AND stripe_checkout_session_id = $4::TEXT
   AND (orders.stripe_payment_intent_id IS NULL OR orders.stripe_payment_intent_id = $1::TEXT)
   AND (orders.stripe_charge_id IS NULL OR orders.stripe_charge_id = $2::TEXT)
-RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash
+RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash, ticket_vat_percentage, ticket_vat_name
 `
 
 type BindPendingOrderStripePaymentParams struct {
@@ -125,6 +125,8 @@ func (q *Queries) BindPendingOrderStripePayment(ctx context.Context, arg BindPen
 		&i.PlatformFeeRefundedBani,
 		&i.RefundOrigin,
 		&i.ReservationIpHash,
+		&i.TicketVatPercentage,
+		&i.TicketVatName,
 	)
 	return i, err
 }
@@ -161,14 +163,17 @@ INSERT INTO orders (
     promo_code_id, discount_amount_ron, invoice_requested, billing_type,
     billing_name, billing_tax_id, billing_registration_number, billing_address,
     billing_city, billing_county, billing_sector, billing_country,
-    stripe_connected_account_id, stripe_charge_type, reservation_ip_hash
+    stripe_connected_account_id, stripe_charge_type, reservation_ip_hash,
+    ticket_vat_percentage, ticket_vat_name
 )
 VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
     $11, $12, $13, $14, $15, $16, $17, $18, $19,
-    $20, $21, $22
+    $20, $21, $22,
+    (SELECT e.vat_percentage FROM events e WHERE e.id = $2),
+    (SELECT s.vat_name FROM organizer_invoicing_settings s JOIN events e ON e.organizer_id = s.organizer_id WHERE e.id = $2 AND s.enabled AND s.vat_percentage = e.vat_percentage)
 )
-RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash
+RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash, ticket_vat_percentage, ticket_vat_name
 `
 
 type CreateCheckoutOrderParams struct {
@@ -261,6 +266,8 @@ func (q *Queries) CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrd
 		&i.PlatformFeeRefundedBani,
 		&i.RefundOrigin,
 		&i.ReservationIpHash,
+		&i.TicketVatPercentage,
+		&i.TicketVatName,
 	)
 	return i, err
 }
@@ -373,7 +380,7 @@ func (q *Queries) CreateOfflineValidationSnapshot(ctx context.Context, arg Creat
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO orders (user_id, event_id, email, total_amount, stripe_payment_intent_id, status)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash
+RETURNING id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash, ticket_vat_percentage, ticket_vat_name
 `
 
 type CreateOrderParams struct {
@@ -434,6 +441,8 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.PlatformFeeRefundedBani,
 		&i.RefundOrigin,
 		&i.ReservationIpHash,
+		&i.TicketVatPercentage,
+		&i.TicketVatName,
 	)
 	return i, err
 }
@@ -797,7 +806,7 @@ func (q *Queries) GetOfflineValidationSnapshotForSync(ctx context.Context, arg G
 }
 
 const getOrderByCheckoutSession = `-- name: GetOrderByCheckoutSession :one
-SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash FROM orders
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash, ticket_vat_percentage, ticket_vat_name FROM orders
 WHERE stripe_checkout_session_id = $1
 `
 
@@ -843,12 +852,14 @@ func (q *Queries) GetOrderByCheckoutSession(ctx context.Context, stripeCheckoutS
 		&i.PlatformFeeRefundedBani,
 		&i.RefundOrigin,
 		&i.ReservationIpHash,
+		&i.TicketVatPercentage,
+		&i.TicketVatName,
 	)
 	return i, err
 }
 
 const getOrderByStripeChargeID = `-- name: GetOrderByStripeChargeID :one
-SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash FROM orders
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash, ticket_vat_percentage, ticket_vat_name FROM orders
 WHERE stripe_charge_id = $1
 `
 
@@ -894,12 +905,14 @@ func (q *Queries) GetOrderByStripeChargeID(ctx context.Context, stripeChargeID p
 		&i.PlatformFeeRefundedBani,
 		&i.RefundOrigin,
 		&i.ReservationIpHash,
+		&i.TicketVatPercentage,
+		&i.TicketVatName,
 	)
 	return i, err
 }
 
 const getOrderByStripePaymentIntent = `-- name: GetOrderByStripePaymentIntent :one
-SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash FROM orders
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash, ticket_vat_percentage, ticket_vat_name FROM orders
 WHERE stripe_payment_intent_id = $1
 `
 
@@ -945,12 +958,14 @@ func (q *Queries) GetOrderByStripePaymentIntent(ctx context.Context, stripePayme
 		&i.PlatformFeeRefundedBani,
 		&i.RefundOrigin,
 		&i.ReservationIpHash,
+		&i.TicketVatPercentage,
+		&i.TicketVatName,
 	)
 	return i, err
 }
 
 const getOrderForUpdate = `-- name: GetOrderForUpdate :one
-SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash FROM orders
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash, ticket_vat_percentage, ticket_vat_name FROM orders
 WHERE id = $1
 FOR UPDATE
 `
@@ -997,6 +1012,8 @@ func (q *Queries) GetOrderForUpdate(ctx context.Context, id pgtype.UUID) (Orders
 		&i.PlatformFeeRefundedBani,
 		&i.RefundOrigin,
 		&i.ReservationIpHash,
+		&i.TicketVatPercentage,
+		&i.TicketVatName,
 	)
 	return i, err
 }
@@ -1095,6 +1112,24 @@ func (q *Queries) GetScannerAccessByTokenHash(ctx context.Context, tokenHash str
 		&i.LocationName,
 	)
 	return i, err
+}
+
+const getStripeEventVATRate = `-- name: GetStripeEventVATRate :one
+SELECT stripe_tax_rate_id FROM stripe_event_vat_rates
+WHERE connected_account_id = $1 AND livemode = $2 AND percentage = $3
+`
+
+type GetStripeEventVATRateParams struct {
+	ConnectedAccountID string         `json:"connected_account_id"`
+	Livemode           bool           `json:"livemode"`
+	Percentage         pgtype.Numeric `json:"percentage"`
+}
+
+func (q *Queries) GetStripeEventVATRate(ctx context.Context, arg GetStripeEventVATRateParams) (string, error) {
+	row := q.db.QueryRow(ctx, getStripeEventVATRate, arg.ConnectedAccountID, arg.Livemode, arg.Percentage)
+	var stripe_tax_rate_id string
+	err := row.Scan(&stripe_tax_rate_id)
+	return stripe_tax_rate_id, err
 }
 
 const getTicketByHash = `-- name: GetTicketByHash :one
@@ -1207,16 +1242,32 @@ func (q *Queries) GetTicketTypesForEvent(ctx context.Context, eventID pgtype.UUI
 }
 
 const getUserTickets = `-- name: GetUserTickets :many
+WITH amounts AS (
+    SELECT t.id,
+           SUM(COALESCE(oi.unit_price_ron, tt.price_ron)::BIGINT) OVER (PARTITION BY t.order_id) AS weight_total,
+           SUM(COALESCE(oi.unit_price_ron, tt.price_ron)::BIGINT) OVER (PARTITION BY t.order_id ORDER BY t.id) AS weight_end,
+           COALESCE(oi.unit_price_ron, tt.price_ron)::BIGINT AS weight
+    FROM tickets t
+    JOIN ticket_types tt ON tt.id = t.ticket_type_id
+    LEFT JOIN order_items oi ON oi.order_id = t.order_id AND oi.ticket_type_id = t.ticket_type_id
+    WHERE t.order_id IN (SELECT own.order_id FROM tickets own WHERE own.user_id = $1)
+)
 SELECT t.id, t.order_id, t.ticket_type_id, t.user_id, t.validation_hash, t.is_validated, t.validated_at, t.created_at, t.validated_by_user_id, t.validated_by_scanner_access_id, tt.name AS ticket_type_name, e.id AS event_id, e.title AS event_title,
        e.location_name, e.start_time, e.end_time,
        COALESCE(oi.unit_price_ron, tt.price_ron) AS unit_price_ron,
        COALESCE(op.company_name, '') AS organizer_company_name,
        COALESCE(op.cui, '') AS organizer_cui,
-       COALESCE(op.fiscal_address, '') AS organizer_fiscal_address
+       COALESCE(op.fiscal_address, '') AS organizer_fiscal_address,
+       o.ticket_vat_percentage,
+       COALESCE(FLOOR(o.total_amount::NUMERIC * 100 * a.weight_end / NULLIF(a.weight_total, 0))
+        - FLOOR(o.total_amount::NUMERIC * 100 * (a.weight_end - a.weight) / NULLIF(a.weight_total, 0)), 0)::BIGINT AS ticket_price_bani,
+       COALESCE(FLOOR(o.customer_ticketing_fee_bani::NUMERIC * a.weight_end / NULLIF(a.weight_total, 0))
+        - FLOOR(o.customer_ticketing_fee_bani::NUMERIC * (a.weight_end - a.weight) / NULLIF(a.weight_total, 0)), 0)::BIGINT AS ticket_fee_bani
 FROM tickets t
 JOIN ticket_types tt ON t.ticket_type_id = tt.id
 JOIN events e ON tt.event_id = e.id
 JOIN orders o ON o.id = t.order_id
+JOIN amounts a ON a.id = t.id
 LEFT JOIN order_items oi ON oi.order_id = t.order_id AND oi.ticket_type_id = t.ticket_type_id
 LEFT JOIN organizer_profiles op ON op.user_id = e.organizer_id
 WHERE t.user_id = $1 AND o.status = 'completed'
@@ -1244,6 +1295,9 @@ type GetUserTicketsRow struct {
 	OrganizerCompanyName       string             `json:"organizer_company_name"`
 	OrganizerCui               string             `json:"organizer_cui"`
 	OrganizerFiscalAddress     string             `json:"organizer_fiscal_address"`
+	TicketVatPercentage        pgtype.Numeric     `json:"ticket_vat_percentage"`
+	TicketPriceBani            int64              `json:"ticket_price_bani"`
+	TicketFeeBani              int64              `json:"ticket_fee_bani"`
 }
 
 func (q *Queries) GetUserTickets(ctx context.Context, userID pgtype.UUID) ([]GetUserTicketsRow, error) {
@@ -1276,6 +1330,9 @@ func (q *Queries) GetUserTickets(ctx context.Context, userID pgtype.UUID) ([]Get
 			&i.OrganizerCompanyName,
 			&i.OrganizerCui,
 			&i.OrganizerFiscalAddress,
+			&i.TicketVatPercentage,
+			&i.TicketPriceBani,
+			&i.TicketFeeBani,
 		); err != nil {
 			return nil, err
 		}
@@ -1589,7 +1646,7 @@ func (q *Queries) ListOrganizerFinanceEvents(ctx context.Context, organizerID pg
 }
 
 const listPendingDirectChargeCheckoutsForReconciliation = `-- name: ListPendingDirectChargeCheckoutsForReconciliation :many
-SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash FROM orders
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash, ticket_vat_percentage, ticket_vat_name FROM orders
 WHERE status = 'pending'
   AND stripe_checkout_session_id IS NOT NULL
   AND stripe_connected_account_id IS NOT NULL
@@ -1647,6 +1704,8 @@ func (q *Queries) ListPendingDirectChargeCheckoutsForReconciliation(ctx context.
 			&i.PlatformFeeRefundedBani,
 			&i.RefundOrigin,
 			&i.ReservationIpHash,
+			&i.TicketVatPercentage,
+			&i.TicketVatName,
 		); err != nil {
 			return nil, err
 		}
@@ -1659,7 +1718,7 @@ func (q *Queries) ListPendingDirectChargeCheckoutsForReconciliation(ctx context.
 }
 
 const listRecentCompletedOrdersWithPendingTicketEmail = `-- name: ListRecentCompletedOrdersWithPendingTicketEmail :many
-SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash FROM orders
+SELECT id, user_id, event_id, email, stripe_payment_intent_id, status, total_amount, created_at, stripe_checkout_session_id, platform_fee_bani, ticket_email_sent_at, promo_code_id, discount_amount_ron, invoice_requested, billing_type, billing_name, billing_tax_id, billing_registration_number, billing_address, billing_city, billing_county, billing_country, billing_sector, completed_at, customer_ticketing_fee_bani, stripe_livemode, stripe_connected_account_id, stripe_charge_type, stripe_charge_id, stripe_amount_refunded_bani, stripe_refund_status, stripe_refund_needs_attention, stripe_refund_updated_at, automatic_invoice_refund_enabled, platform_fee_status, platform_fee_refunded_bani, refund_origin, reservation_ip_hash, ticket_vat_percentage, ticket_vat_name FROM orders
 WHERE status = 'completed'
   AND ticket_email_sent_at IS NULL
   AND completed_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
@@ -1716,6 +1775,8 @@ func (q *Queries) ListRecentCompletedOrdersWithPendingTicketEmail(ctx context.Co
 			&i.PlatformFeeRefundedBani,
 			&i.RefundOrigin,
 			&i.ReservationIpHash,
+			&i.TicketVatPercentage,
+			&i.TicketVatName,
 		); err != nil {
 			return nil, err
 		}
@@ -2101,6 +2162,29 @@ type RevokeScannerAccessParams struct {
 
 func (q *Queries) RevokeScannerAccess(ctx context.Context, arg RevokeScannerAccessParams) error {
 	_, err := q.db.Exec(ctx, revokeScannerAccess, arg.ID, arg.EventID)
+	return err
+}
+
+const saveStripeEventVATRate = `-- name: SaveStripeEventVATRate :exec
+INSERT INTO stripe_event_vat_rates(connected_account_id, livemode, percentage, stripe_tax_rate_id)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (connected_account_id, livemode, percentage) DO NOTHING
+`
+
+type SaveStripeEventVATRateParams struct {
+	ConnectedAccountID string         `json:"connected_account_id"`
+	Livemode           bool           `json:"livemode"`
+	Percentage         pgtype.Numeric `json:"percentage"`
+	StripeTaxRateID    string         `json:"stripe_tax_rate_id"`
+}
+
+func (q *Queries) SaveStripeEventVATRate(ctx context.Context, arg SaveStripeEventVATRateParams) error {
+	_, err := q.db.Exec(ctx, saveStripeEventVATRate,
+		arg.ConnectedAccountID,
+		arg.Livemode,
+		arg.Percentage,
+		arg.StripeTaxRateID,
+	)
 	return err
 }
 

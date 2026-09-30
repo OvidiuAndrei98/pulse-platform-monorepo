@@ -8,7 +8,7 @@ WHERE is_live = true
 -- name: ListEvents :many
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.latitude, e.longitude, e.start_time,
+    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.vat_percentage, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     (
@@ -160,13 +160,14 @@ GROUP BY e.id
 ORDER BY e.start_time DESC;
 
 -- name: CreateEvent :one
-INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, organizer_absorbs_service_fee, latitude, longitude, start_time, end_time, publish_at, was_published)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, sqlc.arg(mark_published)::BOOLEAN)
+INSERT INTO events (organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, organizer_absorbs_service_fee, latitude, longitude, start_time, end_time, publish_at, was_published, vat_percentage)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, sqlc.arg(mark_published)::BOOLEAN, sqlc.arg(vat_percentage)::NUMERIC)
 RETURNING *; 
 
 -- name: EditEvent :one
 UPDATE events
 SET title = $2,
+    vat_percentage = sqlc.arg(vat_percentage)::NUMERIC,
     description = $3,
     category = $4,
     status = $5,
@@ -205,7 +206,7 @@ WHERE status IN ('draft', 'scheduled', 'published') AND end_time <= CURRENT_TIME
 -- name: GetEventByID :one
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
-    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.latitude, e.longitude, e.start_time,
+    e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.vat_percentage, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
     -- Numărul total de check-ins (vizibil public)

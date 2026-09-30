@@ -36,10 +36,15 @@ async function createTicketPdf(
     color: { dark: "#050505", light: "#ffffff" },
   });
   const locale = language === "ro" ? "ro-RO" : "en-GB";
-  const price = ticket.priceRon === undefined
+  const formatMoney = (bani: number) => new Intl.NumberFormat(locale, { style: "currency", currency: "RON" }).format(bani / 100);
+  const price = ticket.ticketPriceBani !== undefined ? formatMoney(ticket.ticketPriceBani) : ticket.priceRon === undefined
     ? "—"
     : `${new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(ticket.priceRon)} RON`;
   const date = formatTicketDate(ticket.startTime, t("date.unknown"));
+  const fee = ticket.ticketingFeeBani === undefined ? "—" : formatMoney(ticket.ticketingFeeBani);
+  const total = ticket.paidTotalBani === undefined ? "—" : formatMoney(ticket.paidTotalBani);
+  const vat = ticket.vatAmountBani === undefined ? t("ticketPdf.vatOnInvoice") : formatMoney(ticket.vatAmountBani);
+  const vatLabel = t("ticketPdf.includedVat") + (ticket.vatPercentage === undefined ? "" : ` (${new Intl.NumberFormat(locale).format(ticket.vatPercentage)}%)`);
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
   frame.tabIndex = -1;
@@ -65,41 +70,40 @@ async function createTicketPdf(
             * { box-sizing: border-box; }
             html, body { margin: 0; width: 794px; height: 1123px; background: #eef0f2; color: #111111; }
             body { font-family: Arial, Helvetica, sans-serif; }
-            .page { position: relative; width: 794px; min-height: 1123px; padding: 54px 58px 44px; background: #ffffff; overflow: hidden; }
-            .accent { position: absolute; inset: 0 auto 0 0; width: 9px; background: #ff174f; }
+            .page { display: flex; flex-direction: column; width: 794px; min-height: 1123px; padding: 54px 58px 44px; background: #ffffff; }
             .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; padding-bottom: 28px; border-bottom: 2px solid #111111; }
             .brand { font-size: 24px; font-weight: 900; letter-spacing: 5px; }
-            .brand-dot, .eyebrow { color: #ff174f; }
+            .brand-dot { color: #ff174f; }
+            .eyebrow { color: #666666; }
             .document { text-align: right; }
             .document strong { display: block; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; }
             .document span { display: block; margin-top: 7px; color: #6a6a6a; font: 12px/1.4 monospace; }
             .hero { padding: 34px 0 28px; }
             .eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 2.4px; text-transform: uppercase; }
             h1 { max-width: 610px; margin: 10px 0 0; font-size: 40px; line-height: 1.08; letter-spacing: -1.2px; overflow-wrap: anywhere; }
-            .ticket-type { display: inline-block; margin-top: 18px; padding: 9px 14px; border: 1px solid #ff174f; border-radius: 999px; color: #b40031; font-size: 13px; font-weight: 800; }
-            .ticket { display: grid; grid-template-columns: minmax(0, 1fr) 286px; min-height: 408px; border: 1px solid #d8d8d8; border-radius: 18px; overflow: hidden; box-shadow: 0 14px 42px rgba(0,0,0,.08); }
-            .details { display: flex; flex-direction: column; padding: 30px 28px; background: #fafafa; }
-            .details h2, .seller h2 { margin: 0 0 20px; font-size: 13px; letter-spacing: 1.8px; text-transform: uppercase; }
+            .ticket-type { margin-top: 16px; color: #333333; font-size: 16px; line-height: 1.5; overflow-wrap: anywhere; }
+            .ticket { display: flex; border-top: 1px solid #cccccc; border-bottom: 1px solid #cccccc; }
+            .details { min-width: 0; flex: 1; padding: 28px 28px 8px 0; }
+            .details h2 { margin: 0 0 20px; font-size: 13px; letter-spacing: 1.8px; text-transform: uppercase; }
             .field { padding: 0 0 20px; margin: 0 0 20px; border-bottom: 1px solid #dddddd; }
             .field:last-of-type { margin-bottom: 0; }
             .label { color: #777777; font-size: 10px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; }
             .value { margin-top: 7px; font-size: 17px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
-            .price { color: #d9003c; font-size: 22px; }
-            .qr { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 26px 23px; border-left: 1px dashed #bcbcbc; background: #ffffff; text-align: center; }
+            .qr { display: flex; flex: 0 0 270px; flex-direction: column; align-items: center; justify-content: center; padding: 20px 12px; border-left: 1px dashed #bcbcbc; background: #ffffff; text-align: center; }
             .qr img { display: block; width: 224px; height: 224px; }
             .qr-label { margin-top: 15px; color: #777777; font-size: 9px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; }
             .qr-code { max-width: 238px; margin-top: 6px; color: #333333; font: 10px/1.45 monospace; overflow-wrap: anywhere; word-break: break-all; }
-            .seller { margin-top: 28px; padding: 23px 25px; border: 1px solid #dddddd; border-radius: 14px; }
-            .seller-grid { display: grid; grid-template-columns: 1.1fr .65fr 1.4fr; gap: 24px; }
-            .seller .value { margin-top: 5px; font-size: 12px; font-weight: 600; }
-            .notice { display: flex; align-items: center; gap: 14px; margin-top: 26px; padding: 18px 20px; border-radius: 12px; background: #fff0f4; color: #720020; font-size: 12px; line-height: 1.5; }
-            .notice-mark { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border-radius: 50%; background: #ff174f; color: #ffffff; font-weight: 900; }
-            .footer { position: absolute; left: 58px; right: 58px; bottom: 36px; display: flex; justify-content: space-between; gap: 20px; padding-top: 15px; border-top: 1px solid #dddddd; color: #777777; font-size: 10px; }
+            .payment { margin-top: 30px; width: 100%; border-collapse: collapse; font-size: 14px; }
+            .payment td { padding: 10px 0; vertical-align: top; }
+            .payment td:last-child { text-align: right; padding-left: 24px; font-weight: 600; white-space: nowrap; }
+            .payment .vat { color: #666666; font-size: 12px; }
+            .payment .total td { border-top: 1px solid #111111; padding-top: 16px; font-size: 19px; font-weight: 800; }
+            .entry-note { margin: 28px 0 40px; color: #666666; font-size: 12px; line-height: 1.6; }
+            .footer { margin-top: auto; padding-top: 15px; border-top: 1px solid #dddddd; color: #777777; font-size: 10px; }
           </style>
         </head>
         <body>
-          <main class="page">
-            <div class="accent"></div>
+          <main class="page" data-ticket-pdf="true">
             <header class="top">
               <div class="brand">SPOTTR<span class="brand-dot">.</span></div>
               <div class="document">
@@ -110,14 +114,13 @@ async function createTicketPdf(
             <section class="hero">
               <div class="eyebrow">${escapeHtml(t("ticketPdf.admitOne"))}</div>
               <h1>${escapeHtml(ticket.eventTitle)}</h1>
-              <div class="ticket-type">${escapeHtml(ticket.ticketTypeName)}</div>
+              <div class="ticket-type">${escapeHtml(t("ticketPdf.ticketType"))}: <strong>${escapeHtml(ticket.ticketTypeName)}</strong></div>
             </section>
             <section class="ticket">
               <div class="details">
                 <h2>${escapeHtml(t("ticketPdf.eventDetails"))}</h2>
                 <div class="field"><div class="label">${escapeHtml(t("ticketPdf.dateAndTime"))}</div><div class="value">${escapeHtml(date)}</div></div>
                 <div class="field"><div class="label">${escapeHtml(t("ticketPdf.location"))}</div><div class="value">${escapeHtml(ticket.locationName)}</div></div>
-                <div class="field"><div class="label">${escapeHtml(t("ticketPdf.price"))}</div><div class="value price">${escapeHtml(price)}</div></div>
               </div>
               <div class="qr">
                 <img src="${qrCode}" alt="${escapeHtml(t("ticketPdf.ticketQr"))}" />
@@ -125,16 +128,14 @@ async function createTicketPdf(
                 <div class="qr-code">${escapeHtml(ticket.id)}</div>
               </div>
             </section>
-            <section class="seller">
-              <h2>${escapeHtml(t("ticketPdf.organizer"))}</h2>
-              <div class="seller-grid">
-                <div><div class="label">${escapeHtml(t("ticketPdf.companyName"))}</div><div class="value">${escapeHtml(ticket.organizerCompanyName || "—")}</div></div>
-                <div><div class="label">${escapeHtml(t("ticketPdf.cui"))}</div><div class="value">${escapeHtml(ticket.organizerCui || "—")}</div></div>
-                <div><div class="label">${escapeHtml(t("ticketPdf.fiscalAddress"))}</div><div class="value">${escapeHtml(ticket.organizerFiscalAddress || "—")}</div></div>
-              </div>
-            </section>
-            <div class="notice"><span class="notice-mark">!</span><span>${escapeHtml(t("ticketPdf.validationHint"))}</span></div>
-            <footer class="footer"><span>spottr.ro</span><span>${escapeHtml(t("ticketPdf.keepTicketPrivate"))}</span></footer>
+            <table class="payment">
+              <tr><td>${escapeHtml(t("ticketPdf.ticketValue"))}</td><td>${escapeHtml(price)}</td></tr>
+              <tr><td>${escapeHtml(t("ticketPdf.ticketingFee"))}</td><td>${escapeHtml(fee)}</td></tr>
+              <tr class="vat"><td>${escapeHtml(vatLabel)}</td><td>${escapeHtml(vat)}</td></tr>
+              <tr class="total"><td>${escapeHtml(t("ticketPdf.totalPaid"))}</td><td>${escapeHtml(total)}</td></tr>
+            </table>
+            <p class="entry-note">${escapeHtml(t("ticketPdf.validationHint"))}</p>
+            <footer class="footer">spottr.ro</footer>
           </main>
         </body>
       </html>`);
@@ -146,7 +147,8 @@ async function createTicketPdf(
     if (!surface) throw new Error("PDF_SURFACE_UNAVAILABLE");
     const canvas = await html2canvas(surface, { scale: 2, backgroundColor: "#ffffff", logging: false, useCORS: false });
     const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
-    doc.addImage(canvas.toDataURL("image/jpeg", 0.94), "JPEG", 0, 0, 210, 297, undefined, "FAST");
+    const width = Math.min(210, 297 * canvas.width / canvas.height);
+    doc.addImage(canvas.toDataURL("image/png"), "PNG", (210 - width) / 2, 0, width, width * canvas.height / canvas.width, undefined, "FAST");
     return {
       blob: doc.output("blob"),
       fileName: `${safeFileName(ticket.eventTitle)}-${safeFileName(ticket.ticketTypeName)}-${ticket.id.slice(0, 8)}.pdf`,
