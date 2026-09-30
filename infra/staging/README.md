@@ -31,13 +31,20 @@ running, plus small S3, CloudWatch Logs, Secrets Manager, and target-group usage
 The initial environment uses:
 
 - API: `https://api-staging.spottr.ro`;
-- web app: local development with
+- web app: `https://dev.spottr.ro`, deployed by Vercel from the persistent
+  `staging` branch with
   `NEXT_PUBLIC_API_URL=https://api-staging.spottr.ro/api/v1`;
 - API CORS origin: the exact local or hosted staging web origin selected during
   deployment.
 
-A hosted `staging.spottr.ro` frontend can be added later without changing the
-database or Stripe setup.
+The Vercel domain and environment variable must be scoped to the `staging`
+branch. Do not point a production deployment at the staging API.
+
+The Next.js configuration also treats `VERCEL_GIT_COMMIT_REF=staging` as a
+fail-safe and injects the staging API URL when `NEXT_PUBLIC_API_URL` was not
+configured. This does not replace the explicit Vercel variable; it prevents a
+mis-scoped Preview variable from silently sending staging traffic to the live
+API.
 
 ## Safety defaults
 
@@ -189,13 +196,14 @@ the latest secret version whenever it starts a new task.
 
 ## Local web app against staging
 
-The initial API configuration redirects Stripe Checkout back to
-`http://localhost:3000`. Start the web app locally with:
+The API redirects Stripe Checkout to `https://dev.spottr.ro`. The same API
+can still be used during local UI development with:
 
 ```powershell
 $env:NEXT_PUBLIC_API_URL = "https://api-staging.spottr.ro/api/v1"
 pnpm.cmd --filter @apps/pulse-app dev
 ```
 
-For testing from a phone, add a stable hosted staging frontend later and update
-the CloudFormation `StagingAppUrl` parameter to that exact HTTPS origin.
+Because CORS uses an exact origin allow-list, localhost is not accepted by the
+hosted staging configuration. Temporarily pass a different `StagingAppUrl`
+CloudFormation parameter only for an intentional local-only test session.

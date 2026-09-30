@@ -10,7 +10,7 @@ Parameters:
     Default: api-staging.spottr.ro
   StagingAppUrl:
     Type: String
-    Default: http://localhost:3000
+    Default: https://dev.spottr.ro
     Description: Exact browser origin allowed by CORS and used in checkout redirects.
   CertificateArn:
     Type: String
