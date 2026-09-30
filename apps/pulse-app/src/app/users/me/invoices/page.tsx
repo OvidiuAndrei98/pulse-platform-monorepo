@@ -1,7 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { BackLink } from "@/components/BackLink";
+import { RequestError } from "@/components/ui/RequestFeedback";
+import { useClientQuery } from "@/lib/useClientQuery";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, ChevronLeft, ExternalLink, MapPin, Receipt } from "lucide-react";
 import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
@@ -16,32 +18,25 @@ export default function InvoicesPage() {
   const { user, loading } = useDataProvider();
   const { t } = useTranslation();
   const router = useRouter();
-  const [orders, setOrders] = useState<UserOrder[]>([]);
-  const [pending, setPending] = useState(true);
+  const { data: orders, pending, error, retry } = useClientQuery<UserOrder[]>(
+    user ? `invoices:${user.properties.id}` : null,
+    () => ApiClient.instance.get("/users/me/orders"), [],
+  );
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/login");
+    if (!loading && !user) router.replace("/login?returnTo=%2Fusers%2Fme%2Finvoices");
   }, [loading, router, user]);
-
-  useEffect(() => {
-    if (!user) return;
-    ApiClient.instance
-      .get("/users/me/orders")
-      .then((response) => setOrders(response as UserOrder[]))
-      .catch(() => setOrders([]))
-      .finally(() => setPending(false));
-  }, [user]);
 
   const invoiceOrders = orders.filter((order) => order.invoiceRequested);
 
   return (
     <main className="app-page-spacing mx-auto min-h-screen max-w-3xl text-foreground">
-      <Link
+      <BackLink
         href="/users/me"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-primary"
       >
         <ChevronLeft className="h-4 w-4" /> {t("tickets.profile")}
-      </Link>
+      </BackLink>
       <div className="mt-5">
         <h1 className="text-2xl font-semibold">{t("orders.invoiceTitle")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -49,8 +44,10 @@ export default function InvoicesPage() {
         </p>
       </div>
 
-      {pending ? (
+      {loading || !user || pending ? (
         <div className="mt-7 h-48 animate-pulse border border-white/10 bg-white/[0.03]" />
+      ) : error ? (
+        <RequestError onRetry={retry} className="mt-7" />
       ) : invoiceOrders.length === 0 ? (
         <div className="mt-7 border border-dashed border-white/15 px-5 py-12 text-center">
           <Receipt className="mx-auto h-6 w-6 text-primary" />

@@ -826,6 +826,8 @@ func (h *CheckoutHandler) deliverTicketConfirmation(orderID pgtype.UUID) error {
 	tickets := make([]email.TicketDelivery, 0, len(rows))
 	for _, row := range rows {
 		tickets = append(tickets, email.TicketDelivery{
+			ID:             common.UUIDToString(row.TicketID),
+			StartTime:      row.StartTime.Time,
 			TicketTypeName: row.TicketTypeName,
 			ValidationHash: row.ValidationHash,
 		})

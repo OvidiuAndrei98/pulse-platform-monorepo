@@ -1,5 +1,9 @@
 "use client";
 
+import { routeForPlatform } from "@/lib/native/navigation";
+import { useBackLayer } from "@/lib/navigation/useBackLayer";
+import { RequestError } from "@/components/ui/RequestFeedback";
+
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Bell,
@@ -23,9 +27,10 @@ export function NotificationsPopover() {
   const { user } = useDataProvider();
   const { t } = useTranslation();
   const router = useRouter();
-  const { notifications, notificationsLoading, unreadCount, markRead } =
+  const { notifications, notificationsLoading, notificationsError, refresh, unreadCount, markRead } =
     User.useNotifications(user);
   const [open, setOpen] = useState(false);
+  useBackLayer(open, () => setOpen(false));
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,9 +60,11 @@ export function NotificationsPopover() {
     if (!notification.isRead) markRead(notification.id);
     setOpen(false);
     if (notification.eventId) {
-      router.push(`/events/${notification.eventId}`);
+      window.dispatchEvent(new Event("spottr:layer-navigation"));
+      router.push(routeForPlatform(`/events/${notification.eventId}`));
     } else if (notification.actorId) {
-      router.push(`/users/${notification.actorId}`);
+      window.dispatchEvent(new Event("spottr:layer-navigation"));
+      router.push(routeForPlatform(`/users/${notification.actorId}`));
     }
   };
 
@@ -138,6 +145,8 @@ export function NotificationsPopover() {
                   <div className="h-10 animate-pulse rounded-2xl bg-white/5" />
                   <div className="h-10 animate-pulse rounded-2xl bg-white/5" />
                 </li>
+              ) : notificationsError ? (
+                <li><RequestError onRetry={() => void refresh()} /></li>
               ) : notifications.length === 0 ? (
                 <li className="px-3 py-8 text-center text-xs text-muted-foreground">
                   {t("notifications.empty")}

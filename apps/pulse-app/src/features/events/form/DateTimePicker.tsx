@@ -65,7 +65,7 @@ export function DateTimePicker({ value, onChange, placeholder }: { value: string
   </div>;
 }
 
-export function TimePicker({ value, onChange, compact = false }: { value: string; onChange: (value: string) => void; compact?: boolean }) {
+export function TimePicker({ value, onChange, compact = false, className }: { value: string; onChange: (value: string) => void; compact?: boolean; className?: string }) {
   const { t } = useTranslation();
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -90,7 +90,7 @@ export function TimePicker({ value, onChange, compact = false }: { value: string
   }, []);
 
   return <div ref={rootRef} className="relative">
-    <button type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className={`flex w-full items-center rounded-md border border-white/10 bg-background text-left text-foreground outline-none transition focus:border-primary/60 ${compact ? "h-8 gap-1.5 px-2 text-xs" : "h-10 gap-2 px-3 text-sm"}`}>
+    <button type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className={`flex w-full items-center border border-white/10 text-left text-foreground outline-none transition focus:border-primary/60 ${className ?? (compact ? "h-8 gap-1.5 rounded-md bg-background px-2 text-xs" : "h-10 gap-2 rounded-md bg-background px-3 text-sm")}`}>
       <Clock className={`${compact ? "h-3.5 w-3.5" : "h-4 w-4"} shrink-0 text-primary`} />
       <span className={`flex-1 tabular-nums ${value ? "text-foreground" : "text-muted-foreground"}`}>{value || "--:--"}</span>
     </button>

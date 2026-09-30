@@ -1460,7 +1460,8 @@ func (q *Queries) ListOfflineValidationTickets(ctx context.Context, eventID pgty
 
 const listOrderTicketEmailDetails = `-- name: ListOrderTicketEmailDetails :many
 SELECT o.email, o.user_id, o.ticket_email_sent_at, e.title AS event_title,
-       e.location_name, tt.name AS ticket_type_name, t.validation_hash
+       e.location_name, tt.name AS ticket_type_name, t.validation_hash,
+       t.id AS ticket_id, e.start_time
 FROM orders o
 JOIN events e ON e.id = o.event_id
 JOIN tickets t ON t.order_id = o.id
@@ -1477,6 +1478,8 @@ type ListOrderTicketEmailDetailsRow struct {
 	LocationName      string             `json:"location_name"`
 	TicketTypeName    string             `json:"ticket_type_name"`
 	ValidationHash    string             `json:"validation_hash"`
+	TicketID          pgtype.UUID        `json:"ticket_id"`
+	StartTime         pgtype.Timestamptz `json:"start_time"`
 }
 
 func (q *Queries) ListOrderTicketEmailDetails(ctx context.Context, id pgtype.UUID) ([]ListOrderTicketEmailDetailsRow, error) {
@@ -1496,6 +1499,8 @@ func (q *Queries) ListOrderTicketEmailDetails(ctx context.Context, id pgtype.UUI
 			&i.LocationName,
 			&i.TicketTypeName,
 			&i.ValidationHash,
+			&i.TicketID,
+			&i.StartTime,
 		); err != nil {
 			return nil, err
 		}

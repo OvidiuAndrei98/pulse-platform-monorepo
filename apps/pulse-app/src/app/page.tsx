@@ -1,4 +1,7 @@
 "use client";
+import { RequestError } from "@/components/ui/RequestFeedback";
+import { useCachedClientQuery } from "@/lib/useCachedClientQuery";
+import { HomeCarouselSkeleton } from "@/components/ui/loading";
 
 import { useEffect, useMemo, useState } from "react";
 import { SearchPopover } from "@/components/SearchPopover";
@@ -69,44 +72,26 @@ function trackFeedPromotion(
 export default function Home() {
   const { t } = useTranslation();
   const { user, loading } = useDataProvider();
-  const { events, eventsLoading, eventsError } = User.useEvents(user, loading);
+  const { events, eventsLoading, eventsError, refresh: refreshEvents } = User.useEvents(user, loading);
   const { items: socialFeed } = User.useSocialFeed(user);
-  const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
-  const [promotedEvents, setPromotedEvents] = useState<PromotedEvent[]>([]);
+  const { data: userLocation } = useCachedClientQuery<Coordinates | null>(
+    !loading && !eventsLoading ? `nearby-location:${user?.properties.id ?? "guest"}` : null,
+    () => requestCurrentLocation({ enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 8_000 }), null,
+  );
+  const { data: promotedEvents } = useCachedClientQuery<PromotedEvent[]>(
+    !loading ? `promotions:${user?.properties.id ?? "guest"}` : null,
+    () => PublicEventsService.getPromotedEvents(), [],
+  );
   const [promotionSeed] = useState(
     () => `${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
 
   useEffect(() => {
     if (loading) return;
-    let active = true;
     const storedKey = sessionStorage.getItem("pulse:promotion-viewer");
     const viewerKey = storedKey || crypto.randomUUID();
     if (!storedKey) sessionStorage.setItem("pulse:promotion-viewer", viewerKey);
-    PublicEventsService.getPromotedEvents().then((items) => {
-      if (!active) return;
-      setPromotedEvents(items);
-    }).catch(() => active && setPromotedEvents([]));
-    return () => { active = false; };
   }, [loading, user?.properties.id]);
-
-  useEffect(() => {
-    if (eventsLoading) return;
-
-    let active = true;
-    requestCurrentLocation({
-      enableHighAccuracy: false,
-      maximumAge: 5 * 60 * 1000,
-      timeout: 8_000,
-    })
-      .then((location) => active && setUserLocation(location))
-      // Nearby events stay hidden when the user does not grant location.
-      .catch(() => undefined);
-
-    return () => {
-      active = false;
-    };
-  }, [eventsLoading]);
 
   const now = new Date();
   const endOfTonight = new Date(
@@ -231,7 +216,7 @@ export default function Home() {
 
           <div className="relative z-30 flex items-end justify-between gap-4">
             <div>
-              <p className="text-xl font-semibold leading-tight md:text-2xl">
+              <p className="min-h-7 text-xl font-semibold leading-7 md:text-2xl md:leading-8">
                 {loading ? (
                   <span
                     className="inline-flex items-center gap-2"
@@ -270,9 +255,7 @@ export default function Home() {
         {eventsLoading ? (
           <HomeLoadingState />
         ) : eventsError ? (
-          <p className="app-page-gutter mx-auto mt-9 max-w-7xl text-sm text-muted-foreground">
-            {t("home.eventsUnavailable")}
-          </p>
+          <div className="app-page-gutter mx-auto mt-9 max-w-7xl"><RequestError onRetry={refreshEvents} message={t("home.eventsUnavailable")} /></div>
         ) : (
           <>
             {liveEvents.length > 0 && (
@@ -338,67 +321,11 @@ export default function Home() {
 }
 
 function HomeLoadingState() {
+  const { t } = useTranslation();
   return (
-    <div className="app-page-gutter mx-auto mt-9 max-w-7xl">
-      {/* SECTION 1 */}
-      <div className="h-5 w-24 animate-pulse rounded-md bg-white/[0.08]" />
-
-      <div className="mt-4 flex gap-4 overflow-hidden">
-        {[0, 1, 2, 3].map((item) => (
-          <div
-            key={item}
-            className="w-[260px] shrink-0 animate-pulse rounded-[26px] border border-white/10 bg-[#121217]/60 p-2"
-          >
-            {/* Imagine */}
-            <div className="aspect-[4/3] w-full overflow-hidden rounded-[18px] bg-white/[0.06]" />
-
-            {/* Corp */}
-            <div className="mt-1 space-y-2 p-1">
-              {/* Titlu */}
-              <div className="h-5 w-3/4 rounded-md bg-white/[0.08]" />
-
-              {/* Categorie */}
-              <div className="h-6 w-20 rounded-full bg-white/[0.06]" />
-
-              {/* Locație */}
-              <div className="flex items-center gap-1.5 pt-0.5">
-                <div className="h-3.5 w-3.5 shrink-0 rounded-full bg-white/[0.06]" />
-                <div className="h-3.5 w-32 rounded-md bg-white/[0.06]" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* SECTION 2 */}
-      <div className="mt-9 h-5 w-28 animate-pulse rounded-md bg-white/[0.08]" />
-
-      <div className="mt-4 flex gap-4 overflow-hidden">
-        {[0, 1, 2, 3].map((item) => (
-          <div
-            key={item}
-            className="w-[260px] shrink-0 animate-pulse rounded-[26px] border border-white/10 bg-[#121217]/60 p-2"
-          >
-            {/* Imagine */}
-            <div className="aspect-[4/3] w-full overflow-hidden rounded-[18px] bg-white/[0.06]" />
-
-            {/* Corp */}
-            <div className="mt-1 space-y-2 p-1">
-              {/* Titlu */}
-              <div className="h-5 w-3/4 rounded-md bg-white/[0.08]" />
-
-              {/* Categorie */}
-              <div className="h-6 w-20 rounded-full bg-white/[0.06]" />
-
-              {/* Locație */}
-              <div className="flex items-center gap-1.5 pt-0.5">
-                <div className="h-3.5 w-3.5 shrink-0 rounded-full bg-white/[0.06]" />
-                <div className="h-3.5 w-28 rounded-md bg-white/[0.06]" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+    <div role="status" aria-label={t("common.loading")}>
+      <HomeCarouselSkeleton />
+      <HomeCarouselSkeleton />
     </div>
   );
 }

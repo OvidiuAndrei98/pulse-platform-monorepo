@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Check, UserMinus, UserPlus } from "lucide-react";
+import { Check, Loader2, UserMinus, UserPlus } from "lucide-react";
+import { useFeedbackAction } from "@/lib/useFeedbackAction";
 import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
@@ -17,6 +18,7 @@ export function ProfileActions({
 }) {
   const { user, isOrganizer } = useDataProvider();
   const { t } = useTranslation();
+  const { busy, run } = useFeedbackAction();
 
   if (profile.relationship === "self") return null;
   if (!user) {
@@ -35,13 +37,14 @@ export function ProfileActions({
         await ApiClient.instance[followsOrganizer ? "post" : "delete"]("/organizers/{userId}/follow", {
           params: { path: { userId: profile.id } },
         });
-      } catch {
+      } catch (error) {
         onChange?.({ followsOrganizer: profile.followsOrganizer, followerCount: profile.followerCount });
+        throw error;
       }
     };
     return (
-      <button type="button" onClick={() => void toggleFollow()} className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition ${profile.followsOrganizer ? "border-primary/40 bg-primary/15 text-primary" : "border-white/15 text-foreground hover:border-primary/50"}`}>
-        {profile.followsOrganizer ? <Check className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
+      <button type="button" disabled={busy} aria-busy={busy} onClick={() => void run(toggleFollow)} className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition disabled:opacity-60 ${profile.followsOrganizer ? "border-primary/40 bg-primary/15 text-primary" : "border-white/15 text-foreground hover:border-primary/50"}`}>
+        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : profile.followsOrganizer ? <Check className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
         {profile.followsOrganizer ? t("social.following") : t("social.follow")}
       </button>
     );
@@ -62,19 +65,15 @@ export function ProfileActions({
   };
 
   const removeFriend = async () => {
-    try {
-      await user.removeFriend(profile.id);
-      await updateFriendship("none");
-    } catch {
-      // The current state remains visible when the request fails.
-    }
+    await user.removeFriend(profile.id);
+    await updateFriendship("none");
   };
 
   const isFriend = profile.relationship === "friends";
   const label = isFriend ? t("social.removeFriend") : profile.relationship === "pending_sent" ? t("social.requestSent") : profile.relationship === "pending_received" ? t("social.accept") : t("social.addFriend");
   return (
-    <button type="button" disabled={profile.relationship === "pending_sent"} onClick={() => void (isFriend ? removeFriend() : connect())} className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition disabled:cursor-default ${isFriend ? "border-white/15 text-muted-foreground hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive" : "border-white/15 text-foreground hover:border-primary/50"}`}>
-      {isFriend ? <UserMinus className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
+    <button type="button" disabled={busy || profile.relationship === "pending_sent"} aria-busy={busy} onClick={() => void run(isFriend ? removeFriend : connect)} className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition disabled:cursor-default disabled:opacity-60 ${isFriend ? "border-white/15 text-muted-foreground hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive" : "border-white/15 text-foreground hover:border-primary/50"}`}>
+      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : isFriend ? <UserMinus className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
       {label}
     </button>
   );

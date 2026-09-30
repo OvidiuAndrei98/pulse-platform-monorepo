@@ -44,7 +44,7 @@ export function EventCancellationManager({ event, onRequested }: { event: Event;
 
   return (
     <>
-      <section className="mt-6 rounded-2xl border border-white/10 bg-white/[0.025] p-5">
+      <section className="mt-8 border-t border-white/10 pt-6">
         <div className="flex items-start gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-400/10 text-amber-300">
             <AlertTriangle className="h-5 w-5" />

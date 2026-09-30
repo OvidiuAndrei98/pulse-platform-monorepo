@@ -1,6 +1,5 @@
-import type { jsPDF as JsPdfDocument } from "jspdf";
 import type { Event, InvitationTicket } from "@/core/DataProvider";
-import { formatEventDateTime } from "@/features/events/dateFormat";
+import { renderTicketPass } from "./ticketDesign";
 
 type PdfCopy = {
   invitation: string;
@@ -19,86 +18,42 @@ function safeFileName(value: string) {
     .slice(0, 80) || "invitations";
 }
 
-function fitText(doc: JsPdfDocument, text: string, maxWidth: number) {
-  const lines = doc.splitTextToSize(text, maxWidth) as string[];
-  return lines.slice(0, 2);
-}
-
 export async function createInvitationBatchPdf(
   event: Event,
   invitations: InvitationTicket[],
   copy: PdfCopy,
 ) {
-  const [{ jsPDF }, { default: QRCode }] = await Promise.all([import("jspdf"), import("qrcode")]);
-  const activeInvitations = invitations
-    .filter((invitation) => invitation.status === "active")
-    .sort((a, b) => a.batchIndex - b.batchIndex);
-  if (activeInvitations.length === 0) throw new Error("NO_ACTIVE_INVITATIONS");
-
-  const qrCodes = await Promise.all(activeInvitations.map((invitation) => QRCode.toDataURL(invitation.validationHash, {
-    width: 700,
-    margin: 1,
-    errorCorrectionLevel: "M",
-    color: { dark: "#000000", light: "#ffffff" },
-  })));
+  const [{ jsPDF }, { default: QRCode }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("qrcode"), import("html2canvas")]);
+  const activeInvitations = invitations.filter(invitation => invitation.status === "active").sort((a, b) => a.batchIndex - b.batchIndex);
+  if (!activeInvitations.length) throw new Error("NO_ACTIVE_INVITATIONS");
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
-
-  activeInvitations.forEach((invitation, index) => {
-    if (index > 0) doc.addPage();
-    doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, 210, 297, "F");
-    doc.setDrawColor(204, 212, 204);
-    doc.roundedRect(16, 16, 178, 265, 5, 5, "S");
-
-    doc.setTextColor(46, 125, 50);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("SPOTTR", 28, 35);
-
-    doc.setTextColor(17, 17, 17);
-    doc.setFontSize(25);
-    doc.text(fitText(doc, event.title, 150), 28, 51);
-
-    doc.setFontSize(11);
-    doc.setTextColor(83, 96, 85);
-    doc.text(fitText(doc, invitation.label, 150), 28, 68);
-
-    const ticketType = invitation.ticketType || copy.invitation;
-    doc.setDrawColor(46, 125, 50);
-    doc.setFillColor(247, 251, 247);
-    doc.setFontSize(9);
-    const badgeLabel = (doc.splitTextToSize(ticketType, 142) as string[])[0];
-    const badgeWidth = Math.min(154, Math.max(34, doc.getTextWidth(badgeLabel) + 12));
-    doc.roundedRect(28, 76, badgeWidth, 13, 6, 6, "FD");
-    doc.setTextColor(46, 125, 50);
-    doc.text(badgeLabel, 34, 84.5);
-
-    doc.addImage(qrCodes[index], "PNG", 55, 101, 100, 100);
-
-    doc.setDrawColor(220, 225, 220);
-    doc.line(28, 209, 182, 209);
-
-    doc.setFontSize(8);
-    doc.setTextColor(83, 96, 85);
-    doc.text(copy.dateAndTime.toUpperCase(), 28, 216);
-    doc.text(copy.location.toUpperCase(), 111, 216);
-    doc.setFontSize(11);
-    doc.setTextColor(17, 17, 17);
-    doc.text(fitText(doc, formatEventDateTime(event.startTime), 70), 28, 224);
-    doc.text(fitText(doc, event.locationName, 70), 111, 224);
-
-    doc.setFontSize(8);
-    doc.setTextColor(83, 96, 85);
-    doc.text(copy.ticketCode.toUpperCase(), 28, 244);
-    doc.setFont("courier", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(17, 17, 17);
-    doc.text(invitation.id, 28, 251);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(83, 96, 85);
-    doc.text(fitText(doc, copy.validationHint, 154), 28, 265);
-  });
+  // A clean document avoids importing app CSS into the canvas renderer and
+  // preserves Unicode text (names/diacritics) in the generated PDF.
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.tabIndex = -1;
+  Object.assign(frame.style, { position: "fixed", left: "-10000px", top: "0", width: "480px", height: "1200px", border: "0" });
+  document.body.appendChild(frame);
+  try {
+    const page = frame.contentDocument!;
+    page.open();
+    page.write('<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:white}*{box-sizing:border-box}</style></head><body><main style="width:440px"></main></body></html>');
+    page.close();
+    const surface = page.querySelector("main")!;
+    const labels: Record<string, string> = { "ticketPdf.dateAndTime": copy.dateAndTime, "ticketPdf.location": copy.location, "ticketPdf.ticketCode": copy.ticketCode, "ticketPdf.ticketQr": copy.invitation, "ticketPdf.validationHint": copy.validationHint, "date.unknown": "—" };
+    for (const [index, invitation] of activeInvitations.entries()) {
+      const qr = await QRCode.toDataURL(invitation.validationHash, { width: 700, margin: 4, errorCorrectionLevel: "M", color: { dark: "#000000", light: "#ffffff" } });
+      surface.innerHTML = renderTicketPass({ id: invitation.id, eventTitle: event.title, ticketTypeName: [invitation.ticketType || copy.invitation, invitation.label].filter(Boolean).join(" · "), startTime: event.startTime, locationName: event.locationName, validationHash: invitation.validationHash }, qr, key => labels[key] ?? key);
+      await Promise.all([...surface.querySelectorAll("img")].map(image => image.decode()));
+      const canvas = await html2canvas(surface, { scale: 3, backgroundColor: "#ffffff", logging: false });
+      if (index) doc.addPage();
+      // Fit the complete ticket, including long event names, on one A4 page.
+      const width = Math.min(150, 265 * canvas.width / canvas.height);
+      doc.addImage(canvas.toDataURL("image/png"), "PNG", (210 - width) / 2, 16, width, width * canvas.height / canvas.width);
+    }
+  } finally {
+    frame.remove();
+  }
 
   const fileName = `${safeFileName(event.title)}-${safeFileName(activeInvitations[0].label)}.pdf`;
   return { blob: doc.output("blob"), fileName, count: activeInvitations.length };

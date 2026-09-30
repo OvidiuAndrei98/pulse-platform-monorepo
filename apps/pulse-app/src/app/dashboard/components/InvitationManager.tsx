@@ -180,7 +180,7 @@ export function InvitationManager({ event, readOnly = false }: { event: Event; r
   };
 
   return <>
-    <button type="button" onClick={() => setOpen(true)} className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.025] p-4 text-left transition hover:border-white/20 hover:bg-white/[0.05]">
+    <button type="button" onClick={() => setOpen(true)} className="flex w-full items-center gap-3 border-b border-white/10 py-5 text-left transition hover:bg-white/[0.025]">
       <span className="grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary"><Gift className="h-[18px] w-[18px]" /></span>
       <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">{t("invitations.title")}</span><span className="mt-0.5 block text-xs text-muted-foreground">{t("invitations.count", { count: items.length })}</span></span>
       <ChevronRight className="h-4 w-4 text-muted-foreground" />

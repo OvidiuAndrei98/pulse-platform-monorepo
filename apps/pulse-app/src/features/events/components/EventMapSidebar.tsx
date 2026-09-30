@@ -23,7 +23,7 @@ export function EventMapSidebar({
   const { t } = useTranslation();
   return (
     <aside className="hidden lg:block">
-      <div className="h-[calc(100dvh-200px)] space-y-2.5 overflow-y-auto pr-1">
+      <div data-nav-scroll="events-map-list" className="h-[calc(100dvh-200px)] space-y-2.5 overflow-y-auto pr-1">
         {events.length === 0 && (
           <p className="p-2 text-sm text-zinc-400">
             {t("events.noMatch")}

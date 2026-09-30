@@ -10,6 +10,8 @@ import { ToastProvider } from "@/components/ToastProvider";
 import { NativeAppBridge } from "@/components/NativeAppBridge";
 import { NativeNavigationGestures } from "@/components/NativeNavigationGestures";
 import { resources } from "@/i18n/resources";
+import { ClientNavigation } from "@/components/ClientNavigation";
+import { TabPageTransition } from "@/components/TabPageTransition";
 
 const inter = Inter({
   variable: "--font-inter-sans",
@@ -27,7 +29,8 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    // Home Screen web apps should reserve space for the iOS status bar.
+    statusBarStyle: "black",
     title: resources.en.translation.metadata.appTitle,
   },
 };
@@ -56,7 +59,8 @@ export default function RootLayout({
         <div className="relative z-10">
           <I18nProvider>
             <DataProvider>
-              <EventDetailsProvider>{children}</EventDetailsProvider>
+              <ClientNavigation />
+              <EventDetailsProvider><TabPageTransition>{children}</TabPageTransition></EventDetailsProvider>
               <BottomNavGate />
               <OfflineScannerServiceWorker />
               <NativeAppBridge />

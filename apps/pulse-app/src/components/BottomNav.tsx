@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState, useEffect, useTransition } from "react";
-import { motion } from "motion/react";
+import { scrollClientPageToTop } from "@/components/ClientNavigation";
+import { useState, useEffect, useRef } from "react";
+import { mainTabs, mainTabIndex, navigateMainTab, TAB_VISUAL_STATE, type TabVisualState } from "@/lib/navigation/tabs";
 import { Home, Map, UsersRound, UserRound } from "lucide-react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
 
@@ -22,57 +23,66 @@ export function BottomNavGate() {
 }
 
 function BottomNav() {
-  const router = useRouter();
   const pathname = usePathname();
+  const router = useRouter();
   const { isOrganizer } = useDataProvider();
   const { t } = useTranslation();
-  const [, startTransition] = useTransition();
-
-  const items: NavItem[] = [
-    { icon: Home, label: t("nav.home", "Home"), url: "/" },
-    { icon: Map, label: t("nav.map", "Events"), url: "/events" },
-    { icon: UsersRound, label: t("nav.feed", "Feed"), url: "/feed" },
-    {
-      icon: UserRound,
-      label: t("nav.profile", "Profile"),
-      url: isOrganizer ? "/dashboard" : "/users/me",
-    },
-  ];
-
-  const getCurrentIndexFromPath = () => {
-    const foundIndex = items.findIndex((item) => item.url === pathname);
-    if (foundIndex !== -1) return foundIndex;
-    if (
-      pathname?.startsWith("/dashboard") ||
-      pathname?.startsWith("/users/me") ||
-      pathname?.startsWith("/ticket-validation")
-    ) {
-      return 3;
-    }
-    if (pathname?.startsWith("/feed") || pathname?.startsWith("/users/"))
-      return pathname?.startsWith("/users/") ? 3 : 2;
-    if (pathname?.startsWith("/events")) return 1;
-    return 0;
-  };
+  const icons = { home: Home, map: Map, feed: UsersRound, profile: UserRound };
+  const items: NavItem[] = mainTabs(isOrganizer).map(tab => ({ icon: icons[tab.id], label: t(tab.label), url: tab.path }));
+  const getCurrentIndexFromPath = () => Math.max(0, mainTabIndex(pathname ?? "/"));
 
   const [activeIndex, setActiveIndex] = useState(getCurrentIndexFromPath);
+  const [indicatorIndex, setIndicatorIndex] = useState(getCurrentIndexFromPath);
+  const navbar = useRef<HTMLDivElement>(null);
+  const indicator = useRef<HTMLDivElement>(null);
+  const pendingVisual = useRef<string | null>(null);
 
   useEffect(() => {
-    setActiveIndex(getCurrentIndexFromPath());
+    const onVisualState = (event: Event) => {
+      const { href, phase } = (event as CustomEvent<TabVisualState>).detail;
+      if (phase === "pending") {
+        pendingVisual.current = href;
+        const index = Math.max(0, mainTabIndex(href));
+        setActiveIndex(index);
+        setIndicatorIndex(index);
+      } else if (pendingVisual.current === href) {
+        pendingVisual.current = null;
+      }
+    };
+    window.addEventListener(TAB_VISUAL_STATE, onVisualState);
+    return () => window.removeEventListener(TAB_VISUAL_STATE, onVisualState);
+  }, []);
+
+  // Warm route bundles in production; navigation never waits for prefetch.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      mainTabs(isOrganizer).forEach(tab => router.prefetch(tab.path));
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [router, isOrganizer]);
+
+  useEffect(() => {
+    const index = Math.max(0, mainTabIndex(pathname ?? "/"));
+    if (!pendingVisual.current || pendingVisual.current === pathname) {
+      pendingVisual.current = null;
+      setActiveIndex(index);
+      setIndicatorIndex(index);
+    }
   }, [pathname, isOrganizer]);
 
   const handleTabClick = (idx: number, url: string) => {
-    if (idx === activeIndex) return;
+    // The current URL can still be Home while Map is loading. A tap on Home
+    // must supersede that navigation, rather than only scrolling the old page.
+    if (pathname === url && activeIndex === idx && !pendingVisual.current) { scrollClientPageToTop(); return; }
 
-    setActiveIndex(idx);
-
-    startTransition(() => {
-      router.push(url, { scroll: false });
-    });
+    if (navigateMainTab(url)) {
+      setActiveIndex(idx);
+      setIndicatorIndex(idx);
+    }
   };
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-5 z-50 flex justify-center px-4">
+    <div ref={navbar} data-bottom-nav className="pointer-events-none fixed inset-x-0 bottom-5 z-50 flex justify-center px-4">
       {/* 
         Trecere insesizabilă (Smooth Gradient):
         - `from-[#18181f]/40` sus
@@ -80,8 +90,16 @@ function BottomNav() {
         - `to-[#0d0d12]/65` jos
         - `shadow-[inset_0_-8px_16px_rgba(0,0,0,0.35)]`: creează umbră naturală în bază
       */}
-      <div className="pointer-events-auto relative w-[min(100%,360px)] rounded-full border border-white/10 bg-gradient-to-b from-[#1F1F1F]/40 via-[#1A1A1A]/52 to-[#121212]/65 p-2 shadow-[0_12px_32px_rgba(0,0,0,0.6),inset_0_-8px_16px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+      {/* A slightly denser mobile tint compensates for the smaller blur radius. */}
+      <div data-bottom-nav-glass className="pointer-events-auto relative w-[min(100%,360px)] rounded-full border border-white/10 bg-gradient-to-b from-[#1F1F1F]/48 via-[#1A1A1A]/58 to-[#121212]/70 p-2 shadow-[0_12px_32px_rgba(0,0,0,0.6),inset_0_-8px_16px_rgba(0,0,0,0.35)] md:from-[#1F1F1F]/40 md:via-[#1A1A1A]/52 md:to-[#121212]/65">
         <div className="relative flex h-12 w-full items-center justify-between">
+          <div
+            ref={indicator}
+            data-nav-indicator
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-0 rounded-full border border-primary/60 bg-primary/38 shadow-[0_0_12px_rgba(225,29,72,0.4)] backdrop-blur-none transition-transform duration-[240ms] ease-[cubic-bezier(.22,.8,.25,1)] motion-reduce:transition-none md:backdrop-blur-sm"
+            style={{ width: `${100 / items.length}%`, transform: `translateX(${indicatorIndex * 100}%)` }}
+          />
           {items.map((item, idx) => {
             const Icon = item.icon;
             const isActive = activeIndex === idx;
@@ -89,22 +107,12 @@ function BottomNav() {
             return (
               <button
                 key={item.url}
+                aria-label={item.label}
+                aria-current={isActive ? "page" : undefined}
                 onClick={() => handleTabClick(idx, item.url)}
                 className="relative flex h-full flex-1 flex-col items-center justify-center gap-[2px] outline-none"
               >
                 {/* Capsula roz magenta care îmbracă ICONIȚA + TEXTUL */}
-                {isActive && (
-                  <motion.div
-                    layoutId="activeTabCapsule"
-                    layoutDependency={activeIndex}
-                    className="absolute inset-0 rounded-full border border-primary/60 bg-primary/38 shadow-[0_0_12px_rgba(225,29,72,0.4)] backdrop-blur-sm"
-                    transition={{
-                      type: "spring",
-                      stiffness: 380,
-                      damping: 28,
-                    }}
-                  />
-                )}
 
                 {/* Iconița */}
                 <Icon

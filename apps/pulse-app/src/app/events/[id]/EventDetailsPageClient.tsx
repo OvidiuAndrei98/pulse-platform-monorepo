@@ -2,6 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { BackLink } from "@/components/BackLink";
+import { routeForPlatform } from "@/lib/native/navigation";
+import { RequestError } from "@/components/ui/RequestFeedback";
+import { useClientQuery } from "@/lib/useClientQuery";
+import { ApiError } from "@packages/api-client/src/Client";
 import { notFound, useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -11,12 +16,10 @@ import {
   Check,
   Clock,
   MapPin,
-  Minus,
-  Plus,
   Share2,
   Ticket,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Event, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { EventSocialProof } from "@/components/EventSocialProof";
@@ -30,42 +33,31 @@ import { useTranslation } from "react-i18next";
 import { shareEvent as shareNativeEvent } from "@/lib/native/share";
 import { EventDetailsSkeleton } from "@/components/ui/loading";
 import { toast } from "sonner";
+import { TicketTypeSelector } from "@/features/checkout/TicketTypeSelector";
 import { TicketCheckoutDrawer } from "@/features/checkout/TicketCheckoutDrawer";
 
 export default function EventStandalonePage() {
   const { user } = useDataProvider();
   const { t } = useTranslation();
-  const [event, setEvent] = useState<Event | undefined>();
-  const [loading, setLoading] = useState(true);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [shared, setShared] = useState(false);
   const [favorite, setFavorite] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { data: event, pending: loading, error, retry } = useClientQuery<Event | undefined>(
+    `event:${params.id}`, () => User.getPublicEventById(params.id), undefined,
+  );
+  const favoriteLock = useRef(false);
+  const [savingFavorite, setSavingFavorite] = useState(false);
 
   useEffect(() => {
-    let active = true;
-
-    void User.getPublicEventById(params.id)
-      .then((fetchedEvent) => {
-        if (!active) return;
-        setEvent(fetchedEvent);
-        setFavorite(Boolean(fetchedEvent.stats?.isFavorited));
-      })
-      .catch((error) => {
-        console.error("Failed to load event details", error);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [params.id]);
+    setFavorite(Boolean(event?.stats?.isFavorited));
+  }, [event]);
 
   if (loading) return <EventDetailsSkeleton label={t("common.loading")} />;
+  if (error instanceof ApiError && error.status === 404) notFound();
+  if (error) return <main className="app-page-spacing mx-auto min-h-screen max-w-3xl"><BackLink href="/events">{t("common.back")}</BackLink><RequestError onRetry={retry} className="mt-6" /></main>;
   if (!event) notFound();
 
   const formattedDate = formatEventDate(event.startTime);
@@ -88,13 +80,6 @@ export default function EventStandalonePage() {
   const total = ticketSubtotal + serviceFee;
   const bannerUrl = event.bannerUrl || "/images/events/default.jpg";
 
-  const changeQuantity = (ticketId: string, amount: number) => {
-    setQuantities((current) => ({
-      ...current,
-      [ticketId]: Math.max(0, Math.min(8, (current[ticketId] ?? 0) + amount)),
-    }));
-  };
-
   const shareEvent = async () => {
     try {
       await shareNativeEvent(event);
@@ -102,13 +87,15 @@ export default function EventStandalonePage() {
       window.setTimeout(() => setShared(false), 1800);
     } catch (error) {
       if ((error as DOMException).name !== "AbortError") {
-        console.error("Unable to share event", error);
+        toast.error(t("feedback.shareFailed"));
       }
     }
   };
 
   const toggleFavorite = async () => {
-    if (!user) return;
+    if (!user || favoriteLock.current) return;
+    favoriteLock.current = true;
+    setSavingFavorite(true);
 
     const nextFavorite = !favorite;
     setFavorite(nextFavorite);
@@ -116,6 +103,10 @@ export default function EventStandalonePage() {
       await user.setEventFavorite(event.id, nextFavorite);
     } catch {
       setFavorite(!nextFavorite);
+      toast.error(t("feedback.actionFailed"));
+    } finally {
+      favoriteLock.current = false;
+      setSavingFavorite(false);
     }
   };
 
@@ -146,17 +137,19 @@ export default function EventStandalonePage() {
 
       <div className="app-page-gutter relative z-10 mx-auto w-full max-w-7xl pb-12 pt-5 sm:pt-8">
         <header className="flex items-center justify-between gap-4">
-          <Link
+          <BackLink
             href="/events"
             className="inline-flex h-10 items-center gap-2 rounded-full border border-white/15 bg-black/30 px-3.5 text-xs font-semibold text-foreground backdrop-blur-md transition hover:border-white/30 hover:bg-black/50"
           >
             <ArrowLeft className="h-4 w-4" /> {t("common.back")}
-          </Link>
+          </BackLink>
           <div className="flex items-center gap-2">
             {user && (
               <button
                 type="button"
                 onClick={toggleFavorite}
+                disabled={savingFavorite}
+                aria-busy={savingFavorite}
                 aria-label={favorite ? t("eventSheet.removeFavorite") : t("eventSheet.addFavorite")}
                 title={favorite ? t("eventSheet.removeFavorite") : t("eventSheet.addFavorite")}
                 className={`grid h-10 w-10 place-items-center rounded-full border backdrop-blur-md transition hover:scale-105 active:scale-95 ${
@@ -288,41 +281,7 @@ export default function EventStandalonePage() {
               <div className="p-3 sm:p-4">
                 {ticketTypes.length > 0 ? (
                   <div className="space-y-2">
-                    {ticketTypes.map((ticket) => (
-                      <div
-                        key={ticket.id}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-3.5 py-3.5 sm:px-4"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-white">{ticket.name}</p>
-                          <p className="mt-1 truncate text-xs text-white/55">
-                            {ticket.description || t("eventPage.eventAccess")}
-                          </p>
-                          <p className="mt-1.5 text-sm font-semibold text-primary">{formatRon(ticket.priceRon)}</p>
-                        </div>
-                        {!isFinished && (
-                          <div className="flex shrink-0 items-center gap-2.5">
-                            <QuantityButton
-                              label={t("eventPage.decrease")}
-                              onClick={() => changeQuantity(ticket.id, -1)}
-                              disabled={!quantities[ticket.id]}
-                            >
-                              <Minus className="h-3.5 w-3.5" />
-                            </QuantityButton>
-                            <span className="w-3 text-center text-sm font-semibold text-white">
-                              {quantities[ticket.id] ?? 0}
-                            </span>
-                            <QuantityButton
-                              label={t("eventPage.increase")}
-                              variant="primary"
-                              onClick={() => changeQuantity(ticket.id, 1)}
-                            >
-                              <Plus className="h-3.5 w-3.5" />
-                            </QuantityButton>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                    <TicketTypeSelector tickets={ticketTypes} quantities={quantities} onChange={setQuantities} disabled={isFinished || isOwnEvent} />
                   </div>
                 ) : (
                   <p className="px-2 py-3 text-sm leading-6 text-white/60">{t("eventPage.noTickets")}</p>
@@ -351,7 +310,7 @@ export default function EventStandalonePage() {
                 {isFinished && (
                   <button
                     type="button"
-                    onClick={() => router.push(`/users/${event.organizerId}`)}
+                    onClick={() => router.push(routeForPlatform(`/users/${event.organizerId}`))}
                     className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-110"
                   >
                     {t("eventPage.viewOrganizerEvents")}
@@ -363,7 +322,7 @@ export default function EventStandalonePage() {
           </aside>
         </div>
       </div>
-      <TicketCheckoutDrawer event={event} quantities={quantities} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
+      <TicketCheckoutDrawer event={event} quantities={quantities} onQuantitiesChange={setQuantities} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
     </main>
   );
 }
@@ -380,35 +339,5 @@ function EventMeta({
       <Icon className="h-4 w-4 shrink-0 text-white/45" />
       <p className="truncate font-medium">{value}</p>
     </div>
-  );
-}
-
-function QuantityButton({
-  label,
-  onClick,
-  disabled,
-  variant = "default",
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  variant?: "default" | "primary";
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      disabled={disabled}
-      className={`grid h-8 w-8 place-items-center rounded-lg border font-bold transition disabled:cursor-not-allowed disabled:opacity-35 ${
-        variant === "primary"
-          ? "border-primary/45 bg-primary/15 text-primary hover:bg-primary/25"
-          : "border-white/15 bg-white/[0.04] text-foreground hover:bg-white/[0.1]"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
