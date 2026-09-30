@@ -19,7 +19,7 @@ import {
   Ticket,
   X,
 } from "lucide-react";
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -85,6 +85,8 @@ export function TicketCheckoutDrawer({
   const scrollRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const submittingRef = useRef(false);
+  const externalCheckoutRef = useRef(false);
+  const checkoutResetTimerRef = useRef<number | null>(null);
   const [guestEmail, setGuestEmail] = useState("");
   const [billingAttempted, setBillingAttempted] = useState(false);
   const [invoiceDetails, setInvoiceDetails] = useState<InvoiceDetails>(() =>
@@ -97,6 +99,15 @@ export function TicketCheckoutDrawer({
     : {};
   const emailError = billingAttempted ? checkoutEmailError(guestEmail) : null;
   const busy = isCheckingOut || savingBilling;
+  const resetCheckoutPending = useCallback(() => {
+    externalCheckoutRef.current = false;
+    submittingRef.current = false;
+    if (checkoutResetTimerRef.current !== null) {
+      window.clearTimeout(checkoutResetTimerRef.current);
+      checkoutResetTimerRef.current = null;
+    }
+    setIsCheckingOut(false);
+  }, []);
   useBackLayer(open && historyBack, () => {
     if (busy) return false;
     // The browser has already moved the previous page into view during its
@@ -141,6 +152,29 @@ export function TicketCheckoutDrawer({
 
   useEffect(() => setMounted(true), []);
 
+  useEffect(() => {
+    const restoreAfterExternalCheckout = () => {
+      if (externalCheckoutRef.current) resetCheckoutPending();
+    };
+    const restoreWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        restoreAfterExternalCheckout();
+      }
+    };
+
+    window.addEventListener("pageshow", restoreAfterExternalCheckout);
+    window.addEventListener("focus", restoreAfterExternalCheckout);
+    document.addEventListener("visibilitychange", restoreWhenVisible);
+    return () => {
+      window.removeEventListener("pageshow", restoreAfterExternalCheckout);
+      window.removeEventListener("focus", restoreAfterExternalCheckout);
+      document.removeEventListener("visibilitychange", restoreWhenVisible);
+      if (checkoutResetTimerRef.current !== null) {
+        window.clearTimeout(checkoutResetTimerRef.current);
+      }
+    };
+  }, [resetCheckoutPending]);
+
   useLayoutEffect(() => {
     if (open) setHistoryDismissed(false);
   }, [open]);
@@ -151,12 +185,11 @@ export function TicketCheckoutDrawer({
     setBillingSource("new");
     setBillingLoading(false);
     setRememberBilling(false);
-    submittingRef.current = false;
+    resetCheckoutPending();
     setBillingAttempted(false);
     setGuestEmail(user?.properties.email ?? "");
     setInvoiceDetails(emptyInvoiceDetails(user?.properties.username ?? ""));
-    setIsCheckingOut(false);
-  }, [event.id, userId, user?.properties.email, user?.properties.username]);
+  }, [event.id, resetCheckoutPending, userId, user?.properties.email, user?.properties.username]);
 
   useEffect(() => {
     if (!open) return;
@@ -316,6 +349,11 @@ export function TicketCheckoutDrawer({
           },
         },
       );
+      externalCheckoutRef.current = true;
+      checkoutResetTimerRef.current = window.setTimeout(
+        resetCheckoutPending,
+        20_000,
+      );
       window.location.assign(checkout.checkoutUrl);
     } catch (error) {
       const message =
@@ -323,8 +361,7 @@ export function TicketCheckoutDrawer({
           ? error.detail || error.title
           : t("eventSheet.purchaseError");
       toast.error(message);
-      submittingRef.current = false;
-      setIsCheckingOut(false);
+      resetCheckoutPending();
     }
   };
 
@@ -422,7 +459,6 @@ export function TicketCheckoutDrawer({
             </button>
           </div>
           <ol
-            data-drawer-keyboard-hide
             className="mt-5 flex gap-2"
             aria-label={t("checkout.checkoutTitle")}
           >
@@ -475,7 +511,7 @@ export function TicketCheckoutDrawer({
         >
           <div className="divide-y divide-white/10">
             {selectedTickets.map((ticket) => (
-              <div key={ticket.id} className="py-4 first:pt-0">
+              <div key={ticket.id} className="first:pt-0">
                 <p className="break-words text-lg font-bold text-primary">
                   {ticket.name}
                 </p>
@@ -764,7 +800,7 @@ export function TicketCheckoutDrawer({
         </StepCard>
         </div>
       </div>
-      <footer data-drawer-keyboard-footer className="relative z-10 flex shrink-0 items-center gap-2.5 bg-linear-to-b from-black/10 via-black/70 to-black px-4 pt-3 pb-7">
+      <footer data-drawer-keyboard-footer className="relative z-10 flex shrink-0 items-center gap-2.5 bg-linear-to-b from-black/10 via-black/70 to-black px-2 py-4">
         <button
           type="button"
           onClick={() =>
