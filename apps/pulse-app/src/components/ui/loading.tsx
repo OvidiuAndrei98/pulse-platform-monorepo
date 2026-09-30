@@ -69,7 +69,7 @@ export function ProfileLoadingState() {
   const { t } = useTranslation();
   return (
     <div role="status" aria-label={t("common.loading")} className="relative min-h-screen w-full pb-[110px]">
-      <div className="app-page-gutter mx-auto max-w-md pt-10 md:max-w-7xl md:pt-16">
+      <div className="app-page-gutter mx-auto max-w-md pt-[max(1.5rem,var(--native-safe-top))] md:max-w-7xl md:pt-8">
         <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-12">
           <div className="space-y-6 md:col-span-4">
             <div className="flex items-center gap-4">

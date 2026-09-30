@@ -5,8 +5,7 @@ import { Camera, Loader2, UserRound } from "lucide-react";
 import type { User as PulseUser, UserData } from "@/core/DataProvider";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-
-const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+import { AvatarImageError, prepareAvatarImage } from "./prepareAvatarImage";
 
 type ProfileAvatarUploadProps = {
   user: PulseUser;
@@ -25,7 +24,6 @@ export function ProfileAvatarUpload({
   const inputRef = useRef<HTMLInputElement>(null);
   const [avatarUrl, setAvatarUrl] = useState(user.properties.avatarUrl);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string>();
   const dimensions = size === "large" ? "h-20 w-20" : "h-16 w-16";
 
   useEffect(() => {
@@ -37,26 +35,23 @@ export function ProfileAvatarUpload({
     event.target.value = "";
     if (!file) return;
 
-    if (!/image\/(jpeg|png|webp)/.test(file.type)) {
-      setError(t("profile.invalidImage"));
-      return;
-    }
-    if (file.size > MAX_AVATAR_BYTES) {
-      setError(t("profile.imageTooLarge"));
-      return;
-    }
-
     setUploading(true);
-    setError(undefined);
     try {
-      const updatedUser = await user.uploadAvatar(file);
+      const prepared = await prepareAvatarImage(file);
+      const updatedUser = await user.uploadAvatar(prepared);
       setAvatarUrl(updatedUser.avatarUrl);
       await onUploaded?.(updatedUser);
       toast.success(t("profile.avatarUpdated"));
-    } catch {
-      const message = t("profile.imageUploadFailed");
-      setError(message);
-      toast.error(message);
+    } catch (error) {
+      const errorKey = error instanceof AvatarImageError
+        ? {
+            invalidType: "profile.invalidImage",
+            sourceTooLarge: "profile.imageTooLarge",
+            decodeFailed: "profile.imageProcessingFailed",
+            outputTooLarge: "profile.imageOptimizedTooLarge",
+          }[error.code]
+        : "profile.imageUploadFailed";
+      toast.error(t(errorKey));
     } finally {
       setUploading(false);
     }
@@ -67,7 +62,7 @@ export function ProfileAvatarUpload({
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
         className="sr-only"
         onChange={handleFile}
       />
@@ -75,6 +70,7 @@ export function ProfileAvatarUpload({
         type="button"
         onClick={() => inputRef.current?.click()}
         disabled={uploading}
+        aria-busy={uploading}
         title={t("profile.changeAvatar")}
         className={`group relative grid ${dimensions} overflow-visible rounded-full bg-white/5 ring-2 ring-primary/40 transition hover:ring-primary/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-wait`}
       >
@@ -110,11 +106,6 @@ export function ProfileAvatarUpload({
         <span className="absolute -bottom-1 -right-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
           PRO
         </span>
-      )}
-      {error && (
-        <p className="absolute left-0 top-full mt-2 w-52 text-xs text-destructive">
-          {error}
-        </p>
       )}
     </div>
   );

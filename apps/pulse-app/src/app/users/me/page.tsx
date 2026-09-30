@@ -181,7 +181,7 @@ export default function MePage() {
 
   return (
     <div className="relative min-h-screen w-full pb-[110px] text-foreground overflow-y-auto">
-      <div className="app-page-gutter mx-auto max-w-md pt-10 md:max-w-7xl md:pt-16">
+      <div className="app-page-gutter mx-auto max-w-md pt-[max(1.5rem,var(--native-safe-top))] md:max-w-7xl md:pt-8">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-12 items-start">
           <div className="md:col-span-4 md:sticky md:top-16 space-y-6">
             <header className="flex items-center gap-4">
@@ -631,8 +631,8 @@ export default function MePage() {
                     {t("userProfile.helpText")}
                   </p>
                 </Row>
-                <Row icon={ChevronRight} label={t("userProfile.terms")} />
-                <Row icon={ChevronRight} label={t("userProfile.privacy")} />
+                <Row icon={ChevronRight} label={t("userProfile.terms")} onClick={() => router.push("/legal/terms")} />
+                <Row icon={ChevronRight} label={t("userProfile.privacy")} onClick={() => router.push("/legal/privacy")} />
               </div>
             </section>
 
@@ -684,10 +684,10 @@ function Row({
     <div className="border-b border-white/5 last:border-b-0">
       {/* Zona superioară interactivă (Butonul standard) */}
       <button
-        onClick={isExpandable ? onClick : undefined}
-        disabled={!isExpandable}
+        onClick={onClick}
+        disabled={!onClick}
         className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition ${
-          isExpandable
+          onClick
             ? "hover:bg-white/[0.04] cursor-pointer"
             : "cursor-default"
         } ${danger ? "text-red-400" : "text-white"}`}

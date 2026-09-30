@@ -1,31 +1,23 @@
 "use client";
 
-import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
+import { GlobalErrorScreen } from "@/components/GlobalErrorScreen";
 
+// A global error replaces the root layout, including its fonts and CSS.
+// Keep this screen self-contained so it still looks right when layout fails.
 export default function GlobalError({
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const { t, i18n } = useTranslation();
   return (
     <html lang={i18n.language}>
-      <body className="grid min-h-screen place-items-center bg-[#07100a] px-5 text-white">
-        <main className="w-full max-w-sm text-center">
-          <p className="text-xs font-semibold uppercase tracking-wide text-lime-300">
-            SPOTTR
-          </p>
-          <h1 className="mt-3 text-2xl font-semibold">{t("error.somethingWrong")}</h1>
-          <button
-            type="button"
-            onClick={reset}
-            className="mt-6 rounded-full bg-lime-300 px-5 py-2.5 text-sm font-semibold text-[#07100a]"
-          >
-            {t("error.tryAgain")}
-          </button>
-        </main>
-      </body>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#000000" />
+      </head>
+      <body style={{ margin: 0, background: "#000" }}><GlobalErrorScreen onRetry={reset} /></body>
     </html>
   );
 }
