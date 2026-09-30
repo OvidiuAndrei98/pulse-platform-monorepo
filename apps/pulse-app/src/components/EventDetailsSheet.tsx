@@ -517,7 +517,7 @@ export function EventDetailsSheet({
             <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
 
             {/* Fade out before the overlay ends, so its lower edge stays invisible. */}
-            <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-8 items-center justify-center">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-8 transform-gpu will-change-transform items-center justify-center [backface-visibility:hidden]">
               <div
                 className="absolute inset-x-0 top-0 h-16"
                 style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.46) 15%, rgba(0,0,0,0.24) 35%, rgba(0,0,0,0.08) 60%, rgba(0,0,0,0.015) 80%, rgba(0,0,0,0) 92%, rgba(0,0,0,0) 100%)" }}
