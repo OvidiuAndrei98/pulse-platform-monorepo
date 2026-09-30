@@ -19,8 +19,8 @@ import {
   Ticket,
   X,
 } from "lucide-react";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal, flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ApiClient, ApiError } from "@packages/api-client/src/Client";
@@ -91,6 +91,7 @@ export function TicketCheckoutDrawer({
     emptyInvoiceDetails(user?.properties.username ?? ""),
   );
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [historyDismissed, setHistoryDismissed] = useState(false);
   const billingErrors = billingAttempted
     ? getInvoiceFieldErrors(invoiceDetails)
     : {};
@@ -98,11 +99,13 @@ export function TicketCheckoutDrawer({
   const busy = isCheckingOut || savingBilling;
   useBackLayer(open && historyBack, () => {
     if (busy) return false;
-    if (step !== "tickets") {
-      setStep(step === "summary" ? "billing" : "tickets");
-      return false;
-    }
-    onClose();
+    // The browser has already moved the previous page into view during its
+    // edge-swipe. Close the entire checkout, including later steps, without
+    // replaying its exit over that snapshot. The header Back still changes steps.
+    flushSync(() => {
+      setHistoryDismissed(true);
+      onClose();
+    });
   });
   const promo = useEventPromoCode(event.id);
   const ticketTypes = event.ticketTypes ?? [];
@@ -137,6 +140,10 @@ export function TicketCheckoutDrawer({
     new Date(event.endTime).getTime() <= Date.now();
 
   useEffect(() => setMounted(true), []);
+
+  useLayoutEffect(() => {
+    if (open) setHistoryDismissed(false);
+  }, [open]);
 
   useEffect(() => {
     setStep("tickets");
@@ -725,7 +732,7 @@ export function TicketCheckoutDrawer({
 
   if (!mounted) return null;
 
-  return createPortal(
+  return createPortal(historyDismissed ? null : (
     <AnimatePresence>
       {open && (
         <>
@@ -754,7 +761,7 @@ export function TicketCheckoutDrawer({
           </motion.aside>
         </>
       )}
-    </AnimatePresence>,
+    </AnimatePresence>),
     document.body,
   );
 }

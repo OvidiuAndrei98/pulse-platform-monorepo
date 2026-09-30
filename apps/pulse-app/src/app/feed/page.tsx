@@ -73,7 +73,7 @@ export default function FeedPage() {
 
   if (!loading && !user) {
     return (
-      <main className="app-page-spacing w-full text-foreground">
+      <main className="app-page-gutter w-full pt-[max(1.5rem,var(--native-safe-top))] text-foreground md:pt-8">
         <h1 className="text-xl font-bold">{t("feed.socialTitle")}</h1>
         <p className="mt-2 text-xs text-muted-foreground">
           {t("feed.signInHint")}
@@ -89,7 +89,7 @@ export default function FeedPage() {
   }
 
   return (
-    <main className="app-page-spacing mx-auto w-full max-w-3xl pb-32 text-foreground">
+    <main className="app-page-gutter mx-auto w-full max-w-3xl pb-32 pt-[max(1.5rem,var(--native-safe-top))] text-foreground md:pt-8">
       <header className="mb-8 flex items-center justify-between gap-4">
         <h1 className="text-3xl font-semibold tracking-[-0.04em]">
           {t("feed.socialTitle")}

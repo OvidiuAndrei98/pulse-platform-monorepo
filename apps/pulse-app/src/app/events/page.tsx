@@ -149,7 +149,7 @@ function EventsPageContent() {
     <div className="relative h-dvh overflow-hidden overscroll-none text-foreground">
       <div className="relative flex h-full flex-col">
         {/* Keep the toolbar in the same page flow, including native safe-area spacing. */}
-        <div className="app-page-gutter pointer-events-none relative z-30 mx-auto flex w-full max-w-7xl shrink-0 flex-wrap items-start justify-between gap-3 pt-10 sm:items-center">
+        <div className="app-page-gutter pointer-events-none relative z-30 mx-auto flex w-full max-w-7xl shrink-0 flex-wrap items-start justify-between gap-3 pt-[max(1.5rem,var(--native-safe-top))] sm:items-center md:pt-8">
           <div className="pointer-events-auto flex items-center gap-2 sm:w-auto">
             <EventViewToggle view={view} onChange={setView} />
             <FiltersSheet value={filters} onChange={setFilters} />
