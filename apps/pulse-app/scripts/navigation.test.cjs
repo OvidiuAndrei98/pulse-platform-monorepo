@@ -402,6 +402,31 @@ test("user input cancels restoration rather than fighting subsequent scrolling",
   b.mutations.forEach((fn) => fn()); b.flushFrames(); assert.equal(b.window.scrollY, 180);
 });
 
+test("opening and closing an event sheet keeps the exact page and list scroll", () => {
+  const b = browser("/events?date=Tonight");
+  b.mount(b.load("components/ClientNavigation.tsx").ClientNavigation);
+  b.flushFrames();
+  const list = new b.Element(); list.dataset.navScroll = "events-list"; b.regions.push(list);
+  b.window.scrollY = 420;
+  list.scrollTop = 830;
+  b.history.pushState({ ...b.history.state, __spottrEvent: true }, "", "/events?date=Tonight&eventId=123");
+  b.mutations.forEach((fn) => fn()); b.flushFrames();
+  assert.equal(b.window.scrollY, 420);
+  assert.equal(list.scrollTop, 830);
+  b.document.body.style = { position: "fixed" };
+  b.window.scrollY = 0;
+  b.document.dispatchEvent({ type: "scroll", target: b.document });
+  b.document.body.style.position = "";
+  b.window.scrollY = 420;
+  b.history.back();
+  b.mutations.forEach((fn) => fn()); b.flushFrames();
+  assert.equal(b.window.scrollY, 420);
+  assert.equal(list.scrollTop, 830);
+  b.history.pushState({}, "", "/feed"); b.flushFrames();
+  b.history.back(); b.flushFrames();
+  assert.equal(b.window.scrollY, 420, "body locking must not overwrite the saved scroll");
+});
+
 test("direct links have a fallback and query replacements keep Next history fields", () => {
   const b = browser("/events?date=Tonight"); b.mount(b.load("components/ClientNavigation.tsx").ClientNavigation);
   const state = b.load("lib/navigation/state.ts");
@@ -442,6 +467,22 @@ test("nested sheet Back consumes checkout steps, then closes only the top layer"
   b.history.back(); assert.equal(steps, 0); assert.equal(outer, 0);
   b.history.back(); assert.equal(closed, 1); assert.equal(outer, 0);
   cleanup(); b.history.back(); assert.equal(outer, 1);
+});
+
+test("checkout Back closes the payment layer while keeping the event sheet open", () => {
+  const b = browser("/events");
+  b.mount(b.load("components/ClientNavigation.tsx").ClientNavigation);
+  b.history.pushState({ ...b.history.state, __spottrEvent: true }, "", "/events?eventId=123");
+  const { useBackLayer } = b.load("lib/navigation/useBackLayer.ts");
+  let checkoutClosed = 0;
+  const cleanup = b.mount(() => useBackLayer(true, () => { checkoutClosed++; }));
+  b.flushOpen();
+  b.history.back();
+  assert.equal(checkoutClosed, 1);
+  assert.equal(b.location.search, "?eventId=123");
+  cleanup();
+  b.history.back();
+  assert.equal(b.location.search, "");
 });
 
 test("dismissing an event consumes checkout and event entries without stepping checkout back", () => {

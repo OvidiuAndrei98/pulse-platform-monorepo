@@ -513,7 +513,7 @@ export function EventDetailsSheet({
           closeThreshold={0.35}
           fixed
         >
-          <DrawerContent ref={mobileSheetRef} showHandle={false} sideInset className="h-[90svh] max-h-none rounded-t-4xl border-none bg-black p-0 touch-none">
+          <DrawerContent ref={mobileSheetRef} showHandle={false} sideInset lockDocument={false} className="h-[90svh] max-h-none rounded-t-4xl border-none bg-black p-0 touch-none">
             <DrawerTitle className="sr-only">{event.title}</DrawerTitle>
 
             {/* Fade out before the overlay ends, so its lower edge stays invisible. */}

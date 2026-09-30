@@ -47,11 +47,13 @@ export function revealDrawerField(panel: HTMLElement) {
 
 /** One keyboard policy for Vaul sheets and custom side panels. The panel's
  * resting top stays stable; only its scrollable interior gets smaller. */
-export function useDrawerViewport(enabled = true, mode: "sheet" | "panel" = "sheet") {
+export function useDrawerViewport(enabled = true, mode: "sheet" | "panel" = "sheet", lockDocument = true) {
   const [panel, setPanel] = useState<HTMLElement | null>(null);
   useEffect(() => {
     if (!enabled || !panel) return;
-    const unlock = lockPage();
+    // Vaul's modal overlay already uses Radix RemoveScroll. Fixing the body a
+    // second time resets window.scrollY on iOS and can shift the page on close.
+    const unlock = lockDocument ? lockPage() : () => undefined;
     const viewport = window.visualViewport;
     const media = window.matchMedia(mobileViewport);
     const properties = ["height", "max-height", "top", "bottom"] as const;
@@ -116,10 +118,10 @@ export function useDrawerViewport(enabled = true, mode: "sheet" | "panel" = "she
       viewport?.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
       restore();
-      // Close the keyboard before releasing the fixed page.
+      // Close the keyboard before releasing the page scroll lock.
       if (panel.contains(document.activeElement)) (document.activeElement as HTMLElement)?.blur();
       unlock();
     };
-  }, [enabled, mode, panel]);
+  }, [enabled, mode, panel, lockDocument]);
   return setPanel;
 }

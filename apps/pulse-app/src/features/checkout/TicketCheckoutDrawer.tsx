@@ -6,7 +6,8 @@ import { revealDrawerField, useDrawerViewport } from "@/components/ui/useDrawerV
 import { useBackLayer } from "@/lib/navigation/useBackLayer";
 import { checkoutEmailError } from "./validateEmail";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, animate, motion, useMotionValue } from "framer-motion";
+import { Capacitor } from "@capacitor/core";
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,7 +20,7 @@ import {
   Ticket,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -78,7 +79,19 @@ export function TicketCheckoutDrawer({
   const [savingBilling, setSavingBilling] = useState(false);
   const [furthestStep, setFurthestStep] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [nativeSwipeEnabled, setNativeSwipeEnabled] = useState(false);
   const panelRef = useDrawerViewport(open && mounted, "panel");
+  const swipeX = useMotionValue(0);
+  const swipeBackdropOpacity = useMotionValue(1);
+  const edgeSwipe = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    lastX: number;
+    lastTime: number;
+    velocity: number;
+    active: boolean;
+  } | null>(null);
   const [step, setStep] = useState<"tickets" | "billing" | "summary">(
     "tickets",
   );
@@ -151,6 +164,77 @@ export function TicketCheckoutDrawer({
     new Date(event.endTime).getTime() <= Date.now();
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    setNativeSwipeEnabled(Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios");
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    edgeSwipe.current = null;
+    swipeX.set(0);
+    swipeBackdropOpacity.set(1);
+  }, [open, swipeX, swipeBackdropOpacity]);
+
+  const resetEdgeSwipe = () => {
+    edgeSwipe.current = null;
+    void animate(swipeX, 0, { type: "spring", stiffness: 420, damping: 38 });
+    void animate(swipeBackdropOpacity, 1, { duration: 0.2 });
+  };
+
+  const cancelEdgeSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (edgeSwipe.current?.pointerId === event.pointerId) resetEdgeSwipe();
+  };
+
+  const startEdgeSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!nativeSwipeEnabled || !historyBack || busy || event.pointerType !== "touch") return;
+    if (event.clientX - event.currentTarget.getBoundingClientRect().left > 32) return;
+    if ((event.target as HTMLElement).closest("button, a, input, select, textarea, [role='button']")) return;
+    edgeSwipe.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastX: event.clientX,
+      lastTime: event.timeStamp,
+      velocity: 0,
+      active: false,
+    };
+  };
+
+  const moveEdgeSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const gesture = edgeSwipe.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    const distance = event.clientX - gesture.startX;
+    const vertical = Math.abs(event.clientY - gesture.startY);
+    if (!gesture.active) {
+      if (vertical > 10 && vertical > Math.abs(distance)) { edgeSwipe.current = null; return; }
+      if (distance < 10 || distance < vertical * 1.2) return;
+      gesture.active = true;
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    gesture.velocity = ((event.clientX - gesture.lastX) / Math.max(1, event.timeStamp - gesture.lastTime)) * 1000;
+    gesture.lastX = event.clientX;
+    gesture.lastTime = event.timeStamp;
+    swipeX.set(Math.max(0, distance));
+    // Keep the page behind the closed event sheet obscured until it reopens.
+    swipeBackdropOpacity.set(Math.max(0.8, 1 - distance / Math.max(320, window.innerWidth)));
+  };
+
+  const endEdgeSwipe = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const gesture = edgeSwipe.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    edgeSwipe.current = null;
+    if (!gesture.active) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    const distance = Math.max(0, event.clientX - gesture.startX);
+    if (!busy && (distance > Math.min(120, window.innerWidth * 0.28) || (distance > 35 && gesture.velocity > 600))) {
+      onClose();
+    } else {
+      resetEdgeSwipe();
+    }
+  };
 
   useEffect(() => {
     const restoreAfterExternalCheckout = () => {
@@ -841,15 +925,21 @@ export function TicketCheckoutDrawer({
     <AnimatePresence>
       {open && (
         <>
-          <motion.button
-            type="button"
-            aria-label={t("common.close")}
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => !busy && onClose()}
-            className="pointer-events-auto fixed inset-0 z-[230] bg-black/75 backdrop-blur-sm"
-          />
+            exit={{ opacity: 0, transition: { duration: 0.32, delay: 0.06 } }}
+            transition={{ duration: 0.22 }}
+            className="pointer-events-none fixed inset-0 z-[230]"
+          >
+            <motion.button
+              type="button"
+              aria-label={t("common.close")}
+              style={{ opacity: swipeBackdropOpacity }}
+              onClick={() => !busy && onClose()}
+              className="pointer-events-auto absolute inset-0 bg-black/75 backdrop-blur-sm"
+            />
+          </motion.div>
           <motion.aside
             ref={panelRef}
             data-drawer-viewport
@@ -860,9 +950,18 @@ export function TicketCheckoutDrawer({
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 320, damping: 34 }}
-            className={`pointer-events-auto fixed right-0 top-0 z-[231] flex h-[100dvh] ${sidePanelWidth} flex-col overflow-hidden border-white/10 bg-[#080909] text-foreground shadow-2xl md:border-l`}
+            className={`pointer-events-auto fixed right-0 top-0 z-[231] h-[100dvh] ${sidePanelWidth}`}
           >
-            {content}
+            <motion.div
+              style={{ x: swipeX, touchAction: nativeSwipeEnabled ? "pan-y" : undefined }}
+              onPointerDownCapture={startEdgeSwipe}
+              onPointerMoveCapture={moveEdgeSwipe}
+              onPointerUpCapture={endEdgeSwipe}
+              onPointerCancelCapture={cancelEdgeSwipe}
+              className="flex h-full flex-col overflow-hidden border-white/10 bg-[#080909] text-foreground shadow-2xl md:border-l"
+            >
+              {content}
+            </motion.div>
           </motion.aside>
         </>
       )}

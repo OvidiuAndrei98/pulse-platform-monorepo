@@ -149,6 +149,22 @@ export function ClientNavigation() {
         notifyNavigation();
         return;
       }
+      if (nextUrl === url && state?.__spottrEvent === true) {
+        // Opening an event only changes the overlay URL. Keep the current page's
+        // scroll snapshot and stop any late route restoration before the drawer
+        // locks the body; this is not a new page to scroll back into position.
+        if (!this.state?.__spottrEvent) {
+          snapshot.window = { x: window.scrollX, y: window.scrollY };
+          document.querySelectorAll<HTMLElement>("[data-nav-scroll]").forEach((element) => {
+            snapshot.regions[element.dataset.navScroll!] = { x: element.scrollLeft, y: element.scrollTop };
+          });
+        }
+        persist();
+        cancelRestore();
+        push.call(this, { ...state, [ENTRY]: entry, [TAB_DEPTH]: currentDepth }, unused, target);
+        notifyNavigation();
+        return;
+      }
       persist();
       cancelRestore();
       const nextEntry = { id: newId(), previous: url, url: nextUrl };
@@ -231,7 +247,12 @@ export function ClientNavigation() {
     const onScroll = (event: Event) => {
       if (restoring) return;
       const target = event.target;
-      if (target === document) snapshot.window = { x: window.scrollX, y: window.scrollY };
+      if (target === document) {
+        // A mobile drawer fixes the body in place; its temporary window offset
+        // must not replace the page position saved before the drawer opened.
+        if (document.body.style?.position === "fixed") return;
+        snapshot.window = { x: window.scrollX, y: window.scrollY };
+      }
       else if (target instanceof HTMLElement && target.dataset.navScroll) {
         snapshot.regions[target.dataset.navScroll] = { x: target.scrollLeft, y: target.scrollTop };
       } else return;
