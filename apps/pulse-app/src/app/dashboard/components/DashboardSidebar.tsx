@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import { useDrawerViewport } from "@/components/ui/useDrawerViewport";
 import {
   LayoutDashboard,
   User,
@@ -150,6 +151,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
 export function OrganizerSidebar() {
   const [open, setOpen] = useState(false);
+  const viewportRef = useDrawerViewport(open, "panel");
   const pathname = usePathname();
   const { t } = useTranslation();
 
@@ -157,16 +159,6 @@ export function OrganizerSidebar() {
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
-
-  // Previne scroll-ul pe body când meniul mobil este deschis
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
 
   return (
     <>
@@ -188,7 +180,7 @@ export function OrganizerSidebar() {
       {/* MOBILE DRAWER */}
       <AnimatePresence>
         {open && (
-          <div className="fixed inset-0 z-[90] md:hidden">
+          <div ref={viewportRef} data-drawer-viewport className="fixed inset-0 z-[90] md:hidden">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}

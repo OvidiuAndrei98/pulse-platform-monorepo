@@ -1,6 +1,7 @@
 "use client";
 
 import { sidePanelWidth } from "@/components/ui/sidePanel";
+import { revealDrawerField, useDrawerViewport } from "@/components/ui/useDrawerViewport";
 
 import { useBackLayer } from "@/lib/navigation/useBackLayer";
 import { checkoutEmailError } from "./validateEmail";
@@ -76,8 +77,8 @@ export function TicketCheckoutDrawer({
   const [rememberBilling, setRememberBilling] = useState(false);
   const [savingBilling, setSavingBilling] = useState(false);
   const [furthestStep, setFurthestStep] = useState(0);
-  const panelRef = useRef<HTMLElement>(null);
   const [mounted, setMounted] = useState(false);
+  const panelRef = useDrawerViewport(open && !embedded && mounted, "panel");
   const [step, setStep] = useState<"tickets" | "billing" | "summary">(
     "tickets",
   );
@@ -150,36 +151,12 @@ export function TicketCheckoutDrawer({
 
   useEffect(() => {
     if (!open || embedded) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const updateVisualViewport = () => {
-      const panel = panelRef.current;
-      if (!panel) return;
-      const viewport = window.visualViewport;
-      panel.style.height = `${viewport?.height ?? window.innerHeight}px`;
-      panel.style.top = `${viewport?.offsetTop ?? 0}px`;
-    };
     const closeOnEscape = (keyboardEvent: KeyboardEvent) => {
       if (keyboardEvent.key === "Escape" && !busy) onClose();
     };
 
-    updateVisualViewport();
-    window.visualViewport?.addEventListener("resize", updateVisualViewport);
-    window.visualViewport?.addEventListener("scroll", updateVisualViewport);
-    window.addEventListener("resize", updateVisualViewport);
     window.addEventListener("keydown", closeOnEscape);
     return () => {
-      document.body.style.overflow = previousOverflow;
-      window.visualViewport?.removeEventListener(
-        "resize",
-        updateVisualViewport,
-      );
-      window.visualViewport?.removeEventListener(
-        "scroll",
-        updateVisualViewport,
-      );
-      window.removeEventListener("resize", updateVisualViewport);
       window.removeEventListener("keydown", closeOnEscape);
     };
   }, [embedded, busy, onClose, open]);
@@ -228,7 +205,7 @@ export function TicketCheckoutDrawer({
           '[aria-invalid="true"]',
         );
         invalid?.focus({ preventScroll: true });
-        invalid?.scrollIntoView({ block: "nearest" });
+        if (scrollRef.current) revealDrawerField(scrollRef.current);
       });
       return false;
     }
@@ -759,6 +736,7 @@ export function TicketCheckoutDrawer({
           />
           <motion.aside
             ref={panelRef}
+            data-drawer-viewport
             role="dialog"
             aria-modal="true"
             aria-labelledby={id + "-title"}

@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { useDrawerViewport } from "@/components/ui/useDrawerViewport";
 
 export function ManagementDrawer({
   open,
@@ -21,18 +22,16 @@ export function ManagementDrawer({
 }) {
   const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
+  const viewportRef = useDrawerViewport(open && mounted, "panel");
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {
     if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", closeOnEscape);
     };
   }, [onClose, open]);
@@ -41,7 +40,7 @@ export function ManagementDrawer({
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[240]">
+        <div ref={viewportRef} data-drawer-viewport className="fixed inset-0 z-[240]">
           <motion.button
             type="button"
             aria-label={t("common.close")}

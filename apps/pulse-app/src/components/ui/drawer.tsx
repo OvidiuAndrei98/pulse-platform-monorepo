@@ -3,13 +3,14 @@
 import * as React from "react";
 import { Drawer as DrawerPrimitive } from "vaul";
 import { useBackLayer } from "@/lib/navigation/useBackLayer";
+import { useDrawerViewport } from "./useDrawerViewport";
 
 export function Drawer({ historyBack = true, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root> & { historyBack?: boolean }) {
   useBackLayer(historyBack && Boolean(props.open), () => {
     if (props.dismissible === false) return false;
     props.onOpenChange?.(false);
   });
-  return <DrawerPrimitive.Root {...props} />;
+  return <DrawerPrimitive.Root noBodyStyles repositionInputs={false} {...props} />;
 }
 export const DrawerTrigger = DrawerPrimitive.Trigger;
 export const DrawerClose = DrawerPrimitive.Close;
@@ -30,11 +31,19 @@ DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName;
 export const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content> & { showHandle?: boolean; sideInset?: boolean }
->(({ className = "", children, showHandle = true, sideInset = false, ...props }, ref) => (
+>(({ className = "", children, showHandle = true, sideInset = false, ...props }, ref) => {
+  const viewportRef = useDrawerViewport();
+  const setRef = React.useCallback((node: HTMLDivElement | null) => {
+    viewportRef(node);
+    if (typeof ref === "function") ref(node);
+    else if (ref) ref.current = node;
+  }, [ref, viewportRef]);
+  return (
   <DrawerPortal>
     <DrawerOverlay />
     <DrawerPrimitive.Content
-      ref={ref}
+      ref={setRef}
+      data-drawer-viewport
       className={`fixed ${sideInset ? "w-full md:inset-x-0" : "inset-x-0"} bottom-0 z-[100] flex flex-col overflow-hidden rounded-t-2xl border border-white/15 text-foreground shadow-2xl outline-none ${className}`}
       {...props}
     >
@@ -46,7 +55,8 @@ export const DrawerContent = React.forwardRef<
       </div>
     </DrawerPrimitive.Content>
   </DrawerPortal>
-));
+  );
+});
 DrawerContent.displayName = DrawerPrimitive.Content.displayName;
 
 export const DrawerHeader = ({

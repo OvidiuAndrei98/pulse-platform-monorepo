@@ -38,6 +38,7 @@ import { useTranslation } from "react-i18next";
 import { shareEvent } from "@/lib/native/share";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { useDrawerViewport } from "@/components/ui/useDrawerViewport";
 import { toast } from "sonner";
 import { TicketTypeSelector } from "@/features/checkout/TicketTypeSelector";
 import { TicketCheckoutDrawer } from "@/features/checkout/TicketCheckoutDrawer";
@@ -162,6 +163,7 @@ export function EventDetailsSheet({
   const [savingFavorite, setSavingFavorite] = useState(false);
   const [shared, setShared] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const desktopViewportRef = useDrawerViewport(isDesktop && Boolean(displayedEvent), "panel");
   const activeEventRef = useRef(activeEvent);
   activeEventRef.current = activeEvent;
 
@@ -224,63 +226,14 @@ export function EventDetailsSheet({
   useEffect(() => {
     if (!displayedEvent) return;
 
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && handleClose();
     window.addEventListener("keydown", onKey);
 
     return () => {
-      document.body.style.overflow = "";
       window.removeEventListener("keydown", onKey);
     };
   }, [displayedEvent, checkoutBusy]);
 
-  // Keep the top edge stable when the keyboard opens; only shrink the content.
-  // Vaul's automatic input repositioning is disabled for this sheet.
-  useEffect(() => {
-    if (!activeEvent || isDesktop || checkoutOpen) return;
-    const panel = mobileSheetRef.current;
-    if (!panel) return;
-    const viewport = window.visualViewport;
-    let frame = 0;
-    let baseHeight = panel.getBoundingClientRect().height;
-    let baseViewportHeight = window.innerHeight;
-    const update = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const visibleHeight = viewport?.height ?? window.innerHeight;
-        const offsetTop = viewport?.offsetTop ?? 0;
-        const keyboardOpen = baseViewportHeight - visibleHeight > 120;
-        if (!keyboardOpen) {
-          panel.style.height = "";
-          panel.style.bottom = "";
-          baseHeight = panel.getBoundingClientRect().height;
-          baseViewportHeight = window.innerHeight;
-          return;
-        }
-        const top = Math.max(offsetTop, baseViewportHeight - baseHeight);
-        panel.style.height = `${Math.max(0, offsetTop + visibleHeight - top)}px`;
-        panel.style.bottom = `${Math.max(0, window.innerHeight - offsetTop - visibleHeight)}px`;
-        const focused = document.activeElement;
-        if (focused instanceof HTMLElement && panel.contains(focused)) {
-          const bounds = focused.getBoundingClientRect();
-          if (bounds.bottom > offsetTop + visibleHeight - 90 || bounds.top < top + 100) {
-            focused.scrollIntoView({ block: "nearest" });
-          }
-        }
-      });
-    };
-    viewport?.addEventListener("resize", update);
-    viewport?.addEventListener("scroll", update);
-    window.addEventListener("resize", update);
-    panel.addEventListener("focusin", update);
-    return () => {
-      cancelAnimationFrame(frame);
-      viewport?.removeEventListener("resize", update);
-      viewport?.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-      panel.removeEventListener("focusin", update);
-    };
-  }, [activeEvent?.id, displayedEvent?.id, isDesktop, checkoutOpen]);
 
   if (!displayedEvent) return null;
 
@@ -586,6 +539,7 @@ export function EventDetailsSheet({
   return (
     <>
       <div
+        ref={desktopViewportRef}
         onClick={() => handleClose()}
         className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/70 backdrop-blur-sm md:flex cursor-pointer"
       >

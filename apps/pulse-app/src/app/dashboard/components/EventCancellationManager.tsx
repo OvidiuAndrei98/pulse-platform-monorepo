@@ -6,12 +6,14 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import type { Event, EventCancellationRequest } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { useDrawerViewport } from "@/components/ui/useDrawerViewport";
 
 export function EventCancellationManager({ event, onRequested }: { event: Event; onRequested?: () => void }) {
   const { t } = useTranslation();
   const { user } = useDataProvider();
   const [request, setRequest] = useState<EventCancellationRequest>();
   const [open, setOpen] = useState(false);
+  const viewportRef = useDrawerViewport(open, "panel");
   const [reason, setReason] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -70,8 +72,8 @@ export function EventCancellationManager({ event, onRequested }: { event: Event;
       </section>
 
       {open && (
-        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true">
-          <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-white/10 bg-neutral-950 p-5 pb-[max(1.25rem,var(--native-safe-bottom))] sm:max-w-lg sm:rounded-2xl">
+        <div ref={viewportRef} data-drawer-viewport className="fixed inset-0 z-[120] flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true">
+          <div className="max-h-[92%] w-full overflow-y-auto overscroll-contain rounded-t-3xl border border-white/10 bg-neutral-950 p-5 pb-[max(1.25rem,var(--native-safe-bottom))] sm:max-w-lg sm:rounded-2xl">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold">{t("eventCancellation.modalTitle")}</h2>
               <button type="button" onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-full border border-white/10" aria-label={t("common.close")}><X className="h-4 w-4" /></button>

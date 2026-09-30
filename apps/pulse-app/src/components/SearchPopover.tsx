@@ -4,6 +4,7 @@ import { routeForPlatform } from "@/lib/native/navigation";
 import { useBackLayer } from "@/lib/navigation/useBackLayer";
 import { RequestError, RequestProgress } from "@/components/ui/RequestFeedback";
 import { sidePanelWidth } from "@/components/ui/sidePanel";
+import { useDrawerViewport } from "@/components/ui/useDrawerViewport";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Search, X, ArrowUpRight, BadgeCheck, UserRound } from "lucide-react";
@@ -29,6 +30,7 @@ type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 
 export function SearchPopover({ events }: SearchPopoverProps) {
   const [open, setOpen] = useState(false);
+  const viewportRef = useDrawerViewport(open, "panel");
   const [historyDismissed, setHistoryDismissed] = useState(false);
   useBackLayer(open, () => {
     // iOS already slides the history snapshot away during an edge swipe.
@@ -51,14 +53,11 @@ export function SearchPopover({ events }: SearchPopoverProps) {
 
   useEffect(() => {
     if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 250);
+    const focusTimer = window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 250);
     const onKeyDown = (event: KeyboardEvent) =>
       event.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.clearTimeout(focusTimer);
       window.removeEventListener("keydown", onKeyDown);
     };
@@ -139,7 +138,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
   const drawer = historyDismissed ? null : (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[200]">
+        <div ref={viewportRef} data-drawer-viewport className="fixed inset-0 z-[200]">
           <motion.button
             type="button"
             aria-label={t("search.close")}
