@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Calendar, ChevronLeft, ChevronRight, MapPin, QrCode, Ticket, X } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, MapPin, QrCode, Ticket } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
@@ -207,14 +207,6 @@ function TicketPreview({
 
   const content = (
     <div data-ticket-preview={ticket.id} className="min-h-0 flex-1 overflow-y-auto px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 md:px-6 md:pt-6">
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label={t("tickets.close")}
-        className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-white/5 text-muted-foreground transition hover:bg-white/10 hover:text-white"
-      >
-        <X className="h-4 w-4" />
-      </button>
       {tickets.length > 1 && <div className="mt-8 flex items-center justify-between gap-3">
         <button type="button" aria-label={t("tickets.previousTicket")} disabled={index <= 0} onClick={() => onSelect(tickets[index - 1])} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/5 disabled:opacity-25 focus-visible:outline-2 focus-visible:outline-primary"><ChevronLeft className="h-5 w-5" /></button>
         <p aria-live="polite" className="text-sm font-semibold tabular-nums">{t("tickets.ticketPosition", { current: index + 1, total: tickets.length })}</p>
@@ -241,7 +233,7 @@ function TicketPreview({
         onOpenChange={(open) => !open && onClose()}
         shouldScaleBackground={false}
       >
-        <DrawerContent className="h-[min(84svh,46rem)] border-white/10 bg-neutral-950 p-0">
+        <DrawerContent className="h-[min(72svh,40rem)] border-white/10 bg-neutral-950 p-0">
           <DrawerTitle className="sr-only">{ticket.eventTitle}</DrawerTitle>
           {content}
         </DrawerContent>

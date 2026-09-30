@@ -237,7 +237,7 @@ export function EventDetailsSheet({
   // Keep the top edge stable when the keyboard opens; only shrink the content.
   // Vaul's automatic input repositioning is disabled for this sheet.
   useEffect(() => {
-    if (!activeEvent || isDesktop) return;
+    if (!activeEvent || isDesktop || checkoutOpen) return;
     const panel = mobileSheetRef.current;
     if (!panel) return;
     const viewport = window.visualViewport;
@@ -280,7 +280,7 @@ export function EventDetailsSheet({
       window.removeEventListener("resize", update);
       panel.removeEventListener("focusin", update);
     };
-  }, [activeEvent?.id, displayedEvent?.id, isDesktop]);
+  }, [activeEvent?.id, displayedEvent?.id, isDesktop, checkoutOpen]);
 
   if (!displayedEvent) return null;
 
@@ -529,27 +529,22 @@ export function EventDetailsSheet({
       </div>
     </>
   );
-  const interactiveContent = (
-    <>
-      <div className={checkoutOpen ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
-        {sheetContent}
-      </div>
-      <TicketCheckoutDrawer
-        key={event.id}
-        event={event}
-        quantities={qty}
-        onQuantitiesChange={setQty}
-        open={checkoutOpen}
-        historyBack={Boolean(activeEvent)}
-        embedded
-        onBusyChange={setCheckoutBusy}
-        onClose={() => setCheckoutOpen(false)}
-      />
-    </>
+  const checkoutDrawer = (
+    <TicketCheckoutDrawer
+      key={event.id}
+      event={event}
+      quantities={qty}
+      onQuantitiesChange={setQty}
+      open={checkoutOpen}
+      historyBack={Boolean(activeEvent)}
+      onBusyChange={setCheckoutBusy}
+      onClose={() => setCheckoutOpen(false)}
+    />
   );
   if (!isDesktop) {
     return (
       <>
+        {!checkoutOpen && (
           <Drawer
             historyBack={false}
             open={Boolean(activeEvent)}
@@ -579,9 +574,11 @@ export function EventDetailsSheet({
                 <div className="relative h-1.5 w-12 rounded-full bg-white/70 shadow-sm" />
               </div>
 
-              {interactiveContent}
+              {sheetContent}
             </DrawerContent>
           </Drawer>
+        )}
+        {checkoutDrawer}
       </>
     );
   }
@@ -600,9 +597,10 @@ export function EventDetailsSheet({
           onClick={(clickEvent) => clickEvent.stopPropagation()}
           className="relative z-10 flex h-[min(88vh,49rem)] w-[calc(100%-1.5rem)] max-w-2xl flex-col overflow-hidden rounded-[28px] border border-white/10 bg-black text-foreground shadow-2xl backdrop-blur-xl cursor-default"
         >
-          {interactiveContent}
+          {sheetContent}
         </motion.div>
       </div>
+      {checkoutDrawer}
     </>
   );
 }

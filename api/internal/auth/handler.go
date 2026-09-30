@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/mail"
+	"net/url"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -42,11 +43,12 @@ type EmailSender interface {
 
 // Handler colectează dependențele din app.go
 type Handler struct {
-	Queries     *db.Queries
-	Pool        *pgxpool.Pool
-	EmailSender EmailSender
-	googleOAuth GoogleOAuthConfig
-	Abuse       *abuse.Protection
+	Queries      *db.Queries
+	Pool         *pgxpool.Pool
+	EmailSender  EmailSender
+	PublicAppURL string
+	googleOAuth  GoogleOAuthConfig
+	Abuse        *abuse.Protection
 }
 
 const (
@@ -65,13 +67,23 @@ func (h *Handler) claimGuestPurchases(ctx context.Context, userID pgtype.UUID) {
 }
 
 // NewHandler este constructorul pentru Handler-ul de auth
-func NewHandler(queries *db.Queries, pool *pgxpool.Pool, emailSender EmailSender, abuseProtection *abuse.Protection) *Handler {
+func NewHandler(queries *db.Queries, pool *pgxpool.Pool, emailSender EmailSender, abuseProtection *abuse.Protection, publicAppURL string) *Handler {
 	return &Handler{
-		Queries:     queries,
-		Pool:        pool,
-		EmailSender: emailSender,
-		Abuse:       abuseProtection,
+		Queries:      queries,
+		Pool:         pool,
+		EmailSender:  emailSender,
+		PublicAppURL: strings.TrimRight(strings.TrimSpace(publicAppURL), "/"),
+		Abuse:        abuseProtection,
 	}
+}
+
+func (h *Handler) redirectActivation(w http.ResponseWriter, r *http.Request, status string) bool {
+	if h.PublicAppURL == "" {
+		return false
+	}
+	target := h.PublicAppURL + "/login?activation=" + url.QueryEscape(status)
+	http.Redirect(w, r, target, http.StatusSeeOther)
+	return true
 }
 
 func (h *Handler) HandleRegister(w http.ResponseWriter, r *http.Request) {
@@ -202,6 +214,9 @@ func (h *Handler) HandleActivate(w http.ResponseWriter, r *http.Request) {
 	// 1. Extragem token-ul primit în query string
 	plaintextToken := r.URL.Query().Get("token")
 	if plaintextToken == "" || len(plaintextToken) > 128 {
+		if h.redirectActivation(w, r, "invalid") {
+			return
+		}
 		http.Error(w, "Token-ul lipsește sau este invalid", http.StatusBadRequest)
 		return
 	}
@@ -217,6 +232,9 @@ func (h *Handler) HandleActivate(w http.ResponseWriter, r *http.Request) {
 		Type:      "activation",
 	})
 	if err != nil {
+		if h.redirectActivation(w, r, "invalid") {
+			return
+		}
 		http.Error(w, "Token invalid sau expirat", http.StatusUnauthorized)
 		return
 	}
@@ -227,6 +245,9 @@ func (h *Handler) HandleActivate(w http.ResponseWriter, r *http.Request) {
 			TokenHash: tokenHashStr,
 			Type:      "activation",
 		})
+		if h.redirectActivation(w, r, "expired") {
+			return
+		}
 		http.Error(w, "Token-ul a expirat. Te rugăm să soliciți un nou link.", http.StatusGone)
 		return
 	}
@@ -234,6 +255,9 @@ func (h *Handler) HandleActivate(w http.ResponseWriter, r *http.Request) {
 	// 5. Activăm utilizatorul (trecem is_active = true)
 	err = h.Queries.UpdateUserActivated(r.Context(), dbToken.UserID)
 	if err != nil {
+		if h.redirectActivation(w, r, "error") {
+			return
+		}
 		http.Error(w, "Nu s-a putut activa contul", http.StatusInternalServerError)
 		return
 	}
@@ -245,10 +269,15 @@ func (h *Handler) HandleActivate(w http.ResponseWriter, r *http.Request) {
 		Type:      "activation",
 	})
 
-	// 7. Răspundem succes (poți trimite JSON sau chiar să randezi un HTML simplu de succes)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "Contul tău Spottr a fost activat cu succes! Te poți loga acum."}`))
+	// Browser activation links return to the configured application.
+	if h.redirectActivation(w, r, "success") {
+		return
+	}
+
+	// Keep a valid JSON fallback for local/API-only environments.
+	router.RespondWithJSON(w, http.StatusOK, map[string]string{
+		"message": "Contul tău Spottr a fost activat cu succes! Te poți loga acum.",
+	})
 }
 
 type LoginRequest struct {

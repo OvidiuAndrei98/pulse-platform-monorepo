@@ -87,7 +87,7 @@ func securityDB(t *testing.T) (*Handler, *pgxpool.Pool, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewHandler(db.New(pool), pool, nil, protection), pool, schema
+	return NewHandler(db.New(pool), pool, nil, protection, ""), pool, schema
 }
 
 func seedReset(t *testing.T, h *Handler) (db.Users, string, string) {

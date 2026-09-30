@@ -72,16 +72,16 @@ export function EventBrowseCard({
           <div className="absolute inset-0 bg-black/15" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/20" />
 
-          <div className="absolute left-2.5 right-2.5 top-2.5 flex items-start justify-between gap-2">
-            <span className="rounded-full border border-white/15 bg-black/60 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-md">
-              <span className="inline-flex items-center gap-1">
+          <div className="absolute left-2.5 right-2.5 top-2.5 flex min-w-0 items-start justify-between gap-1.5">
+            <span className="min-w-0 max-w-[58%] truncate rounded-full border border-white/15 bg-black/60 px-1.5 py-1 text-[9px] font-bold uppercase tracking-wide text-white/90 backdrop-blur-md min-[390px]:px-2 min-[390px]:text-[10px]">
+              <span className="inline-flex max-w-full items-center gap-1 truncate">
                 {promoted && <Megaphone className="h-3 w-3 text-primary" />}
                 {event.category || t("events.generalCategory")}
               </span>
             </span>
             {event.isLive && (
-              <span className="rounded-full border border-red-500/40 bg-red-500/20 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-red-400 backdrop-blur-md">
-                <span className="relative mr-1 inline-flex h-1.5 w-1.5">
+              <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-red-500/40 bg-red-500/20 px-1.5 py-1 text-[9px] font-bold uppercase tracking-normal text-red-400 backdrop-blur-md min-[390px]:px-2 min-[390px]:text-[10px]">
+                <span className="relative mr-1 inline-flex h-1.5 w-1.5 shrink-0">
                   <span className="absolute inset-0 animate-ping rounded-full bg-red-400 opacity-75" />
                   <span className="relative h-1.5 w-1.5 rounded-full bg-red-400" />
                 </span>

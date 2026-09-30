@@ -196,7 +196,7 @@ func (app *Application) BuildRouter() http.Handler {
 	)
 
 	// 1. Instanțiem modulele din internal cu dependențele necesare
-	authHandler := auth.NewHandler(app.Queries, app.Pool, mailerService, app.Abuse)
+	authHandler := auth.NewHandler(app.Queries, app.Pool, mailerService, app.Abuse, os.Getenv("PUBLIC_APP_URL"))
 	authHandler.ConfigureGoogleOAuth(auth.GoogleOAuthConfig{
 		ClientID:        os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
 		ClientSecret:    os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),

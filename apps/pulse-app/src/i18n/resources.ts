@@ -167,6 +167,12 @@ export const resources = {
         activationTitle: "Check your email",
         activationText:
           "We sent an activation link to {{email}}. After confirmation, you can sign in.",
+        activationResult: {
+          success: "Your account is active. Sign in to continue.",
+          expired: "This activation link has expired. Please register again or contact support.",
+          invalid: "This activation link is invalid or has already been used.",
+          error: "We could not activate your account. Please try again or contact support.",
+        },
         goToLogin: "Go to sign in",
         haveAccount: "Already have an account?",
         termsPrefix:
@@ -526,6 +532,10 @@ export const resources = {
       },
       ticketPdf: {
         preparingTitle: "Preparing ticket...",
+        accessTicket: "Access ticket",
+        admitOne: "Valid for one admission",
+        eventDetails: "Event details",
+        keepTicketPrivate: "Keep this ticket private and do not share its QR code.",
         organizer: "Organizer",
         companyName: "Company name",
         cui: "Tax ID",
@@ -543,6 +553,8 @@ export const resources = {
           "Show this QR code at entry. Each code can be validated only once.",
         popupBlocked: "Allow pop-ups to generate the PDF",
         preparing: "Preparing...",
+        generationFailed: "The PDF could not be generated",
+        tryAgain: "Try again",
         allowPopup: "Allow pop-up",
         downloadPdf: "Download PDF",
       },
@@ -1635,6 +1647,12 @@ export const resources = {
         activationTitle: "Verifica-ti emailul",
         activationText:
           "Am trimis un link de activare la {{email}}. Dupa confirmare te poti conecta in cont.",
+        activationResult: {
+          success: "Contul tau este activ. Conecteaza-te pentru a continua.",
+          expired: "Linkul de activare a expirat. Inregistreaza-te din nou sau contacteaza suportul.",
+          invalid: "Linkul de activare este invalid sau a fost deja folosit.",
+          error: "Contul nu a putut fi activat. Incearca din nou sau contacteaza suportul.",
+        },
         goToLogin: "Mergi la conectare",
         haveAccount: "Ai deja cont?",
         termsPrefix: "Prin crearea contului confirmi ca ai citit",
@@ -1995,6 +2013,10 @@ export const resources = {
       },
       ticketPdf: {
         preparingTitle: "Se pregateste biletul...",
+        accessTicket: "Bilet de acces",
+        admitOne: "Valabil pentru o singura intrare",
+        eventDetails: "Detaliile evenimentului",
+        keepTicketPrivate: "Pastreaza biletul privat si nu distribui codul QR.",
         organizer: "Organizator",
         companyName: "Denumire",
         cui: "CUI",
@@ -2012,6 +2034,8 @@ export const resources = {
           "Prezinta codul QR la intrare. Fiecare cod poate fi validat o singura data.",
         popupBlocked: "Permite ferestre pop-up pentru a genera PDF-ul",
         preparing: "Se pregateste...",
+        generationFailed: "PDF-ul nu a putut fi generat",
+        tryAgain: "Incearca din nou",
         allowPopup: "Permite popup-ul",
         downloadPdf: "Descarca PDF",
       },

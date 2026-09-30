@@ -97,7 +97,10 @@ async function run() {
       if (route === '/users/me/tickets') { window.__api.calls++; await new Promise(resolve => setTimeout(resolve,120)); return window.__api.fail ? reply({title:'Unavailable'},503) : reply(window.__api.empty ? [] : tickets); }
       return reply([]);
     };
-    window.open = () => ({document:{open(){window.__pdf='';}, write(html){window.__pdf=(window.__pdf || '') + html;}, close(){}}});
+    const createObjectURL = URL.createObjectURL.bind(URL);
+    URL.createObjectURL = blob => { if (blob?.type === 'application/pdf') window.__pdfBlob = blob; return createObjectURL(blob); };
+    const anchorClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function() { if (this.download?.endsWith('.pdf')) { window.__pdf = {download:this.download,href:this.href}; return; } return anchorClick.call(this); };
   ` });
   const clickTab = async (text) => evaluate(`Array.from(document.querySelectorAll('main button')).find(b => b.textContent.trim().startsWith(${JSON.stringify(text)})).click()`);
   for (const width of [390,1280]) {
@@ -121,9 +124,9 @@ async function run() {
     assert.ok(await evaluate("document.querySelector('[data-ticket-preview]').textContent.includes('Ticket 2 of 2')"));
     assert.ok(await evaluate("document.querySelector('button[aria-label=\"Next ticket\"]').disabled"));
     await evaluate(`${button('Download PDF')}.click()`);
-    await until("window.__pdf?.includes('next-two')");
-    assert.ok(await evaluate("window.__pdf.includes('VIP admission')"),'PDF follows the selected ticket');
-    assert.equal(await evaluate("new DOMParser().parseFromString(window.__pdf,'text/html').querySelector('[data-ticket-pass]').outerHTML"), await evaluate("document.querySelector('[data-ticket-preview] [data-ticket-pass]').outerHTML"), 'App and PDF render the same ticket markup');
+    await until("window.__pdf?.download && window.__pdfBlob?.size > 1000");
+    assert.ok(await evaluate("window.__pdf.download.includes('VIP-admission')"),'PDF follows the selected ticket');
+    assert.equal(await evaluate("window.__pdfBlob.slice(0,5).text()"),'%PDF-','Download is a real PDF document');
     if (process.env.TICKETS_SCREENSHOT && width === 390) {
       const shot = await call('Page.captureScreenshot',{format:'png'});
       fs.writeFileSync(process.env.TICKETS_SCREENSHOT.replace('.png','-pass.png'),Buffer.from(shot.data,'base64'));

@@ -10,8 +10,10 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
+  CheckCircle2,
   LockKeyhole,
   Mail,
+  TriangleAlert,
   X,
 } from "lucide-react";
 import { useDataProvider } from "@/core/DataProviderContext";
@@ -26,7 +28,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [activationStatus] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const value = new URLSearchParams(window.location.search).get("activation");
+    return value === "success" || value === "expired" || value === "invalid" || value === "error" ? value : "";
+  });
+  const [showEmailForm, setShowEmailForm] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("activation") === "success";
+  });
   const [returnTo] = useState(() => {
     if (typeof window === "undefined") return "";
     const value =
@@ -126,6 +136,19 @@ export default function LoginPage() {
           onSubmit={handleSubmit}
           className={showEmailForm ? "my-auto w-full" : "mt-9"}
         >
+          {activationStatus && (
+            <div
+              role="status"
+              className={`mb-5 flex items-start gap-3 rounded-2xl border px-4 py-3 text-left text-sm backdrop-blur-md ${
+                activationStatus === "success"
+                  ? "border-emerald-400/25 bg-emerald-500/15 text-emerald-50"
+                  : "border-amber-400/25 bg-amber-500/15 text-amber-50"
+              }`}
+            >
+              {activationStatus === "success" ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" /> : <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" />}
+              <span>{t(`auth.activationResult.${activationStatus}`)}</span>
+            </div>
+          )}
           {!showEmailForm && (
             <>
               <GoogleSignInButton
