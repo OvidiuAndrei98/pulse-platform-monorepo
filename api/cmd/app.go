@@ -273,6 +273,7 @@ func (app *Application) BuildRouter() http.Handler {
 		DeleteBillingDetails:        usersHandler.HandleDeleteBillingDetails,
 		GetEventSafetyGroup:         safetyGroupsHandler.HandleGet,
 		CreateEventSafetyGroup:      safetyGroupsHandler.HandleCreate,
+		InviteEventSafetyGroup:      safetyGroupsHandler.HandleInvite,
 		RespondEventSafetyGroup:     safetyGroupsHandler.HandleRespond,
 		SendSafetyGroupMessage:      safetyGroupsHandler.HandleMessage,
 		SendSafetyGroupHelp:         safetyGroupsHandler.HandleHelp,

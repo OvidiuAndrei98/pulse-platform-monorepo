@@ -1169,6 +1169,14 @@ interface EventOperations {
     @body payload: CreateEventSafetyGroupPayload,
   ): CreatedResourceResponse;
 
+  @summary("Invita alti prieteni in grupul existent")
+  @post
+  @route("/{id}/safety-group/invite")
+  inviteSafetyGroup(
+    @path id: string,
+    @body payload: CreateEventSafetyGroupPayload,
+  ): SuccessResponse;
+
   @summary("Accepta sau refuza invitatia in grup")
   @post
   @route("/{id}/safety-group/respond")

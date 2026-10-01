@@ -166,6 +166,242 @@ func TestPendingMemberCannotReadMessagesAndOutsiderHasNoGroup(t *testing.T) {
 	}
 }
 
+func TestOwnerCanInviteFriendAfterTicketWasValidated(t *testing.T) {
+	pool := safetyTestPool(t)
+	fixture := seedSafetyFixture(t, pool)
+	ctx := context.Background()
+
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO friendships(user_id,friend_id,status) VALUES($1,$2,'accepted')`, fixture.ownerID, fixture.outsiderID); err != nil {
+		t.Fatal(err)
+	}
+	var outsiderOrderID pgtype.UUID
+	if err := pool.QueryRow(ctx, `
+		INSERT INTO orders(user_id,event_id,email,status,total_amount)
+		VALUES($1,$2,'validated-friend@example.invalid','completed',50) RETURNING id`, fixture.outsiderID, fixture.eventID).Scan(&outsiderOrderID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO tickets(order_id,ticket_type_id,user_id,validation_hash,is_validated,validated_at)
+		VALUES($1,$2,$3,$4,TRUE,CURRENT_TIMESTAMP)`, outsiderOrderID, fixture.ticketTypeID, fixture.outsiderID, "validated-friend-"+common.UUIDToString(outsiderOrderID)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM orders WHERE id=$1`, outsiderOrderID)
+	})
+
+	handler := NewHandler(pool, nil)
+	getResponse := httptest.NewRecorder()
+	handler.HandleGet(getResponse, safetyRequest(http.MethodGet, "/", nil, fixture.ownerID, fixture.eventID))
+	if getResponse.Code != http.StatusOK {
+		t.Fatalf("get status=%d body=%s", getResponse.Code, getResponse.Body.String())
+	}
+	var envelope envelopeResponse
+	if err := json.Unmarshal(getResponse.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if len(envelope.EligibleFriends) != 1 || envelope.EligibleFriends[0].UserID != common.UUIDToString(fixture.outsiderID) {
+		t.Fatalf("validated friend was not eligible: %+v", envelope.EligibleFriends)
+	}
+
+	unauthorizedResponse := httptest.NewRecorder()
+	handler.HandleInvite(unauthorizedResponse, safetyRequest(http.MethodPost, "/", createRequest{
+		FriendIDs: []string{common.UUIDToString(fixture.outsiderID)},
+	}, fixture.friendID, fixture.eventID))
+	if unauthorizedResponse.Code != http.StatusForbidden {
+		t.Fatalf("non-owner invite status=%d body=%s", unauthorizedResponse.Code, unauthorizedResponse.Body.String())
+	}
+
+	inviteResponse := httptest.NewRecorder()
+	handler.HandleInvite(inviteResponse, safetyRequest(http.MethodPost, "/", createRequest{
+		FriendIDs: []string{common.UUIDToString(fixture.outsiderID)},
+	}, fixture.ownerID, fixture.eventID))
+	if inviteResponse.Code != http.StatusOK {
+		t.Fatalf("invite status=%d body=%s", inviteResponse.Code, inviteResponse.Body.String())
+	}
+	var memberStatus string
+	if err := pool.QueryRow(ctx, `
+		SELECT status FROM event_safety_group_members
+		WHERE group_id=$1 AND user_id=$2`, fixture.groupID, fixture.outsiderID).Scan(&memberStatus); err != nil {
+		t.Fatal(err)
+	}
+	if memberStatus != "pending" {
+		t.Fatalf("member status=%q want pending", memberStatus)
+	}
+	var notificationCount int
+	if err := pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM notifications
+		WHERE user_id=$1 AND event_id=$2 AND type='safety_group_invite'`, fixture.outsiderID, fixture.eventID).Scan(&notificationCount); err != nil {
+		t.Fatal(err)
+	}
+	if notificationCount != 1 {
+		t.Fatalf("notification count=%d want 1", notificationCount)
+	}
+}
+
+func TestOwnerWithoutConfirmedTicketCannotInvite(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		revoke func(*testing.T, *pgxpool.Pool, safetyFixture)
+	}{
+		{
+			name: "refunded",
+			revoke: func(t *testing.T, pool *pgxpool.Pool, fixture safetyFixture) {
+				t.Helper()
+				if _, err := pool.Exec(context.Background(), `UPDATE orders SET status='refunded' WHERE id=$1`, fixture.ownerOrderID); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name: "transferred",
+			revoke: func(t *testing.T, pool *pgxpool.Pool, fixture safetyFixture) {
+				t.Helper()
+				if _, err := pool.Exec(context.Background(), `UPDATE tickets SET user_id=$1 WHERE order_id=$2`, fixture.outsiderID, fixture.ownerOrderID); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			pool := safetyTestPool(t)
+			fixture := seedSafetyFixture(t, pool)
+			ctx := context.Background()
+			if _, err := pool.Exec(ctx, `
+				INSERT INTO friendships(user_id,friend_id,status) VALUES($1,$2,'accepted')`, fixture.ownerID, fixture.outsiderID); err != nil {
+				t.Fatal(err)
+			}
+			var outsiderOrderID pgtype.UUID
+			if err := pool.QueryRow(ctx, `
+				INSERT INTO orders(user_id,event_id,email,status,total_amount)
+				VALUES($1,$2,'eligible-outsider@example.invalid','completed',50) RETURNING id`, fixture.outsiderID, fixture.eventID).Scan(&outsiderOrderID); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := pool.Exec(ctx, `
+				INSERT INTO tickets(order_id,ticket_type_id,user_id,validation_hash,is_validated,validated_at)
+				VALUES($1,$2,$3,$4,TRUE,CURRENT_TIMESTAMP)`, outsiderOrderID, fixture.ticketTypeID, fixture.outsiderID,
+				"eligible-outsider-"+common.UUIDToString(outsiderOrderID)); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() {
+				_, _ = pool.Exec(context.Background(), `DELETE FROM orders WHERE id=$1`, outsiderOrderID)
+			})
+			test.revoke(t, pool, fixture)
+
+			response := httptest.NewRecorder()
+			NewHandler(pool, nil).HandleInvite(response, safetyRequest(http.MethodPost, "/", createRequest{
+				FriendIDs: []string{common.UUIDToString(fixture.outsiderID)},
+			}, fixture.ownerID, fixture.eventID))
+			if response.Code != http.StatusForbidden {
+				t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestConcurrentInvitesCannotExceedGroupLimit(t *testing.T) {
+	pool := safetyTestPool(t)
+	fixture := seedSafetyFixture(t, pool)
+	ctx := context.Background()
+	createdUsers := make([]pgtype.UUID, 0, 7)
+	createdOrders := make([]pgtype.UUID, 0, 2)
+
+	for index := 0; index < 5; index++ {
+		var userID pgtype.UUID
+		if err := pool.QueryRow(ctx, `
+			INSERT INTO users(username,email,password_hash,role,is_active)
+			VALUES($1,$2,'not-used','user',TRUE) RETURNING id`,
+			fmt.Sprintf("safety-filler-%d-%d", time.Now().UnixNano(), index),
+			fmt.Sprintf("safety-filler-%d-%d@example.invalid", time.Now().UnixNano(), index)).Scan(&userID); err != nil {
+			t.Fatal(err)
+		}
+		createdUsers = append(createdUsers, userID)
+		if _, err := pool.Exec(ctx, `
+			INSERT INTO event_safety_group_members(group_id,event_id,user_id,status,invited_by,responded_at)
+			VALUES($1,$2,$3,'accepted',$4,CURRENT_TIMESTAMP)`, fixture.groupID, fixture.eventID, userID, fixture.ownerID); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	candidates := make([]pgtype.UUID, 0, 2)
+	for index := 0; index < 2; index++ {
+		var userID, orderID pgtype.UUID
+		suffix := time.Now().UnixNano()
+		if err := pool.QueryRow(ctx, `
+			INSERT INTO users(username,email,password_hash,role,is_active)
+			VALUES($1,$2,'not-used','user',TRUE) RETURNING id`,
+			fmt.Sprintf("safety-candidate-%d-%d", suffix, index),
+			fmt.Sprintf("safety-candidate-%d-%d@example.invalid", suffix, index)).Scan(&userID); err != nil {
+			t.Fatal(err)
+		}
+		createdUsers = append(createdUsers, userID)
+		candidates = append(candidates, userID)
+		if _, err := pool.Exec(ctx, `INSERT INTO friendships(user_id,friend_id,status) VALUES($1,$2,'accepted')`, fixture.ownerID, userID); err != nil {
+			t.Fatal(err)
+		}
+		if err := pool.QueryRow(ctx, `
+			INSERT INTO orders(user_id,event_id,email,status,total_amount)
+			VALUES($1,$2,$3,'completed',50) RETURNING id`, userID, fixture.eventID,
+			fmt.Sprintf("safety-candidate-order-%d-%d@example.invalid", suffix, index)).Scan(&orderID); err != nil {
+			t.Fatal(err)
+		}
+		createdOrders = append(createdOrders, orderID)
+		if _, err := pool.Exec(ctx, `
+			INSERT INTO tickets(order_id,ticket_type_id,user_id,validation_hash,is_validated,validated_at)
+			VALUES($1,$2,$3,$4,TRUE,CURRENT_TIMESTAMP)`, orderID, fixture.ticketTypeID, userID,
+			fmt.Sprintf("candidate-%d-%d", suffix, index)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() {
+		for _, orderID := range createdOrders {
+			_, _ = pool.Exec(context.Background(), `DELETE FROM orders WHERE id=$1`, orderID)
+		}
+		for _, userID := range createdUsers {
+			_, _ = pool.Exec(context.Background(), `DELETE FROM users WHERE id=$1`, userID)
+		}
+	})
+
+	handler := NewHandler(pool, nil)
+	statuses := make(chan int, len(candidates))
+	var wait sync.WaitGroup
+	for _, candidateID := range candidates {
+		wait.Add(1)
+		go func(friendID pgtype.UUID) {
+			defer wait.Done()
+			response := httptest.NewRecorder()
+			handler.HandleInvite(response, safetyRequest(http.MethodPost, "/", createRequest{
+				FriendIDs: []string{common.UUIDToString(friendID)},
+			}, fixture.ownerID, fixture.eventID))
+			statuses <- response.Code
+		}(candidateID)
+	}
+	wait.Wait()
+	close(statuses)
+
+	var successes, conflicts int
+	for status := range statuses {
+		switch status {
+		case http.StatusOK:
+			successes++
+		case http.StatusConflict:
+			conflicts++
+		default:
+			t.Fatalf("unexpected invite status=%d", status)
+		}
+	}
+	if successes != 1 || conflicts != 1 {
+		t.Fatalf("successes=%d conflicts=%d want 1/1", successes, conflicts)
+	}
+	var memberCount int
+	if err := pool.QueryRow(ctx, `SELECT COUNT(*) FROM event_safety_group_members WHERE group_id=$1`, fixture.groupID).Scan(&memberCount); err != nil {
+		t.Fatal(err)
+	}
+	if memberCount != maxInvitedFriends+1 {
+		t.Fatalf("member count=%d want %d", memberCount, maxInvitedFriends+1)
+	}
+}
+
 func TestRefundRevokesGroupAndSafetyNotificationAccess(t *testing.T) {
 	pool := safetyTestPool(t)
 	fixture := seedSafetyFixture(t, pool)

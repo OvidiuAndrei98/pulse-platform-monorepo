@@ -151,6 +151,25 @@ func (h *Handler) hasPaidTicket(ctx context.Context, executor interface {
 	return exists, err
 }
 
+func isEligibleFriend(ctx context.Context, executor interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, ownerID, friendID, eventID pgtype.UUID) (bool, error) {
+	var eligible bool
+	err := executor.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM friendships friendship
+			WHERE friendship.status = 'accepted'
+			  AND ((friendship.user_id = $1 AND friendship.friend_id = $2)
+			    OR (friendship.user_id = $2 AND friendship.friend_id = $1))
+		) AND EXISTS (
+			SELECT 1 FROM tickets ticket
+			JOIN orders order_row ON order_row.id = ticket.order_id
+			WHERE order_row.event_id = $3 AND order_row.status = 'completed'
+			  AND (ticket.user_id = $2 OR (ticket.user_id IS NULL AND order_row.user_id = $2))
+		)`, ownerID, friendID, eventID).Scan(&eligible)
+	return eligible, err
+}
+
 func (h *Handler) hasValidatedTicket(ctx context.Context, userID, eventID pgtype.UUID) (bool, error) {
 	var exists bool
 	err := h.DB.QueryRow(ctx, `
@@ -433,19 +452,7 @@ func (h *Handler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 			router.RespondWithError(w, http.StatusBadRequest, "Lista de prieteni este invalida")
 			return
 		}
-		var eligible bool
-		err := tx.QueryRow(r.Context(), `
-			SELECT EXISTS (
-				SELECT 1 FROM friendships friendship
-				WHERE friendship.status = 'accepted'
-				  AND ((friendship.user_id = $1 AND friendship.friend_id = $2)
-				    OR (friendship.user_id = $2 AND friendship.friend_id = $1))
-			) AND EXISTS (
-				SELECT 1 FROM tickets ticket
-				JOIN orders order_row ON order_row.id = ticket.order_id
-				WHERE order_row.event_id = $3 AND order_row.status = 'completed'
-				  AND (ticket.user_id = $2 OR (ticket.user_id IS NULL AND order_row.user_id = $2))
-			)`, userID, friendID, eventID).Scan(&eligible)
+		eligible, err := isEligibleFriend(r.Context(), tx, userID, friendID, eventID)
 		if err != nil || !eligible {
 			router.RespondWithError(w, http.StatusForbidden, "Poti invita doar prieteni cu bilet la acest eveniment")
 			return
@@ -493,6 +500,111 @@ func (h *Handler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	router.RespondWithJSON(w, http.StatusCreated, map[string]string{"id": common.UUIDToString(groupID)})
+}
+
+func (h *Handler) HandleInvite(w http.ResponseWriter, r *http.Request) {
+	userID, eventID, ok := requestUUIDs(r)
+	if !ok {
+		router.RespondWithError(w, http.StatusBadRequest, "Cerere invalida")
+		return
+	}
+	if !h.allowUserAction(w, r, "safety_group_invite_user", userID, eventID, 20, time.Hour) {
+		return
+	}
+	var request createRequest
+	if !router.DecodeJSON(w, r, &request, maxMessageBytes) {
+		return
+	}
+	friendIDs, valid := parseUniqueUUIDs(request.FriendIDs)
+	if !valid || len(friendIDs) == 0 {
+		router.RespondWithError(w, http.StatusBadRequest, "Selecteaza intre 1 si 7 prieteni valizi")
+		return
+	}
+
+	tx, err := h.DB.Begin(r.Context())
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Invitatiile nu au putut fi create")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	var groupID pgtype.UUID
+	var eventTitle string
+	var expiresAt time.Time
+	if err := tx.QueryRow(r.Context(), `
+		SELECT group_row.id, event.title, group_row.expires_at
+		FROM event_safety_groups group_row
+		JOIN events event ON event.id = group_row.event_id
+		JOIN event_safety_group_members owner_member
+		  ON owner_member.group_id = group_row.id
+		 AND owner_member.user_id = $2
+		 AND owner_member.status = 'accepted'
+		WHERE group_row.event_id = $1 AND group_row.owner_id = $2
+		  AND group_row.expires_at > CURRENT_TIMESTAMP
+		FOR UPDATE OF group_row`, eventID, userID).Scan(&groupID, &eventTitle, &expiresAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			router.RespondWithError(w, http.StatusForbidden, "Doar proprietarul unui grup activ poate invita prieteni")
+		} else {
+			router.RespondWithError(w, http.StatusInternalServerError, "Grupul nu a putut fi verificat")
+		}
+		return
+	}
+	paid, paidErr := h.hasPaidTicket(r.Context(), tx, userID, eventID)
+	if paidErr != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Biletul proprietarului nu a putut fi verificat")
+		return
+	}
+	if !paid {
+		router.RespondWithError(w, http.StatusForbidden, "Ai nevoie de un bilet confirmat pentru acest eveniment")
+		return
+	}
+
+	var memberCount int
+	if err := tx.QueryRow(r.Context(), `
+		SELECT COUNT(*) FROM event_safety_group_members WHERE group_id = $1`, groupID).Scan(&memberCount); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Grupul nu a putut fi verificat")
+		return
+	}
+	if memberCount+len(friendIDs) > maxInvitedFriends+1 {
+		router.RespondWithError(w, http.StatusConflict, "Grupul poate avea cel mult 8 membri")
+		return
+	}
+
+	for _, friendID := range friendIDs {
+		if friendID.Bytes == userID.Bytes {
+			router.RespondWithError(w, http.StatusBadRequest, "Lista de prieteni este invalida")
+			return
+		}
+		eligible, eligibilityErr := isEligibleFriend(r.Context(), tx, userID, friendID, eventID)
+		if eligibilityErr != nil || !eligible {
+			router.RespondWithError(w, http.StatusForbidden, "Poti invita doar prieteni cu bilet la acest eveniment")
+			return
+		}
+		if _, err = tx.Exec(r.Context(), `
+			INSERT INTO event_safety_group_members (group_id, event_id, user_id, status, invited_by)
+			VALUES ($1, $2, $3, 'pending', $4)`, groupID, eventID, friendID, userID); err != nil {
+			var databaseErr *pgconn.PgError
+			if errors.As(err, &databaseErr) && databaseErr.Code == "23505" {
+				router.RespondWithError(w, http.StatusConflict, "Un prieten selectat este deja intr-un grup")
+			} else {
+				router.RespondWithError(w, http.StatusInternalServerError, "Invitatiile nu au putut fi create")
+			}
+			return
+		}
+		if _, err = tx.Exec(r.Context(), `
+			INSERT INTO notifications (user_id, type, title, body, event_id, actor_id, expires_at)
+			VALUES ($1, 'safety_group_invite', 'Invitatie in grupul evenimentului',
+			        'Ai fost invitat intr-un grup pentru ' || $2, $3, $4, $5)`,
+			friendID, eventTitle, eventID, userID, expiresAt); err != nil {
+			router.RespondWithError(w, http.StatusInternalServerError, "Invitatiile nu au putut fi create")
+			return
+		}
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Invitatiile nu au putut fi create")
+		return
+	}
+	router.RespondWithJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
 
 func (h *Handler) HandleRespond(w http.ResponseWriter, r *http.Request) {

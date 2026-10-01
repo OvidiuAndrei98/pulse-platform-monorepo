@@ -56,6 +56,7 @@ type HandlersConfig struct {
 	DeleteBillingDetails     http.HandlerFunc
 	GetEventSafetyGroup      http.HandlerFunc
 	CreateEventSafetyGroup   http.HandlerFunc
+	InviteEventSafetyGroup   http.HandlerFunc
 	RespondEventSafetyGroup  http.HandlerFunc
 	SendSafetyGroupMessage   http.HandlerFunc
 	SendSafetyGroupHelp      http.HandlerFunc
@@ -324,6 +325,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			r.Delete("/events/{id}/rsvp", cfg.DeleteEventRsvp)
 			r.With(rateLimit("safety_group_read_ip", 3000, time.Minute)).Get("/events/{id}/safety-group", cfg.GetEventSafetyGroup)
 			r.With(rateLimit("safety_group_create_ip", 600, time.Hour)).Post("/events/{id}/safety-group", cfg.CreateEventSafetyGroup)
+			r.With(rateLimit("safety_group_invite_ip", 1200, time.Hour)).Post("/events/{id}/safety-group/invite", cfg.InviteEventSafetyGroup)
 			r.With(rateLimit("safety_group_respond_ip", 1200, time.Hour)).Post("/events/{id}/safety-group/respond", cfg.RespondEventSafetyGroup)
 			r.With(rateLimit("safety_group_message_ip", 600, time.Minute)).Post("/events/{id}/safety-group/messages", cfg.SendSafetyGroupMessage)
 			// Venue Wi-Fi places many attendees behind one IP, so per-IP limits must

@@ -38,6 +38,7 @@ export default function EventSafetyGroupPageClient() {
   const [error, setError] = useState<string | null>(null);
   const [connectionLost, setConnectionLost] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const [showInviteFriends, setShowInviteFriends] = useState(false);
   const [message, setMessage] = useState("");
   const messagesListRef = useRef<HTMLDivElement>(null);
 
@@ -79,6 +80,16 @@ export default function EventSafetyGroupPageClient() {
     if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
   }, [data?.group?.messages.length]);
 
+  useEffect(() => {
+    if (!data) return;
+    const eligible = new Set(data.eligibleFriends.map((friend) => friend.userId));
+    const limit = data.group ? Math.max(0, 8 - data.group.members.length) : 7;
+    setSelectedFriends((current) => {
+      const next = current.filter((id) => eligible.has(id)).slice(0, limit);
+      return next.length === current.length && next.every((id, index) => id === current[index]) ? current : next;
+    });
+  }, [data]);
+
   const createGroup = async () => {
     setWorking(true);
     try {
@@ -86,6 +97,7 @@ export default function EventSafetyGroupPageClient() {
         params: { path: { id: eventId } },
         body: { friendIds: selectedFriends },
       });
+      setSelectedFriends([]);
       toast.success(t("safetyGroup.created"));
       await load(true);
     } catch (requestError) {
@@ -104,6 +116,25 @@ export default function EventSafetyGroupPageClient() {
       await load(true);
     } catch (requestError) {
       toast.error(requestError instanceof Error ? requestError.message : t("safetyGroup.responseFailed"));
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const inviteFriends = async () => {
+    if (selectedFriends.length === 0 || working) return;
+    setWorking(true);
+    try {
+      await ApiClient.instance.post("/events/{id}/safety-group/invite", {
+        params: { path: { id: eventId } },
+        body: { friendIds: selectedFriends },
+      });
+      setSelectedFriends([]);
+      setShowInviteFriends(false);
+      toast.success(t("safetyGroup.invitesSent"));
+      await load(true);
+    } catch (requestError) {
+      toast.error(requestError instanceof Error ? requestError.message : t("safetyGroup.inviteFailed"));
     } finally {
       setWorking(false);
     }
@@ -239,6 +270,7 @@ export default function EventSafetyGroupPageClient() {
   const acceptedMembers = group.members.filter((member) => member.status === "accepted");
   const visibleMembers = acceptedMembers.slice(0, 3);
   const hiddenMemberCount = acceptedMembers.length - visibleMembers.length;
+  const remainingInviteSlots = Math.max(0, 8 - group.members.length);
 
   return (
     <GroupShell chat onBack={() => router.back()}>
@@ -260,14 +292,57 @@ export default function EventSafetyGroupPageClient() {
               <span className="shrink-0">{formatEventDate(group.startTime)} · {formatEventTime(group.startTime)}</span>
             </p>
           </div>
-          <div data-chat-members className="flex shrink-0 -space-x-2">
+          <div data-chat-members className="flex shrink-0 items-center -space-x-2">
             {visibleMembers.map((member) => (
               member.avatarUrl ? <img key={member.userId} src={member.avatarUrl} alt={member.username} className="h-8 w-8 rounded-full border-2 border-black object-cover" />
                 : <span key={member.userId} title={member.username} className="grid h-8 w-8 place-items-center rounded-full border-2 border-black bg-[#182019] text-[11px] font-semibold">{member.username.slice(0, 1).toUpperCase()}</span>
             ))}
             {hiddenMemberCount > 0 && <span className="grid h-8 w-8 place-items-center rounded-full border-2 border-black bg-white/10 text-[10px] font-semibold">+{hiddenMemberCount}</span>}
+            {group.ownerId === user?.properties.id && remainingInviteSlots > 0 && data.eligibleFriends.length > 0 && (
+              <button
+                type="button"
+                aria-label={t("safetyGroup.inviteMore")}
+                aria-expanded={showInviteFriends}
+                onClick={() => {
+                  setSelectedFriends([]);
+                  setShowInviteFriends((current) => !current);
+                }}
+                className="relative grid h-8 w-8 place-items-center rounded-full border-2 border-black bg-primary text-primary-foreground"
+              >
+                <UserPlus className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </section>
+
+        {showInviteFriends && group.ownerId === user?.properties.id && remainingInviteSlots > 0 && data.eligibleFriends.length > 0 && (
+          <section className="absolute inset-x-0 top-16 z-30 flex max-h-[55dvh] flex-col rounded-[24px] border border-white/10 bg-[#080a09] p-3 shadow-2xl">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("safetyGroup.inviteMore")}</p>
+              <button type="button" onClick={() => setShowInviteFriends(false)} aria-label={t("common.close")} className="grid h-8 w-8 place-items-center rounded-full bg-white/5"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="mt-2 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1">
+              {data.eligibleFriends.map((friend) => (
+                <FriendChoice
+                  key={friend.userId}
+                  friend={friend}
+                  selected={selectedFriends.includes(friend.userId)}
+                  onToggle={() => setSelectedFriends((current) => current.includes(friend.userId)
+                    ? current.filter((id) => id !== friend.userId)
+                    : current.length < remainingInviteSlots ? [...current, friend.userId] : current)}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              disabled={selectedFriends.length === 0 || working}
+              onClick={() => void inviteFriends()}
+              className="mt-3 flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+            >
+              <UserPlus className="h-4 w-4" /> {working ? t("safetyGroup.inviting") : t("safetyGroup.sendInvites")}
+            </button>
+          </section>
+        )}
 
         <section data-chat-help className="shrink-0 py-3">
           {group.currentUserNeedsHelp ? (
@@ -301,6 +376,7 @@ export default function EventSafetyGroupPageClient() {
             <textarea
               value={message}
               onChange={(event) => setMessage(event.target.value)}
+              onFocus={() => setShowInviteFriends(false)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void sendMessage(); }
               }}
@@ -425,7 +501,7 @@ function GroupShell({ children, onBack, chat = false, contained = false }: { chi
       : "min-h-screen pb-[calc(8rem+var(--native-safe-bottom))]";
   return (
     <main ref={setChatViewport} data-chat-viewport={chat || undefined} className={`${shellClass} bg-black text-foreground`}>
-      <div data-chat-inner={chat || undefined} className={`app-page-gutter mx-auto max-w-2xl pt-3 ${chat || contained ? "flex h-full min-h-0 flex-col" : ""}`}>
+      <div data-chat-inner={chat || undefined} className={`app-page-gutter mx-auto max-w-2xl pt-3 ${chat || contained ? "relative flex h-full min-h-0 flex-col" : ""}`}>
         <header data-chat-header={chat || undefined} className="flex shrink-0 items-center gap-3 py-2.5">
           <button data-chat-back={chat || undefined} type="button" onClick={onBack} aria-label={t("common.back")} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/5"><ArrowLeft /></button>
           <div><h1 data-chat-header-title={chat || undefined} className="text-xl font-semibold">{t("safetyGroup.title")}</h1><p data-chat-header-subtitle={chat || undefined} className="text-xs text-muted-foreground">{t("safetyGroup.private")}</p></div>

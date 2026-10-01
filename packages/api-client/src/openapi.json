@@ -2556,6 +2556,44 @@
         }
       }
     },
+    "/events/{id}/safety-group/invite": {
+      "post": {
+        "operationId": "EventOperations_inviteSafetyGroup",
+        "summary": "Invita alti prieteni in grupul existent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventSafetyGroupPayload"
+              }
+            }
+          }
+        }
+      }
+    },
     "/events/{id}/safety-group/messages": {
       "post": {
         "operationId": "EventOperations_sendSafetyGroupMessage",
