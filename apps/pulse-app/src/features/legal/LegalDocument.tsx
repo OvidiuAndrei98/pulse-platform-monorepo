@@ -10,6 +10,7 @@ export type LegalSection = {
   title: string;
   paragraphs?: string[];
   items?: string[];
+  links?: Array<{ label: string; href: string }>;
 };
 
 export function LegalDocument({
@@ -50,13 +51,23 @@ export function LegalDocument({
             <h2 className="text-lg font-semibold">{section.title}</h2>
             {section.paragraphs?.map((paragraph) => <p key={paragraph} className="mt-3 text-sm leading-6 text-muted-foreground">{paragraph}</p>)}
             {section.items && <ul className="mt-3 space-y-2 border-l border-primary/30 pl-4 text-sm leading-6 text-muted-foreground">{section.items.map((item) => <li key={item}>{item}</li>)}</ul>}
+            {section.links && (
+              <div className="mt-4 flex flex-wrap gap-3">
+                {section.links.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                    {...(link.href.startsWith("http") ? { target: "_blank", rel: "noreferrer" } : {})}
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            )}
           </section>
         ))}
       </article>
-
-      <aside className="border border-amber-300/20 bg-amber-300/[0.04] p-4 text-xs leading-5 text-muted-foreground">
-        {t("legal.disclaimer")}
-      </aside>
       {children}
     </main>
   );

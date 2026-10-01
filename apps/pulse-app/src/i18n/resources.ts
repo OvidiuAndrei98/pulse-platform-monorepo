@@ -381,6 +381,25 @@ export const resources = {
         deleteWarning:
           "This action is permanent. All your active tickets and history will be wiped instantly.",
         confirmDelete: "Confirm deletion",
+        deleteDialogTitle: "Permanently delete account?",
+        deleteDialogDescription:
+          "This cannot be undone. Confirm with the email address associated with your account.",
+        deleteDialogWarning: "The following happens immediately:",
+        deleteProfileData:
+          "Your profile, saved billing profile, social activity and group messages are deleted.",
+        deleteTicketsData:
+          "Your tickets and online QR access are deleted. This does not issue an automatic refund; an offline scanner list downloaded earlier can update with a delay.",
+        retainFiscalData:
+          "Orders, payments and fiscal documents are retained only where required by law and are no longer linked to a usable profile.",
+        deleteConfirmationLabel: "Confirm your email address",
+        deleteConfirmationHint: "Type {{email}} to continue.",
+        deletePasswordLabel: "Current password",
+        deleteGoogleReauthHint:
+          "For a Google account, deletion is allowed only within 10 minutes of signing in. Sign out and sign in with Google again if needed.",
+        deletePasswordInvalid: "The current password is incorrect.",
+        deleteGoogleReauthRequired: "Sign in with Google again, then return here to delete the account.",
+        deletingAccount: "Deleting...",
+        deleteFailed: "The account could not be deleted. Please try again or contact support.",
         logout: "Log out",
         savedEvents: "Saved events",
         noSavedEvents: "You have not saved an event yet.",
@@ -449,7 +468,7 @@ export const resources = {
         helpFailed: "The help alert could not be sent.",
         iAmSafe: "I am safe now",
         safeMessage: "I am safe now.",
-        retention: "For privacy, this group, its messages, and safety notifications are permanently deleted 24 hours after the event ends. This in-app feature does not contact the organizer, 112, or emergency services.",
+        retention: "Access expires 24 hours after the event ends, then the group, messages, and safety notifications are removed by the periodic cleanup process. This in-app feature does not contact the organizer, 112, or emergency services.",
         activeEvent: "You are at {{event}}",
         openGroup: "Open your group and help button",
         openOrCreate: "Open or create group",
@@ -690,6 +709,9 @@ export const resources = {
         emailPlaceholder: "name@email.com",
         preparingPayment: "Preparing payment...",
         selectTickets: "Select tickets",
+        soldOut: "Sold out",
+        salesEnded: "Sales ended",
+        salesNotStarted: "Coming soon",
         requestInvoice: "I want an invoice",
         billingDetailsTitle: "Billing details",
         invoiceAutomaticHint: "An invoice will be issued automatically after the payment is confirmed.",
@@ -1521,40 +1543,6 @@ export const resources = {
         publishTimeFuture: "Publishing time must be in the future.",
       },
       legalDocuments: {
-        terms: {
-          eyebrow: "Legal document",
-          title: "Terms and conditions",
-          updatedAt: "September 30, 2026 — pre-launch draft",
-          intro: "This illustrative draft explains how SPOTTR currently works. The operator details and contact address below are fictional examples and must be replaced before launch.",
-          sections: [
-            { title: "1. Parties and scope", paragraphs: ["Example Events SRL, registered office at 1 Example Street, Bucharest, Romania, registration no. [EXAMPLE], tax ID [EXAMPLE], operates SPOTTR. This company and these details are fictional placeholders, not real trader information. Demo contact: legal@example.invalid (not a functioning support address).", "SPOTTR lets people discover events, follow organizers and friends, and buy tickets. The organizer identified for each event is responsible for the event and is the seller of admission. SPOTTR provides the platform, order and ticket infrastructure; the organizer's own terms and mandatory consumer rights also apply."] },
-            { title: "2. Accounts, profiles and community", items: ["You can browse events without an account. An account is needed for profile, friend, follow, saved-event and social features; guest ticket checkout uses the email address you provide.", "Keep your credentials private and provide accurate details. Google sign-in is available where configured.", "Your profile and event attendance may be visible to others according to the in-app privacy setting. Check an event's age or entry rules before purchasing.", "Do not publish unlawful, misleading or rights-infringing content. Organizers are responsible for their event listings and photo updates. SPOTTR may restrict accounts or remove content for fraud, abuse, unlawful content or platform safety, subject to applicable law."] },
-            { title: "3. Listings and ticket availability", paragraphs: ["The organizer supplies event descriptions, dates, locations, ticket categories, capacity, sales windows and entry conditions. Availability can change until payment is confirmed. A checkout reservation is temporary; an unpaid or expired checkout does not create a ticket."] },
-            { title: "4. Price, service fee and payment", paragraphs: ["The checkout summary shows the selected tickets, any valid promo-code discount, the ticketing and processing fee, and the total before the payment redirect. The current fee calculation is 4% of the discounted ticket price plus 2.50 RON per ticket; the organizer may choose to cover this fee, in which case it is not added to the buyer's total.", "Payment is completed on Stripe Checkout using the organizer's connected Stripe account (a direct-charge flow for new orders). SPOTTR receives its application fee through Stripe Connect. A payment is not confirmed merely because the browser returned from Stripe; the order is confirmed after payment verification."] },
-            { title: "5. Tickets and invoices", items: ["Once confirmed, tickets are delivered by email and, for signed-in purchases, can also be accessed in the account. Each ticket has a validation code; sharing it risks its use by someone else before you arrive.", "Billing details are collected for the order and invoice. After payment confirmation, invoice issuance is queued through the organizer's configured provider; issuance or delivery can be delayed if the provider is not ready or available.", "If you choose to save billing details for later, SPOTTR keeps one reusable billing profile in your authenticated account until you replace or delete it. Card numbers are not saved by SPOTTR."] },
-            { title: "6. Cancellation initiated by the organizer", paragraphs: ["When an organizer requests cancellation in SPOTTR, new ticket sales stop and the request goes to an administrator for review. A submitted request is not yet an approved cancellation. If it is rejected, the prior event status is restored. If approved, the event enters a refund-in-progress state and refunds are processed separately for paid orders.", "For an approved cancellation, the current platform flow requests a refund of the full amount paid by each buyer, including any buyer-paid ticketing fee. Whether SPOTTR retains or returns its application fee changes the settlement with the organizer, not the amount requested back to the buyer. Stripe processing and the payment method determine when the money actually appears. Failed, pending or partial refunds require further review and may delay completion."] },
-            { title: "7. Other refunds, postponements and disputes", paragraphs: ["A buyer's voluntary refund request, a postponed event and an event that is not delivered are assessed under the event terms and applicable law. SPOTTR does not promise automatic refunds for every change of plan. For leisure services scheduled for a specific date or period, the statutory 14-day withdrawal right may be excluded where the legal conditions are met; other mandatory rights remain unaffected.", "An organizer can also issue a refund directly in Stripe. SPOTTR reconciles the payment status; a full refund is reflected in the order and related invoicing, while a partial or mismatched refund can be held for manual review. A payment dispute may be handled with the organizer and Stripe using order evidence."] },
-            { title: "8. Organizers, promotion and content", paragraphs: ["Organizers remain responsible for permits, safety, accurate event information, entry, cancellations and fiscal documents for their sales. They may publish temporary photo updates and purchase clearly presented promotional placements. The separate organizer agreement and any promotion checkout govern their commercial arrangements with SPOTTR."] },
-            { title: "9. Contact and changes", paragraphs: ["For event entry or an event-specific refund, contact the organizer shown for the event; SPOTTR can assist with the order and technical status. Before launch, replace the fictional operator and contact details in this draft with working channels and publish the final complaint process.", "Material changes to these terms should be dated and communicated appropriately. A later version does not remove rights already acquired under a paid order or mandatory law."] },
-          ],
-        },
-        privacy: {
-          eyebrow: "Personal data",
-          title: "Privacy policy",
-          updatedAt: "September 30, 2026 — pre-launch draft",
-          intro: "This illustrative draft describes SPOTTR's current data flows. The controller details, contact address and retention schedule still need verification before launch.",
-          sections: [
-            { title: "1. Controller and contact", paragraphs: ["Example Events SRL, 1 Example Street, Bucharest, Romania, legal@example.invalid, is a fictional example of the SPOTTR operator and data controller. These are not working contact details. The final policy must identify the actual controller and a usable privacy contact before launch.", "An event organizer may also act as an independent controller for admission, event delivery and its fiscal obligations. The exact roles and data-sharing arrangements must be confirmed in the final documents."] },
-            { title: "2. Account and social data", items: ["For account creation and sign-in: username, email, password hash or Google identity identifier, language preference, session information and optional profile photo and bio.", "For social features: friend requests and connections, followed organizers, saved events, attendance and interest choices, activity-feed and in-app notification records, and hidden category preferences.", "For event content: organizer listings, uploaded event images and temporary photo updates with captions. Public-facing profile or event content can be seen by other users according to the feature and its settings."] },
-            { title: "3. Orders, billing and organizer data", items: ["For purchases: buyer email, selected tickets, event, promo code, order and payment status, ticket validation code and scan history, refund and dispute information.", "For invoices: individual or company name, tax or registration number where applicable, billing address, city, county or sector and country. These details are sent with the order to the organizer's invoicing flow.", "For organizers: company identity, tax and fiscal details, verification and Stripe Connect account state, promotion purchases, commission and invoice records, and evidence of organizer-agreement acceptance."] },
-            { title: "4. Device location and saved billing details", paragraphs: ["If you request your location for the map, the browser or operating system asks for permission and the app reads your current coordinates to center the map or calculate nearby events. The final policy must confirm whether any coordinates or related requests reach SPOTTR or third-party map services; the device permission can be changed in system settings.", "Saving billing details for future purchases is optional and available to signed-in users. The reusable copy is stored with your SPOTTR account until you replace or delete it. It is not a saved payment card. Billing data already submitted with an order remains in order and invoicing records even if the reusable profile is later deleted."] },
-            { title: "5. Purposes and legal bases", items: ["Contract performance: create accounts, operate social features requested by users, process orders, deliver tickets, validate entry and provide support.", "Legal obligations: preserve required payment and fiscal records and respond to lawful requests.", "Legitimate interests, subject to balancing and objection rights: prevent fraud and abuse, secure sessions, keep essential logs and manage payment disputes.", "Where consent is the appropriate basis, request it separately for optional processing; granting location permission or choosing to save details does not by itself make all other processing consent-based. The final policy must map each purpose to its actual legal basis."] },
-            { title: "6. Visibility and user choices", paragraphs: ["Attendance visibility is currently enabled by default in the product and can be turned off in Profile. The final release must reassess this default under data-protection-by-default rules and explain precisely who can see ticket or RSVP activity. Profiles, friend relationships and organizer updates have their own visibility rules that must be described before launch."] },
-            { title: "7. Recipients and transfers", paragraphs: ["Depending on the feature, data may be disclosed to the event organizer, Stripe and its connected account for payments, the organizer's configured invoicing provider, Google for sign-in, email delivery, cloud storage and map-service providers. SPOTTR does not sell personal data.", "The actual vendor list, data locations, transfers outside the European Economic Area and any legal safeguards must be verified and stated in the final policy; this example does not claim that every provider is active for every user."] },
-            { title: "8. Retention and deletion", paragraphs: ["Account and social data are kept while needed for the account and platform features; orders, invoices, refund and dispute records may need to remain after account closure for legal obligations or claims. Temporary updates and technical logs follow separate lifecycles.", "This is not a final retention schedule. Before launch, replace these criteria with verified periods or specific criteria per data category. Deleting the reusable billing profile does not delete records already submitted for an order."] },
-            { title: "9. Your rights and complaints", items: ["Subject to applicable conditions, you may request access, correction, deletion, restriction, portability, or object to processing. You may withdraw consent for any processing genuinely based on consent without affecting prior lawful processing.", "You may complain to Romania's data protection authority, ANSPDCP, or another competent supervisory authority.", "The final version must provide a working privacy contact and a functional request process. The current account-deletion control is not a complete deletion process and must be finished or replaced before launch."] },
-          ],
-        },
         agreement: {
           eyebrow: "For organizers",
           title: "Organizer agreement",
@@ -1565,7 +1553,7 @@ export const resources = {
           sections: [
             { title: "1. Capacity of the parties", paragraphs: ["The organizer declares that they are authorized to represent the company identified in the profile and to publish events on its behalf. SPOTTR provides technical infrastructure for listings, orders, payments, and validation."] },
             { title: "2. Responsibility for the event", items: ["The organizer is responsible for published information, permits, safety, access, delivery, cancellation, or rescheduling of the event.", "The organizer is responsible for the commercial relationship and attendee information, including its own refund policy.", "The organizer issues fiscal documents for event access and fulfills its own tax obligations."] },
-            { title: "3. Payments through Stripe Connect", paragraphs: ["To sell tickets, the organizer opens and completes a Stripe Connect Express account through Stripe's hosted flow. Stripe verifies identity, company data, and the bank account and determines whether payments and transfers can be enabled.", "SPOTTR currently uses a Stripe Connect destination-charges flow: payment is processed on the platform account, and funds related to the event are directed to the organizer's connected account according to Stripe configuration."] },
+            { title: "3. Payments through Stripe Connect", paragraphs: ["To sell tickets, the organizer opens and completes a connected Stripe account through Stripe's hosted flow. Stripe verifies identity, company data and the bank account and determines whether payments and payouts can be enabled.", "SPOTTR uses Stripe Connect direct charges for new ticket orders: payment is created on the organizer's connected account and SPOTTR receives its application fee through Stripe."] },
             { title: "4. Commission and settlement", paragraphs: ["For every ticket with a completed payment, SPOTTR retains a commission of 4% of the ticket value plus 2.50 RON for each ticket sold. The commission is visible in the dashboard financial statement and will be invoiced to the organizer according to SPOTTR's invoicing flow.", "Stripe fees, refunds, chargebacks, and adjustments may affect balances. The organizer authorizes SPOTTR to offset amounts due through future transfers or other mechanisms permitted by Stripe and the law."] },
             { title: "5. Personal data", paragraphs: ["SPOTTR and the organizer process attendee data only for purposes required for the event, tickets, access, and legal obligations. Each party fulfills its own confidentiality and data-protection obligations."] },
             { title: "6. Suspension and termination", paragraphs: ["SPOTTR may suspend publishing, sales, or transfers when there is a risk of fraud, relevant complaints, breach of the agreement, Stripe requirements, or legal obligations. Termination does not affect orders, disputes, and obligations that have already arisen."] },
@@ -1574,8 +1562,6 @@ export const resources = {
       },
       legal: {
         lastUpdated: "Last updated: {{date}}",
-        disclaimer:
-          "These documents describe the platform's current flow. Before commercial launch, their content must be reviewed and adapted by an authorized lawyer and accountant for the operator's actual activity.",
       },
     },
   },
@@ -1967,6 +1953,25 @@ export const resources = {
         deleteWarning:
           "Aceasta actiune este permanenta. Toate biletele active si istoricul tau vor fi sterse instant.",
         confirmDelete: "Confirma stergerea",
+        deleteDialogTitle: "Stergi definitiv contul?",
+        deleteDialogDescription:
+          "Actiunea nu poate fi anulata. Confirma folosind adresa de email asociata contului.",
+        deleteDialogWarning: "Imediat dupa confirmare:",
+        deleteProfileData:
+          "Profilul, datele de facturare salvate, activitatea sociala si mesajele din grupuri sunt sterse.",
+        deleteTicketsData:
+          "Biletele si accesul QR online sunt sterse. Stergerea contului nu produce automat un refund; o lista offline descarcata anterior de un validator se poate actualiza cu intarziere.",
+        retainFiscalData:
+          "Comenzile, platile si documentele fiscale sunt pastrate doar cand legea o cere si nu mai sunt legate de un profil utilizabil.",
+        deleteConfirmationLabel: "Confirma adresa de email",
+        deleteConfirmationHint: "Scrie {{email}} pentru a continua.",
+        deletePasswordLabel: "Parola curenta",
+        deleteGoogleReauthHint:
+          "Pentru un cont Google, stergerea este permisa doar in primele 10 minute dupa autentificare. Daca este nevoie, deconecteaza-te si intra din nou cu Google.",
+        deletePasswordInvalid: "Parola curenta este incorecta.",
+        deleteGoogleReauthRequired: "Autentifica-te din nou cu Google, apoi revino aici pentru stergerea contului.",
+        deletingAccount: "Se sterge...",
+        deleteFailed: "Contul nu a putut fi sters. Incearca din nou sau contacteaza suportul.",
         logout: "Deconecteaza-te",
         savedEvents: "Evenimente salvate",
         noSavedEvents: "Nu ai salvat niciun eveniment inca.",
@@ -2035,7 +2040,7 @@ export const resources = {
         helpFailed: "Alerta de ajutor nu a putut fi trimisa.",
         iAmSafe: "Sunt in siguranta acum",
         safeMessage: "Sunt in siguranta acum.",
-        retention: "Pentru confidentialitate, grupul, mesajele si notificarile de siguranta sunt sterse definitiv la 24 de ore dupa finalul evenimentului. Functia in-app nu contacteaza organizatorul, 112 sau serviciile de urgenta.",
+        retention: "Accesul expira la 24 de ore dupa finalul evenimentului, apoi grupul, mesajele si notificarile de siguranta sunt eliminate de procesul periodic de curatare. Functia in-app nu contacteaza organizatorul, 112 sau serviciile de urgenta.",
         activeEvent: "Esti la {{event}}",
         openGroup: "Deschide grupul si butonul de ajutor",
         openOrCreate: "Deschide sau creeaza grupul",
@@ -2276,6 +2281,9 @@ export const resources = {
         emailPlaceholder: "nume@email.ro",
         preparingPayment: "Se pregateste plata...",
         selectTickets: "Selecteaza bilete",
+        soldOut: "Sold out",
+        salesEnded: "Vanzare incheiata",
+        salesNotStarted: "In curand",
         requestInvoice: "Doresc factura",
         billingDetailsTitle: "Date de facturare",
         invoiceAutomaticHint: "Factura va fi emisa automat dupa confirmarea platii.",
@@ -3016,7 +3024,7 @@ export const resources = {
         organizerResponsibility:
           "Ce ramane in responsabilitatea organizatorului",
         organizerResponsibilityText:
-          "Evenimentul, informarea participantilor, documentele fiscale, anularea sau rambursarea si raspunsul la dovezi pentru dispute. Pentru fluxul actual cu destination charges, platforma gestioneaza operational costurile Stripe, refundurile si chargeback-urile, apoi le poate reconcilia cu organizatorul conform acordului.",
+          "Evenimentul, informarea participantilor, documentele fiscale, anularea sau rambursarea si raspunsul la dovezi pentru dispute. Pentru fluxul actual cu plati directe in contul Stripe conectat, costurile Stripe, rambursarile si disputele afecteaza soldul organizatorului si sunt reconciliate conform acordului.",
         beforeActivation: "Inainte de activare",
         beforeActivationText:
           "Citeste si accepta Acordul pentru organizatori. Acesta explica exact comisionul SPOTTR de 4% + 2,50 RON pe bilet si regulile de decontare.",
@@ -3131,40 +3139,6 @@ export const resources = {
         publishTimeFuture: "Data publicarii trebuie sa fie in viitor.",
       },
       legalDocuments: {
-        terms: {
-          eyebrow: "Document legal",
-          title: "Termeni și condiții",
-          updatedAt: "30 septembrie 2026 — versiune demonstrativă înainte de lansare",
-          intro: "Această versiune demonstrativă explică funcționarea actuală a SPOTTR. Datele operatorului și adresa de contact de mai jos sunt fictive și trebuie înlocuite înainte de lansare.",
-          sections: [
-            { title: "1. Părțile și rolul platformei", paragraphs: ["Example Events SRL, cu sediul fictiv în Strada Exemplului nr. 1, București, nr. de înregistrare [EXEMPLU], CUI [EXEMPLU], operează SPOTTR. Firma și datele sunt exemple fictive, nu datele unui comerciant real. Contact demonstrativ: legal@example.invalid (adresă nefuncțională).", "SPOTTR permite descoperirea evenimentelor, urmărirea organizatorilor și prietenilor și cumpărarea biletelor. Organizatorul identificat pentru fiecare eveniment răspunde pentru desfășurarea sa și vinde accesul. SPOTTR oferă infrastructura platformei, comenzilor și biletelor; se aplică și condițiile organizatorului, precum și drepturile obligatorii ale consumatorului."] },
-            { title: "2. Conturi, profiluri și comunitate", items: ["Poți explora evenimente fără cont. Pentru profil, prieteni, urmărirea organizatorilor, evenimente salvate și funcții sociale este necesar un cont; la cumpărarea ca invitat folosești adresa de email introdusă.", "Păstrează confidențiale datele de acces și oferă informații corecte. Autentificarea prin Google este disponibilă unde este configurată.", "Profilul și participarea la evenimente pot fi vizibile altora potrivit setărilor din aplicație. Verifică restricțiile de vârstă sau acces ale evenimentului înainte de plată.", "Nu publica materiale ilegale, înșelătoare sau care încalcă drepturile altora. Organizatorii răspund pentru paginile evenimentelor și actualizările foto. SPOTTR poate restricționa conturi ori elimina conținut pentru fraudă, abuz, conținut ilegal sau siguranța platformei, cu respectarea legii."] },
-            { title: "3. Evenimente și disponibilitatea biletelor", paragraphs: ["Organizatorul stabilește descrierea, data, locul, tipurile de bilete, capacitatea, perioada de vânzare și regulile de acces. Disponibilitatea se poate schimba până la confirmarea plății. Rezervarea din checkout este temporară; o comandă neplătită sau expirată nu produce un bilet."] },
-            { title: "4. Preț, taxă de ticketing și plată", paragraphs: ["Rezumatul checkoutului arată biletele selectate, reducerea unui cod promoțional valid, taxa de ticketing și procesare și totalul înainte de trimiterea către plată. Calculul actual al taxei este 4% din prețul biletelor după reducere plus 2,50 RON pentru fiecare bilet. Organizatorul poate alege să suporte această taxă; atunci nu se adaugă la totalul cumpărătorului.", "Plata se finalizează în Stripe Checkout pe contul Stripe conectat al organizatorului (flux direct charge pentru comenzile noi). SPOTTR încasează comisionul său prin Stripe Connect. Revenirea din pagina Stripe nu confirmă singură comanda; confirmarea vine după verificarea plății."] },
-            { title: "5. Bilete și facturi", items: ["După confirmare, biletele sunt livrate prin email și, pentru cumpărările cu autentificare, sunt disponibile și în cont. Fiecare are un cod de validare; dacă îl distribui, altcineva îl poate folosi înaintea ta.", "Datele de facturare sunt colectate pentru comandă și factură. După confirmarea plății, emiterea facturii este programată prin furnizorul configurat de organizator; emiterea sau livrarea poate întârzia dacă acesta nu este pregătit ori disponibil.", "Dacă alegi să salvezi datele de facturare pentru viitor, SPOTTR păstrează un singur profil reutilizabil în contul tău autentificat până când îl înlocuiești sau îl ștergi. SPOTTR nu salvează numerele cardurilor."] },
-            { title: "6. Anularea inițiată de organizator", paragraphs: ["Când organizatorul cere anularea prin SPOTTR, vânzarea biletelor se oprește, iar cererea este verificată de un administrator. Depunerea cererii nu înseamnă că anularea a fost aprobată. Dacă este respinsă, evenimentul revine la starea anterioară. Dacă este aprobată, intră în proces de rambursare, iar plățile sunt tratate separat pentru fiecare comandă.", "Pentru o anulare aprobată, fluxul actual solicită rambursarea integrală a sumei plătite de fiecare cumpărător, inclusiv taxa de ticketing plătită de acesta. Decizia ca SPOTTR să păstreze sau să restituie propriul comision schimbă decontarea cu organizatorul, nu suma solicitată înapoi pentru cumpărător. Momentul în care banii apar depinde de Stripe și de metoda de plată. Rambursările eșuate, în așteptare sau parțiale necesită verificări suplimentare."] },
-            { title: "7. Alte rambursări, amânări și dispute", paragraphs: ["Cererea voluntară de rambursare a cumpărătorului, amânarea sau neexecutarea evenimentului se analizează potrivit condițiilor evenimentului și legii aplicabile. SPOTTR nu promite rambursare automată pentru orice schimbare de plan. Pentru servicii de agrement programate la o dată sau perioadă precisă, dreptul legal de retragere în 14 zile poate fi exceptat dacă sunt îndeplinite condițiile legii; celelalte drepturi obligatorii rămân valabile.", "Organizatorul poate iniția o rambursare și direct în Stripe. SPOTTR reconciliază starea plății: rambursarea integrală se reflectă în comandă și în documentele de facturare, iar cea parțială sau necorelată poate necesita verificare manuală. O dispută de plată poate fi verificată împreună cu organizatorul și Stripe, pe baza datelor comenzii."] },
-            { title: "8. Organizatori, promovare și conținut", paragraphs: ["Organizatorii răspund pentru autorizații, siguranță, informațiile corecte despre eveniment, acces, anulări și documentele fiscale pentru vânzările lor. Ei pot publica actualizări foto temporare și pot cumpăra plasări promoționale prezentate ca atare. Acordul separat pentru organizatori și checkoutul promovării reglementează relația comercială cu SPOTTR."] },
-            { title: "9. Contact și modificări", paragraphs: ["Pentru acces sau o rambursare legată de un eveniment, contactează organizatorul afișat; SPOTTR poate ajuta la verificarea comenzii și a stării tehnice. Înainte de lansare, datele fictive de mai sus trebuie înlocuite cu date reale și cu un proces funcțional de reclamații.", "Modificările importante ale termenilor trebuie datate și comunicate corespunzător. O versiune ulterioară nu elimină drepturile deja dobândite printr-o comandă plătită sau prin lege."] },
-          ],
-        },
-        privacy: {
-          eyebrow: "Date personale",
-          title: "Politica de confidențialitate",
-          updatedAt: "30 septembrie 2026 — versiune demonstrativă înainte de lansare",
-          intro: "Această versiune demonstrativă descrie fluxurile actuale de date din SPOTTR. Identitatea operatorului, contactul și termenele de păstrare trebuie confirmate înainte de lansare.",
-          sections: [
-            { title: "1. Operatorul datelor și contact", paragraphs: ["Example Events SRL, Strada Exemplului nr. 1, București, legal@example.invalid, este un exemplu fictiv de operator SPOTTR și de operator de date. Acestea nu sunt date de contact funcționale. Politica finală trebuie să identifice operatorul real și un contact valid pentru date personale înainte de lansare.", "Organizatorul unui eveniment poate avea și rolul de operator independent pentru accesul la eveniment, desfășurarea acestuia și obligațiile sale fiscale. Rolurile exacte și schimburile de date trebuie confirmate în documentele finale."] },
-            { title: "2. Cont, profil și date sociale", items: ["La creare cont și autentificare: username, email, hashul parolei sau identificatorul contului Google, limba preferată, informații despre sesiune și, opțional, fotografie și descriere de profil.", "Pentru funcțiile sociale: cereri și relații de prietenie, organizatori urmăriți, evenimente salvate, opțiuni de participare sau interes, activitate din feed, notificări din aplicație și preferințe privind categoriile ascunse.", "Pentru conținut: pagini de eveniment, imagini încărcate și actualizări foto temporare cu descrieri. Profilurile și conținutul public pot fi văzute de alți utilizatori potrivit funcției și setărilor sale."] },
-            { title: "3. Comenzi, facturare și organizatori", items: ["Pentru cumpărări: emailul cumpărătorului, biletele alese, evenimentul, codul promoțional, starea comenzii și a plății, codul de validare și istoricul scanării, rambursări și dispute.", "Pentru facturi: numele persoanei sau firmei, codul fiscal ori numărul de înregistrare unde este cazul, adresa de facturare, localitatea, județul sau sectorul și țara. Aceste date sunt trimise odată cu comanda către fluxul de facturare al organizatorului.", "Pentru organizatori: datele firmei și fiscale, verificarea și starea contului Stripe Connect, achiziția promovărilor, evidența comisioanelor și facturilor și dovada acceptării acordului de organizator."] },
-            { title: "4. Locație și date de facturare salvate", paragraphs: ["Dacă soliciți poziția ta pe hartă, browserul sau sistemul de operare cere permisiunea, iar aplicația citește coordonatele curente pentru centrare ori calculul evenimentelor apropiate. Politica finală trebuie să confirme dacă anumite coordonate sau cereri asociate ajung la SPOTTR ori la furnizorii hărții; permisiunea se poate modifica din setările dispozitivului.", "Salvarea datelor de facturare pentru cumpărări viitoare este opțională și disponibilă utilizatorilor autentificați. Copia reutilizabilă este păstrată în contul SPOTTR până când o înlocuiești sau o ștergi. Nu este vorba despre un card salvat. Datele deja trimise pentru o comandă rămân în înregistrările comenzii și facturii chiar dacă profilul reutilizabil este șters ulterior."] },
-            { title: "5. Scopuri și temeiuri", items: ["Executarea contractului: crearea contului, funcțiile sociale solicitate, procesarea comenzilor, livrarea biletelor, validarea accesului și suportul.", "Obligații legale: păstrarea evidențelor de plată și fiscale necesare și răspunsul la cereri legale.", "Interes legitim, după evaluare și cu drept de opoziție: prevenirea fraudei și abuzului, securitatea sesiunilor, jurnalele esențiale și gestionarea disputelor de plată.", "Unde consimțământul este temeiul potrivit, acesta se cere separat pentru prelucrări opționale. Permisiunea pentru localizare sau alegerea de a salva date nu transformă toate celelalte prelucrări în prelucrări bazate pe consimțământ. Politica finală trebuie să coreleze fiecare scop cu temeiul său real."] },
-            { title: "6. Vizibilitate și alegerile tale", paragraphs: ["Vizibilitatea participării este activă implicit în produs și poate fi oprită din Profil. Înainte de lansare, această setare implicită trebuie reevaluată în raport cu protecția datelor în mod implicit și trebuie explicat exact cine vede activitatea privind biletele sau participarea. Profilurile, prieteniile și actualizările organizatorilor au propriile reguli de vizibilitate, care trebuie descrise în varianta finală."] },
-            { title: "7. Destinatari și transferuri", paragraphs: ["În funcție de utilizarea aplicației, datele pot fi comunicate organizatorului evenimentului, Stripe și contului său conectat pentru plăți, furnizorului de facturare configurat de organizator, Google pentru autentificare, furnizorilor de email, stocare cloud și hărți. SPOTTR nu vinde date personale.", "Lista reală de furnizori, locurile de prelucrare, eventualele transferuri în afara Spațiului Economic European și garanțiile legale trebuie verificate și explicate în politica finală. Acest exemplu nu presupune că fiecare furnizor este activ pentru toți utilizatorii."] },
-            { title: "8. Păstrare și ștergere", paragraphs: ["Datele de cont și sociale sunt păstrate cât sunt necesare contului și funcțiilor folosite; comenzile, facturile, rambursările și disputele pot rămâne și după închiderea contului pentru obligații legale sau apărarea drepturilor. Actualizările temporare și jurnalele tehnice au cicluri de viață distincte.", "Acesta nu este un calendar final de păstrare. Înainte de lansare, aceste criterii trebuie completate cu perioade verificate ori criterii specifice pe categorii. Ștergerea profilului reutilizabil de facturare nu șterge datele deja trimise pentru o comandă."] },
-            { title: "9. Drepturile tale și reclamații", items: ["În condițiile aplicabile, poți cere acces, rectificare, ștergere, restricționare, portabilitate sau te poți opune prelucrării. Poți retrage consimțământul pentru prelucrările care se bazează efectiv pe acesta, fără a afecta prelucrările anterioare legale.", "Poți depune o plângere la autoritatea română de protecție a datelor, ANSPDCP, sau la altă autoritate competentă.", "Versiunea finală trebuie să includă un contact funcțional și un proces real de cereri. Controlul actual de ștergere a contului nu este un flux complet și trebuie finalizat ori înlocuit înainte de lansare."] },
-          ],
-        },
         agreement: {
           eyebrow: "Pentru organizatori",
           title: "Acord pentru organizatori",
@@ -3175,7 +3149,7 @@ export const resources = {
           sections: [
             { title: "1. Calitatea partilor", paragraphs: ["Organizatorul declara ca are dreptul sa reprezinte firma indicata in profil si sa publice evenimente in numele acesteia. SPOTTR furnizeaza infrastructura tehnica pentru listare, comenzi, plati si validare."] },
             { title: "2. Responsabilitatea pentru eveniment", items: ["Organizatorul raspunde pentru informatiile publicate, autorizatii, siguranta, acces, desfasurarea, anularea sau reprogramarea evenimentului.", "Organizatorul este responsabil pentru relatia comerciala si informarea participantilor, inclusiv politica proprie de rambursare.", "Organizatorul emite documentele fiscale aferente accesului la eveniment si isi indeplineste obligatiile fiscale proprii."] },
-            { title: "3. Plati prin Stripe Connect", paragraphs: ["Pentru a vinde bilete, organizatorul deschide si completeaza un cont Stripe Connect Express pe fluxul gazduit de Stripe. Stripe verifica identitatea, datele firmei si contul bancar si decide daca platile si transferurile pot fi activate.", "SPOTTR foloseste in prezent un flux Stripe Connect cu destination charges: plata este procesata pe contul platformei, iar fondurile aferente evenimentului sunt directionate catre contul conectat al organizatorului, conform configuratiei Stripe."] },
+            { title: "3. Plati prin Stripe Connect", paragraphs: ["Pentru a vinde bilete, organizatorul deschide si completeaza un cont Stripe conectat prin fluxul gazduit de Stripe. Stripe verifica identitatea, datele firmei si contul bancar si decide daca platile si transferurile bancare pot fi activate.", "SPOTTR foloseste plati directe Stripe Connect pentru comenzile noi: plata este creata in contul Stripe conectat al organizatorului, iar SPOTTR isi primeste comisionul prin Stripe."] },
             { title: "4. Comision si decontare", paragraphs: ["Pentru fiecare bilet cu plata finalizata, SPOTTR retine un comision de 4% din valoarea biletului plus 2,50 RON pentru fiecare bilet vandut. Comisionul este vizibil in situatia financiara din dashboard si va fi facturat organizatorului conform fluxului de facturare stabilit de SPOTTR.", "Taxele Stripe, refundurile, chargeback-urile si corectiile pot afecta soldurile. Organizatorul autorizeaza SPOTTR sa compenseze sumele datorate prin transferuri viitoare sau alte mecanisme permise de Stripe si lege."] },
             { title: "5. Date personale", paragraphs: ["SPOTTR si organizatorul prelucreaza datele participantilor numai pentru scopurile necesare evenimentului, biletelor, accesului si obligatiilor legale. Fiecare parte isi indeplineste propriile obligatii de confidentialitate si protectie a datelor."] },
             { title: "6. Suspendare si incetare", paragraphs: ["SPOTTR poate suspenda publicarea, vanzarea sau transferurile atunci cand exista risc de frauda, plangeri relevante, incalcarea acordului, cerinte Stripe sau obligatii legale. Incetarea acordului nu afecteaza comenzile, disputele si obligatiile deja aparute."] },
@@ -3184,8 +3158,6 @@ export const resources = {
       },
       legal: {
         lastUpdated: "Ultima actualizare: {{date}}",
-        disclaimer:
-          "Aceste documente descriu fluxul curent al platformei. Inainte de lansarea comerciala, continutul trebuie revizuit si adaptat de un avocat si contabil autorizat pentru activitatea efectiva a operatorului.",
       },
     },
   },

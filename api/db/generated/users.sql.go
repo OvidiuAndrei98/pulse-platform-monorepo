@@ -373,7 +373,7 @@ SET
     preferred_language = COALESCE(NULLIF($7::TEXT, ''), preferred_language),
     show_attendance_publicly = COALESCE($8::BOOLEAN, show_attendance_publicly)
 WHERE id = $1
-RETURNING id, username, email, role, avatar_url, bio, preferred_language, show_attendance_publicly, created_at
+RETURNING id, username, email, role, avatar_url, bio, preferred_language, show_attendance_publicly, password_hash, created_at
 `
 
 type UpdateUserProfileParams struct {
@@ -396,6 +396,7 @@ type UpdateUserProfileRow struct {
 	Bio                    pgtype.Text        `json:"bio"`
 	PreferredLanguage      string             `json:"preferred_language"`
 	ShowAttendancePublicly bool               `json:"show_attendance_publicly"`
+	PasswordHash           pgtype.Text        `json:"password_hash"`
 	CreatedAt              pgtype.Timestamptz `json:"created_at"`
 }
 
@@ -420,6 +421,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Bio,
 		&i.PreferredLanguage,
 		&i.ShowAttendancePublicly,
+		&i.PasswordHash,
 		&i.CreatedAt,
 	)
 	return i, err

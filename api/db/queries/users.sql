@@ -43,7 +43,7 @@ SET
     preferred_language = COALESCE(NULLIF(sqlc.arg(preferred_language)::TEXT, ''), preferred_language),
     show_attendance_publicly = COALESCE(sqlc.narg(show_attendance_publicly)::BOOLEAN, show_attendance_publicly)
 WHERE id = $1
-RETURNING id, username, email, role, avatar_url, bio, preferred_language, show_attendance_publicly, created_at;
+RETURNING id, username, email, role, avatar_url, bio, preferred_language, show_attendance_publicly, password_hash, created_at;
 
 -- name: UpdateUserAvatar :one
 UPDATE users

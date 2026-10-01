@@ -207,7 +207,7 @@ func (app *Application) BuildRouter() http.Handler {
 	})
 	eventsHandler := events.NewHandler(app.Queries, app.Pool)
 	interactionsHandler := interactions.NewHandler(app.Queries)
-	usersHandler := users.NewHandler(app.Queries)
+	usersHandler := users.NewHandler(app.Queries, app.Pool)
 	notificationsHandler := notifications.NewHandler(app.Queries)
 	safetyGroupsHandler := safetygroups.NewHandler(app.Pool, app.Abuse)
 	authMiddleware := auth.AuthMiddleware
@@ -257,6 +257,7 @@ func (app *Application) BuildRouter() http.Handler {
 		// Users
 		GetMe:                       usersHandler.HandleGetMe,
 		UpdateMe:                    usersHandler.HandleUpdateMe,
+		DeleteMe:                    usersHandler.HandleDeleteMe,
 		UploadUserAvatar:            usersHandler.HandleUploadAvatar,
 		GetUserTickets:              ticketingHandler.HandleGetUserTickets,
 		GetUserOrders:               ticketingHandler.HandleGetUserOrders,
@@ -426,4 +427,8 @@ func (app *Application) StartAbuseProtectionWorker(ctx context.Context) {
 
 func (app *Application) StartSafetyGroupCleanupWorker(ctx context.Context) {
 	safetygroups.NewHandler(app.Pool, app.Abuse).StartCleanupWorker(ctx)
+}
+
+func (app *Application) StartUserMediaDeletionWorker(ctx context.Context) {
+	users.NewHandler(app.Queries, app.Pool).StartMediaDeletionWorker(ctx)
 }

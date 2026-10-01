@@ -14,8 +14,8 @@ import {
 } from "@/lib/clientQueryCache";
 import { useCachedClientQuery } from "@/lib/useCachedClientQuery";
 
-type UserFields = ReadableSchema<"User">;
-export type UserData = ReadableSchema<"User">;
+type UserFields = ReadableSchema<"CurrentUser">;
+export type UserData = UserFields;
 export type CreateEventPayload = WritableSchema<"CreateEventPayload">;
 export type UpdateEventPayload = WritableSchema<"UpdateEventPayload">;
 export type TicketTier = ReadableSchema<"TicketTypeResponse">;

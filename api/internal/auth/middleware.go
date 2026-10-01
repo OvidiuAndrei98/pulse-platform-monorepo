@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"pulse-api/internal/router"
 
@@ -16,6 +17,7 @@ type contextKey string
 const (
 	UserIDKey          contextKey = "userID"
 	RoleKey            contextKey = "userRole"
+	IssuedAtKey        contextKey = "sessionIssuedAt"
 	ScannerAccessIDKey contextKey = "scannerAccessID"
 	ScannerEventIDKey  contextKey = "scannerEventID"
 )
@@ -67,6 +69,9 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		ctx := context.WithValue(r.Context(), UserIDKey, userIDStr)
 		ctx = context.WithValue(ctx, RoleKey, role)
+		if issuedAt, issuedAtErr := claims.GetIssuedAt(); issuedAtErr == nil && issuedAt != nil {
+			ctx = context.WithValue(ctx, IssuedAtKey, issuedAt.Time)
+		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -132,6 +137,14 @@ func GetRoleFromContext(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("role lipseste din context")
 	}
 	return role, nil
+}
+
+func GetIssuedAtFromContext(ctx context.Context) (time.Time, error) {
+	issuedAt, ok := ctx.Value(IssuedAtKey).(time.Time)
+	if !ok || issuedAt.IsZero() {
+		return time.Time{}, fmt.Errorf("session issue time lipseste din context")
+	}
+	return issuedAt, nil
 }
 
 func GetScannerAccessIDFromContext(ctx context.Context) (string, error) {

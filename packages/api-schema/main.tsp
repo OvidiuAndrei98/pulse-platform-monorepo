@@ -24,6 +24,10 @@ model User {
   createdAt: utcDateTime;
 }
 
+model CurrentUser extends User {
+  hasPassword: boolean;
+}
+
 model UserMinResponse {
   id: string;
   username: string;
@@ -993,7 +997,7 @@ interface UserOperations {
   @summary("Obține profilul utilizatorului curent")
   @get
   @route("/me")
-  getMe(): User;
+  getMe(): CurrentUser;
 
   @summary("Actualizează profilul curent")
   @put
@@ -1005,12 +1009,19 @@ interface UserOperations {
       preferredLanguage?: "en" | "ro";
       showAttendancePublicly?: boolean;
     },
-  ): User;
+  ): CurrentUser;
+
+  @summary("Sterge definitiv contul utilizatorului curent")
+  @delete
+  @route("/me")
+  deleteMe(@body payload: { confirmation: string; currentPassword?: string }): {
+    @statusCode statusCode: 204;
+  };
 
   @summary("Obține biletele utilizatorului curent")
   @post
   @route("/me/avatar")
-  uploadAvatar(): User;
+  uploadAvatar(): CurrentUser;
 
   @get
   @route("/me/tickets")

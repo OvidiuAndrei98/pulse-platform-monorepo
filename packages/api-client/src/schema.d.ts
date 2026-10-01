@@ -1472,7 +1472,8 @@ export interface paths {
         /** Actualizează profilul curent */
         put: operations["UserOperations_updateMe"];
         post?: never;
-        delete?: never;
+        /** Sterge definitiv contul utilizatorului curent */
+        delete: operations["UserOperations_deleteMe"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1810,6 +1811,9 @@ export interface components {
         CreatedResourceResponse: {
             id: string;
         };
+        CurrentUser: {
+            hasPassword: boolean;
+        } & components["schemas"]["User"];
         EligibleSafetyFriendResponse: {
             userId: string;
             username: string;
@@ -5236,7 +5240,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["User"];
+                    "application/json": components["schemas"]["CurrentUser"];
                 };
             };
         };
@@ -5266,8 +5270,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["User"];
+                    "application/json": components["schemas"]["CurrentUser"];
                 };
+            };
+        };
+    };
+    UserOperations_deleteMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    confirmation: string;
+                    currentPassword?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -5286,7 +5315,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["User"];
+                    "application/json": components["schemas"]["CurrentUser"];
                 };
             };
         };

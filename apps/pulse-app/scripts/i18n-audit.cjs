@@ -4,6 +4,11 @@ const ts = require("typescript");
 
 const sourceRoot = path.resolve(__dirname, "../src");
 const resourceFile = path.join(sourceRoot, "i18n", "resources.ts");
+const publicLegalResourceFile = path.join(sourceRoot, "features", "legal", "publicLegalDocuments.ts");
+const standaloneTranslationFiles = new Set([
+  resourceFile,
+  publicLegalResourceFile,
+]);
 const files = [];
 const findings = [];
 const translationReferences = [];
@@ -30,7 +35,7 @@ function collectFiles(directory) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const filePath = path.join(directory, entry.name);
     if (entry.isDirectory()) collectFiles(filePath);
-    else if (/\.tsx?$/.test(entry.name) && filePath !== resourceFile) files.push(filePath);
+    else if (/\.tsx?$/.test(entry.name) && !standaloneTranslationFiles.has(filePath)) files.push(filePath);
   }
 }
 
@@ -148,6 +153,19 @@ function loadResources() {
   return moduleShim.exports.resources;
 }
 
+function loadPublicLegalDocuments() {
+  const source = fs.readFileSync(publicLegalResourceFile, "utf8");
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020,
+    },
+  }).outputText;
+  const moduleShim = { exports: {} };
+  Function("module", "exports", "require", compiled)(moduleShim, moduleShim.exports, require);
+  return moduleShim.exports.publicLegalDocuments;
+}
+
 function collectResourcePaths(value, prefix = "", paths = new Set()) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     if (prefix) paths.add(prefix);
@@ -200,6 +218,32 @@ for (const reference of translationReferences) {
   if (!hasResourcePath(romanian, reference.key)) {
     resourceErrors.push(`${reference.file}:${reference.line} Missing Romanian key: ${reference.key}`);
   }
+}
+
+const publicLegalDocuments = loadPublicLegalDocuments();
+for (const documentKey of ["terms", "privacy"]) {
+  const englishDocument = publicLegalDocuments?.en?.[documentKey];
+  const romanianDocument = publicLegalDocuments?.ro?.[documentKey];
+  if (!englishDocument || !romanianDocument) {
+    resourceErrors.push(`Missing public legal document translation: ${documentKey}`);
+    continue;
+  }
+  if (englishDocument.sections.length !== romanianDocument.sections.length) {
+    resourceErrors.push(`Public legal document section mismatch: ${documentKey}`);
+    continue;
+  }
+  englishDocument.sections.forEach((englishSection, index) => {
+    const romanianSection = romanianDocument.sections[index];
+    for (const property of ["paragraphs", "items", "links"]) {
+      const englishCount = englishSection[property]?.length ?? 0;
+      const romanianCount = romanianSection[property]?.length ?? 0;
+      if (englishCount !== romanianCount) {
+        resourceErrors.push(
+          `Public legal document ${property} mismatch: ${documentKey} section ${index + 1}`,
+        );
+      }
+    }
+  });
 }
 
 for (const finding of findings) {

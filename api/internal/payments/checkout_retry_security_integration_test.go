@@ -245,6 +245,49 @@ func TestPaidCheckoutAfterEventCancellationIsQuarantined(t *testing.T) {
 	}
 }
 
+func TestPaidCheckoutAfterAccountDeletionIsQuarantinedIdempotently(t *testing.T) {
+	for _, testCase := range []struct {
+		name   string
+		status string
+		sold   int32
+	}{
+		{name: "pending reservation", status: "pending", sold: 2},
+		{name: "failed reservation", status: "failed", sold: 0},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			pool := paymentSecurityTestPool(t)
+			fixture := seedCheckoutRetryFixture(t, pool, testCase.status, testCase.sold, 10)
+			ctx := context.Background()
+			if _, err := pool.Exec(ctx, `UPDATE orders
+SET account_owner_deleted_at=clock_timestamp(), stripe_payment_intent_id=NULL
+WHERE id=$1`, fixture.orderID); err != nil {
+				t.Fatal(err)
+			}
+			handler := &CheckoutHandler{queries: db.New(pool), db: pool}
+
+			for attempt := 0; attempt < 2; attempt++ {
+				if err := handler.FulfillCheckout(ctx, fixture.sessionID, fixture.paymentID, fixture.orderID.String(), fixture.accountID, true); err != nil {
+					t.Fatal(err)
+				}
+				assertCheckoutRetryState(t, pool, fixture, testCase.status, testCase.sold, 0, true)
+			}
+
+			var reason, storedPaymentIntentID string
+			if err := pool.QueryRow(ctx, `SELECT r.reason, o.stripe_payment_intent_id
+FROM orders o JOIN checkout_reservation_reviews r ON r.order_id=o.id
+WHERE o.id=$1`, fixture.orderID).Scan(&reason, &storedPaymentIntentID); err != nil {
+				t.Fatal(err)
+			}
+			if reason != "paid_after_account_deleted" {
+				t.Fatalf("review reason = %q", reason)
+			}
+			if storedPaymentIntentID != fixture.paymentID {
+				t.Fatalf("stored payment intent = %q, want %q", storedPaymentIntentID, fixture.paymentID)
+			}
+		})
+	}
+}
+
 func TestReconcilePaidCheckoutDoesNotReportSuccessWithoutTickets(t *testing.T) {
 	pool := paymentSecurityTestPool(t)
 	fixture := seedCheckoutRetryFixture(t, pool, "failed", 10, 10)

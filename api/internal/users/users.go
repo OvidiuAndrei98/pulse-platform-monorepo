@@ -9,14 +9,16 @@ import (
 	"pulse-api/internal/router"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Handler struct {
 	Queries *db.Queries
+	DB      *pgxpool.Pool
 }
 
-func NewHandler(queries *db.Queries) *Handler {
-	return &Handler{Queries: queries}
+func NewHandler(queries *db.Queries, pool *pgxpool.Pool) *Handler {
+	return &Handler{Queries: queries, DB: pool}
 }
 
 func (h *Handler) HandleGetMe(w http.ResponseWriter, r *http.Request) {

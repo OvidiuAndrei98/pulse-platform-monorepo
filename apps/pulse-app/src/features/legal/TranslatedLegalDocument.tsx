@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { LegalDocument, type LegalSection } from "@/features/legal/LegalDocument";
+import { publicLegalDocuments } from "@/features/legal/publicLegalDocuments";
 
 type LegalDocumentKey = "terms" | "privacy" | "agreement";
 
@@ -21,10 +22,11 @@ export function TranslatedLegalDocument({
   documentKey: LegalDocumentKey;
   children?: ReactNode;
 }) {
-  const { t } = useTranslation();
-  const copy = t(`legalDocuments.${documentKey}`, {
-    returnObjects: true,
-  }) as unknown as LegalDocumentCopy;
+  const { t, i18n } = useTranslation();
+  const language = i18n.resolvedLanguage?.toLowerCase().startsWith("ro") ? "ro" : "en";
+  const copy = documentKey === "agreement"
+    ? t(`legalDocuments.${documentKey}`, { returnObjects: true }) as unknown as LegalDocumentCopy
+    : publicLegalDocuments[language][documentKey];
 
   return <LegalDocument {...copy}>{children}</LegalDocument>;
 }

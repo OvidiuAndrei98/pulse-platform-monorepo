@@ -300,6 +300,7 @@ SET user_id = $1
 FROM users u
 WHERE u.id = $1
   AND o.user_id IS NULL
+  AND o.account_owner_deleted_at IS NULL
   AND o.status = 'completed'
   AND LOWER(o.email) = LOWER(u.email);
 

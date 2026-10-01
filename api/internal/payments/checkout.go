@@ -986,6 +986,13 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 	}); err != nil {
 		return err
 	}
+	if checkoutRequiresRefundAfterAccountDeletion(order) {
+		// The purchaser erased the account after opening Checkout. A delayed or
+		// retried payment must never recreate tickets or reattach retained history.
+		// Quarantine the paid order for explicit refund reconciliation; setting the
+		// review flag does not itself submit a refund to Stripe.
+		return markPaidCheckoutForRefundReviewLocked(ctx, qtx, tx, order.ID, "paid_after_account_deleted")
+	}
 	if (order.Status == db.OrderStatusPending || order.Status == db.OrderStatusFailed) && order.StripeRefundNeedsAttention {
 		log.Printf("SECURITY checkout fulfillment held for refund review: order=%s payment_intent=%s", common.UUIDToString(order.ID), paymentIntentID)
 		return tx.Commit(ctx)
@@ -1692,6 +1699,10 @@ func stripePaymentIntentID(paymentIntent *stripe.PaymentIntent) string {
 		return ""
 	}
 	return paymentIntent.ID
+}
+
+func checkoutRequiresRefundAfterAccountDeletion(order db.Orders) bool {
+	return order.AccountOwnerDeletedAt.Valid && (order.Status == db.OrderStatusPending || order.Status == db.OrderStatusFailed)
 }
 
 func stripeChargeFullyRefunded(charge stripe.Charge) bool {

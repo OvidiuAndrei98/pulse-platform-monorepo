@@ -40,6 +40,7 @@ type HandlersConfig struct {
 	// Users
 	GetMe                    http.HandlerFunc
 	UpdateMe                 http.HandlerFunc
+	DeleteMe                 http.HandlerFunc
 	UploadUserAvatar         http.HandlerFunc
 	GetUserTickets           http.HandlerFunc
 	GetUserOrders            http.HandlerFunc
@@ -294,6 +295,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			r.Route("/users", func(r chi.Router) {
 				r.Get("/me", cfg.GetMe)
 				r.Put("/me", cfg.UpdateMe)
+				r.With(rateLimit("account_delete_ip", 5, time.Hour)).Delete("/me", cfg.DeleteMe)
 				r.Post("/me/avatar", cfg.UploadUserAvatar)
 				r.Get("/me/tickets", cfg.GetUserTickets)
 				r.Get("/me/orders", cfg.GetUserOrders)

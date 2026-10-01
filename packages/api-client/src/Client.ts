@@ -247,7 +247,10 @@ export class ApiClient {
 
   public delete<Path extends keyof paths>(
     path: Path,
-    options?: { params?: OperationParameters<Path, "delete"> },
+    options?: {
+      params?: OperationParameters<Path, "delete">;
+      body?: OperationRequestBody<Path, "delete">;
+    },
   ) {
     return this.request("delete", path, options);
   }
@@ -326,7 +329,7 @@ export class ApiClient {
 
   public async uploadProfileAvatar(
     file: File,
-  ): Promise<ReadableSchema<"User">> {
+  ): Promise<ReadableSchema<"CurrentUser">> {
     file = await asWebP(file, 1024, 0.84);
     const headers: Record<string, string> = {
       Accept: "application/json",

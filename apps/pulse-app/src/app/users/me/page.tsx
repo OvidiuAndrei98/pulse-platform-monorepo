@@ -11,7 +11,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { Event } from "@/core/DataProvider";
-import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
+import { ApiClient, ApiError, ReadableSchema } from "@packages/api-client/src/Client";
 import { TicketPreview } from "@/components/tickets/TicketPreview";
 import { ProfileConnectionQr } from "@/components/social/ProfileConnectionQr";
 import { ProfileAvatarUpload } from "@/components/profile/ProfileAvatarUpload";
@@ -20,6 +20,7 @@ import { PasswordResetRequest } from "@/components/profile/PasswordResetRequest"
 import { LanguagePreferenceRow } from "@/components/profile/LanguagePreferenceRow";
 import { AttendancePrivacyRow } from "@/components/profile/AttendancePrivacyRow";
 import { HiddenEventCategories } from "@/components/profile/HiddenEventCategories";
+import { DeleteAccountDialog } from "@/components/profile/DeleteAccountDialog";
 import {
   formatEventDate,
   formatEventTime,
@@ -129,6 +130,9 @@ export default function MePage() {
   const [validationEvents, setValidationEvents] = useState<ValidationEvent[]>(
     [],
   );
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
 
   // Stare pentru a ști ce secțiune de setări este extinsă ("details" | "password" | "delete" | null)
   const [activeRow, setActiveRow] = useState<string | null>(null);
@@ -160,6 +164,38 @@ export default function MePage() {
   const handleLogout = () => {
     logout();
     router.replace("/login");
+  };
+
+  const openDeleteDialog = () => {
+    setDeleteAccountError(null);
+    setDeleteDialogOpen(true);
+  };
+
+  const closeDeleteDialog = () => {
+    if (deletingAccount) return;
+    setDeleteDialogOpen(false);
+    setDeleteAccountError(null);
+  };
+
+  const handleDeleteAccount = async (confirmation: string, currentPassword: string) => {
+    setDeletingAccount(true);
+    setDeleteAccountError(null);
+    try {
+      await ApiClient.instance.delete("/users/me", {
+        body: { confirmation, ...(currentPassword ? { currentPassword } : {}) },
+      });
+      setDeleteDialogOpen(false);
+      logout();
+      router.replace("/login?accountDeleted=1");
+    } catch (error) {
+      setDeleteAccountError(
+        error instanceof ApiError && error.status === 401
+          ? t(user?.properties.hasPassword !== false ? "userProfile.deletePasswordInvalid" : "userProfile.deleteGoogleReauthRequired")
+          : t("userProfile.deleteFailed"),
+      );
+    } finally {
+      setDeletingAccount(false);
+    }
   };
 
   if (loading) {
@@ -290,18 +326,8 @@ export default function MePage() {
                   icon={Trash2}
                   label={t("userProfile.deleteAccount")}
                   danger
-                  isOpen={activeRow === "delete-desktop"}
-                  onClick={() => toggleRow("delete-desktop")}
-                >
-                  <div className="pt-2 space-y-2">
-                    <p className="text-xs text-red-400/80 leading-normal">
-                      {t("userProfile.deleteWarning")}
-                    </p>
-                    <button className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 text-xs font-semibold py-2 rounded-xl transition">
-                      {t("userProfile.confirmDelete")}
-                    </button>
-                  </div>
-                </Row>
+                  onClick={openDeleteDialog}
+                />
               </div>
             </section>
 
@@ -627,18 +653,8 @@ export default function MePage() {
                     icon={Trash2}
                     label={t("userProfile.deleteAccount")}
                     danger
-                    isOpen={activeRow === "delete-mobile"}
-                    onClick={() => toggleRow("delete-mobile")}
-                  >
-                    <div className="pt-2 space-y-2">
-                      <p className="text-xs text-red-400/80">
-                        {t("userProfile.deleteShortWarning")}
-                      </p>
-                      <button className="w-full bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold py-2 rounded-xl">
-                        {t("userProfile.confirmDelete")}
-                      </button>
-                    </div>
-                  </Row>
+                    onClick={openDeleteDialog}
+                  />
                 </div>
               </section>
             </div>
@@ -684,6 +700,15 @@ export default function MePage() {
           onClose={() => setOpenTicket(null)}
         />
       )}
+      <DeleteAccountDialog
+        open={deleteDialogOpen}
+        email={user.properties.email}
+        requiresPassword={user.properties.hasPassword !== false}
+        busy={deletingAccount}
+        error={deleteAccountError}
+        onClose={closeDeleteDialog}
+        onConfirm={(confirmation, currentPassword) => void handleDeleteAccount(confirmation, currentPassword)}
+      />
     </div>
   );
 }

@@ -3392,7 +3392,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/User"
+                  "$ref": "#/components/schemas/CurrentUser"
                 }
               }
             }
@@ -3409,7 +3409,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/User"
+                  "$ref": "#/components/schemas/CurrentUser"
                 }
               }
             }
@@ -3443,6 +3443,37 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "UserOperations_deleteMe",
+        "summary": "Sterge definitiv contul utilizatorului curent",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "confirmation": {
+                    "type": "string"
+                  },
+                  "currentPassword": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "confirmation"
+                ]
+              }
+            }
+          }
+        }
       }
     },
     "/users/me/avatar": {
@@ -3456,7 +3487,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/User"
+                  "$ref": "#/components/schemas/CurrentUser"
                 }
               }
             }
@@ -4401,6 +4432,22 @@
             "type": "string"
           }
         }
+      },
+      "CurrentUser": {
+        "type": "object",
+        "required": [
+          "hasPassword"
+        ],
+        "properties": {
+          "hasPassword": {
+            "type": "boolean"
+          }
+        },
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/User"
+          }
+        ]
       },
       "EligibleSafetyFriendResponse": {
         "type": "object",

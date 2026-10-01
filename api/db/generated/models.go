@@ -572,6 +572,7 @@ type Orders struct {
 	ReservationIpHash             []byte             `json:"reservation_ip_hash"`
 	TicketVatPercentage           pgtype.Numeric     `json:"ticket_vat_percentage"`
 	TicketVatName                 pgtype.Text        `json:"ticket_vat_name"`
+	AccountOwnerDeletedAt         pgtype.Timestamptz `json:"account_owner_deleted_at"`
 }
 
 type OrganizerFollows struct {
@@ -840,6 +841,14 @@ type UserHiddenEventCategories struct {
 	UserID    pgtype.UUID        `json:"user_id"`
 	Category  string             `json:"category"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type UserMediaDeletionJobs struct {
+	ObjectKey     string             `json:"object_key"`
+	Attempts      int32              `json:"attempts"`
+	NextAttemptAt pgtype.Timestamptz `json:"next_attempt_at"`
+	LastError     pgtype.Text        `json:"last_error"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
 type UserTokens struct {
