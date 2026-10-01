@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import type { TicketTier } from "@/core/DataProvider";
 import { formatRon } from "@/features/events/serviceFee";
 
-type TicketAvailability =
+export type TicketAvailability =
   | "checking"
   | "available"
   | "sold-out"
@@ -36,6 +36,27 @@ export function getTicketAvailability(
     return "sales-ended";
   }
   return "available";
+}
+
+export function getRemainingTicketCapacity(ticket: TicketTier): number {
+  return Math.max(0, ticket.capacity - (ticket.ticketsSold ?? 0));
+}
+
+export function isTicketSelectionAvailable(
+  tickets: readonly TicketTier[],
+  quantities: Record<string, number>,
+  nowMs = Date.now(),
+): boolean {
+  const ticketsById = new Map(tickets.map((ticket) => [ticket.id, ticket]));
+  const selected = Object.entries(quantities).filter(([, quantity]) => quantity > 0);
+  return selected.length > 0 && selected.every(([ticketId, quantity]) => {
+    const ticket = ticketsById.get(ticketId);
+    return Boolean(
+      ticket &&
+      getTicketAvailability(ticket, nowMs) === "available" &&
+      quantity <= getRemainingTicketCapacity(ticket),
+    );
+  });
 }
 
 export function TicketTypeSelector({

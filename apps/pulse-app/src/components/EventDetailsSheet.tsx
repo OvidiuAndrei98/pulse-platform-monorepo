@@ -42,7 +42,11 @@ import { routeForPlatform } from "@/lib/native/navigation";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { useDrawerViewport } from "@/components/ui/useDrawerViewport";
 import { toast } from "sonner";
-import { TicketTypeSelector } from "@/features/checkout/TicketTypeSelector";
+import {
+  getTicketAvailability,
+  isTicketSelectionAvailable,
+  TicketTypeSelector,
+} from "@/features/checkout/TicketTypeSelector";
 import { TicketCheckoutDrawer } from "@/features/checkout/TicketCheckoutDrawer";
 import { bookFreeTicket } from "@/features/checkout/freeBooking";
 import { ApiError } from "@packages/api-client/src/Client";
@@ -69,11 +73,23 @@ export function EventDetailsProvider({ children }: { children: ReactNode }) {
   const open = (event: Event) => {
     closingEvent.current = null;
     knownEvents.current.set(event.id, event);
+    const refreshLiveAvailability = () => {
+      // Event lists are display-cacheable, but ticket availability is not.
+      void User.getPublicEventById(event.id).then((freshEvent) => {
+        knownEvents.current.set(event.id, freshEvent);
+        setSelectedEvent((current) => current?.id === event.id ? freshEvent : current);
+      }).catch(() => undefined);
+    };
     const url = new URL(window.location.href);
-    if (url.searchParams.get("eventId") === event.id) { setSelectedEvent(event); return; }
+    if (url.searchParams.get("eventId") === event.id) {
+      setSelectedEvent(event);
+      refreshLiveAvailability();
+      return;
+    }
     url.searchParams.set("eventId", event.id);
     window.history.pushState(externalHistoryState({ __spottrEvent: true, [LAYER]: undefined }), "", url);
     setSelectedEvent(event);
+    refreshLiveAvailability();
   };
   const close = () => {
     const eventId = new URLSearchParams(window.location.search).get("eventId");
@@ -166,6 +182,7 @@ export function EventDetailsSheet({
   const [checkoutPreview, setCheckoutPreview] = useState<HTMLElement | null>(null);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [bookingFree, setBookingFree] = useState(false);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
   const mobileSheetRef = useRef<HTMLDivElement>(null);
   const previewHostRef = useRef<HTMLDivElement>(null);
   const [favorited, setFavorited] = useState(false);
@@ -176,6 +193,7 @@ export function EventDetailsSheet({
   const desktopViewportRef = useDrawerViewport(isDesktop && Boolean(displayedEvent), "panel");
   const activeEventRef = useRef(activeEvent);
   activeEventRef.current = activeEvent;
+  const availabilityRequestRef = useRef(0);
 
   useEffect(() => {
     if (!activeEvent || displayedEvent?.id !== activeEvent.id) return;
@@ -183,7 +201,7 @@ export function EventDetailsSheet({
     // checkout and returning to the same open sheet keep the user's choice.
     const firstTicket = [...(activeEvent.ticketTypes ?? [])].sort(
       (left, right) => left.priceRon - right.priceRon,
-    )[0];
+    ).find((ticket) => getTicketAvailability(ticket, Date.now()) === "available");
     setQty(firstTicket && !activeEvent.externalTicketUrl?.trim() ? { [firstTicket.id]: 1 } : {});
   }, [activeEvent?.id, displayedEvent?.id]);
 
@@ -201,7 +219,7 @@ export function EventDetailsSheet({
   }, [checkoutOpen, checkoutPreview]);
 
   const handleClose = (_clearReturnEvent = true) => {
-    if (checkoutBusy || bookingFree) return;
+    if (checkoutBusy || bookingFree || checkingAvailability) return;
     if (isDesktop) { setCheckoutOpen(false); setDisplayedEvent(null); }
     onClose();
 
@@ -248,6 +266,9 @@ export function EventDetailsSheet({
   }, []);
 
   useEffect(() => {
+    availabilityRequestRef.current += 1;
+    setCheckingAvailability(false);
+    setBookingFree(false);
     if (activeEvent) {
       setCheckoutOpen(false);
       setCheckoutVisited(false);
@@ -255,6 +276,9 @@ export function EventDetailsSheet({
       setFavorited(Boolean(activeEvent.stats?.isFavorited));
       setShared(false);
     }
+    return () => {
+      availabilityRequestRef.current += 1;
+    };
   }, [activeEvent?.id]);
 
   useEffect(() => {
@@ -266,7 +290,7 @@ export function EventDetailsSheet({
     return () => {
       window.removeEventListener("keydown", onKey);
     };
-  }, [displayedEvent, checkoutBusy]);
+  }, [displayedEvent, checkoutBusy, bookingFree, checkingAvailability]);
 
 
   if (!displayedEvent) return null;
@@ -295,6 +319,8 @@ export function EventDetailsSheet({
       ? t("eventSheet.ownEvent")
       : externalTicketURL
         ? t("eventSheet.externalTickets")
+        : checkingAvailability
+          ? t("checkout.checkingTicketAvailability")
         : count === 0
           ? t("eventSheet.selectTickets")
           : isFreeSelection
@@ -342,24 +368,90 @@ export function EventDetailsSheet({
       return;
     }
     if (count === 0) return;
-    if (isFreeSelection) {
+    if (checkingAvailability) return;
+    const eventID = event.id;
+    const selectionSnapshot = { ...qty };
+    const requestID = ++availabilityRequestRef.current;
+    setCheckingAvailability(true);
+    let freshEvent: Event;
+    try {
+      freshEvent = await User.getPublicEventById(eventID);
+      if (
+        requestID !== availabilityRequestRef.current ||
+        activeEventRef.current?.id !== eventID
+      ) return;
+      setDisplayedEvent(freshEvent);
+    } catch {
+      if (requestID !== availabilityRequestRef.current) return;
+      toast.error(t("checkout.availabilityCheckFailed"));
+      setCheckingAvailability(false);
+      return;
+    }
+    const freshTicketTypes = freshEvent.ticketTypes ?? [];
+    if (!isTicketSelectionAvailable(freshTicketTypes, selectionSnapshot)) {
+      setQty({});
+      toast.error(t("checkout.selectionUnavailable"));
+      setCheckingAvailability(false);
+      return;
+    }
+    const freshSubtotal = freshTicketTypes.reduce(
+      (sum, ticket) => sum + (selectionSnapshot[ticket.id] ?? 0) * ticket.priceRon,
+      0,
+    );
+    const freshCount = freshTicketTypes.reduce(
+      (sum, ticket) => sum + (selectionSnapshot[ticket.id] ?? 0),
+      0,
+    );
+    const freshIsFreeSelection = freshCount === 1 && freshSubtotal === 0;
+    if (freshIsFreeSelection) {
       if (!user) {
+        setCheckingAvailability(false);
         router.push(`/login?returnTo=${encodeURIComponent(routeForPlatform(`/events/${event.id}`))}`);
         return;
       }
-      const selected = ticketTypes.find((ticket) => (qty[ticket.id] ?? 0) > 0);
-      if (!selected || bookingFree) return;
+      const selected = freshTicketTypes.find((ticket) => (selectionSnapshot[ticket.id] ?? 0) > 0);
+      if (!selected || bookingFree) {
+        setCheckingAvailability(false);
+        return;
+      }
       setBookingFree(true);
       try {
-        const result = await bookFreeTicket(event.id, selected.id);
+        const result = await bookFreeTicket(eventID, selected.id);
+        if (
+          requestID !== availabilityRequestRef.current ||
+          activeEventRef.current?.id !== eventID
+        ) return;
         toast.success(t(result.alreadyBooked ? "checkout.freeAlreadyBooked" : "checkout.freeBooked"));
         setQty({});
         onClose();
         router.push(routeForPlatform("/users/me/tickets"));
       } catch (error) {
+        if (
+          requestID !== availabilityRequestRef.current ||
+          activeEventRef.current?.id !== eventID
+        ) return;
+        if (error instanceof ApiError && error.status === 409) {
+          setQty({});
+          try {
+            const refreshedEvent = await User.getPublicEventById(eventID);
+            if (
+              requestID !== availabilityRequestRef.current ||
+              activeEventRef.current?.id !== eventID
+            ) return;
+            setDisplayedEvent(refreshedEvent);
+          } catch {
+            // The stale selection stays cleared if the refresh also fails.
+          }
+        }
         toast.error(error instanceof ApiError ? error.detail || error.title : t("checkout.freeBookingFailed"));
       } finally {
-        setBookingFree(false);
+        if (
+          requestID === availabilityRequestRef.current &&
+          activeEventRef.current?.id === eventID
+        ) {
+          setBookingFree(false);
+          setCheckingAvailability(false);
+        }
       }
       return;
     }
@@ -388,8 +480,10 @@ export function EventDetailsSheet({
       preview.style.transition = "none";
       setCheckoutPreview(preview);
     }
+    setQty(selectionSnapshot);
     setCheckoutVisited(true);
     setCheckoutOpen(true);
+    setCheckingAvailability(false);
   };
 
   const viewOrganizerEvents = () => {
@@ -512,7 +606,7 @@ export function EventDetailsSheet({
                   tickets={ticketTypes}
                   quantities={qty}
                   onChange={setQty}
-                  disabled={isFinished || isOwnEvent}
+                  disabled={isFinished || isOwnEvent || checkingAvailability || bookingFree}
                 />
               </div>
 
@@ -566,7 +660,7 @@ export function EventDetailsSheet({
           type="button"
           disabled={
             !isFinished &&
-            ((!externalTicketURL && count === 0) || isOwnEvent || bookingFree)
+            ((!externalTicketURL && count === 0) || isOwnEvent || bookingFree || checkingAvailability)
           }
           onClick={isFinished ? viewOrganizerEvents : openCheckout}
           className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:opacity-90 disabled:opacity-40 disabled:shadow-none"
@@ -586,6 +680,7 @@ export function EventDetailsSheet({
       open={checkoutOpen}
       historyBack={Boolean(activeEvent)}
       onBusyChange={setCheckoutBusy}
+      onEventRefresh={setDisplayedEvent}
       onClose={() => setCheckoutOpen(false)}
     />
   );
@@ -614,7 +709,7 @@ export function EventDetailsSheet({
             }
           }}
           modal
-          dismissible={!checkoutBusy && !bookingFree}
+          dismissible={!checkoutBusy && !bookingFree && !checkingAvailability}
           repositionInputs={false}
           shouldScaleBackground={false}
           closeThreshold={0.35}

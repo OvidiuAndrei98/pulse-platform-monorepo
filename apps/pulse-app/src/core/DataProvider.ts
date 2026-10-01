@@ -909,6 +909,7 @@ export class User {
     try {
       const event = await ApiClient.instance.get("/events/{id}", {
         params: { path: { id } },
+        cache: "no-store",
       });
       return event;
     } catch (error) {
@@ -975,6 +976,7 @@ export class PublicEventsService {
     try {
       const event = await ApiClient.instance.get("/events/{id}", {
         params: { path: { id } },
+        cache: "no-store",
       });
       return event;
     } catch (error) {

@@ -33,7 +33,10 @@ import { useTranslation } from "react-i18next";
 import { shareEvent as shareNativeEvent } from "@/lib/native/share";
 import { EventDetailsSkeleton } from "@/components/ui/loading";
 import { toast } from "sonner";
-import { TicketTypeSelector } from "@/features/checkout/TicketTypeSelector";
+import {
+  isTicketSelectionAvailable,
+  TicketTypeSelector,
+} from "@/features/checkout/TicketTypeSelector";
 import { TicketCheckoutDrawer } from "@/features/checkout/TicketCheckoutDrawer";
 import { bookFreeTicket } from "@/features/checkout/freeBooking";
 
@@ -45,17 +48,36 @@ export default function EventStandalonePage() {
   const [favorite, setFavorite] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [bookingFree, setBookingFree] = useState(false);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { data: event, pending: loading, error, retry } = useClientQuery<Event | undefined>(
+  const { data: loadedEvent, pending: loading, error, retry } = useClientQuery<Event | undefined>(
     `event:${params.id}`, () => User.getPublicEventById(params.id), undefined,
   );
+  const [refreshedEvent, setRefreshedEvent] = useState<Event | undefined>();
   const favoriteLock = useRef(false);
+  const availabilityRequestRef = useRef(0);
+  const eventIdRef = useRef(params.id);
+  eventIdRef.current = params.id;
   const [savingFavorite, setSavingFavorite] = useState(false);
 
   useEffect(() => {
-    setFavorite(Boolean(event?.stats?.isFavorited));
-  }, [event]);
+    availabilityRequestRef.current += 1;
+    setCheckingAvailability(false);
+    setBookingFree(false);
+    setCheckoutOpen(false);
+    setQuantities({});
+    return () => {
+      availabilityRequestRef.current += 1;
+    };
+  }, [params.id]);
+
+  useEffect(() => {
+    setRefreshedEvent(loadedEvent);
+    setFavorite(Boolean(loadedEvent?.stats?.isFavorited));
+  }, [loadedEvent]);
+
+  const event = refreshedEvent?.id === params.id ? refreshedEvent : loadedEvent;
 
   if (loading) return <EventDetailsSkeleton label={t("common.loading")} />;
   if (error instanceof ApiError && error.status === 404) notFound();
@@ -125,27 +147,95 @@ export default function EventStandalonePage() {
       return;
     }
     if (ticketCount === 0) return;
-    if (isFreeSelection) {
+    if (checkingAvailability) return;
+    const eventID = event.id;
+    const selectionSnapshot = { ...quantities };
+    const requestID = ++availabilityRequestRef.current;
+    setCheckingAvailability(true);
+    let freshEvent: Event;
+    try {
+      freshEvent = await User.getPublicEventById(eventID);
+      if (
+        requestID !== availabilityRequestRef.current ||
+        eventIdRef.current !== eventID
+      ) return;
+      setRefreshedEvent(freshEvent);
+    } catch {
+      if (requestID !== availabilityRequestRef.current) return;
+      toast.error(t("checkout.availabilityCheckFailed"));
+      setCheckingAvailability(false);
+      return;
+    }
+    const freshTicketTypes = freshEvent.ticketTypes ?? [];
+    if (!isTicketSelectionAvailable(freshTicketTypes, selectionSnapshot)) {
+      setQuantities({});
+      toast.error(t("checkout.selectionUnavailable"));
+      setCheckingAvailability(false);
+      return;
+    }
+    const freshSubtotal = freshTicketTypes.reduce(
+      (sum, ticket) => sum + (selectionSnapshot[ticket.id] ?? 0) * ticket.priceRon,
+      0,
+    );
+    const freshCount = freshTicketTypes.reduce(
+      (sum, ticket) => sum + (selectionSnapshot[ticket.id] ?? 0),
+      0,
+    );
+    const freshIsFreeSelection = freshCount === 1 && freshSubtotal === 0;
+    if (freshIsFreeSelection) {
       if (!user) {
+        setCheckingAvailability(false);
         router.push(`/login?returnTo=${encodeURIComponent(routeForPlatform(`/events/${event.id}`))}`);
         return;
       }
-      const selected = ticketTypes.find((ticket) => (quantities[ticket.id] ?? 0) > 0);
-      if (!selected || bookingFree) return;
+      const selected = freshTicketTypes.find((ticket) => (selectionSnapshot[ticket.id] ?? 0) > 0);
+      if (!selected || bookingFree) {
+        setCheckingAvailability(false);
+        return;
+      }
       setBookingFree(true);
       try {
-        const result = await bookFreeTicket(event.id, selected.id);
+        const result = await bookFreeTicket(eventID, selected.id);
+        if (
+          requestID !== availabilityRequestRef.current ||
+          eventIdRef.current !== eventID
+        ) return;
         toast.success(t(result.alreadyBooked ? "checkout.freeAlreadyBooked" : "checkout.freeBooked"));
         setQuantities({});
         router.push(routeForPlatform("/users/me/tickets"));
       } catch (error) {
+        if (
+          requestID !== availabilityRequestRef.current ||
+          eventIdRef.current !== eventID
+        ) return;
+        if (error instanceof ApiError && error.status === 409) {
+          setQuantities({});
+          try {
+            const refreshedEvent = await User.getPublicEventById(eventID);
+            if (
+              requestID !== availabilityRequestRef.current ||
+              eventIdRef.current !== eventID
+            ) return;
+            setRefreshedEvent(refreshedEvent);
+          } catch {
+            // The stale selection stays cleared if the refresh also fails.
+          }
+        }
         toast.error(error instanceof ApiError ? error.detail || error.title : t("checkout.freeBookingFailed"));
       } finally {
-        setBookingFree(false);
+        if (
+          requestID === availabilityRequestRef.current &&
+          eventIdRef.current === eventID
+        ) {
+          setBookingFree(false);
+          setCheckingAvailability(false);
+        }
       }
       return;
     }
+    setQuantities(selectionSnapshot);
     setCheckoutOpen(true);
+    setCheckingAvailability(false);
   };
 
   return (
@@ -309,7 +399,7 @@ export default function EventStandalonePage() {
               <div className="p-3 sm:p-4">
                 {!externalTicketURL && ticketTypes.length > 0 ? (
                   <div className="space-y-2">
-                    <TicketTypeSelector tickets={ticketTypes} quantities={quantities} onChange={setQuantities} disabled={isFinished || isOwnEvent} />
+                    <TicketTypeSelector tickets={ticketTypes} quantities={quantities} onChange={setQuantities} disabled={isFinished || isOwnEvent || checkingAvailability || bookingFree} />
                   </div>
                 ) : (
                   <p className="px-2 py-3 text-sm leading-6 text-white/60">
@@ -322,12 +412,14 @@ export default function EventStandalonePage() {
                     <button
                       type="button"
                       onClick={openCheckout}
-                      disabled={(!externalTicketURL && ticketCount === 0) || isOwnEvent || bookingFree}
+                      disabled={(!externalTicketURL && ticketCount === 0) || isOwnEvent || bookingFree || checkingAvailability}
                       className="mt-4 flex h-12 w-full items-center justify-between rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <span className="inline-flex items-center gap-2">
                         <Ticket className="h-4 w-4" />
-                        {isOwnEvent
+                        {checkingAvailability
+                          ? t("checkout.checkingTicketAvailability")
+                          : isOwnEvent
                           ? t("eventPage.ownEvent")
                           : externalTicketURL
                             ? t("eventSheet.externalTickets")
@@ -356,7 +448,7 @@ export default function EventStandalonePage() {
           </aside>
         </div>
       </div>
-      <TicketCheckoutDrawer event={event} quantities={quantities} onQuantitiesChange={setQuantities} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
+      <TicketCheckoutDrawer event={event} quantities={quantities} onQuantitiesChange={setQuantities} open={checkoutOpen} onEventRefresh={setRefreshedEvent} onClose={() => setCheckoutOpen(false)} />
     </main>
   );
 }

@@ -135,7 +135,11 @@ export class ApiClient {
   private async request<Path extends keyof paths, Method extends HttpMethods>(
     method: Method,
     path: Path,
-    options?: { params?: OperationParameters<Path, Method>; body?: any },
+    options?: {
+      params?: OperationParameters<Path, Method>;
+      body?: any;
+      cache?: RequestCache;
+    },
   ): Promise<any> {
     let urlPath = path as string;
     const params = options?.params as any;
@@ -168,6 +172,7 @@ export class ApiClient {
       method: method.toUpperCase(),
       headers,
       body: options?.body ? JSON.stringify(options.body) : undefined,
+      cache: options?.cache,
     });
 
     if (!response.ok) {
@@ -210,7 +215,10 @@ export class ApiClient {
 
   public get<Path extends keyof paths>(
     path: Path,
-    options?: { params?: OperationParameters<Path, "get"> },
+    options?: {
+      params?: OperationParameters<Path, "get">;
+      cache?: RequestCache;
+    },
   ) {
     return this.request("get", path, options);
   }

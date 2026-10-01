@@ -43,8 +43,12 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { ApiClient, ApiError } from "@packages/api-client/src/Client";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
-import type { Event } from "@/core/DataProvider";
+import { type Event, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
+import {
+  getRemainingTicketCapacity,
+  isTicketSelectionAvailable,
+} from "@/features/checkout/TicketTypeSelector";
 import { PromoCodeField } from "@/features/events/PromoCodeField";
 import {
   calculateServiceFeeRon,
@@ -74,6 +78,7 @@ export function TicketCheckoutDrawer({
   onQuantitiesChange,
   open,
   onClose,
+  onEventRefresh,
   historyBack = true,
   onBusyChange,
 }: {
@@ -82,6 +87,7 @@ export function TicketCheckoutDrawer({
   onQuantitiesChange: (value: Record<string, number>) => void;
   open: boolean;
   onClose: () => void;
+  onEventRefresh?: (event: Event) => void;
   historyBack?: boolean;
   onBusyChange?: (busy: boolean) => void;
 }) {
@@ -176,6 +182,7 @@ export function TicketCheckoutDrawer({
     ? 0
     : calculateServiceFeeRon(discountedTicketSubtotal, ticketCount);
   const total = discountedTicketSubtotal + serviceFee;
+  const selectionAvailable = isTicketSelectionAvailable(ticketTypes, quantities);
   const purchaseUnavailable =
     userId === event.organizerId ||
     new Date(event.endTime).getTime() <= Date.now();
@@ -194,6 +201,13 @@ export function TicketCheckoutDrawer({
     swipeX.set(0);
     swipeBackdropOpacity.set(1);
   }, [open, swipeX, swipeBackdropOpacity]);
+
+  useEffect(() => {
+    if (!open || ticketCount === 0 || selectionAvailable) return;
+    onQuantitiesChange({});
+    setFurthestStep(0);
+    setStep("tickets");
+  }, [open, onQuantitiesChange, selectionAvailable, ticketCount]);
 
   const resetEdgeSwipe = () => {
     edgeSwipe.current = null;
@@ -454,6 +468,7 @@ export function TicketCheckoutDrawer({
   const handleCheckout = async () => {
     if (
       !ticketCount ||
+      !selectionAvailable ||
       purchaseUnavailable ||
       busy ||
       submittingRef.current ||
@@ -489,6 +504,16 @@ export function TicketCheckoutDrawer({
       );
       window.location.assign(checkout.checkoutUrl);
     } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        onQuantitiesChange({});
+        setFurthestStep(0);
+        setStep("tickets");
+        try {
+          onEventRefresh?.(await User.getPublicEventById(event.id));
+        } catch {
+          // Keep the checkout fail-closed even if the follow-up refresh fails.
+        }
+      }
       const message =
         error instanceof ApiError
           ? error.detail || error.title
@@ -650,7 +675,9 @@ export function TicketCheckoutDrawer({
             disabled={busy}
           >
             <div className="divide-y divide-white/10">
-              {selectedTickets.map((ticket) => (
+              {selectedTickets.map((ticket) => {
+                const maximumQuantity = Math.min(8, getRemainingTicketCapacity(ticket));
+                return (
                 <div key={ticket.id} className="first:pt-0">
                   <p className="break-words text-lg font-bold text-primary">
                     {ticket.name}
@@ -695,12 +722,12 @@ export function TicketCheckoutDrawer({
                       </span>
                       <button
                         type="button"
-                        disabled={busy || (quantities[ticket.id] ?? 0) >= 8}
+                        disabled={busy || (quantities[ticket.id] ?? 0) >= maximumQuantity}
                         onClick={() =>
                           onQuantitiesChange({
                             ...quantities,
                             [ticket.id]: Math.min(
-                              8,
+                              maximumQuantity,
                               (quantities[ticket.id] ?? 0) + 1,
                             ),
                           })
@@ -715,7 +742,8 @@ export function TicketCheckoutDrawer({
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
             <div className="mt-4 border-t border-white/10 pt-4">
               {" "}
@@ -956,6 +984,7 @@ export function TicketCheckoutDrawer({
             billingLoading ||
             purchaseUnavailable ||
             !ticketCount ||
+            !selectionAvailable ||
             promo.isValidating ||
             Boolean(promo.code && !promo.applied)
           }
