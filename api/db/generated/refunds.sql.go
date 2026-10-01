@@ -28,6 +28,21 @@ WITH reviewed AS (
       AND orders.stripe_livemode IS TRUE
       AND reviewed.fee_policy = 'refund'
     RETURNING orders.id
+), free_bookings_cancelled AS (
+    UPDATE orders
+    SET status = 'refunded',
+        refund_origin = 'event_cancellation',
+        stripe_refund_needs_attention = FALSE,
+        platform_fee_status = 'refunded',
+        platform_fee_refunded_bani = 0
+    FROM reviewed
+    WHERE orders.event_id = reviewed.event_id
+      AND orders.status = 'completed'
+      AND orders.total_amount = 0
+      AND orders.customer_ticketing_fee_bani = 0
+      AND orders.stripe_payment_intent_id IS NULL
+      AND orders.stripe_checkout_session_id IS NULL
+    RETURNING orders.id
 ), jobs AS (
     INSERT INTO order_refund_operations (order_id, cancellation_request_id, source, fee_policy, refund_amount_bani)
     SELECT orders.id, reviewed.id, 'event_cancellation', reviewed.fee_policy,

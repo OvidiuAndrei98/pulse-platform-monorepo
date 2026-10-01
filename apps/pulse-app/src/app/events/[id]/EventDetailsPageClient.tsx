@@ -35,6 +35,7 @@ import { EventDetailsSkeleton } from "@/components/ui/loading";
 import { toast } from "sonner";
 import { TicketTypeSelector } from "@/features/checkout/TicketTypeSelector";
 import { TicketCheckoutDrawer } from "@/features/checkout/TicketCheckoutDrawer";
+import { bookFreeTicket } from "@/features/checkout/freeBooking";
 
 export default function EventStandalonePage() {
   const { user } = useDataProvider();
@@ -43,6 +44,7 @@ export default function EventStandalonePage() {
   const [shared, setShared] = useState(false);
   const [favorite, setFavorite] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [bookingFree, setBookingFree] = useState(false);
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { data: event, pending: loading, error, retry } = useClientQuery<Event | undefined>(
@@ -64,6 +66,7 @@ export default function EventStandalonePage() {
   const formattedTime = formatEventTime(event.startTime);
   const formattedEndTime = event.endTime ? formatEventTime(event.endTime) : undefined;
   const ticketTypes = event.ticketTypes ?? [];
+  const externalTicketURL = event.externalTicketUrl?.trim() || "";
   const isOwnEvent = user?.properties.id === event.organizerId;
   const isFinished = new Date(event.endTime).getTime() <= Date.now();
   const ticketCount = ticketTypes.reduce(
@@ -78,6 +81,7 @@ export default function EventStandalonePage() {
     ? 0
     : calculateServiceFeeRon(ticketSubtotal, ticketCount);
   const total = ticketSubtotal + serviceFee;
+  const isFreeSelection = ticketCount === 1 && ticketSubtotal === 0;
   const bannerUrl = event.bannerUrl || "/images/events/default.jpg";
 
   const shareEvent = async () => {
@@ -110,13 +114,37 @@ export default function EventStandalonePage() {
     }
   };
 
-  const openCheckout = () => {
+  const openCheckout = async () => {
     if (isFinished) return;
     if (isOwnEvent) {
       toast.error(t("eventPage.cannotBuyOwn"));
       return;
     }
+    if (externalTicketURL) {
+      window.location.assign(externalTicketURL);
+      return;
+    }
     if (ticketCount === 0) return;
+    if (isFreeSelection) {
+      if (!user) {
+        router.push(`/login?returnTo=${encodeURIComponent(routeForPlatform(`/events/${event.id}`))}`);
+        return;
+      }
+      const selected = ticketTypes.find((ticket) => (quantities[ticket.id] ?? 0) > 0);
+      if (!selected || bookingFree) return;
+      setBookingFree(true);
+      try {
+        const result = await bookFreeTicket(event.id, selected.id);
+        toast.success(t(result.alreadyBooked ? "checkout.freeAlreadyBooked" : "checkout.freeBooked"));
+        setQuantities({});
+        router.push(routeForPlatform("/users/me/tickets"));
+      } catch (error) {
+        toast.error(error instanceof ApiError ? error.detail || error.title : t("checkout.freeBookingFailed"));
+      } finally {
+        setBookingFree(false);
+      }
+      return;
+    }
     setCheckoutOpen(true);
   };
 
@@ -279,29 +307,35 @@ export default function EventStandalonePage() {
               </div>
 
               <div className="p-3 sm:p-4">
-                {ticketTypes.length > 0 ? (
+                {!externalTicketURL && ticketTypes.length > 0 ? (
                   <div className="space-y-2">
                     <TicketTypeSelector tickets={ticketTypes} quantities={quantities} onChange={setQuantities} disabled={isFinished || isOwnEvent} />
                   </div>
                 ) : (
-                  <p className="px-2 py-3 text-sm leading-6 text-white/60">{t("eventPage.noTickets")}</p>
+                  <p className="px-2 py-3 text-sm leading-6 text-white/60">
+                    {t(externalTicketURL ? "eventPage.externalTicketHint" : "eventPage.noTickets")}
+                  </p>
                 )}
 
-                {ticketTypes.length > 0 && !isFinished && (
+                {(externalTicketURL || ticketTypes.length > 0) && !isFinished && (
                   <div className="mt-4 border-t border-white/10 pt-4">
                     <button
                       type="button"
                       onClick={openCheckout}
-                      disabled={ticketCount === 0 || isOwnEvent}
+                      disabled={(!externalTicketURL && ticketCount === 0) || isOwnEvent || bookingFree}
                       className="mt-4 flex h-12 w-full items-center justify-between rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <span className="inline-flex items-center gap-2">
                         <Ticket className="h-4 w-4" />
                         {isOwnEvent
                           ? t("eventPage.ownEvent")
-                          : ticketCount
-                            ? t("eventSheet.continue", { count: ticketCount, total: formatRon(total) })
-                            : t("checkout.selectTickets")}
+                          : externalTicketURL
+                            ? t("eventSheet.externalTickets")
+                            : ticketCount
+                              ? isFreeSelection
+                                ? bookingFree ? t("checkout.bookingFree") : t("checkout.bookFree")
+                                : t("eventSheet.continue", { count: ticketCount, total: formatRon(total) })
+                              : t("checkout.selectTickets")}
                       </span>
                     </button>
                   </div>

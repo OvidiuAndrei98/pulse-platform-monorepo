@@ -94,6 +94,11 @@ func (h *Handler) HandleCreatePromoCode(w http.ResponseWriter, r *http.Request) 
 		router.RespondWithError(w, http.StatusForbidden, "Acces interzis")
 		return
 	}
+	event, err := h.Queries.GetEventWithStats(r.Context(), eventID)
+	if err != nil || event.ExternalTicketUrl.Valid {
+		router.RespondWithError(w, http.StatusConflict, "Codurile promo Spottr nu sunt disponibile pentru vanzarea externa")
+		return
+	}
 	var body struct {
 		Code            string  `json:"code"`
 		DiscountPercent int32   `json:"discountPercent"`
@@ -116,10 +121,29 @@ func (h *Handler) HandleCreatePromoCode(w http.ResponseWriter, r *http.Request) 
 		router.RespondWithError(w, http.StatusBadRequest, "Intervalul codului promo este invalid")
 		return
 	}
+	tx, err := h.DB.Begin(r.Context())
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Codul promo nu a putut fi creat")
+		return
+	}
+	defer tx.Rollback(r.Context())
+	var lockedExternalURL pgtype.Text
+	if err := tx.QueryRow(r.Context(), `SELECT external_ticket_url FROM events WHERE id = $1 FOR SHARE`, eventID).Scan(&lockedExternalURL); err != nil {
+		router.RespondWithError(w, http.StatusConflict, "Evenimentul nu mai poate fi modificat")
+		return
+	}
+	if lockedExternalURL.Valid {
+		router.RespondWithError(w, http.StatusConflict, "Codurile promo Spottr nu sunt disponibile pentru vanzarea externa")
+		return
+	}
 	var id pgtype.UUID
-	err := h.DB.QueryRow(r.Context(), `INSERT INTO promo_codes(event_id,code,discount_percent,max_redemptions,starts_at,ends_at) VALUES($1,$2,$3,$4,$5,$6) RETURNING id`, eventID, body.Code, body.DiscountPercent, body.MaxRedemptions, starts, ends).Scan(&id)
+	err = tx.QueryRow(r.Context(), `INSERT INTO promo_codes(event_id,code,discount_percent,max_redemptions,starts_at,ends_at) VALUES($1,$2,$3,$4,$5,$6) RETURNING id`, eventID, body.Code, body.DiscountPercent, body.MaxRedemptions, starts, ends).Scan(&id)
 	if err != nil {
 		router.RespondWithError(w, http.StatusConflict, "Codul exista deja sau nu a putut fi creat")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Codul promo nu a putut fi salvat")
 		return
 	}
 	router.RespondWithJSON(w, http.StatusCreated, map[string]string{"id": id.String()})

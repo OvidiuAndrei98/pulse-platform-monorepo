@@ -368,6 +368,7 @@ func (app *Application) BuildRouter() http.Handler {
 		GetEventTicketTypes:   ticketingHandler.HandleGetTicketTypesForEvent,
 		CreateTicketType:      ticketingHandler.HandleCreateTicketType,
 		PurchaseTickets:       stripeCheckoutHandler.HandleCreateCheckout,
+		BookFreeTicket:        stripeCheckoutHandler.HandleBookFreeTicket,
 		ValidateTicket:        ticketingHandler.HandleValidateTicket,
 		ListValidationEvents:  ticketingHandler.HandleListValidationEvents,
 		ListMyValidationScans: ticketingHandler.HandleListMyValidationScans,

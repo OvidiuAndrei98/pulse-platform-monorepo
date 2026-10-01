@@ -46,6 +46,17 @@ func TestSanitizeHeaderRemovesLineBreaks(t *testing.T) {
 	}
 }
 
+func TestTicketConfirmationCopySeparatesFreeBookingsFromPayments(t *testing.T) {
+	freeLabel, freePreheader, freeInvoiceNote := ticketConfirmationCopy(true)
+	if freeLabel != "Rezervare confirmată" || !strings.Contains(freePreheader, "gratuit") || freeInvoiceNote != "" {
+		t.Fatalf("invalid free booking copy: label=%q preheader=%q invoice=%q", freeLabel, freePreheader, freeInvoiceNote)
+	}
+	paidLabel, paidPreheader, paidInvoiceNote := ticketConfirmationCopy(false)
+	if paidLabel != "Plată confirmată" || !strings.Contains(paidPreheader, "Plata") || !strings.Contains(paidInvoiceNote, "Factura fiscală") {
+		t.Fatalf("invalid paid booking copy: label=%q preheader=%q invoice=%q", paidLabel, paidPreheader, paidInvoiceNote)
+	}
+}
+
 func TestResolveDeliveryRecipientUsesOriginalRecipientWithoutOverride(t *testing.T) {
 	mailer := NewMailer("smtp.example.com", "587", "hello@spottr.ro", "user", "password", "https://api.spottr.ro", "https://spottr.ro", "")
 	recipient, subject, err := mailer.resolveDeliveryRecipient("buyer@example.com", "Biletele tale")

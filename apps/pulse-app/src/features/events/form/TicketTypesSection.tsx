@@ -20,30 +20,31 @@ export function TicketTypesSection({
 }) {
   const { user } = useDataProvider();
   const { t } = useTranslation();
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "ticketTypes",
   });
   const ticketTypes = form.watch("ticketTypes");
   const { errors } = form.formState;
-  const [canAddTickets, setCanAddTickets] = useState(false);
+  const [canSellPaidTickets, setCanSellPaidTickets] = useState(false);
   const [expanded, setExpanded] = useState<string>();
   const [adding, setAdding] = useState(false);
   const organizerAbsorbsServiceFee = form.watch("organizerAbsorbsServiceFee");
   const vatPercentage = form.watch("vatPercentage");
+  const ticketingMode = form.watch("ticketingMode");
 
   useEffect(() => {
     if (!user) return;
     user
       .getOrganizerProfile()
       .then((profile) =>
-        setCanAddTickets(
+        setCanSellPaidTickets(
           Boolean(
             profile?.stripeChargesEnabled && profile?.stripePayoutsEnabled,
           ),
         ),
       )
-      .catch(() => setCanAddTickets(false));
+      .catch(() => setCanSellPaidTickets(false));
   }, [user]);
 
   useEffect(() => {
@@ -52,6 +53,63 @@ export function TicketTypesSection({
       setAdding(false);
     }
   }, [adding, fields]);
+
+  const hasPaidTickets = ticketTypes?.some((ticket) => (ticket.priceRon ?? 0) > 0) ?? false;
+
+  const ticketingMethodSelector = (
+    <fieldset disabled={readOnly} className="mt-5 grid gap-2 sm:grid-cols-2">
+      <legend className="mb-2 text-sm font-medium">{t("ticketForm.salesMethod")}</legend>
+      {(["spottr", "external"] as const).map((mode) => (
+        <label
+          key={mode}
+          className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 text-sm transition ${ticketingMode === mode ? "border-primary bg-primary/10 text-foreground" : "border-white/10 bg-white/[0.02] text-muted-foreground"}`}
+        >
+          <input
+            type="radio"
+            name="ticketing-mode"
+            value={mode}
+            checked={ticketingMode === mode}
+            onChange={() => {
+              form.setValue("ticketingMode", mode, { shouldDirty: true, shouldValidate: true });
+              if (mode === "external") {
+                replace([]);
+                form.setValue("organizerAbsorbsServiceFee", false, { shouldDirty: true });
+              }
+            }}
+            className="h-4 w-4 accent-primary"
+          />
+          {t(`ticketForm.${mode === "spottr" ? "sellOnSpottr" : "sellExternally"}`)}
+        </label>
+      ))}
+    </fieldset>
+  );
+
+  if (ticketingMode === "external") {
+    return (
+      <section>
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">{t("ticketForm.title")}</h2>
+          <p className="mt-1 max-w-md text-sm leading-6 text-muted-foreground">{t("ticketForm.salesMethodHint")}</p>
+        </div>
+        {ticketingMethodSelector}
+        <div className="mt-5 rounded-xl border border-white/10 p-4">
+          <FormField label={t("ticketForm.externalUrl")} error={errors.externalTicketUrl?.message}>
+            <input
+              {...form.register("externalTicketUrl")}
+              type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              placeholder="https://tickets.example.com/event"
+              className={eventInputClass}
+            />
+          </FormField>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">{t("ticketForm.externalUrlHint")}</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section>
@@ -81,19 +139,15 @@ export function TicketTypesSection({
               );
               setAdding(true);
             }}
-            disabled={!canAddTickets}
-            title={
-              canAddTickets
-                ? t("ticketForm.addTypeTitle")
-                : t("ticketForm.configureStripe")
-            }
+            title={t("ticketForm.addTypeTitle")}
             className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary/10 px-4 text-sm font-medium text-primary transition hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus className="h-4 w-4" /> {t("ticketForm.addType")}
           </button>
         )}
       </div>
-      {!canAddTickets && !readOnly && (
+      {ticketingMethodSelector}
+      {!canSellPaidTickets && !readOnly && (
         <p className="mt-3 text-xs leading-5 text-amber-400/90">
           {t("ticketForm.stripeRequired")}
         </p>
@@ -115,7 +169,7 @@ export function TicketTypesSection({
         <p id="event-vat-error" role={errors.vatPercentage ? "alert" : undefined} className="text-xs text-red-400">{errors.vatPercentage?.message}</p>
         <p id="event-vat-hint" className="text-xs leading-5 text-muted-foreground">{t("ticketForm.vatHint")}</p>
       </fieldset>
-      {fields.length > 0 && (
+      {fields.length > 0 && hasPaidTickets && (
         <fieldset disabled={readOnly} className="mt-5">
           <label className="flex cursor-pointer items-start gap-3 py-3">
             <input
@@ -233,6 +287,7 @@ export function TicketTypesSection({
                     }
                     step={10}
                     min={0}
+                    disabled={(ticketTypes?.[index]?.priceRon ?? 0) === 0 || !canSellPaidTickets}
                   />
                 </FormField>
                 <FormField
@@ -253,6 +308,30 @@ export function TicketTypesSection({
                   />
                 </FormField>
               </div>
+              <label className="mt-3 flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={(ticketTypes?.[index]?.priceRon ?? 0) === 0}
+                  onChange={(event) =>
+                    form.setValue(
+                      `ticketTypes.${index}.priceRon`,
+                      event.target.checked ? 0 : 10,
+                      { shouldValidate: true, shouldDirty: true },
+                    )
+                  }
+                  disabled={!canSellPaidTickets && (ticketTypes?.[index]?.priceRon ?? 0) === 0}
+                  className="h-4 w-4 accent-primary"
+                />
+                <span className="min-w-0">
+                  <span className="block font-medium">{t("ticketForm.freeTicket")}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    {t("ticketForm.freeTicketHint")}
+                  </span>
+                </span>
+              </label>
+              {!canSellPaidTickets && (ticketTypes?.[index]?.priceRon ?? 0) > 0 && (
+                <p className="mt-2 text-xs text-amber-400/90">{t("ticketForm.configureStripePaid")}</p>
+              )}
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <FormField
                   label={t("ticketForm.salesStart")}

@@ -39,16 +39,19 @@ export function StepperInput({
   onChange,
   step = 1,
   min = 0,
+  disabled = false,
 }: {
   value: number;
   onChange: (value: number) => void;
   step?: number;
   min?: number;
+  disabled?: boolean;
 }) {
   return (
-    <div className="flex h-[42px] items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1">
+    <div className={`flex h-[42px] items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1 ${disabled ? "opacity-45" : ""}`}>
       <button
         type="button"
+        disabled={disabled}
         onClick={() => onChange(Math.max(min, value - step))}
         className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition hover:bg-white/5 hover:text-foreground"
       >
@@ -57,6 +60,7 @@ export function StepperInput({
       <input
         type="number"
         value={value}
+        disabled={disabled}
         onChange={(event) =>
           onChange(Math.max(min, Number(event.target.value) || 0))
         }
@@ -64,6 +68,7 @@ export function StepperInput({
       />
       <button
         type="button"
+        disabled={disabled}
         onClick={() => onChange(value + step)}
         className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition hover:bg-white/5 hover:text-foreground"
       >

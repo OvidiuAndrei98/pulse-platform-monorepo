@@ -64,11 +64,11 @@ LIMIT $2;
 -- name: CountUnreadNotifications :one
 SELECT COUNT(*)::bigint
 FROM notifications
-WHERE user_id = $1
-  AND read_at IS NULL
-  AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+WHERE notifications.user_id = $1
+  AND notifications.read_at IS NULL
+  AND (notifications.expires_at IS NULL OR notifications.expires_at > CURRENT_TIMESTAMP)
   AND (
-    type NOT LIKE 'safety_%'
+    notifications.type NOT LIKE 'safety_%'
     OR EXISTS (
       SELECT 1
       FROM tickets ticket

@@ -55,6 +55,7 @@ type EventResponse struct {
 	City                       string               `json:"city"`
 	Vibe                       string               `json:"vibe"`
 	OrganizerAbsorbsServiceFee bool                 `json:"organizerAbsorbsServiceFee"`
+	ExternalTicketURL          string               `json:"externalTicketUrl,omitempty"`
 	Latitude                   float64              `json:"latitude"`
 	Longitude                  float64              `json:"longitude"`
 	StartTime                  time.Time            `json:"startTime"`
@@ -184,6 +185,7 @@ func MapFromDBListEvents(row db.ListEventsRow) EventResponse {
 		City:                       row.City,
 		Vibe:                       row.Vibe,
 		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		ExternalTicketURL:          row.ExternalTicketUrl.String,
 		VATPercentage:              vatResponse(row.VatPercentage),
 		Latitude:                   row.Latitude,
 		Longitude:                  row.Longitude,
@@ -230,6 +232,7 @@ func MapFromDBListEventsWithStats(row db.ListEventsWithStatsRow) EventResponse {
 		City:                       row.City,
 		Vibe:                       row.Vibe,
 		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		ExternalTicketURL:          row.ExternalTicketUrl.String,
 		VATPercentage:              vatResponse(row.VatPercentage),
 		Latitude:                   row.Latitude,
 		Longitude:                  row.Longitude,
@@ -273,6 +276,7 @@ func MapFromDBGetEvent(row db.GetEventByIDRow) EventResponse {
 		City:                       row.City,
 		Vibe:                       row.Vibe,
 		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		ExternalTicketURL:          row.ExternalTicketUrl.String,
 		VATPercentage:              vatResponse(row.VatPercentage),
 		Latitude:                   row.Latitude,
 		Longitude:                  row.Longitude,
@@ -319,6 +323,7 @@ func MapFromDBGetEventWithStats(row db.GetEventWithStatsRow) EventResponse {
 		City:                       row.City,
 		Vibe:                       row.Vibe,
 		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		ExternalTicketURL:          row.ExternalTicketUrl.String,
 		VATPercentage:              vatResponse(row.VatPercentage),
 		Latitude:                   row.Latitude,
 		Longitude:                  row.Longitude,

@@ -2660,6 +2660,44 @@
         }
       }
     },
+    "/events/{id}/tickets/book": {
+      "post": {
+        "operationId": "EventOperations_bookFreeTicket",
+        "summary": "Rezerva direct un bilet gratuit pentru utilizatorul autentificat",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookFreeTicketResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookFreeTicketPayload"
+              }
+            }
+          }
+        }
+      }
+    },
     "/events/{id}/tickets/purchase": {
       "post": {
         "operationId": "EventOperations_createCheckoutSession",
@@ -3911,6 +3949,35 @@
           }
         }
       },
+      "BookFreeTicketPayload": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckoutTicketItemPayload"
+            }
+          }
+        }
+      },
+      "BookFreeTicketResponse": {
+        "type": "object",
+        "required": [
+          "orderId",
+          "alreadyBooked"
+        ],
+        "properties": {
+          "orderId": {
+            "type": "string"
+          },
+          "alreadyBooked": {
+            "type": "boolean"
+          }
+        }
+      },
       "CheckIn": {
         "type": "object",
         "required": [
@@ -4041,7 +4108,6 @@
           "locationName",
           "city",
           "vibe",
-          "vatPercentage",
           "latitude",
           "longitude",
           "startTime",
@@ -4083,6 +4149,9 @@
               11,
               21
             ]
+          },
+          "externalTicketUrl": {
+            "type": "string"
           },
           "latitude": {
             "type": "number",
@@ -4540,6 +4609,9 @@
           "vatPercentage": {
             "type": "number",
             "format": "double"
+          },
+          "externalTicketUrl": {
+            "type": "string"
           },
           "latitude": {
             "type": "number",
@@ -6631,7 +6703,6 @@
           "locationName",
           "city",
           "vibe",
-          "vatPercentage",
           "latitude",
           "longitude",
           "startTime",
@@ -6676,6 +6747,9 @@
               11,
               21
             ]
+          },
+          "externalTicketUrl": {
+            "type": "string"
           },
           "latitude": {
             "type": "number",

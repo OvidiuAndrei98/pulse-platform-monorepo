@@ -1117,6 +1117,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{id}/tickets/book": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rezerva direct un bilet gratuit pentru utilizatorul autentificat */
+        post: operations["EventOperations_bookFreeTicket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events/{id}/tickets/purchase": {
         parameters: {
             query?: never;
@@ -1662,6 +1679,13 @@ export interface components {
             refundDocumentUrl?: string;
             refundErrorMessage?: string;
         };
+        BookFreeTicketPayload: {
+            items: components["schemas"]["CheckoutTicketItemPayload"][];
+        };
+        BookFreeTicketResponse: {
+            orderId: string;
+            alreadyBooked: boolean;
+        };
         CheckIn: {
             id: string;
             eventId: string;
@@ -1707,7 +1731,8 @@ export interface components {
             vibe: string;
             organizerAbsorbsServiceFee?: boolean;
             /** @enum {number} */
-            vatPercentage: 0 | 11 | 21;
+            vatPercentage?: 0 | 11 | 21;
+            externalTicketUrl?: string;
             /** Format: decimal */
             latitude: number;
             /** Format: decimal */
@@ -1847,6 +1872,7 @@ export interface components {
             organizerAbsorbsServiceFee: boolean;
             /** Format: double */
             vatPercentage?: number;
+            externalTicketUrl?: string;
             /** Format: decimal */
             latitude: number;
             /** Format: decimal */
@@ -2469,7 +2495,8 @@ export interface components {
             vibe: string;
             organizerAbsorbsServiceFee?: boolean;
             /** @enum {number} */
-            vatPercentage: 0 | 11 | 21;
+            vatPercentage?: 0 | 11 | 21;
+            externalTicketUrl?: string;
             /** Format: decimal */
             latitude: number;
             /** Format: decimal */
@@ -4636,6 +4663,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventSocialResponse"];
+                };
+            };
+        };
+    };
+    EventOperations_bookFreeTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookFreeTicketPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookFreeTicketResponse"];
                 };
             };
         };

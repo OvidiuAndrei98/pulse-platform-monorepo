@@ -88,6 +88,15 @@ type CreateCheckoutResponse struct {
 	OrderID     string `json:"orderId"`
 }
 
+type BookFreeTicketRequest struct {
+	Items []CheckoutItemRequest `json:"items"`
+}
+
+type BookFreeTicketResponse struct {
+	OrderID       string `json:"orderId"`
+	AlreadyBooked bool   `json:"alreadyBooked"`
+}
+
 type ReconcileCheckoutRequest struct {
 	SessionID string `json:"sessionId"`
 	EventID   string `json:"eventId"`
@@ -349,6 +358,199 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	})
 }
 
+// HandleBookFreeTicket issues one zero-price ticket directly to the signed-in
+// user. It deliberately bypasses billing and Stripe, while keeping inventory,
+// order, ticket, notification, and email creation in the canonical pipeline.
+func (h *CheckoutHandler) HandleBookFreeTicket(w http.ResponseWriter, r *http.Request) {
+	userID, ok := authenticatedUUID(w, r)
+	if !ok {
+		return
+	}
+	eventID, ok := pathUUID(w, r, "id", "ID-ul evenimentului este invalid")
+	if !ok {
+		return
+	}
+
+	var req BookFreeTicketRequest
+	if !router.DecodeJSON(w, r, &req, maxCheckoutJSONBytes) {
+		return
+	}
+	if len(req.Items) == 0 {
+		router.RespondWithError(w, http.StatusBadRequest, "Selecteaza un bilet gratuit")
+		return
+	}
+	requested, totalTicketCount, ok := parseCheckoutItems(w, req.Items)
+	if !ok {
+		return
+	}
+	// Free reservations are personal. Friends reserve their own ticket from
+	// their account, which prevents one account from exhausting free capacity.
+	if totalTicketCount != 1 || len(requested) != 1 {
+		router.RespondWithError(w, http.StatusBadRequest, "Selecteaza un singur tip de bilet gratuit odata")
+		return
+	}
+	if h.abuse != nil && !h.abuse.Enforce(
+		r.Context(),
+		w,
+		"free_booking_user_event",
+		common.UUIDToString(userID)+":"+common.UUIDToString(eventID),
+		5,
+		10*time.Minute,
+	) {
+		return
+	}
+
+	user, err := h.queries.GetUserByID(r.Context(), userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		router.RespondWithError(w, http.StatusUnauthorized, "Contul nu mai este disponibil")
+		return
+	}
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Rezervarea nu a putut fi pregatita")
+		return
+	}
+
+	orderID, alreadyBooked, err := h.bookFreeTicket(r.Context(), eventID, userID, user.Email, requested)
+	if err != nil {
+		var requestError *checkoutRequestError
+		if errors.As(err, &requestError) {
+			router.RespondWithError(w, requestError.status, requestError.message)
+			return
+		}
+		log.Printf("free ticket booking failed: event=%s user=%s err=%v", common.UUIDToString(eventID), common.UUIDToString(userID), err)
+		router.RespondWithError(w, http.StatusInternalServerError, "Biletul gratuit nu a putut fi rezervat")
+		return
+	}
+
+	router.RespondWithJSON(w, http.StatusOK, BookFreeTicketResponse{
+		OrderID: common.UUIDToString(orderID), AlreadyBooked: alreadyBooked,
+	})
+}
+
+func (h *CheckoutHandler) bookFreeTicket(ctx context.Context, eventID, userID pgtype.UUID, email string, requested map[string]int32) (pgtype.UUID, bool, error) {
+	tx, err := h.db.Begin(ctx)
+	if err != nil {
+		return pgtype.UUID{}, false, err
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := h.queries.WithTx(tx)
+	if _, err := qtx.LockPublishedEventForCheckout(ctx, eventID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return pgtype.UUID{}, false, &checkoutRequestError{status: http.StatusConflict, message: "Rezervarile pentru acest eveniment sunt inchise"}
+		}
+		return pgtype.UUID{}, false, err
+	}
+	event, err := qtx.GetEventWithStats(ctx, eventID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return pgtype.UUID{}, false, &checkoutRequestError{status: http.StatusNotFound, message: "Evenimentul nu a fost gasit"}
+		}
+		return pgtype.UUID{}, false, err
+	}
+	if event.OrganizerID == userID {
+		return pgtype.UUID{}, false, &checkoutRequestError{status: http.StatusForbidden, message: "Nu poti rezerva bilete la propriul eveniment"}
+	}
+	if event.Status != "published" {
+		return pgtype.UUID{}, false, &checkoutRequestError{status: http.StatusConflict, message: "Rezervarile pentru acest eveniment sunt inchise"}
+	}
+	if event.ExternalTicketUrl.Valid {
+		return pgtype.UUID{}, false, &checkoutRequestError{status: http.StatusConflict, message: "Biletele pentru acest eveniment se rezerva pe platforma externa a organizatorului"}
+	}
+	var ticketTypeID pgtype.UUID
+	for rawID := range requested {
+		if err := ticketTypeID.Scan(rawID); err != nil || !ticketTypeID.Valid {
+			return pgtype.UUID{}, false, &checkoutRequestError{status: http.StatusBadRequest, message: "ID-ul tipului de bilet este invalid"}
+		}
+	}
+
+	// Serialize requests for this account/event pair. The ticket-type-scoped
+	// lookup then makes retries and double taps idempotent without mistaking a
+	// paid ticket (or another free tier) for the requested booking.
+	lockKey := "free-booking:" + common.UUIDToString(eventID) + ":" + common.UUIDToString(userID)
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, lockKey); err != nil {
+		return pgtype.UUID{}, false, err
+	}
+	var existingOrderID pgtype.UUID
+	err = tx.QueryRow(ctx, `
+SELECT orders.id
+FROM orders
+JOIN tickets ON tickets.order_id = orders.id
+JOIN ticket_types ON ticket_types.id = tickets.ticket_type_id
+WHERE orders.event_id = $1
+  AND orders.user_id = $2
+  AND orders.status = 'completed'
+  AND orders.total_amount = 0
+  AND orders.customer_ticketing_fee_bani = 0
+  AND orders.stripe_payment_intent_id IS NULL
+  AND orders.stripe_checkout_session_id IS NULL
+  AND ticket_types.event_id = $1
+  AND tickets.ticket_type_id = $3
+ORDER BY orders.created_at
+LIMIT 1`, eventID, userID, ticketTypeID).Scan(&existingOrderID)
+	if err == nil {
+		if err := tx.Commit(ctx); err != nil {
+			return pgtype.UUID{}, false, err
+		}
+		return existingOrderID, true, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return pgtype.UUID{}, false, err
+	}
+
+	ticketType, err := qtx.GetTicketTypeForUpdate(ctx, ticketTypeID)
+	if err != nil || ticketType.EventID != eventID {
+		return pgtype.UUID{}, false, &checkoutRequestError{status: http.StatusNotFound, message: "Tipul de bilet nu apartine evenimentului"}
+	}
+	if ticketType.PriceRon != 0 {
+		return pgtype.UUID{}, false, &checkoutRequestError{status: http.StatusBadRequest, message: "Acest tip de bilet necesita plata"}
+	}
+	if ticketType.TicketsSold >= ticketType.Capacity {
+		return pgtype.UUID{}, false, &checkoutRequestError{status: http.StatusConflict, message: "Nu mai exista bilete gratuite disponibile"}
+	}
+	now := time.Now()
+	if now.Before(ticketType.StartSales.Time) || now.After(ticketType.EndSales.Time) {
+		return pgtype.UUID{}, false, &checkoutRequestError{status: http.StatusBadRequest, message: "Rezervarile pentru acest tip de bilet sunt inchise"}
+	}
+	if err := qtx.IncrementTicketsSold(ctx, db.IncrementTicketsSoldParams{ID: ticketType.ID, TicketsSold: 1}); err != nil {
+		return pgtype.UUID{}, false, err
+	}
+	order, err := qtx.CreateFreeBookingOrder(ctx, db.CreateFreeBookingOrderParams{
+		UserID: userID, Email: email, EventID: eventID,
+	})
+	if err != nil {
+		return pgtype.UUID{}, false, err
+	}
+	if err := qtx.CreateOrderItem(ctx, db.CreateOrderItemParams{
+		OrderID: order.ID, TicketTypeID: ticketType.ID, Quantity: 1, UnitPriceRon: 0,
+	}); err != nil {
+		return pgtype.UUID{}, false, err
+	}
+	validationHash, err := generateValidationHash()
+	if err != nil {
+		return pgtype.UUID{}, false, err
+	}
+	if _, err := qtx.CreateTicket(ctx, db.CreateTicketParams{
+		OrderID: order.ID, TicketTypeID: ticketType.ID, UserID: userID, ValidationHash: validationHash,
+	}); err != nil {
+		return pgtype.UUID{}, false, err
+	}
+	// Unlike email (which has a reconciliation worker), purchase notifications
+	// have no post-commit retry. Persist the notification atomically with the
+	// order and ticket so a process stop cannot leave a successful booking silent.
+	if err := qtx.CreateTicketPurchaseNotification(ctx, order.ID); err != nil {
+		return pgtype.UUID{}, false, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return pgtype.UUID{}, false, err
+	}
+
+	if err := h.deliverTicketConfirmation(order.ID); err != nil {
+		log.Printf("free ticket confirmation remains queued for order %s: %v", common.UUIDToString(order.ID), err)
+	}
+	return order.ID, false, nil
+}
+
 func isDefinitiveStripeCreateFailure(err error) bool {
 	var stripeErr *stripe.Error
 	if !errors.As(err, &stripeErr) {
@@ -437,6 +639,18 @@ func (h *CheckoutHandler) HandleValidatePromoCode(w http.ResponseWriter, r *http
 		router.RespondWithError(w, http.StatusBadRequest, "Codul promo este invalid, expirat sau epuizat")
 		return
 	}
+	var externalTicketURL pgtype.Text
+	if err := h.db.QueryRow(r.Context(), `SELECT external_ticket_url FROM events WHERE id = $1`, eventID).Scan(&externalTicketURL); errors.Is(err, pgx.ErrNoRows) {
+		router.RespondWithError(w, http.StatusNotFound, "Evenimentul nu a fost gasit")
+		return
+	} else if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Modul de vanzare al evenimentului nu a putut fi verificat")
+		return
+	}
+	if externalTicketURL.Valid {
+		router.RespondWithError(w, http.StatusConflict, "Codurile promo Spottr nu sunt disponibile pentru vanzarea externa")
+		return
+	}
 
 	promo, err := h.queries.GetAvailablePromoCode(r.Context(), db.GetAvailablePromoCodeParams{
 		EventID: eventID,
@@ -484,6 +698,9 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	if event.Status != "published" {
 		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusConflict, message: "Vanzarea biletelor pentru acest eveniment este oprita"}
 	}
+	if event.ExternalTicketUrl.Valid {
+		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusConflict, message: "Biletele pentru acest eveniment se vand pe platforma externa a organizatorului"}
+	}
 	vat, vatErr := event.VatPercentage.Float64Value()
 	if vatErr != nil || !vat.Valid || !common.SupportedEventVATRate(vat.Float64) {
 		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusConflict, message: "Organizatorul trebuie sa configureze TVA-ul evenimentului inainte de vanzarea biletelor"}
@@ -522,6 +739,9 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 		ticketType, err := qtx.GetTicketTypeForUpdate(ctx, ticketTypeID)
 		if err != nil || ticketType.EventID != eventID {
 			return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusNotFound, message: "Tipul de bilet nu apartine evenimentului"}
+		}
+		if ticketType.PriceRon <= 0 {
+			return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusBadRequest, message: "Biletele gratuite se rezerva direct, fara checkout de plata"}
 		}
 		quantity := requested[id]
 		if ticketType.TicketsSold+quantity > ticketType.Capacity {
@@ -922,7 +1142,7 @@ func (h *CheckoutHandler) deliverTicketConfirmation(orderID pgtype.UUID) error {
 		})
 	}
 
-	if err := h.mailer.SendTicketConfirmationEmail(ctx, rows[0].Email, rows[0].EventTitle, rows[0].LocationName, rows[0].UserID.Valid, tickets); err != nil {
+	if err := h.mailer.SendTicketConfirmationEmail(ctx, rows[0].Email, rows[0].EventTitle, rows[0].LocationName, rows[0].UserID.Valid, rows[0].TotalAmount == 0, tickets); err != nil {
 		log.Printf("ticket confirmation email failed for order %s: %v", common.UUIDToString(orderID), err)
 		return err
 	}

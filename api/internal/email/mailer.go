@@ -77,7 +77,7 @@ func (m *Mailer) SendPasswordResetEmail(ctx context.Context, toEmail, token stri
 	return m.sendHTML(ctx, toEmail, "Reseteaza parola contului Spottr", "Ai solicitat resetarea parolei Spottr.", "Resetare parolă", content)
 }
 
-func (m *Mailer) SendTicketConfirmationEmail(ctx context.Context, toEmail, eventTitle, locationName string, hasAccount bool, tickets []TicketDelivery) error {
+func (m *Mailer) SendTicketConfirmationEmail(ctx context.Context, toEmail, eventTitle, locationName string, hasAccount, isFreeBooking bool, tickets []TicketDelivery) error {
 	if len(tickets) == 0 {
 		return nil
 	}
@@ -109,10 +109,11 @@ func (m *Mailer) SendTicketConfirmationEmail(ctx context.Context, toEmail, event
 		buttonURL = m.publicAppURL + "/users/me/tickets"
 		accountHint = "Codurile QR pentru acces sunt disponibile și în secțiunea Biletele tale din Spottr."
 	}
+	statusLabel, preheader, invoiceNote := ticketConfirmationCopy(isFreeBooking)
 
 	content := fmt.Sprintf(
 		`<div style="margin-bottom:20px;border-radius:16px;background:#111;padding:18px">
-<div style="color:#ff0044;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase">Plată confirmată</div>
+<div style="color:#ff0044;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase">%s</div>
 <div style="margin-top:8px;color:#fff;font-size:20px;font-weight:800;line-height:1.3">%s</div>
 <div style="margin-top:7px;color:#999;font-size:14px">%s</div>
 </div>
@@ -120,24 +121,37 @@ func (m *Mailer) SendTicketConfirmationEmail(ctx context.Context, toEmail, event
 %s
 <p style="margin:20px 0 14px;color:#999;font-size:13px;line-height:1.6">%s</p>
 <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td bgcolor="#ff0044" style="border-radius:999px;background:#ff0044"><a href="%s" style="display:inline-block;border-radius:999px;background:#ff0044;color:#ffffff!important;-webkit-text-fill-color:#ffffff;text-decoration:none;font-weight:700;padding:13px 22px"><span style="color:#ffffff!important;-webkit-text-fill-color:#ffffff">%s</span></a></td></tr></table>
-<p style="margin:22px 0 0;border-top:1px solid #252525;padding-top:16px;color:#777;font-size:12px;line-height:1.6">Factura fiscală este emisă și trimisă separat de operatorul de facturare al organizatorului.</p>`,
+	%s`,
+		html.EscapeString(statusLabel),
 		html.EscapeString(eventTitle),
 		html.EscapeString(locationName),
 		ticketCards.String(),
 		html.EscapeString(accountHint),
 		html.EscapeString(buttonURL),
 		html.EscapeString(buttonLabel),
+		invoiceNote,
 	)
 
 	return m.sendHTML(
 		ctx,
 		toEmail,
 		"Biletele tale pentru "+sanitizeHeader(eventTitle),
-		"Plata a fost confirmată, iar biletele tale sunt pregătite.",
+		preheader,
 		"Biletele tale sunt pregătite",
 		content,
 		inlineImages...,
 	)
+}
+
+func ticketConfirmationCopy(isFreeBooking bool) (statusLabel, preheader, invoiceNote string) {
+	if isFreeBooking {
+		return "Rezervare confirmată",
+			"Rezervarea a fost confirmată, iar biletul tău gratuit este pregătit.",
+			""
+	}
+	return "Plată confirmată",
+		"Plata a fost confirmată, iar biletele tale sunt pregătite.",
+		`<p style="margin:22px 0 0;border-top:1px solid #252525;padding-top:16px;color:#777;font-size:12px;line-height:1.6">Factura fiscală este emisă și trimisă separat de operatorul de facturare al organizatorului.</p>`
 }
 
 func (m *Mailer) sendHTML(ctx context.Context, toEmail, subject, preheader, title, content string, inlineImages ...inlineImage) error {

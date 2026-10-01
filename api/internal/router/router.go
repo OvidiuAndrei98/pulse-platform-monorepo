@@ -151,6 +151,7 @@ type HandlersConfig struct {
 	GetEventTicketTypes   http.HandlerFunc
 	CreateTicketType      http.HandlerFunc
 	PurchaseTickets       http.HandlerFunc
+	BookFreeTicket        http.HandlerFunc
 	ValidateTicket        http.HandlerFunc
 	ListValidationEvents  http.HandlerFunc
 	ListMyValidationScans http.HandlerFunc
@@ -313,6 +314,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 
 			// --- INTERACȚIUNI EVENIMENTE (orice utilizator autentificat) ---
 			r.Post("/events/{id}/check-in", cfg.CreateCheckIn)
+			r.With(rateLimit("free_ticket_booking_ip", 30, 10*time.Minute)).Post("/events/{id}/tickets/book", cfg.BookFreeTicket)
 			r.Post("/events/{id}/comments", cfg.AddComment)
 			r.Post("/events/{id}/favorite", cfg.SaveEvent)
 			r.Delete("/events/{id}/favorite", cfg.RemoveSavedEvent)

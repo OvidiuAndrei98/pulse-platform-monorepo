@@ -94,6 +94,22 @@ VALUES (
 )
 RETURNING *;
 
+-- name: CreateFreeBookingOrder :one
+INSERT INTO orders (
+    user_id, event_id, email, total_amount, platform_fee_bani,
+    customer_ticketing_fee_bani, status, invoice_requested,
+    automatic_invoice_refund_enabled, completed_at,
+    ticket_vat_percentage
+)
+SELECT
+    sqlc.arg(user_id), events.id, sqlc.arg(email), 0, 0,
+    0, 'completed'::order_status, FALSE,
+    FALSE, CURRENT_TIMESTAMP,
+    events.vat_percentage
+FROM events
+WHERE events.id = sqlc.arg(event_id)
+RETURNING orders.*;
+
 -- name: GetStripeEventVATRate :one
 SELECT stripe_tax_rate_id FROM stripe_event_vat_rates
 WHERE connected_account_id = $1 AND livemode = $2 AND percentage = $3;
@@ -265,7 +281,7 @@ WHERE id = sqlc.arg(id);
 -- name: ListOrderTicketEmailDetails :many
 SELECT o.email, o.user_id, o.ticket_email_sent_at, e.title AS event_title,
        e.location_name, tt.name AS ticket_type_name, t.validation_hash,
-       t.id AS ticket_id, e.start_time
+       t.id AS ticket_id, e.start_time, o.total_amount
 FROM orders o
 JOIN events e ON e.id = o.event_id
 JOIN tickets t ON t.order_id = o.id

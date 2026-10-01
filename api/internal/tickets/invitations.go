@@ -87,6 +87,11 @@ func (h *Handler) HandleCreateInvitation(w http.ResponseWriter, r *http.Request)
 		router.RespondWithError(w, http.StatusForbidden, "Nu ai permisiunea sa generezi invitatii")
 		return
 	}
+	event, err := h.Queries.GetEventWithStats(r.Context(), eventID)
+	if err != nil || event.ExternalTicketUrl.Valid {
+		router.RespondWithError(w, http.StatusConflict, "Evenimentul foloseste o platforma externa pentru bilete")
+		return
+	}
 	var req createInvitationRequest
 	if json.NewDecoder(r.Body).Decode(&req) != nil || strings.TrimSpace(req.Label) == "" {
 		router.RespondWithError(w, http.StatusBadRequest, "Eticheta invitatiei este obligatorie")
@@ -111,6 +116,19 @@ func (h *Handler) HandleCreateInvitation(w http.ResponseWriter, r *http.Request)
 	}
 	defer tx.Rollback(r.Context())
 	qtx := h.Queries.WithTx(tx)
+	var lockedExternalURL pgtype.Text
+	if err := tx.QueryRow(r.Context(), `
+		SELECT external_ticket_url
+		FROM events
+		WHERE id = $1 AND organizer_id = $2
+		FOR SHARE`, eventID, userID).Scan(&lockedExternalURL); err != nil {
+		router.RespondWithError(w, http.StatusConflict, "Evenimentul nu mai poate fi modificat")
+		return
+	}
+	if lockedExternalURL.Valid {
+		router.RespondWithError(w, http.StatusConflict, "Evenimentul foloseste o platforma externa pentru bilete")
+		return
+	}
 	ticketType := ""
 	if ticketTypeID.Valid {
 		ticketType, err = qtx.GetInvitationTicketType(r.Context(), db.GetInvitationTicketTypeParams{ID: ticketTypeID, EventID: eventID})

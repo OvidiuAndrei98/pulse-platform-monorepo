@@ -1299,6 +1299,10 @@ func (h *Handler) HandleCreateTicketType(w http.ResponseWriter, r *http.Request)
 		router.RespondWithError(w, http.StatusBadRequest, "Date invalide")
 		return
 	}
+	if req.PriceRon < 0 {
+		router.RespondWithError(w, http.StatusBadRequest, "Pretul biletului nu poate fi negativ")
+		return
+	}
 
 	var eventID pgtype.UUID
 	if err := eventID.Scan(chi.URLParam(r, "id")); err != nil || !eventID.Valid {
@@ -1315,14 +1319,43 @@ func (h *Handler) HandleCreateTicketType(w http.ResponseWriter, r *http.Request)
 		router.RespondWithError(w, http.StatusForbidden, "Nu ai permisiunea sa adaugi bilete acestui eveniment")
 		return
 	}
+	if event.ExternalTicketUrl.Valid {
+		router.RespondWithError(w, http.StatusConflict, "Evenimentul foloseste o platforma externa pentru bilete")
+		return
+	}
 
 	profile, err := h.Queries.GetOrganizerProfile(ctx, userID)
-	if err != nil || !organizer.CanSellTickets(profile) {
+	if err != nil || !organizer.IsVerified(profile) {
+		router.RespondWithError(w, http.StatusForbidden, "Firma organizatorului trebuie validata inainte de a adauga bilete")
+		return
+	}
+	if req.PriceRon > 0 && !organizer.CanSellTickets(profile) {
 		router.RespondWithError(w, http.StatusForbidden, "Configureaza Stripe inainte de a adauga bilete")
 		return
 	}
 
-	err = h.Queries.CreateTicketType(ctx, db.CreateTicketTypeParams{
+	tx, err := h.DB.Begin(ctx)
+	if err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la pregatirea tipului de bilet")
+		return
+	}
+	defer tx.Rollback(ctx)
+	var lockedExternalURL pgtype.Text
+	if err := tx.QueryRow(ctx, `
+		SELECT external_ticket_url
+		FROM events
+		WHERE id = $1 AND organizer_id = $2
+		FOR SHARE`, eventID, userID).Scan(&lockedExternalURL); err != nil {
+		router.RespondWithError(w, http.StatusConflict, "Evenimentul nu mai poate fi modificat")
+		return
+	}
+	if lockedExternalURL.Valid {
+		router.RespondWithError(w, http.StatusConflict, "Evenimentul foloseste o platforma externa pentru bilete")
+		return
+	}
+
+	qtx := h.Queries.WithTx(tx)
+	err = qtx.CreateTicketType(ctx, db.CreateTicketTypeParams{
 		EventID:     eventID,
 		Name:        req.Name,
 		PriceRon:    req.PriceRon,
@@ -1333,6 +1366,10 @@ func (h *Handler) HandleCreateTicketType(w http.ResponseWriter, r *http.Request)
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la crearea tipului de bilet: "+err.Error())
+		return
+	}
+	if err := tx.Commit(ctx); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la salvarea tipului de bilet")
 		return
 	}
 	router.RespondWithJSON(w, http.StatusOK, map[string]string{"status": "success"})

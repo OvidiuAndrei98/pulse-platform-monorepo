@@ -55,6 +55,7 @@ type Querier interface {
 	CreateEventArtist(ctx context.Context, arg CreateEventArtistParams) error
 	CreateEventCancellationRequest(ctx context.Context, arg CreateEventCancellationRequestParams) (pgtype.UUID, error)
 	CreateEventUpdate(ctx context.Context, arg CreateEventUpdateParams) (EventUpdates, error)
+	CreateFreeBookingOrder(ctx context.Context, arg CreateFreeBookingOrderParams) (Orders, error)
 	CreateFriendRequest(ctx context.Context, arg CreateFriendRequestParams) (int64, error)
 	CreateInvitationTicket(ctx context.Context, arg CreateInvitationTicketParams) (CreateInvitationTicketRow, error)
 	CreateMonthlyPlatformCommissionInvoices(ctx context.Context, arg CreateMonthlyPlatformCommissionInvoicesParams) (int64, error)

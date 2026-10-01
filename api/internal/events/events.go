@@ -125,10 +125,24 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusBadRequest, "Request body invalid: "+err.Error())
 		return
 	}
-	vat, err := eventVAT(req.VATPercentage)
+	externalURL, err := externalTicketURL(req.ExternalTicketURL)
 	if err != nil {
 		router.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
+	}
+	var vat pgtype.Numeric
+	if externalURL.Valid {
+		if len(req.TicketTypes) > 0 {
+			router.RespondWithError(w, http.StatusBadRequest, "Alege fie bilete Spottr, fie un link extern pentru bilete")
+			return
+		}
+		req.OrganizerAbsorbsServiceFee = false
+	} else {
+		vat, err = eventVAT(req.VATPercentage)
+		if err != nil {
+			router.RespondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 
 	profile, err := h.Queries.GetOrganizerProfile(ctx, organizerUUID)
@@ -136,7 +150,15 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusForbidden, "Firma organizatorului trebuie validata inainte de crearea unui eveniment")
 		return
 	}
-	if len(req.TicketTypes) > 0 && !organizer.CanSellTickets(profile) {
+	hasPaidTickets := false
+	for _, ticketType := range req.TicketTypes {
+		if ticketType.PriceRon < 0 {
+			router.RespondWithError(w, http.StatusBadRequest, "Pretul biletului nu poate fi negativ")
+			return
+		}
+		hasPaidTickets = hasPaidTickets || ticketType.PriceRon > 0
+	}
+	if hasPaidTickets && !organizer.CanSellTickets(profile) {
 		router.RespondWithError(w, http.StatusForbidden, "Configureaza Stripe inainte de a adauga bilete")
 		return
 	}
@@ -200,6 +222,7 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 
 	newEvent, err := qtx.CreateEvent(ctx, db.CreateEventParams{
 		VatPercentage:              vat,
+		ExternalTicketUrl:          externalURL,
 		OrganizerID:                organizerUUID,
 		Title:                      req.Title,
 		Description:                pgtype.Text{String: req.Description, Valid: req.Description != ""},
@@ -285,10 +308,24 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusBadRequest, "Format JSON invalid: "+err.Error())
 		return
 	}
-	vat, err := eventVAT(req.VATPercentage)
+	externalURL, err := externalTicketURL(req.ExternalTicketURL)
 	if err != nil {
 		router.RespondWithError(w, http.StatusBadRequest, err.Error())
 		return
+	}
+	var vat pgtype.Numeric
+	if externalURL.Valid {
+		if len(req.TicketTypes) > 0 {
+			router.RespondWithError(w, http.StatusBadRequest, "Alege fie bilete Spottr, fie un link extern pentru bilete")
+			return
+		}
+		req.OrganizerAbsorbsServiceFee = false
+	} else {
+		vat, err = eventVAT(req.VATPercentage)
+		if err != nil {
+			router.RespondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 
 	if req.City == "" {
@@ -330,14 +367,17 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusForbidden, "Firma organizatorului trebuie validata inainte de modificarea unui eveniment")
 		return
 	}
+	hasPaidTickets := false
 	for _, ticketType := range req.TicketTypes {
-		if ticketType.ID == nil || *ticketType.ID == "" {
-			if !organizer.CanSellTickets(profile) {
-				router.RespondWithError(w, http.StatusForbidden, "Configureaza Stripe inainte de a adauga bilete")
-				return
-			}
-			break
+		if ticketType.PriceRon < 0 {
+			router.RespondWithError(w, http.StatusBadRequest, "Pretul biletului nu poate fi negativ")
+			return
 		}
+		hasPaidTickets = hasPaidTickets || ticketType.PriceRon > 0
+	}
+	if hasPaidTickets && !organizer.CanSellTickets(profile) {
+		router.RespondWithError(w, http.StatusForbidden, "Configureaza Stripe inainte de a salva bilete cu plata")
+		return
 	}
 	if req.BannerURL != nil && *req.BannerURL != "" {
 		if _, ok := ownedEventBannerKey(*req.BannerURL, userID); !ok {
@@ -392,6 +432,26 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusConflict, "Evenimentul nu mai poate fi modificat")
 		return
 	}
+	var currentExternalURL pgtype.Text
+	if err := tx.QueryRow(r.Context(), `SELECT external_ticket_url FROM events WHERE id = $1`, eventUUID).Scan(&currentExternalURL); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Modul de vanzare al evenimentului nu a putut fi verificat")
+		return
+	}
+	if externalURL.Valid && !currentExternalURL.Valid {
+		var hasSpottrTicketingArtifacts bool
+		if err := tx.QueryRow(r.Context(), `
+			SELECT EXISTS (SELECT 1 FROM ticket_types WHERE event_id = $1)
+			    OR EXISTS (SELECT 1 FROM orders WHERE event_id = $1)
+			    OR EXISTS (SELECT 1 FROM invitation_tickets WHERE event_id = $1)
+			    OR EXISTS (SELECT 1 FROM promo_codes WHERE event_id = $1)`, eventUUID).Scan(&hasSpottrTicketingArtifacts); err != nil {
+			router.RespondWithError(w, http.StatusInternalServerError, "Istoricul de ticketing al evenimentului nu a putut fi verificat")
+			return
+		}
+		if hasSpottrTicketingArtifacts {
+			router.RespondWithError(w, http.StatusConflict, "Un eveniment care are deja tipuri de bilete, comenzi, invitatii sau coduri promo Spottr nu poate fi mutat pe vanzare externa")
+			return
+		}
+	}
 	currentBannerAsset, err := currentEventBannerAsset(r.Context(), qtx, eventUUID)
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Bannerul curent nu a putut fi verificat")
@@ -418,6 +478,7 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 	// 4. Update Eveniment
 	event, err := qtx.EditEvent(r.Context(), db.EditEventParams{
 		VatPercentage:              vat,
+		ExternalTicketUrl:          externalURL,
 		ID:                         eventUUID,
 		Title:                      req.Title,
 		Category:                   req.Category,

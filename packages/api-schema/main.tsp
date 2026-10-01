@@ -290,6 +290,7 @@ model EventResponse {
   vibe: string;
   organizerAbsorbsServiceFee: boolean;
   vatPercentage?: float64;
+  externalTicketUrl?: string;
   latitude: decimal;
   longitude: decimal;
   startTime: utcDateTime;
@@ -450,7 +451,8 @@ model CreateEventPayload {
   city: string;
   vibe: string;
   organizerAbsorbsServiceFee?: boolean;
-  vatPercentage: 0 | 11 | 21;
+  vatPercentage?: 0 | 11 | 21;
+  externalTicketUrl?: string;
   latitude: decimal;
   longitude: decimal;
   startTime: utcDateTime;
@@ -472,7 +474,8 @@ model UpdateEventPayload {
   city: string;
   vibe: string;
   organizerAbsorbsServiceFee?: boolean;
-  vatPercentage: 0 | 11 | 21;
+  vatPercentage?: 0 | 11 | 21;
+  externalTicketUrl?: string;
   latitude: decimal;
   longitude: decimal;
   startTime: utcDateTime;
@@ -701,6 +704,15 @@ model PromoCodeValidationResponse {
 model CheckoutSessionResponse {
   checkoutUrl: string;
   orderId: string;
+}
+
+model BookFreeTicketPayload {
+  items: CheckoutTicketItemPayload[];
+}
+
+model BookFreeTicketResponse {
+  orderId: string;
+  alreadyBooked: boolean;
 }
 
 model ReconcileCheckoutPayload {
@@ -1193,6 +1205,14 @@ interface EventOperations {
     @statusCode statusCode: 201;
     @body checkout: CheckoutSessionResponse;
   };
+
+  @summary("Rezerva direct un bilet gratuit pentru utilizatorul autentificat")
+  @post
+  @route("/{id}/tickets/book")
+  bookFreeTicket(
+    @path id: string,
+    @body payload: BookFreeTicketPayload,
+  ): BookFreeTicketResponse;
 
   @summary("Verifica un cod promo disponibil pentru eveniment")
   @post

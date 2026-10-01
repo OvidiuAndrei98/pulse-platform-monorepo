@@ -184,14 +184,18 @@ export default function EditEventPage() {
               }
               administration={
                 <>
-                  <InvitationManager
-                    event={event}
-                    readOnly={completed || cancellationLocked}
-                  />
-                  <PromoCodeManager
-                    event={event}
-                    readOnly={completed || cancellationLocked}
-                  />
+                  {!event.externalTicketUrl && (
+                    <>
+                      <InvitationManager
+                        event={event}
+                        readOnly={completed || cancellationLocked}
+                      />
+                      <PromoCodeManager
+                        event={event}
+                        readOnly={completed || cancellationLocked}
+                      />
+                    </>
+                  )}
                   {!completed && !cancellationLocked && (
                     <OrganizerUpdatesManager
                       eventId={event.id}

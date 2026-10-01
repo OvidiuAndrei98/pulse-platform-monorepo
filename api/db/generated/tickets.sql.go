@@ -272,6 +272,77 @@ func (q *Queries) CreateCheckoutOrder(ctx context.Context, arg CreateCheckoutOrd
 	return i, err
 }
 
+const createFreeBookingOrder = `-- name: CreateFreeBookingOrder :one
+INSERT INTO orders (
+    user_id, event_id, email, total_amount, platform_fee_bani,
+    customer_ticketing_fee_bani, status, invoice_requested,
+    automatic_invoice_refund_enabled, completed_at,
+    ticket_vat_percentage
+)
+SELECT
+    $1, events.id, $2, 0, 0,
+    0, 'completed'::order_status, FALSE,
+    FALSE, CURRENT_TIMESTAMP,
+    events.vat_percentage
+FROM events
+WHERE events.id = $3
+RETURNING orders.id, orders.user_id, orders.event_id, orders.email, orders.stripe_payment_intent_id, orders.status, orders.total_amount, orders.created_at, orders.stripe_checkout_session_id, orders.platform_fee_bani, orders.ticket_email_sent_at, orders.promo_code_id, orders.discount_amount_ron, orders.invoice_requested, orders.billing_type, orders.billing_name, orders.billing_tax_id, orders.billing_registration_number, orders.billing_address, orders.billing_city, orders.billing_county, orders.billing_country, orders.billing_sector, orders.completed_at, orders.customer_ticketing_fee_bani, orders.stripe_livemode, orders.stripe_connected_account_id, orders.stripe_charge_type, orders.stripe_charge_id, orders.stripe_amount_refunded_bani, orders.stripe_refund_status, orders.stripe_refund_needs_attention, orders.stripe_refund_updated_at, orders.automatic_invoice_refund_enabled, orders.platform_fee_status, orders.platform_fee_refunded_bani, orders.refund_origin, orders.reservation_ip_hash, orders.ticket_vat_percentage, orders.ticket_vat_name
+`
+
+type CreateFreeBookingOrderParams struct {
+	UserID  pgtype.UUID `json:"user_id"`
+	Email   string      `json:"email"`
+	EventID pgtype.UUID `json:"event_id"`
+}
+
+func (q *Queries) CreateFreeBookingOrder(ctx context.Context, arg CreateFreeBookingOrderParams) (Orders, error) {
+	row := q.db.QueryRow(ctx, createFreeBookingOrder, arg.UserID, arg.Email, arg.EventID)
+	var i Orders
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.EventID,
+		&i.Email,
+		&i.StripePaymentIntentID,
+		&i.Status,
+		&i.TotalAmount,
+		&i.CreatedAt,
+		&i.StripeCheckoutSessionID,
+		&i.PlatformFeeBani,
+		&i.TicketEmailSentAt,
+		&i.PromoCodeID,
+		&i.DiscountAmountRon,
+		&i.InvoiceRequested,
+		&i.BillingType,
+		&i.BillingName,
+		&i.BillingTaxID,
+		&i.BillingRegistrationNumber,
+		&i.BillingAddress,
+		&i.BillingCity,
+		&i.BillingCounty,
+		&i.BillingCountry,
+		&i.BillingSector,
+		&i.CompletedAt,
+		&i.CustomerTicketingFeeBani,
+		&i.StripeLivemode,
+		&i.StripeConnectedAccountID,
+		&i.StripeChargeType,
+		&i.StripeChargeID,
+		&i.StripeAmountRefundedBani,
+		&i.StripeRefundStatus,
+		&i.StripeRefundNeedsAttention,
+		&i.StripeRefundUpdatedAt,
+		&i.AutomaticInvoiceRefundEnabled,
+		&i.PlatformFeeStatus,
+		&i.PlatformFeeRefundedBani,
+		&i.RefundOrigin,
+		&i.ReservationIpHash,
+		&i.TicketVatPercentage,
+		&i.TicketVatName,
+	)
+	return i, err
+}
+
 const createInvitationTicket = `-- name: CreateInvitationTicket :one
 INSERT INTO invitation_tickets (
     event_id, ticket_type_id, created_by, label, validation_hash, batch_id, batch_index
@@ -1585,7 +1656,7 @@ func (q *Queries) ListOfflineValidationTickets(ctx context.Context, eventID pgty
 const listOrderTicketEmailDetails = `-- name: ListOrderTicketEmailDetails :many
 SELECT o.email, o.user_id, o.ticket_email_sent_at, e.title AS event_title,
        e.location_name, tt.name AS ticket_type_name, t.validation_hash,
-       t.id AS ticket_id, e.start_time
+       t.id AS ticket_id, e.start_time, o.total_amount
 FROM orders o
 JOIN events e ON e.id = o.event_id
 JOIN tickets t ON t.order_id = o.id
@@ -1604,6 +1675,7 @@ type ListOrderTicketEmailDetailsRow struct {
 	ValidationHash    string             `json:"validation_hash"`
 	TicketID          pgtype.UUID        `json:"ticket_id"`
 	StartTime         pgtype.Timestamptz `json:"start_time"`
+	TotalAmount       int32              `json:"total_amount"`
 }
 
 func (q *Queries) ListOrderTicketEmailDetails(ctx context.Context, id pgtype.UUID) ([]ListOrderTicketEmailDetailsRow, error) {
@@ -1625,6 +1697,7 @@ func (q *Queries) ListOrderTicketEmailDetails(ctx context.Context, id pgtype.UUI
 			&i.ValidationHash,
 			&i.TicketID,
 			&i.StartTime,
+			&i.TotalAmount,
 		); err != nil {
 			return nil, err
 		}

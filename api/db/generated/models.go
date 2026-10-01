@@ -358,6 +358,35 @@ type EventRsvps struct {
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
+type EventSafetyGroupMembers struct {
+	GroupID     pgtype.UUID        `json:"group_id"`
+	EventID     pgtype.UUID        `json:"event_id"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	Status      string             `json:"status"`
+	InvitedBy   pgtype.UUID        `json:"invited_by"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	RespondedAt pgtype.Timestamptz `json:"responded_at"`
+}
+
+type EventSafetyGroups struct {
+	ID        pgtype.UUID        `json:"id"`
+	EventID   pgtype.UUID        `json:"event_id"`
+	OwnerID   pgtype.UUID        `json:"owner_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+}
+
+type EventSafetyMessages struct {
+	ID        pgtype.UUID        `json:"id"`
+	GroupID   pgtype.UUID        `json:"group_id"`
+	EventID   pgtype.UUID        `json:"event_id"`
+	SenderID  pgtype.UUID        `json:"sender_id"`
+	Kind      string             `json:"kind"`
+	Content   string             `json:"content"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+}
+
 type EventScannerAccess struct {
 	ID        pgtype.UUID        `json:"id"`
 	EventID   pgtype.UUID        `json:"event_id"`
@@ -410,6 +439,7 @@ type Events struct {
 	PublishAt                  pgtype.Timestamptz `json:"publish_at"`
 	WasPublished               bool               `json:"was_published"`
 	VatPercentage              pgtype.Numeric     `json:"vat_percentage"`
+	ExternalTicketUrl          pgtype.Text        `json:"external_ticket_url"`
 }
 
 type Friendships struct {
@@ -442,6 +472,7 @@ type Notifications struct {
 	ActorID   pgtype.UUID        `json:"actor_id"`
 	ReadAt    pgtype.Timestamptz `json:"read_at"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 }
 
 type OfflineTicketValidations struct {

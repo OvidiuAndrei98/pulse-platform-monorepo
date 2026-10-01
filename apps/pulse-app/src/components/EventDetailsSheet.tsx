@@ -44,6 +44,8 @@ import { useDrawerViewport } from "@/components/ui/useDrawerViewport";
 import { toast } from "sonner";
 import { TicketTypeSelector } from "@/features/checkout/TicketTypeSelector";
 import { TicketCheckoutDrawer } from "@/features/checkout/TicketCheckoutDrawer";
+import { bookFreeTicket } from "@/features/checkout/freeBooking";
+import { ApiError } from "@packages/api-client/src/Client";
 
 interface EventDetailsContextType {
   open: (event: Event) => void;
@@ -163,6 +165,7 @@ export function EventDetailsSheet({
   const [checkoutVisited, setCheckoutVisited] = useState(false);
   const [checkoutPreview, setCheckoutPreview] = useState<HTMLElement | null>(null);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [bookingFree, setBookingFree] = useState(false);
   const mobileSheetRef = useRef<HTMLDivElement>(null);
   const previewHostRef = useRef<HTMLDivElement>(null);
   const [favorited, setFavorited] = useState(false);
@@ -188,7 +191,7 @@ export function EventDetailsSheet({
   }, [checkoutOpen, checkoutPreview]);
 
   const handleClose = (_clearReturnEvent = true) => {
-    if (checkoutBusy) return;
+    if (checkoutBusy || bookingFree) return;
     if (isDesktop) { setCheckoutOpen(false); setDisplayedEvent(null); }
     onClose();
 
@@ -261,6 +264,7 @@ export function EventDetailsSheet({
   const event = displayedEvent;
 
   const ticketTypes = event.ticketTypes ?? [];
+  const externalTicketURL = event.externalTicketUrl?.trim() || "";
   const isOwnEvent = user?.properties.id === event.organizerId;
   const isFinished = new Date(event.endTime).getTime() <= Date.now();
   const ticketSubtotal = ticketTypes.reduce(
@@ -272,13 +276,20 @@ export function EventDetailsSheet({
     ? 0
     : calculateServiceFeeRon(ticketSubtotal, count);
   const total = ticketSubtotal + serviceFee;
+  const isFreeSelection = count === 1 && ticketSubtotal === 0;
   const checkoutLabel = isFinished
     ? t("eventSheet.viewOrganizerEvents")
     : isOwnEvent
       ? t("eventSheet.ownEvent")
-      : count === 0
-        ? t("eventSheet.selectTickets")
-        : t("eventSheet.continue", { count, total: formatRon(total) });
+      : externalTicketURL
+        ? t("eventSheet.externalTickets")
+        : count === 0
+          ? t("eventSheet.selectTickets")
+          : isFreeSelection
+            ? bookingFree
+              ? t("checkout.bookingFree")
+              : t("checkout.bookFree")
+            : t("eventSheet.continue", { count, total: formatRon(total) });
 
   const handleShare = async () => {
     try {
@@ -308,13 +319,38 @@ export function EventDetailsSheet({
     }
   };
 
-  const openCheckout = () => {
+  const openCheckout = async () => {
     if (isFinished) return;
     if (isOwnEvent) {
       toast.error(t("eventSheet.ownEvent"));
       return;
     }
+    if (externalTicketURL) {
+      window.location.assign(externalTicketURL);
+      return;
+    }
     if (count === 0) return;
+    if (isFreeSelection) {
+      if (!user) {
+        router.push(`/login?returnTo=${encodeURIComponent(routeForPlatform(`/events/${event.id}`))}`);
+        return;
+      }
+      const selected = ticketTypes.find((ticket) => (qty[ticket.id] ?? 0) > 0);
+      if (!selected || bookingFree) return;
+      setBookingFree(true);
+      try {
+        const result = await bookFreeTicket(event.id, selected.id);
+        toast.success(t(result.alreadyBooked ? "checkout.freeAlreadyBooked" : "checkout.freeBooked"));
+        setQty({});
+        onClose();
+        router.push(routeForPlatform("/users/me/tickets"));
+      } catch (error) {
+        toast.error(error instanceof ApiError ? error.detail || error.title : t("checkout.freeBookingFailed"));
+      } finally {
+        setBookingFree(false);
+      }
+      return;
+    }
     if (!isDesktop && mobileSheetRef.current) {
       // A visual copy preserves the exact image and scroll position during the
       // interactive checkout swipe without keeping Vaul's focus trap active.
@@ -454,7 +490,7 @@ export function EventDetailsSheet({
           <EventLineup artists={event.lineup} />
 
           {/* SECTIUNE BILETE */}
-          {ticketTypes.length > 0 && (
+          {!externalTicketURL && ticketTypes.length > 0 && (
             <section>
               <h3 className="text-sm font-semibold text-foreground/90">
                 {t("eventSheet.tickets")}
@@ -518,7 +554,7 @@ export function EventDetailsSheet({
           type="button"
           disabled={
             !isFinished &&
-            (count === 0 || isOwnEvent)
+            ((!externalTicketURL && count === 0) || isOwnEvent || bookingFree)
           }
           onClick={isFinished ? viewOrganizerEvents : openCheckout}
           className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:opacity-90 disabled:opacity-40 disabled:shadow-none"
@@ -566,7 +602,7 @@ export function EventDetailsSheet({
             }
           }}
           modal
-          dismissible={!checkoutBusy}
+          dismissible={!checkoutBusy && !bookingFree}
           repositionInputs={false}
           shouldScaleBackground={false}
           closeThreshold={0.35}

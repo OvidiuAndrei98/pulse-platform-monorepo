@@ -108,7 +108,7 @@ func (h *CheckoutHandler) reconcileCheckoutSession(ctx context.Context, sessionI
 // StartCheckoutReconciliationWorker repairs direct-charge orders even when
 // Stripe webhook delivery was temporarily unavailable.
 func (h *CheckoutHandler) StartCheckoutReconciliationWorker(ctx context.Context) {
-	if h == nil || !h.configured {
+	if h == nil {
 		return
 	}
 
@@ -128,31 +128,31 @@ func (h *CheckoutHandler) StartCheckoutReconciliationWorker(ctx context.Context)
 }
 
 func (h *CheckoutHandler) reconcilePendingCheckouts(ctx context.Context) {
-	orders, err := h.queries.ListPendingDirectChargeCheckoutsForReconciliation(ctx)
-	if err != nil {
-		log.Printf("pending checkout reconciliation query failed: %v", err)
-		return
-	}
-	for _, order := range orders {
-		requestCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-		status, _, reconcileErr := h.reconcileCheckoutSession(requestCtx, order.StripeCheckoutSessionID.String, "")
-		cancel()
-		if reconcileErr != nil {
-			log.Printf("pending checkout reconciliation failed: order=%s", common.UUIDToString(order.ID))
-			continue
+	if h.configured {
+		orders, err := h.queries.ListPendingDirectChargeCheckoutsForReconciliation(ctx)
+		if err != nil {
+			log.Printf("pending checkout reconciliation query failed: %v", err)
+		} else {
+			for _, order := range orders {
+				requestCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+				status, _, reconcileErr := h.reconcileCheckoutSession(requestCtx, order.StripeCheckoutSessionID.String, "")
+				cancel()
+				if reconcileErr != nil {
+					log.Printf("pending checkout reconciliation failed: order=%s", common.UUIDToString(order.ID))
+					continue
+				}
+				if status != "pending" {
+					log.Printf("pending checkout reconciled: order=%s status=%s", common.UUIDToString(order.ID), status)
+				}
+			}
 		}
-		if status != "pending" {
-			log.Printf("pending checkout reconciled: order=%s status=%s", common.UUIDToString(order.ID), status)
-		}
-	}
 
-	markedForReview, err := h.queries.MarkStaleSessionlessCheckoutReservationsForReview(ctx)
-	if err != nil {
-		log.Print("stale checkout reservation review marking failed")
-		return
-	}
-	if markedForReview > 0 {
-		log.Printf("sessionless checkout reservations marked for review: count=%d", markedForReview)
+		markedForReview, err := h.queries.MarkStaleSessionlessCheckoutReservationsForReview(ctx)
+		if err != nil {
+			log.Print("stale checkout reservation review marking failed")
+		} else if markedForReview > 0 {
+			log.Printf("sessionless checkout reservations marked for review: count=%d", markedForReview)
+		}
 	}
 
 	if h.mailer == nil {

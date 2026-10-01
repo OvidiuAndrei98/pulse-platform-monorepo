@@ -53,7 +53,7 @@ export function TicketTypeSelector({
               )}
             </span>
             <span className="shrink-0 text-sm font-bold text-primary">
-              {formatRon(ticket.priceRon)}
+              {ticket.priceRon === 0 ? t("checkout.free") : formatRon(ticket.priceRon)}
             </span>
           </label>
         );

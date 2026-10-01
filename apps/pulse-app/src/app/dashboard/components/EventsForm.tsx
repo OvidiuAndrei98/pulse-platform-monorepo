@@ -92,13 +92,34 @@ export const eventFormSchema = z
       .enum(["draft", "scheduled", "published", "completed"])
       .default("draft"),
     publishAt: z.string().optional(),
+    ticketingMode: z.enum(["spottr", "external"]).default("spottr"),
+    externalTicketUrl: z.string().max(2048).optional().default(""),
     organizerAbsorbsServiceFee: z.boolean().default(false),
-    vatPercentage: z.number().optional().refine(
-      (value): boolean => value === 21 || value === 11 || value === 0,
-      { message: i18n.t("ticketForm.vatRequired") },
-    ),
+    vatPercentage: z.number().optional(),
     ticketTypes: z.array(ticketTypeSchema),
     lineup: z.array(lineupArtistSchema).default([]),
+  })
+  .superRefine((data, context) => {
+    if (data.ticketingMode === "external") {
+      try {
+        const externalURL = new URL(data.externalTicketUrl || "");
+        if (externalURL.protocol !== "https:" || externalURL.username || externalURL.password) throw new Error();
+      } catch {
+        context.addIssue({
+          code: "custom",
+          path: ["externalTicketUrl"],
+          message: i18n.t("ticketForm.externalUrlRequired"),
+        });
+      }
+      return;
+    }
+    if (data.vatPercentage !== 21 && data.vatPercentage !== 11 && data.vatPercentage !== 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["vatPercentage"],
+        message: i18n.t("ticketForm.vatRequired"),
+      });
+    }
   })
   .refine((data) => new Date(data.endTime) > new Date(data.startTime), {
     message: i18n.t("formValidation.endAfterStart"),
@@ -159,6 +180,8 @@ function getDefaultValues(
     bannerUrl: values?.bannerUrl || undefined,
     status: values?.status || "draft",
     publishAt: formatToDatetimeLocal(values?.publishAt),
+    ticketingMode: values?.externalTicketUrl ? "external" : "spottr",
+    externalTicketUrl: values?.externalTicketUrl || "",
     organizerAbsorbsServiceFee: values?.organizerAbsorbsServiceFee ?? false,
     vatPercentage: values?.vatPercentage,
     ticketTypes:
@@ -223,8 +246,9 @@ export default function EventForm({
 
   const handleFormSubmit = async (data: EventFormValues) => {
     if (readOnly || data.status === "completed") return;
+    const { ticketingMode, ...eventData } = data;
     await onSubmit({
-      ...data,
+      ...eventData,
       status: data.status,
       startTime: formatToISO(data.startTime),
       endTime: formatToISO(data.endTime),
@@ -232,11 +256,17 @@ export default function EventForm({
         data.status === "scheduled" && data.publishAt
           ? formatToISO(data.publishAt)
           : undefined,
-      ticketTypes: data.ticketTypes.map(({ ticketsSold, ...ticket }) => ({
-        ...ticket,
-        startSales: formatToISO(ticket.startSales),
-        endSales: formatToISO(ticket.endSales),
-      })),
+      externalTicketUrl: ticketingMode === "external" ? data.externalTicketUrl : undefined,
+      vatPercentage: ticketingMode === "external" ? undefined : data.vatPercentage,
+      organizerAbsorbsServiceFee: ticketingMode === "external" ? false : data.organizerAbsorbsServiceFee,
+      ticketTypes:
+        ticketingMode === "external"
+          ? []
+          : data.ticketTypes.map(({ ticketsSold, ...ticket }) => ({
+              ...ticket,
+              startSales: formatToISO(ticket.startSales),
+              endSales: formatToISO(ticket.endSales),
+            })),
       lineup: data.lineup.map(({ id: _id, ...artist }) => artist),
     });
   };
