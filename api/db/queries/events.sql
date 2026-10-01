@@ -38,6 +38,7 @@ SELECT
                     'name', tt.name,
                     'price_ron', tt.price_ron,
                     'capacity', tt.capacity,
+                    'tickets_sold', tt.tickets_sold,
                     'start_sales', tt.start_sales,
                     'end_sales', tt.end_sales,
                     'description', tt.description
@@ -231,7 +232,8 @@ SELECT
           AND saved_events.user_id = $1
     ) AS is_favorited,
     
-    -- Array JSON cu biletele (FĂRĂ câmpul sensibil tickets_sold)
+    -- Include capacitatea deja rezervată/vândută, astfel încât clientul public
+    -- să poată dezactiva tipurile sold-out înainte să înceapă checkout-ul.
     COALESCE(
         (
             SELECT json_agg(
@@ -240,6 +242,7 @@ SELECT
                     'name', tt.name,
                     'price_ron', tt.price_ron,
                     'capacity', tt.capacity,
+                    'tickets_sold', tt.tickets_sold,
                     'start_sales', tt.start_sales,
                     'end_sales', tt.end_sales,
                     'description', tt.description
