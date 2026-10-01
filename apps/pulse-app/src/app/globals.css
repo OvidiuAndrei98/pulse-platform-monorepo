@@ -427,3 +427,108 @@ html.capacitor-native body::before {
   from { width: 0; }
   to { width: 100%; }
 }
+
+/* Short feedback banners share the app's dark surface and stay above content. */
+[data-sonner-toaster].spottr-toaster {
+  font-family: var(--font-inter-sans), sans-serif;
+}
+
+[data-sonner-toaster].spottr-toaster [data-sonner-toast] {
+  --spottr-toast-accent: #ff0044;
+  transition: transform 420ms cubic-bezier(.22, 1, .36, 1),
+    opacity 240ms ease, height 350ms ease, box-shadow 200ms ease;
+  will-change: transform, opacity;
+}
+
+[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-mounted="false"][data-y-position="top"] {
+  --y: translateY(-18px) scale(.97);
+}
+
+[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-type="success"] {
+  --spottr-toast-accent: #41d996;
+}
+
+[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-type="error"] {
+  --spottr-toast-accent: #ff5575;
+}
+
+[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-type="warning"] {
+  --spottr-toast-accent: #ffbd6b;
+}
+
+[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-styled="true"] {
+  min-height: 64px;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgb(255 255 255 / 13%);
+  border-radius: 18px;
+  background: rgb(18 18 20 / 96%);
+  box-shadow: 0 18px 44px rgb(0 0 0 / 46%), 0 2px 10px rgb(0 0 0 / 24%);
+  color: #fff;
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-styled="true"] [data-icon] {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 6%);
+  color: var(--spottr-toast-accent);
+}
+
+[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-styled="true"] [data-icon] svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-styled="true"] [data-content] {
+  min-width: 0;
+  gap: 2px;
+}
+
+[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-styled="true"] [data-title] {
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-styled="true"] [data-description] {
+  color: rgb(255 255 255 / 63%);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (max-width: 767px) {
+  [data-sonner-toaster].spottr-toaster[data-x-position="right"] {
+    right: auto;
+    left: 50%;
+    width: min(26rem, calc(100vw - 2rem));
+    transform: translateX(-50%);
+  }
+
+  [data-sonner-toaster].spottr-toaster[data-y-position="top"] {
+    top: var(--mobile-offset-top);
+  }
+
+  [data-sonner-toaster].spottr-toaster [data-sonner-toast] {
+    right: 0;
+    left: 0;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-sonner-toaster].spottr-toaster [data-sonner-toast] {
+    transition: none;
+  }
+}

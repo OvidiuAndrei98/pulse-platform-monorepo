@@ -177,6 +177,16 @@ export function EventDetailsSheet({
   const activeEventRef = useRef(activeEvent);
   activeEventRef.current = activeEvent;
 
+  useEffect(() => {
+    if (!activeEvent || displayedEvent?.id !== activeEvent.id) return;
+    // A fresh visit starts with the first (cheapest) ticket, while changes in
+    // checkout and returning to the same open sheet keep the user's choice.
+    const firstTicket = [...(activeEvent.ticketTypes ?? [])].sort(
+      (left, right) => left.priceRon - right.priceRon,
+    )[0];
+    setQty(firstTicket && !activeEvent.externalTicketUrl?.trim() ? { [firstTicket.id]: 1 } : {});
+  }, [activeEvent?.id, displayedEvent?.id]);
+
   useLayoutEffect(() => {
     const host = previewHostRef.current;
     if (!host || !checkoutPreview) return;
@@ -263,7 +273,9 @@ export function EventDetailsSheet({
 
   const event = displayedEvent;
 
-  const ticketTypes = event.ticketTypes ?? [];
+  const ticketTypes = [...(event.ticketTypes ?? [])].sort(
+    (left, right) => left.priceRon - right.priceRon,
+  );
   const externalTicketURL = event.externalTicketUrl?.trim() || "";
   const isOwnEvent = user?.properties.id === event.organizerId;
   const isFinished = new Date(event.endTime).getTime() <= Date.now();

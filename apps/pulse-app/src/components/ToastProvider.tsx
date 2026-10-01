@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CircleAlert, CircleCheck, Info, LoaderCircle, TriangleAlert } from "lucide-react";
 import { Toaster } from "sonner";
 
 export function ToastProvider() {
@@ -12,19 +13,27 @@ export function ToastProvider() {
 
   return (
     <Toaster
-      position="bottom-center"
+      className="spottr-toaster"
+      position="top-right"
       theme="dark"
-      closeButton
       visibleToasts={3}
-      offset={{ bottom: 24 }}
+      gap={10}
+      swipeDirections={["top", "right"]}
+      offset={{ top: 84, right: 24 }}
       mobileOffset={{
-        bottom: "calc(var(--native-safe-bottom, 0px) + 7rem)",
+        top: "calc(max(env(safe-area-inset-top, 0px), var(--native-safe-top, 0px)) + 12px)",
         left: 16,
         right: 16,
       }}
+      icons={{
+        success: <CircleCheck aria-hidden="true" />,
+        error: <CircleAlert aria-hidden="true" />,
+        info: <Info aria-hidden="true" />,
+        warning: <TriangleAlert aria-hidden="true" />,
+        loading: <LoaderCircle aria-hidden="true" className="animate-spin" />,
+      }}
       toastOptions={{
-        className:
-          "border border-white/15 bg-[#101311] text-foreground shadow-2xl",
+        className: "spottr-toast",
       }}
     />
   );
