@@ -9,23 +9,50 @@ const path = require("node:path");
 const { once } = require("node:events");
 
 const base = process.env.NAVIGATION_TEST_URL || "http://localhost:3100";
-const chrome = process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Application/chrome.exe";
+const chrome =
+  process.env.CHROME_PATH ||
+  "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-layout-"));
-const child = spawn(chrome, ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "about:blank"], { windowsHide: true, stdio: ["ignore", "ignore", "pipe"] });
+const child = spawn(
+  chrome,
+  [
+    "--headless=new",
+    "--remote-debugging-port=0",
+    `--user-data-dir=${profile}`,
+    "--no-first-run",
+    "--no-default-browser-check",
+    "about:blank",
+  ],
+  { windowsHide: true, stdio: ["ignore", "ignore", "pipe"] },
+);
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let socket;
 
 async function run() {
   const endpoint = await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("Chrome startup timed out")), 15000);
-    child.once("error", (error) => { clearTimeout(timer); reject(error); });
+    const timer = setTimeout(
+      () => reject(new Error("Chrome startup timed out")),
+      15000,
+    );
+    child.once("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
     child.stderr.on("data", (chunk) => {
-      const match = chunk.toString().match(/DevTools listening on (ws:\/\/\S+)/);
-      if (match) { clearTimeout(timer); resolve(match[1]); }
+      const match = chunk
+        .toString()
+        .match(/DevTools listening on (ws:\/\/\S+)/);
+      if (match) {
+        clearTimeout(timer);
+        resolve(match[1]);
+      }
     });
   });
   socket = new WebSocket(endpoint);
-  await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
+  await new Promise((resolve, reject) => {
+    socket.onopen = resolve;
+    socket.onerror = reject;
+  });
   console.log("Chrome connected");
   let sequence = 0;
   const pending = new Map();
@@ -33,31 +60,72 @@ async function run() {
   const lifecycleWarnings = [];
   socket.onmessage = ({ data }) => {
     const message = JSON.parse(data);
-    if (message.method === "Runtime.exceptionThrown") errors.push(message.params.exceptionDetails);
+    if (message.method === "Runtime.exceptionThrown")
+      errors.push(message.params.exceptionDetails);
     if (message.method === "Runtime.consoleAPICalled") {
-      const text = message.params.args.map((arg) => arg.value ?? arg.description ?? "").join(" ");
-      if (/useInsertionEffect.*schedule updates/.test(text)) lifecycleWarnings.push(text);
+      const text = message.params.args
+        .map((arg) => arg.value ?? arg.description ?? "")
+        .join(" ");
+      if (/useInsertionEffect.*schedule updates/.test(text))
+        lifecycleWarnings.push(text);
     }
     const callback = pending.get(message.id);
-    if (callback) { pending.delete(message.id); message.error ? callback.reject(message.error) : callback.resolve(message.result); }
+    if (callback) {
+      pending.delete(message.id);
+      message.error
+        ? callback.reject(message.error)
+        : callback.resolve(message.result);
+    }
   };
-  const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
-    const id = ++sequence;
-    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`CDP timed out: ${method}`)); }, 10000);
-    pending.set(id, { resolve: (value) => { clearTimeout(timer); resolve(value); }, reject: (error) => { clearTimeout(timer); reject(error); } });
-    socket.send(JSON.stringify({ id, method, params, sessionId }));
+  const send = (method, params = {}, sessionId) =>
+    new Promise((resolve, reject) => {
+      const id = ++sequence;
+      const timer = setTimeout(() => {
+        pending.delete(id);
+        reject(new Error(`CDP timed out: ${method}`));
+      }, 10000);
+      pending.set(id, {
+        resolve: (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        reject: (error) => {
+          clearTimeout(timer);
+          reject(error);
+        },
+      });
+      socket.send(JSON.stringify({ id, method, params, sessionId }));
+    });
+  const { targetId } = await send("Target.createTarget", {
+    url: "about:blank",
   });
-  const { targetId } = await send("Target.createTarget", { url: "about:blank" });
-  const { sessionId } = await send("Target.attachToTarget", { targetId, flatten: true });
+  const { sessionId } = await send("Target.attachToTarget", {
+    targetId,
+    flatten: true,
+  });
   const call = (method, params) => send(method, params, sessionId);
   await call("Runtime.enable");
   await call("Page.enable");
   await call("Network.enable");
   await call("Network.setBlockedURLs", { urls: ["https://*"] });
-  await call("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await call("Emulation.setDeviceMetricsOverride", {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
   const evaluate = async (expression) => {
-    const result = await call("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
-    if (result.exceptionDetails) throw new Error(result.exceptionDetails.text + ": " + result.exceptionDetails.exception?.description);
+    const result = await call("Runtime.evaluate", {
+      expression,
+      returnByValue: true,
+      awaitPromise: true,
+    });
+    if (result.exceptionDetails)
+      throw new Error(
+        result.exceptionDetails.text +
+          ": " +
+          result.exceptionDetails.exception?.description,
+      );
     return result.result.value;
   };
   const until = async (expression) => {
@@ -65,8 +133,16 @@ async function run() {
       if (await evaluate(`Boolean(${expression})`)) return;
       await delay(100);
     }
-    const detail = await evaluate("JSON.stringify({ path: location.pathname, scroll: scrollY, text: document.body.innerText.slice(0, 500) })");
-    console.error("Runtime errors", errors, await evaluate("JSON.stringify({api: window.__api, state: history.state})"));
+    const detail = await evaluate(
+      "JSON.stringify({ path: location.pathname, scroll: scrollY, text: document.body.innerText.slice(0, 500) })",
+    );
+    console.error(
+      "Runtime errors",
+      errors,
+      await evaluate(
+        "JSON.stringify({api: window.__api, state: history.state})",
+      ),
+    );
     throw new Error("Timed out: " + expression + "\n" + detail);
   };
   const navigate = async (route) => {
@@ -74,10 +150,12 @@ async function run() {
     await until("Boolean(history.state?.__spottrNavigation)");
     await delay(250);
   };
-  const button = (text) => `Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === ${JSON.stringify(text)})`;
+  const button = (text) =>
+    `Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === ${JSON.stringify(text)})`;
 
   // Intercept every API call before hydration. No real account or payment is used.
-  await call("Page.addScriptToEvaluateOnNewDocument", { source: `
+  await call("Page.addScriptToEvaluateOnNewDocument", {
+    source: `
     localStorage.setItem('pulse_token', 'mock-feedback-test');
     const originalFetch = window.fetch.bind(window);
     window.__api = { fail: true, payment: 'pending', requests: [] };
@@ -116,12 +194,16 @@ async function run() {
       return respond([]);
     };
     Object.defineProperty(navigator.geolocation, 'getCurrentPosition', { value: (_ok, fail) => setTimeout(() => fail({ code: 1, message: 'Permission denied' }), 100) });
-  ` });
-  const hasText = (text) => `document.body.innerText.includes(${JSON.stringify(text)})`;
-  const retry = async () => { await evaluate(`${button("Try again")}.click()`); };
+  `,
+  });
+  const hasText = (text) =>
+    `document.body.innerText.includes(${JSON.stringify(text)})`;
+  const retry = async () => {
+    await evaluate(`${button("Try again")}.click()`);
+  };
 
-
-  await call("Page.addScriptToEvaluateOnNewDocument", { source: `
+  await call("Page.addScriptToEvaluateOnNewDocument", {
+    source: `
     window.__api.fail = false;
     window.__api.hiddenCategories = [];
     window.__api.categoryMutations = [];
@@ -167,26 +249,46 @@ async function run() {
       if (route === '/feed') return response([{ activityType: 'organizer_update', actorId: 'test-organizer', actorUsername: 'Test Organizer', eventId: 'layout-event', eventTitle: 'Layout Test', eventStartTime: '2099-10-01T18:00:00Z', occurredAt: '2026-09-28T09:00:00Z', organizerUpdateId: 'photo', organizerUpdateImageUrl: svg }]);
       return previousFetch(input, init);
     };
-  ` });
+  `,
+  });
   for (const width of [390, 1280]) {
-    await call("Emulation.setDeviceMetricsOverride", { width, height: 844, deviceScaleFactor: 1, mobile: width < 768 });
-    await navigate('/');
-    await until("window.__releaseEvents && document.querySelector('[role=status] section .shrink-0')");
+    await call("Emulation.setDeviceMetricsOverride", {
+      width,
+      height: 844,
+      deviceScaleFactor: 1,
+      mobile: width < 768,
+    });
+    await navigate("/");
+    await until(
+      "window.__releaseEvents && document.querySelector('[role=status] section .shrink-0')",
+    );
     const before = await evaluate(`(() => {
       const card = document.querySelector('[role=status] section .shrink-0').getBoundingClientRect();
       const nav = document.querySelector('[data-bottom-nav-glass]').getBoundingClientRect();
       return { width: card.width, height: card.height, navX: nav.x, navWidth: nav.width };
     })()`);
     await evaluate("window.__releaseEvents()");
-    await until("document.querySelector('[data-nav-scroll^=home-carousel] [role=button]')");
+    await until(
+      "document.querySelector('[data-nav-scroll^=home-carousel] [role=button]')",
+    );
     const after = await evaluate(`(() => {
       const card = document.querySelector('[data-nav-scroll^=home-carousel] [role=button]').getBoundingClientRect();
       const nav = document.querySelector('[data-bottom-nav-glass]').getBoundingClientRect();
       return { width: card.width, height: card.height, navX: nav.x, navWidth: nav.width };
     })()`);
-    assert.equal(after.width, before.width, 'Home skeleton width matches card at ' + width);
-    assert.ok(Math.abs(after.height - before.height) <= 2, 'Home skeleton height matches card: ' + JSON.stringify({ before, after }));
-    assert.ok(Math.abs(after.navX - before.navX) < 1, 'Navbar must not move as loading completes');
+    assert.equal(
+      after.width,
+      before.width,
+      "Home skeleton width matches card at " + width,
+    );
+    assert.ok(
+      Math.abs(after.height - before.height) <= 2,
+      "Home skeleton height matches card: " + JSON.stringify({ before, after }),
+    );
+    assert.ok(
+      Math.abs(after.navX - before.navX) < 1,
+      "Navbar must not move as loading completes",
+    );
     await until("document.querySelector('[data-tab-page]')");
     const gutter = await evaluate(`(() => {
       window.dispatchEvent(new Event('spottr:cancel-scroll-restore'));
@@ -204,11 +306,20 @@ async function run() {
     })()`);
     assert.equal(gutter.shortScroll, false);
     assert.equal(gutter.tallScroll, true);
-    assert.equal(gutter.gutter, 'stable');
-    assert.ok(Math.abs(gutter.tall - gutter.short) < 1 && Math.abs(gutter.shortAgain - gutter.short) < 1, 'Navbar stable with scrollbar appearing/disappearing: ' + JSON.stringify(gutter));
-    console.log('PASS Home skeleton geometry and stable scrollbar/navbar at ' + width + 'px');
+    assert.equal(gutter.gutter, "stable");
+    assert.ok(
+      Math.abs(gutter.tall - gutter.short) < 1 &&
+        Math.abs(gutter.shortAgain - gutter.short) < 1,
+      "Navbar stable with scrollbar appearing/disappearing: " +
+        JSON.stringify(gutter),
+    );
+    console.log(
+      "PASS Home skeleton geometry and stable scrollbar/navbar at " +
+        width +
+        "px",
+    );
 
-    await navigate('/feed');
+    await navigate("/feed");
     await until("document.querySelector('article button img')");
     const media = await evaluate(`(async () => {
       const photo = document.querySelector('article button img');
@@ -220,63 +331,164 @@ async function run() {
       await new Promise(requestAnimationFrame);
       return { before, after: rect() };
     })()`);
-    assert.deepEqual(media.before, media.after, 'Photo intrinsic dimensions must not change the reserved post area');
-    console.log('PASS delayed portrait photo keeps its reserved geometry at ' + width + 'px');
-    await navigate('/events');
+    assert.deepEqual(
+      media.before,
+      media.after,
+      "Photo intrinsic dimensions must not change the reserved post area",
+    );
+    console.log(
+      "PASS delayed portrait photo keeps its reserved geometry at " +
+        width +
+        "px",
+    );
+    await navigate("/events");
     await until("document.querySelector('button[aria-label=\"Filters\"]')");
-    const modalNavX = await evaluate("document.querySelector('[data-bottom-nav-glass]').getBoundingClientRect().x");
-    await evaluate("document.querySelector('button[aria-label=\"Filters\"]').click()");
+    const modalNavX = await evaluate(
+      "document.querySelector('[data-bottom-nav-glass]').getBoundingClientRect().x",
+    );
+    await evaluate(
+      "document.querySelector('button[aria-label=\"Filters\"]').click()",
+    );
     await until("history.state.__spottrLayer?.length");
     await delay(550);
-    assert.ok(Math.abs(await evaluate("document.querySelector('[data-bottom-nav-glass]').getBoundingClientRect().x") - modalNavX) < 1, 'Scroll locking must not double-compensate the scrollbar');
+    assert.ok(
+      Math.abs(
+        (await evaluate(
+          "document.querySelector('[data-bottom-nav-glass]').getBoundingClientRect().x",
+        )) - modalNavX,
+      ) < 1,
+      "Scroll locking must not double-compensate the scrollbar",
+    );
     await evaluate("history.back()");
-    await until("!history.state.__spottrLayer?.length && !document.querySelector('[role=dialog]')");
-    assert.ok(Math.abs(await evaluate("document.querySelector('[data-bottom-nav-glass]').getBoundingClientRect().x") - modalNavX) < 1);
-    console.log('PASS scrollbar reservation stays stable when opening/closing filters at ' + width + 'px');
-    await navigate('/users/me');
-    await until("window.__releaseCategories && document.querySelector('section button[aria-pressed]')");
-    const preferencesHeight = await evaluate("document.querySelector('section button[aria-pressed]').closest('section').getBoundingClientRect().height");
+    await until(
+      "!history.state.__spottrLayer?.length && !document.querySelector('[role=dialog]')",
+    );
+    assert.ok(
+      Math.abs(
+        (await evaluate(
+          "document.querySelector('[data-bottom-nav-glass]').getBoundingClientRect().x",
+        )) - modalNavX,
+      ) < 1,
+    );
+    console.log(
+      "PASS scrollbar reservation stays stable when opening/closing filters at " +
+        width +
+        "px",
+    );
+    await navigate("/users/me");
+    await until(
+      "window.__releaseCategories && document.querySelector('section button[aria-pressed]')",
+    );
+    const preferencesHeight = await evaluate(
+      "document.querySelector('section button[aria-pressed]').closest('section').getBoundingClientRect().height",
+    );
     await evaluate("window.__releaseCategories()");
-    await until("!document.querySelector('section button[aria-pressed]').disabled");
-    assert.equal(await evaluate("document.querySelector('section button[aria-pressed]').closest('section').getBoundingClientRect().height"), preferencesHeight);
-    console.log('PASS profile preferences keep their height while loading at ' + width + 'px');
-    const categoryButton = "document.querySelector('section button[aria-pressed]')";
-    const initialCategoryReads = await evaluate('window.__api.categoryReads');
-    assert.equal(await evaluate(`${categoryButton}.getAttribute('aria-pressed')`), 'false');
+    await until(
+      "!document.querySelector('section button[aria-pressed]').disabled",
+    );
+    assert.equal(
+      await evaluate(
+        "document.querySelector('section button[aria-pressed]').closest('section').getBoundingClientRect().height",
+      ),
+      preferencesHeight,
+    );
+    console.log(
+      "PASS profile preferences keep their height while loading at " +
+        width +
+        "px",
+    );
+    const categoryButton =
+      "document.querySelector('section button[aria-pressed]')";
+    const initialCategoryReads = await evaluate("window.__api.categoryReads");
+    assert.equal(
+      await evaluate(`${categoryButton}.getAttribute('aria-pressed')`),
+      "false",
+    );
     const category = await evaluate(`${categoryButton}.textContent`);
     // The first selection must work even if the initial GET returned JSON null.
-    await evaluate(`window.__api.holdCategoryMutation = true; window.__categoryElement = ${categoryButton}; ${categoryButton}.click()`);
-    await until('window.__releaseCategoryMutation');
-    await until(`${categoryButton}?.getAttribute('aria-pressed') === 'true' && !${categoryButton}.disabled`);
-    assert.deepEqual(await evaluate('window.__api.hiddenCategories'), [], 'Selection is visible before saving completes');
-    assert.equal(await evaluate(`${categoryButton} === window.__categoryElement && !${categoryButton}.closest('section').querySelector('[role=status], button:disabled, [aria-busy=true]')`), true, 'No remount, spinner or disabled categories during saving');
-    await evaluate('window.__api.holdCategoryMutation = false; window.__releaseCategoryMutation()');
-    await until('window.__api.categoryCompletions === 1');
-    assert.deepEqual(await evaluate('window.__api.hiddenCategories'), [category]);
+    await evaluate(
+      `window.__api.holdCategoryMutation = true; window.__categoryElement = ${categoryButton}; ${categoryButton}.click()`,
+    );
+    await until("window.__releaseCategoryMutation");
+    await until(
+      `${categoryButton}?.getAttribute('aria-pressed') === 'true' && !${categoryButton}.disabled`,
+    );
+    assert.deepEqual(
+      await evaluate("window.__api.hiddenCategories"),
+      [],
+      "Selection is visible before saving completes",
+    );
+    assert.equal(
+      await evaluate(
+        `${categoryButton} === window.__categoryElement && !${categoryButton}.closest('section').querySelector('[role=status], button:disabled, [aria-busy=true]')`,
+      ),
+      true,
+      "No remount, spinner or disabled categories during saving",
+    );
+    await evaluate(
+      "window.__api.holdCategoryMutation = false; window.__releaseCategoryMutation()",
+    );
+    await until("window.__api.categoryCompletions === 1");
+    assert.deepEqual(await evaluate("window.__api.hiddenCategories"), [
+      category,
+    ]);
     // Removing the last selection returns null again during the refetch.
     await evaluate(`${categoryButton}.click()`);
-    await until('window.__api.categoryCompletions === 2');
-    await until(`${categoryButton}?.getAttribute('aria-pressed') === 'false' && !${categoryButton}.disabled`);
-    assert.deepEqual(await evaluate('window.__api.hiddenCategories'), []);
+    await until("window.__api.categoryCompletions === 2");
+    await until(
+      `${categoryButton}?.getAttribute('aria-pressed') === 'false' && !${categoryButton}.disabled`,
+    );
+    assert.deepEqual(await evaluate("window.__api.hiddenCategories"), []);
     await evaluate(`${categoryButton}.click()`);
-    await until('window.__api.categoryCompletions === 3');
-    await until(`${categoryButton}?.getAttribute('aria-pressed') === 'true' && !${categoryButton}.disabled`);
-    assert.deepEqual(await evaluate('window.__api.categoryMutations'), [
-      { method: 'POST', category }, { method: 'DELETE', category }, { method: 'POST', category },
-    ], 'Empty -> selected -> empty -> selected');
+    await until("window.__api.categoryCompletions === 3");
+    await until(
+      `${categoryButton}?.getAttribute('aria-pressed') === 'true' && !${categoryButton}.disabled`,
+    );
+    assert.deepEqual(
+      await evaluate("window.__api.categoryMutations"),
+      [
+        { method: "POST", category },
+        { method: "DELETE", category },
+        { method: "POST", category },
+      ],
+      "Empty -> selected -> empty -> selected",
+    );
     await evaluate(`${categoryButton}.click(); ${categoryButton}.click()`);
-    await until('window.__api.categoryCompletions === 5');
-    assert.deepEqual(await evaluate('window.__api.hiddenCategories'), [category], 'Rapid reversal saves the latest selection');
+    await until("window.__api.categoryCompletions === 5");
+    assert.deepEqual(
+      await evaluate("window.__api.hiddenCategories"),
+      [category],
+      "Rapid reversal saves the latest selection",
+    );
     await until(`${categoryButton}.getAttribute('aria-pressed') === 'true'`);
-    const secondCategory = "document.querySelectorAll('section button[aria-pressed]')[1]";
-    await evaluate(`window.__api.failCategoryMutation = true; ${secondCategory}.click()`);
+    const secondCategory =
+      "document.querySelectorAll('section button[aria-pressed]')[1]";
+    await evaluate(
+      `window.__api.failCategoryMutation = true; ${secondCategory}.click()`,
+    );
     await until(`${secondCategory}.getAttribute('aria-pressed') === 'true'`);
-    await until(`${secondCategory}.getAttribute('aria-pressed') === 'false' && document.querySelector('[data-sonner-toast]')`);
-    assert.deepEqual(await evaluate('window.__api.hiddenCategories'), [category], 'A failed save reverts only the affected selection');
-    await evaluate(`window.__api.failCategoryMutation = false; ${secondCategory}.click()`);
-    await until('window.__api.hiddenCategories.length === 2');
-    assert.equal(await evaluate('window.__api.categoryReads'), initialCategoryReads, 'Selections do not refetch or reset the component');
-    console.log('PASS null categories, optimistic selection, rapid reversal and failed-save recovery at ' + width + 'px');
+    await until(
+      `${secondCategory}.getAttribute('aria-pressed') === 'false' && document.querySelector('[data-sonner-toast]')`,
+    );
+    assert.deepEqual(
+      await evaluate("window.__api.hiddenCategories"),
+      [category],
+      "A failed save reverts only the affected selection",
+    );
+    await evaluate(
+      `window.__api.failCategoryMutation = false; ${secondCategory}.click()`,
+    );
+    await until("window.__api.hiddenCategories.length === 2");
+    assert.equal(
+      await evaluate("window.__api.categoryReads"),
+      initialCategoryReads,
+      "Selections do not refetch or reset the component",
+    );
+    console.log(
+      "PASS null categories, optimistic selection, rapid reversal and failed-save recovery at " +
+        width +
+        "px",
+    );
   }
   assert.deepEqual(errors, [], "No uncaught runtime errors");
   assert.deepEqual(lifecycleWarnings, [], "No insertion-effect warnings");
@@ -285,14 +497,35 @@ async function run() {
   await delay(500);
 }
 
-const deadline = setTimeout(() => { child.kill(); console.error("Browser test exceeded 120s"); process.exitCode = 1; }, 120000);
-run().catch((error) => { console.error(error); process.exitCode = 1; }).finally(async () => {
-  clearTimeout(deadline);
-  socket?.close();
-  if (child.exitCode === null) { const exited = once(child, "exit"); child.kill(); await Promise.race([exited, delay(2000)]); }
-  // The only recursive removal is the dedicated profile created by this test.
-  const resolved = path.resolve(profile);
-  if (path.dirname(resolved) === path.resolve(os.tmpdir()) && path.basename(resolved).startsWith("pulse-layout-")) {
-    fs.rmSync(resolved, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
-  }
-});
+const deadline = setTimeout(() => {
+  child.kill();
+  console.error("Browser test exceeded 120s");
+  process.exitCode = 1;
+}, 120000);
+run()
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    clearTimeout(deadline);
+    socket?.close();
+    if (child.exitCode === null) {
+      const exited = once(child, "exit");
+      child.kill();
+      await Promise.race([exited, delay(2000)]);
+    }
+    // The only recursive removal is the dedicated profile created by this test.
+    const resolved = path.resolve(profile);
+    if (
+      path.dirname(resolved) === path.resolve(os.tmpdir()) &&
+      path.basename(resolved).startsWith("pulse-layout-")
+    ) {
+      fs.rmSync(resolved, {
+        recursive: true,
+        force: true,
+        maxRetries: 10,
+        retryDelay: 300,
+      });
+    }
+  });
