@@ -35,6 +35,23 @@ export function NotificationsPopover() {
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!user) return;
+    const refreshVisible = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) void refresh();
+    };
+    const interval = window.setInterval(refreshVisible, 30_000);
+    window.addEventListener("focus", refreshVisible);
+    window.addEventListener("online", refreshVisible);
+    document.addEventListener("visibilitychange", refreshVisible);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshVisible);
+      window.removeEventListener("online", refreshVisible);
+      document.removeEventListener("visibilitychange", refreshVisible);
+    };
+  }, [user?.properties.id, refresh]);
+
+  useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) =>
       event.key === "Escape" && setOpen(false);
@@ -82,7 +99,7 @@ export function NotificationsPopover() {
             layoutId="notif-morph"
             type="button"
             aria-label={t("notifications.title")}
-            onClick={() => setOpen(true)}
+            onClick={() => { setOpen(true); void refresh(); }}
             className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-full border border-white/15 bg-white/[0.06] text-foreground transform-gpu"
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
           >

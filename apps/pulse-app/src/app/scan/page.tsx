@@ -5,6 +5,7 @@ import { CheckCircle2, ClipboardCheck, Loader2, MapPin, ScanLine, ShieldAlert, T
 import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
 import { useTranslation } from "react-i18next";
 import { PageLoadingState } from "@/components/ui/loading";
+import { apiRoot } from "@/core/apiRoot";
 
 type ScannerSession = {
   sessionToken: string;
@@ -22,7 +23,6 @@ type TicketValidation = {
   validatedAt: string;
 };
 
-const apiRoot = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 const scannerSessionKey = "pulse_scanner_session";
 
 async function readJson(response: Response) {

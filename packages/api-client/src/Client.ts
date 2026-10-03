@@ -78,6 +78,7 @@ export class ApiError extends Error {
 export interface ClientConfiguration {
   apiRoot: string;
   getAccessToken?: () => string | null | undefined;
+  onUnauthorized?: (token: string) => void;
 }
 
 async function asWebP(
@@ -163,10 +164,8 @@ export class ApiClient {
       Accept: "application/json",
     };
 
-    if (this.config.getAccessToken) {
-      const token = this.config.getAccessToken();
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-    }
+    const requestToken = this.config.getAccessToken?.();
+    if (requestToken) headers["Authorization"] = `Bearer ${requestToken}`;
 
     const response = await fetch(url.toString(), {
       method: method.toUpperCase(),
@@ -176,6 +175,12 @@ export class ApiClient {
     });
 
     if (!response.ok) {
+      // Credential confirmation failures belong to their form, not session expiry.
+      if (response.status === 401 && requestToken &&
+          requestToken === this.config.getAccessToken?.() &&
+          !urlPath.startsWith("/auth/") && !(method === "delete" && urlPath === "/users/me")) {
+        this.config.onUnauthorized?.(requestToken);
+      }
       let errorData: any = {};
       try {
         errorData = await response.json();
@@ -199,13 +204,6 @@ export class ApiClient {
         title,
         detail,
       );
-    }
-
-    if (!response.ok) {
-      if (response.status === 401 && typeof window !== "undefined") {
-        window.location.href = "/login";
-        return;
-      }
     }
 
     if (response.status === 204) return undefined;

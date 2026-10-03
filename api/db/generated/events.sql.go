@@ -828,7 +828,7 @@ WHERE ($2::VARCHAR = '' OR $2 IS NULL OR e.category = ANY(string_to_array($2::VA
           AND e.was_published = TRUE
       )
   )
-ORDER BY e.start_time DESC
+ORDER BY e.start_time DESC, e.id ASC
 LIMIT $14 OFFSET $13
 `
 

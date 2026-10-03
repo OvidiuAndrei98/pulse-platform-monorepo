@@ -38,6 +38,8 @@ export function EventBannerUpload({ value, onChange }: { value?: string; onChang
       setPreviewURL(url);
       onChange(url);
     } catch (uploadError) {
+      clearPreview();
+      setPreviewURL(value);
       setError(uploadError instanceof Error ? uploadError.message : t("media.uploadFailed"));
     } finally { setIsUploading(false); }
   };

@@ -13,6 +13,7 @@ import {
   updateClientQuery,
 } from "@/lib/clientQueryCache";
 import { useCachedClientQuery } from "@/lib/useCachedClientQuery";
+import { loadEventPages } from "@/features/events/loadEventPages";
 
 type UserFields = ReadableSchema<"CurrentUser">;
 export type UserData = UserFields;
@@ -543,10 +544,7 @@ export class User {
     const userId = user?.properties?.id;
     const query = useCachedClientQuery<Event[]>(
       authLoading ? null : queryKey.events(userId ?? "guest"),
-      () =>
-        user
-          ? ApiClient.instance.get("/events")
-          : PublicEventsService.getPublicEvents(),
+      () => PublicEventsService.getPublicEvents(),
       [],
       { staleTimeMs: PUBLIC_CACHE_TTL },
     );
@@ -570,7 +568,7 @@ export class User {
     await ApiClient.instance.post("/users/me/hidden-categories", { body: { category } });
     void refreshClientQuery(
       queryKey.events(this._properties.id),
-      () => ApiClient.instance.get("/events"),
+      () => PublicEventsService.getPublicEvents(),
       { force: true },
     );
   }
@@ -579,7 +577,7 @@ export class User {
     await ApiClient.instance.delete("/users/me/hidden-categories/{category}", { params: { path: { category } } });
     void refreshClientQuery(
       queryKey.events(this._properties.id),
-      () => ApiClient.instance.get("/events"),
+      () => PublicEventsService.getPublicEvents(),
       { force: true },
     );
   }
@@ -959,10 +957,12 @@ export class PublicEventsService {
     startsBefore?: string;
   }): Promise<Event[]> {
     try {
-      const events = await ApiClient.instance.get("/events", {
-        params: { query: filters },
-      });
-      return events;
+      return await loadEventPages(
+        (page) => ApiClient.instance.get("/events", {
+          params: { query: { ...filters, page } },
+        }),
+        filters?.organizerId ? 100 : 20,
+      );
     } catch (error) {
       console.error("Eroare la încărcarea evenimentelor publice:", error);
       throw error;

@@ -15,12 +15,14 @@ import { EventFriendsPreview } from "@/components/social/EventFriendsPreview";
 
 export function EventBrowseCard({
   event,
+  eagerImage = false,
   userLocation,
   promoted = false,
   onOpen,
   onVisible,
 }: {
   event: Event;
+  eagerImage?: boolean;
   userLocation: Coordinates | null;
   promoted?: boolean;
   onOpen?: () => void;
@@ -63,7 +65,8 @@ export function EventBrowseCard({
       <div className="sm:hidden">
         <div className="relative aspect-square w-full overflow-hidden rounded-[20px]   bg-black">
           <Image
-            src={event.bannerUrl || "/images/events/default.jpg"}
+            src={event.bannerUrl || "/party-event.webp"}
+            loading={eagerImage ? "eager" : "lazy"}
             alt={event.title}
             fill
             sizes="(max-width: 639px) 50vw, 33vw"
@@ -112,7 +115,8 @@ export function EventBrowseCard({
       <div className="hidden sm:block">
         <div className="relative h-64 w-full overflow-hidden">
           <Image
-            src={event.bannerUrl || "/images/events/default.jpg"}
+            src={event.bannerUrl || "/party-event.webp"}
+            loading={eagerImage ? "eager" : "lazy"}
             alt={event.title}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"

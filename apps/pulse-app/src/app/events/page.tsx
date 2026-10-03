@@ -166,10 +166,11 @@ function EventsPageContent() {
                     ? Array.from({ length: 6 }, (_, index) => (
                         <EventCardSkeleton key={index} />
                       ))
-                    : !eventsError && displayedEvents.map((event) => (
+                    : !eventsError && displayedEvents.map((event, index) => (
                         <EventBrowseCard
                           key={event.id}
                           event={event}
+                          eagerImage={index < 3}
                           userLocation={userLocation}
                           promoted={feedEventIds.has(event.id)}
                           onOpen={() => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "click")}

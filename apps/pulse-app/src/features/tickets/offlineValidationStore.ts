@@ -92,7 +92,8 @@ async function getDb() {
 }
 
 function hasExpired(snapshot: OfflineValidationSnapshot) {
-  return Date.now() >= new Date(snapshot.expiresAt).getTime();
+  const expiry = new Date(snapshot.expiresAt).getTime();
+  return !Number.isFinite(expiry) || Date.now() >= expiry;
 }
 
 export async function getOfflineDeviceId() {
@@ -110,12 +111,19 @@ export async function saveOfflineSnapshot(
   event?: OfflineValidationEvent,
 ) {
   const db = await getDb();
-  await db.put("snapshots", {
+  const tx = db.transaction(["snapshots", "scans"], "readwrite");
+  const key = cacheKey(userId, snapshot.eventId);
+  if (await tx.objectStore("scans").index("by-cache-status").count([key, "pending"])) {
+    await tx.done;
+    throw new Error("OFFLINE_SCANS_PENDING");
+  }
+  await tx.objectStore("snapshots").put({
     ...snapshot,
     cacheKey: cacheKey(userId, snapshot.eventId),
     userId,
     event,
   });
+  await tx.done;
 }
 
 export async function getOfflineSnapshot(userId: string, eventId: string) {
@@ -123,10 +131,7 @@ export async function getOfflineSnapshot(userId: string, eventId: string) {
   const key = cacheKey(userId, eventId);
   const snapshot = await db.get("snapshots", key);
   if (!snapshot) return undefined;
-  if (hasExpired(snapshot)) {
-    await clearOfflineEventData(userId, eventId);
-    return undefined;
-  }
+  // Expiration blocks new admissions, not synchronization of recorded scans.
   return snapshot;
 }
 
@@ -147,10 +152,13 @@ export async function clearOfflineEventData(userId: string, eventId: string) {
   const key = cacheKey(userId, eventId);
   const tx = db.transaction(["snapshots", "scans"], "readwrite");
   const scansStore = tx.objectStore("scans");
+  const pending = await scansStore.index("by-cache-status").count([key, "pending"]);
+  if (pending > 0) { await tx.done; return false; }
   const scanKeys = await scansStore.index("by-cache-key").getAllKeys(key);
   for (const scanKey of scanKeys) await scansStore.delete(scanKey);
   await tx.objectStore("snapshots").delete(key);
   await tx.done;
+  return true;
 }
 
 export async function clearExpiredOfflineData() {
@@ -164,19 +172,16 @@ export async function clearExpiredOfflineData() {
 }
 
 export async function hasPreparedOfflineValidationForUser(userId: string) {
-  const db = await getDb();
-  const snapshots = await db.getAll("snapshots");
-  return snapshots.some(
-    (snapshot) => snapshot.userId === userId && !hasExpired(snapshot),
-  );
+  return (await getOfflineValidationEvents(userId)).length > 0;
 }
 
 export async function getOfflineValidationEvents(userId: string): Promise<OfflineValidationEvent[]> {
   const db = await getDb();
   const snapshots = (await db.getAll("snapshots"))
-    .filter((snapshot) => snapshot.userId === userId && !hasExpired(snapshot));
+    .filter((snapshot) => snapshot.userId === userId);
   const events = new Map<string, OfflineValidationEvent>();
   for (const snapshot of snapshots) {
+    if (hasExpired(snapshot) && !(await getPendingOfflineScans(userId, snapshot.eventId)).length) continue;
     events.set(snapshot.eventId, snapshot.event ?? {
       id: snapshot.eventId,
       title: snapshot.eventTitle,
@@ -208,7 +213,11 @@ export async function recordOfflineTicketScan(
   eventId: string,
   validationHash: string,
 ): Promise<LocalScanResult> {
-  const snapshot = await getOfflineSnapshot(userId, eventId);
+  const db = await getDb();
+  const deviceId = await getOfflineDeviceId();
+  // Serialize lookup + insert with snapshot replacement/removal and other scans.
+  const tx = db.transaction(["snapshots", "scans"], "readwrite");
+  const snapshot = await tx.objectStore("snapshots").get(cacheKey(userId, eventId));
   if (!snapshot) return { status: "unprepared" };
   if (hasExpired(snapshot)) return { status: "expired" };
 
@@ -218,12 +227,7 @@ export async function recordOfflineTicketScan(
   );
   if (!ticket) return { status: "unknown" };
 
-  const db = await getDb();
-  const existing = await db.getFromIndex(
-    "scans",
-    "by-cache-hash",
-    [snapshot.cacheKey, normalizedHash],
-  );
+  const existing = await tx.objectStore("scans").index("by-cache-hash").get([snapshot.cacheKey, normalizedHash]);
   if (existing) return { status: "duplicate", scan: existing };
 
   const scan: OfflineTicketScan = {
@@ -231,14 +235,15 @@ export async function recordOfflineTicketScan(
     cacheKey: snapshot.cacheKey,
     eventId,
     snapshotId: snapshot.snapshotId,
-    deviceId: await getOfflineDeviceId(),
+    deviceId,
     validationHash: normalizedHash,
     ticketId: ticket.ticketId,
     ticketType: ticket.ticketType,
     scannedAt: new Date().toISOString(),
     syncStatus: "pending",
   };
-  await db.add("scans", scan);
+  await tx.objectStore("scans").add(scan);
+  await tx.done;
   return { status: "accepted", scan };
 }
 

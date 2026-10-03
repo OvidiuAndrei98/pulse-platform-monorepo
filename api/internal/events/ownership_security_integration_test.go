@@ -61,7 +61,7 @@ func seedOwnershipFixture(t *testing.T, pool *pgxpool.Pool) ownershipFixture {
 		if err := pool.QueryRow(ctx, `INSERT INTO users (username,email,password_hash,role,is_active) VALUES ($1,$2,'not-used','organizer',TRUE) RETURNING id`, username, email).Scan(destination); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := pool.Exec(ctx, `INSERT INTO organizer_profiles (user_id,cui,company_name,fiscal_address,is_verified,verification_status) VALUES ($1,$2,$3,'Test',TRUE,'approved')`, *destination, fmt.Sprintf("SEC%s%d", shortSuffix, index), username); err != nil {
+		if _, err := pool.Exec(ctx, `INSERT INTO organizer_profiles (user_id,cui,company_name,fiscal_address,is_verified,verification_status,stripe_account_id,stripe_charges_enabled,stripe_payouts_enabled,stripe_charge_type) VALUES ($1,$2,$3,'Test',TRUE,'approved',$4,TRUE,TRUE,'direct')`, *destination, fmt.Sprintf("SEC%s%d", shortSuffix, index), username, "acct_test_"+username); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -384,7 +384,7 @@ function RecommendationRow({
     >
       <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white/[0.06] shadow-lg">
         <Image
-          src={event.bannerUrl || "/party-event.png"}
+          src={event.bannerUrl || "/party-event.webp"}
           alt=""
           fill
           sizes="56px"

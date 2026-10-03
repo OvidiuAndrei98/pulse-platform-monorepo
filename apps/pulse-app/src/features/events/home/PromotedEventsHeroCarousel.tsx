@@ -136,10 +136,10 @@ export function PromotedEventsHeroCarousel({
                 className="absolute inset-0"
               >
                 <Image
-                  src={event.bannerUrl || "/images/events/default.jpg"}
+                  src={event.bannerUrl || "/party-event.webp"}
                   alt={event.title}
                   fill
-                  priority={activeIndex === 0}
+                  loading="eager"
                   sizes="(max-width: 768px) 100vw, 1280px"
                   className="object-cover"
                 />

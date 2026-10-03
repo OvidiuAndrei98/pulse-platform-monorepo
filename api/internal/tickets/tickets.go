@@ -1084,9 +1084,12 @@ func (h *Handler) HandleSyncOfflineScans(w http.ResponseWriter, r *http.Request)
 		router.RespondWithError(w, http.StatusInternalServerError, "Snapshot-ul offline nu a putut fi verificat")
 		return
 	}
-	if !time.Now().Before(snapshot.ExpiresAt.Time) {
-		router.RespondWithError(w, http.StatusBadRequest, "Snapshot-ul offline a expirat")
-		return
+	// Expiration closes admissions, not delivery of scans made while valid.
+	for _, scan := range req.Scans {
+		if !validOfflineScanTime(scan.ScannedAt, snapshot.CreatedAt.Time, snapshot.ExpiresAt.Time, time.Now()) {
+			router.RespondWithError(w, http.StatusBadRequest, "Ora scanarii este in afara perioadei offline")
+			return
+		}
 	}
 
 	results := make([]OfflineTicketSyncResult, 0, len(req.Scans))

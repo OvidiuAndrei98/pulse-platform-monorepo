@@ -104,7 +104,7 @@ export default function EventStandalonePage() {
     : calculateServiceFeeRon(ticketSubtotal, ticketCount);
   const total = ticketSubtotal + serviceFee;
   const isFreeSelection = ticketCount === 1 && ticketSubtotal === 0;
-  const bannerUrl = event.bannerUrl || "/images/events/default.jpg";
+  const bannerUrl = event.bannerUrl || "/party-event.webp";
 
   const shareEvent = async () => {
     try {

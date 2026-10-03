@@ -190,6 +190,9 @@ export default function Home() {
     );
   }, [activeEvents, feedPromotions, promotionSeed, userLocation]);
   const guestName = guestNames[new Date().getDate() % guestNames.length];
+  const firstEventRail = bannerPromotions.length ? undefined : [
+    liveEvents, tonightForYou, friendEvents, followedOrganizerEvents, nearbyEvents, upcomingEvents,
+  ].find((items) => items.length > 0);
 
   return (
     <div className="relative min-h-screen overflow-hidden text-foreground">
@@ -266,6 +269,7 @@ export default function Home() {
               <HomeEventCarousel
                 title={t("common.liveNow")}
                 events={liveEvents.slice(0, 8)}
+                eagerImages={firstEventRail === liveEvents}
                 live
                 promotedEventIds={feedEventIds}
                 onEventOpen={(event) => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "click")}
@@ -278,6 +282,7 @@ export default function Home() {
               <HomeEventCarousel
                 title={user ? t("home.tonightForYou") : t("home.tonight")}
                 events={tonightForYou.slice(0, 8)}
+                eagerImages={firstEventRail === tonightForYou}
                 promotedEventIds={feedEventIds}
                 onEventOpen={(event) => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "click")}
                 onEventVisible={(event) => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "impression")}
@@ -289,6 +294,7 @@ export default function Home() {
               <HomeEventCarousel
                 title={t("home.friendsGoing")}
                 events={friendEvents}
+                eagerImages={firstEventRail === friendEvents}
                 emptyMessage=""
               />
             )}
@@ -296,6 +302,7 @@ export default function Home() {
               <HomeEventCarousel
                 title={t("home.followedOrganizers")}
                 events={followedOrganizerEvents}
+                eagerImages={firstEventRail === followedOrganizerEvents}
                 emptyMessage=""
               />
             )}
@@ -303,6 +310,7 @@ export default function Home() {
               <HomeEventCarousel
                 title={t("home.nearYou")}
                 events={nearbyEvents.slice(0, 8)}
+                eagerImages={firstEventRail === nearbyEvents}
                 promotedEventIds={feedEventIds}
                 onEventOpen={(event) => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "click")}
                 onEventVisible={(event) => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "impression")}
@@ -312,6 +320,7 @@ export default function Home() {
             <HomeEventCarousel
               title={t("home.upcoming")}
               events={upcomingEvents.slice(0, 8)}
+              eagerImages={firstEventRail === upcomingEvents}
               promotedEventIds={feedEventIds}
               onEventOpen={(event) => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "click")}
               onEventVisible={(event) => trackFeedPromotion(feedCampaignsByEvent.get(event.id), "impression")}

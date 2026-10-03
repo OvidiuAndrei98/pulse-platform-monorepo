@@ -47,7 +47,7 @@ export function EventMapSidebar({
               {/* Image Container */}
               <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[16px]">
                 <Image
-                  src={event.bannerUrl || "/images/events/default.jpg"}
+                  src={event.bannerUrl || "/party-event.webp"}
                   alt={event.title}
                   fill
                   sizes="64px"

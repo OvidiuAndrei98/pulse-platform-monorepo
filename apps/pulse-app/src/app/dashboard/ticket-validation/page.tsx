@@ -27,28 +27,25 @@ import {
 } from "lucide-react";
 import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { apiRoot } from "@/core/apiRoot";
+import { syncPendingScans } from "@/features/tickets/syncOfflineScans";
 import { OrganizerProfile, ValidationEvent } from "@/core/DataProvider";
 import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
 import { formatEventDateTime } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 import {
-  applyOfflineSyncResults,
   clearExpiredOfflineData,
   clearOfflineEventData,
-  getOfflineDeviceId,
   getOfflineConflictScans,
   getOfflineValidationEvents,
   getOfflineValidationState,
-  getPendingOfflineScans,
   recordOfflineTicketScan,
   saveOfflineSnapshot,
   type OfflineTicketScan,
 } from "@/features/tickets/offlineValidationStore";
 
 const ORGANIZER_AGREEMENT_VERSION = "2026-07-27";
-const apiHealthUrl = (
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1"
-).replace(/\/api\/v1\/?$/, "/health");
+const apiHealthUrl = apiRoot.replace(/\/api\/v1\/?$/, "/health");
 
 type ValidationStaff = ReadableSchema<"ValidationStaffResponse">;
 type TicketValidation = ReadableSchema<"TicketValidationResponse">;
@@ -197,6 +194,7 @@ export default function TicketValidationPage() {
       getOfflineValidationState(user.properties.id, eventId),
       getOfflineConflictScans(user.properties.id, eventId),
     ]);
+    if (selectedEventIdRef.current !== eventId) return;
     setOfflineSnapshot(state.snapshot);
     setOfflinePendingCount(state.pendingCount);
     setOfflineConflicts(conflicts);
@@ -207,37 +205,22 @@ export default function TicketValidationPage() {
   }, [selectedEventId]);
 
   const syncOfflineScans = async (eventId = selectedEventId) => {
-    if (!user || !eventId || !isOnline) return;
-    const state = await getOfflineValidationState(user.properties.id, eventId);
-    if (!state.snapshot || state.pendingCount === 0) return;
-
+    if (!user || !eventId) return;
     setSyncingOffline(true);
     try {
-      const scans = await getPendingOfflineScans(user.properties.id, eventId);
-      if (!scans.length) return;
-      const response = (await ApiClient.instance.post(
+      const state = await getOfflineValidationState(user.properties.id, eventId);
+      if (!state.snapshot || state.pendingCount === 0) return;
+      const results = await syncPendingScans(user.properties.id, eventId, async (body) => (await ApiClient.instance.post(
         "/dashboard/ticket-validation/events/{id}/offline-sync",
         {
           params: { path: { id: eventId } },
-          body: {
-            snapshotId: state.snapshot.snapshotId,
-            deviceId: await getOfflineDeviceId(),
-            scans: scans.map((scan) => ({
-              clientScanId: scan.clientScanId,
-              validationHash: scan.validationHash,
-              scannedAt: scan.scannedAt,
-            })),
-          },
+          body,
         },
-      )) as OfflineSyncResponse;
-      await applyOfflineSyncResults(
-        user.properties.id,
-        eventId,
-        response.results,
-      );
+      )) as OfflineSyncResponse);
+      if (selectedEventIdRef.current !== eventId) return;
       await refreshOfflineState(eventId);
       await loadScanHistory(eventId);
-      const conflicts = response.results.filter(
+      const conflicts = results.filter(
         (item) => item.status !== "accepted",
       ).length;
       setNotice(
@@ -299,9 +282,13 @@ export default function TicketValidationPage() {
 
   const removeOfflineData = async () => {
     if (!user || !selectedEventId) return;
-    await clearOfflineEventData(user.properties.id, selectedEventId);
-    await refreshOfflineState();
-    setNotice(t("validation.offlineRemoved"));
+    try {
+      const removed = await clearOfflineEventData(user.properties.id, selectedEventId);
+      await refreshOfflineState();
+      if (removed) setNotice(t("validation.offlineRemoved"));
+    } catch {
+      setError(t("feedback.actionFailed"));
+    }
   };
 
   const loadStaff = async (eventId: string) => {
@@ -344,7 +331,9 @@ export default function TicketValidationPage() {
       try {
         const response = await currentUser.getValidationEvents();
         if (cancelled) return;
-        const activeEvents = response.filter(isValidationEventActive);
+        const offlineEvents = await getOfflineValidationEvents(currentUser.properties.id).catch(() => []);
+        if (cancelled) return;
+        const activeEvents = [...new Map([...response.filter(isValidationEventActive), ...offlineEvents].map((event) => [event.id, event])).values()];
         setEvents(activeEvents);
         setSelectedEventId((current) =>
           activeEvents.some((event) => event.id === current)
@@ -356,9 +345,7 @@ export default function TicketValidationPage() {
           currentUser.properties.id,
         );
         if (cancelled) return;
-        const activeOfflineEvents = offlineEvents.filter(
-          isValidationEventActive,
-        );
+        const activeOfflineEvents = offlineEvents;
         if (activeOfflineEvents.length) {
           setEvents(activeOfflineEvents);
           setSelectedEventId((current) =>
@@ -414,8 +401,8 @@ export default function TicketValidationPage() {
   }, [selectedEvent?.canManage, selectedEvent?.id]);
 
   useEffect(() => {
-    void clearExpiredOfflineData();
-    void refreshOfflineState();
+    void clearExpiredOfflineData().catch(() => setError(t("feedback.actionFailed")));
+    void refreshOfflineState().catch(() => setError(t("feedback.actionFailed")));
   }, [selectedEventId, user?.properties.id]);
 
   useEffect(() => {
@@ -423,12 +410,12 @@ export default function TicketValidationPage() {
   }, [selectedEventId, user?.properties.id]);
 
   useEffect(() => {
-    void refreshConnectionStatus();
     const goOnline = () => {
       void refreshConnectionStatus().then((connected) => {
         if (connected) void syncOfflineScans();
       });
     };
+    goOnline();
     const goOffline = () => setIsOnline(false);
     window.addEventListener("online", goOnline);
     window.addEventListener("offline", goOffline);
@@ -1039,7 +1026,8 @@ export default function TicketValidationPage() {
                   <button
                     type="button"
                     onClick={() => void removeOfflineData()}
-                    className="h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-muted-foreground transition hover:bg-white/5"
+                    disabled={offlinePendingCount > 0 || syncingOffline || preparingOffline}
+                    className="h-9 rounded-lg border border-white/10 px-3 text-xs font-semibold text-muted-foreground transition hover:bg-white/5 disabled:opacity-50"
                   >
                     {t("validation.offlineRemove")}
                   </button>

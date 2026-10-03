@@ -12,6 +12,7 @@ import { useEventDetails } from "@/components/EventDetailsSheet";
 
 interface EventCardProps {
   event: Event;
+  eagerImage?: boolean;
   className?: string;
   onBookmark?: (eventId: string) => void;
   live?: boolean;
@@ -22,6 +23,7 @@ interface EventCardProps {
 
 export function EventCard({
   event,
+  eagerImage = false,
   className = "",
   onBookmark,
   live,
@@ -98,8 +100,9 @@ export function EventCard({
         {/* 1. CONTAINER IMAGINE */}
         <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[18px]">
           <Image
-            src={event.bannerUrl || "/images/events/default.jpg"}
+            src={event.bannerUrl || "/party-event.webp"}
             alt={event.title}
+            loading={eagerImage ? "eager" : "lazy"}
             fill
             sizes="260px"
             className="transform-gpu object-cover transition-transform duration-300 will-change-transform group-hover:scale-105"

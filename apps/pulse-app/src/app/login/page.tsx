@@ -77,7 +77,7 @@ export default function LoginPage() {
   return (
     <main className="relative min-h-dvh overflow-hidden bg-black text-white">
       <Image
-        src="/party-event.png"
+        src="/party-event.webp"
         alt=""
         fill
         priority

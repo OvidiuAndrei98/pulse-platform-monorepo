@@ -307,7 +307,7 @@ function AuthScene({
     <main className="relative min-h-dvh overflow-y-auto bg-black text-white">
       <div className="absolute inset-y-0 right-0 hidden w-1/2 overflow-hidden md:block">
         <Image
-          src="/party-event.png"
+          src="/party-event.webp"
           alt=""
           fill
           priority

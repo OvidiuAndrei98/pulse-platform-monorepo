@@ -10,6 +10,7 @@ import { EventCard } from "@/components/EventCard";
 export function HomeEventCarousel({
   title,
   events,
+  eagerImages = false,
   live = false,
   emptyMessage,
   seeAllHref = "/events",
@@ -20,6 +21,7 @@ export function HomeEventCarousel({
 }: {
   title: string;
   events: readonly Event[];
+  eagerImages?: boolean;
   live?: boolean;
   emptyMessage: string;
   seeAllHref?: string;
@@ -74,10 +76,11 @@ export function HomeEventCarousel({
           data-nav-scroll={"home-carousel:" + title}
           className="app-page-gutter mx-auto mt-2 flex max-w-7xl snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2 scroll-pl-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {events.map((event) => (
+          {events.map((event, index) => (
             <EventCard
               key={event.id}
               event={event}
+              eagerImage={eagerImages && index < 4}
               live={live || event.isLive}
               promoted={promoted || promotedEventIds?.has(event.id)}
               onOpen={() => onEventOpen?.(event)}

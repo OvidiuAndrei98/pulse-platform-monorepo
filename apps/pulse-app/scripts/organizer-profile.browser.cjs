@@ -130,7 +130,7 @@ async function run() {
       if (route === '/events' || route === '/users/me/tickets' || route === '/users/me/orders' || /^\\/events\\/[^/]+$/.test(route)) {
         await wait(250);
         if (state.fail) return respond({ title: 'Simulated load failure' }, 503);
-        if (route.startsWith('/events/')) return respond({ id: 'test-event', title: 'Test Event', organizerId: 'test-organizer', organizerName: 'Test Organizer', description: 'Test description', locationName: 'Test venue', city: 'Bucuresti', latitude: 44.4, longitude: 26.1, category: 'Party', startTime: '2099-10-01T18:00:00Z', endTime: '2099-10-02T04:00:00Z', stats: { isFavorited: false, goingCount: 0 }, ticketTypes: [{ id: 'test-tier', name: 'Test ticket', priceRon: 50, description: 'Entry' }] });
+        if (route.startsWith('/events/')) return respond({ id: 'test-event', title: 'Test Event', organizerId: 'test-organizer', organizerName: 'Test Organizer', description: 'Test description', locationName: 'Test venue', city: 'Bucuresti', latitude: 44.4, longitude: 26.1, category: 'Party', startTime: '2099-10-01T18:00:00Z', endTime: '2099-10-02T04:00:00Z', stats: { isFavorited: false, goingCount: 0 }, ticketTypes: [{ id: 'test-tier', name: 'Test ticket', priceRon: 50, description: 'Entry', capacity: 100, ticketsSold: 0, startSales: '2020-01-01T00:00:00Z', endSales: '2099-10-01T17:00:00Z' }] });
         return respond([]);
       }
       return respond([]);
@@ -144,7 +144,7 @@ async function run() {
     const profile = { id: 'test-organizer', username: 'nightcollective', organizerName: 'Night Collective', role: 'organizer',
       avatarUrl: '/spottr-logo-192.png', bio: 'Music, friends and nights to remember.', organizerVerified: true,
       relationship: 'none', followsOrganizer: false, followerCount: 218, eventCount: 12, ticketsSoldCount: 1250 };
-    const event = { organizerId: profile.id, organizerName: profile.organizerName, title: 'Night Session', locationName: 'Test venue', city: 'Bucuresti', category: 'TECHNO', bannerUrl: '/party-event.png', latitude: 44.4, longitude: 26.1, ticketTypes: [{ id: 'test-tier', name: 'General', priceRon: 150, stock: 100 }], stats: { isFavorited: false, goingCount: 0 } };
+    const event = { organizerId: profile.id, organizerName: profile.organizerName, title: 'Night Session', locationName: 'Test venue', city: 'Bucuresti', category: 'TECHNO', bannerUrl: '/party-event.webp', latitude: 44.4, longitude: 26.1, ticketTypes: [{ id: 'test-tier', name: 'General', priceRon: 150, stock: 100 }], stats: { isFavorited: false, goingCount: 0 } };
     const upcoming = [3,1,4,2].map(id => ({ ...event, id: 'upcoming-' + id, title: 'Night Session ' + id, startTime: '2099-10-0' + id + 'T18:00:00Z', endTime: '2099-10-0' + (id + 1) + 'T04:00:00Z' }));
     const past = [2,4,1,3].map(id => ({ ...event, id: 'past-' + id, title: 'Last edition ' + id, startTime: '2020-10-0' + id + 'T18:00:00Z', endTime: '2020-10-0' + (id + 1) + 'T04:00:00Z' }));
     window.fetch = async (input, init) => {
@@ -158,7 +158,7 @@ async function run() {
       }
       if (route?.endsWith('/social')) return reply({ friends: [], goingCount: 0, ticketsSoldCount: 0, manualGoingCount: 0 });
       if (route === '/organizers/test-organizer/follow') { window.__organizer.follows++; return reply(null); }
-      if (route === '/organizers/test-organizer/updates') return reply([{ id: 'photo', eventId: 'upcoming-1', eventTitle: 'Night Session 1', imageUrl: '/party-event.png', caption: 'See you on the dance floor', expiresAt: '2099-10-01T18:00:00Z' }]);
+      if (route === '/organizers/test-organizer/updates') return reply([{ id: 'photo', eventId: 'upcoming-1', eventTitle: 'Night Session 1', imageUrl: '/party-event.webp', caption: 'See you on the dance floor', expiresAt: '2099-10-01T18:00:00Z' }]);
       const detail = [...upcoming, ...past].find(e => route === '/events/' + e.id);
       if (detail) return reply(detail);
       return fallback(input, init);

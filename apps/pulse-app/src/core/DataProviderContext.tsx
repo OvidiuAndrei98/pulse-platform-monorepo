@@ -7,15 +7,13 @@ import React, {
   useState,
   useMemo,
   useCallback,
+  useRef,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ApiClient } from "@packages/api-client/src/Client";
+import { ApiClient, ApiError } from "@packages/api-client/src/Client";
 import { clearSessionCaches, User, UserData } from "./DataProvider";
 import { apiRoot } from "./apiRoot";
 import { useTranslation } from "react-i18next";
-import {
-  clearAllOfflineValidationData,
-} from "@/features/tickets/offlineValidationStore";
 import { PageLoadingState } from "@/components/ui/loading";
 import {
   clearAccessToken,
@@ -34,6 +32,9 @@ const isNetworkFailure = (error: unknown) =>
 ApiClient.configure({
   apiRoot,
   getAccessToken: getAccessTokenSync,
+  onUnauthorized: () => {
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("spottr:session-expired"));
+  },
 });
 
 interface DataProviderContextProps {
@@ -65,6 +66,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const generation = useRef(0);
+  const currentUser = useRef<User | undefined>(undefined);
 
   const pathname = usePathname();
   const router = useRouter();
@@ -76,31 +79,40 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     pathname?.startsWith("/admin");
 
   const initializeSession = useCallback(async () => {
+    const request = ++generation.current;
+    const isCurrent = () => request === generation.current;
     setLoading(true);
     setError(null);
-
-    const token = await hydrateAccessToken();
-    if (!token) {
-      setUser(undefined);
-      setLoading(false);
-      return;
-    }
-
     try {
+      const token = await hydrateAccessToken();
+      if (!isCurrent()) return;
+      if (!token) {
+        currentUser.current = undefined;
+        setUser(undefined);
+        return;
+      }
       const userData = await ApiClient.instance.get("/users/me");
-
-      setUser(new User(userData));
-      await saveOfflineSession(userData);
+      if (!isCurrent()) return;
+      currentUser.current = new User(userData);
+      setUser(currentUser.current);
+      await saveOfflineSession(userData).catch(() => undefined);
+      if (!isCurrent()) return;
       if (userData.preferredLanguage === "en" || userData.preferredLanguage === "ro") {
         await i18n.changeLanguage(userData.preferredLanguage);
       }
     } catch (err) {
-      const cachedSession = await readOfflineSession<UserData>();
+      if (!isCurrent()) return;
+      const invalidSession = err instanceof ApiError && [401, 403, 404].includes(err.status);
+      const cachedSession = invalidSession ? undefined : await readOfflineSession<UserData>().catch(() => undefined);
+      if (!isCurrent()) return;
       const canUseOfflineSession =
         Boolean(cachedSession) &&
-        (typeof navigator === "undefined" || !navigator.onLine || isNetworkFailure(err));
+        !invalidSession && getAccessTokenSync() &&
+        (typeof navigator === "undefined" || !navigator.onLine || isNetworkFailure(err) ||
+          (err instanceof ApiError && (err.status >= 500 || err.status === 429)));
       if (canUseOfflineSession && cachedSession) {
-        setUser(new User(cachedSession));
+        currentUser.current = new User(cachedSession);
+        setUser(currentUser.current);
         return;
       }
       setError(
@@ -108,15 +120,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           ? err
           : new Error(t("common.sessionFailed")),
       );
-      setUser(undefined);
-      await Promise.all([clearAccessToken(), clearOfflineSession()]);
+      if (invalidSession) {
+        currentUser.current = undefined;
+        setUser(undefined);
+        await Promise.allSettled([clearAccessToken(), clearOfflineSession()]);
+      }
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   }, [i18n]);
 
   useEffect(() => {
-    initializeSession();
+    void initializeSession();
+    return () => { generation.current++; };
   }, [initializeSession]);
 
   useEffect(() => {
@@ -127,6 +143,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string): Promise<void> => {
+      const request = ++generation.current;
       setLoading(true);
       setError(null);
 
@@ -135,10 +152,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           body: { email, password },
         });
 
+        if (request !== generation.current) return;
+        await clearOfflineSession();
+        if (request !== generation.current) return;
         await saveAccessToken(response.token);
-
+        if (request !== generation.current) return;
         await initializeSession();
       } catch (err) {
+        if (request !== generation.current) return;
         const loginError =
           err instanceof Error ? err : new Error(t("common.loginFailed"));
         setError(loginError);
@@ -150,22 +171,33 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    if (user) clearSessionCaches(user.properties.id);
-    void clearAllOfflineValidationData();
-    void Promise.all([clearAccessToken(), clearOfflineSession()]);
+    generation.current++;
+    if (currentUser.current) clearSessionCaches(currentUser.current.properties.id);
+    currentUser.current = undefined;
+    // Offline admissions remain scoped to their original user until synchronized.
+    void Promise.allSettled([clearAccessToken(), clearOfflineSession()]);
     setUser(undefined);
+    setLoading(false);
+    setError(null);
     if (isProtectedRoute) {
       router.push("/login");
     }
-  }, [isProtectedRoute, router, user]);
+  }, [isProtectedRoute, router]);
+
+  useEffect(() => {
+    window.addEventListener("spottr:session-expired", logout);
+    return () => window.removeEventListener("spottr:session-expired", logout);
+  }, [logout]);
 
   const getToken = useCallback((): string | null => {
     return getAccessTokenSync();
   }, []);
 
   const updateSessionUser = useCallback((updatedUser: UserData) => {
-    setUser(new User(updatedUser));
-    void saveOfflineSession(updatedUser);
+    if (!currentUser.current || currentUser.current.properties.id !== updatedUser.id) return;
+    currentUser.current = new User(updatedUser);
+    setUser(currentUser.current);
+    void saveOfflineSession(updatedUser).catch(() => undefined);
   }, []);
 
   const register = useCallback(

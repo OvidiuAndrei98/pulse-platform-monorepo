@@ -27,7 +27,7 @@ export function getEventDateRange(dateFilter: EventFilters["date"]): DateRange {
       return { startsAfter: tomorrow.toISOString(), startsBefore: addDays(tomorrow, 1).toISOString() };
     }
     case "This weekend": {
-      const daysUntilSaturday = (6 - today.getDay() + 7) % 7;
+      const daysUntilSaturday = today.getDay() === 0 ? -1 : (6 - today.getDay() + 7) % 7;
       const saturday = addDays(today, daysUntilSaturday);
       return { startsAfter: saturday.toISOString(), startsBefore: addDays(saturday, 2).toISOString() };
     }

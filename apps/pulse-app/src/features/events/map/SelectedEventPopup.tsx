@@ -59,7 +59,7 @@ export function SelectedEventPopup({
           {/* Banner / Imagine Event */}
           <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-white/10">
             <Image
-              src={event.bannerUrl || "/images/events/default.jpg"}
+              src={event.bannerUrl || "/party-event.webp"}
               alt={event.title}
               fill
               sizes="64px"

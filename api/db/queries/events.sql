@@ -93,7 +93,7 @@ WHERE (sqlc.arg(category)::VARCHAR = '' OR sqlc.arg(category) IS NULL OR e.categ
           AND e.was_published = TRUE
       )
   )
-ORDER BY e.start_time DESC
+ORDER BY e.start_time DESC, e.id ASC
 LIMIT sqlc.arg(req_limit) OFFSET sqlc.arg(req_offset);
 
 -- name: ListEventsWithStats :many

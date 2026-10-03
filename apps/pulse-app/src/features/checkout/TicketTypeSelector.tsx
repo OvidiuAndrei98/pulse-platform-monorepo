@@ -17,7 +17,9 @@ export function getTicketAvailability(
   ticket: TicketTier,
   nowMs: number | null,
 ): TicketAvailability {
-  if ((ticket.ticketsSold ?? 0) >= ticket.capacity) {
+  if (!Number.isFinite(ticket.capacity) || ticket.capacity <= 0 ||
+      !Number.isFinite(ticket.ticketsSold ?? 0) || (ticket.ticketsSold ?? 0) < 0 ||
+      (ticket.ticketsSold ?? 0) >= ticket.capacity) {
     return "sold-out";
   }
   if (nowMs === null) {
@@ -26,7 +28,7 @@ export function getTicketAvailability(
 
   const salesStartMs = Date.parse(ticket.startSales);
   const salesEndMs = Date.parse(ticket.endSales);
-  if (!Number.isFinite(salesStartMs) || !Number.isFinite(salesEndMs)) {
+  if (!Number.isFinite(nowMs) || !Number.isFinite(salesStartMs) || !Number.isFinite(salesEndMs) || salesEndMs <= salesStartMs) {
     return "sales-ended";
   }
   if (nowMs < salesStartMs) {
@@ -48,6 +50,7 @@ export function isTicketSelectionAvailable(
   nowMs = Date.now(),
 ): boolean {
   const ticketsById = new Map(tickets.map((ticket) => [ticket.id, ticket]));
+  if (Object.values(quantities).some((quantity) => !Number.isInteger(quantity) || quantity < 0)) return false;
   const selected = Object.entries(quantities).filter(([, quantity]) => quantity > 0);
   return selected.length > 0 && selected.every(([ticketId, quantity]) => {
     const ticket = ticketsById.get(ticketId);
