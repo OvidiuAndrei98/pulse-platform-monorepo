@@ -38,6 +38,7 @@ test('public events service forwards filters on every page, including organizer 
   for (const organizerId of [undefined, 'organizer']) {
     const requests = [], size = organizerId ? 100 : 20;
     const { PublicEventsService } = modules({
+      './apiRoot': { apiRoot: 'https://api.test' },
       '@packages/api-client/src/Client': { ApiClient: { instance: { get: async (path, options) => {
         requests.push(options.params.query);
         return Array.from({ length: options.params.query.page === 1 ? size : 1 }, (_, i) => ({ id: `${options.params.query.page}-${i}` }));
@@ -169,6 +170,7 @@ function sessionHarness({ failure, cached, token = 'token', storageFailure = fal
     react: h.react, 'next/navigation': { usePathname: () => '/', useRouter: () => ({ push() {} }) },
     'react-i18next': { useTranslation: () => ({ t: key => key, i18n }) },
     './DataProvider': { User: class { constructor(properties) { this.properties = properties; } }, clearSessionCaches() {} },
+    '@/lib/native/apiFetch': { apiFetch() {} },
     './apiRoot': { apiRoot: 'https://test' }, '@/components/ui/loading': {}, '@/lib/native/sessionStorage': storage,
     '@packages/api-client/src/Client': { ApiError, ApiClient: { configure() {}, instance: { get: () => failure ? Promise.reject(new ApiError(failure)) : response.promise } } },
   }, { window, navigator: { onLine: true } }).load('core/DataProviderContext');

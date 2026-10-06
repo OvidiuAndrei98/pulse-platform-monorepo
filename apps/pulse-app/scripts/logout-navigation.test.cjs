@@ -34,6 +34,7 @@ test('protected logout redirects once using replace, never pushes a dashboard/lo
       'next/navigation': { usePathname: () => path, useRouter: () => router },
       'react-i18next': { useTranslation: () => ({ t: key => key, i18n }) },
       './DataProvider': { User: class { constructor(properties) { this.properties = properties; } }, clearSessionCaches() {} },
+      '@/lib/native/apiFetch': { apiFetch() {} },
       './apiRoot': { apiRoot: 'https://test' }, '@/components/ui/loading': { PageLoadingState: 'loading' },
       '@/lib/native/sessionStorage': { getAccessTokenSync: () => token, hydrateAccessToken: async () => token,
         saveOfflineSession: async () => {}, clearAccessToken: async () => { token = null; }, clearOfflineSession: async () => {} },

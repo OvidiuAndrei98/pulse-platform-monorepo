@@ -14,6 +14,7 @@ import {
 } from "@/lib/clientQueryCache";
 import { useCachedClientQuery } from "@/lib/useCachedClientQuery";
 import { loadEventPages } from "@/features/events/loadEventPages";
+import { apiRoot } from "./apiRoot";
 import type { EventPageSet } from "@/features/events/eventPages";
 
 type UserFields = ReadableSchema<"CurrentUser">;
@@ -968,15 +969,23 @@ export class PublicEventsService {
     startsAfter?: string;
     startsBefore?: string;
   }): Promise<Event[]> {
+    let requestedPage = 1;
     try {
       return await loadEventPages(
-        (page) => ApiClient.instance.get("/events", {
-          params: { query: { ...filters, page } },
-        }),
+        (page) => {
+          requestedPage = page;
+          return ApiClient.instance.get("/events", {
+            params: { query: { ...filters, page } },
+          });
+        },
         filters?.organizerId ? 100 : 20,
       );
     } catch (error) {
-      console.error("Eroare la încărcarea evenimentelor publice:", error);
+      // Native consoles serialize Error objects as {}, hiding the actual failure.
+      const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+      console.error(
+        `Eroare la încărcarea evenimentelor publice (${apiRoot}/events, pagina ${requestedPage}): ${message}`,
+      );
       throw error;
     }
   }
