@@ -20,15 +20,33 @@ test('native API GET bypasses WebView proxy, preserves auth, JSON and HTTP error
   await assert.rejects(ApiClient.instance.get('/users/me'), error => error.status === 401);
 });
 
-test('web, POST and cancellable requests retain fetch transport', async () => {
+test('web and POST requests retain fetch transport', async () => {
   let native = false, calls = 0;
   const { apiFetch } = modules({
     '@capacitor/core': { CapacitorHttp: { request: () => { throw Error('native request used'); } } },
     './platform': { isNativePlatform: () => native },
-  }, { fetch: async () => { calls++; return new Response('[]'); } }).load('lib/native/apiFetch');
+  }, { Request, fetch: async () => { calls++; return new Response('[]'); } }).load('lib/native/apiFetch');
   await apiFetch('https://api.test/events');
   native = true;
   await apiFetch('https://api.test/auth/login', { method: 'POST' });
-  await apiFetch('https://api.test/events', { signal: new AbortController().signal });
-  assert.equal(calls, 3);
+  assert.equal(calls, 2);
+});
+
+test('cancellable group GET uses native transport and abort discards late responses', async () => {
+  let finish, calls = 0;
+  const { apiFetch } = modules({
+    '@capacitor/core': { CapacitorHttp: { request: () => { calls++; return new Promise(resolve => { finish = resolve; }); } } },
+    './platform': { isNativePlatform: () => true },
+  }, { Request, Response, fetch: () => { throw Error('WebView proxy used'); } }).load('lib/native/apiFetch');
+  const controller = new AbortController();
+  const pending = apiFetch('https://api.test/events/id/safety-group', { signal: controller.signal });
+  assert.equal(calls, 1);
+  controller.abort();
+  await assert.rejects(pending, error => error.name === 'AbortError');
+  finish({ status: 200, data: '{}', headers: {} });
+  await assert.rejects(apiFetch('https://api.test/events/id/safety-group', { signal: controller.signal }), error => error.name === 'AbortError');
+  assert.equal(calls, 1);
+  const success = apiFetch('https://api.test/events/id/safety-group', { signal: new AbortController().signal });
+  finish({ status: 200, data: '{"group":null}', headers: {} });
+  assert.deepEqual(await (await success).json(), { group: null });
 });
