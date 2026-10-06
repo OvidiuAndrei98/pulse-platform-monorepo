@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ReadableSchema } from "@packages/api-client/src/Client";
-import { useBackLayer } from "@/lib/navigation/useBackLayer";
-import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHandleOverlay, DrawerTitle } from "@/components/ui/drawer";
 import { TicketPass } from "./TicketPass";
 import { TicketPdfButton } from "./TicketPdfButton";
+import styles from "./ticketPass.module.css";
+import { useTicketBrightness } from "@/lib/native/useTicketBrightness";
 
 type UserTicket = ReadableSchema<"UserTicketResponse">;
 function ticketStatus(ticket: UserTicket, now: number) {
@@ -32,10 +33,48 @@ export function TicketPreview({
 }) {
   const { t } = useTranslation();
   const [isDesktop, setIsDesktop] = useState(false);
+  const [open, setOpen] = useState(true);
+  const brightnessActive = useTicketBrightness(open);
+  const mobileSheetRef = useRef<HTMLDivElement>(null);
+  const closeCallback = useRef(onClose);
+  closeCallback.current = onClose;
+  const dismissed = useRef(false);
+  const finishClose = useCallback(() => {
+    if (dismissed.current) return;
+    dismissed.current = true;
+    closeCallback.current();
+  }, []);
+  const requestClose = useCallback(() => {
+    if (isDesktop) finishClose();
+    else setOpen(false);
+  }, [isDesktop, finishClose]);
   const reducedMotion = useReducedMotion();
   const index = tickets.findIndex(item => item.id === ticket.id);
   const status = ticketStatus(ticket, now);
-  useBackLayer(true, onClose);
+  useEffect(() => {
+    if (!open || !isDesktop) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") requestClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, isDesktop, requestClose]);
+
+  useEffect(() => {
+    if (open) return;
+    if (isDesktop) { finishClose(); return; }
+    // Keep the ticket and the modal scroll lock until the actual exit finishes,
+    // including Back/Escape, which change the controlled prop outside Vaul.
+    let cancelled = false;
+    const frame = window.requestAnimationFrame(() => {
+      const animations = mobileSheetRef.current?.getAnimations() ?? [];
+      void Promise.allSettled(animations.map(animation => animation.finished)).then(() => {
+        if (!cancelled) finishClose();
+      });
+    });
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+    };
+  }, [open, isDesktop, finishClose]);
 
   useEffect(() => {
     const query = window.matchMedia("(min-width: 768px)");
@@ -46,22 +85,27 @@ export function TicketPreview({
   }, []);
 
   const content = (
-    <div data-ticket-preview={ticket.id} className="min-h-0 flex-1 overflow-y-auto px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 md:px-6 md:pt-6">
-      {tickets.length > 1 && <div className="mb-3 flex items-center justify-between gap-3">
-        <button type="button" aria-label={t("tickets.previousTicket")} disabled={index <= 0} onClick={() => onSelect?.(tickets[index - 1])} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/5 disabled:opacity-25 focus-visible:outline-2 focus-visible:outline-primary"><ChevronLeft className="h-5 w-5" /></button>
-        <p aria-live="polite" className="text-sm font-semibold tabular-nums">{t("tickets.ticketPosition", { current: index + 1, total: tickets.length })}</p>
-        <button type="button" aria-label={t("tickets.nextTicket")} disabled={index >= tickets.length - 1} onClick={() => onSelect?.(tickets[index + 1])} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/5 disabled:opacity-25 focus-visible:outline-2 focus-visible:outline-primary"><ChevronRight className="h-5 w-5" /></button>
-      </div>}
-      {status !== "active" && <p className="mt-5 text-center text-sm font-semibold text-primary">
-        {t(status === "used" ? "tickets.alreadyUsed" : "tickets.eventEnded")}
-      </p>}
-      <div className="mt-5"><TicketPass ticket={ticket} /></div>
-      <a href={`https://maps.google.com/?q=${encodeURIComponent(ticket.locationName)}`} target="_blank" rel="noreferrer" className="mt-4 flex min-h-11 items-center gap-2 text-sm text-primary"><MapPin className="h-4 w-4" />{ticket.locationName}</a>
-      <TicketPdfButton
-        key={ticket.id}
-        ticket={ticket}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-xs font-medium text-white transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-60"
-      />
+    <div data-ticket-preview={ticket.id} className={styles.preview}>
+      <header className={styles.intro}>
+        <div>
+          <p className={styles.eyebrow}>{t("tickets.yourEntrance")}</p>
+          <h1 className={styles.heading}>{t("tickets.showAtDoor")}</h1>
+        </div>
+      </header>
+      <TicketPass ticket={ticket} status={status} />
+      {brightnessActive && <p className={styles.brightness}><Zap aria-hidden="true" />{t("tickets.autoBrightness")}</p>}
+      <div className={styles.actions}>
+        {tickets.length > 1 && <div className={styles.paging}>
+          <button type="button" aria-label={t("tickets.previousTicket")} disabled={index <= 0} onClick={() => onSelect?.(tickets[index - 1])} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/5 disabled:opacity-25 focus-visible:outline-2 focus-visible:outline-primary"><ChevronLeft className="h-5 w-5" /></button>
+          <p aria-live="polite" className="text-sm font-semibold tabular-nums">{t("tickets.ticketPosition", { current: index + 1, total: tickets.length })}</p>
+          <button type="button" aria-label={t("tickets.nextTicket")} disabled={index >= tickets.length - 1} onClick={() => onSelect?.(tickets[index + 1])} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/5 disabled:opacity-25 focus-visible:outline-2 focus-visible:outline-primary"><ChevronRight className="h-5 w-5" /></button>
+        </div>}
+        <TicketPdfButton
+          key={ticket.id}
+          ticket={ticket}
+          className={styles.download}
+        />
+      </div>
     </div>
   );
 
@@ -69,12 +113,25 @@ export function TicketPreview({
     return (
       <Drawer
         historyBack={false}
-        open
-        onOpenChange={(open) => !open && onClose()}
+        open={open}
+        onOpenChange={(nextOpen) => !nextOpen && requestClose()}
+        onAnimationEnd={(nextOpen) => !nextOpen && finishClose()}
+        modal
+        repositionInputs={false}
         shouldScaleBackground={false}
+        closeThreshold={0.35}
+        fixed
       >
-        <DrawerContent className="h-[min(72dvh,40rem)] max-h-[calc(100dvh-2rem)] border-white/10 bg-neutral-950 p-0">
+        <DrawerContent
+          ref={mobileSheetRef}
+          showHandle={false}
+          sideInset
+          lockDocument={false}
+          aria-describedby={undefined}
+          className="h-[90svh] max-h-none rounded-t-4xl border-none bg-black p-0 touch-none"
+        >
           <DrawerTitle className="sr-only">{ticket.eventTitle}</DrawerTitle>
+          <DrawerHandleOverlay />
           {content}
         </DrawerContent>
       </Drawer>
@@ -87,7 +144,7 @@ export function TicketPreview({
       aria-modal="true"
       aria-label={ticket.eventTitle}
       className="fixed inset-0 z-[100] hidden bg-black/70 backdrop-blur-sm md:block"
-      onClick={onClose}
+      onClick={requestClose}
     >
       <motion.aside
         initial={{ x: reducedMotion ? 0 : "100%" }}

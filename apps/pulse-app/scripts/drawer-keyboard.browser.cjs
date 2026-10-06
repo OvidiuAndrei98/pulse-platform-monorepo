@@ -147,7 +147,7 @@ async function run() {
     const bounds = await evaluate('({top:__panel.getBoundingClientRect().top,bottom:__panel.getBoundingClientRect().bottom,fieldTop:__field.getBoundingClientRect().top,fieldBottom:__field.getBoundingClientRect().bottom,scroll:scrollY})');
     assert.ok(bounds.bottom<=421 && bounds.top>=0,JSON.stringify(bounds));
     assert.ok(bounds.fieldTop>=bounds.top && bounds.fieldBottom<=bounds.bottom,'Focused field stays visible: '+JSON.stringify(bounds));
-    assert.equal(await evaluate('document.body.style.position'),'fixed','Keyboard cannot scroll the underlying page');
+    assert.ok(await evaluate("document.body.style.position==='fixed' || (document.body.hasAttribute('data-scroll-locked') && getComputedStyle(document.body).overflowY==='hidden')"),'Keyboard keeps the underlying page locked');
     const currentTop=bounds.top;
     await keyboard(390,30);
     assert.ok(Math.abs(await evaluate('__panel.getBoundingClientRect().top')-currentTop-30)<2,'Compensate viewport pan once, not twice');
@@ -220,7 +220,7 @@ async function run() {
   await evaluate(button('My friends')+'.click()');
   await until("document.querySelector('[data-vaul-drawer] input')");
   await checkKeyboard('[data-vaul-drawer] input');
-  await evaluate('history.back()');
+  await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
   await until("!document.querySelector('[data-vaul-drawer]')");
   assert.equal(await evaluate('document.body.style.position'),'');
   assert.equal(await evaluate('document.body.style.overflow'),'');

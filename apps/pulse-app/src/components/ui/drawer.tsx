@@ -5,7 +5,7 @@ import { Drawer as DrawerPrimitive } from "vaul";
 import { useBackLayer } from "@/lib/navigation/useBackLayer";
 import { useDrawerViewport } from "./useDrawerViewport";
 
-export function Drawer({ historyBack = true, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root> & { historyBack?: boolean }) {
+export function Drawer({ historyBack = false, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root> & { historyBack?: boolean }) {
   useBackLayer(historyBack && Boolean(props.open), () => {
     if (props.dismissible === false) return false;
     props.onOpenChange?.(false);
@@ -15,6 +15,19 @@ export function Drawer({ historyBack = true, ...props }: React.ComponentProps<ty
 export const DrawerTrigger = DrawerPrimitive.Trigger;
 export const DrawerClose = DrawerPrimitive.Close;
 export const DrawerPortal = DrawerPrimitive.Portal;
+
+/** Fixed handle and fading shade that travel with the sheet from its first frame. */
+export function DrawerHandleOverlay() {
+  return (
+    <div aria-hidden="true" data-drawer-keyboard-hide className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-8 transform-gpu will-change-transform items-center justify-center [backface-visibility:hidden]">
+      <div
+        className="absolute inset-x-0 top-0 h-16"
+        style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.46) 15%, rgba(0,0,0,0.24) 35%, rgba(0,0,0,0.08) 60%, rgba(0,0,0,0.015) 80%, rgba(0,0,0,0) 92%, rgba(0,0,0,0) 100%)" }}
+      />
+      <div className="relative h-1.5 w-12 rounded-full bg-white/70 shadow-sm" />
+    </div>
+  );
+}
 
 export const DrawerOverlay = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Overlay>,

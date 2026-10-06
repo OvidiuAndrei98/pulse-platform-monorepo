@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Check, Search, X, Loader2 } from "lucide-react";
+import { ArrowUpRight, Check, Search, X, Loader2 } from "lucide-react";
 import { RequestError } from "@/components/ui/RequestFeedback";
 import { useTranslation } from "react-i18next";
 import type { PublicProfile } from "@/core/DataProvider";
@@ -11,6 +11,7 @@ import {
   DrawerContent,
   DrawerTitle,
   DrawerDescription,
+  DrawerHandleOverlay,
 } from "@/components/ui/drawer";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { SocialAvatar } from "./SocialAvatar";
@@ -53,7 +54,7 @@ export function FriendsSheet({
       className="flex min-w-0 flex-1 items-center gap-3"
     >
       <SocialAvatar profile={friend} size="h-11 w-11" />
-      <span className="min-w-0">
+      <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold">
           {friend.username}
         </span>
@@ -71,30 +72,31 @@ export function FriendsSheet({
       onOpenChange={onOpenChange}
       shouldScaleBackground={false}
       fixed
+      closeThreshold={0.35}
+      repositionInputs={false}
     >
-      <DrawerContent className="mx-auto h-[85dvh] max-h-[48rem] max-w-2xl border-white/10 bg-[#0b0b0c]">
-        <header data-drawer-keyboard-header className="flex shrink-0 items-start justify-between px-5 pb-4 pt-5">
+      <DrawerContent data-friends-sheet sideInset showHandle={false} lockDocument={false} className="mx-auto h-[90svh] max-w-xl rounded-t-4xl border-none bg-black p-0 touch-none">
+        <DrawerHandleOverlay />
+        <header data-drawer-keyboard-header className="shrink-0 px-5 pb-5 pt-9 text-left">
           <div>
-            <DrawerTitle className="text-left text-2xl font-semibold tracking-tight">
+            <DrawerTitle className="text-2xl! font-bold! tracking-[-0.035em] text-white">
               {t("friends.title")}
             </DrawerTitle>
-            <DrawerDescription className="text-left">
+            <DrawerDescription className="mt-2 text-xs text-white/55">
               {loading ? t("common.loading") : error ? "—" : t("friends.count", { count: friends.length })}
             </DrawerDescription>
           </div>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            aria-label={t("common.close")}
-            className="grid h-10 w-10 place-items-center rounded-full bg-white/5"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </header>
+        <label data-vaul-no-drag className="mx-5 mb-4 flex shrink-0 items-center gap-3 rounded-2xl bg-[#161616] px-4 focus-within:ring-1 focus-within:ring-primary/60">
+          <Search className="h-4 w-4 shrink-0 text-white/40" aria-hidden="true" />
+          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)}
+            placeholder={t("friends.searchPlaceholder")} aria-label={t("friends.searchPlaceholder")}
+            className="h-12 min-w-0 flex-1 bg-transparent text-base outline-none" />
+        </label>
         <div
           data-vaul-no-drag
           data-drawer-keyboard-scroll
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(2rem,env(safe-area-inset-bottom))]"
+          className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-5 pb-7"
         >
           {requestsLoading ? (
             <div className="mb-5 h-14 animate-pulse rounded-xl bg-white/5" />
@@ -107,7 +109,7 @@ export function FriendsSheet({
                 {requests.map((request) => (
                   <div
                     key={request.id}
-                    className="flex items-center gap-3 border-b border-white/[0.06] py-3"
+                    className="mb-2 flex items-center gap-2 rounded-2xl bg-[#141113] p-3"
                   >
                     {profile(request)}
                     <button
@@ -139,26 +141,16 @@ export function FriendsSheet({
               </section>
             )
           )}
-          <label className="mb-3 flex items-center gap-3 rounded-xl bg-white/5 px-4">
-            <Search className="h-4 w-4 shrink-0 text-white/40" />
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t("friends.searchPlaceholder")}
-              aria-label={t("friends.searchPlaceholder")}
-              className="h-12 min-w-0 flex-1 bg-transparent text-base outline-none"
-            />
-          </label>
           {loading ? (
             <div className="h-28 animate-pulse rounded-xl bg-white/5" />
           ) : error ? <RequestError onRetry={onRetry} /> : matches.length ? (
             matches.map((friend) => (
               <div
                 key={friend.id}
-                className="flex items-center border-b border-white/[0.06] py-4"
+                className="flex items-center gap-3 rounded-2xl px-2 py-3 transition-colors hover:bg-white/[0.04]"
               >
                 {profile(friend)}
+                <ArrowUpRight aria-hidden="true" className="pointer-events-none h-4 w-4 shrink-0 text-white/25" />
               </div>
             ))
           ) : (
@@ -169,9 +161,10 @@ export function FriendsSheet({
           <Link
             href="/users/me/friends"
             onClick={() => onOpenChange(false)}
-            className="mt-5 inline-flex min-h-11 items-center text-sm text-white/60 underline underline-offset-4"
+            className="mt-5 flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#161616] px-4 text-sm font-semibold text-white transition hover:bg-white/10"
           >
             {t("feed.manageFriends")}
+            <ArrowUpRight aria-hidden="true" className="h-4 w-4 text-primary" />
           </Link>
         </div>
       </DrawerContent>

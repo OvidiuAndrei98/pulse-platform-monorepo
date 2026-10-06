@@ -1,0 +1,15 @@
+.embedded { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 12px; overflow: hidden; }
+.viewport { position: relative; flex: 1; min-height: 0; overflow: hidden; border-radius: 24px; background: #141114; container-type: size; }
+.native { background: transparent; }
+.video { position: absolute; inset: 0; height: 100%; width: 100%; object-fit: cover; }
+.guide { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; container-type: size; }
+.frame { position: relative; width: min(72cqw, 72cqh, 280px); aspect-ratio: 1; border-radius: 24px; border: 2px solid rgb(255 0 68 / .75); box-shadow: 0 0 0 100vmax rgb(0 0 0 / .3); }
+.idle { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: min(12px, 3cqh); padding: min(20px, 5cqh); color: #a7a1a4; text-align: center; }
+.idle svg { width: clamp(16px, 12cqh, 38px); height: clamp(16px, 12cqh, 38px); flex-shrink: 0; color: var(--primary); }
+.hint { max-width: 260px; font-size: 12px; line-height: 1.5; }
+.action { display: flex; flex-shrink: 0; min-height: 44px; width: 100%; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; background: var(--primary); color: white; font-size: 14px; font-weight: 600; transition: opacity .15s, transform .15s; }
+.action:hover { opacity: .9; }
+.action:active { transform: scale(.98); }
+.action:disabled { opacity: .5; }
+.action:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.error { flex-shrink: 0; font-size: 12px; line-height: 1.5; color: #fca5a5; text-align: center; }

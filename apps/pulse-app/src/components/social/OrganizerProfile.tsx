@@ -10,7 +10,8 @@ import { ProfileActions } from "@/components/social/ProfileActions";
 import { EventBrowseCard } from "@/features/events/components/EventBrowseCard";
 import { EventCardSkeleton } from "@/components/ui/loading";
 import { RequestError } from "@/components/ui/RequestFeedback";
-import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHandleOverlay, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
+import { SocialAvatar } from "./SocialAvatar";
 
 export function OrganizerProfile({ profile, returnTo, upcomingEvents, pastEvents, eventsLoaded, eventsFailed, onProfileChange, onRetryEvents }: {
   profile: PublicProfile;
@@ -37,7 +38,7 @@ export function OrganizerProfile({ profile, returnTo, upcomingEvents, pastEvents
   };
 
   return (
-    <Drawer open={informationOpen} onOpenChange={setInformationOpen} shouldScaleBackground={false}>
+    <Drawer open={informationOpen} onOpenChange={setInformationOpen} shouldScaleBackground={false} fixed closeThreshold={0.35} repositionInputs={false}>
     <main data-organizer-profile className="min-h-screen bg-[#050505] pb-32 text-foreground">
       <header className="relative isolate flex min-h-[22rem] flex-col justify-between overflow-hidden md:min-h-[30rem]">
         {heroImage ? (
@@ -86,23 +87,25 @@ export function OrganizerProfile({ profile, returnTo, upcomingEvents, pastEvents
         </div>
       </div>
     </main>
-      <DrawerContent data-organizer-info sideInset className="mx-auto max-h-[85svh] max-w-xl rounded-t-4xl border-white/10 bg-black">
-      <DrawerHeader className="relative shrink-0 px-6 pb-5 pt-5 text-left">
-        <DrawerTitle className="pr-12 text-xl tracking-tight">{t("publicProfile.aboutOrganizer")}</DrawerTitle>
-        <DrawerDescription>@{profile.username}</DrawerDescription>
-        <DrawerClose aria-label={t("common.close")} className="absolute right-5 top-4 grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-primary">
-          <X className="h-4 w-4" />
-        </DrawerClose>
-      </DrawerHeader>
-      <div className="min-h-0 overflow-y-auto overscroll-y-contain px-6 pb-[max(2rem,env(safe-area-inset-bottom))]">
-        <div className="flex items-center gap-3 py-3">
-          {profile.avatarUrl && <img src={profile.avatarUrl} alt="" className="h-14 w-14 shrink-0 rounded-full border border-white/10 object-cover" />}
-          <h3 className="min-w-0 break-words text-xl font-semibold">{name}</h3>
-          {profile.organizerVerified && <BadgeCheck aria-label={t("publicProfile.verifiedOrganizer")} className="h-5 w-5 shrink-0 text-primary" />}
+      <DrawerContent data-organizer-info sideInset showHandle={false} lockDocument={false} className="mx-auto max-h-[90svh] max-w-xl rounded-t-4xl border-none bg-black p-0 touch-none">
+      <DrawerHandleOverlay />
+      <header className="shrink-0 px-5 pb-5 pt-9 text-left">
+        <DrawerTitle className="text-2xl! font-bold! tracking-[-0.035em] text-white">{t("publicProfile.aboutOrganizer")}</DrawerTitle>
+        <DrawerDescription className="mt-2 text-xs text-white/55">@{profile.username}</DrawerDescription>
+      </header>
+      <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-5 pb-7">
+        <div className="rounded-[26px] bg-[radial-gradient(ellipse_at_top,rgba(255,0,68,0.08),transparent_65%)] bg-[#110d0f] p-5">
+          <div className="flex items-center gap-3">
+            <SocialAvatar profile={profile} size="h-14 w-14" />
+            <h3 className="min-w-0 flex-1 break-words text-xl font-semibold tracking-tight">{name}</h3>
+            {profile.organizerVerified && <BadgeCheck aria-label={t("publicProfile.verifiedOrganizer")} className="h-5 w-5 shrink-0 text-primary" />}
+          </div>
+          <p className="mt-5 whitespace-pre-line break-words text-sm leading-7 text-white/60">{profile.bio || t("publicProfile.noBio")}</p>
         </div>
-        <p className="mb-6 mt-3 whitespace-pre-line break-words text-sm leading-7 text-muted-foreground">{profile.bio || t("publicProfile.noBio")}</p>
-        <OrganizerStats profile={profile} />
-        <p className="mt-5 text-sm text-muted-foreground"><span className="font-semibold tabular-nums text-foreground">{profile.eventCount}</span> {t("publicProfile.eventsShort")}</p>
+        <div className="mt-4 rounded-[26px] bg-[#141414] px-2 py-5 [&>dl]:border-0 [&>dl]:py-0">
+          <OrganizerStats profile={profile} />
+          <p className="mt-5 text-center text-xs text-white/50"><span className="font-semibold tabular-nums text-white">{profile.eventCount}</span> {t("publicProfile.eventsShort")}</p>
+        </div>
       </div>
     </DrawerContent>
     </Drawer>

@@ -180,6 +180,85 @@ async function run() {
       assert.equal(bounds.right, 12, 'Mobile sheet has a 12px right gutter');
     }
   };
+  if (process.argv.includes('--sheets-only')) {
+    await call('Page.addScriptToEvaluateOnNewDocument', {source:`
+      (() => {
+      const fallback=window.fetch;
+      window.__social={responses:[],hidden:[]};
+      const friend=id=>({id,username:id,bio:'Music and nights out',role:'user',relationship:'friend',friendCount:0,followerCount:0,eventCount:0});
+      let requests=[friend('Request One'),friend('Request Two')];
+      window.fetch=async(input,init)=>{
+        const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.origin),route=url.pathname.split('/api/v1')[1];
+        const reply=data=>new Response(JSON.stringify(data),{headers:{'Content-Type':'application/json'}});
+        if(route==='/friends') return reply(Array.from({length:30},(_,i)=>friend('Friend '+i)));
+        if(route==='/friends/requests') return reply(requests);
+        if(route?.startsWith('/friends/request/')) {window.__social.responses.push(JSON.parse(init.body).status);return reply({});}
+        if(route==='/users/me/hidden-categories') {
+          if(init?.method==='POST') window.__social.hidden.push(JSON.parse(init.body).category);
+          return reply(window.__social.hidden);
+        }
+        if(route?.startsWith('/users/me/hidden-categories/')) {window.__social.hidden=[];return reply({});}
+        return fallback(input,init);
+      };
+      })();
+    `});
+    const escape=async()=>{
+      await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+      await until("!document.querySelector('[data-vaul-drawer]')");
+    };
+    for(const [width,height] of [[320,568],[390,844],[1280,800]]) {
+      await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<768});
+      await navigate('/feed');
+      await until("Array.from(document.querySelectorAll('button')).some(b=>b.textContent.includes('My friends'))");
+      const historyBefore=await evaluate('history.length');
+      await evaluate("Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes('My friends')).click()");
+      await until("document.querySelector('[data-friends-sheet] input')");
+      await delay(500);
+      assert.equal(await evaluate('history.length'),historyBefore,'Friends does not add a Back entry');
+      assert.equal(await evaluate("document.querySelector('[data-friends-sheet] button[aria-label=Close]')"),null);
+      await until("document.querySelector('[data-friends-sheet] button[aria-label^=Accept]')");
+      await evaluate("document.querySelector('[data-friends-sheet] button[aria-label^=Accept]').click()");
+      await until("window.__social.responses.includes('accepted')");
+      await evaluate("document.querySelector('[data-friends-sheet] button[aria-label^=Decline]').click()");
+      await until("window.__social.responses.includes('declined')");
+      const header=await evaluate("document.querySelector('[data-friends-sheet] input').getBoundingClientRect().top");
+      await evaluate("document.querySelector('[data-friends-sheet] [data-drawer-keyboard-scroll]').scrollTop=500");
+      assert.equal(await evaluate("document.querySelector('[data-friends-sheet] input').getBoundingClientRect().top"),header,'Search stays fixed while friends scroll');
+      await evaluate(`(() => {const input=document.querySelector('[data-friends-sheet] input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'Friend 29');input.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+      await until("document.querySelectorAll('[data-friends-sheet] a[href^=\"/users/Friend\"]').length===1");
+      await escape();
+      assert.equal(await evaluate('location.pathname'),'/feed');
+      await navigate('/users/me');
+      await until("Array.from(document.querySelectorAll('button')).some(b=>b.textContent.includes('Event preferences'))");
+      const preferencesHistory=await evaluate('history.length');
+      await evaluate("Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes('Event preferences')).click()");
+      await until("document.querySelector('[data-preferences-sheet] button[aria-pressed=false]:not(:disabled)')");
+      await delay(500);
+      assert.equal(await evaluate('history.length'),preferencesHistory);
+      await evaluate("document.querySelector('[data-preferences-sheet] button[aria-pressed=false]').click()");
+      await until("window.__social.hidden.length===1 && document.querySelector('[data-preferences-sheet] button[aria-pressed=true]')");
+      await evaluate("document.querySelector('[data-preferences-sheet] button[aria-pressed=true]').click()");
+      await until('window.__social.hidden.length===0');
+      await escape();
+      await navigate('/profiles?userId=test-organizer');
+      await until(button('Info'));
+      const infoHistory=await evaluate('history.length');
+      await evaluate(button('Info')+'.click()');
+      await until("document.querySelector('[data-organizer-info]')");
+      await delay(500);
+      assert.equal(await evaluate('history.length'),infoHistory);
+      assert.equal(await evaluate("document.querySelector('[data-organizer-info] button[aria-label=Close]')"),null);
+      assert.equal(await evaluate("document.querySelector('[data-organizer-info] [data-organizer-stats]').textContent"),await evaluate("document.querySelector('main [data-organizer-stats]').textContent"));
+      const fits=await evaluate("(() => {const s=document.querySelector('[data-organizer-info]'),r=s.getBoundingClientRect();return r.top>=0 && r.bottom<=innerHeight+1 && s.scrollWidth<=s.clientWidth;})()");
+      assert.ok(fits,'Organizer sheet fits viewport');
+      if(process.env.ORGANIZER_SCREENSHOT && width===390) {const shot=await call('Page.captureScreenshot',{format:'png'});fs.writeFileSync(process.env.ORGANIZER_SCREENSHOT,Buffer.from(shot.data,'base64'));}
+      await escape();
+      console.log('PASS friends search/requests/scroll, preferences save, organizer Info and no extra Back entries at '+width+'x'+height);
+    }
+    assert.deepEqual(errors,[]);
+    assert.deepEqual(lifecycleWarnings,[]);
+    await send('Browser.close');await delay(500);return;
+  }
   for (const width of [320,390,1280]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: width < 768 });
     await navigate('/profiles?userId=test-organizer');
@@ -230,9 +309,9 @@ async function run() {
     await checkSheet('[data-organizer-info]', width);
     assert.equal(await evaluate("document.querySelector('[data-organizer-info] [data-organizer-stats]').textContent"), await evaluate("document.querySelector('main [data-organizer-stats]').textContent"));
     await delay(550);
-    await evaluate('history.back()');
+    await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
     await until("!document.querySelector('[data-organizer-info]')");
-    assert.ok(await evaluate("location.pathname === '/profiles' && document.querySelector('[data-organizer-profile]') !== null"), 'Back dismisses Info without leaving the organizer');
+    assert.ok(await evaluate("location.pathname === '/profiles' && document.querySelector('[data-organizer-profile]') !== null"), 'Escape dismisses Info without leaving the organizer');
     await checkVerticalScroll(width, 'After closing Info');
     await evaluate(`Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === 'Follow').click()`);
     await until("window.__organizer.follows === 1 && Array.from(document.querySelectorAll('button')).some(b => b.textContent.trim() === 'Following' && !b.disabled)");

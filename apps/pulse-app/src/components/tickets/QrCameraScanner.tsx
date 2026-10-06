@@ -13,8 +13,13 @@ import type { PluginListenerHandle } from "@capacitor/core";
 import { Camera, Loader2, ScanLine, Wifi, WifiOff, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { isNativePlatform } from "@/lib/native/platform";
+import { NativeCameraWindow } from "./NativeCameraWindow";
+import styles from "./qrCameraScanner.module.css";
 
 type QrCameraScannerProps = {
+  enabled?: boolean;
+  embedded?: boolean;
+  hint?: string;
   disabled?: boolean;
   onScan: (value: string) => void | Promise<void>;
   onStart?: () => void;
@@ -27,6 +32,9 @@ type QrCameraScannerProps = {
 };
 
 export function QrCameraScanner({
+  enabled = true,
+  embedded = false,
+  hint,
   disabled,
   onScan,
   onStart,
@@ -39,9 +47,13 @@ export function QrCameraScanner({
 }: QrCameraScannerProps) {
   const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const previewRef = useRef<HTMLDivElement | null>(null);
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
   const cameraAbortRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
   const startupRef = useRef<Promise<void> | null>(null);
+  const stoppingRef = useRef<Promise<void> | null>(null);
   const nativeListenerRef = useRef<PluginListenerHandle | null>(null);
   const hasScannedRef = useRef(false);
   const processingScanRef = useRef(false);
@@ -50,14 +62,16 @@ export function QrCameraScanner({
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
+  const [nativeActive, setNativeActive] = useState(false);
   const isNative = isNativePlatform();
 
   const setNativeScannerActive = (active: boolean) => {
     document.documentElement.classList.toggle("native-barcode-scanner-active", active);
     document.body.classList.toggle("barcode-scanner-active", active);
+    if (mountedRef.current) setNativeActive(active);
   };
 
-  const stopScanner = async () => {
+  const stopScannerImpl = async () => {
     cameraAbortRef.current?.abort();
     if (mountedRef.current) { setRunning(false); setStarting(false); }
     // Camera permission/import can resolve after the sheet closes. Wait for
@@ -76,8 +90,16 @@ export function QrCameraScanner({
     }
   };
 
+  const stopScanner = () => {
+    if (stoppingRef.current) return stoppingRef.current;
+    const task = stopScannerImpl();
+    stoppingRef.current = task;
+    void task.finally(() => { if (stoppingRef.current === task) stoppingRef.current = null; });
+    return task;
+  };
+
   const startScannerImpl = async () => {
-    if (disabled || starting || running) return;
+    if (!enabledRef.current || disabled || starting || running) return;
     setStarting(true);
     setError("");
     onStart?.();
@@ -182,7 +204,11 @@ export function QrCameraScanner({
   };
 
   const startScanner = () => {
-    if (startupRef.current || !mountedRef.current) return;
+    if (!enabledRef.current || startupRef.current || !mountedRef.current) return;
+    if (stoppingRef.current) {
+      void stoppingRef.current.then(() => { if (enabledRef.current && mountedRef.current) startScanner(); });
+      return;
+    }
     const task = startScannerImpl();
     startupRef.current = task;
     void task.finally(() => { if (startupRef.current === task) startupRef.current = null; });
@@ -195,6 +221,28 @@ export function QrCameraScanner({
     mountedRef.current = true;
     return () => { mountedRef.current = false; void stopScanner(); };
   }, []);
+  useEffect(() => {
+    if (!enabled) void stopScanner();
+  }, [enabled]);
+
+  if (embedded) {
+    return (
+      <div className={styles.embedded}>
+        {isNative && nativeActive && <NativeCameraWindow viewport={previewRef} />}
+        <div ref={previewRef} className={`${styles.viewport} ${isNative && nativeActive ? styles.native : ""}`}>
+          {!isNative && <video ref={videoRef} muted playsInline className={styles.video} />}
+          {starting || running ? <div aria-hidden="true" className={styles.guide}><div className={styles.frame} /></div> : (
+            <div className={styles.idle}><ScanLine aria-hidden="true" /><p className={styles.hint}>{hint ?? t("qr.cameraHint")}</p></div>
+          )}
+        </div>
+        <button type="button" onClick={() => running ? void stopScanner() : startScanner()} disabled={!enabled || disabled || starting} className={styles.action}>
+          {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : running ? <X className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
+          {starting ? t("qr.startingCamera") : running ? t("qr.stopCamera") : t("qr.scanQr")}
+        </button>
+        {error && <p role="alert" className={styles.error}>{error}</p>}
+      </div>
+    );
+  }
 
   const scannerOverlay = fullScreen && (starting || running) ? (
     <div className={`native-barcode-scanner-ui fixed inset-0 z-[200] text-white ${isNative ? "bg-transparent" : "bg-black"}`}>

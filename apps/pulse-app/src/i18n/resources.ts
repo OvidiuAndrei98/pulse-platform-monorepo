@@ -618,6 +618,7 @@ export const resources = {
         myCode: "My code",
         showOrScanOther: "Show your code or scan another person's code.",
         profileCode: "SPOTTR profile QR code",
+        profileCameraHint: "Point the camera at your friend's profile QR code.",
         cameraFailed:
           "The camera could not be started. Allow camera access and try again.",
         startingCamera: "Starting camera...",
@@ -957,6 +958,12 @@ export const resources = {
       },
       hiddenCategories: {
         title: "Hidden categories",
+        preferencesTitle: "Event preferences",
+        preferencesHint: "Personalize the events you see",
+        count_one: "{{count}} hidden category",
+        count_few: "{{count}} hidden categories",
+        count_other: "{{count}} hidden categories",
+        savedAutomatically: "Changes are saved automatically.",
         hint: "Events in the selected categories will no longer appear in recommendations or search.",
       },
       invitations: {
@@ -1072,6 +1079,9 @@ export const resources = {
       },
       tickets: {
         profile: "Profile",
+        yourEntrance: "Your entrance",
+        showAtDoor: "Show it at the door.",
+        autoBrightness: "Auto max brightness",
         title: "My tickets",
         upcoming: "Upcoming",
         history: "History",
@@ -2198,6 +2208,7 @@ export const resources = {
         myCode: "Codul meu",
         showOrScanOther: "Arata codul sau scaneaza codul altei persoane.",
         profileCode: "Cod QR profil SPOTTR",
+        profileCameraHint: "Îndreaptă camera spre codul QR de profil al prietenului tău.",
         cameraFailed:
           "Camera nu a putut fi pornita. Permite accesul la camera si incearca din nou.",
         startingCamera: "Se porneste camera...",
@@ -2545,6 +2556,12 @@ export const resources = {
       },
       hiddenCategories: {
         title: "Categorii ascunse",
+        preferencesTitle: "Preferințe evenimente",
+        preferencesHint: "Personalizează ce evenimente vezi",
+        count_one: "{{count}} categorie ascunsă",
+        count_few: "{{count}} categorii ascunse",
+        count_other: "{{count}} de categorii ascunse",
+        savedAutomatically: "Modificările se salvează automat.",
         hint: "Evenimentele din categoriile selectate nu vor mai aparea in recomandari sau cautare.",
       },
       invitations: {
@@ -2661,6 +2678,9 @@ export const resources = {
       },
       tickets: {
         profile: "Profil",
+        yourEntrance: "Accesul tău",
+        showAtDoor: "Arată-l la intrare.",
+        autoBrightness: "Luminozitate maximă automată",
         title: "Biletele mele",
         upcoming: "Urmeaza",
         history: "Istoric",

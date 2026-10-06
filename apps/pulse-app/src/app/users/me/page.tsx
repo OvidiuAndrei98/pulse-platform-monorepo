@@ -7,19 +7,20 @@ import { SavedEventCard } from "@/components/profile/SavedEventCard";
 import { useNavigationState } from "@/lib/navigation/useNavigationState";
 import { routeForPlatform } from "@/lib/native/navigation";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { Event } from "@/core/DataProvider";
 import { ApiClient, ApiError, ReadableSchema } from "@packages/api-client/src/Client";
 import { TicketPreview } from "@/components/tickets/TicketPreview";
+import { TicketStatusTabs } from "@/components/tickets/TicketStatusTabs";
 import { ProfileConnectionQr } from "@/components/social/ProfileConnectionQr";
 import { ProfileAvatarUpload } from "@/components/profile/ProfileAvatarUpload";
 import { PersonalDetailsForm } from "@/components/profile/PersonalDetailsForm";
 import { PasswordResetRequest } from "@/components/profile/PasswordResetRequest";
 import { LanguagePreferenceRow } from "@/components/profile/LanguagePreferenceRow";
 import { AttendancePrivacyRow } from "@/components/profile/AttendancePrivacyRow";
-import { HiddenEventCategories } from "@/components/profile/HiddenEventCategories";
+import { EventPreferencesRow, HiddenEventCategories } from "@/components/profile/HiddenEventCategories";
 import { DeleteAccountDialog } from "@/components/profile/DeleteAccountDialog";
 import {
   formatEventDate,
@@ -131,6 +132,13 @@ export default function MePage() {
     [],
   );
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [hiddenCategoryCount, setHiddenCategoryCount] = useState<number | null>(null);
+  const preferencesTrigger = useRef<HTMLButtonElement | null>(null);
+  const openPreferences = (trigger: HTMLButtonElement) => {
+    preferencesTrigger.current = trigger;
+    setPreferencesOpen(true);
+  };
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
 
@@ -288,8 +296,6 @@ export default function MePage() {
 
             {!isOrganizer && <ProfileConnectionQr />}
 
-            {!isOrganizer && <HiddenEventCategories />}
-
             {/* Securitatea pe Desktop */}
             <section className="hidden md:block">
               <h2 className="mb-3 text-lg font-semibold">
@@ -321,6 +327,7 @@ export default function MePage() {
                   </div>
                 </Row>
                 <LanguagePreferenceRow />
+                {!isOrganizer && <EventPreferencesRow hiddenCount={hiddenCategoryCount} onOpen={openPreferences} />}
                 <AttendancePrivacyRow />
                 <Row
                   icon={Trash2}
@@ -381,73 +388,7 @@ export default function MePage() {
                   {t("userProfile.ticketsOrders")}
                 </h2>
 
-                {/* TAB-URI CU ANIMAȚIE SLIDE & BADGE DE CONTRAST */}
-                <div className="relative flex rounded-full border border-white/10 bg-white/5 p-1 md:hidden">
-                  {/* TAB 1: ACTIVE */}
-                  <button
-                    type="button"
-                    onClick={() => setTab("active")}
-                    className={`relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors duration-200 z-10 ${
-                      tab === "active"
-                        ? "text-black"
-                        : "text-zinc-400 hover:text-white"
-                    }`}
-                  >
-                    {tab === "active" && (
-                      <motion.div
-                        layoutId="activeTabPill"
-                        className="absolute inset-0 rounded-full bg-primary"
-                        transition={{
-                          type: "spring",
-                          stiffness: 400,
-                          damping: 30,
-                        }}
-                      />
-                    )}
-                    <span className="relative z-10 flex items-center gap-1.5">
-                      <Ticket className="h-3.5 w-3.5" />
-                      {t("userProfile.active")}
-
-                      {/* Badge cu contrast dinamic */}
-                      <span
-                        className={`ml-1 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold transition-all duration-200 ${
-                          tab === "active"
-                            ? "bg-black/90 text-primary" // Fundal inchis pe pastila verde neon
-                            : "bg-primary/20 text-primary" // Fundal translucid cand tabul e inactiv
-                        }`}
-                      >
-                        {activeTickets.length}
-                      </span>
-                    </span>
-                  </button>
-
-                  {/* TAB 2: HISTORY */}
-                  <button
-                    type="button"
-                    onClick={() => setTab("history")}
-                    className={`relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors duration-200 z-10 ${
-                      tab === "history"
-                        ? "text-black"
-                        : "text-zinc-400 hover:text-white"
-                    }`}
-                  >
-                    {tab === "history" && (
-                      <motion.div
-                        layoutId="activeTabPill"
-                        className="absolute inset-0 rounded-full bg-primary"
-                        transition={{
-                          type: "spring",
-                          stiffness: 400,
-                          damping: 30,
-                        }}
-                      />
-                    )}
-                    <span className="relative z-10 flex items-center gap-1.5">
-                      <Receipt className="h-3.5 w-3.5" />
-                      {t("userProfile.history")}
-                    </span>
-                  </button>
-                </div>
+                <TicketStatusTabs value={tab} onChange={setTab} activeCount={activeTickets.length} />
               </div>
 
               {/* RENDER MOBIL */}
@@ -648,6 +589,7 @@ export default function MePage() {
                     </div>
                   </Row>
                   <LanguagePreferenceRow />
+                  {!isOrganizer && <EventPreferencesRow hiddenCount={hiddenCategoryCount} onOpen={openPreferences} />}
                   <AttendancePrivacyRow />
                   <Row
                     icon={Trash2}
@@ -698,6 +640,14 @@ export default function MePage() {
         <TicketPreview
           ticket={openTicket.source}
           onClose={() => setOpenTicket(null)}
+        />
+      )}
+      {!isOrganizer && (
+        <HiddenEventCategories
+          open={preferencesOpen}
+          onOpenChange={setPreferencesOpen}
+          onHiddenCountChange={setHiddenCategoryCount}
+          returnFocusRef={preferencesTrigger}
         />
       )}
       <DeleteAccountDialog

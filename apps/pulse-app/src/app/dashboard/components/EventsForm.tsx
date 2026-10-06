@@ -22,6 +22,7 @@ import { LineupSection } from "@/features/events/lineup/LineupSection";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 import { EventPublicationSection } from "@/features/events/form/EventPublicationSection";
+import { formatToDatetimeLocal } from "@/features/events/form/dateTimeValues";
 import {
   basicsFields,
   scheduleFields,
@@ -151,12 +152,6 @@ type EventFormProps = {
   onDelete?: () => void;
   readOnly?: boolean;
   onUseAsTemplate?: () => void;
-};
-
-const formatToDatetimeLocal = (value?: string) => {
-  if (!value) return "";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 16);
 };
 
 const formatToISO = (value: string) =>

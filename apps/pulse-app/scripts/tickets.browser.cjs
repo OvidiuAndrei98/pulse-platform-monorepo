@@ -9,6 +9,9 @@ const path = require("node:path");
 const { once } = require("node:events");
 
 const base = process.env.NAVIGATION_TEST_URL || "http://localhost:3100";
+const sheetOnly = process.argv.includes("--sheet-only");
+const passOnly = process.argv.includes("--pass-only");
+const connectionOnly = process.argv.includes("--connection-only");
 const chrome = process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), "pulse-tickets-"));
 const child = spawn(chrome, ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "about:blank"], { windowsHide: true, stdio: ["ignore", "ignore", "pipe"] });
@@ -119,7 +122,7 @@ async function run() {
       {...common, id:'used', eventId:'used-event', eventTitle:'Recent Night', startTime:'2021-10-01T18:00:00Z', endTime:'2021-10-02T04:00:00Z', isValidated:true, validationHash:'fixture-used'},
       {...common, id:'next-one', validationHash:'fixture-next-one'},
       {...common, id:'expired', eventId:'old-event', eventTitle:'Old Night', startTime:'2020-10-01T18:00:00Z', endTime:'2020-10-02T04:00:00Z', validationHash:'fixture-expired'},
-      {...common, id:'next-two', ticketTypeName:'VIP admission', validationHash:'fixture-next-two'}
+      {...common, id:'next-two', ticketTypeName:'VIP admission', validationHash:'0123456789abcdef'.repeat(4)}
     ];
     window.fetch = async (input, init) => {
       const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url, location.origin);
@@ -144,7 +147,7 @@ async function run() {
     HTMLAnchorElement.prototype.click = function() { if (this.download?.endsWith('.pdf')) { window.__pdf = {download:this.download,href:this.href}; return; } return anchorClick.call(this); };
   ` });
   const clickTab = async (text) => evaluate(`Array.from(document.querySelectorAll('main button')).find(b => b.textContent.trim().startsWith(${JSON.stringify(text)})).click()`);
-  for (const width of [390,1280]) {
+  for (const width of sheetOnly || connectionOnly ? [] : [390,1280]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: width < 768 });
     await navigate('/users/me/tickets');
     await until("document.querySelector('[data-ticket-event]')");
@@ -153,17 +156,44 @@ async function run() {
     assert.equal(await evaluate("document.querySelector('[data-featured]').dataset.ticketEvent"), '90');
     assert.equal(await evaluate('document.documentElement.scrollWidth > innerWidth'), false);
     await clickTab('Show QR');
-    await until("document.querySelector('[data-ticket-preview=next-one] img')");
-    const first = await evaluate("document.querySelector('[data-ticket-preview] img').src");
+    await until("document.querySelector('[data-ticket-preview=next-one] [data-ticket-qr]')");
+    const first = await evaluate("document.querySelector('[data-ticket-preview] [data-ticket-qr]').src");
     const historyLength = await evaluate('history.length');
     assert.ok(await evaluate("document.querySelector('button[aria-label=\"Previous ticket\"]').disabled"));
     await evaluate("document.querySelector('button[aria-label=\"Next ticket\"]').click()");
-    await until("document.querySelector('[data-ticket-preview=next-two] img')");
-    const second = await evaluate("document.querySelector('[data-ticket-preview] img').src");
+    await until("document.querySelector('[data-ticket-preview=next-two] [data-ticket-qr]')");
+    const second = await evaluate("document.querySelector('[data-ticket-preview] [data-ticket-qr]').src");
     assert.notEqual(first,second,'Each ticket renders its own QR');
     assert.equal(await evaluate('history.length'),historyLength,'Changing tickets does not add Back entries');
     assert.ok(await evaluate("document.querySelector('[data-ticket-preview]').textContent.includes('Ticket 2 of 2')"));
     assert.ok(await evaluate("document.querySelector('button[aria-label=\"Next ticket\"]').disabled"));
+    if (passOnly) {
+      await evaluate(fs.readFileSync(require.resolve('jsqr'),'utf8')+'; true');
+      for (const [fitWidth,fitHeight] of [[320,568],[390,667],[390,844],[844,390],[1280,800]]) {
+        await call('Emulation.setDeviceMetricsOverride',{width:fitWidth,height:fitHeight,deviceScaleFactor:1,mobile:fitWidth<768});
+        await delay(600);
+        await until("document.querySelector('[data-ticket-qr]')?.complete");
+        const fit = await evaluate(`(() => {
+          const preview=document.querySelector('[data-ticket-preview]'),pass=preview.querySelector('[data-ticket-pass]');
+          const bounds=pass.getBoundingClientRect(),viewport=pass.parentElement.getBoundingClientRect();
+          const image=pass.querySelector('[data-ticket-qr]'),qr=image.getBoundingClientRect();
+          const download=Array.from(preview.querySelectorAll('button')).find(b=>b.textContent.trim()==='Download PDF');
+          const canvas=document.createElement('canvas');canvas.width=canvas.height=Math.floor(qr.width);
+          const ctx=canvas.getContext('2d');ctx.drawImage(image,0,0,canvas.width,canvas.height);
+          const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
+          return {fits:preview.scrollHeight<=preview.clientHeight+1 && preview.scrollWidth<=preview.clientWidth+1 && bounds.top>=viewport.top-1 && bounds.bottom<=viewport.bottom+1,
+            bottomGap:preview.getBoundingClientRect().bottom-download.getBoundingClientRect().bottom,
+            qrWidth:qr.width,decoded:window.jsQR(pixels.data,pixels.width,pixels.height)?.data,
+            details:pass.textContent};
+        })()`);
+        assert.ok(fit.fits, `Ticket has no scroll or clipping at ${fitWidth}x${fitHeight}`);
+        assert.ok(Math.abs(fit.bottomGap-28)<1, 'PDF button stays 28px above the bottom');
+        assert.equal(fit.decoded,'0123456789abcdef'.repeat(4), `Rendered QR decodes at ${fitWidth}x${fitHeight} (${fit.qrWidth}px)`);
+        for (const text of ['Next Night','VIP admission','next-two','Test venue','01.10.2099']) assert.ok(fit.details.includes(text),text+' is preserved');
+      }
+      await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<768});
+      await delay(600);
+    }
     await evaluate(`${button('Download PDF')}.click()`);
     await until("window.__pdf?.download && window.__pdfBlob?.size > 1000");
     assert.ok(await evaluate("window.__pdf.download.includes('VIP-admission')"),'PDF follows the selected ticket');
@@ -177,7 +207,7 @@ async function run() {
       const shot = await call('Page.captureScreenshot',{format:'png'});
       fs.writeFileSync(process.env.TICKETS_SCREENSHOT.replace('.png','-pass.png'),Buffer.from(shot.data,'base64'));
     }
-    await evaluate('history.back()');
+    await call('Input.dispatchKeyEvent', {type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
     await until("!document.querySelector('[data-ticket-preview]')");
     assert.equal(await evaluate('location.pathname'),'/users/me/tickets');
     await clickTab('History');
@@ -186,13 +216,13 @@ async function run() {
     assert.equal(await evaluate("document.querySelectorAll('[data-ticket-id]').length"),1);
     await evaluate("document.querySelector('[data-ticket-id=used]').click()");
     await until("document.querySelector('[data-ticket-preview]')?.textContent.includes('already been used')");
-    await evaluate('history.back()');
+    await call('Input.dispatchKeyEvent', {type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
     await until("!document.querySelector('[data-ticket-preview]')");
     await clickTab('Expired');
     assert.equal(await evaluate("document.querySelector('[data-ticket-id]').dataset.ticketId"),'expired');
     await evaluate("document.querySelector('[data-ticket-id=expired]').click()");
     await until("document.querySelector('[data-ticket-preview]')?.textContent.includes('event has ended')");
-    await evaluate('history.back()');
+    await call('Input.dispatchKeyEvent', {type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
     await until("!document.querySelector('[data-ticket-preview]')");
     await clickTab('Upcoming');
     assert.equal(await evaluate('window.__api.calls'),1,'Switching filters and QR does not refetch');
@@ -202,28 +232,130 @@ async function run() {
       const shot = await call('Page.captureScreenshot',{format:'png'});
       fs.writeFileSync(process.env.TICKETS_SCREENSHOT, Buffer.from(shot.data,'base64'));
     }
-    console.log('PASS chronological tickets, featured event, QR paging, PDF, history filters and Back at ' + width + 'px');
+    console.log('PASS chronological tickets, featured event, QR paging, PDF, history filters and dismissal at ' + width + 'px');
   }
-  for (const height of [667,844]) {
-    await call('Emulation.setDeviceMetricsOverride', {width:390,height,deviceScaleFactor:1,mobile:true});
+  for (const height of passOnly ? [] : sheetOnly || connectionOnly ? [568,667,844] : [667,844]) {
+    await call('Emulation.setDeviceMetricsOverride', {width:height === 568 ? 320 : 390,height,deviceScaleFactor:1,mobile:true});
     await navigate('/users/me');
     await until("Array.from(document.querySelectorAll('button')).some(b => b.textContent.includes('General admission'))");
+    await evaluate(`(() => {
+      window.dispatchEvent(new Event('spottr:cancel-scroll-restore'));
+      const trigger=Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes('General admission'));
+      trigger.scrollIntoView({block:'center',behavior:'instant'});
+      window.__ticketSwitch=document.querySelector('[role=group][aria-label="My tickets and orders"]');
+    })()`);
+    await delay(300);
+    const scrollBefore = await evaluate('scrollY');
+    const indicator = () => evaluate(`(() => {
+      const control=window.__ticketSwitch.getBoundingClientRect();
+      const pill=window.__ticketSwitch.querySelector(':scope > span').getBoundingClientRect();
+      return {left:pill.left-control.left,top:pill.top-control.top,width:pill.width};
+    })()`);
+    const before = await indicator();
     await evaluate("Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('General admission')).click()");
-    await until("document.querySelector('[data-ticket-preview] img')");
+    await until("document.querySelector('[data-ticket-preview] [data-ticket-qr]')");
     await delay(500);
-    assert.ok(await evaluate("(() => {const r=document.querySelector('[data-ticket-preview]').closest('[role=dialog]').getBoundingClientRect();return r.top>=0 && r.bottom<=innerHeight+1 && r.height<=innerHeight*.75;})()"),'Profile ticket sheet fits viewport');
-    await evaluate('history.back()');
+    assert.ok(await evaluate("(() => {const r=document.querySelector('[data-ticket-preview]').closest('[role=dialog]').getBoundingClientRect();return r.top>=0 && Math.abs(r.bottom-innerHeight)<2 && Math.abs(r.height-innerHeight*.9)<2;})()"),'Profile ticket sheet uses the event sheet 90svh height');
+    assert.deepEqual(await indicator(), before, 'Opening a sheet keeps the indicator in its control');
+    const passFits = `(() => {
+      const preview=document.querySelector('[data-ticket-preview]');
+      const pass=preview.querySelector('[data-ticket-pass]');
+      const r=pass.getBoundingClientRect(),v=pass.parentElement.getBoundingClientRect();
+      const qr=pass.querySelector('[data-ticket-qr]').getBoundingClientRect();
+      return preview.scrollHeight<=preview.clientHeight+1 && preview.scrollWidth<=preview.clientWidth+1
+        && r.top>=v.top-1 && r.bottom<=v.bottom+1 && r.left>=v.left-1 && r.right<=v.right+1
+        && qr.width>=100 && Math.abs(qr.width-qr.height)<1;
+    })()`;
+    assert.ok(await evaluate(passFits), 'Whole ticket fits without scrolling and QR remains square');
+    assert.ok(await evaluate("document.querySelector('[data-ticket-pass] img[alt=SPOTTR]').naturalWidth>0"), 'The real logo loads');
+    if (process.env.TICKETS_SCREENSHOT) {
+      const shot=await call('Page.captureScreenshot',{format:'png'});
+      fs.writeFileSync(process.env.TICKETS_SCREENSHOT.replace('.png',`-${height}.png`),Buffer.from(shot.data,'base64'));
+    }
+    if (sheetOnly) {
+      await evaluate("document.querySelector('[data-ticket-pass] h2').textContent='A very long event title with multiple artists and special guests for the anniversary edition'; document.querySelector('[data-ticket-pass] a span').textContent='A long venue name · Strada Exemplului, number 123, Bucuresti'; true");
+      await delay(150);
+      assert.ok(await evaluate(passFits), 'Long event and venue names fit without clipping or scroll');
+    }
+    await call('Input.dispatchKeyEvent', {type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+    await delay(80);
+    assert.ok(await evaluate("Boolean(document.querySelector('[data-ticket-preview]'))"),'Dismissal preserves the ticket during the exit animation');
+    assert.deepEqual(await indicator(), before, 'Indicator stays put during dismissal');
     await until("!document.querySelector('[data-ticket-preview]') && getComputedStyle(document.body).pointerEvents !== 'none'");
+    assert.ok(Math.abs(await evaluate('scrollY')-scrollBefore)<2, 'Closing the ticket restores the same page scroll');
+    assert.deepEqual(await indicator(), before, 'Indicator stays put after dismissal');
+    if (sheetOnly) {
+      await call('Emulation.setTouchEmulationEnabled', {enabled:true,maxTouchPoints:1});
+      await evaluate("Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('General admission')).click()");
+      await until("document.querySelector('[data-ticket-preview] [data-ticket-qr]')");
+      await delay(500);
+      const top = await evaluate("document.querySelector('[data-ticket-preview]').closest('[role=dialog]').getBoundingClientRect().top");
+      const swipe = async (distance) => {
+        await call('Input.dispatchTouchEvent', {type:'touchStart',touchPoints:[{x:195,y:top+16}]});
+        for (let step=1;step<=10;step++) {
+          await call('Input.dispatchTouchEvent', {type:'touchMove',touchPoints:[{x:195,y:top+16+distance*step/10}]});
+          await delay(25);
+        }
+        await call('Input.dispatchTouchEvent', {type:'touchEnd',touchPoints:[]});
+      };
+      await swipe(15);
+      await delay(550);
+      assert.ok(await evaluate("Boolean(document.querySelector('[data-ticket-preview]'))"),'Short pull keeps the ticket open');
+      await swipe(height*.65);
+      await until("!document.querySelector('[data-ticket-preview]') && getComputedStyle(document.body).pointerEvents !== 'none'");
+      assert.ok(Math.abs(await evaluate('scrollY')-scrollBefore)<2, 'Drag dismissal preserves profile scroll');
+      await evaluate("Array.from(window.__ticketSwitch.querySelectorAll('button')).find(b=>b.textContent.includes('History')).click()");
+      await delay(250);
+      const historyIndicator = await indicator();
+      assert.ok(historyIndicator.left>before.left+before.width-2, 'History moves the pill to the second segment');
+      await navigate('/users/me/tickets');
+      await navigate('/users/me');
+      await evaluate('window.__ticketSwitch=document.querySelector(\'[role=group][aria-label="My tickets and orders"]\'); true');
+      await until("Array.from(window.__ticketSwitch.querySelectorAll('button')).some(b=>b.textContent.includes('History') && b.getAttribute('aria-pressed')==='true')");
+      assert.deepEqual(await indicator(), historyIndicator, 'Restored tab has its indicator in place');
+      await evaluate("Array.from(window.__ticketSwitch.querySelectorAll('button')).find(b=>b.textContent.includes('Active')).click()");
+      console.log('PASS ticket height, animated dismissal, short/full drag, scroll and tab indicator at '+height+'px');
+      continue;
+    }
     const openCode = async () => {await evaluate(`${button('My code')}.click()`);await until("document.querySelector('[role=dialog] img')");};
     await openCode();
+    await delay(550);
+    const connectionFits = `(() => {
+      const sheet=document.querySelector('[data-connection-sheet]');
+      return Array.from(sheet.querySelectorAll('div')).filter(el=>!el.closest('[aria-hidden=true]')).every(el=>el.scrollHeight<=el.clientHeight+1 && el.scrollWidth<=el.clientWidth+1);
+    })()`;
+    if (process.env.TICKETS_SCREENSHOT) {
+      const shot=await call('Page.captureScreenshot',{format:'png'});
+      fs.writeFileSync(process.env.TICKETS_SCREENSHOT.replace('.png',`-code-${height}.png`),Buffer.from(shot.data,'base64'));
+    }
+    assert.ok(await evaluate(connectionFits), 'My code fits without internal scrolling: '+JSON.stringify(await evaluate("Array.from(document.querySelector('[data-connection-sheet]').querySelectorAll('div')).filter(el=>el.scrollHeight>el.clientHeight+1 || el.scrollWidth>el.clientWidth+1).map(el=>({class:el.className,height:el.clientHeight,scroll:el.scrollHeight,width:el.clientWidth,scrollWidth:el.scrollWidth}))")));
+    const codeHeight = await evaluate("document.querySelector('[data-connection-sheet]').getBoundingClientRect().height");
     await evaluate("document.querySelector('[role=dialog] button[aria-pressed=false]').click()");
+    await delay(60);
+    const midHeight = await evaluate("document.querySelector('[data-connection-sheet]').getBoundingClientRect().height");
+    assert.ok(midHeight>codeHeight+1 && midHeight<height*.9-1, 'Height grows through intermediate positions');
+    await delay(350);
+    assert.ok(Math.abs(await evaluate("document.querySelector('[data-connection-sheet]').getBoundingClientRect().height")-height*.9)<2,'Scan QR fills the event sheet height');
     assert.equal(await evaluate("document.querySelectorAll('[role=dialog] img').length"),0,'Own QR is hidden while scanning');
     await evaluate("Array.from(document.querySelectorAll('[role=dialog] button')).find(b => b.textContent.trim()==='Scan QR' && !b.hasAttribute('aria-pressed')).click()");
     await until("window.__streams.some(s=>s.getTracks().some(t=>t.readyState==='live')) && document.querySelector('[role=dialog] video')");
     await delay(500);
+    assert.ok(await evaluate(connectionFits), 'Running camera fills its available space without scrolling');
     assert.ok(await evaluate("(() => {const r=document.querySelector('[role=dialog]').getBoundingClientRect();return r.top>=0 && r.bottom<=innerHeight+1;})()"),'Scanner sheet fits viewport');
     if (process.env.TICKETS_SCREENSHOT && height===667) {const shot=await call('Page.captureScreenshot',{format:'png'});fs.writeFileSync(process.env.TICKETS_SCREENSHOT.replace('.png','-scanner.png'),Buffer.from(shot.data,'base64'));}
-    await evaluate('history.back()');
+    if (connectionOnly) {
+      await evaluate("document.querySelector('[role=dialog] button[aria-pressed=false]').click()");
+      await delay(60);
+      const shrinking = await evaluate("document.querySelector('[data-connection-sheet]').getBoundingClientRect().height");
+      assert.ok(shrinking>codeHeight+1 && shrinking<height*.9-1, 'Returning to My code animates the height too');
+      await until("window.__streams.every(s=>s.getTracks().every(t=>t.readyState==='ended'))");
+      await delay(350);
+      assert.ok(await evaluate(connectionFits), 'My code stays within bounds after stopping camera');
+      await evaluate("document.querySelector('[role=dialog] button[aria-pressed=false]').click()");
+      await evaluate("Array.from(document.querySelectorAll('[role=dialog] button')).find(b=>b.textContent.trim()==='Scan QR' && !b.hasAttribute('aria-pressed')).click()");
+      await until("document.querySelector('[role=dialog] video')?.srcObject?.active");
+    }
+    await call('Input.dispatchKeyEvent', {type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
     await until("!document.querySelector('[role=dialog]') && window.__streams.every(s=>s.getTracks().every(t=>t.readyState==='ended')) && getComputedStyle(document.body).pointerEvents !== 'none'");
     // Decode an actual QR from a synthetic camera stream, not a mocked decoder.
     await openCode();
@@ -253,14 +385,15 @@ async function run() {
       await evaluate("Array.from(document.querySelectorAll('[role=dialog] button')).find(b => b.textContent.trim()==='Stop camera').click()");
       await until("window.__streams.every(s=>s.getTracks().every(t=>t.readyState==='ended'))");
     }
-    await evaluate('window.__qrStream=false; history.back()');
+    await evaluate('window.__qrStream=false');
+    await call('Input.dispatchKeyEvent', {type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
     await until("!document.querySelector('[role=dialog]') && getComputedStyle(document.body).pointerEvents !== 'none'");
     // Close while permission/startup is still outstanding: no late camera leak.
     await openCode();
     await evaluate("window.__cameraDelay=600; document.querySelector('[role=dialog] button[aria-pressed=false]').click()");
     await evaluate("Array.from(document.querySelectorAll('[role=dialog] button')).find(b => b.textContent.trim()==='Scan QR' && !b.hasAttribute('aria-pressed')).click()");
     await delay(120);
-    await evaluate('history.back()');
+    await call('Input.dispatchKeyEvent', {type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
     await delay(1500);
     await until("!document.querySelector('[role=dialog]') && window.__streams.every(s=>s.getTracks().every(t=>t.readyState==='ended')) && getComputedStyle(document.body).pointerEvents !== 'none'");
     await evaluate("window.dispatchEvent(new Event('spottr:cancel-scroll-restore')); document.querySelector('a[href=\"/users/me/tickets\"]').scrollIntoView({block:'center',behavior:'instant'})");
@@ -272,6 +405,40 @@ async function run() {
     await call('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x,y:point.y,button:'left',clickCount:1});
     await until("location.pathname==='/users/me/tickets'");
     console.log('PASS profile ticket bounds, real QR decode, exclusive scanner mode, camera cleanup and navigation at height '+height);
+  }
+  if (connectionOnly) {
+    await navigate('/users/me');
+    for (const [width, height] of [[667,375],[844,390],[1280,800]]) {
+      await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<768});
+      await delay(200);
+      await evaluate(`${button('My code')}.click()`);
+      await until("document.querySelector('[data-connection-sheet] img')");
+      await delay(500);
+      for (const mode of ['code','scan']) {
+        if (mode==='scan') {
+          await evaluate("document.querySelector('[data-connection-sheet] button[aria-pressed=false]').click()");
+          await delay(400);
+        }
+        const bounds=await evaluate(`(() => {
+          const sheet=document.querySelector('[data-connection-sheet]'), r=sheet.getBoundingClientRect();
+          return {fits:r.top>=0 && r.bottom<=innerHeight+1,
+            overflow:Array.from(sheet.querySelectorAll('div')).filter(el=>!el.closest('[aria-hidden=true]') && (el.scrollHeight>el.clientHeight+1 || el.scrollWidth>el.clientWidth+1)).map(el=>({class:el.className,h:el.clientHeight,sh:el.scrollHeight})),
+            qr:sheet.querySelector('img[alt="Profile QR code"]')?.getBoundingClientRect().width};
+        })()`);
+        assert.ok(bounds.fits,'Connection sheet fits '+width+'x'+height);
+        assert.deepEqual(bounds.overflow,[],'No internal overflow in '+mode+' at '+width+'x'+height);
+      }
+      await call('Input.dispatchKeyEvent', {type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+      await until("!document.querySelector('[data-connection-sheet]')");
+      console.log('PASS Quick connect portrait/landscape/desktop bounds at '+width+'x'+height);
+    }
+  }
+  if (sheetOnly || passOnly || connectionOnly) {
+    assert.deepEqual(errors, [], 'No uncaught runtime errors');
+    assert.deepEqual(lifecycleWarnings, [], 'No insertion-effect warnings');
+    await send('Browser.close');
+    await delay(500);
+    return;
   }
   await call('Page.addScriptToEvaluateOnNewDocument',{source:'window.__api.fail=true; window.__api.empty=true;'});
   await navigate('/users/me/tickets');

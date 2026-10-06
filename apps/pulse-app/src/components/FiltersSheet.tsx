@@ -1,6 +1,5 @@
 "use client";
 
-import { useBackLayer } from "@/lib/navigation/useBackLayer";
 import { useDrawerViewport } from "@/components/ui/useDrawerViewport";
 
 import { AnimatePresence, motion } from "framer-motion";
@@ -20,7 +19,6 @@ type FiltersSheetProps = {
 export function FiltersSheet({ value, onChange }: FiltersSheetProps = {}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  useBackLayer(open, () => setOpen(false));
   const [filters, setFilters] = useState<EventFilters>(
     value ?? defaultEventFilters,
   );
