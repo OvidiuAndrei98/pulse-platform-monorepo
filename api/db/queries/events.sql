@@ -100,6 +100,8 @@ WHERE (sqlc.arg(category)::VARCHAR = '' OR sqlc.arg(category) IS NULL OR e.categ
           AND e.was_published = TRUE
       )
   )
+  AND (sqlc.arg(search_pattern)::TEXT = '' OR
+      lower(e.title || ' ' || e.location_name || ' ' || e.city || ' ' || e.category || ' ' || e.id::text) LIKE sqlc.arg(search_pattern))
 ORDER BY e.start_time DESC, e.id ASC
 LIMIT sqlc.arg(req_limit) OFFSET sqlc.arg(req_offset);
 

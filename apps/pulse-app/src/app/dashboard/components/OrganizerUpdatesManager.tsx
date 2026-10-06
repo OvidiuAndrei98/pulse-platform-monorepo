@@ -1,10 +1,10 @@
 "use client";
 
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, useRef, useState } from "react";
 import { ImagePlus, LoaderCircle, Megaphone, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { OrganizerEventUpdate, User } from "@/core/DataProvider";
+import { User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
@@ -23,15 +23,13 @@ export function OrganizerUpdatesManager({
   const { user } = useDataProvider();
   const { updates, updatesLoading } = User.useEventUpdates(eventId);
   const { updates: organizerUpdates } = User.useOrganizerUpdates(user?.properties.id ?? "");
-  const [managedUpdates, setManagedUpdates] = useState<readonly OrganizerEventUpdate[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [caption, setCaption] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const publishingRef = useRef(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const canPublish = status === "published" && new Date(endTime).getTime() > Date.now();
   const activeCount = organizerUpdates.length;
-
-  useEffect(() => setManagedUpdates(updates), [updates]);
 
   const selectFile = (event: ChangeEvent<HTMLInputElement>) => {
     const nextFile = event.target.files?.[0] ?? null;
@@ -45,21 +43,24 @@ export function OrganizerUpdatesManager({
   };
 
   const publish = async () => {
-    if (!user || !file || !canPublish) return;
+    if (!user || !file || !canPublish || activeCount >= 3 || publishingRef.current) return;
+    publishingRef.current = true;
     setSubmitting(true);
     try {
       const uploaded = await user.uploadOrganizerUpdateImage(file);
-      const created = await user.createEventUpdate(eventId, {
+      await user.createEventUpdate(eventId, {
         imageUrl: uploaded.url,
         caption: caption.trim() || undefined,
       });
-      setManagedUpdates((current) => [created, ...current]);
+      // The service refreshes both event and organizer queries after publishing.
+      // Render that shared list instead of appending the same update locally.
       setCaption("");
       setFile(null);
       toast.success(t("organizerUpdates.published"));
     } catch {
       toast.error(t("organizerUpdates.publishFailed"));
     } finally {
+      publishingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -69,7 +70,6 @@ export function OrganizerUpdatesManager({
     setDeletingId(updateId);
     try {
       await user.deleteEventUpdate(eventId, updateId);
-      setManagedUpdates((current) => current.filter((update) => update.id !== updateId));
       toast.success(t("organizerUpdates.deleted"));
     } catch {
       toast.error(t("organizerUpdates.deleteFailed"));
@@ -125,9 +125,9 @@ export function OrganizerUpdatesManager({
 
       {updatesLoading ? (
         <div className="mt-4 grid grid-cols-3 gap-2">{[0, 1, 2].map((item) => <div key={item} className="h-24 animate-pulse bg-white/[0.05]" />)}</div>
-      ) : managedUpdates.length ? (
+      ) : updates.length ? (
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {managedUpdates.map((update) => (
+          {updates.map((update) => (
             <div key={update.id} className="relative h-28 overflow-hidden border border-white/10 bg-black">
               <img src={update.imageUrl} alt="" className="h-full w-full object-cover" />
               <div className="absolute inset-x-0 bottom-0 bg-black/75 p-2 text-[10px] text-white/80">{t("organizerUpdates.expires", { time: new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date(update.expiresAt)) })}</div>

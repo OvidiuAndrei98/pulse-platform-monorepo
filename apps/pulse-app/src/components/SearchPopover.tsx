@@ -7,12 +7,15 @@ import { sidePanelWidth } from "@/components/ui/sidePanel";
 import { useDrawerViewport } from "@/components/ui/useDrawerViewport";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Search, X, ArrowUpRight, BadgeCheck, UserRound } from "lucide-react";
+import { Search, X, ChevronLeft, ArrowUpRight, BadgeCheck, UserRound } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Event } from "@/core/DataProvider";
+import { Event, PublicEventsService } from "@/core/DataProvider";
+import { useDataProvider } from "@/core/DataProviderContext";
+import { useEventPages } from "@/features/events/useEventPages";
+import { InfiniteScrollTrigger } from "@/components/ui/InfiniteScrollTrigger";
 import {
   formatEventDateShort,
   formatEventTime,
@@ -48,6 +51,8 @@ export function SearchPopover({ events }: SearchPopoverProps) {
   const [searchError, setSearchError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const { user, loading: authLoading } = useDataProvider();
   const router = useRouter();
   const { t } = useTranslation();
 
@@ -64,6 +69,20 @@ export function SearchPopover({ events }: SearchPopoverProps) {
   }, [open]);
 
   const q = query.trim().toLowerCase();
+  const [eventQuery, setEventQuery] = useState("");
+  useEffect(() => {
+    if (!open) return;
+    if (resultsRef.current) resultsRef.current.scrollTop = 0;
+    const timer = window.setTimeout(() => setEventQuery(q), 180);
+    return () => window.clearTimeout(timer);
+  }, [open, q]);
+  const eventFilters = useMemo(() => ({ q: eventQuery, startsAfter: new Date().toISOString() }), [eventQuery]);
+  const eventResults = useEventPages<Event>(
+    open && eventQuery && eventQuery === q && !authLoading
+      ? JSON.stringify(["search", user?.properties.id ?? "guest", eventQuery, new Date().toDateString()]) : null,
+    page => PublicEventsService.getPublicEventsPage(eventFilters, page),
+  );
+  const eventsPending = Boolean(q) && (authLoading || eventQuery !== q || eventResults.pending);
 
   useEffect(() => {
     if (!open || q.length < 2) {
@@ -102,17 +121,6 @@ export function SearchPopover({ events }: SearchPopoverProps) {
     };
   }, [open, q, attempt]);
   const resultsPending = searching || (q.length >= 2 && profileQuery !== q);
-
-  const matchedEvents = useMemo(() => {
-    if (!q) return [];
-    return events?.filter(
-      (event) =>
-        event.title.toLowerCase().includes(q) ||
-        event.locationName.toLowerCase().includes(q) ||
-        event.category.toLowerCase().includes(q) ||
-        event.id.toLowerCase().includes(q),
-    );
-  }, [q, events]);
 
   const recommendedEvents = useMemo(() => {
     const now = Date.now();
@@ -168,20 +176,18 @@ export function SearchPopover({ events }: SearchPopoverProps) {
               aria-hidden
               className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_0%,rgba(255,0,68,0.12),transparent_38%)]"
             />
-            <header data-drawer-keyboard-header className="relative flex items-center justify-between border-white/[0.08] px-5 pt-[max(1.25rem,var(--native-safe-top))] md:px-8 md:pt-8">
-              <div>
-                <h2 className="mt-1 text-xl font-semibold tracking-tight">
-                  {t("search.open")}
-                </h2>
-              </div>
+            <header data-drawer-keyboard-header className="relative flex flex-col items-start gap-4 border-white/[0.08] px-5 pt-[max(1.25rem,var(--native-safe-top))] md:px-8 md:pt-8">
               <button
                 type="button"
-                aria-label={t("search.close")}
+                aria-label={t("common.back")}
                 onClick={() => setOpen(false)}
                 className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[0.05] transition hover:border-white/20 hover:bg-white/10 active:scale-95"
               >
-                <X className="h-5 w-5" />
+                <ChevronLeft className="h-5 w-5" />
               </button>
+              <h2 className="text-xl font-semibold tracking-tight">
+                {t("search.open")}
+              </h2>
             </header>
 
             <div className="relative px-5 pt-3 md:px-8 ">
@@ -190,10 +196,11 @@ export function SearchPopover({ events }: SearchPopoverProps) {
                 <input
                   ref={inputRef}
                   type="search"
+                  maxLength={120}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder={t("search.placeholder")}
-                  className="h-full min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-muted-foreground"
+                  className="h-full min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden"
                 />
                 {query && (
                   <button
@@ -208,7 +215,7 @@ export function SearchPopover({ events }: SearchPopoverProps) {
               </div>
             </div>
 
-            <div data-drawer-keyboard-scroll className="relative min-h-0 flex-1 overflow-y-auto px-3 pb-[max(2rem,var(--native-safe-bottom))] pt-3 md:px-6">
+            <div ref={resultsRef} data-drawer-keyboard-scroll className="relative min-h-0 flex-1 overflow-y-auto px-3 pb-[max(2rem,var(--native-safe-bottom))] pt-3 md:px-6">
               {!q ? (
                 <Section
                   title={t("search.recommended")}
@@ -228,18 +235,23 @@ export function SearchPopover({ events }: SearchPopoverProps) {
               ) : (
                 <Section
                   title={t("search.events")}
-                  count={matchedEvents?.length ?? 0}
+                  count={eventsPending || eventResults.hasMore || eventResults.error ? undefined : eventResults.items.length}
                 >
-                  {matchedEvents?.map((event) => (
+                  {eventsPending ? <RequestProgress label={t("feedback.searching")} className="px-3 py-5" /> : eventResults.items.map((event) => (
                     <RecommendationRow
                       key={event.id}
                       event={event}
                       onClick={() => navigate(`/events/${event.id}`)}
                     />
                   ))}
-                  {matchedEvents?.length === 0 && (
+                  {!eventsPending && Boolean(eventResults.error) && <RequestError onRetry={eventResults.retry} />}
+                  {!eventsPending && !eventResults.error && eventResults.items.length === 0 && (
                     <Empty>{t("search.noEvents")}</Empty>
                   )}
+                  {!eventsPending && eventResults.refreshing && <RequestProgress label={t("feedback.searching")} className="px-3 py-5" />}
+                  <InfiniteScrollTrigger root={resultsRef}
+                    enabled={open && !eventsPending && !eventResults.refreshing && !eventResults.error && eventResults.hasMore}
+                    onVisible={eventResults.loadMore} />
                 </Section>
               )}
               {q.length >= 2 && (

@@ -4208,6 +4208,7 @@ export interface operations {
     EventOperations_listEvents: {
         parameters: {
             query?: {
+                q?: string;
                 category?: string;
                 city?: string;
                 vibe?: string;

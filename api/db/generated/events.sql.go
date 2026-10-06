@@ -891,25 +891,28 @@ WHERE ($2::VARCHAR = '' OR $2 IS NULL OR e.category = ANY(string_to_array($2::VA
           AND e.was_published = TRUE
       )
   )
+  AND ($13::TEXT = '' OR
+      lower(e.title || ' ' || e.location_name || ' ' || e.city || ' ' || e.category || ' ' || e.id::text) LIKE $13)
 ORDER BY e.start_time DESC, e.id ASC
-LIMIT $14 OFFSET $13
+LIMIT $15 OFFSET $14
 `
 
 type ListEventsParams struct {
-	UserID       pgtype.UUID        `json:"user_id"`
-	Category     string             `json:"category"`
-	City         string             `json:"city"`
-	Vibe         string             `json:"vibe"`
-	StartsAfter  pgtype.Timestamptz `json:"starts_after"`
-	StartsBefore pgtype.Timestamptz `json:"starts_before"`
-	LatMin       pgtype.Float8      `json:"lat_min"`
-	LatMax       pgtype.Float8      `json:"lat_max"`
-	LonMin       pgtype.Float8      `json:"lon_min"`
-	LonMax       pgtype.Float8      `json:"lon_max"`
-	EventID      pgtype.UUID        `json:"event_id"`
-	OrganizerID  pgtype.UUID        `json:"organizer_id"`
-	ReqOffset    int32              `json:"req_offset"`
-	ReqLimit     int32              `json:"req_limit"`
+	UserID        pgtype.UUID        `json:"user_id"`
+	Category      string             `json:"category"`
+	City          string             `json:"city"`
+	Vibe          string             `json:"vibe"`
+	StartsAfter   pgtype.Timestamptz `json:"starts_after"`
+	StartsBefore  pgtype.Timestamptz `json:"starts_before"`
+	LatMin        pgtype.Float8      `json:"lat_min"`
+	LatMax        pgtype.Float8      `json:"lat_max"`
+	LonMin        pgtype.Float8      `json:"lon_min"`
+	LonMax        pgtype.Float8      `json:"lon_max"`
+	EventID       pgtype.UUID        `json:"event_id"`
+	OrganizerID   pgtype.UUID        `json:"organizer_id"`
+	SearchPattern string             `json:"search_pattern"`
+	ReqOffset     int32              `json:"req_offset"`
+	ReqLimit      int32              `json:"req_limit"`
 }
 
 type ListEventsRow struct {
@@ -954,6 +957,7 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 		arg.LonMax,
 		arg.EventID,
 		arg.OrganizerID,
+		arg.SearchPattern,
 		arg.ReqOffset,
 		arg.ReqLimit,
 	)

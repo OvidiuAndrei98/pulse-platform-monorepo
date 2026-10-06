@@ -1,6 +1,8 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
+import { useEventPages } from "@/features/events/useEventPages";
+import { InfiniteScrollTrigger } from "@/components/ui/InfiniteScrollTrigger";
 import { useCachedClientQuery } from "@/lib/useCachedClientQuery";
 import { useDataProvider } from "@/core/DataProviderContext";
 import dynamic from "next/dynamic";
@@ -73,6 +75,7 @@ function EventsPageContent() {
   const { t } = useTranslation();
   const { filters, setFilters, view, setView, ready } = useDiscoveryState();
   const { user, loading: authLoading } = useDataProvider();
+  const listRef = useRef<HTMLDivElement>(null);
   const [promotionSeed] = useState(
     () => `${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
@@ -98,19 +101,24 @@ function EventsPageContent() {
   // Filters still reset on tab re-entry; only matching results are reused.
   const discoveryKey = JSON.stringify(["discovery", user?.properties.id ?? "guest", filters.date,
     filters.city, [...filters.categories].sort(), [...filters.vibes].sort(), new Date().toDateString()]);
-  const discovery = useCachedClientQuery(
-    ready && !authLoading ? discoveryKey : null,
+  const mapDiscovery = useCachedClientQuery(
+    view === "map" && ready && !authLoading ? discoveryKey : null,
     () => PublicEventsService.getPublicEvents(eventQuery), [] as Event[],
+  );
+  const listDiscovery = useEventPages<Event>(
+    view === "list" && ready && !authLoading ? discoveryKey : null,
+    page => PublicEventsService.getPublicEventsPage(eventQuery, page),
   );
   const promotionQuery = useCachedClientQuery(
     !authLoading ? `promotions:${user?.properties.id ?? "guest"}` : null,
     () => PublicEventsService.getPromotedEvents(), [] as PromotedEvent[],
   );
-  const events = discovery.data;
+  const events = view === "list" ? listDiscovery.items : mapDiscovery.data;
   const promotions = promotionQuery.data;
-  const eventsLoading = !ready || authLoading || discovery.pending;
-  const eventsError = Boolean(discovery.error);
-  const retry = discovery.retry;
+  const eventsLoading = !ready || authLoading || (view === "list" ? listDiscovery.pending : mapDiscovery.pending);
+  const requestError = view === "list" ? listDiscovery.error : mapDiscovery.error || mapDiscovery.refreshError;
+  const eventsError = Boolean(requestError) && events.length === 0;
+  const retry = view === "list" ? listDiscovery.retry : mapDiscovery.retry;
 
   const feedPromotions = useMemo(
     () => promotions.filter((campaign) => campaign.placement === "feed"),
@@ -158,9 +166,9 @@ function EventsPageContent() {
 
         {view === "list" ? (
           <>
-            <div data-nav-scroll="events-list" className="mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+            <div ref={listRef} data-nav-scroll="events-list" className="mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
               <div className="app-page-gutter mx-auto w-full max-w-7xl pb-28">
-                {(eventsError || Boolean(discovery.refreshError)) && <RequestError onRetry={retry} className="mb-5" />}
+                {eventsError && <RequestError onRetry={retry} className="mb-5" />}
                 <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-4 lg:grid-cols-3">
                   {eventsLoading
                     ? Array.from({ length: 6 }, (_, index) => (
@@ -178,6 +186,11 @@ function EventsPageContent() {
                         />
                       ))}
                 </div>
+                {!eventsLoading && Boolean(requestError) && !eventsError && <RequestError onRetry={retry} className="mt-5" />}
+                {!eventsLoading && listDiscovery.refreshing && <RequestProgress label={t("feedback.updatingEvents")} className="py-5" />}
+                <InfiniteScrollTrigger root={listRef}
+                  enabled={!eventsLoading && !requestError && !listDiscovery.refreshing && listDiscovery.hasMore}
+                  onVisible={listDiscovery.loadMore} />
                 {!eventsLoading && !eventsError && !displayedEvents.length && (
                   <div className="mx-auto mt-12 max-w-md border border-dashed border-white/15 px-5 py-10 text-center">
                     <p className="text-sm font-medium">{t("events.noMatch")}</p>

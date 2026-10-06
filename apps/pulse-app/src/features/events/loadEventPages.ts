@@ -1,4 +1,4 @@
-/** Discovery and local search need the complete filtered dataset, not page one. */
+/** Maps and overview sections still need the complete filtered dataset. */
 export async function loadEventPages<T extends { id: string }>(
   loadPage: (page: number) => Promise<readonly T[] | null>,
   pageSize: number,

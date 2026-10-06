@@ -1109,6 +1109,7 @@ interface EventOperations {
   @summary("Listă completă de evenimente publice (suportă filtrare după categorie, isLive, geolocație pentru hartă și ID specific)")
   @get
   listEvents(
+    @maxLength(120) @query q?: string,
     @query category?: string,
     @query city?: string,
     @query vibe?: string,

@@ -14,6 +14,7 @@ import {
 } from "@/lib/clientQueryCache";
 import { useCachedClientQuery } from "@/lib/useCachedClientQuery";
 import { loadEventPages } from "@/features/events/loadEventPages";
+import type { EventPageSet } from "@/features/events/eventPages";
 
 type UserFields = ReadableSchema<"CurrentUser">;
 export type UserData = UserFields;
@@ -495,6 +496,11 @@ export class User {
   }
 
   private updateCachedEventFavorite(eventId: string, favorite: boolean) {
+    updateClientQueries<EventPageSet<Event>>(
+      key => key.startsWith("event-pages:"),
+      data => ({ ...data, items: data.items.map(event => event.id === eventId
+        ? { ...event, stats: { ...event.stats, isFavorited: favorite } } : event) }),
+    );
     updateClientQueries<Event[]>(
       (key) =>
         key.startsWith("events:") ||
@@ -919,6 +925,12 @@ export class User {
 
 
 export class PublicEventsService {
+  static async getPublicEventsPage(filters: {
+    q?: string; category?: string; city?: string; vibe?: string; organizerId?: string;
+    startsAfter?: string; startsBefore?: string;
+  } = {}, page = 1): Promise<Event[]> {
+    return (await ApiClient.instance.get("/events", { params: { query: { ...filters, page } } })) ?? [];
+  }
   static async getPromotedEvents(): Promise<PromotedEvent[]> {
     const promotions: PromotedEvent[] = await ApiClient.instance.get("/promotions/active");
     return promotions.map((promotion) => ({

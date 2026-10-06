@@ -749,6 +749,11 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 	category := r.URL.Query().Get("category")
 	city := r.URL.Query().Get("city")
 	vibe := r.URL.Query().Get("vibe")
+	searchPattern, searchErr := eventSearchPattern(r.URL.Query().Get("q"))
+	if searchErr != nil {
+		router.RespondWithError(w, http.StatusBadRequest, "Cautarea poate avea cel mult 120 de caractere")
+		return
+	}
 	startsAfter, startsAfterErr := parseOptionalEventTime(r.URL.Query().Get("startsAfter"))
 	startsBefore, startsBeforeErr := parseOptionalEventTime(r.URL.Query().Get("startsBefore"))
 	if startsAfterErr != nil || startsBeforeErr != nil {
@@ -771,24 +776,26 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 	lonMaxStr := r.URL.Query().Get("lonMax")
 
 	// Paginare implicită
-	page := int32(0)
-	if val, err := strconv.Atoi(pageStr); err == nil && val > 1 {
-		page = int32(val) - 1
-	}
 	pageSize := int32(20)
 	if organizerID.Valid {
 		pageSize = 100
 	}
+	offset, pageErr := eventPageOffset(pageStr, pageSize)
+	if pageErr != nil {
+		router.RespondWithError(w, http.StatusBadRequest, "Pagina invalida")
+		return
+	}
 
 	params := db.ListEventsParams{
-		Category:     category,
-		City:         city,
-		Vibe:         vibe,
-		StartsAfter:  startsAfter,
-		StartsBefore: startsBefore,
-		ReqLimit:     pageSize,
-		ReqOffset:    page * pageSize,
-		OrganizerID:  organizerID,
+		Category:      category,
+		City:          city,
+		Vibe:          vibe,
+		SearchPattern: searchPattern,
+		StartsAfter:   startsAfter,
+		StartsBefore:  startsBefore,
+		ReqLimit:      pageSize,
+		ReqOffset:     offset,
+		OrganizerID:   organizerID,
 	}
 
 	// Setăm valoarea pentru starea Check-In a utilizatorului curent

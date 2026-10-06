@@ -1913,6 +1913,16 @@
         "summary": "Listă completă de evenimente publice (suportă filtrare după categorie, isLive, geolocație pentru hartă și ID specific)",
         "parameters": [
           {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "explode": false
+          },
+          {
             "name": "category",
             "in": "query",
             "required": false,
