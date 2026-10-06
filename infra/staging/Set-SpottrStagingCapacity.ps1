@@ -106,9 +106,9 @@ function Set-AutoStopSchedule {
     $stopAtUtc = [DateTime]::UtcNow.AddHours($AutoStopAfterHours)
     $scheduleExpression = "at($($stopAtUtc.ToString('yyyy-MM-ddTHH:mm:ss')))"
     $ecsInput = @{
-        cluster = $ClusterName
-        service = $ServiceName
-        desiredCount = 0
+        Cluster = $ClusterName
+        Service = $ServiceName
+        DesiredCount = 0
     } | ConvertTo-Json -Compress
 
     $request = @{
