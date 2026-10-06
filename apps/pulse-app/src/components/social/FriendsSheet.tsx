@@ -94,7 +94,6 @@ export function FriendsSheet({
             className="h-12 min-w-0 flex-1 bg-transparent text-base outline-none" />
         </label>
         <div
-          data-vaul-no-drag
           data-drawer-keyboard-scroll
           className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-5 pb-7"
         >

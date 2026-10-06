@@ -18,6 +18,7 @@ export function BottomNavGate() {
   const pathname = usePathname();
 
   if (pathname === "/login" || pathname === "/register") return null;
+  if (/^\/events\/[^/]+\/?$/.test(pathname ?? "")) return null;
 
   return <BottomNav />;
 }

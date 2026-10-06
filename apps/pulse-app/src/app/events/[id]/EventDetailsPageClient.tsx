@@ -448,7 +448,7 @@ export default function EventStandalonePage() {
           </aside>
         </div>
       </div>
-      <TicketCheckoutDrawer event={event} quantities={quantities} onQuantitiesChange={setQuantities} open={checkoutOpen} onEventRefresh={setRefreshedEvent} onClose={() => setCheckoutOpen(false)} />
+      <TicketCheckoutDrawer event={event} quantities={quantities} onQuantitiesChange={setQuantities} open={checkoutOpen} preservePageScroll onEventRefresh={setRefreshedEvent} onClose={() => setCheckoutOpen(false)} />
     </main>
   );
 }
