@@ -517,6 +517,7 @@ run()
     }
     // The only recursive removal is the dedicated profile created by this test.
     const resolved = path.resolve(profile);
+
     if (
       path.dirname(resolved) === path.resolve(os.tmpdir()) &&
       path.basename(resolved).startsWith("pulse-layout-")
