@@ -128,12 +128,20 @@ sandbox secrets have been configured.
 ./infra/staging/Invoke-SpottrStagingTask.ps1 -Mode Migrate
 ```
 
-Start staging for a test session and stop it afterwards:
+Start staging for a test session, inspect it, and stop it afterwards:
 
 ```powershell
-./infra/staging/Set-SpottrStagingCapacity.ps1 -DesiredCount 1
-./infra/staging/Set-SpottrStagingCapacity.ps1 -DesiredCount 0
+task staging:start
+task staging:status
+task staging:stop
 ```
+
+Every successful `staging:start` refreshes a one-time EventBridge Scheduler
+action that scales the staging API to zero after four hours. The stop action is
+created before ECS is started, so a scheduling failure leaves staging off. A
+manually issued `staging:stop` also removes the stale schedule. Scheduler
+failures are retried and sent to an encrypted SQS dead-letter queue; the
+approximate queued-message count is shown by `staging:status`.
 
 ## Routine deployments
 
@@ -161,7 +169,8 @@ It runs the Go tests, builds a `staging-<git-sha>` image, pushes it to ECR,
 resolves its immutable digest, updates only the `spottr-staging-api` stack, and
 then explicitly scales `pulse-api-staging-service` to zero even if
 CloudFormation had an empty changeset. Goose runs only after ECS reports zero
-desired, running, and pending tasks. The script then starts one task, verifies
+desired, running, and pending tasks. The script then starts one task with a
+four-hour automatic stop, verifies
 that task uses the task definition produced by the stack, checks the staging
 health endpoint, and records the verified commit and image digest in SSM at
 `/spottr/deployments/staging/verified-commit`. Production accepts only that

@@ -152,6 +152,45 @@ Resources:
       LogGroupName: /ecs/pulse-api-staging
       RetentionInDays: 14
 
+  StagingAutoStopDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: pulse-staging-auto-stop-dlq
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      Tags:
+        - Key: Project
+          Value: Spottr
+        - Key: Environment
+          Value: staging
+
+  StagingAutoStopSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: pulse-staging-auto-stop-scheduler-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+                aws:SourceArn: !Sub arn:${AWS::Partition}:scheduler:${AWS::Region}:${AWS::AccountId}:schedule-group/default
+      Policies:
+        - PolicyName: stop-staging-api
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ecs:UpdateService
+                Resource: !Sub arn:${AWS::Partition}:ecs:${AWS::Region}:${AWS::AccountId}:service/${EcsClusterName}/pulse-api-staging-service
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt StagingAutoStopDeadLetterQueue.Arn
+
   StagingExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -495,3 +534,9 @@ Outputs:
     Value: !Ref StagingMediaBucket
   TargetGroupArn:
     Value: !Ref StagingTargetGroup
+  AutoStopSchedulerRoleArn:
+    Value: !GetAtt StagingAutoStopSchedulerRole.Arn
+  AutoStopDeadLetterQueueArn:
+    Value: !GetAtt StagingAutoStopDeadLetterQueue.Arn
+  AutoStopDeadLetterQueueUrl:
+    Value: !Ref StagingAutoStopDeadLetterQueue

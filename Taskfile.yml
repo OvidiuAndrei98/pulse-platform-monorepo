@@ -77,6 +77,24 @@ tasks:
     cmds:
       - powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./infra/staging/Deploy-SpottrStagingApi.ps1
 
+  staging:start:
+    desc: "Porneste API-ul de staging si programeaza oprirea automata peste 4 ore"
+    platforms: [windows]
+    cmds:
+      - powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./infra/staging/Set-SpottrStagingCapacity.ps1 -DesiredCount 1
+
+  staging:stop:
+    desc: "Opreste API-ul de staging si elimina programarea de auto-stop"
+    platforms: [windows]
+    cmds:
+      - powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./infra/staging/Set-SpottrStagingCapacity.ps1 -DesiredCount 0
+
+  staging:status:
+    desc: "Afiseaza taskurile, health-ul si auto-stop-ul API-ului de staging"
+    platforms: [windows]
+    cmds:
+      - powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./infra/staging/Get-SpottrStagingStatus.ps1
+
   deploy:production:
     desc: "Promoveaza in productie exact imaginea API verificata in staging"
     platforms: [windows]
