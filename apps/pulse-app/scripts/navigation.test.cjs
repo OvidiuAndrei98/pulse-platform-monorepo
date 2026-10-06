@@ -284,6 +284,23 @@ test("Android system Back returns root tabs to Home, then minimizes, while detai
   cleanup();
 });
 
+test("Android Back from login avoids protected history while retaining public return destinations", () => {
+  for (const previous of ["/dashboard", "/dashboard/profile", "/users/me", "/login", "/events"]) {
+    let back;
+    const b = browser(previous, {
+      "@capacitor/core": { Capacitor: { getPlatform: () => "android" } },
+      "@capacitor/app": { App: {
+        addListener: (_, callback) => { back = callback; return Promise.resolve({ remove() {} }); },
+      } },
+    });
+    b.history.pushState({ __spottrNavigation: { id: "login", previous } }, "", "/login");
+    const cleanup = b.mount(b.load("components/ClientNavigation.tsx").ClientNavigation);
+    back();
+    assert.equal(b.location.pathname, previous === "/events" ? "/events" : "/", previous);
+    cleanup();
+  }
+});
+
 test("Android Back closes an event opened directly without leaving the app", () => {
   let back;
   const b = browser("/events?eventId=123", {

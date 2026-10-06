@@ -1,5 +1,7 @@
 "use client";
 
+import { checkoutRequestKey } from "./requestKey";
+
 import { sidePanelWidth } from "@/components/ui/sidePanel";
 import {
   revealDrawerField,
@@ -80,6 +82,7 @@ export function TicketCheckoutDrawer({
   onClose,
   onEventRefresh,
   historyBack = true,
+  preservePageScroll = false,
   onBusyChange,
 }: {
   event: Event;
@@ -89,6 +92,7 @@ export function TicketCheckoutDrawer({
   onClose: () => void;
   onEventRefresh?: (event: Event) => void;
   historyBack?: boolean;
+  preservePageScroll?: boolean;
   onBusyChange?: (busy: boolean) => void;
 }) {
   const { t, i18n } = useTranslation();
@@ -103,7 +107,7 @@ export function TicketCheckoutDrawer({
   const [furthestStep, setFurthestStep] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [nativeSwipeEnabled, setNativeSwipeEnabled] = useState(false);
-  const panelRef = useDrawerViewport(open && mounted, "panel");
+  const panelRef = useDrawerViewport(open && mounted, "panel", true, preservePageScroll);
   const swipeX = useMotionValue(0);
   const swipeBackdropOpacity = useMotionValue(1);
   const edgeSwipe = useRef<{
@@ -121,6 +125,7 @@ export function TicketCheckoutDrawer({
   const scrollRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const submittingRef = useRef(false);
+  const checkoutIntent = useRef<{ payload: string; key: string } | null>(null);
   const externalCheckoutRef = useRef(false);
   const checkoutResetTimerRef = useRef<number | null>(null);
   const [guestEmail, setGuestEmail] = useState("");
@@ -482,21 +487,18 @@ export function TicketCheckoutDrawer({
     submittingRef.current = true;
     setIsCheckingOut(true);
     try {
-      const checkout = await ApiClient.instance.post(
-        "/events/{id}/tickets/purchase",
-        {
-          params: { path: { id: event.id } },
-          body: {
-            email,
-            items: selectedTickets.map((ticket) => ({
-              ticketTypeId: ticket.id,
-              quantity: quantities[ticket.id] ?? 0,
-            })),
-            promoCode: promo.applied?.code,
-            billingDetails: invoiceDetails,
-          },
-        },
-      );
+      const body = {
+        email,
+        items: selectedTickets.map((ticket) => ({ticketTypeId: ticket.id, quantity: quantities[ticket.id] ?? 0})),
+        promoCode: promo.applied?.code,
+        billingDetails: invoiceDetails,
+      };
+      checkoutIntent.current = checkoutRequestKey(checkoutIntent.current,
+        JSON.stringify({eventId:event.id, userId:user?.properties.id, body}));
+      const checkout = await ApiClient.instance.post("/events/{id}/tickets/purchase", {
+        params: { path: { id: event.id } }, body,
+        idempotencyKey: checkoutIntent.current.key,
+      });
       externalCheckoutRef.current = true;
       checkoutResetTimerRef.current = window.setTimeout(
         resetCheckoutPending,
@@ -504,6 +506,7 @@ export function TicketCheckoutDrawer({
       );
       window.location.assign(checkout.checkoutUrl);
     } catch (error) {
+      if (error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 425 && error.status !== 429) checkoutIntent.current = null;
       if (error instanceof ApiError && error.status === 409) {
         onQuantitiesChange({});
         setFurthestStep(0);

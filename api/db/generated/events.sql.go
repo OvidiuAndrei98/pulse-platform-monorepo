@@ -463,6 +463,69 @@ func (q *Queries) GetEventByID(ctx context.Context, arg GetEventByIDParams) (Get
 	return i, err
 }
 
+const getEventForCheckout = `-- name: GetEventForCheckout :one
+SELECT id, organizer_id, title, description, category, banner_url, location_address, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at, google_place_id, status, organizer_absorbs_service_fee, publish_at, was_published, vat_percentage, external_ticket_url FROM events WHERE id = $1
+`
+
+func (q *Queries) GetEventForCheckout(ctx context.Context, id pgtype.UUID) (Events, error) {
+	row := q.db.QueryRow(ctx, getEventForCheckout, id)
+	var i Events
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizerID,
+		&i.Title,
+		&i.Description,
+		&i.Category,
+		&i.BannerUrl,
+		&i.LocationAddress,
+		&i.LocationName,
+		&i.City,
+		&i.Vibe,
+		&i.Latitude,
+		&i.Longitude,
+		&i.StartTime,
+		&i.EndTime,
+		&i.IsLive,
+		&i.CreatedAt,
+		&i.GooglePlaceID,
+		&i.Status,
+		&i.OrganizerAbsorbsServiceFee,
+		&i.PublishAt,
+		&i.WasPublished,
+		&i.VatPercentage,
+		&i.ExternalTicketUrl,
+	)
+	return i, err
+}
+
+const getEventForValidation = `-- name: GetEventForValidation :one
+SELECT id, organizer_id, title, start_time, end_time, external_ticket_url
+FROM events WHERE id = $1
+`
+
+type GetEventForValidationRow struct {
+	ID                pgtype.UUID        `json:"id"`
+	OrganizerID       pgtype.UUID        `json:"organizer_id"`
+	Title             string             `json:"title"`
+	StartTime         pgtype.Timestamptz `json:"start_time"`
+	EndTime           pgtype.Timestamptz `json:"end_time"`
+	ExternalTicketUrl pgtype.Text        `json:"external_ticket_url"`
+}
+
+func (q *Queries) GetEventForValidation(ctx context.Context, id pgtype.UUID) (GetEventForValidationRow, error) {
+	row := q.db.QueryRow(ctx, getEventForValidation, id)
+	var i GetEventForValidationRow
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizerID,
+		&i.Title,
+		&i.StartTime,
+		&i.EndTime,
+		&i.ExternalTicketUrl,
+	)
+	return i, err
+}
+
 const getEventWithStats = `-- name: GetEventWithStats :one
 SELECT 
     e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status, e.organizer_absorbs_service_fee, e.publish_at, e.was_published, e.vat_percentage, e.external_ticket_url,

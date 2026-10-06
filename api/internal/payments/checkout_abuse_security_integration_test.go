@@ -288,7 +288,7 @@ func TestConcurrentGuestReservationsCannotBypassCapByRotatingEmail(t *testing.T)
 	var rejected atomic.Int32
 	var failures atomic.Int32
 	var wait sync.WaitGroup
-	for attempt := 0; attempt < 6; attempt++ {
+	for attempt := 0; attempt < maxActiveReservedTicketsPerIP/8+2; attempt++ {
 		wait.Add(1)
 		go func(index int) {
 			defer wait.Done()
@@ -327,7 +327,7 @@ func TestConcurrentGuestReservationsCannotBypassCapByRotatingEmail(t *testing.T)
 	if failures.Load() != 0 {
 		t.Fatalf("unexpected failures = %d", failures.Load())
 	}
-	if accepted.Load() != 4 || rejected.Load() != 2 {
-		t.Fatalf("accepted=%d rejected=%d, want 4/2", accepted.Load(), rejected.Load())
+	if accepted.Load() != maxActiveReservedTicketsPerIP/8 || rejected.Load() != 2 {
+		t.Fatalf("accepted=%d rejected=%d, want guest ticket cap and two rejections", accepted.Load(), rejected.Load())
 	}
 }

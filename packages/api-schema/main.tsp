@@ -1220,6 +1220,7 @@ interface EventOperations {
   createCheckoutSession(
     @path id: string,
     @body payload: CreateCheckoutSessionPayload,
+    @header("Idempotency-Key") idempotencyKey?: string,
   ): {
     @statusCode statusCode: 201;
     @body checkout: CheckoutSessionResponse;

@@ -231,7 +231,7 @@ func (q *Queries) FinalizeEmptyCancellationRequests(ctx context.Context) (int64,
 }
 
 const getAdminRefundAttentionOrder = `-- name: GetAdminRefundAttentionOrder :one
-SELECT orders.id, orders.user_id, orders.event_id, orders.email, orders.stripe_payment_intent_id, orders.status, orders.total_amount, orders.created_at, orders.stripe_checkout_session_id, orders.platform_fee_bani, orders.ticket_email_sent_at, orders.promo_code_id, orders.discount_amount_ron, orders.invoice_requested, orders.billing_type, orders.billing_name, orders.billing_tax_id, orders.billing_registration_number, orders.billing_address, orders.billing_city, orders.billing_county, orders.billing_country, orders.billing_sector, orders.completed_at, orders.customer_ticketing_fee_bani, orders.stripe_livemode, orders.stripe_connected_account_id, orders.stripe_charge_type, orders.stripe_charge_id, orders.stripe_amount_refunded_bani, orders.stripe_refund_status, orders.stripe_refund_needs_attention, orders.stripe_refund_updated_at, orders.automatic_invoice_refund_enabled, orders.platform_fee_status, orders.platform_fee_refunded_bani, orders.refund_origin, orders.reservation_ip_hash, orders.ticket_vat_percentage, orders.ticket_vat_name, orders.account_owner_deleted_at
+SELECT orders.id, orders.user_id, orders.event_id, orders.email, orders.stripe_payment_intent_id, orders.status, orders.total_amount, orders.created_at, orders.stripe_checkout_session_id, orders.platform_fee_bani, orders.ticket_email_sent_at, orders.promo_code_id, orders.discount_amount_ron, orders.invoice_requested, orders.billing_type, orders.billing_name, orders.billing_tax_id, orders.billing_registration_number, orders.billing_address, orders.billing_city, orders.billing_county, orders.billing_country, orders.billing_sector, orders.completed_at, orders.customer_ticketing_fee_bani, orders.stripe_livemode, orders.stripe_connected_account_id, orders.stripe_charge_type, orders.stripe_charge_id, orders.stripe_amount_refunded_bani, orders.stripe_refund_status, orders.stripe_refund_needs_attention, orders.stripe_refund_updated_at, orders.automatic_invoice_refund_enabled, orders.platform_fee_status, orders.platform_fee_refunded_bani, orders.refund_origin, orders.reservation_ip_hash, orders.ticket_vat_percentage, orders.ticket_vat_name, orders.account_owner_deleted_at, orders.ticket_email_claim, orders.ticket_email_claim_until, orders.ticket_email_next_attempt_at, orders.ticket_email_attempts, orders.checkout_reconcile_after
 FROM orders
 WHERE orders.id = $1
   AND orders.stripe_refund_needs_attention IS TRUE
@@ -282,6 +282,11 @@ func (q *Queries) GetAdminRefundAttentionOrder(ctx context.Context, orderID pgty
 		&i.TicketVatPercentage,
 		&i.TicketVatName,
 		&i.AccountOwnerDeletedAt,
+		&i.TicketEmailClaim,
+		&i.TicketEmailClaimUntil,
+		&i.TicketEmailNextAttemptAt,
+		&i.TicketEmailAttempts,
+		&i.CheckoutReconcileAfter,
 	)
 	return i, err
 }
@@ -430,7 +435,7 @@ func (q *Queries) GetOrganizerEventCancellationRequest(ctx context.Context, arg 
 }
 
 const getOrganizerRefundAttentionOrder = `-- name: GetOrganizerRefundAttentionOrder :one
-SELECT orders.id, orders.user_id, orders.event_id, orders.email, orders.stripe_payment_intent_id, orders.status, orders.total_amount, orders.created_at, orders.stripe_checkout_session_id, orders.platform_fee_bani, orders.ticket_email_sent_at, orders.promo_code_id, orders.discount_amount_ron, orders.invoice_requested, orders.billing_type, orders.billing_name, orders.billing_tax_id, orders.billing_registration_number, orders.billing_address, orders.billing_city, orders.billing_county, orders.billing_country, orders.billing_sector, orders.completed_at, orders.customer_ticketing_fee_bani, orders.stripe_livemode, orders.stripe_connected_account_id, orders.stripe_charge_type, orders.stripe_charge_id, orders.stripe_amount_refunded_bani, orders.stripe_refund_status, orders.stripe_refund_needs_attention, orders.stripe_refund_updated_at, orders.automatic_invoice_refund_enabled, orders.platform_fee_status, orders.platform_fee_refunded_bani, orders.refund_origin, orders.reservation_ip_hash, orders.ticket_vat_percentage, orders.ticket_vat_name, orders.account_owner_deleted_at
+SELECT orders.id, orders.user_id, orders.event_id, orders.email, orders.stripe_payment_intent_id, orders.status, orders.total_amount, orders.created_at, orders.stripe_checkout_session_id, orders.platform_fee_bani, orders.ticket_email_sent_at, orders.promo_code_id, orders.discount_amount_ron, orders.invoice_requested, orders.billing_type, orders.billing_name, orders.billing_tax_id, orders.billing_registration_number, orders.billing_address, orders.billing_city, orders.billing_county, orders.billing_country, orders.billing_sector, orders.completed_at, orders.customer_ticketing_fee_bani, orders.stripe_livemode, orders.stripe_connected_account_id, orders.stripe_charge_type, orders.stripe_charge_id, orders.stripe_amount_refunded_bani, orders.stripe_refund_status, orders.stripe_refund_needs_attention, orders.stripe_refund_updated_at, orders.automatic_invoice_refund_enabled, orders.platform_fee_status, orders.platform_fee_refunded_bani, orders.refund_origin, orders.reservation_ip_hash, orders.ticket_vat_percentage, orders.ticket_vat_name, orders.account_owner_deleted_at, orders.ticket_email_claim, orders.ticket_email_claim_until, orders.ticket_email_next_attempt_at, orders.ticket_email_attempts, orders.checkout_reconcile_after
 FROM orders
 JOIN events ON events.id = orders.event_id
 WHERE orders.id = $1
@@ -488,6 +493,11 @@ func (q *Queries) GetOrganizerRefundAttentionOrder(ctx context.Context, arg GetO
 		&i.TicketVatPercentage,
 		&i.TicketVatName,
 		&i.AccountOwnerDeletedAt,
+		&i.TicketEmailClaim,
+		&i.TicketEmailClaimUntil,
+		&i.TicketEmailNextAttemptAt,
+		&i.TicketEmailAttempts,
+		&i.CheckoutReconcileAfter,
 	)
 	return i, err
 }

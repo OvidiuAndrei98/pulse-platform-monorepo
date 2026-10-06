@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useDrawerViewport } from "@/components/ui/useDrawerViewport";
 import {
   LayoutDashboard,
@@ -54,7 +54,6 @@ const validatorItems = [
 
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { isOrganizer, logout } = useDataProvider();
   const { t } = useTranslation();
   const items = isOrganizer ? organizerItems : validatorItems;
@@ -67,7 +66,6 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const handleLogout = () => {
     onNavigate?.();
     logout();
-    router.replace("/login");
   };
 
   return (

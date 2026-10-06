@@ -301,17 +301,17 @@ type SyncOfflineTicketScansResponse struct {
 }
 
 func (h *Handler) isEventManager(ctx context.Context, eventID, userID pgtype.UUID) (bool, error) {
-	event, err := h.Queries.GetEventWithStats(ctx, eventID)
+	event, err := h.Queries.GetEventForValidation(ctx, eventID)
 	if err != nil {
 		return false, err
 	}
 	return event.OrganizerID == userID, nil
 }
 
-func (h *Handler) canValidateEvent(ctx context.Context, eventID, userID pgtype.UUID) (db.GetEventWithStatsRow, bool, error) {
-	event, err := h.Queries.GetEventWithStats(ctx, eventID)
+func (h *Handler) canValidateEvent(ctx context.Context, eventID, userID pgtype.UUID) (db.GetEventForValidationRow, bool, error) {
+	event, err := h.Queries.GetEventForValidation(ctx, eventID)
 	if err != nil {
-		return db.GetEventWithStatsRow{}, false, err
+		return db.GetEventForValidationRow{}, false, err
 	}
 	if event.OrganizerID == userID {
 		return event, true, nil
@@ -589,7 +589,7 @@ func (h *Handler) HandleCreateScannerAccess(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	event, err := h.Queries.GetEventWithStats(ctx, eventID)
+	event, err := h.Queries.GetEventForValidation(ctx, eventID)
 	if err != nil {
 		router.RespondWithError(w, http.StatusNotFound, "Evenimentul nu a fost gasit")
 		return
@@ -808,6 +808,7 @@ func (h *Handler) HandleQuickValidateTicket(w http.ResponseWriter, r *http.Reque
 	}
 
 	var req ValidateTicketRequest
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		router.RespondWithError(w, http.StatusBadRequest, "Request body invalid")
 		return
@@ -951,7 +952,7 @@ func (h *Handler) syncOfflineTicketScan(ctx context.Context, eventID, userID, sn
 	}
 
 	result := OfflineTicketSyncResult{ClientScanID: scan.ClientScanID}
-	if invitation, handled, invitationErr := h.validateInvitation(ctx, eventID, strings.TrimSpace(scan.ValidationHash)); invitationErr != nil {
+	if invitation, handled, invitationErr := validateInvitation(ctx, qtx, eventID, strings.TrimSpace(scan.ValidationHash)); invitationErr != nil {
 		return OfflineTicketSyncResult{}, invitationErr
 	} else if handled {
 		result.Status, _ = invitation["status"].(string)
@@ -1061,6 +1062,7 @@ func (h *Handler) HandleSyncOfflineScans(w http.ResponseWriter, r *http.Request)
 	}
 
 	var req SyncOfflineTicketScansRequest
+	r.Body = http.MaxBytesReader(w, r.Body, 128<<10)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		router.RespondWithError(w, http.StatusBadRequest, "Request body invalid")
 		return
@@ -1086,6 +1088,11 @@ func (h *Handler) HandleSyncOfflineScans(w http.ResponseWriter, r *http.Request)
 	}
 	// Expiration closes admissions, not delivery of scans made while valid.
 	for _, scan := range req.Scans {
+		var scanID pgtype.UUID
+		if scanID.Scan(scan.ClientScanID) != nil || !scanID.Valid {
+			router.RespondWithError(w, http.StatusBadRequest, "ID-ul scanarii este invalid")
+			return
+		}
 		if !validOfflineScanTime(scan.ScannedAt, snapshot.CreatedAt.Time, snapshot.ExpiresAt.Time, time.Now()) {
 			router.RespondWithError(w, http.StatusBadRequest, "Ora scanarii este in afara perioadei offline")
 			return
@@ -1096,7 +1103,7 @@ func (h *Handler) HandleSyncOfflineScans(w http.ResponseWriter, r *http.Request)
 	for _, scan := range req.Scans {
 		result, syncErr := h.syncOfflineTicketScan(ctx, eventID, userID, snapshotID, req.DeviceID, scan)
 		if syncErr != nil {
-			router.RespondWithError(w, http.StatusBadRequest, "O scanare offline are date invalide")
+			router.RespondWithError(w, http.StatusServiceUnavailable, "Sincronizarea este temporar indisponibila. Reincearca fara a sterge scanarile.")
 			return
 		}
 		results = append(results, result)
@@ -1119,8 +1126,11 @@ func (h *Handler) validateTicketForEvent(ctx context.Context, eventID pgtype.UUI
 
 	qtx := h.Queries.WithTx(tx)
 	ticketRow, err := qtx.GetTicketByHash(ctx, validationHash)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return TicketValidationResponse{}, http.StatusNotFound, "Biletul nu este valid sau nu exista in sistem"
+	}
+	if err != nil {
+		return TicketValidationResponse{}, http.StatusServiceUnavailable, "Validarea este temporar indisponibila"
 	}
 	if ticketRow.EventID != eventID {
 		return TicketValidationResponse{}, http.StatusNotFound, "Biletul nu apartine acestui eveniment"
@@ -1172,9 +1182,13 @@ func (h *Handler) HandleValidateTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := h.Queries.GetEventWithStats(ctx, eventID)
-	if err != nil {
+	event, err := h.Queries.GetEventForValidation(ctx, eventID)
+	if errors.Is(err, pgx.ErrNoRows) {
 		router.RespondWithError(w, http.StatusNotFound, "Evenimentul nu a fost gasit")
+		return
+	}
+	if err != nil {
+		router.RespondWithError(w, http.StatusServiceUnavailable, "Permisiunile nu pot fi verificate momentan")
 		return
 	}
 	if event.OrganizerID != userID {
@@ -1190,6 +1204,7 @@ func (h *Handler) HandleValidateTicket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req ValidateTicketRequest
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		router.RespondWithError(w, http.StatusBadRequest, "Request body invalid: "+err.Error())
 		return
@@ -1209,7 +1224,7 @@ func (h *Handler) HandleValidateTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if invitation, handled, err := h.validateInvitation(ctx, eventID, req.ValidationHash); err != nil {
+	if invitation, handled, err := validateInvitation(ctx, h.Queries, eventID, req.ValidationHash); err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Invitatia nu a putut fi validata")
 		return
 	} else if handled {
@@ -1217,60 +1232,12 @@ func (h *Handler) HandleValidateTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx, err := h.DB.Begin(ctx)
-	if err != nil {
-		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la inițierea tranzacției: "+err.Error())
+	response, status, message := h.validateTicketForEvent(ctx, eventID, req.ValidationHash, userID, pgtype.UUID{})
+	if status != http.StatusOK {
+		router.RespondWithError(w, status, message)
 		return
 	}
-	defer tx.Rollback(ctx)
-
-	qtx := h.Queries.WithTx(tx)
-
-	ticketRow, err := qtx.GetTicketByHash(ctx, req.ValidationHash)
-	if err != nil {
-		router.RespondWithError(w, http.StatusNotFound, "Biletul nu este valid sau nu există în sistem")
-		return
-	}
-	if ticketRow.EventID != eventID {
-		router.RespondWithError(w, http.StatusNotFound, "Biletul nu apartine acestui eveniment")
-		return
-	}
-
-	// Check if the ticket has already been validated
-	if ticketRow.IsValidated {
-
-		res := MapTicketValidationResponse(ticketRow)
-		res.Status = "already_validated"
-		router.RespondWithJSON(w, http.StatusOK, res)
-		return
-	}
-
-	validatedAt, err := qtx.ValidateTicketOnce(ctx, db.ValidateTicketOnceParams{
-		ID:                         ticketRow.ID,
-		ValidatedByUserID:          userID,
-		ValidatedByScannerAccessID: pgtype.UUID{},
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		res := MapTicketValidationResponse(ticketRow)
-		res.Status = "already_validated"
-		router.RespondWithJSON(w, http.StatusOK, res)
-		return
-	}
-	if err != nil {
-		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la procesarea validării biletului: "+err.Error())
-		return
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la salvarea validării: "+err.Error())
-		return
-	}
-
-	res := MapTicketValidationResponse(ticketRow)
-	res.Status = "valid"
-	res.ValidatedAt = common.TimestampToString(validatedAt)
-
-	router.RespondWithJSON(w, http.StatusOK, res)
+	router.RespondWithJSON(w, http.StatusOK, response)
 }
 
 type TicketTypeInput struct {
@@ -1313,7 +1280,7 @@ func (h *Handler) HandleCreateTicketType(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	event, err := h.Queries.GetEventWithStats(ctx, eventID)
+	event, err := h.Queries.GetEventForValidation(ctx, eventID)
 	if err != nil {
 		router.RespondWithError(w, http.StatusNotFound, "Evenimentul nu a fost gasit")
 		return

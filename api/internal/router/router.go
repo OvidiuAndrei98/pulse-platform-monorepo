@@ -26,6 +26,7 @@ type HandlersConfig struct {
 	OrganizerMiddleware    func(http.Handler) http.Handler // RequireRole("organizer", "admin")
 	AdminMiddleware        func(http.Handler) http.Handler // RequireRole("admin")
 	RateLimit              func(scope string, limit int, window time.Duration) func(http.Handler) http.Handler
+	IdentityRateLimit      func(scope string, limit int, window time.Duration) func(http.Handler) http.Handler
 
 	// Auth
 	Register             http.HandlerFunc
@@ -202,7 +203,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type", "Idempotency-Key", "Cache-Control"},
 		AllowCredentials: true,
 	}))
 
@@ -233,6 +234,11 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				return func(next http.Handler) http.Handler { return next }
 			}
 		}
+		identityLimit := cfg.IdentityRateLimit
+		if identityLimit == nil {
+			identityLimit = rateLimit
+		}
+		uploadSlots := concurrentRequests(8)
 		r.Get("/media/*", cfg.GetEventBanner)
 		r.Post("/stripe/webhook", cfg.StripeWebhook)
 		r.Post("/stripe/connect/webhook", cfg.StripeConnectWebhook)
@@ -242,7 +248,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			if cfg.ScannerAuthMiddleware != nil {
 				r.Use(cfg.ScannerAuthMiddleware)
 			}
-			r.Post("/ticket-validation/quick-access/validate", cfg.QuickValidateTicket)
+			r.With(identityLimit("scanner_validate", 240, time.Minute)).Post("/ticket-validation/quick-access/validate", cfg.QuickValidateTicket)
 		})
 
 		// --- AUTH (Public) ---
@@ -280,7 +286,9 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			r.Get("/{id}/comments", cfg.GetComments)
 			r.Get("/{id}/ticket-types", cfg.GetEventTicketTypes)
 			r.With(rateLimit("promo_validate_ip", 30, 10*time.Minute)).Post("/{id}/promo-code/validate", cfg.ValidatePromoCode)
-			r.With(rateLimit("checkout_create_ip", 10, 10*time.Minute), optionalAuthMiddleware).Post("/{id}/tickets/purchase", cfg.PurchaseTickets)
+			// Shared venue networks are protected by a broad IP budget. The handler
+			// separately enforces the much smaller buyer/event and inventory caps.
+			r.With(rateLimit("checkout_create_ip", 3000, 10*time.Minute), optionalAuthMiddleware).Post("/{id}/tickets/purchase", cfg.PurchaseTickets)
 		})
 		r.With(optionalAuthMiddleware).Get("/promotions/active", cfg.ListActivePromotions)
 		r.With(optionalAuthMiddleware).Post("/promotions/{id}/track", cfg.TrackPromotionMetric)
@@ -297,7 +305,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Get("/me", cfg.GetMe)
 				r.Put("/me", cfg.UpdateMe)
 				r.With(rateLimit("account_delete_ip", 5, time.Hour)).Delete("/me", cfg.DeleteMe)
-				r.Post("/me/avatar", cfg.UploadUserAvatar)
+				r.With(identityLimit("media_upload", 30, time.Minute), uploadSlots).Post("/me/avatar", cfg.UploadUserAvatar)
 				r.Get("/me/tickets", cfg.GetUserTickets)
 				r.Get("/me/orders", cfg.GetUserOrders)
 				r.Get("/me/saved-events", cfg.GetSavedEvents)
@@ -317,13 +325,13 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 
 			// --- INTERACȚIUNI EVENIMENTE (orice utilizator autentificat) ---
 			r.Post("/events/{id}/check-in", cfg.CreateCheckIn)
-			r.With(rateLimit("free_ticket_booking_ip", 30, 10*time.Minute)).Post("/events/{id}/tickets/book", cfg.BookFreeTicket)
+			r.With(rateLimit("free_ticket_booking_ip", 3000, 10*time.Minute), identityLimit("free_ticket_booking_user", 20, 10*time.Minute)).Post("/events/{id}/tickets/book", cfg.BookFreeTicket)
 			r.Post("/events/{id}/comments", cfg.AddComment)
 			r.Post("/events/{id}/favorite", cfg.SaveEvent)
 			r.Delete("/events/{id}/favorite", cfg.RemoveSavedEvent)
 			r.Put("/events/{id}/rsvp", cfg.UpdateEventRsvp)
 			r.Delete("/events/{id}/rsvp", cfg.DeleteEventRsvp)
-			r.With(rateLimit("safety_group_read_ip", 3000, time.Minute)).Get("/events/{id}/safety-group", cfg.GetEventSafetyGroup)
+			r.With(rateLimit("safety_group_read_ip", 30000, time.Minute)).Get("/events/{id}/safety-group", cfg.GetEventSafetyGroup)
 			r.With(rateLimit("safety_group_create_ip", 600, time.Hour)).Post("/events/{id}/safety-group", cfg.CreateEventSafetyGroup)
 			r.With(rateLimit("safety_group_invite_ip", 1200, time.Hour)).Post("/events/{id}/safety-group/invite", cfg.InviteEventSafetyGroup)
 			r.With(rateLimit("safety_group_respond_ip", 1200, time.Hour)).Post("/events/{id}/safety-group/respond", cfg.RespondEventSafetyGroup)
@@ -357,9 +365,9 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Get("/events/{id}/quick-access", cfg.ListScannerAccess)
 				r.Post("/events/{id}/quick-access", cfg.CreateScannerAccess)
 				r.Delete("/events/{id}/quick-access/{accessId}", cfg.RevokeScannerAccess)
-				r.Post("/events/{id}/tickets/validate", cfg.ValidateTicket)
-				r.Post("/events/{id}/offline-snapshot", cfg.CreateOfflineSnapshot)
-				r.Post("/events/{id}/offline-sync", cfg.SyncOfflineScans)
+				r.With(identityLimit("ticket_validate", 240, time.Minute)).Post("/events/{id}/tickets/validate", cfg.ValidateTicket)
+				r.With(identityLimit("offline_snapshot", 10, time.Minute)).Post("/events/{id}/offline-snapshot", cfg.CreateOfflineSnapshot)
+				r.With(identityLimit("offline_sync", 60, time.Minute), concurrentRequests(4)).Post("/events/{id}/offline-sync", cfg.SyncOfflineScans)
 			})
 
 			// --- ORGANIZER+ ONLY: Creare/ștergere evenimente ---
@@ -369,8 +377,8 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				}
 
 				// --- ORGANIZER DASHBOARD ---
-				r.Post("/dashboard/uploads/event-banner", cfg.UploadEventBanner)
-				r.Post("/dashboard/uploads/organizer-update", cfg.UploadOrganizerUpdateImage)
+				r.With(identityLimit("media_upload", 30, time.Minute), uploadSlots).Post("/dashboard/uploads/event-banner", cfg.UploadEventBanner)
+				r.With(identityLimit("media_upload", 30, time.Minute), uploadSlots).Post("/dashboard/uploads/organizer-update", cfg.UploadOrganizerUpdateImage)
 				r.Route("/dashboard/events", func(r chi.Router) {
 					r.Get("/", cfg.ListEventsWithStats)
 					r.Post("/", cfg.CreateEvent)

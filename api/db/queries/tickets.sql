@@ -174,7 +174,7 @@ FOR UPDATE;
 -- name: GetEventStatusForCheckoutUpdate :one
 SELECT status FROM events
 WHERE id = $1
-FOR UPDATE;
+FOR SHARE;
 
 -- name: GetOrderByCheckoutSession :one
 SELECT * FROM orders
@@ -226,9 +226,10 @@ ON CONFLICT (order_id) DO NOTHING;
 SELECT * FROM orders
 WHERE status = 'completed'
   AND ticket_email_sent_at IS NULL
-  AND completed_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+  AND ticket_email_next_attempt_at <= CURRENT_TIMESTAMP
+  AND (ticket_email_claim_until IS NULL OR ticket_email_claim_until <= CURRENT_TIMESTAMP)
   AND EXISTS (SELECT 1 FROM tickets WHERE tickets.order_id = orders.id)
-ORDER BY completed_at ASC
+ORDER BY ticket_email_next_attempt_at ASC, id ASC
 LIMIT 50;
 
 -- name: GetOrderByStripePaymentIntent :one

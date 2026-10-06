@@ -227,11 +227,11 @@ test('language update handles network errors, unlocks retry and prevents duplica
   assert.equal(h.render().props.disabled, false); assert.equal(errors.length, 1); assert.equal(changed, 0);
 });
 
-test('notifications refresh on opening, reconnect, focus and visible polling; cleanup stops listeners', () => {
+test('notifications refresh on opening and coalesce visible polling; cleanup stops listeners', async () => {
   const h = hooks(), window = new EventTarget(), document = new EventTarget(), navigator = { onLine: true };
-  let tick, calls = 0, stopped = false;
-  window.setInterval = fn => { tick = fn; return 1; };
-  window.clearInterval = () => { stopped = true; };
+  let tick, calls = 0, armed = false;
+  const setTimeout = fn => { tick = fn; armed = true; return 1; };
+  const clearTimeout = () => { armed = false; };
   document.visibilityState = 'visible';
   const refresh = async () => { calls++; };
   const { NotificationsPopover } = modules({ react: h.react,
@@ -240,17 +240,18 @@ test('notifications refresh on opening, reconnect, focus and visible polling; cl
     'next/navigation': { useRouter: () => ({}) }, '@/core/DataProviderContext': { useDataProvider: () => ({ user: { properties: { id: 'user' } } }) },
     '@/core/DataProvider': { User: { useNotifications: () => ({ notifications: [], notificationsLoading: false, refresh, unreadCount: 0, markRead() {} }) } },
     '@/features/events/dateFormat': {}, 'react-i18next': { useTranslation: () => ({ t: key => key }) },
-  }, { window, document, navigator }).load('components/NotificationsPopover');
+  }, { window, document, navigator, setTimeout, clearTimeout }).load('components/NotificationsPopover');
   const tree = h.render(NotificationsPopover);
   find(tree, node => node.props?.['aria-label'] === 'notifications.title').props.onClick();
   assert.equal(calls, 1);
-  window.dispatchEvent(new Event('online')); window.dispatchEvent(new Event('focus')); tick();
-  assert.equal(calls, 4);
-  document.visibilityState = 'hidden'; tick(); assert.equal(calls, 4);
-  document.visibilityState = 'visible'; navigator.onLine = false; tick(); assert.equal(calls, 4);
-  navigator.onLine = true; document.dispatchEvent(new Event('visibilitychange')); assert.equal(calls, 5);
-  h.unmount(); assert.equal(stopped, true);
-  window.dispatchEvent(new Event('focus')); assert.equal(calls, 5);
+  window.dispatchEvent(new Event('online')); window.dispatchEvent(new Event('focus'));
+  assert.equal(calls, 2); await settle(); await tick();
+  assert.equal(calls, 3);
+  document.visibilityState = 'hidden'; await tick(); assert.equal(calls, 3);
+  document.visibilityState = 'visible'; navigator.onLine = false; await tick(); assert.equal(calls, 3);
+  navigator.onLine = true; document.dispatchEvent(new Event('visibilitychange')); assert.equal(calls, 4);
+  await settle(); h.unmount(); assert.equal(armed, false);
+  window.dispatchEvent(new Event('focus')); assert.equal(calls, 4);
 });
 
 test('pulled account deletion dialog requires matching email/password and disables destructive confirmation while busy', () => {

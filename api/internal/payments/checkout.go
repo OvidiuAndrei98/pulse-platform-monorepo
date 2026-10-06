@@ -31,25 +31,31 @@ import (
 )
 
 const (
-	platformFeePercent            = int64(4)
-	platformFeePerTicketBani      = int64(250)
-	checkoutExpiration            = 30 * time.Minute
-	maxCheckoutJSONBytes          = 32 << 10
-	maxActiveCheckoutOrders       = 3
-	maxActiveReservedTickets      = 16
-	maxActiveCheckoutOrdersPerIP  = 5
-	maxActiveReservedTicketsPerIP = 32
+	platformFeePercent       = int64(4)
+	platformFeePerTicketBani = int64(250)
+	checkoutExpiration       = 30 * time.Minute
+	maxCheckoutJSONBytes     = 32 << 10
+	maxActiveCheckoutOrders  = 3
+	maxActiveReservedTickets = 16
+	// Guest identities are unverified, so retain an aggregate anti-hoarding cap.
+	// Authenticated buyers share venue NATs and use their own strict identity cap.
+	maxActiveCheckoutOrdersPerIP  = 100
+	maxActiveReservedTicketsPerIP = 400
 )
 
 var errStripeRefundBindingMismatch = errors.New("refundul Stripe nu corespunde platii originale")
 var errTooManyActiveCheckoutReservations = errors.New("too many active checkout reservations")
+
+type ticketMailer interface {
+	SendTicketConfirmationEmail(context.Context, string, string, string, bool, bool, []email.TicketDelivery) error
+}
 
 type CheckoutHandler struct {
 	queries                 *db.Queries
 	db                      *pgxpool.Pool
 	client                  *stripe.Client
 	appURL                  string
-	mailer                  *email.Mailer
+	mailer                  ticketMailer
 	invoicing               *invoicing.Service
 	configured              bool
 	expectedLiveMode        bool
@@ -119,12 +125,16 @@ func NewCheckoutHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, a
 	}
 
 	expectedLiveMode, expectedLiveModeKnown := stripeSecretLiveMode(stripeSecret)
+	var delivery ticketMailer
+	if mailer != nil {
+		delivery = mailer
+	}
 	return &CheckoutHandler{
 		queries:               queries,
 		db:                    pool,
 		client:                stripe.NewClient(stripeSecret),
 		appURL:                strings.TrimRight(appURL, "/"),
-		mailer:                mailer,
+		mailer:                delivery,
 		invoicing:             invoicingService,
 		configured:            stripeSecret != "",
 		expectedLiveMode:      expectedLiveMode,
@@ -199,15 +209,20 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	if userID.Valid {
 		checkoutSubject = "user:" + common.UUIDToString(userID)
 	}
-	if h.abuse != nil && !h.abuse.Enforce(r.Context(), w, "checkout_identity_event", checkoutSubject+":"+common.UUIDToString(eventID), 5, 10*time.Minute) {
-		return
-	}
 	var reservationIPHash []byte
 	if h.abuse != nil {
 		reservationIPHash = h.abuse.SubjectDigest("checkout_reservation_ip", h.abuse.ClientIP(r))
 	}
 	items, totalTicketCount, ok := parseCheckoutItems(w, req.Items)
 	if !ok {
+		return
+	}
+	r, requestID, proceed := h.beginCheckoutRequest(w, r, eventID, userID, req)
+	if !proceed {
+		return
+	}
+	defer h.releaseUnreservedRequest(requestID)
+	if h.abuse != nil && !h.abuse.Enforce(r.Context(), w, "checkout_identity_event", checkoutSubject+":"+common.UUIDToString(eventID), 5, 10*time.Minute) {
 		return
 	}
 
@@ -352,10 +367,12 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	router.RespondWithJSON(w, http.StatusCreated, CreateCheckoutResponse{
+	response := CreateCheckoutResponse{
 		CheckoutURL: session.URL,
 		OrderID:     common.UUIDToString(order.ID),
-	})
+	}
+	h.persistCheckoutResponse(requestID, response)
+	router.RespondWithJSON(w, http.StatusCreated, response)
 }
 
 // HandleBookFreeTicket issues one zero-price ticket directly to the signed-in
@@ -441,7 +458,7 @@ func (h *CheckoutHandler) bookFreeTicket(ctx context.Context, eventID, userID pg
 		}
 		return pgtype.UUID{}, false, err
 	}
-	event, err := qtx.GetEventWithStats(ctx, eventID)
+	event, err := qtx.GetEventForCheckout(ctx, eventID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return pgtype.UUID{}, false, &checkoutRequestError{status: http.StatusNotFound, message: "Evenimentul nu a fost gasit"}
@@ -545,9 +562,7 @@ LIMIT 1`, eventID, userID, ticketTypeID).Scan(&existingOrderID)
 		return pgtype.UUID{}, false, err
 	}
 
-	if err := h.deliverTicketConfirmation(order.ID); err != nil {
-		log.Printf("free ticket confirmation remains queued for order %s: %v", common.UUIDToString(order.ID), err)
-	}
+	// Ticket email is delivered by the durable worker after commit.
 	return order.ID, false, nil
 }
 
@@ -685,7 +700,7 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 		}
 		return db.Orders{}, nil, "", "", "", false, err
 	}
-	event, err := qtx.GetEventWithStats(ctx, eventID)
+	event, err := qtx.GetEventForCheckout(ctx, eventID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusNotFound, message: "Evenimentul nu a fost gasit"}
@@ -830,6 +845,15 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	if err != nil {
 		return db.Orders{}, nil, "", "", "", false, err
 	}
+	if requestID, ok := ctx.Value(checkoutRequestContextKey{}).(pgtype.UUID); ok && requestID.Valid {
+		bound, err := tx.Exec(ctx, `UPDATE checkout_requests SET order_id=$1 WHERE id=$2 AND order_id IS NULL`, order.ID, requestID)
+		if err != nil {
+			return db.Orders{}, nil, "", "", "", false, err
+		}
+		if bound.RowsAffected() != 1 {
+			return db.Orders{}, nil, "", "", "", false, errors.New("checkout request lost ownership")
+		}
+	}
 
 	for _, item := range items {
 		if err := qtx.CreateOrderItem(ctx, db.CreateOrderItemParams{
@@ -855,6 +879,9 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 }
 
 func enforceActiveCheckoutReservationCap(ctx context.Context, tx pgx.Tx, eventID, userID pgtype.UUID, email string, reservationIPHash []byte, requestedTickets int32) error {
+	if userID.Valid {
+		reservationIPHash = nil
+	}
 	reservationIdentity := "guest:" + strings.ToLower(strings.TrimSpace(email))
 	if userID.Valid {
 		reservationIdentity = "user:" + common.UUIDToString(userID)
@@ -908,6 +935,7 @@ FROM orders o
 LEFT JOIN order_items oi ON oi.order_id = o.id
 WHERE o.event_id = $1
   AND o.status = 'pending'
+  AND o.user_id IS NULL
   AND o.reservation_ip_hash = $2`,
 			eventID, reservationIPHash).Scan(&activeOrders, &activeTickets); err != nil {
 			return err
@@ -1002,11 +1030,7 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 			return err
 		}
 		h.queueInvoice(ctx, order.ID)
-		if err := h.deliverTicketConfirmation(order.ID); err != nil {
-			// Payment fulfillment is already committed. Email delivery is retried by
-			// the reconciliation worker and must not make Stripe retry the payment event.
-			log.Printf("ticket confirmation remains queued for order %s: %v", common.UUIDToString(order.ID), err)
-		}
+		// Ticket email is delivered by the durable worker after commit.
 		return nil
 	}
 	if order.Status != db.OrderStatusPending && order.Status != db.OrderStatusFailed {
@@ -1096,18 +1120,14 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 		return err
 	}
 
+	if err := qtx.CreateTicketPurchaseNotification(ctx, order.ID); err != nil {
+		return err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	if err := h.queries.CreateTicketPurchaseNotification(ctx, order.ID); err != nil {
-		log.Printf("ticket purchase notification failed for order %s: %v", common.UUIDToString(order.ID), err)
-	}
 	h.queueInvoice(ctx, order.ID)
-	if err := h.deliverTicketConfirmation(order.ID); err != nil {
-		// The ticket exists at this point; keep webhook acknowledgement independent
-		// from the transactional email provider.
-		log.Printf("ticket confirmation remains queued for order %s: %v", common.UUIDToString(order.ID), err)
-	}
+	// Ticket email is delivered by the durable worker after commit.
 	return nil
 }
 
@@ -1128,6 +1148,18 @@ func (h *CheckoutHandler) deliverTicketConfirmation(orderID pgtype.UUID) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
+	claim, err := h.queries.ClaimTicketEmail(ctx, orderID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer func() {
+		cleanup, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = h.queries.ReleaseTicketEmailClaim(cleanup, db.ReleaseTicketEmailClaimParams{ID: orderID, TicketEmailClaim: claim})
+	}()
 	rows, err := h.queries.ListOrderTicketEmailDetails(ctx, orderID)
 	if err != nil || len(rows) == 0 {
 		if err != nil {
@@ -1153,9 +1185,8 @@ func (h *CheckoutHandler) deliverTicketConfirmation(orderID pgtype.UUID) error {
 		log.Printf("ticket confirmation email failed for order %s: %v", common.UUIDToString(orderID), err)
 		return err
 	}
-	if err := h.queries.MarkTicketEmailSent(ctx, orderID); err != nil {
-		log.Printf("ticket confirmation email could not be marked sent for order %s: %v", common.UUIDToString(orderID), err)
-		return err
+	if updated, err := h.queries.CompleteTicketEmailClaim(ctx, db.CompleteTicketEmailClaimParams{ID: orderID, TicketEmailClaim: claim}); err != nil || updated != 1 {
+		return fmt.Errorf("ticket email completion lost claim or failed: updated=%d err=%v", updated, err)
 	}
 	return nil
 }

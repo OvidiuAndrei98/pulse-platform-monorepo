@@ -21,6 +21,7 @@ import { PointerEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { lockPage } from "@/components/ui/useDrawerViewport";
+import { startVisiblePolling } from "@/lib/visiblePolling";
 
 type SafetyEnvelope = ReadableSchema<"EventSafetyGroupEnvelopeResponse">;
 type SafetyFriend = ReadableSchema<"EligibleSafetyFriendResponse">;
@@ -41,25 +42,43 @@ export default function EventSafetyGroupPageClient() {
   const [showInviteFriends, setShowInviteFriends] = useState(false);
   const [message, setMessage] = useState("");
   const messagesListRef = useRef<HTMLDivElement>(null);
+  const activeLoad = useRef<AbortController | null>(null);
 
-  const load = useCallback(async (quiet = false) => {
+  const load = useCallback(async (quiet = false, background = false) => {
     if (!eventId) return;
+    if (background && activeLoad.current) return;
+    activeLoad.current?.abort();
+    const controller = new AbortController();
+    activeLoad.current = controller;
     if (!quiet) setPending(true);
     try {
       const response: SafetyEnvelope = await ApiClient.instance.get(
         "/events/{id}/safety-group",
-        { params: { path: { id: eventId } } },
+        { params: { path: { id: eventId } }, signal: controller.signal },
       );
+      if (controller.signal.aborted) return;
       setData(response);
       setError(null);
       setConnectionLost(false);
+      return true;
     } catch (requestError) {
+      if (controller.signal.aborted) return;
       setConnectionLost(true);
       if (!quiet) setError(requestError instanceof Error ? requestError.message : t("safetyGroup.loadFailed"));
+      return false;
     } finally {
-      if (!quiet) setPending(false);
+      if (activeLoad.current === controller) {
+        activeLoad.current = null;
+        if (!controller.signal.aborted) setPending(false);
+      }
     }
-  }, [eventId, t]);
+  }, [eventId, t, user?.properties.id]);
+
+  useEffect(() => {
+    setData(null);
+    setPending(true);
+    return () => { activeLoad.current?.abort(); activeLoad.current = null; };
+  }, [eventId, user?.properties.id]);
 
   useEffect(() => {
     if (!sessionLoading && !user) {
@@ -71,8 +90,7 @@ export default function EventSafetyGroupPageClient() {
 
   useEffect(() => {
     if (!user || data?.group?.currentMemberStatus !== "accepted") return;
-    const timer = window.setInterval(() => void load(true), 4000);
-    return () => window.clearInterval(timer);
+    return startVisiblePolling(() => load(true, true), 8000);
   }, [data?.group?.currentMemberStatus, load, user]);
 
   useEffect(() => {

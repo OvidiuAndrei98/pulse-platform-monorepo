@@ -23,6 +23,7 @@ import { User, type AppNotification } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { formatEventDateShort } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
+import { startVisiblePolling } from "@/lib/visiblePolling";
 
 export function NotificationsPopover() {
   const { user } = useDataProvider();
@@ -36,19 +37,7 @@ export function NotificationsPopover() {
 
   useEffect(() => {
     if (!user) return;
-    const refreshVisible = () => {
-      if (document.visibilityState === "visible" && navigator.onLine) void refresh();
-    };
-    const interval = window.setInterval(refreshVisible, 30_000);
-    window.addEventListener("focus", refreshVisible);
-    window.addEventListener("online", refreshVisible);
-    document.addEventListener("visibilitychange", refreshVisible);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", refreshVisible);
-      window.removeEventListener("online", refreshVisible);
-      document.removeEventListener("visibilitychange", refreshVisible);
-    };
+    return startVisiblePolling(refresh, 30_000);
   }, [user?.properties.id, refresh]);
 
   useEffect(() => {

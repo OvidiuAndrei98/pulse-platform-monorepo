@@ -4,7 +4,8 @@ import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
-import { ENTRY, LAYER, isClientRoute, locationKey, readNavigationState, writeNavigationState, type NavigationEntry } from "@/lib/navigation/state";
+import { ENTRY, LAYER, canGoBack, isClientRoute, locationKey, readNavigationState, writeNavigationState, type NavigationEntry } from "@/lib/navigation/state";
+import { isPublicLoginReturnPath } from "@/lib/navigation/loginReturn";
 import { isMainTabRoot, mainTabIndex, navigateMainTab, TAB_DEPTH, TAB_REQUEST, TAB_TRANSITION, type TabRequest } from "@/lib/navigation/tabs";
 
 type Position = { x: number; y: number };
@@ -41,6 +42,7 @@ export function ClientNavigation() {
     if (Capacitor.getPlatform() !== "android" || !isClientRoute(pathname ?? "")) return;
     const listener = App.addListener("backButton", () => {
       if (history.state?.[LAYER]?.length) history.back();
+      else if (location.pathname === "/login" && !canGoBack(isPublicLoginReturnPath)) router.replace("/");
       else if (new URLSearchParams(location.search).has("eventId")) {
         if (history.state?.[ENTRY]?.previous) history.back();
         else {

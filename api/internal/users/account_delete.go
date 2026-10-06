@@ -13,10 +13,10 @@ import (
 	"pulse-api/internal/router"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"pulse-api/internal/media"
 )
 
 const maxDeleteAccountRequestBytes = 1024
@@ -155,11 +155,11 @@ func deleteAvatarObject(ctx context.Context, key string) error {
 	if bucket == "" {
 		return errors.New("S3_BUCKET is not configured")
 	}
-	awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
+	storage, err := media.Client(ctx)
 	if err != nil {
 		return err
 	}
-	_, err = s3.NewFromConfig(awsCfg).DeleteObject(ctx, &s3.DeleteObjectInput{
+	_, err = storage.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})

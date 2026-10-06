@@ -2,6 +2,7 @@ package users
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -11,15 +12,16 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	db "pulse-api/db/generated"
 	"pulse-api/internal/auth"
 	"pulse-api/internal/router"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/jackc/pgx/v5/pgtype"
+	"pulse-api/internal/media"
 )
 
 const (
@@ -49,7 +51,7 @@ func (h *Handler) HandleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusBadRequest, "ID utilizator invalid")
 		return
 	}
-	previousUser, err := h.Queries.GetUserByID(r.Context(), userUUID)
+	_, err = h.Queries.GetUserByID(r.Context(), userUUID)
 	if err != nil {
 		router.RespondWithError(w, http.StatusNotFound, "Utilizatorul nu a fost gasit")
 		return
@@ -79,12 +81,16 @@ func (h *Handler) HandleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 	key := fmt.Sprintf("%s%s/%s.%s", avatarPrefix, userID, objectID, extension)
 
-	awsCfg, err := awsconfig.LoadDefaultConfig(r.Context())
+	storage, err := media.Client(r.Context())
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Nu s-a putut initializa stocarea imaginilor")
 		return
 	}
-	storage := s3.NewFromConfig(awsCfg)
+	// Register cleanup before upload, so a crash cannot leave an untracked object.
+	if _, err = h.DB.Exec(r.Context(), `INSERT INTO user_media_deletion_jobs (object_key, next_attempt_at) VALUES ($1, clock_timestamp() + interval '1 hour')`, key); err != nil {
+		router.RespondWithError(w, http.StatusServiceUnavailable, "Imaginea nu a putut fi pregatita")
+		return
+	}
 	if _, err = storage.PutObject(r.Context(), &s3.PutObjectInput{
 		Bucket:       aws.String(bucket),
 		Key:          aws.String(key),
@@ -97,25 +103,11 @@ func (h *Handler) HandleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	avatarURL := fmt.Sprintf("%s/api/v1/media/%s", publicAPIURL, key)
-	updated, err := h.Queries.UpdateUserAvatar(r.Context(), db.UpdateUserAvatarParams{
-		ID:        userUUID,
-		AvatarUrl: pgtype.Text{String: avatarURL, Valid: true},
-	})
+	updated, err := h.replaceAvatar(r.Context(), userUUID, avatarURL, key)
 	if err != nil {
-		_, _ = storage.DeleteObject(r.Context(), &s3.DeleteObjectInput{
-			Bucket: aws.String(bucket),
-			Key:    aws.String(key),
-		})
+		// The pre-registered job cleans up the upload after a failed transaction.
 		router.RespondWithError(w, http.StatusInternalServerError, "Poza de profil nu a putut fi salvata")
 		return
-	}
-	if previousKey := ownedAvatarKey(previousUser.AvatarUrl.String, userID); previousKey != "" && previousKey != key {
-		// Replacements no longer accumulate in storage. External account photos
-		// and legacy URLs outside this user's avatar directory are untouched.
-		_, _ = storage.DeleteObject(r.Context(), &s3.DeleteObjectInput{
-			Bucket: aws.String(bucket),
-			Key:    aws.String(previousKey),
-		})
 	}
 
 	router.RespondWithJSON(w, http.StatusOK, MapUser(updated))
@@ -156,4 +148,34 @@ func randomAvatarObjectID() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(randomBytes), nil
+}
+
+// Swap the URL and schedule cleanup under one row lock. Concurrent uploads
+// delete the actual replaced image, never the image still referenced by users.
+func (h *Handler) replaceAvatar(ctx context.Context, userID pgtype.UUID, avatarURL, newKey string) (db.Users, error) {
+	tx, err := h.DB.Begin(ctx)
+	if err != nil {
+		return db.Users{}, err
+	}
+	defer tx.Rollback(ctx)
+	var previous pgtype.Text
+	if err := tx.QueryRow(ctx, "SELECT avatar_url FROM users WHERE id=$1 FOR UPDATE", userID).Scan(&previous); err != nil {
+		return db.Users{}, err
+	}
+	updated, err := h.Queries.WithTx(tx).UpdateUserAvatar(ctx, db.UpdateUserAvatarParams{ID: userID, AvatarUrl: pgtype.Text{String: avatarURL, Valid: true}})
+	if err != nil {
+		return db.Users{}, err
+	}
+	if key := ownedAvatarKey(previous.String, userID.String()); key != "" && key != newKey {
+		if _, err := tx.Exec(ctx, "INSERT INTO user_media_deletion_jobs (object_key,next_attempt_at) VALUES ($1,$2) ON CONFLICT (object_key) DO NOTHING", key, time.Now().Add(15*time.Minute)); err != nil {
+			return db.Users{}, err
+		}
+	}
+	if _, err := tx.Exec(ctx, "DELETE FROM user_media_deletion_jobs WHERE object_key=$1", newKey); err != nil {
+		return db.Users{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return db.Users{}, err
+	}
+	return updated, nil
 }

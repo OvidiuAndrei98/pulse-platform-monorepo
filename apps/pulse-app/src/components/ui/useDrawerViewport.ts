@@ -7,7 +7,7 @@ let unlockBody: (() => void) | undefined;
 const mobileViewport = "(max-width: 767px), (hover: none) and (pointer: coarse)";
 
 // Shared ownership prevents one nested drawer from unlocking another's page.
-export function lockPage() {
+export function lockPage(preservePageScroll = false) {
   if (lockCount++ === 0) {
     const body = document.body;
     const keys = ["position", "top", "left", "right", "overflow"] as const;
@@ -15,8 +15,16 @@ export function lockPage() {
     const { scrollX, scrollY } = window;
     const path = location.pathname;
     const mobile = window.matchMedia(mobileViewport).matches;
+    const root = document.documentElement;
+    const rootKeys = ["overflow", "overscroll-behavior"] as const;
+    const rootSaved = rootKeys.map(key => [key, root.style.getPropertyValue(key), root.style.getPropertyPriority(key)]);
     body.style.overflow = "hidden";
-    if (mobile) {
+    if (preservePageScroll) {
+      // Keep history snapshots in the same document coordinate space as the
+      // event sheet. Fixing body here resets scrollY before Safari's Back swipe.
+      root.style.overflow = "hidden";
+      root.style.overscrollBehavior = "none";
+    } else if (mobile) {
       body.style.position = "fixed";
       body.style.top = `${-scrollY}px`;
       body.style.left = `${-scrollX}px`;
@@ -24,7 +32,8 @@ export function lockPage() {
     }
     unlockBody = () => {
       saved.forEach(([key, value, priority]) => value ? body.style.setProperty(key, value, priority) : body.style.removeProperty(key));
-      if (mobile && location.pathname === path) window.scrollTo({ left: scrollX, top: scrollY, behavior: "instant" });
+      if (preservePageScroll) rootSaved.forEach(([key, value, priority]) => value ? root.style.setProperty(key, value, priority) : root.style.removeProperty(key));
+      if (mobile && !preservePageScroll && location.pathname === path) window.scrollTo({ left: scrollX, top: scrollY, behavior: "instant" });
     };
   }
   return () => { if (--lockCount === 0) { unlockBody?.(); unlockBody = undefined; } };
@@ -47,13 +56,13 @@ export function revealDrawerField(panel: HTMLElement) {
 
 /** One keyboard policy for Vaul sheets and custom side panels. The panel's
  * resting top stays stable; only its scrollable interior gets smaller. */
-export function useDrawerViewport(enabled = true, mode: "sheet" | "panel" = "sheet", lockDocument = true) {
+export function useDrawerViewport(enabled = true, mode: "sheet" | "panel" = "sheet", lockDocument = true, preservePageScroll = false) {
   const [panel, setPanel] = useState<HTMLElement | null>(null);
   useEffect(() => {
     if (!enabled || !panel) return;
     // Vaul's modal overlay already uses Radix RemoveScroll. Fixing the body a
     // second time resets window.scrollY on iOS and can shift the page on close.
-    const unlock = lockDocument ? lockPage() : () => undefined;
+    const unlock = lockDocument ? lockPage(preservePageScroll) : () => undefined;
     const viewport = window.visualViewport;
     const media = window.matchMedia(mobileViewport);
     const properties = ["height", "max-height", "top", "bottom"] as const;
@@ -122,6 +131,6 @@ export function useDrawerViewport(enabled = true, mode: "sheet" | "panel" = "she
       if (panel.contains(document.activeElement)) (document.activeElement as HTMLElement)?.blur();
       unlock();
     };
-  }, [enabled, mode, panel, lockDocument]);
+  }, [enabled, mode, panel, lockDocument, preservePageScroll]);
   return setPanel;
 }

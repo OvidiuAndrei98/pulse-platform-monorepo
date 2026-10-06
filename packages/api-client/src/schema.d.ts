@@ -4743,7 +4743,9 @@ export interface operations {
     EventOperations_createCheckoutSession: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
             path: {
                 id: string;
             };

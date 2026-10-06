@@ -273,6 +273,16 @@ type CheckIns struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type CheckoutRequests struct {
+	ID          pgtype.UUID        `json:"id"`
+	SubjectHash []byte             `json:"subject_hash"`
+	RequestKey  pgtype.UUID        `json:"request_key"`
+	RequestHash []byte             `json:"request_hash"`
+	OrderID     pgtype.UUID        `json:"order_id"`
+	Response    []byte             `json:"response"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type CheckoutReservationReviews struct {
 	OrderID    pgtype.UUID        `json:"order_id"`
 	Reason     string             `json:"reason"`
@@ -573,6 +583,11 @@ type Orders struct {
 	TicketVatPercentage           pgtype.Numeric     `json:"ticket_vat_percentage"`
 	TicketVatName                 pgtype.Text        `json:"ticket_vat_name"`
 	AccountOwnerDeletedAt         pgtype.Timestamptz `json:"account_owner_deleted_at"`
+	TicketEmailClaim              pgtype.UUID        `json:"ticket_email_claim"`
+	TicketEmailClaimUntil         pgtype.Timestamptz `json:"ticket_email_claim_until"`
+	TicketEmailNextAttemptAt      pgtype.Timestamptz `json:"ticket_email_next_attempt_at"`
+	TicketEmailAttempts           int32              `json:"ticket_email_attempts"`
+	CheckoutReconcileAfter        pgtype.Timestamptz `json:"checkout_reconcile_after"`
 }
 
 type OrganizerFollows struct {

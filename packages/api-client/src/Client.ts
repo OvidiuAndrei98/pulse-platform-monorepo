@@ -140,6 +140,8 @@ export class ApiClient {
       params?: OperationParameters<Path, Method>;
       body?: any;
       cache?: RequestCache;
+      signal?: AbortSignal;
+      idempotencyKey?: string;
     },
   ): Promise<any> {
     let urlPath = path as string;
@@ -166,12 +168,15 @@ export class ApiClient {
 
     const requestToken = this.config.getAccessToken?.();
     if (requestToken) headers["Authorization"] = `Bearer ${requestToken}`;
+    if (options?.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
+    if (options?.cache === "no-store") headers["Cache-Control"] = "no-cache";
 
     const response = await fetch(url.toString(), {
       method: method.toUpperCase(),
       headers,
       body: options?.body ? JSON.stringify(options.body) : undefined,
       cache: options?.cache,
+      signal: options?.signal,
     });
 
     if (!response.ok) {
@@ -216,6 +221,7 @@ export class ApiClient {
     options?: {
       params?: OperationParameters<Path, "get">;
       cache?: RequestCache;
+      signal?: AbortSignal;
     },
   ) {
     return this.request("get", path, options);
@@ -226,6 +232,7 @@ export class ApiClient {
     options?: {
       params?: OperationParameters<Path, "post">;
       body?: OperationRequestBody<Path, "post">;
+      idempotencyKey?: string;
     },
   ) {
     return this.request("post", path, options);

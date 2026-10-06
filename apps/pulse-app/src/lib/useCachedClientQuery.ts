@@ -20,6 +20,10 @@ export function useCachedClientQuery<T>(
   const retry = useCallback(() => (
     key ? refreshClientQuery(key, loader.current, { force: true }) : Promise.resolve()
   ), [key]);
+  const retryResult = useCallback(async () => {
+    await retry();
+    return !key || !readClientQuery<T>(key)?.error;
+  }, [key, retry]);
   useEffect(() => {
     if (key) void refreshClientQuery(key, loader.current, { staleTimeMs });
   }, [key, staleTimeMs]);
@@ -33,6 +37,7 @@ export function useCachedClientQuery<T>(
     error: state?.hasData ? null : state?.error,
     refreshError: state?.hasData ? state.error : null,
     retry,
+    retryResult,
     setData,
   };
 }

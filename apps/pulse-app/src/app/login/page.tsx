@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { BackLink } from "@/components/BackLink";
+import { isPublicLoginReturnPath } from "@/lib/navigation/loginReturn";
 import { safeInternalPath } from "@/lib/navigation/state";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { useRouter } from "next/navigation";
@@ -103,6 +104,7 @@ export default function LoginPage() {
         ) : (
           <BackLink
             href="/"
+            canReturnTo={isPublicLoginReturnPath}
             aria-label={t("common.back")}
             className="grid h-12 w-12 place-items-center rounded-full bg-black/35 text-white backdrop-blur-md transition hover:bg-black/55"
           >

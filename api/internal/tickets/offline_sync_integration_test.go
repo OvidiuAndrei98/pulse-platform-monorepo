@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "pulse-api/db/generated"
 	"pulse-api/internal/auth"
@@ -30,7 +31,11 @@ func TestOfflineSyncAfterExpiryIntegration(t *testing.T) {
 	if cfg.ConnConfig.Host != "127.0.0.1" || cfg.ConnConfig.Database != "spottr_ticket_test" {
 		t.Fatal("refusing non-isolated test database")
 	}
-	ctx := context.Background()
+	// A sync must never borrow a second connection while holding its transaction.
+	// One connection reproduces the same starvation as a full production pool.
+	cfg.MaxConns = 1
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -59,7 +64,7 @@ func TestOfflineSyncAfterExpiryIntegration(t *testing.T) {
 	tier := id(`INSERT INTO ticket_types(event_id,name,price_ron,capacity,tickets_sold,start_sales,end_sales) VALUES($1,'General',50,100,1,now()-interval '1 day',now()-interval '2 hours') RETURNING id::text`, event)
 	order := id(`INSERT INTO orders(user_id,event_id,email,status,total_amount) VALUES($1,$2,'offline@example.invalid','completed',50) RETURNING id::text`, owner, event)
 	defer func() { _, _ = pool.Exec(ctx, `DELETE FROM orders WHERE id=$1`, order) }()
-	hash := strings.Repeat("a", 64)
+	hash := strings.Repeat(strings.ReplaceAll(id(`SELECT gen_random_uuid()::text`), "-", ""), 2)
 	exec(`INSERT INTO tickets(order_id,ticket_type_id,user_id,validation_hash) VALUES($1,$2,$3,$4)`, order, tier, owner, hash)
 	expires := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
 	snapshot := id(`INSERT INTO offline_validation_snapshots(event_id,created_by_user_id,ticket_count,created_at,expires_at) VALUES($1,$2,1,$3,$4) RETURNING id::text`, event, owner, expires.Add(-3*time.Hour), expires)
@@ -108,4 +113,39 @@ func TestOfflineSyncAfterExpiryIntegration(t *testing.T) {
 	if response := request(nil); response.Code != http.StatusBadRequest {
 		t.Fatalf("empty batch accepted: %d", response.Code)
 	}
+
+	t.Run("one winner across 100 concurrent online scans", func(t *testing.T) {
+		parallelConfig := cfg.Copy()
+		parallelConfig.MaxConns = 15
+		parallelPool, err := pgxpool.NewWithConfig(ctx, parallelConfig)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer parallelPool.Close()
+		exec(`UPDATE tickets SET is_validated=false,validated_at=NULL WHERE validation_hash=$1`, hash)
+		parallelHandler := NewHandler(db.New(parallelPool), parallelPool, "https://example.invalid")
+		var eventUUID, ownerUUID pgtype.UUID
+		_ = eventUUID.Scan(event)
+		_ = ownerUUID.Scan(owner)
+		gate, results := make(chan struct{}), make(chan string, 100)
+		for range 100 {
+			go func() {
+				<-gate
+				result, code, message := parallelHandler.validateTicketForEvent(ctx, eventUUID, hash, ownerUUID, pgtype.UUID{})
+				if code != 200 {
+					results <- fmt.Sprintf("%d %s", code, message)
+					return
+				}
+				results <- result.Status
+			}()
+		}
+		close(gate)
+		counts := map[string]int{}
+		for range 100 {
+			counts[<-results]++
+		}
+		if counts["valid"] != 1 || counts["already_validated"] != 99 {
+			t.Fatalf("double consumption or scan failure: %v", counts)
+		}
+	})
 }

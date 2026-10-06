@@ -14,6 +14,7 @@ import (
 
 	db "pulse-api/db/generated"
 	"pulse-api/internal/auth"
+	"pulse-api/internal/cache"
 	"pulse-api/internal/common"
 	"pulse-api/internal/organizer"
 	"pulse-api/internal/router"
@@ -26,12 +27,16 @@ import (
 type Handler struct {
 	Queries *db.Queries
 	DB      *pgxpool.Pool
+	lists   *cache.TTL[[]db.ListEventsRow]
+	details *cache.TTL[db.GetEventByIDRow]
 }
 
-func NewHandler(queries *db.Queries, db *pgxpool.Pool) *Handler {
+func NewHandler(queries *db.Queries, pool *pgxpool.Pool) *Handler {
 	return &Handler{
 		Queries: queries,
-		DB:      db,
+		DB:      pool,
+		lists:   cache.New[[]db.ListEventsRow](256, 2*time.Second),
+		details: cache.New[db.GetEventByIDRow](256, 2*time.Second),
 	}
 }
 
@@ -805,7 +810,16 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 		params.LonMax = pgtype.Float8{Float64: lonMax, Valid: true}
 	}
 
-	dbEvents, err := h.Queries.ListEvents(r.Context(), params)
+	// Include ALL query arguments, especially viewer identity and map bounds.
+	// Personalized fields must never be shared between accounts.
+	cacheKey, _ := json.Marshal(params)
+	listCache := h.lists
+	if strings.Contains(r.Header.Get("Cache-Control"), "no-cache") {
+		listCache = nil
+	}
+	dbEvents, err := listCache.Get(r.Context(), string(cacheKey), func(ctx context.Context) ([]db.ListEventsRow, error) {
+		return h.Queries.ListEvents(ctx, params)
+	})
 	if err != nil {
 		log.Printf("ListEvents query failed: %v", err)
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la listare")
@@ -848,9 +862,17 @@ func (h *Handler) HandleGetEventByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Executăm query-ul unificat
-	dbRow, err := h.Queries.GetEventByID(r.Context(), db.GetEventByIDParams{
+	params := db.GetEventByIDParams{
 		UserID: pgUserID,
 		ID:     eventUUID,
+	}
+	cacheKey, _ := json.Marshal(params)
+	detailCache := h.details
+	if strings.Contains(r.Header.Get("Cache-Control"), "no-cache") {
+		detailCache = nil
+	}
+	dbRow, err := detailCache.Get(r.Context(), string(cacheKey), func(ctx context.Context) (db.GetEventByIDRow, error) {
+		return h.Queries.GetEventByID(ctx, params)
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusNotFound, "Evenimentul nu a fost găsit")

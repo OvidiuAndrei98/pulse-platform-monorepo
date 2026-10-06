@@ -3,11 +3,13 @@ package email
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"html"
 	"mime"
 	"mime/multipart"
+	"net"
 	"net/mail"
 	"net/smtp"
 	"net/textproto"
@@ -185,9 +187,61 @@ func (m *Mailer) sendHTML(ctx context.Context, toEmail, subject, preheader, titl
 	if m.password != "" {
 		auth = smtp.PlainAuth("", m.username, m.password, m.smtpHost)
 	}
-	if err := smtp.SendMail(m.smtpHost+":"+m.smtpPort, auth, sender.Address, []string{recipient.Address}, message); err != nil {
+	if err := sendSMTP(ctx, m.smtpHost, m.smtpPort, auth, sender.Address, recipient.Address, message); err != nil {
 		return fmt.Errorf("eroare trimitere email Spottr: %w", err)
 	}
+	return nil
+}
+
+// smtp.SendMail has no context or socket deadline. A stuck SMTP server must
+// not outlive the delivery lease and allow a second worker to send concurrently.
+func sendSMTP(ctx context.Context, host, port string, auth smtp.Auth, from, to string, message []byte) error {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", net.JoinHostPort(host, port))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stop()
+	deadline, _ := ctx.Deadline()
+	if err := conn.SetDeadline(deadline); err != nil {
+		return err
+	}
+	client, err := smtp.NewClient(conn, host)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+	if ok, _ := client.Extension("STARTTLS"); ok {
+		if err := client.StartTLS(&tls.Config{ServerName: host, MinVersion: tls.VersionTLS12}); err != nil {
+			return err
+		}
+	}
+	if auth != nil {
+		if err := client.Auth(auth); err != nil {
+			return err
+		}
+	}
+	if err := client.Mail(from); err != nil {
+		return err
+	}
+	if err := client.Rcpt(to); err != nil {
+		return err
+	}
+	w, err := client.Data()
+	if err != nil {
+		return err
+	}
+	if _, err := w.Write(message); err != nil {
+		return err
+	}
+	if err := w.Close(); err != nil {
+		return err
+	}
+	// DATA was acknowledged. A failure to QUIT does not undo delivery.
+	_ = client.Quit()
 	return nil
 }
 

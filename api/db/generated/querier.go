@@ -33,15 +33,18 @@ type Querier interface {
 	CancelPromotionCampaignForKnownRefund(ctx context.Context, arg CancelPromotionCampaignForKnownRefundParams) (int64, error)
 	ClaimBillingInvoiceRefunds(ctx context.Context, batchSize int32) ([]BillingInvoiceRefunds, error)
 	ClaimBillingInvoices(ctx context.Context, batchSize int32) ([]BillingInvoices, error)
+	ClaimCheckoutForReconciliation(ctx context.Context) (ClaimCheckoutForReconciliationRow, error)
 	ClaimDueEventBannerAssetDeletion(ctx context.Context) (ClaimDueEventBannerAssetDeletionRow, error)
 	ClaimOrderRefundOperations(ctx context.Context, batchSize int32) ([]OrderRefundOperations, error)
 	ClaimPlatformCommissionInvoices(ctx context.Context, batchSize int32) ([]PlatformCommissionInvoices, error)
 	ClaimPromotionInvoices(ctx context.Context, batchSize int32) ([]PromotionInvoices, error)
+	ClaimTicketEmail(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error)
 	ClearOrganizerStripeAccount(ctx context.Context, stripeAccountID pgtype.Text) (OrganizerProfiles, error)
 	CompleteEndedEvents(ctx context.Context) error
 	CompleteEventBannerAssetDeletion(ctx context.Context, arg CompleteEventBannerAssetDeletionParams) (int64, error)
 	CompleteExpiredPromotionCampaigns(ctx context.Context) error
 	CompleteOfflineTicketValidation(ctx context.Context, arg CompleteOfflineTicketValidationParams) error
+	CompleteTicketEmailClaim(ctx context.Context, arg CompleteTicketEmailClaimParams) (int64, error)
 	ConnectFriends(ctx context.Context, arg ConnectFriendsParams) error
 	CountActiveOrganizerUpdates(ctx context.Context, organizerID pgtype.UUID) (int64, error)
 	CountCompletedOrdersForEvent(ctx context.Context, eventID pgtype.UUID) (int64, error)
@@ -107,7 +110,9 @@ type Querier interface {
 	GetCommentsForEvent(ctx context.Context, arg GetCommentsForEventParams) ([]GetCommentsForEventRow, error)
 	GetEventBannerReference(ctx context.Context, eventID pgtype.UUID) (pgtype.UUID, error)
 	GetEventByID(ctx context.Context, arg GetEventByIDParams) (GetEventByIDRow, error)
+	GetEventForCheckout(ctx context.Context, id pgtype.UUID) (Events, error)
 	GetEventForOrganizerUpdate(ctx context.Context, id pgtype.UUID) (GetEventForOrganizerUpdateRow, error)
+	GetEventForValidation(ctx context.Context, id pgtype.UUID) (GetEventForValidationRow, error)
 	GetEventSocialSummary(ctx context.Context, arg GetEventSocialSummaryParams) (GetEventSocialSummaryRow, error)
 	GetEventStatusForCheckoutUpdate(ctx context.Context, id pgtype.UUID) (string, error)
 	GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEventWithStatsRow, error)
@@ -241,6 +246,7 @@ type Querier interface {
 	RecordPromotionImpression(ctx context.Context, arg RecordPromotionImpressionParams) error
 	RecordPromotionRefundState(ctx context.Context, arg RecordPromotionRefundStateParams) (bool, error)
 	RejectEventCancellation(ctx context.Context, arg RejectEventCancellationParams) (pgtype.UUID, error)
+	ReleaseTicketEmailClaim(ctx context.Context, arg ReleaseTicketEmailClaimParams) error
 	RemoveFriend(ctx context.Context, arg RemoveFriendParams) (int64, error)
 	RemoveSavedEvent(ctx context.Context, arg RemoveSavedEventParams) error
 	RemoveStaleEventBannerReferences(ctx context.Context) (int64, error)

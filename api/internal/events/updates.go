@@ -20,11 +20,11 @@ import (
 	"pulse-api/internal/router"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"pulse-api/internal/media"
 )
 
 const maxActiveOrganizerUpdates = 3
@@ -108,12 +108,12 @@ func (h *Handler) HandleUploadOrganizerUpdateImage(w http.ResponseWriter, r *htt
 		return
 	}
 	key := fmt.Sprintf("%s%s/%s.%s", organizerUpdatePrefix, userID, objectID, extension)
-	awsCfg, err := awsconfig.LoadDefaultConfig(r.Context())
+	storage, err := media.Client(r.Context())
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Nu s-a putut initializa stocarea imaginilor")
 		return
 	}
-	if _, err = s3.NewFromConfig(awsCfg).PutObject(r.Context(), &s3.PutObjectInput{
+	if _, err = storage.PutObject(r.Context(), &s3.PutObjectInput{
 		Bucket: aws.String(bucket), Key: aws.String(key), Body: bytes.NewReader(imageData),
 		ContentType: aws.String(contentType), CacheControl: aws.String("public, max-age=31536000, immutable"),
 	}); err != nil {
@@ -314,10 +314,10 @@ func deleteManagedOrganizerUpdateImage(ctx context.Context, imageURL string) err
 	if bucket == "" {
 		return fmt.Errorf("S3_BUCKET is not configured")
 	}
-	awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
+	storage, err := media.Client(ctx)
 	if err != nil {
 		return err
 	}
-	_, err = s3.NewFromConfig(awsCfg).DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
+	_, err = storage.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
 	return err
 }

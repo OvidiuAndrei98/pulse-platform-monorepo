@@ -20,11 +20,11 @@ import (
 	"pulse-api/internal/router"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"pulse-api/internal/media"
 )
 
 const (
@@ -83,7 +83,7 @@ func (h *Handler) HandleUploadEventBanner(w http.ResponseWriter, r *http.Request
 	}
 	key := fmt.Sprintf("%s%s/%s.%s", eventBannerPrefix, userID, objectID, extension)
 
-	awsCfg, err := awsconfig.LoadDefaultConfig(r.Context())
+	storage, err := media.Client(r.Context())
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Nu s-a putut initializa stocarea imaginilor")
 		return
@@ -97,7 +97,7 @@ func (h *Handler) HandleUploadEventBanner(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	_, err = s3.NewFromConfig(awsCfg).PutObject(r.Context(), &s3.PutObjectInput{
+	_, err = storage.PutObject(r.Context(), &s3.PutObjectInput{
 		Bucket:       aws.String(bucket),
 		Key:          aws.String(key),
 		Body:         bytes.NewReader(imageData),
@@ -133,13 +133,13 @@ func (h *Handler) HandleGetEventBanner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	awsCfg, err := awsconfig.LoadDefaultConfig(r.Context())
+	storage, err := media.Client(r.Context())
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
 
-	object, err := s3.NewFromConfig(awsCfg).GetObject(r.Context(), &s3.GetObjectInput{
+	object, err := storage.GetObject(r.Context(), &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})
@@ -293,11 +293,11 @@ func deleteStoredEventBanner(ctx context.Context, key string) error {
 	if bucket == "" {
 		return errors.New("S3_BUCKET is not configured")
 	}
-	awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
+	storage, err := media.Client(ctx)
 	if err != nil {
 		return err
 	}
-	_, err = s3.NewFromConfig(awsCfg).DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
+	_, err = storage.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
 	return err
 }
 

@@ -1,0 +1,131 @@
+SCALABILITY FIXES AND LOCAL VALIDATION - 2026-10-04
+
+Scope
+Application changes and isolated local tests only. No deployment, production
+database changes, real charges, outgoing email or S3 uploads were performed.
+Pre-existing navigation/logout/sheet changes in the worktree were preserved.
+
+Implemented
+1. Offline validation uses the transaction's connection throughout; it no longer
+   borrows a second connection while retaining the first. Invitations participate
+   in the same transaction. Database failures return retryable server errors.
+2. Scanner authorization and checkout use lightweight event queries. Added
+   indexes for ticket/order/event lookups. Fulfillment retains order/inventory
+   locks, but compatible operations can share the event row lock.
+3. Authenticated buyers on venue Wi-Fi no longer share the small active-order
+   quota. Per-buyer restrictions remain; guests retain both identity/IP limits.
+   Scanner limits use authenticated identity and event. Expensive uploads and
+   offline sync have bounded per-process concurrency and Retry-After responses.
+4. Checkout supports an Idempotency-Key shared by retries of the same frontend
+   payload. The order is bound to that key inside the inventory transaction.
+   An unknown payment outcome cannot silently create another order for that key.
+   Old clients without the header remain compatible, without this new guarantee.
+5. Ticket email runs in a durable worker with bounded parallelism, retry backoff,
+   claim leases and fencing tokens. SMTP connections have deadlines. Payment
+   reconciliation claims individual due orders with SKIP LOCKED and no longer
+   repeatedly processes only the first batch. Purchase notifications are created
+   in the fulfillment transaction.
+6. Display queries have a bounded 2-second per-instance cache with viewer/filter
+   isolation and explicit refresh bypass. Validation and purchases never trust
+   that cache for authorization, stock or ticket consumption.
+7. Notification/safety-group polling pauses offline/hidden, avoids overlapping
+   polls, adds jitter and backs off on errors. Obsolete group requests are aborted.
+8. S3 client initialization is reused. Concurrent avatar replacement serializes
+   the database update and creates durable cleanup jobs for abandoned objects.
+   The database transaction does not remain open during S3 upload.
+9. The local API server handles graceful shutdown and bounds connection lifetimes.
+
+Regression validation
+- All 85 frontend Node tests passed; TypeScript --noEmit passed.
+- TypeSpec/API client generation passed.
+- go test ./... -count=1 -timeout 120s passed with isolated database fixtures.
+  Integration suites requiring other environment variables were not enabled.
+- Additional email lease fencing integration test passed after the full suite:
+  an expired worker cannot complete or release a newer worker's claim.
+- New permanent tests cover QR contention, offline single-connection operation,
+  checkout idempotency, shared-IP buyers, concurrent email delivery/retry/claims,
+  SMTP timeout, concurrent avatar replacement, cache isolation/coalescing,
+  request concurrency limits, frontend request keys and polling lifecycle.
+
+Local load methodology
+Windows, Intel i3-12100F (8 logical CPUs), 16 GB RAM, PostgreSQL 18.
+API handlers, generator and database ran on the same machine. Database pool:
+15 connections. HTTP generator: maximum 128 connections; client timeout 15s;
+test handler timeout 12s. Latencies include waiting in the generator.
+Fake dataset: 100 events, 10,000 buyers, 20,000 orders/tickets and 10,000
+notifications. Before/after tests used separate seeded databases.
+Mix: 30% scans, 10% reservation+fulfillment, 10% attendance, 10% notifications,
+10% event lists, 30% event detail. Real handlers/SQL/auth paths were exercised;
+the test router does not reproduce every production middleware or proxy.
+Purchase adapter calls reservation and fulfillment with fake payment identifiers;
+it does not call Stripe or exercise a real signed webhook. Idempotency headers
+are tested separately in regression tests, not by that adapter.
+
+Mixed bursts (one request per virtual client, NOT sustained concurrent sessions)
+Clients   Before p95(ms)   After p95(ms)   After server/transport errors
+100             182.616          56.630              0
+1,000         1,042.461         191.894              0
+5,000         5,285.233         755.783              0
+10,000       15,095.732       1,505.925              0
+The old 10,000-request run had 1,525 server/transport failures.
+
+Other executed scenarios
+- Same QR, 100 simultaneous attempts: exactly 1 valid, 99 already validated.
+- Same invitation, 100 attempts: exactly 1 valid, 99 already validated.
+- Same order, 100 fulfillment attempts: no duplicate tickets.
+- Last 10 tickets, 100 buyers: 10 reservations, 90 expected HTTP 409 responses.
+- 15 offline transactions holding all 15 connections: all completed in ~133ms;
+  the previous implementation timed out waiting for second connections.
+- Mixed online/offline attempts for one QR: 1 valid, 3 already validated.
+- 100 users sharing one IP: all passed the tested IP limiter; separate database
+  regression confirms authenticated active-order quotas are not shared by IP.
+- 200 requests/second for 30 seconds: 6,000 requests, zero server/transport
+  errors; p95 3.008ms, p99 9.569ms. Included 1,800 fresh ticket scans and 600
+  reservation/fulfillment operations. This is a short steady run, not a soak.
+
+Rollout requirements
+Apply these migrations, in order, BEFORE starting the updated API:
+  20261004160000_concurrency_indexes.sql
+  20261004161000_checkout_delivery_leases.sql
+  20261004162000_checkout_request_idempotency.sql
+Use the normal migration/deployment procedure and an appropriate maintenance
+window: these index creations are not CONCURRENTLY. They were applied only
+to disposable local databases here. Do not drop the new tables/columns while
+an API version using them is running. The frontend can be deployed after API.
+Review existing unsent completed orders before enabling the email worker:
+it now retries older pending deliveries as well. Monitor provider quotas,
+queue age, attempts, 429/5xx, p95/p99, database pool waits and lock waits.
+
+Remaining limits and production validation
+- These numbers do not certify 10,000 sustained production users or 100 real
+  venue gates. Network RTT, RDS/storage, deployment sizing, proxies and service
+  quotas are absent. Test against a separate staging DATABASE, not a staging
+  application that shares production storage.
+- Run ramp/steady/spike/soak profiles at 100, 1,000, 5,000 and 10,000 sessions,
+  with realistic think times and a separate scanner arrival rate. Hold each
+  supported level for at least 15-30 minutes and run a 1-2 hour soak. Include
+  hot events, simultaneous stock exhaustion, QR duplicates, reconnection bursts,
+  provider timeouts, process restarts and multiple API instances. Repeat runs.
+- Verify Stripe test-mode checkout/webhooks/refunds, SMTP delivery and S3 uploads
+  end-to-end. This test did not validate provider throughput or real money flows.
+- Email is at-least-once: a process crash after SMTP acceptance but before the
+  database acknowledgement can still cause a duplicate on retry.
+- Display caches and work-concurrency gates are per API instance. Large catalog
+  discovery/search still needs a separate pagination/search design; bulk follower
+  fan-out, shared cache infrastructure and CDN delivery were not redesigned.
+- Unknown payment outcomes remain pending/reviewable instead of creating another
+  charge. Operational review/reconciliation is still necessary in those cases.
+- No frontend production build, physical-device FPS run or Go race-detector run
+  was performed for this change. The local Go environment has no C toolchain.
+
+Regression rerun (disposable databases ONLY; fixtures may truncate test tables)
+Set ISOLATION_TEST_DATABASE_URL and ABUSE_TEST_DATABASE_URL to a fully migrated
+throwaway database; set TICKET_TEST_DATABASE_URL to a separate migrated database.
+From api: go test ./... -count=1 -timeout 120s
+From apps/pulse-app: node --test --test-timeout=30000 scripts/*.test.cjs
+From apps/pulse-app: pnpm exec tsc --noEmit
+
+Full local load harness, seed SQL, overlays, logs and raw results are retained at:
+C:\Users\zucco\AppData\Local\Temp\spottr-scale-audit-384536013ffc4e438506af84125f0c03
+Updated runs are in its fixed subdirectory. These temporary artifacts are local
+and are not part of the repository; permanent regression tests are in the repo.

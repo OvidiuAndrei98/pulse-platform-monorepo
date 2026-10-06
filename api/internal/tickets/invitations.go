@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -24,8 +25,9 @@ type createInvitationRequest struct {
 	Quantity     int32  `json:"quantity"`
 }
 
-func (h *Handler) validateInvitation(ctx context.Context, eventID pgtype.UUID, hash string) (map[string]any, bool, error) {
-	invitation, err := h.Queries.GetInvitationForValidation(ctx, db.GetInvitationForValidationParams{
+func validateInvitation(ctx context.Context, queries *db.Queries, eventID pgtype.UUID, hash string) (map[string]any, bool, error) {
+	params := db.GetInvitationForValidationParams{EventID: eventID, ValidationHash: hash}
+	invitation, err := queries.GetInvitationForValidation(ctx, db.GetInvitationForValidationParams{
 		EventID: eventID, ValidationHash: hash,
 	})
 	if err == pgx.ErrNoRows {
@@ -41,9 +43,21 @@ func (h *Handler) validateInvitation(ctx context.Context, eventID pgtype.UUID, h
 	} else if validatedAt.Valid {
 		status = "already_validated"
 	} else {
-		validatedAt, err = h.Queries.MarkInvitationValidated(ctx, invitation.ID)
-		if err != nil {
+		validatedAt, err = queries.MarkInvitationValidated(ctx, invitation.ID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			// Another request consumed or revoked it. Return the committed state,
+			// not a false "already used" verdict for a database failure.
+			current, lookupErr := queries.GetInvitationForValidation(ctx, params)
+			if lookupErr != nil {
+				return nil, true, lookupErr
+			}
+			validatedAt = current.ValidatedAt
 			status = "already_validated"
+			if current.RevokedAt.Valid {
+				status = "revoked"
+			}
+		} else if err != nil {
+			return nil, true, err
 		}
 	}
 	return map[string]any{"ticketId": common.UUIDToString(invitation.ID), "ticketType": invitation.TicketType, "eventId": common.UUIDToString(eventID), "status": status, "validatedAt": validatedAt.Time, "invitationLabel": invitation.Label}, true, nil
@@ -77,7 +91,7 @@ func (h *Handler) organizerEventIDs(r *http.Request) (pgtype.UUID, pgtype.UUID, 
 	if userID.Scan(userString) != nil || eventID.Scan(chi.URLParam(r, "id")) != nil {
 		return userID, eventID, false
 	}
-	event, err := h.Queries.GetEventWithStats(r.Context(), eventID)
+	event, err := h.Queries.GetEventForValidation(r.Context(), eventID)
 	return userID, eventID, err == nil && event.OrganizerID == userID
 }
 
@@ -87,7 +101,7 @@ func (h *Handler) HandleCreateInvitation(w http.ResponseWriter, r *http.Request)
 		router.RespondWithError(w, http.StatusForbidden, "Nu ai permisiunea sa generezi invitatii")
 		return
 	}
-	event, err := h.Queries.GetEventWithStats(r.Context(), eventID)
+	event, err := h.Queries.GetEventForValidation(r.Context(), eventID)
 	if err != nil || event.ExternalTicketUrl.Valid {
 		router.RespondWithError(w, http.StatusConflict, "Evenimentul foloseste o platforma externa pentru bilete")
 		return

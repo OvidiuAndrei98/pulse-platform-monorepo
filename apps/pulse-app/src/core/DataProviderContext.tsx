@@ -137,7 +137,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loading && !user && isProtectedRoute) {
-      router.push("/login");
+      router.replace("/login");
     }
   }, [loading, user, isProtectedRoute, router]);
 
@@ -179,10 +179,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setUser(undefined);
     setLoading(false);
     setError(null);
-    if (isProtectedRoute) {
-      router.push("/login");
-    }
-  }, [isProtectedRoute, router]);
+    // The protected-route effect owns the redirect, including session expiry.
+  }, []);
 
   useEffect(() => {
     window.addEventListener("spottr:session-expired", logout);

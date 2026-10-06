@@ -114,9 +114,8 @@ export function OrganizerHeader() {
   if (isEventDetail) crumbs.push({ label: "dashboardNav.details" });
 
   const { logout } = useDataProvider();
-  const handleLogout = async () => {
+  const handleLogout = () => {
     logout();
-    router.push("/login");
   };
 
   return (

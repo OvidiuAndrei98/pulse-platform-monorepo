@@ -29,6 +29,7 @@ import (
 	"pulse-api/internal/tickets"
 	"pulse-api/internal/users"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -243,6 +244,26 @@ func (app *Application) BuildRouter() http.Handler {
 		OrganizerMiddleware:    requireOrganizer,
 		AdminMiddleware:        requireAdmin,
 		RateLimit:              app.Abuse.Middleware,
+		IdentityRateLimit: func(scope string, limit int, window time.Duration) func(http.Handler) http.Handler {
+			return func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					userID, _ := auth.GetUserIDFromContext(r.Context())
+					subject := "user:" + userID
+					if scannerID, ok := r.Context().Value(auth.ScannerAccessIDKey).(string); ok && scannerID != "" {
+						subject = "scanner:" + scannerID
+					} else if userID == "" {
+						router.RespondWithError(w, http.StatusUnauthorized, "Sesiunea lipseste")
+						return
+					}
+					if eventID := chi.URLParam(r, "id"); eventID != "" {
+						subject += ":event:" + eventID
+					}
+					if app.Abuse.Enforce(r.Context(), w, scope, subject, limit, window) {
+						next.ServeHTTP(w, r)
+					}
+				})
+			}
+		},
 
 		// Auth
 		Register:             authHandler.HandleRegister,

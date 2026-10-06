@@ -3,8 +3,10 @@ package payments
 import (
 	"context"
 	"errors"
+	"github.com/jackc/pgx/v5"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	db "pulse-api/db/generated"
@@ -14,7 +16,7 @@ import (
 	"github.com/stripe/stripe-go/v85"
 )
 
-const checkoutReconciliationInterval = time.Minute
+const checkoutReconciliationInterval = 15 * time.Second
 
 func (h *CheckoutHandler) reconcileCheckoutSession(ctx context.Context, sessionID, expectedEventID string) (string, string, error) {
 	order, err := h.queries.GetOrderByCheckoutSession(ctx, pgtype.Text{String: sessionID, Valid: sessionID != ""})
@@ -27,9 +29,7 @@ func (h *CheckoutHandler) reconcileCheckoutSession(ctx context.Context, sessionI
 	}
 	if order.Status == db.OrderStatusCompleted {
 		h.queueInvoice(ctx, order.ID)
-		if err := h.deliverTicketConfirmation(order.ID); err != nil {
-			log.Printf("completed checkout still has pending email delivery: order=%s err=%v", orderID, err)
-		}
+		// Durable email worker handles delivery, including retries.
 		return "completed", orderID, nil
 	}
 	if order.Status == db.OrderStatusRefunded {
@@ -112,6 +112,7 @@ func (h *CheckoutHandler) StartCheckoutReconciliationWorker(ctx context.Context)
 		return
 	}
 
+	go h.runTicketEmailWorker(ctx)
 	go func() {
 		h.reconcilePendingCheckouts(ctx)
 		ticker := time.NewTicker(checkoutReconciliationInterval)
@@ -129,23 +130,33 @@ func (h *CheckoutHandler) StartCheckoutReconciliationWorker(ctx context.Context)
 
 func (h *CheckoutHandler) reconcilePendingCheckouts(ctx context.Context) {
 	if h.configured {
-		orders, err := h.queries.ListPendingDirectChargeCheckoutsForReconciliation(ctx)
-		if err != nil {
-			log.Printf("pending checkout reconciliation query failed: %v", err)
-		} else {
-			for _, order := range orders {
-				requestCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-				status, _, reconcileErr := h.reconcileCheckoutSession(requestCtx, order.StripeCheckoutSessionID.String, "")
-				cancel()
-				if reconcileErr != nil {
-					log.Printf("pending checkout reconciliation failed: order=%s", common.UUIDToString(order.ID))
-					continue
+		var workers sync.WaitGroup
+		for range 3 {
+			workers.Add(1)
+			go func() {
+				defer workers.Done()
+				for range 20 {
+					if ctx.Err() != nil {
+						return
+					}
+					order, err := h.queries.ClaimCheckoutForReconciliation(ctx)
+					if errors.Is(err, pgx.ErrNoRows) {
+						return
+					}
+					if err != nil {
+						log.Printf("checkout claim failed: %v", err)
+						return
+					}
+					requestCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+					_, _, err = h.reconcileCheckoutSession(requestCtx, order.StripeCheckoutSessionID.String, "")
+					cancel()
+					if err != nil {
+						log.Printf("checkout reconciliation failed: order=%s err=%v", common.UUIDToString(order.ID), err)
+					}
 				}
-				if status != "pending" {
-					log.Printf("pending checkout reconciled: order=%s status=%s", common.UUIDToString(order.ID), status)
-				}
-			}
+			}()
 		}
+		workers.Wait()
 
 		markedForReview, err := h.queries.MarkStaleSessionlessCheckoutReservationsForReview(ctx)
 		if err != nil {
@@ -155,17 +166,53 @@ func (h *CheckoutHandler) reconcilePendingCheckouts(ctx context.Context) {
 		}
 	}
 
+}
+
+func (h *CheckoutHandler) runTicketEmailWorker(ctx context.Context) {
 	if h.mailer == nil {
 		return
+	}
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		if ctx.Err() != nil {
+			return
+		}
+		if h.deliverPendingTicketEmails(ctx) {
+			continue
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (h *CheckoutHandler) deliverPendingTicketEmails(ctx context.Context) bool {
+	if h.mailer == nil {
+		return false
 	}
 	pendingEmails, err := h.queries.ListRecentCompletedOrdersWithPendingTicketEmail(ctx)
 	if err != nil {
 		log.Printf("pending ticket email reconciliation query failed: %v", err)
-		return
+		return false
 	}
-	for _, order := range pendingEmails {
-		if err := h.deliverTicketConfirmation(order.ID); err != nil {
-			log.Printf("pending ticket email reconciliation failed: order=%s err=%v", common.UUIDToString(order.ID), err)
-		}
+	var workers sync.WaitGroup
+	for worker := 0; worker < 4; worker++ {
+		workers.Add(1)
+		go func(worker int) {
+			defer workers.Done()
+			for i := worker; i < len(pendingEmails); i += 4 {
+				if ctx.Err() != nil {
+					return
+				}
+				if err := h.deliverTicketConfirmation(pendingEmails[i].ID); err != nil {
+					log.Printf("pending ticket email delivery failed: order=%s err=%v", common.UUIDToString(pendingEmails[i].ID), err)
+				}
+			}
+		}(worker)
 	}
+	workers.Wait()
+	return len(pendingEmails) == 50
 }

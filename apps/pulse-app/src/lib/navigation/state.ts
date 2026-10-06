@@ -32,6 +32,7 @@ export function externalHistoryState(extra: Record<string, unknown> = {}) {
   const { __NA, _N, ...state } = window.history.state ?? {};
   return { ...state, ...extra };
 }
-export function canGoBack() {
-  return Boolean((window.history.state?.[ENTRY] as NavigationEntry | undefined)?.previous);
+export function canGoBack(allowPrevious?: (path: string) => boolean) {
+  const previous = (window.history.state?.[ENTRY] as NavigationEntry | undefined)?.previous;
+  return Boolean(previous && (!allowPrevious || allowPrevious(previous)));
 }

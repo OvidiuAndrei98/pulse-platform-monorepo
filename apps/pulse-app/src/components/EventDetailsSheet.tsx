@@ -679,6 +679,7 @@ export function EventDetailsSheet({
       onQuantitiesChange={setQty}
       open={checkoutOpen}
       historyBack={Boolean(activeEvent)}
+      preservePageScroll
       onBusyChange={setCheckoutBusy}
       onEventRefresh={setDisplayedEvent}
       onClose={() => setCheckoutOpen(false)}

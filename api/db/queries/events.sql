@@ -1,3 +1,10 @@
+-- name: GetEventForValidation :one
+SELECT id, organizer_id, title, start_time, end_time, external_ticket_url
+FROM events WHERE id = $1;
+
+-- name: GetEventForCheckout :one
+SELECT * FROM events WHERE id = $1;
+
 -- name: GetLiveEventsInArea :many
 SELECT id, organizer_id, title, description, category, status, banner_url, google_place_id, location_name, city, vibe, latitude, longitude, start_time, end_time, is_live, created_at
 FROM events 

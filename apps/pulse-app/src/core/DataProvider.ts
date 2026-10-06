@@ -706,7 +706,7 @@ export class User {
     unreadCount: number;
     notificationsLoading: boolean;
     notificationsError?: Error;
-    refresh: () => Promise<void>;
+    refresh: () => Promise<boolean>;
     markRead: (notificationId: string) => void;
   } {
     const viewerId = user?.properties.id;
@@ -733,7 +733,7 @@ export class User {
       unreadCount: query.data?.unreadCount ?? 0,
       notificationsLoading: query.pending,
       notificationsError: asError(query.error),
-      refresh: query.retry,
+      refresh: query.retryResult,
       markRead,
     };
   }
