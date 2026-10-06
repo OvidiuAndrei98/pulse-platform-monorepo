@@ -87,7 +87,9 @@
   /* Keep the layout viewport (including fixed navigation) the same width
      before/after asynchronous content introduces a classic scrollbar.
      Overlay scrollbars on phones do not reserve a gutter. */
-  html { scrollbar-gutter: stable; }
+  html {
+    scrollbar-gutter: stable;
+  }
 
   * {
     border-color: var(--color-border);
@@ -182,7 +184,11 @@
 @media (max-width: 767px) {
   /* Mobile Safari zooms the page when a focused form control renders text
      below 16px. Keep controls at the accessibility-safe size on phones. */
-  input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="image"]):not([type="radio"]):not([type="range"]):not([type="reset"]):not([type="submit"]),
+  input:not([type="button"]):not([type="checkbox"]):not([type="color"]):not(
+      [type="file"]
+    ):not([type="hidden"]):not([type="image"]):not([type="radio"]):not(
+      [type="range"]
+    ):not([type="reset"]):not([type="submit"]),
   select,
   textarea {
     font-size: 16px !important;
@@ -314,12 +320,16 @@ html.capacitor-native body {
    empty scroll range equal to the status and navigation safe areas. */
 html.capacitor-native .min-h-screen,
 html.capacitor-native .min-h-dvh {
-  min-height: calc(100dvh - var(--native-safe-top) - var(--native-safe-bottom)) !important;
+  min-height: calc(
+    100dvh - var(--native-safe-top) - var(--native-safe-bottom)
+  ) !important;
 }
 
 html.capacitor-native .h-screen,
 html.capacitor-native .h-dvh {
-  height: calc(100dvh - var(--native-safe-top) - var(--native-safe-bottom)) !important;
+  height: calc(
+    100dvh - var(--native-safe-top) - var(--native-safe-bottom)
+  ) !important;
 }
 
 /* Keep the iPhone status-bar/notch area visually stable, independent of the
@@ -335,9 +345,13 @@ html.capacitor-native body::before {
   pointer-events: none;
   background: #0b0e0c;
 }
-:root { --bottom-nav-blur: 16px; }
+:root {
+  --bottom-nav-blur: 16px;
+}
 @media (min-width: 48rem) {
-  :root { --bottom-nav-blur: 40px; }
+  :root {
+    --bottom-nav-blur: 40px;
+  }
 }
 [data-bottom-nav-glass] {
   -webkit-backdrop-filter: blur(var(--bottom-nav-blur));
@@ -369,11 +383,13 @@ html.capacitor-native body::before {
     font-size: 0.875rem !important;
   }
 
-  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-header-subtitle],
+  [data-chat-viewport][data-compact-keyboard="true"]
+    [data-chat-header-subtitle],
   [data-chat-viewport][data-compact-keyboard="true"] [data-chat-event-meta],
   [data-chat-viewport][data-compact-keyboard="true"] [data-chat-members],
   [data-chat-viewport][data-compact-keyboard="true"] [data-chat-help-hint],
-  [data-chat-viewport][data-compact-keyboard="true"] [data-chat-messages-header],
+  [data-chat-viewport][data-compact-keyboard="true"]
+    [data-chat-messages-header],
   [data-chat-viewport][data-compact-keyboard="true"] [data-chat-retention],
   [data-chat-viewport][data-compact-keyboard="true"] [data-chat-connection] {
     display: none !important;
@@ -401,31 +417,40 @@ html.capacitor-native body::before {
     padding-top: 0 !important;
   }
 
-  [data-drawer-viewport][data-keyboard-open="true"] [data-drawer-keyboard-hide] {
+  [data-drawer-viewport][data-keyboard-open="true"]
+    [data-drawer-keyboard-hide] {
     display: none !important;
   }
 
-  [data-drawer-viewport][data-keyboard-open="true"] [data-drawer-keyboard-header] {
+  [data-drawer-viewport][data-keyboard-open="true"]
+    [data-drawer-keyboard-header] {
     padding-top: 0.5rem !important;
     padding-bottom: 0.5rem !important;
   }
 
-  [data-drawer-viewport][data-keyboard-open="true"] [data-drawer-keyboard-footer] {
+  [data-drawer-viewport][data-keyboard-open="true"]
+    [data-drawer-keyboard-footer] {
     padding-top: 0.5rem !important;
     padding-bottom: 0.5rem !important;
   }
 
-  [data-drawer-viewport][data-keyboard-open="true"] [data-drawer-keyboard-control] {
+  [data-drawer-viewport][data-keyboard-open="true"]
+    [data-drawer-keyboard-control] {
     height: 2.75rem !important;
   }
 
-  [data-drawer-viewport][data-keyboard-open="true"] [data-drawer-keyboard-scroll] {
+  [data-drawer-viewport][data-keyboard-open="true"]
+    [data-drawer-keyboard-scroll] {
     scroll-padding-block: 0.75rem 4rem;
   }
 }
 @keyframes help-fill {
-  from { width: 0; }
-  to { width: 100%; }
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
 }
 
 /* Short feedback banners share the app's dark surface and stay above content. */
@@ -435,13 +460,17 @@ html.capacitor-native body::before {
 
 [data-sonner-toaster].spottr-toaster [data-sonner-toast] {
   --spottr-toast-accent: #ff0044;
-  transition: transform 420ms cubic-bezier(.22, 1, .36, 1),
-    opacity 240ms ease, height 350ms ease, box-shadow 200ms ease;
+  transition:
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 240ms ease,
+    height 350ms ease,
+    box-shadow 200ms ease;
   will-change: transform, opacity;
 }
 
-[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-mounted="false"][data-y-position="top"] {
-  --y: translateY(-18px) scale(.97);
+[data-sonner-toaster].spottr-toaster
+  [data-sonner-toast][data-mounted="false"][data-y-position="top"] {
+  --y: translateY(-18px) scale(0.97);
 }
 
 [data-sonner-toaster].spottr-toaster [data-sonner-toast][data-type="success"] {
@@ -463,13 +492,17 @@ html.capacitor-native body::before {
   border: 1px solid rgb(255 255 255 / 13%);
   border-radius: 18px;
   background: rgb(18 18 20 / 96%);
-  box-shadow: 0 18px 44px rgb(0 0 0 / 46%), 0 2px 10px rgb(0 0 0 / 24%);
+  box-shadow:
+    0 18px 44px rgb(0 0 0 / 46%),
+    0 2px 10px rgb(0 0 0 / 24%);
   color: #fff;
   -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
 }
 
-[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-styled="true"] [data-icon] {
+[data-sonner-toaster].spottr-toaster
+  [data-sonner-toast][data-styled="true"]
+  [data-icon] {
   display: grid;
   width: 36px;
   height: 36px;
@@ -484,25 +517,34 @@ html.capacitor-native body::before {
   color: var(--spottr-toast-accent);
 }
 
-[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-styled="true"] [data-icon] svg {
+[data-sonner-toaster].spottr-toaster
+  [data-sonner-toast][data-styled="true"]
+  [data-icon]
+  svg {
   display: block;
   width: 18px;
   height: 18px;
   margin: 0;
 }
 
-[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-styled="true"] [data-content] {
+[data-sonner-toaster].spottr-toaster
+  [data-sonner-toast][data-styled="true"]
+  [data-content] {
   min-width: 0;
   gap: 2px;
 }
 
-[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-styled="true"] [data-title] {
+[data-sonner-toaster].spottr-toaster
+  [data-sonner-toast][data-styled="true"]
+  [data-title] {
   font-size: 13px;
   font-weight: 650;
   line-height: 1.4;
 }
 
-[data-sonner-toaster].spottr-toaster [data-sonner-toast][data-styled="true"] [data-description] {
+[data-sonner-toaster].spottr-toaster
+  [data-sonner-toast][data-styled="true"]
+  [data-description] {
   color: rgb(255 255 255 / 63%);
   font-size: 12px;
   line-height: 1.45;
@@ -531,4 +573,9 @@ html.capacitor-native body::before {
   [data-sonner-toaster].spottr-toaster [data-sonner-toast] {
     transition: none;
   }
+}
+
+.clasa {
+  color: var(--foreground);
+  font-family: var(--font-sans);
 }
