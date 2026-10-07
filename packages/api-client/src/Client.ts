@@ -77,6 +77,7 @@ export class ApiError extends Error {
 
 export interface ClientConfiguration {
   apiRoot: string;
+  fetch?: typeof fetch;
   getAccessToken?: () => string | null | undefined;
   onUnauthorized?: (token: string) => void;
 }
@@ -171,7 +172,7 @@ export class ApiClient {
     if (options?.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
     if (options?.cache === "no-store") headers["Cache-Control"] = "no-cache";
 
-    const response = await fetch(url.toString(), {
+    const response = await (this.config.fetch ?? fetch)(url.toString(), {
       method: method.toUpperCase(),
       headers,
       body: options?.body ? JSON.stringify(options.body) : undefined,

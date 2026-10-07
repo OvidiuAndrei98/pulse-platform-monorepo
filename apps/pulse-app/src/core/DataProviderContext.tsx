@@ -13,6 +13,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ApiClient, ApiError } from "@packages/api-client/src/Client";
 import { clearSessionCaches, User, UserData } from "./DataProvider";
 import { apiRoot } from "./apiRoot";
+import { apiFetch } from "@/lib/native/apiFetch";
 import { useTranslation } from "react-i18next";
 import { PageLoadingState } from "@/components/ui/loading";
 import {
@@ -31,6 +32,7 @@ const isNetworkFailure = (error: unknown) =>
 
 ApiClient.configure({
   apiRoot,
+  fetch: apiFetch,
   getAccessToken: getAccessTokenSync,
   onUnauthorized: () => {
     if (typeof window !== "undefined") window.dispatchEvent(new Event("spottr:session-expired"));
