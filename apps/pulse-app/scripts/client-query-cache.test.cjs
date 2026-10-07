@@ -59,6 +59,23 @@ test('failed background refresh retains data and can recover', async () => {
   assert.equal(c.readClientQuery('profile').error, null);
 });
 
+test('returning to a failed tab retains its error while retrying, then recovers', async () => {
+  const c = cache();
+  const error = new Error('offline');
+  await c.refreshClientQuery('feed', async () => { throw error; });
+  const next = deferred();
+  const request = c.refreshClientQuery('feed', () => next.promise);
+  const retrying = c.readClientQuery('feed');
+  assert.equal(retrying.hasData, false);
+  assert.equal(retrying.refreshing, true);
+  // useCachedClientQuery must not replace this known state with a full skeleton.
+  assert.equal(retrying.error, error);
+  next.resolve([]);
+  await request;
+  assert.equal(c.readClientQuery('feed').error, null);
+  assert.equal(c.readClientQuery('feed').hasData, true);
+});
+
 test('logout rejects late responses even if the same account signs in again', async () => {
   const c = cache();
   const old = deferred();

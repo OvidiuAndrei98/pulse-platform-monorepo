@@ -83,7 +83,7 @@ function BottomNav() {
   };
 
   return (
-    <div ref={navbar} data-bottom-nav className="pointer-events-none fixed inset-x-0 bottom-5 z-50 flex justify-center px-4">
+    <div ref={navbar} data-bottom-nav onDragStart={(event) => event.preventDefault()} className="pointer-events-none fixed inset-x-0 bottom-5 z-50 flex justify-center px-4">
       {/* 
         Trecere insesizabilă (Smooth Gradient):
         - `from-[#18181f]/40` sus
@@ -98,7 +98,7 @@ function BottomNav() {
             ref={indicator}
             data-nav-indicator
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 left-0 rounded-full border border-primary/60 bg-primary/38 shadow-[0_0_12px_rgba(225,29,72,0.4)] backdrop-blur-none transition-transform duration-[240ms] ease-[cubic-bezier(.22,.8,.25,1)] motion-reduce:transition-none md:backdrop-blur-sm"
+            className="pointer-events-none absolute inset-y-0 left-0 rounded-full border border-primary/60 bg-primary/38 shadow-[0_0_12px_rgba(225,29,72,0.4)] backdrop-blur-none transition-transform duration-[320ms] ease-[cubic-bezier(.4,0,.2,1)] motion-reduce:transition-none md:backdrop-blur-sm"
             style={{ width: `${100 / items.length}%`, transform: `translateX(${indicatorIndex * 100}%)` }}
           />
           {items.map((item, idx) => {
@@ -108,10 +108,25 @@ function BottomNav() {
             return (
               <button
                 key={item.url}
+                type="button"
+                draggable={false}
                 aria-label={item.label}
                 aria-current={isActive ? "page" : undefined}
-                onClick={() => handleTabClick(idx, item.url)}
-                className="relative flex h-full flex-1 flex-col items-center justify-center gap-[2px] outline-none"
+                onPointerDown={(event) => {
+                  if (event.button !== 0) return;
+                  // Allow briefly overlapping touches (alternating thumbs).
+                  // Secondary mouse/pen buttons still do not activate tabs.
+                  // Respond on contact, even if a hurried tap moves before
+                  // release. Prevent mouse selection / native drag initiation.
+                  event.preventDefault();
+                  handleTabClick(idx, item.url);
+                }}
+                onClick={(event) => {
+                  // Pointer activation already ran on down. Retain the click
+                  // path for keyboard, assistive technology and programmatic use.
+                  if (event.detail === 0) handleTabClick(idx, item.url);
+                }}
+                className="relative flex h-full flex-1 touch-manipulation flex-col items-center justify-center gap-[2px] outline-none"
               >
                 {/* Capsula roz magenta care îmbracă ICONIȚA + TEXTUL */}
 
@@ -119,7 +134,7 @@ function BottomNav() {
                 <Icon
                   strokeWidth={isActive ? 2.2 : 1.6}
                   className={
-                    "relative z-10 h-5 w-5 transition-colors duration-150 " +
+                    "pointer-events-none relative z-10 h-5 w-5 transition-colors duration-150 " +
                     (isActive ? "text-primary" : "text-zinc-400")
                   }
                 />

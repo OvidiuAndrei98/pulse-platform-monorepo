@@ -358,6 +358,16 @@ html.capacitor-native body::before {
   backdrop-filter: blur(var(--bottom-nav-blur));
 }
 
+/* Tabs are tap targets, including their SVG icons. Keep rapid taps from
+   selecting content or starting Safari/WKWebView's native drag/callout. */
+[data-bottom-nav],
+[data-bottom-nav] * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+
 /* Keep the animated ping outside the backdrop-filter subtree. Safari can
    repaint the whole badge when a scaling child shares its filtered layer. */
 .spottr-live-badge {

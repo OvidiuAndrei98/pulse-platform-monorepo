@@ -56,7 +56,10 @@ export function refreshClientQuery<T>(
   };
   entries.delete(key);
   entries.set(key, entry);
-  entry.snapshot = { ...entry.snapshot, refreshing: true, error: null };
+  // Keep the last settled view during revalidation, including a first-load
+  // error. Clearing it on tab re-entry flashes error -> skeleton -> error.
+  // A successful response clears the error below.
+  entry.snapshot = { ...entry.snapshot, refreshing: true };
   entry.request = Promise.resolve().then(load).then((data) => {
     if (entries.get(key) !== entry) return;
     entry.snapshot = {
