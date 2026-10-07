@@ -1,5 +1,6 @@
 "use client";
 
+import { LiveIndicator } from "@/components/ui/LiveIndicator";
 import {
   createContext,
   useContext,
@@ -10,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { motion } from "framer-motion";
+import { animate, motion, useMotionValue } from "framer-motion";
 import {
   Calendar,
   Bookmark,
@@ -181,6 +182,7 @@ export function EventDetailsSheet({
   const [checkoutVisited, setCheckoutVisited] = useState(false);
   const [checkoutPreview, setCheckoutPreview] = useState<HTMLElement | null>(null);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const backdropOpacity = useMotionValue(0);
   const [bookingFree, setBookingFree] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const mobileSheetRef = useRef<HTMLDivElement>(null);
@@ -194,6 +196,12 @@ export function EventDetailsSheet({
   const activeEventRef = useRef(activeEvent);
   activeEventRef.current = activeEvent;
   const availabilityRequestRef = useRef(0);
+
+  const eventOpen = Boolean(activeEvent);
+  useEffect(() => {
+    const animation = animate(backdropOpacity, eventOpen ? 1 : 0, { duration: 0.25 });
+    return () => animation.stop();
+  }, [eventOpen, backdropOpacity]);
 
   useEffect(() => {
     if (!activeEvent || displayedEvent?.id !== activeEvent.id) return;
@@ -541,11 +549,8 @@ export function EventDetailsSheet({
                 {t("eventSheet.eventCompleted")}
               </span>
             ) : event.isLive ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-400 backdrop-blur-md shadow-lg">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
-                </span>
+              <span className="spottr-live-badge relative inline-flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-500/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-400 shadow-lg">
+                <LiveIndicator />
                 {t("common.liveNow")}
               </span>
             ) : (
@@ -688,15 +693,22 @@ export function EventDetailsSheet({
   if (!isDesktop) {
     return (
       <>
+        {createPortal(
+          <motion.div
+            data-event-sheet-backdrop
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0 z-[98] bg-black/70 backdrop-blur-sm"
+            style={{ opacity: backdropOpacity }}
+          />,
+          document.body,
+        )}
         {checkoutPreview && createPortal(
           <div
             ref={previewHostRef}
             aria-hidden="true"
             inert
             className={`pointer-events-none fixed inset-0 ${checkoutOpen ? "z-[101]" : "z-[98]"}`}
-          >
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-          </div>,
+          />,
           document.body,
         )}
         <Drawer
@@ -713,6 +725,8 @@ export function EventDetailsSheet({
           dismissible={!checkoutBusy && !bookingFree && !checkingAvailability}
           repositionInputs={false}
           shouldScaleBackground={false}
+          onDrag={(_, progress) => backdropOpacity.set(Math.max(0, 1 - progress))}
+          onRelease={(_, open) => { if (open) animate(backdropOpacity, 1, { duration: 0.25 }); }}
           closeThreshold={0.35}
           fixed
         >
@@ -721,6 +735,9 @@ export function EventDetailsSheet({
             showHandle={false}
             sideInset
             lockDocument={false}
+            // Keep Radix's interaction/scroll handling, but let the persistent
+            // backdrop above own the blur across sheet/checkout handoffs.
+            overlayProps={{ style: { background: "transparent", backdropFilter: "none", WebkitBackdropFilter: "none" } }}
             inert={checkoutOpen}
             style={{
               animation: activeEvent && checkoutVisited ? "none" : undefined,

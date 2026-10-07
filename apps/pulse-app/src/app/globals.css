@@ -358,6 +358,22 @@ html.capacitor-native body::before {
   backdrop-filter: blur(var(--bottom-nav-blur));
 }
 
+/* Keep the animated ping outside the backdrop-filter subtree. Safari can
+   repaint the whole badge when a scaling child shares its filtered layer. */
+.spottr-live-badge {
+  isolation: isolate;
+}
+.spottr-live-badge::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(var(--live-badge-blur, 12px));
+  backdrop-filter: blur(var(--live-badge-blur, 12px));
+}
+
 /* Phone keyboards can leave less than half of the screen available. Compact
    drawer chrome while editing; the focused field remains in the inner scroller. */
 @media (max-width: 767px), (hover: none) and (pointer: coarse) {

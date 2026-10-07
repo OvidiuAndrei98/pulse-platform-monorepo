@@ -1,3 +1,4 @@
+import { LiveIndicator } from "@/components/ui/LiveIndicator";
 import Image from "next/image";
 import { ArrowUpRight, Calendar, CheckCircle2, MapPin, Megaphone } from "lucide-react";
 import { useEffect, useRef } from "react";
@@ -83,11 +84,8 @@ export function EventBrowseCard({
               </span>
             </span>
             {event.isLive && (
-              <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-red-500/40 bg-red-500/20 px-1.5 py-1 text-[9px] font-bold uppercase tracking-normal text-red-400 backdrop-blur-md min-[390px]:px-2 min-[390px]:text-[10px]">
-                <span className="relative mr-1 inline-flex h-1.5 w-1.5 shrink-0">
-                  <span className="absolute inset-0 animate-ping rounded-full bg-red-400 opacity-75" />
-                  <span className="relative h-1.5 w-1.5 rounded-full bg-red-400" />
-                </span>
+              <span className="spottr-live-badge relative inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-red-500/40 bg-red-500/20 px-1.5 py-1 text-[9px] font-bold uppercase tracking-normal text-red-400 min-[390px]:px-2 min-[390px]:text-[10px]">
+                <LiveIndicator className="mr-1 h-1.5 w-1.5" colorClassName="bg-red-400" />
                 {t("events.liveNow")}
               </span>
             )}

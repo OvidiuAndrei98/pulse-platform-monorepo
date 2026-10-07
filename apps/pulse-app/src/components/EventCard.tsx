@@ -1,5 +1,6 @@
 "use client";
 
+import { LiveIndicator } from "@/components/ui/LiveIndicator";
 import Image from "next/image";
 import { MapPin, Bookmark, CheckCircle2, Megaphone } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -115,11 +116,8 @@ export function EventCard({
           {/* BADGES HEADER */}
           <div className="absolute left-2.5 right-2.5 top-2.5 z-10 flex items-start justify-between">
             {live ? (
-              <div className="inline-flex h-6 items-center gap-1.5 rounded-full border border-red-500/30 bg-black/60 px-2.5 backdrop-blur-md">
-                <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="absolute inset-0 animate-ping rounded-full bg-red-500 opacity-75" />
-                  <span className="relative h-2 w-2 rounded-full bg-red-500" />
-                </span>
+              <div className="spottr-live-badge relative inline-flex h-6 items-center gap-1.5 rounded-full border border-red-500/30 bg-black/60 px-2.5">
+                <LiveIndicator />
                 <span className="text-[10px] font-bold uppercase tracking-wider text-red-400">
                   {t("common.liveNow")}
                 </span>

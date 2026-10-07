@@ -1,3 +1,4 @@
+import { LiveIndicator } from "@/components/ui/LiveIndicator";
 import { Calendar } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Event } from "@/core/DataProvider";
@@ -16,14 +17,11 @@ export function EventStatusBadge({
   if (event.isLive) {
     return (
       <span
-        className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-red-500/40 bg-red-500/20 font-semibold uppercase tracking-wide text-red-400 transform-gpu md:bg-red-500/15 md:backdrop-blur-sm ${
+        className={`spottr-live-badge relative inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-red-500/40 bg-red-500/20 font-semibold uppercase tracking-wide text-red-400 transform-gpu md:bg-red-500/15 [--live-badge-blur:0px] md:[--live-badge-blur:8px] ${
           compact ? "px-2 py-1 text-[9px]" : "px-3 py-1.5 text-[11px]"
         } ${className}`}
       >
-        <span className="relative flex h-2 w-2 transform-gpu">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
-        </span>
+        <LiveIndicator />
         {t("common.liveNow")}
       </span>
     );

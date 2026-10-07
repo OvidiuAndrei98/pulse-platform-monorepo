@@ -1,5 +1,6 @@
 "use client";
 
+import { LiveIndicator } from "@/components/ui/LiveIndicator";
 import Image from "next/image";
 import Link from "next/link";
 import { BackLink } from "@/components/BackLink";
@@ -305,11 +306,8 @@ export default function EventStandalonePage() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/15" />
                 {event.isLive && !isFinished && (
-                  <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-red-400/45 bg-red-950/70 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-red-300 backdrop-blur-md">
-                    <span className="relative flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-red-400" />
-                    </span>
+                  <span className="spottr-live-badge absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-red-400/45 bg-red-950/70 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-red-300">
+                    <LiveIndicator colorClassName="bg-red-400" />
                     {t("common.liveNow")}
                   </span>
                 )}

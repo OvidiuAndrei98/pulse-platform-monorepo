@@ -43,8 +43,8 @@ DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName;
 
 export const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content> & { showHandle?: boolean; sideInset?: boolean; lockDocument?: boolean }
->(({ className = "", children, showHandle = true, sideInset = false, lockDocument = true, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content> & { showHandle?: boolean; sideInset?: boolean; lockDocument?: boolean; overlayProps?: React.ComponentPropsWithoutRef<typeof DrawerOverlay> }
+>(({ className = "", children, showHandle = true, sideInset = false, lockDocument = true, overlayProps, ...props }, ref) => {
   const viewportRef = useDrawerViewport(true, "sheet", lockDocument);
   const setRef = React.useCallback((node: HTMLDivElement | null) => {
     viewportRef(node);
@@ -53,7 +53,7 @@ export const DrawerContent = React.forwardRef<
   }, [ref, viewportRef]);
   return (
   <DrawerPortal>
-    <DrawerOverlay />
+    <DrawerOverlay {...overlayProps} />
     <DrawerPrimitive.Content
       ref={setRef}
       data-drawer-viewport

@@ -33,7 +33,7 @@ type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 
 export function SearchPopover({ events }: SearchPopoverProps) {
   const [open, setOpen] = useState(false);
-  const viewportRef = useDrawerViewport(open, "panel");
+  const viewportRef = useDrawerViewport(open, "panel", true, true);
   const [historyDismissed, setHistoryDismissed] = useState(false);
   useBackLayer(open, () => {
     // iOS already slides the history snapshot away during an edge swipe.
@@ -139,8 +139,13 @@ export function SearchPopover({ events }: SearchPopoverProps) {
 
   const navigate = (href: string) => {
     window.dispatchEvent(new window.Event("spottr:layer-navigation"));
+    // Release the scroll lock and remove the portal before the route commits.
+    // Safari must snapshot the actual page, not its locked Search surface.
+    flushSync(() => {
+      setHistoryDismissed(true);
+      setOpen(false);
+    });
     router.push(routeForPlatform(href));
-    setOpen(false);
   };
 
   const drawer = historyDismissed ? null : (
