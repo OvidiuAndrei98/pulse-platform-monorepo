@@ -29,29 +29,40 @@ export type PromoCode = ReadableSchema<"PromoCodeResponse">;
 export type CreatePromoCode = WritableSchema<"CreatePromoCodePayload">;
 export type PromotionPlan = ReadableSchema<"PromotionPlanResponse">;
 export type PromotionCampaign = ReadableSchema<"PromotionCampaignResponse">;
-export type PromotionAvailability = ReadableSchema<"PromotionAvailabilityResponse">;
+export type PromotionAvailability =
+  ReadableSchema<"PromotionAvailabilityResponse">;
 export type PromotedEvent = ReadableSchema<"PromotedEventResponse">;
 export type SpotifyArtist = ReadableSchema<"SpotifyArtistResponse">;
 export type CreateTicketTierPayload = WritableSchema<"CreateTicketTypePayload">;
 export type Event = ReadableSchema<"EventResponse">;
 export type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 export type EventAttendee = ReadableSchema<"EventAttendeeResponse">;
-export type OrganizerFinanceEvent = ReadableSchema<"OrganizerFinanceEventResponse">;
-export type PlatformCommissionInvoice = ReadableSchema<"PlatformCommissionInvoiceResponse">;
+export type OrganizerFinanceEvent =
+  ReadableSchema<"OrganizerFinanceEventResponse">;
+export type PlatformCommissionInvoice =
+  ReadableSchema<"PlatformCommissionInvoiceResponse">;
 export type InvoicingSettings = ReadableSchema<"InvoicingSettingsResponse">;
-export type InvoicingSettingsPayload = WritableSchema<"InvoicingSettingsPayload">;
-export type InvoicingProviderOptionsPayload = WritableSchema<"InvoicingProviderOptionsPayload">;
-export type InvoicingProviderOptions = ReadableSchema<"InvoicingProviderOptionsResponse">;
+export type InvoicingSettingsPayload =
+  WritableSchema<"InvoicingSettingsPayload">;
+export type InvoicingProviderOptionsPayload =
+  WritableSchema<"InvoicingProviderOptionsPayload">;
+export type InvoicingProviderOptions =
+  ReadableSchema<"InvoicingProviderOptionsResponse">;
 export type BillingInvoice = ReadableSchema<"BillingInvoiceResponse">;
 export type OrganizerProfile = ReadableSchema<"OrganizerProfile">;
-export type OrganizerVerificationRequest = ReadableSchema<"OrganizerVerificationRequest">;
-export type EventCancellationRequest = ReadableSchema<"EventCancellationRequestResponse">;
+export type OrganizerVerificationRequest =
+  ReadableSchema<"OrganizerVerificationRequest">;
+export type EventCancellationRequest =
+  ReadableSchema<"EventCancellationRequestResponse">;
 export type RefundAttentionItem = ReadableSchema<"RefundAttentionResponse">;
-export type RefundReconciliation = ReadableSchema<"RefundReconciliationResponse">;
-export type PromotionInvoiceAttention = ReadableSchema<"PromotionInvoiceAttentionResponse">;
+export type RefundReconciliation =
+  ReadableSchema<"RefundReconciliationResponse">;
+export type PromotionInvoiceAttention =
+  ReadableSchema<"PromotionInvoiceAttentionResponse">;
 export type ValidationEvent = ReadableSchema<"ValidationEventResponse">;
 export type SocialFeedItem = ReadableSchema<"SocialFeedItemResponse">;
-export type OrganizerEventUpdate = ReadableSchema<"OrganizerEventUpdateResponse">;
+export type OrganizerEventUpdate =
+  ReadableSchema<"OrganizerEventUpdateResponse">;
 export type AppNotification = ReadableSchema<"NotificationResponse">;
 export type NotificationList = ReadableSchema<"NotificationListResponse">;
 
@@ -131,7 +142,12 @@ export class User {
     return updatedUser;
   }
 
-  async updateProfile(profile: { username?: string; bio?: string; preferredLanguage?: "en" | "ro"; showAttendancePublicly?: boolean }): Promise<UserData> {
+  async updateProfile(profile: {
+    username?: string;
+    bio?: string;
+    preferredLanguage?: "en" | "ro";
+    showAttendancePublicly?: boolean;
+  }): Promise<UserData> {
     const updatedUser = await ApiClient.instance.put("/users/me", {
       body: profile,
     });
@@ -143,7 +159,10 @@ export class User {
     await ApiClient.instance.post("/auth/forgot-password", { body: { email } });
   }
 
-  static async resetPassword(token: string, newPassword: string): Promise<void> {
+  static async resetPassword(
+    token: string,
+    newPassword: string,
+  ): Promise<void> {
     await ApiClient.instance.post("/auth/reset-password", {
       body: { token, new_password: newPassword } as never,
     });
@@ -191,9 +210,7 @@ export class User {
     }
   }
 
-  async acceptOrganizerAgreement(
-    version: string,
-  ): Promise<OrganizerProfile> {
+  async acceptOrganizerAgreement(version: string): Promise<OrganizerProfile> {
     return ApiClient.instance.post("/dashboard/organizer/agreement", {
       body: { version },
     });
@@ -229,17 +246,29 @@ export class User {
     });
   }
 
-  async getEventCancellationRequest(eventId: string): Promise<EventCancellationRequest | undefined> {
-    return ApiClient.instance.get("/dashboard/events/{id}/cancellation-request", {
-      params: { path: { id: eventId } },
-    });
+  async getEventCancellationRequest(
+    eventId: string,
+  ): Promise<EventCancellationRequest | undefined> {
+    return ApiClient.instance.get(
+      "/dashboard/events/{id}/cancellation-request",
+      {
+        params: { path: { id: eventId } },
+      },
+    );
   }
 
-  async requestEventCancellation(eventId: string, reason: string, evidenceUrl?: string): Promise<EventCancellationRequest> {
-    const request = await ApiClient.instance.post("/dashboard/events/{id}/cancellation-request", {
-      params: { path: { id: eventId } },
-      body: { reason, evidenceUrl: evidenceUrl || undefined },
-    });
+  async requestEventCancellation(
+    eventId: string,
+    reason: string,
+    evidenceUrl?: string,
+  ): Promise<EventCancellationRequest> {
+    const request = await ApiClient.instance.post(
+      "/dashboard/events/{id}/cancellation-request",
+      {
+        params: { path: { id: eventId } },
+        body: { reason, evidenceUrl: evidenceUrl || undefined },
+      },
+    );
     await this.refreshOrganizerEvents();
     return request;
   }
@@ -248,7 +277,11 @@ export class User {
     return ApiClient.instance.get("/admin/event-cancellations");
   }
 
-  async approveEventCancellation(id: string, feePolicy: "retain" | "refund", adminNote?: string): Promise<void> {
+  async approveEventCancellation(
+    id: string,
+    feePolicy: "retain" | "refund",
+    adminNote?: string,
+  ): Promise<void> {
     await ApiClient.instance.post("/admin/event-cancellations/{id}/approve", {
       params: { path: { id } },
       body: { feePolicy, adminNote: adminNote || undefined },
@@ -272,14 +305,21 @@ export class User {
     return ApiClient.instance.get("/dashboard/finance");
   }
 
-  async listOrganizerRefundsRequiringAttention(): Promise<RefundAttentionItem[]> {
+  async listOrganizerRefundsRequiringAttention(): Promise<
+    RefundAttentionItem[]
+  > {
     return ApiClient.instance.get("/dashboard/finance/refunds-attention");
   }
 
-  async reconcileOrganizerRefund(orderId: string): Promise<RefundReconciliation> {
-    return ApiClient.instance.post("/dashboard/finance/refunds-attention/{id}/reconcile", {
-      params: { path: { id: orderId } },
-    });
+  async reconcileOrganizerRefund(
+    orderId: string,
+  ): Promise<RefundReconciliation> {
+    return ApiClient.instance.post(
+      "/dashboard/finance/refunds-attention/{id}/reconcile",
+      {
+        params: { path: { id: orderId } },
+      },
+    );
   }
 
   async listAdminRefundsRequiringAttention(): Promise<RefundAttentionItem[]> {
@@ -292,7 +332,9 @@ export class User {
     });
   }
 
-  async listPromotionInvoicesRequiringAttention(): Promise<PromotionInvoiceAttention[]> {
+  async listPromotionInvoicesRequiringAttention(): Promise<
+    PromotionInvoiceAttention[]
+  > {
     return ApiClient.instance.get("/admin/promotion-invoices-attention");
   }
 
@@ -304,12 +346,20 @@ export class User {
     return ApiClient.instance.get("/dashboard/invoicing/settings");
   }
 
-  async saveInvoicingSettings(payload: InvoicingSettingsPayload): Promise<InvoicingSettings> {
-    return ApiClient.instance.put("/dashboard/invoicing/settings", { body: payload });
+  async saveInvoicingSettings(
+    payload: InvoicingSettingsPayload,
+  ): Promise<InvoicingSettings> {
+    return ApiClient.instance.put("/dashboard/invoicing/settings", {
+      body: payload,
+    });
   }
 
-  async getInvoicingProviderOptions(payload: InvoicingProviderOptionsPayload): Promise<InvoicingProviderOptions> {
-    return ApiClient.instance.post("/dashboard/invoicing/options", { body: payload });
+  async getInvoicingProviderOptions(
+    payload: InvoicingProviderOptionsPayload,
+  ): Promise<InvoicingProviderOptions> {
+    return ApiClient.instance.post("/dashboard/invoicing/options", {
+      body: payload,
+    });
   }
 
   async disconnectInvoicing(): Promise<void> {
@@ -498,9 +548,15 @@ export class User {
 
   private updateCachedEventFavorite(eventId: string, favorite: boolean) {
     updateClientQueries<EventPageSet<Event>>(
-      key => key.startsWith("event-pages:"),
-      data => ({ ...data, items: data.items.map(event => event.id === eventId
-        ? { ...event, stats: { ...event.stats, isFavorited: favorite } } : event) }),
+      (key) => key.startsWith("event-pages:"),
+      (data) => ({
+        ...data,
+        items: data.items.map((event) =>
+          event.id === eventId
+            ? { ...event, stats: { ...event.stats, isFavorited: favorite } }
+            : event,
+        ),
+      }),
     );
     updateClientQueries<Event[]>(
       (key) =>
@@ -566,13 +622,17 @@ export class User {
   }
 
   async listHiddenCategories(): Promise<string[]> {
-    const categories = await ApiClient.instance.get("/users/me/hidden-categories");
+    const categories = await ApiClient.instance.get(
+      "/users/me/hidden-categories",
+    );
     // An empty collection can arrive as JSON null instead of an array.
     return categories ?? [];
   }
 
   async hideEventCategory(category: string): Promise<void> {
-    await ApiClient.instance.post("/users/me/hidden-categories", { body: { category } });
+    await ApiClient.instance.post("/users/me/hidden-categories", {
+      body: { category },
+    });
     void refreshClientQuery(
       queryKey.events(this._properties.id),
       () => PublicEventsService.getPublicEvents(),
@@ -581,7 +641,9 @@ export class User {
   }
 
   async showEventCategory(category: string): Promise<void> {
-    await ApiClient.instance.delete("/users/me/hidden-categories/{category}", { params: { path: { category } } });
+    await ApiClient.instance.delete("/users/me/hidden-categories/{category}", {
+      params: { path: { category } },
+    });
     void refreshClientQuery(
       queryKey.events(this._properties.id),
       () => PublicEventsService.getPublicEvents(),
@@ -590,35 +652,62 @@ export class User {
   }
 
   async listInvitations(eventId: string): Promise<InvitationTicket[]> {
-    return ApiClient.instance.get("/dashboard/events/{id}/invitations", { params: { path: { id: eventId } } });
+    return ApiClient.instance.get("/dashboard/events/{id}/invitations", {
+      params: { path: { id: eventId } },
+    });
   }
 
-  async createInvitation(eventId: string, payload: { label: string; ticketTypeId: string; quantity?: number }): Promise<InvitationTicket[]> {
-    return ApiClient.instance.post("/dashboard/events/{id}/invitations", { params: { path: { id: eventId } }, body: payload });
+  async createInvitation(
+    eventId: string,
+    payload: { label: string; ticketTypeId: string; quantity?: number },
+  ): Promise<InvitationTicket[]> {
+    return ApiClient.instance.post("/dashboard/events/{id}/invitations", {
+      params: { path: { id: eventId } },
+      body: payload,
+    });
   }
 
   async revokeInvitation(eventId: string, invitationId: string): Promise<void> {
-    await ApiClient.instance.delete("/dashboard/events/{id}/invitations/{invitationId}", { params: { path: { id: eventId, invitationId } } });
+    await ApiClient.instance.delete(
+      "/dashboard/events/{id}/invitations/{invitationId}",
+      { params: { path: { id: eventId, invitationId } } },
+    );
   }
 
   async deleteInvitation(eventId: string, invitationId: string): Promise<void> {
-    await ApiClient.instance.delete("/dashboard/events/{id}/invitations/{invitationId}/permanent", { params: { path: { id: eventId, invitationId } } });
+    await ApiClient.instance.delete(
+      "/dashboard/events/{id}/invitations/{invitationId}/permanent",
+      { params: { path: { id: eventId, invitationId } } },
+    );
   }
 
   async listPromoCodes(eventId: string): Promise<PromoCode[]> {
-    return ApiClient.instance.get("/dashboard/events/{id}/promo-codes", { params: { path: { id: eventId } } });
+    return ApiClient.instance.get("/dashboard/events/{id}/promo-codes", {
+      params: { path: { id: eventId } },
+    });
   }
 
-  async createPromoCode(eventId: string, payload: CreatePromoCode): Promise<void> {
-    await ApiClient.instance.post("/dashboard/events/{id}/promo-codes", { params: { path: { id: eventId } }, body: payload });
+  async createPromoCode(
+    eventId: string,
+    payload: CreatePromoCode,
+  ): Promise<void> {
+    await ApiClient.instance.post("/dashboard/events/{id}/promo-codes", {
+      params: { path: { id: eventId } },
+      body: payload,
+    });
   }
 
   async deactivatePromoCode(eventId: string, promoId: string): Promise<void> {
-    await ApiClient.instance.delete("/dashboard/events/{id}/promo-codes/{promoId}", { params: { path: { id: eventId, promoId } } });
+    await ApiClient.instance.delete(
+      "/dashboard/events/{id}/promo-codes/{promoId}",
+      { params: { path: { id: eventId, promoId } } },
+    );
   }
 
   async listPromotionPlans(): Promise<PromotionPlan[]> {
-    const plans: PromotionPlan[] = await ApiClient.instance.get("/dashboard/promotions/plans");
+    const plans: PromotionPlan[] = await ApiClient.instance.get(
+      "/dashboard/promotions/plans",
+    );
     return plans.map((plan) => ({
       ...plan,
       placement: plan.placement || "home_banner",
@@ -626,21 +715,30 @@ export class User {
   }
 
   async listPromotionCampaigns(): Promise<PromotionCampaign[]> {
-    const campaigns: PromotionCampaign[] = await ApiClient.instance.get("/dashboard/promotions");
+    const campaigns: PromotionCampaign[] = await ApiClient.instance.get(
+      "/dashboard/promotions",
+    );
     return campaigns.map((campaign) => ({
       ...campaign,
       placement: campaign.placement || "home_banner",
     }));
   }
 
-  async getPromotionAvailability(plan: PromotionPlan["id"], startDate: string): Promise<PromotionAvailability> {
+  async getPromotionAvailability(
+    plan: PromotionPlan["id"],
+    startDate: string,
+  ): Promise<PromotionAvailability> {
     return ApiClient.instance.get("/dashboard/promotions/availability", {
       params: { query: { plan, startDate } },
     });
   }
 
-  async createPromotionCheckout(payload: WritableSchema<"CreatePromotionCheckoutPayload">): Promise<ReadableSchema<"PromotionCheckoutResponse">> {
-    return ApiClient.instance.post("/dashboard/promotions/checkout", { body: payload });
+  async createPromotionCheckout(
+    payload: WritableSchema<"CreatePromotionCheckoutPayload">,
+  ): Promise<ReadableSchema<"PromotionCheckoutResponse">> {
+    return ApiClient.instance.post("/dashboard/promotions/checkout", {
+      body: payload,
+    });
   }
 
   async uploadOrganizerUpdateImage(file: File): Promise<{ url: string }> {
@@ -651,19 +749,28 @@ export class User {
     eventId: string,
     payload: WritableSchema<"CreateOrganizerEventUpdatePayload">,
   ): Promise<OrganizerEventUpdate> {
-    const update = await ApiClient.instance.post("/dashboard/events/{id}/updates", {
-      params: { path: { id: eventId } },
-      body: payload,
-    });
+    const update = await ApiClient.instance.post(
+      "/dashboard/events/{id}/updates",
+      {
+        params: { path: { id: eventId } },
+        body: payload,
+      },
+    );
     await Promise.all([
       refreshClientQuery(
         queryKey.eventUpdates(eventId),
-        () => ApiClient.instance.get("/events/{id}/updates", { params: { path: { id: eventId } } }),
+        () =>
+          ApiClient.instance.get("/events/{id}/updates", {
+            params: { path: { id: eventId } },
+          }),
         { force: true },
       ),
       refreshClientQuery(
         queryKey.organizerUpdates(this._properties.id),
-        () => ApiClient.instance.get("/organizers/{id}/updates", { params: { path: { id: this._properties.id } } }),
+        () =>
+          ApiClient.instance.get("/organizers/{id}/updates", {
+            params: { path: { id: this._properties.id } },
+          }),
         { force: true },
       ),
       refreshClientQuery(
@@ -676,18 +783,27 @@ export class User {
   }
 
   async deleteEventUpdate(eventId: string, updateId: string): Promise<void> {
-    await ApiClient.instance.delete("/dashboard/events/{id}/updates/{updateId}", {
-      params: { path: { id: eventId, updateId } },
-    });
+    await ApiClient.instance.delete(
+      "/dashboard/events/{id}/updates/{updateId}",
+      {
+        params: { path: { id: eventId, updateId } },
+      },
+    );
     await Promise.all([
       refreshClientQuery(
         queryKey.eventUpdates(eventId),
-        () => ApiClient.instance.get("/events/{id}/updates", { params: { path: { id: eventId } } }),
+        () =>
+          ApiClient.instance.get("/events/{id}/updates", {
+            params: { path: { id: eventId } },
+          }),
         { force: true },
       ),
       refreshClientQuery(
         queryKey.organizerUpdates(this._properties.id),
-        () => ApiClient.instance.get("/organizers/{id}/updates", { params: { path: { id: this._properties.id } } }),
+        () =>
+          ApiClient.instance.get("/organizers/{id}/updates", {
+            params: { path: { id: this._properties.id } },
+          }),
         { force: true },
       ),
       refreshClientQuery(
@@ -703,7 +819,8 @@ export class User {
     force = false,
   ): Promise<NotificationList> {
     const key = queryKey.notifications(viewerId);
-    const load = () => ApiClient.instance.get("/notifications") as Promise<NotificationList>;
+    const load = () =>
+      ApiClient.instance.get("/notifications") as Promise<NotificationList>;
     if (force) await refreshClientQuery(key, load, { force: true });
     return getClientQuery(key, load, SOCIAL_CACHE_TTL);
   }
@@ -719,7 +836,8 @@ export class User {
     const viewerId = user?.properties.id;
     const query = useCachedClientQuery<NotificationList | undefined>(
       viewerId ? queryKey.notifications(viewerId) : null,
-      () => ApiClient.instance.get("/notifications") as Promise<NotificationList>,
+      () =>
+        ApiClient.instance.get("/notifications") as Promise<NotificationList>,
       undefined,
       { staleTimeMs: SOCIAL_CACHE_TTL },
     );
@@ -728,7 +846,8 @@ export class User {
       if (!user) return;
       updateClientQuery<NotificationList>(
         queryKey.notifications(user.properties.id),
-        (notifications) => markNotificationReadInList(notifications, notificationId),
+        (notifications) =>
+          markNotificationReadInList(notifications, notificationId),
       );
       void user.markNotificationRead(notificationId).catch(() => {
         void query.retry();
@@ -770,7 +889,9 @@ export class User {
       friends: query.data,
       friendsLoading: query.pending,
       friendsError: asError(query.error),
-      refresh: () => { void query.retry(); },
+      refresh: () => {
+        void query.retry();
+      },
     };
   }
 
@@ -799,26 +920,34 @@ export class User {
       items: query.data,
       feedLoading: query.pending,
       feedError: asError(query.error),
-      refresh: () => { void query.retry(); },
+      refresh: () => {
+        void query.retry();
+      },
     };
   }
 
-  static async getEventUpdates(eventId: string): Promise<OrganizerEventUpdate[]> {
+  static async getEventUpdates(
+    eventId: string,
+  ): Promise<OrganizerEventUpdate[]> {
     return getClientQuery(
       queryKey.eventUpdates(eventId),
-      () => ApiClient.instance.get("/events/{id}/updates", {
-        params: { path: { id: eventId } },
-      }) as Promise<OrganizerEventUpdate[]>,
+      () =>
+        ApiClient.instance.get("/events/{id}/updates", {
+          params: { path: { id: eventId } },
+        }) as Promise<OrganizerEventUpdate[]>,
       SOCIAL_CACHE_TTL,
     );
   }
 
-  static async getOrganizerUpdates(organizerId: string): Promise<OrganizerEventUpdate[]> {
+  static async getOrganizerUpdates(
+    organizerId: string,
+  ): Promise<OrganizerEventUpdate[]> {
     return getClientQuery(
       queryKey.organizerUpdates(organizerId),
-      () => ApiClient.instance.get("/organizers/{id}/updates", {
-        params: { path: { id: organizerId } },
-      }) as Promise<OrganizerEventUpdate[]>,
+      () =>
+        ApiClient.instance.get("/organizers/{id}/updates", {
+          params: { path: { id: organizerId } },
+        }) as Promise<OrganizerEventUpdate[]>,
       SOCIAL_CACHE_TTL,
     );
   }
@@ -829,9 +958,10 @@ export class User {
   } {
     const query = useCachedClientQuery<OrganizerEventUpdate[]>(
       eventId ? queryKey.eventUpdates(eventId) : null,
-      () => ApiClient.instance.get("/events/{id}/updates", {
-        params: { path: { id: eventId } },
-      }) as Promise<OrganizerEventUpdate[]>,
+      () =>
+        ApiClient.instance.get("/events/{id}/updates", {
+          params: { path: { id: eventId } },
+        }) as Promise<OrganizerEventUpdate[]>,
       [],
       { staleTimeMs: SOCIAL_CACHE_TTL },
     );
@@ -844,9 +974,10 @@ export class User {
   } {
     const query = useCachedClientQuery<OrganizerEventUpdate[]>(
       organizerId ? queryKey.organizerUpdates(organizerId) : null,
-      () => ApiClient.instance.get("/organizers/{id}/updates", {
-        params: { path: { id: organizerId } },
-      }) as Promise<OrganizerEventUpdate[]>,
+      () =>
+        ApiClient.instance.get("/organizers/{id}/updates", {
+          params: { path: { id: organizerId } },
+        }) as Promise<OrganizerEventUpdate[]>,
       [],
       { staleTimeMs: SOCIAL_CACHE_TTL },
     );
@@ -859,14 +990,15 @@ export class User {
   ): Promise<EventAttendee[]> {
     return getClientQuery(
       queryKey.eventFriends(viewerId, eventId),
-      () => ApiClient.instance
-        .get("/events/{id}/attendees", { params: { path: { id: eventId } } })
-        .then((attendees) => {
-        const friends = (attendees as EventAttendee[]).filter(
-          (attendee) => attendee.relationship === "friends",
-        );
-        return friends;
-        }),
+      () =>
+        ApiClient.instance
+          .get("/events/{id}/attendees", { params: { path: { id: eventId } } })
+          .then((attendees) => {
+            const friends = (attendees as EventAttendee[]).filter(
+              (attendee) => attendee.relationship === "friends",
+            );
+            return friends;
+          }),
       EVENT_FRIENDS_CACHE_TTL,
     );
   }
@@ -882,11 +1014,14 @@ export class User {
     const viewerId = user?.properties.id;
     const query = useCachedClientQuery<EventAttendee[]>(
       viewerId && eventId ? queryKey.eventFriends(viewerId, eventId) : null,
-      () => ApiClient.instance
-        .get("/events/{id}/attendees", { params: { path: { id: eventId } } })
-        .then((attendees) => (attendees as EventAttendee[]).filter(
-          (attendee) => attendee.relationship === "friends",
-        )),
+      () =>
+        ApiClient.instance
+          .get("/events/{id}/attendees", { params: { path: { id: eventId } } })
+          .then((attendees) =>
+            (attendees as EventAttendee[]).filter(
+              (attendee) => attendee.relationship === "friends",
+            ),
+          ),
       [],
       { staleTimeMs: EVENT_FRIENDS_CACHE_TTL },
     );
@@ -903,9 +1038,10 @@ export class User {
   ): Promise<PublicProfile> {
     return getClientQuery(
       queryKey.publicProfile(viewerId, profileId),
-      () => ApiClient.instance.get("/profiles/{id}", {
-        params: { path: { id: profileId } },
-      }) as Promise<PublicProfile>,
+      () =>
+        ApiClient.instance.get("/profiles/{id}", {
+          params: { path: { id: profileId } },
+        }) as Promise<PublicProfile>,
       PUBLIC_CACHE_TTL,
     );
   }
@@ -924,23 +1060,39 @@ export class User {
   }
 }
 
-
 export class PublicEventsService {
-  static async getPublicEventsPage(filters: {
-    q?: string; category?: string; city?: string; vibe?: string; organizerId?: string;
-    startsAfter?: string; startsBefore?: string;
-  } = {}, page = 1): Promise<Event[]> {
-    return (await ApiClient.instance.get("/events", { params: { query: { ...filters, page } } })) ?? [];
+  static async getPublicEventsPage(
+    filters: {
+      q?: string;
+      category?: string;
+      city?: string;
+      vibe?: string;
+      organizerId?: string;
+      startsAfter?: string;
+      startsBefore?: string;
+    } = {},
+    page = 1,
+  ): Promise<Event[]> {
+    return (
+      (await ApiClient.instance.get("/events", {
+        params: { query: { ...filters, page } },
+      })) ?? []
+    );
   }
   static async getPromotedEvents(): Promise<PromotedEvent[]> {
-    const promotions: PromotedEvent[] = await ApiClient.instance.get("/promotions/active");
+    const promotions: PromotedEvent[] =
+      await ApiClient.instance.get("/promotions/active");
     return promotions.map((promotion) => ({
       ...promotion,
       placement: promotion.placement || "home_banner",
     }));
   }
 
-  static async trackPromotion(campaignId: string, metric: "impression" | "click", viewerKey: string): Promise<void> {
+  static async trackPromotion(
+    campaignId: string,
+    metric: "impression" | "click",
+    viewerKey: string,
+  ): Promise<void> {
     await ApiClient.instance.post("/promotions/{id}/track", {
       params: { path: { id: campaignId } },
       body: { metric, viewerKey },
@@ -982,7 +1134,10 @@ export class PublicEventsService {
       );
     } catch (error) {
       // Native consoles serialize Error objects as {}, hiding the actual failure.
-      const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+      const message =
+        error instanceof Error
+          ? `${error.name}: ${error.message}`
+          : String(error);
       console.error(
         `Eroare la încărcarea evenimentelor publice (${apiRoot}/events, pagina ${requestedPage}): ${message}`,
       );
