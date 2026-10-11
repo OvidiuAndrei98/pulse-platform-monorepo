@@ -1,13 +1,12 @@
 import { useCallback } from 'react';
 import { State } from 'react-native-gesture-handler';
-import { runOnJS, scrollTo } from 'react-native-reanimated';
+import { scrollTo } from 'react-native-reanimated';
 import { ANIMATION_STATUS, SCROLLABLE_STATUS, SHEET_STATE, useBottomSheetInternal, useScrollEventsHandlersDefault, type ScrollEventsHandlersHookType, type ScrollEventHandlerCallbackType } from '@gorhom/bottom-sheet';
-import { recordSheetScroll, type SheetScrollSample } from './sheetScrollDiagnostics';
 
 /** Native-only fixes around Gorhom 5.2.14's scroll lock. Pan stays library-owned. */
 export const useSheetScrollEvents: ScrollEventsHandlersHookType = (ref, offset) => {
   const original = useScrollEventsHandlersDefault(ref, offset);
-  const { animatedScrollableStatus, animatedScrollableState, animatedAnimationState, animatedSheetState, animatedHandleGestureState, animatedContentGestureState, animatedPosition, animatedDetentsState } = useBottomSheetInternal();
+  const { animatedScrollableStatus, animatedScrollableState, animatedAnimationState, animatedSheetState, animatedHandleGestureState, animatedPosition, animatedDetentsState } = useBottomSheetInternal();
   type Handler = ScrollEventHandlerCallbackType<Record<string, unknown>>;
   const isAtOpenPosition = useCallback(() => {
     'worklet';
@@ -19,22 +18,6 @@ export const useSheetScrollEvents: ScrollEventsHandlersHookType = (ref, offset) 
     return highest !== undefined && animatedHandleGestureState.value !== State.ACTIVE
       && animatedPosition.value <= highest + 0.5;
   }, [animatedDetentsState, animatedHandleGestureState, animatedPosition]);
-  const trace = useCallback((phase: SheetScrollSample['phase'], event: Parameters<Handler>[0], lockY?: number) => {
-    'worklet';
-    // Only lifecycle events (and the first lock per drag) cross to JS. Never
-    // send a per-frame stream that could itself disturb scrolling on a phone.
-    runOnJS(recordSheetScroll)({
-      phase, y: event.contentOffset.y,
-      contentHeight: event.contentSize?.height, viewportHeight: event.layoutMeasurement?.height,
-      insetTop: event.contentInset?.top, insetBottom: event.contentInset?.bottom,
-      targetY: event.targetContentOffset?.y, velocityY: event.velocity?.y,
-      position: animatedPosition.value, highest: animatedDetentsState.get().highestDetentPosition,
-      locked: animatedScrollableStatus.value === SCROLLABLE_STATUS.LOCKED, atOpen: isAtOpenPosition(),
-      handleState: animatedHandleGestureState.value, contentState: animatedContentGestureState.value,
-      animationStatus: animatedAnimationState.get().status, sheetState: animatedSheetState.value,
-      localOffset: offset.value, panOffset: animatedScrollableState.get().contentOffsetY, lockY,
-    });
-  }, [animatedPosition, animatedDetentsState, animatedScrollableStatus, isAtOpenPosition, animatedHandleGestureState, animatedContentGestureState, animatedAnimationState, animatedSheetState, offset, animatedScrollableState]);
   const lock = useCallback((event: Parameters<Handler>[0], context: Record<string, unknown>) => {
     'worklet';
     if (animatedScrollableStatus.value !== SCROLLABLE_STATUS.LOCKED || isAtOpenPosition()) return false;
@@ -45,18 +28,15 @@ export const useSheetScrollEvents: ScrollEventsHandlersHookType = (ref, offset) 
     // the same command at the locked offset causes a recursive event loop.
     // Native pixel rounding also needs tolerance, not exact float equality.
     if (Math.abs(y - position) > 0.5) {
-      if (!context.didTraceLock) { context.didTraceLock = true; trace('lock', event, position); }
       scrollTo(ref as Parameters<typeof scrollTo>[0], 0, position, false);
     }
     return true;
-  }, [animatedScrollableStatus, isAtOpenPosition, offset, ref, trace]);
+  }, [animatedScrollableStatus, isAtOpenPosition, offset, ref]);
   const handleOnBeginDrag: Handler = useCallback((event, context) => {
     'worklet';
-    context.didTraceLock = false;
-    trace('begin', event);
     (original.handleOnBeginDrag as Handler | undefined)?.(event, context);
     if (isAtOpenPosition()) context.shouldLockInitialPosition = false;
-  }, [isAtOpenPosition, original.handleOnBeginDrag, trace]);
+  }, [isAtOpenPosition, original.handleOnBeginDrag]);
   const handleOnScroll: Handler = useCallback((event, context) => {
     'worklet';
     if (isAtOpenPosition() || animatedSheetState.value === SHEET_STATE.EXTENDED || animatedSheetState.value === SHEET_STATE.FILL_PARENT) context.shouldLockInitialPosition = false;
@@ -80,20 +60,5 @@ export const useSheetScrollEvents: ScrollEventsHandlersHookType = (ref, offset) 
       animatedScrollableState.set(state => ({ ...state, contentOffsetY: event.contentOffset.y }));
     }
   }, [lock, offset, isAtOpenPosition, animatedAnimationState, animatedScrollableState]);
-  const handleOnEndDrag: Handler = useCallback((event, context) => {
-    'worklet';
-    trace('release', event);
-    handleOnFinish(event, context);
-  }, [trace, handleOnFinish]);
-  const handleOnMomentumBegin: Handler = useCallback((event, context) => {
-    'worklet';
-    trace('momentum-begin', event);
-    (original.handleOnMomentumBegin as Handler | undefined)?.(event, context);
-  }, [trace, original.handleOnMomentumBegin]);
-  const handleOnMomentumEnd: Handler = useCallback((event, context) => {
-    'worklet';
-    trace('momentum-end', event);
-    handleOnFinish(event, context);
-  }, [trace, handleOnFinish]);
-  return { ...original, handleOnBeginDrag, handleOnScroll, handleOnEndDrag, handleOnMomentumBegin, handleOnMomentumEnd };
+  return { ...original, handleOnBeginDrag, handleOnScroll, handleOnEndDrag: handleOnFinish, handleOnMomentumEnd: handleOnFinish };
 };

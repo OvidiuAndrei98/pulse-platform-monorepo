@@ -248,16 +248,13 @@ test('ordinary native sheet touches leave scroll unlocking and animation ownersh
   assert.equal(elements(updated).find(el => el.type === 'BottomSheet')?.props.footerComponent, bottomSheet.props.footerComponent, 'Refreshing tickets must not remount the footer');
 });
 
-test('native long-press copies scroll diagnostics without dismissing; ordinary taps still close', async () => {
+test('native sheet handle dismisses on tap without a diagnostic long-press action', () => {
   let closed = 0;
-  const copied: string[] = [], alerts: string[] = [];
   const pan = new Proxy({}, { get: () => () => pan });
   const ui = loadUI('ui/AppSheet.tsx', {
-    'react-native': { View: 'View', Pressable: 'Pressable', Platform: { OS: 'ios' }, Alert: { alert: (title: string) => alerts.push(title) },
+    'react-native': { View: 'View', Pressable: 'Pressable', Platform: { OS: 'ios' },
       useWindowDimensions: () => ({ height: 844 }), StyleSheet: { create: (s: any) => s } },
     '@gorhom/bottom-sheet': { __esModule: true, default: 'BottomSheet', ANIMATION_CONFIGS: {}, useBottomSheetGestureHandlers: () => ({ handlePanGestureHandler: {} }) },
-    'expo-clipboard': { setStringAsync: async (text: string) => { copied.push(text); return true; } },
-    './sheetScrollDiagnostics': { getSheetScrollReport: () => '{"diagnostic":"scroll"}' },
     'react-native-gesture-handler': { Gesture: { Pan: () => pan }, GestureDetector: 'GestureDetector' },
     'react-native-reanimated': { __esModule: true, default: { View: 'AnimatedView' } },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 59 }) },
@@ -270,14 +267,7 @@ test('native long-press copies scroll diagnostics without dismissing; ordinary t
   assert.ok(overlay);
   const tree = overlay.type({ ...overlay.props, onClose: () => closed++ });
   const handle = elements(tree).find(el => el.props.testID === 'sheet-handle');
-  handle.props.onPressIn();
-  handle.props.onLongPress();
-  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(handle.props.onLongPress, undefined);
   handle.props.onPress();
-  assert.deepEqual(copied, ['{"diagnostic":"scroll"}']);
-  assert.equal(alerts.length, 1);
-  assert.equal(closed, 0, 'Copying diagnostics must leave the failing sheet open');
-  handle.props.onPressIn();
-  handle.props.onPress();
-  assert.equal(closed, 1, 'The next ordinary tap must still dismiss normally');
+  assert.equal(closed, 1, 'An ordinary tap must still dismiss normally');
 });

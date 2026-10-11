@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Alert, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+import { Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import BottomSheet, { ANIMATION_CONFIGS, ANIMATION_SOURCE, ANIMATION_STATUS, KEYBOARD_STATUS, BottomSheetBackdrop, BottomSheetFooter, useBottomSheetGestureHandlers, useBottomSheetInternal, type BottomSheetBackdropProps, type BottomSheetFooterProps } from '@gorhom/bottom-sheet';
 import { Gesture, GestureDetector, GestureHandlerRootView, State } from 'react-native-gesture-handler';
 import Animated, { useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring, withTiming, type WithSpringConfig, type WithTimingConfig } from 'react-native-reanimated';
@@ -8,7 +7,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { drawerDesign } from '../../../pulse-app/src/components/ui/drawerDesign';
 import { SheetScrollProvider, sheetGestureHandlersHook, useSheetScrollSurface } from './SheetScrollBridge';
-import { getSheetScrollReport } from './sheetScrollDiagnostics';
 
 type Props = React.PropsWithChildren<{ open: boolean; onClose: () => void; height?: number; embedded?: boolean; edgeToEdge?: boolean; label: string; testID?: string; footer?: React.ReactNode }>;
 const FooterContext = createContext<React.ReactNode>(null);
@@ -169,18 +167,6 @@ function SheetGestureBoundary({ children, viewportHeight }: React.PropsWithChild
   </Viewport>;
 }
 function SheetHandleOverlay({ label, onClose }: { label: string; onClose: () => void }) {
-  // Temporary diagnostic for installed iPhone builds, which cannot be inspected
-  // from the desktop browser. Long-press copies local measurements only.
-  const copied = useRef(false);
-  const copyDiagnostics = async () => {
-    copied.current = true;
-    try {
-      if (!(await Clipboard.setStringAsync(getSheetScrollReport()))) throw new Error('Clipboard unavailable');
-      Alert.alert('Diagnostic scroll copiat', 'Lipește raportul în conversație. Nu conține date despre cont sau eveniment.');
-    } catch {
-      Alert.alert('Copiere nereușită', 'Apasă lung pe capsulă pentru a încerca din nou.');
-    }
-  };
   // Use the library's handle recognizer so the grabber remains draggable even
   // when the content below it has scrolled, without reserving a black header.
   const { handlePanGestureHandler: handler } = useBottomSheetGestureHandlers();
@@ -192,9 +178,7 @@ function SheetHandleOverlay({ label, onClose }: { label: string; onClose: () => 
     <GestureDetector gesture={pan}>
       <Animated.View style={s.handle}>
         <Pressable testID="sheet-handle" accessibilityRole="button" accessibilityLabel={label}
-          onPressIn={() => { copied.current = false; }}
-          onLongPress={Platform.OS === 'web' ? undefined : () => void copyDiagnostics()} delayLongPress={900}
-          onPress={() => { if (!copied.current) onClose(); }} style={s.grabArea}>
+          onPress={onClose} style={s.grabArea}>
           <View testID="sheet-pill" style={s.capsule} />
         </Pressable>
       </Animated.View>
