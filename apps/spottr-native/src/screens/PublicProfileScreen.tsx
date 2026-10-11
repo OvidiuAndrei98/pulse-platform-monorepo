@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { StackActions } from '@react-navigation/native';
 import type { RootParamList } from '../navigation/types';
 import { PublicProfileTabBar } from '../navigation/PublicProfileTabBar';
 import { useAuth } from '../auth/AuthProvider';
@@ -45,7 +46,8 @@ export function PublicProfileScreen({ route, navigation }: NativeStackScreenProp
   const openEvent = (eventId: string, presentation: 'sheet' | 'page' = 'sheet') => {
     const event = events.data?.find(item => item.id === eventId);
     if (event) seedEvent(event);
-    navigation.push('Event', { id: eventId, presentation });
+    const eventRoute = navigation.getState().routeNames.find(name => name.startsWith('NestedEvent:')) ?? 'Event';
+    navigation.dispatch(StackActions.push(eventRoute, { id: eventId, presentation }));
   };
   const share = async () => {
     if (!profile) return;

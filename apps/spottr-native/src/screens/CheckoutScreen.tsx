@@ -25,6 +25,7 @@ import { checkoutTotals, parseBilling, parseCheckout, validPaidSelection, type Q
 import { usePromoCode } from '../checkout/usePromoCode';
 import { BillingFields, billingStyles } from '../checkout/BillingFields';
 import { preparePaymentBrowser } from '../checkout/paymentBrowser';
+import { checkoutFailure } from '../checkout/errors';
 import { checkoutRequestKey } from '../../../pulse-app/src/features/checkout/requestKey';
 import { checkoutEmailError } from '../../../pulse-app/src/features/checkout/validateEmail';
 import { emptyInvoiceDetails, getInvoiceFieldErrors, validateInvoiceDetails, type InvoiceDetails } from '../../../pulse-app/src/features/checkout/invoiceDetails';
@@ -157,11 +158,17 @@ function CheckoutContent({ route, navigation }: Props) {
         if (alive.current && controller.getToken() === token) setReturned({ nativeOrderId: response.orderId });
       } catch (error) {
         if (!alive.current || controller.getToken() !== token) return;
-        if (error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 425 && error.status !== 429) intent.current = null;
-        if (error instanceof ApiError && error.status === 409) {
-          setQuantities({}); setStep(0); setFurthest(0); setError('checkout.selectionUnavailable');
+        // No payload, token, billing details or Stripe secrets in diagnostics.
+        if (__DEV__) console.warn('[checkout] Payment preparation failed', error instanceof ApiError
+          ? { status: error.status, code: error.code }
+          : { name: error instanceof Error ? error.name : 'UnknownError', message: error instanceof Error ? error.message : 'Unknown failure' });
+        if (error instanceof ApiError && error.status >= 400 && error.status < 500 && ![408, 425, 429].includes(error.status)) intent.current = null;
+        const failure = checkoutFailure(error);
+        setError(failure.messageKey);
+        if (failure.resetSelection) {
+          setQuantities({}); setStep(0); setFurthest(0);
           void query.refetch();
-        } else setError('eventSheet.purchaseError');
+        }
       } finally { browser.current?.dispose(); browser.current = null; }
     });
   };
@@ -180,7 +187,6 @@ function CheckoutContent({ route, navigation }: Props) {
       <View style={s.progress}>{[0, 1, 2].map(index => <View key={index} style={[s.progressPart, index <= step && { backgroundColor: colors.accent }]} />)}</View>
       {!event ? query.isPending ? <Loading /> : <Feedback title={copy('feedback.loadFailed')} retry={() => void query.refetch()} /> : <View style={s.body}>
         <View style={s.event}><View style={s.date}><Text style={s.day}>{new Date(event.startTime).toLocaleDateString(language, { day: '2-digit', timeZone: 'Europe/Bucharest' })}</Text><Text style={s.month}>{new Date(event.startTime).toLocaleDateString(language, { month: 'short', timeZone: 'Europe/Bucharest' })}</Text></View><View style={{ flex: 1 }}><Text style={s.title}>{event.title}</Text><Text style={s.category}>{event.category}</Text></View></View>
-        {error && <Text testID="checkout-error" accessibilityRole="alert" style={billingStyles.error}>{copy(error)}</Text>}
         {query.isError && <Feedback compact title={copy('checkout.availabilityCheckFailed')} retry={() => void query.refetch()} />}
         {!available && !query.isFetching && <Feedback compact title={copy(event.organizerId === user?.id ? 'eventPage.cannotBuyOwn' : 'checkout.selectionUnavailable')} />}
         {!available && !busy && <Pressable testID="checkout-reselect" accessibilityRole="button" onPress={() => returnToEvent(navigation, eventId)} style={s.billingChoice}><Text style={s.category}>{copy('checkout.backToTickets')}</Text></Pressable>}
@@ -216,6 +222,7 @@ function CheckoutContent({ route, navigation }: Props) {
       </View>}
     </FormScrollView>
     <KeyboardFooter><LinearGradient onLayout={event => setFooterHeight(event.nativeEvent.layout.height)} colors={['#0000001a', '#000000b3', '#000000']} style={[s.footer, { paddingBottom: Math.max(28, safe.bottom) }]}>
+      {error && <Text testID="checkout-error" accessibilityRole="alert" accessibilityLiveRegion="polite" style={[billingStyles.error, { lineHeight: 18, marginBottom: 12 }]}>{copy(error)}</Text>}
       <Pressable testID="checkout-next" accessibilityRole="button" disabled={blocked} onPress={() => void (step === 2 ? pay() : advance())} style={[s.cta, blocked && { opacity: 0.4 }]}>{busy ? <ActivityIndicator size="small" color="white" /> : step === 2 ? <Ticket size={16} color="white" /> : <ArrowRight size={16} color="white" />}<Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>{copy(busy ? 'checkout.preparingPayment' : step === 2 ? 'checkout.confirmAndPay' : step === 1 ? 'checkout.continueToSummary' : 'common.next', { total: formatRon(totals?.total ?? 0) })}</Text></Pressable>
     </LinearGradient></KeyboardFooter>
   </View>;

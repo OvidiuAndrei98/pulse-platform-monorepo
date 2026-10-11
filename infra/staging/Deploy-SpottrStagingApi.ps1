@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param()
+param(
+    [ValidatePattern("^$|^pk_test_[A-Za-z0-9]+$")]
+    [string]$StripePublishableKey
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -180,20 +183,29 @@ try {
     }
     $immutableImage = "$registry/$EcrRepositoryName@$digest"
 
+    $deploymentParameters = @(
+        "ApiImageUri=$immutableImage",
+        "StagingAppUrl=$StagingAppUrl",
+        "DesiredCount=0"
+    )
+    # Omission preserves the existing stack value on routine deployments.
+    # The publishable key is public; do not modify the integration SecretString,
+    # which would overwrite manually configured Stripe/SMTP secrets with blanks.
+    if ($PSBoundParameters.ContainsKey("StripePublishableKey")) {
+        $deploymentParameters += "StripePublishableKey=$StripePublishableKey"
+    }
+
     $environmentChanged = $true
     Write-Host "Deploying only CloudFormation stack $StackName with the API stopped..."
-    Invoke-CheckedCommand -Executable "aws" -Arguments @(
+    Invoke-CheckedCommand -Executable "aws" -Arguments (@(
         "cloudformation", "deploy",
         "--region", $Region,
         "--stack-name", $StackName,
         "--template-file", "infra/cloudformation/staging-api.yml",
         "--capabilities", "CAPABILITY_NAMED_IAM",
         "--no-fail-on-empty-changeset",
-        "--parameter-overrides",
-        "ApiImageUri=$immutableImage",
-        "StagingAppUrl=$StagingAppUrl",
-        "DesiredCount=0"
-    ) -FailureMessage "The staging CloudFormation deployment failed."
+        "--parameter-overrides"
+    ) + $deploymentParameters) -FailureMessage "The staging CloudFormation deployment failed."
 
     # This is required even when CloudFormation reports an empty changeset: the
     # service may have been manually scaled to one after the previous deploy.

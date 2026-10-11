@@ -110,6 +110,8 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await until(`document.querySelector('[data-testid="event-content"]')`); await delay(600);
   await evaluate(`document.querySelector('[data-testid="event-content"]').scrollTop=120;window.__originalSheet=document.querySelector('[data-testid="event-sheet"]');Array.from(document.querySelectorAll('[data-testid="event-sheet"] [role=button]')).find(el=>el.textContent.includes('SPOTTR Club')).click()`);
   await until(`document.querySelector('[data-testid="organizer-info"]')`);
+  // The profile header can render before the separate organizer-events request.
+  await until(`document.querySelector('[data-testid="organizer-upcoming-rail"] [role=button]')`);
   await evaluate(`document.querySelector('[data-testid="organizer-upcoming-rail"] [role=button]').click()`);
   await until(`document.querySelectorAll('[data-testid="event-sheet"]').length===2`); await delay(600);
   await evaluate(`Array.from(document.querySelectorAll('[data-testid="event-continue"]')).at(-1).click()`);

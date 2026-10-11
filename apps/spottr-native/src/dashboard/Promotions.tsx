@@ -232,7 +232,7 @@ export function Promotions({
                         p.panel,
                         p.row,
                         {
-                          height: "100%",
+                          flexGrow: 1,
                           alignItems: "flex-start",
                           gap: 12,
                           borderColor: active ? "#ff004480" : "#ffffff1a",
@@ -299,7 +299,7 @@ export function Promotions({
                     style={[
                       p.panel,
                       {
-                        height: "100%",
+                        flexGrow: 1,
                         borderColor:
                           item.id === planId ? "#ff004480" : "#ffffff1a",
                         backgroundColor:
@@ -432,7 +432,7 @@ export function Promotions({
                             {
                               padding: 14,
                               borderRadius: 12,
-                              height: "100%",
+                              flexGrow: 1,
                               borderColor:
                                 billingState.source === source
                                   ? "#ff0044b3"

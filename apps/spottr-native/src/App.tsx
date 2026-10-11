@@ -1,5 +1,5 @@
 import { Text } from "./ui/Text";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import { AppState, Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -194,12 +194,13 @@ function ScannerDashboardRoute({ route, navigation }: NativeStackScreenProps<Roo
 // UIKit cannot push a root card on top of a presented Event modal. Keep the
 // purchase stack inside that presentation so an interactive native back swipe
 // reveals the actual Event view (including its scroll), not a snapshot or reload.
-function EventFlow({ route }: NativeStackScreenProps<RootParamList, "Event">) {
+function EventFlow({ route }: { route: { params: RootParamList['Event'] } }) {
+  const nestedEventName: `NestedEvent:${string}` = `NestedEvent:${useId()}`;
   return <ThemeProvider value={{ ...theme, colors: { ...theme.colors, background: 'transparent' } }}><Purchase.Navigator key={route.params.id} initialRouteName="EventDetails" screenOptions={{ headerShown: false, animation: "slide_from_right", contentStyle: { backgroundColor: colors.bg } }}>
     <Purchase.Screen name="EventDetails" component={EventScreen} initialParams={route.params} options={{ animation: 'none', contentStyle: { backgroundColor: 'transparent' }, gestureEnabled: false }} />
-    {/* A second event opened from an organizer also owns its purchase stack.
-        Checkout must be pushed inside that event's UIKit presentation. */}
-    <Purchase.Screen name="Event" component={EventFlow} options={({ route: event }) => ({
+    {/* Keep nested events inside the current UIKit presentation. A unique route
+        name per flow avoids Event > Event without changing native transitions. */}
+    <Purchase.Screen name={nestedEventName} component={EventFlow} options={({ route: event }) => ({
       presentation: event.params.presentation === 'page' ? 'card' : 'transparentModal',
       animation: event.params.presentation === 'page' ? 'slide_from_right' : 'none',
       contentStyle: { backgroundColor: event.params.presentation === 'page' ? colors.bg : 'transparent' },

@@ -91,6 +91,7 @@
     "@types/react": "~19.2.2",
     "expo-doctor": "latest",
     "tsx": "^4.20.0",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "yoga-layout": "3.2.1"
   }
 }

@@ -56,13 +56,39 @@ test('billing validates canonical Bucharest sectors, company fields and UTF-8 ba
   assert.equal(parseBilling(null), null); assert.deepEqual(parseBilling(billing()), billing());
   for (const value of [{}, [], 'bad', { ...billing(), name: null }]) assert.throws(() => parseBilling(value));
 });
-test('checkout responses and callbacks reject missing session IDs, arbitrary URLs and malformed data', () => {
+test('checkout responses and callbacks reject arbitrary URLs and malformed data', () => {
   const response = { orderId: id(5), sessionId: 'cs_test_local', checkoutUrl: 'https://checkout.stripe.com/c/pay/cs_test_local' };
   assert.deepEqual(parseCheckout(response, 'https://spottr.ro'), response);
-  for (const value of [null, {}, { ...response, sessionId: undefined }, { ...response, checkoutUrl: 'https://evil.test' }, { ...response, checkoutUrl: 'https://user:pass@checkout.stripe.com/pay' }]) assert.throws(() => parseCheckout(value, 'https://spottr.ro'));
+  for (const value of [null, {}, { ...response, sessionId: null }, { ...response, checkoutUrl: 'https://evil.test' }, { ...response, checkoutUrl: 'https://user:pass@checkout.stripe.com/pay' }]) assert.throws(() => parseCheckout(value, 'https://spottr.ro'));
   assert.equal(nativeCheckoutReturn(new URLSearchParams({ event_id: id(), session_id: 'cs_test_local', redirect: 'https://evil.test' })), `spottr-native://checkout/return?eventId=${id()}&sessionId=cs_test_local`);
   assert.equal(nativeCheckoutReturn(new URLSearchParams({ event_id: id(), cancelled: '1' })), `spottr-native://checkout/return?eventId=${id()}&cancelled=1`);
   for (const value of [{}, { event_id: id(), session_id: '' }, { event_id: 'bad', session_id: 'cs_valid' }] as Record<string, string>[]) assert.equal(nativeCheckoutReturn(new URLSearchParams(value)), null);
+});
+
+test('legacy hosted checkout responses recover the session from the trusted Stripe URL', () => {
+  for (const path of ['/c/pay/cs_test_legacy', '/pay/cs_test_legacy']) {
+    const legacy = { orderId: id(5), checkoutUrl: 'https://checkout.stripe.com' + path + '#provider-fragment' };
+    assert.deepEqual(parseCheckout(legacy, 'https://spottr.ro'), { ...legacy, sessionId: 'cs_test_legacy' });
+  }
+  const completed = { orderId: id(5), checkoutUrl: 'https://spottr.ro/checkout/success?session_id=cs_test_completed' };
+  assert.deepEqual(parseCheckout(completed, 'https://spottr.ro'), { ...completed, sessionId: 'cs_test_completed' });
+});
+
+test('legacy fallback cannot bypass origin checks or replace an explicitly invalid or conflicting session', () => {
+  const valid = { orderId: id(5), checkoutUrl: 'https://checkout.stripe.com/c/pay/cs_test_legacy' };
+  for (const checkoutUrl of [
+    'http://checkout.stripe.com/c/pay/cs_test_legacy',
+    'https://checkout.stripe.com.evil.test/c/pay/cs_test_legacy',
+    'https://checkout.stripe.com:8443/c/pay/cs_test_legacy',
+    'https://checkout.stripe.com/c/pay/',
+    'https://checkout.stripe.com/other?session_id=cs_test_legacy',
+    'https://checkout.stripe.com/c/pay/not-a-session#cs_test_legacy',
+    'https://spottr.ro/other?session_id=cs_test_legacy',
+    'https://spottr.ro/checkout/success?session_id=cs_test_a&session_id=cs_test_b',
+  ]) assert.throws(() => parseCheckout({ ...valid, checkoutUrl }, 'https://spottr.ro'));
+  for (const sessionId of [null, '', 'bad', 123, 'cs_test_other']) {
+    assert.throws(() => parseCheckout({ ...valid, sessionId }, 'https://spottr.ro'));
+  }
 });
 test('idempotency reuses one intent, but changes for quantity, account or event changes', () => {
   let calls = 0;

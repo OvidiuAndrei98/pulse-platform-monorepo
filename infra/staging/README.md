@@ -194,6 +194,22 @@ new staging API starts.
 
 ## Stripe sandbox secrets
 
+Native PaymentSheet additionally requires the **publishable** sandbox key from
+the same Stripe platform account. It is an ordinary CloudFormation parameter,
+separate from the integration secret. Set it during a staging API deployment:
+
+```powershell
+$stripePublishableKey = Read-Host "Stripe sandbox publishable key (pk_test_...)"
+./infra/staging/Deploy-SpottrStagingApi.ps1 -StripePublishableKey $stripePublishableKey
+```
+
+Omitting the parameter on later `task deploy:staging` runs preserves its existing
+value. An empty value disables native PaymentSheet while hosted Checkout remains
+available. The API deployment applies the native payment migration before starting
+the new API. A frontend reload or an Xcode rebuild alone does not update the
+server at `api-staging.spottr.ro`. See [native payment deployment](../../api/PAYMENT_SHEET.md)
+for the required Connect webhook events and device checks.
+
 Open `pulse-api/app-staging` in AWS Secrets Manager and edit its key/value
 pairs. Do not put these values in Git, shell scripts, tickets, or chat:
 

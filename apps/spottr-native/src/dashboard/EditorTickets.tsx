@@ -63,7 +63,7 @@ export function EditorTickets({
           gap: 12,
         }}
       >
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: wide ? 1 : undefined }}>
           <EditorHeading
             title={copy("ticketForm.title")}
             hint={copy(

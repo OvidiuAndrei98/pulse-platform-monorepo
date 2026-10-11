@@ -15,6 +15,7 @@ export type TabsParamList = {
   Profile: NavigatorScreenParams<ProfileParamList> | undefined;
 };
 export type RootParamList = {
+  [nestedEvent: `NestedEvent:${string}`]: { id: string; presentation?: "sheet" | "page" };
   Tabs: NavigatorScreenParams<TabsParamList>;
   Event: { id: string; presentation?: "sheet" | "page" };
   EventDetails: { id: string; presentation?: "sheet" | "page" };

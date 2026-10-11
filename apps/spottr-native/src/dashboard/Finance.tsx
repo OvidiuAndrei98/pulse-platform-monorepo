@@ -183,7 +183,7 @@ export function Invoicing() {
                     padding: 16,
                     borderRadius: 12,
                     gap: 4,
-                    height: "100%",
+                    flexGrow: 1,
                     borderColor:
                       settings.provider === provider
                         ? "#ff004480"
@@ -231,7 +231,7 @@ export function Invoicing() {
               disabled={action.busy}
               inputStyle={{ borderRadius: 12 }}
             />
-            <View style={{ justifyContent: "flex-end", height: "100%" }}>
+            <View style={{ justifyContent: "flex-end", flexGrow: 1 }}>
               <Action
                 title={copy("invoicing.loadOptions")}
                 secondary
@@ -453,7 +453,7 @@ export function Invoicing() {
                   gap: 12,
                 }}
               >
-                <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                <View style={{ flex: wide ? 1 : undefined, minWidth: 0, gap: 4 }}>
                   <View style={[p.row, { flexWrap: "wrap" }]}>
                     <Text style={p.label}>{invoice.eventTitle}</Text>
                     <InvoiceStatus

@@ -92,7 +92,7 @@ export function DashboardProfile({
   ) => (
     <View
       style={{
-        height: "100%",
+        flexGrow: 1,
         borderRadius: 24,
         borderWidth: 1,
         borderColor: "#ffffff1a",

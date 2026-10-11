@@ -1,26 +1,31 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import BottomSheet, { ANIMATION_CONFIGS, ANIMATION_SOURCE, ANIMATION_STATUS, BottomSheetBackdrop, useBottomSheetGestureHandlers, useBottomSheetInternal, type BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
+import BottomSheet, { ANIMATION_CONFIGS, ANIMATION_SOURCE, ANIMATION_STATUS, BottomSheetBackdrop, BottomSheetFooter, useBottomSheetGestureHandlers, useBottomSheetInternal, type BottomSheetBackdropProps, type BottomSheetFooterProps } from '@gorhom/bottom-sheet';
 import { Gesture, GestureDetector, GestureHandlerRootView, State } from 'react-native-gesture-handler';
-import Animated, { runOnUI, useAnimatedReaction, useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedReaction, useSharedValue } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { drawerDesign } from '../../../pulse-app/src/components/ui/drawerDesign';
 import { SheetScrollProvider, sheetGestureHandlersHook, useSheetScrollSurface } from './SheetScrollBridge';
 
-type Props = React.PropsWithChildren<{ open: boolean; onClose: () => void; height?: number; embedded?: boolean; edgeToEdge?: boolean; label: string; testID?: string }>;
+type Props = React.PropsWithChildren<{ open: boolean; onClose: () => void; height?: number; embedded?: boolean; edgeToEdge?: boolean; label: string; testID?: string; footer?: React.ReactNode }>;
+const FooterContext = createContext<React.ReactNode>(null);
+// Stable component identity keeps the footer mounted when ticket/RSVP data changes.
+function SheetFooter(props: BottomSheetFooterProps) {
+  return <BottomSheetFooter {...props}>{useContext(FooterContext)}</BottomSheetFooter>;
+}
 
 /** Same black surface, grabber, drag-to-dismiss and 90% event height as the web sheets. */
-export function AppSheet({ open, onClose, height = 0.9, embedded = false, edgeToEdge = false, label, testID, children }: Props) {
+export function AppSheet({ open, onClose, height = 0.9, embedded = false, edgeToEdge = false, label, testID, footer, children }: Props) {
   if (!open) return null;
-  const content = <SheetContent height={height} onClose={onClose} edgeToEdge={edgeToEdge} label={label} testID={testID}>{children}</SheetContent>;
+  const content = <SheetContent height={height} onClose={onClose} edgeToEdge={edgeToEdge} label={label} testID={testID} footer={footer}>{children}</SheetContent>;
   // A modal does not add a browser/navigation history entry. Native horizontal
   // Back stays a navigation gesture belonging to Search and Checkout.
   return embedded ? content : <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
     <GestureHandlerRootView style={s.root}>{content}</GestureHandlerRootView>
   </Modal>;
 }
-function SheetContent({ height = 0.9, onClose, edgeToEdge, label, testID, children }: Omit<Props, 'open'>) {
+function SheetContent({ height = 0.9, onClose, edgeToEdge, label, testID, footer, children }: Omit<Props, 'open'>) {
   const ref = useRef<BottomSheet>(null), viewport = useWindowDimensions(), safe = useSafeAreaInsets();
   const points = useMemo(() => [Math.max(180, Math.min(viewport.height - safe.top - 8, viewport.height * height))], [height, viewport.height, safe.top]);
   // Keep Gorhom's original spring trajectory/velocity. Reanimated's default
@@ -31,9 +36,10 @@ function SheetContent({ height = 0.9, onClose, edgeToEdge, label, testID, childr
   // Gorhom handles mount and snap-point changes. A second imperative snap here
   // can restart the opening animation after the user has already grabbed it.
   const backdrop = useCallback((props: BottomSheetBackdropProps) => <BottomSheetBackdrop {...props} opacity={0.7} appearsOnIndex={0} disappearsOnIndex={-1} pressBehavior="close" />, []);
-  return <SheetScrollProvider><View style={s.root} testID={testID}>
+  return <FooterContext.Provider value={footer}><SheetScrollProvider><View style={s.root} testID={testID}>
     <BottomSheet ref={ref} index={0} snapPoints={points} animateOnMount animationConfigs={animationConfigs} enableDynamicSizing={false} enablePanDownToClose
       gestureEventsHandlersHook={sheetGestureHandlersHook}
+      footerComponent={footer ? SheetFooter : undefined}
       enableContentPanningGesture keyboardBehavior="interactive" keyboardBlurBehavior="restore" enableBlurKeyboardOnGesture
       android_keyboardInputMode="adjustResize" onClose={onClose} backdropComponent={backdrop}
       backgroundStyle={s.surface} handleComponent={null}>
@@ -44,7 +50,7 @@ function SheetContent({ height = 0.9, onClose, edgeToEdge, label, testID, childr
         <SheetHandleOverlay label={label} onClose={() => ref.current?.close()} />
       </SheetGestureBoundary>
     </BottomSheet>
-  </View></SheetScrollProvider>;
+  </View></SheetScrollProvider></FooterContext.Provider>;
 }
 function SheetGestureBoundary({ children }: React.PropsWithChildren) {
   const { animatedAnimationState, animatedContentGestureState, animatedHandleGestureState, stopAnimation, animateToPosition } = useBottomSheetInternal();
@@ -78,15 +84,14 @@ function SheetGestureBoundary({ children }: React.PropsWithChildren) {
   const touch = useCallback(() => {
     if (resumeFrame.current !== null) cancelAnimationFrame(resumeFrame.current);
     resumeFrame.current = null;
-    // Web animations already run on this thread; queuing runOnUI there adds a
-    // frame in which a fast opening spring can travel beyond the grab target.
-    if (Platform.OS === 'web') pause();
-    else runOnUI(pause)();
+    // Only DOM pointer listeners call this. Native scrolling must let Gorhom
+    // reach its expanded snap: stopping short leaves its ScrollView locked.
+    pause();
   }, [pause]);
   const release = useCallback(() => {
     if (resumeFrame.current !== null) cancelAnimationFrame(resumeFrame.current);
     // Let Pan's finalization or a handle press select its destination first.
-    resumeFrame.current = requestAnimationFrame(() => { resumeFrame.current = null; if (Platform.OS === 'web') resume(); else runOnUI(resume)(); });
+    resumeFrame.current = requestAnimationFrame(() => { resumeFrame.current = null; resume(); });
   }, [resume]);
   useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -135,8 +140,7 @@ function SheetGestureBoundary({ children }: React.PropsWithChildren) {
     };
   }, [touch, release]);
   useEffect(() => () => { if (resumeFrame.current !== null) cancelAnimationFrame(resumeFrame.current); }, []);
-  return <View ref={surface} testID="sheet-content-viewport" style={s.content}
-    onTouchStart={touch} onTouchEnd={release} onTouchCancel={release}>
+  return <View ref={surface} testID="sheet-content-viewport" style={s.content}>
     {children}
   </View>;
 }

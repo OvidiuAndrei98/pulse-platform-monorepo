@@ -12,6 +12,11 @@ Parameters:
     Type: String
     Default: https://dev.spottr.ro
     Description: Exact browser origin allowed by CORS and used in checkout redirects.
+  StripePublishableKey:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^pk_test_[A-Za-z0-9]+$"
+    Description: Public sandbox key from the same Stripe account as STRIPE_SECRET_KEY. Empty disables native PaymentSheet.
   CertificateArn:
     Type: String
     Default: arn:aws:acm:eu-central-1:959222626220:certificate/43c8ba5f-a264-4638-9969-23a895187f66
@@ -299,6 +304,8 @@ Resources:
               Value: "false"
             - Name: STRIPE_CONNECT_COUNTRY
               Value: RO
+            - Name: STRIPE_PUBLISHABLE_KEY
+              Value: !Ref StripePublishableKey
             - Name: SPOTTR_INVOICING_PROVIDER
               Value: ""
             - Name: SMTP_HOST

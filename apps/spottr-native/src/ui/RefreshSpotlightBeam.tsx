@@ -1,4 +1,5 @@
 import React, { useId } from "react";
+import { Platform } from "react-native";
 import Svg, {
   Circle,
   Defs,
@@ -27,7 +28,7 @@ export function RefreshSpotlightBeam() {
       height={60}
       viewBox="0 0 104 60"
       fill="none"
-      accessible={false}
+      {...(Platform.OS === 'web' ? { 'aria-hidden': true } : { accessible: false })}
     >
       <Defs>
         <LinearGradient id={`${id}beam`} x1="0" y1="0" x2="0" y2="1">

@@ -6,17 +6,17 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await call('Page.addScriptToEvaluateOnNewDocument', { source: `(${function mock() {
     const original = fetch.bind(window), id = n => '12345678-abcd-abcd-abcd-' + String(n).padStart(12, '0');
     const user = { id: id(999), username: 'Buyer QA', email: 'buyer@example.test', role: 'user', hasPassword: true, preferredLanguage: 'en', showAttendancePublicly: false, createdAt: '2026-10-01T12:00:00Z' };
-    const qa = window.__qa = { purchase: [], bookings: [], rsvp: [], reconciliations: [], confirmation: 'pending', paymentCode: 200, tierPrice: 50, promoDelay: 0, promoRequests: [], status: null, saved: null, billingWrites: [] };
+    const qa = window.__qa = { purchase: [], bookings: [], rsvp: [], reconciliations: [], confirmation: 'pending', paymentCode: 200, paymentError: 'test_error', legacyResponse: true, tierPrice: 50, promoDelay: 0, promoRequests: [], status: null, saved: null, billingWrites: [] };
     const event = () => ({ id: id(1), organizerId: id(2), title: 'Checkout QA', category: 'TECHNO', locationName: 'Test venue', city: 'Bucuresti', startTime: '2099-10-08T18:00:00Z', endTime: '2099-10-09T02:00:00Z', description: 'Event content preserved behind checkout. '.repeat(40), ticketTypes: [{ id: id(3), name: 'General access', description: 'Admission', priceRon: qa.tierPrice, capacity: 100, ticketsSold: 0, startSales: '2020-01-01T00:00:00Z', endSales: '2099-10-09T02:00:00Z' }], lineup: [] });
     const social = () => ({ goingCount: qa.status === 'going' ? 2 : 1, interestedCount: qa.status === 'interested' ? 1 : 0, currentUserStatus: qa.status });
-    window.open = () => { qa.popup = { closed: false, document: { title: '', body: { style: {} } }, location: { replace(url) { qa.opened = url; } }, close() { this.closed = true; } }; return qa.popup; };
+    window.open = () => { if (qa.popupBlocked) return null; qa.popup = { closed: false, document: { title: '', body: { style: {} } }, location: { replace(url) { qa.opened = url; } }, close() { this.closed = true; } }; return qa.popup; };
     window.fetch = async (url, options = {}) => {
       const parsed = new URL(typeof url === 'string' ? url : url.url, location.href);
       if (!parsed.pathname.includes('/api/v1/')) { if (parsed.origin === location.origin) return original(url, options); throw Error('Unexpected external request ' + url); }
       const route = parsed.pathname.split('/api/v1')[1], method = options.method || 'GET', body = options.body ? JSON.parse(options.body) : {};
       const response = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
       await new Promise(resolve => setTimeout(resolve, 30));
-      if (route.endsWith('/tickets/purchase')) { qa.purchase.push({ body, key: new Headers(options.headers).get('Idempotency-Key') }); await new Promise(resolve => setTimeout(resolve, 200)); return response(qa.paymentCode === 200 ? { orderId: id(8), sessionId: 'cs_test_qa', checkoutUrl: 'https://checkout.stripe.com/c/pay/cs_test_qa' } : { error: 'test_error' }, qa.paymentCode); }
+      if (route.endsWith('/tickets/purchase')) { qa.purchase.push({ body, key: new Headers(options.headers).get('Idempotency-Key') }); await new Promise(resolve => setTimeout(resolve, 200)); return response(qa.paymentCode === 200 ? { orderId: id(8), sessionId: qa.invalidResponse ? null : qa.legacyResponse ? undefined : 'cs_test_qa', checkoutUrl: 'https://checkout.stripe.com/c/pay/cs_test_qa' } : { error: qa.paymentError }, qa.paymentCode); }
       if (route.endsWith('/tickets/book')) { qa.bookings.push(body); return response({ orderId: id(9), alreadyBooked: false }); }
       if (route === '/checkout/reconcile') { qa.reconciliations.push(body); return response({ status: qa.confirmation }); }
       if (route.endsWith('/promo-code/validate')) { qa.promoRequests.push(body.code); await new Promise(resolve => setTimeout(resolve, qa.promoDelay)); return response({ code: body.code, discountPercent: 15 }); }
@@ -72,6 +72,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await until('window.__qa.opened'); assert.equal(await evaluate('window.__qa.purchase.length'), 1);
   const order = await evaluate('window.__qa.purchase[0]'); assert.equal(order.body.email, 'guest@example.test'); assert.equal(order.body.billingDetails.sector, 'Sector 3'); assert.equal(order.body.promoCode, 'SECOND'); assert.equal(order.body.client, undefined); assert.match(order.key, /^[a-f\d-]{36}$/);
   await evaluate('window.__qa.popup.close()'); await until(`document.querySelector('[data-testid="checkout-recheck"]')`);
+  assert.equal(await evaluate('window.__qa.reconciliations[0].sessionId'), 'cs_test_qa', 'Legacy session IDs still require server-side confirmation');
   assert.equal(await evaluate(`!!document.querySelector('[data-testid="checkout-view-tickets"]')`), false);
   await evaluate(`window.__qa.confirmation='completed'`); await click('checkout-recheck'); await until(`document.querySelector('[data-testid="checkout-view-tickets"]')`);
   console.log('PASS quantity bounds, promo race, billing/sector validation, one payment intent and authoritative confirmation');
@@ -88,19 +89,39 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await click('checkout-next'); await input('billing-address', 'Strada 1'); await input('billing-city', 'Cluj'); await input('billing-county', 'Cluj');
   await click('billing-type-company'); await click('checkout-next'); assert.equal(await evaluate(`document.querySelector('[data-testid="billing-taxId"]').getAttribute('aria-invalid')`), 'true');
   await input('billing-taxId', 'RO123'); await click('checkout-remember'); await click('checkout-next'); await until('window.__qa.billingWrites.length===1');
-  await evaluate('window.__qa.paymentCode=503'); await click('checkout-next'); await until(`document.querySelector('[data-testid="checkout-error"]')`);
+  await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 568, deviceScaleFactor: 1, mobile: true });
+  await delay(200);
+  await evaluate(`window.__qa.paymentCode=503; const scroll=document.querySelector('[data-testid="checkout-scroll"]'); scroll.scrollTop=scroll.scrollHeight`);
+  await click('checkout-next'); await until(`document.querySelector('[data-testid="checkout-error"]')`);
+  assert.equal(await evaluate('window.__qa.popup.closed'), true, 'Failed preparation closes the unused popup');
+  assert.ok(await evaluate(`{const el=document.querySelector('[data-testid="checkout-error"]'),r=el.getBoundingClientRect();r.top>=0&&r.bottom<=innerHeight&&el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))}`), 'Payment errors must be visible beside Pay, even when the summary is scrolled down');
   await click('checkout-next'); await until('window.__qa.purchase.length===2'); await delay(300);
   assert.equal(await evaluate('window.__qa.purchase[0].key===window.__qa.purchase[1].key'), true);
-  await evaluate('window.__qa.paymentCode=409'); await click('checkout-next'); await until(`document.querySelector('[data-testid="checkout-reselect"]')`);
+  await evaluate('window.__qa.paymentCode=408'); await click('checkout-next'); await until(`document.querySelector('[data-testid="checkout-error"]')?.textContent.includes('took too long')`);
+  await evaluate(`window.__qa.paymentCode=409;window.__qa.paymentError='Organizatorul trebuie sa reconecteze contul Stripe inainte de a putea accepta plati'`);
+  await click('checkout-next'); await until(`document.querySelector('[data-testid="checkout-error"]')?.textContent.includes('reconnect their Stripe account')`);
+  assert.equal(await evaluate('window.__qa.purchase.slice(0,4).every(p=>p.key===window.__qa.purchase[0].key)'), true, '408 must retry the original request too');
+  assert.equal(await evaluate(`!!document.querySelector('[data-testid="checkout-reselect"]')`), false, 'Organizer setup conflicts must preserve ticket selection');
+  assert.ok(await evaluate(`document.querySelector('[data-testid="checkout-next"]').textContent.includes('Pay')`), 'Organizer setup conflicts must preserve the summary step');
+  await capture('checkout-payment-error');
+  await evaluate('window.__qa.popupBlocked=true'); await click('checkout-next'); await until(`document.querySelector('[data-testid="checkout-error"]')?.textContent.includes('Allow pop-ups')`);
+  assert.equal(await evaluate('window.__qa.purchase.length'), 4, 'A blocked popup must not create a reservation');
+  await evaluate('window.__qa.popupBlocked=false;window.__qa.paymentCode=200;window.__qa.invalidResponse=true');
+  await click('checkout-next'); await until(`document.querySelector('[data-testid="checkout-error"]')?.textContent.includes('invalid response')`);
+  assert.equal(await evaluate('window.__qa.popup.closed'), true);
+  assert.equal(await evaluate(`!!document.querySelector('[data-testid="checkout-return"]')`), false, 'Malformed responses must never confirm payment');
+  await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await evaluate(`window.__qa.paymentCode=409;window.__qa.paymentError='Nu mai exista suficiente bilete disponibile'`); await click('checkout-next'); await until(`document.querySelector('[data-testid="checkout-reselect"]')`);
+  assert.equal(await evaluate('window.__qa.purchase[4].key===window.__qa.purchase[5].key'), true, 'Malformed success responses also preserve the original payment intent');
   // The 409 changes step and scrolls to the top; wait for the actual hit target
   // to settle before synthesizing the pointer press/release coordinates.
   await delay(300); await click('checkout-reselect'); await until(`!document.querySelector('[data-testid="checkout-screen"]')`);
   assert.ok(await evaluate(`!!document.querySelector('[data-testid="event-sheet"] [aria-label="Back"]')`), 'Full-page presentation remains full-page after auth/checkout');
   await evaluate('window.__qa.tierPrice=0'); await click('event-continue'); await until('window.__qa.bookings.length===1');
   await until(`!document.querySelector('[data-testid="event-sheet"]')`);
-  assert.equal(await evaluate('window.__qa.purchase.length'), 3);
+  assert.equal(await evaluate('window.__qa.purchase.length'), 6);
   assert.deepEqual(await evaluate('window.__qa.bookings[0].items'), [{ ticketTypeId: id(3), quantity: 1 }]);
-  console.log('PASS auth return, RSVP toggle/double click, company + saved billing, idempotent retries, 409 recovery and free booking');
+  console.log('PASS visible payment errors, popup blockers, 408/5xx/invalid-response retries, organizer conflicts, stock recovery and free booking');
   await call('Page.navigate', { url: base + '/checkout/return?eventId=' + id(1) + '&cancelled=1' });
   await until(`document.querySelector('[data-testid="checkout-return"]')?.textContent.includes('Payment window closed')`);
   assert.equal(await evaluate(`!!document.querySelector('[data-testid="checkout-view-tickets"]')`), false);

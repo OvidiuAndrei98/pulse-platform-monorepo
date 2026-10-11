@@ -132,6 +132,61 @@ export function EventScreen({
       if (!(error instanceof Error && error.name === 'AbortError')) setShareError(true);
     }
   };
+  const nativeSheet = isSheet && Platform.OS !== "web";
+  const footer = event && !missing ? (
+    <View testID="event-actions" style={s.footer}>
+      <Pressable
+        disabled={!ready}
+        accessibilityRole="button"
+        accessibilityLabel={copy(
+          saved.some((e) => e.id === event.id)
+            ? "eventSheet.removeFavorite"
+            : "eventSheet.addFavorite",
+        )}
+        onPress={() => user ? toggleSaved(event) : signIn()}
+        style={s.icon}
+      >
+        <Bookmark
+          size={16}
+          color={
+            saved.some((e) => e.id === event.id) ? colors.accent : "white"
+          }
+        />
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={copy("eventSheet.share")}
+        onPress={() => void share()}
+        style={s.icon}
+      >
+        <Share2 size={16} color="white" />
+      </Pressable>
+      <Pressable
+        testID="event-continue"
+        accessibilityRole="button"
+        disabled={!canBuy || query.isError || buying}
+        onPress={() => void purchase()}
+        style={[
+          s.purchase,
+          (!canBuy || query.isError || buying) && { opacity: 0.4 },
+        ]}
+      >
+        <TicketIcon size={16} color="white" />
+        <Text numberOfLines={2} style={{ fontSize: 14, fontWeight: "600", color: "white", flexShrink: 1, textAlign: "center" }}>
+          {buying ? copy("checkout.checkingTicketAvailability") : ownEvent ? copy("eventPage.cannotBuyOwn") : ended
+            ? copy("eventSheet.eventCompleted")
+            : external
+              ? copy("eventSheet.externalTickets")
+              : ticket
+                ? ticket.priceRon === 0 ? copy("checkout.bookFree") : copy("eventSheet.continue", {
+                    count: 1,
+                    total: formatRon(total),
+                  })
+                : copy("eventSheet.selectTickets")}
+        </Text>
+      </Pressable>
+    </View>
+  ) : null;
   const content = (
     <View
       testID="event-sheet"
@@ -174,6 +229,7 @@ export function EventScreen({
       ) : (
         <>
           <ContentScroll
+            {...(nativeSheet ? { enableFooterMarginAdjustment: true } : {})}
             testID="event-content"
             style={{ flex: 1 }}
             contentContainerStyle={{ paddingBottom: 32 }}
@@ -422,64 +478,13 @@ export function EventScreen({
               )}
             </View>
           </ContentScroll>
-          <View style={s.footer}>
-            <Pressable
-              disabled={!ready}
-              accessibilityRole="button"
-              accessibilityLabel={copy(
-                saved.some((e) => e.id === event.id)
-                  ? "eventSheet.removeFavorite"
-                  : "eventSheet.addFavorite",
-              )}
-              onPress={() => user ? toggleSaved(event) : signIn()}
-              style={s.icon}
-            >
-              <Bookmark
-                size={16}
-                color={
-                  saved.some((e) => e.id === event.id) ? colors.accent : "white"
-                }
-              />
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={copy("eventSheet.share")}
-              onPress={() => void share()}
-              style={s.icon}
-            >
-              <Share2 size={16} color="white" />
-            </Pressable>
-            <Pressable
-              testID="event-continue"
-              accessibilityRole="button"
-              disabled={!canBuy || query.isError || buying}
-              onPress={() => void purchase()}
-              style={[
-                s.purchase,
-                (!canBuy || query.isError || buying) && { opacity: 0.4 },
-              ]}
-            >
-              <TicketIcon size={16} color="white" />
-              <Text style={{ fontSize: 14, fontWeight: "600", color: "white" }}>
-                {buying ? copy("checkout.checkingTicketAvailability") : ownEvent ? copy("eventPage.cannotBuyOwn") : ended
-                  ? copy("eventSheet.eventCompleted")
-                  : external
-                    ? copy("eventSheet.externalTickets")
-                    : ticket
-                      ? ticket.priceRon === 0 ? copy("checkout.bookFree") : copy("eventSheet.continue", {
-                          count: 1,
-                          total: formatRon(total),
-                        })
-                      : copy("eventSheet.selectTickets")}
-              </Text>
-            </Pressable>
-          </View>
+          {!nativeSheet && footer}
         </>
       )}
     </View>
   );
   return isSheet ? (
-    <AppSheet open embedded edgeToEdge label={copy("common.close")} onClose={close}>
+    <AppSheet open embedded edgeToEdge footer={nativeSheet ? footer : undefined} label={copy("common.close")} onClose={close}>
       {content}
     </AppSheet>
   ) : (
@@ -612,6 +617,8 @@ const s = StyleSheet.create({
   purchase: {
     height: 44,
     flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 12,
     borderRadius: 99,
     backgroundColor: colors.accent,
     flexDirection: "row",

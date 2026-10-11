@@ -66,7 +66,7 @@ export function DashboardEvents({
           gap: 16,
         }}
       >
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: small ? undefined : 1 }}>
           <DashboardTitle
             title={copy("organizerEvents.title")}
             subtitle={copy("organizerEvents.total", {

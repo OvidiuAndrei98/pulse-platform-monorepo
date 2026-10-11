@@ -71,7 +71,7 @@ export function Finance() {
           gap: 16,
         }}
       >
-        <View style={{ flex: 1, gap: 4 }}>
+        <View style={{ flex: width >= 640 ? 1 : undefined, gap: 4 }}>
           <Text
             style={[p.title, width >= 640 && { fontSize: 30, lineHeight: 36 }]}
           >
@@ -142,7 +142,7 @@ export function Finance() {
                     {
                       borderRadius: 0,
                       backgroundColor: "#ffffff09",
-                      height: "100%",
+                      flexGrow: 1,
                     },
                   ]}
                 >
@@ -552,7 +552,7 @@ export function Finance() {
                       justifyContent: "space-between",
                     }}
                   >
-                    <View style={{ gap: 4, flex: 1 }}>
+                    <View style={{ gap: 4, flex: width >= 640 ? 1 : undefined }}>
                       <View style={[p.row, { flexWrap: "wrap" }]}>
                         <Text
                           style={[p.label, { textTransform: "capitalize" }]}
