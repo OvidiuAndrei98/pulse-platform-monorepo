@@ -1,4 +1,4 @@
-import type { Event, PromotedEvent } from "@/core/DataProvider";
+type Promotion<E extends { id: string }> = { placement: string; event: E; campaignId: string };
 
 function hash(value: string) {
   let result = 2166136261;
@@ -9,11 +9,11 @@ function hash(value: string) {
   return result >>> 0;
 }
 
-export function mixFeedPromotions(
-  events: readonly Event[],
-  promotions: readonly PromotedEvent[],
+export function mixFeedPromotions<E extends { id: string }>(
+  events: readonly E[],
+  promotions: readonly Promotion<E>[],
   seed: string,
-  matches: (event: Event) => boolean = () => true,
+  matches: (event: E) => boolean = () => true,
   maxPromoted = 2,
 ) {
   const promoted = promotions
@@ -41,8 +41,8 @@ export function mixFeedPromotions(
   return mixed;
 }
 
-export function promotionCampaignsByEvent(
-  promotions: readonly PromotedEvent[],
+export function promotionCampaignsByEvent<E extends { id: string }, P extends Promotion<E>>(
+  promotions: readonly P[],
 ) {
   return new Map(promotions.map((campaign) => [campaign.event.id, campaign]));
 }

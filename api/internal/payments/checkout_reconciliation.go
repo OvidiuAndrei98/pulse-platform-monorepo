@@ -157,6 +157,7 @@ func (h *CheckoutHandler) reconcilePendingCheckouts(ctx context.Context) {
 			}()
 		}
 		workers.Wait()
+		h.reconcilePendingPaymentSheets(ctx)
 
 		markedForReview, err := h.queries.MarkStaleSessionlessCheckoutReservationsForReview(ctx)
 		if err != nil {

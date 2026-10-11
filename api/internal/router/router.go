@@ -35,6 +35,8 @@ type HandlersConfig struct {
 	GoogleLogin          http.HandlerFunc
 	GoogleCallback       http.HandlerFunc
 	SearchSpotifyArtists http.HandlerFunc
+	SearchPlaces         http.HandlerFunc
+	GetPlaceDetails      http.HandlerFunc
 	ForgotPassword       http.HandlerFunc
 	ResetPassword        http.HandlerFunc
 
@@ -84,6 +86,8 @@ type HandlersConfig struct {
 	StripeWebhook                  http.HandlerFunc
 	StripeConnectWebhook           http.HandlerFunc
 	ReconcileCheckout              http.HandlerFunc
+	ReconcilePaymentSheet          http.HandlerFunc
+	CancelPaymentSheet             http.HandlerFunc
 	CreateStripeAccountLink        http.HandlerFunc
 	GetStripeAccountStatus         http.HandlerFunc
 	CreateStripeLoginLink          http.HandlerFunc
@@ -98,6 +102,7 @@ type HandlersConfig struct {
 	ListPromotionPlans             http.HandlerFunc
 	GetPromotionAvailability       http.HandlerFunc
 	CreatePromotionCheckout        http.HandlerFunc
+	ReconcilePromotionCheckout     http.HandlerFunc
 	ListPromotionCampaigns         http.HandlerFunc
 	ListActivePromotions           http.HandlerFunc
 	TrackPromotionMetric           http.HandlerFunc
@@ -243,6 +248,8 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 		r.Post("/stripe/webhook", cfg.StripeWebhook)
 		r.Post("/stripe/connect/webhook", cfg.StripeConnectWebhook)
 		r.With(rateLimit("checkout_reconcile_ip", 30, 10*time.Minute)).Post("/checkout/reconcile", cfg.ReconcileCheckout)
+		r.With(rateLimit("payment_sheet_reconcile_ip", 60, 10*time.Minute)).Post("/checkout/payment-sheet/reconcile", cfg.ReconcilePaymentSheet)
+		r.With(rateLimit("payment_sheet_cancel_ip", 20, 10*time.Minute)).Post("/checkout/payment-sheet/cancel", cfg.CancelPaymentSheet)
 		r.With(rateLimit("scanner_session_ip", 10, 15*time.Minute)).Post("/ticket-validation/quick-access/session", cfg.CreateScannerSession)
 		r.Group(func(r chi.Router) {
 			if cfg.ScannerAuthMiddleware != nil {
@@ -377,6 +384,10 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				}
 
 				// --- ORGANIZER DASHBOARD ---
+				if cfg.SearchPlaces != nil && cfg.GetPlaceDetails != nil {
+					r.With(identityLimit("places_search", 60, time.Minute)).Get("/dashboard/places/autocomplete", cfg.SearchPlaces)
+					r.With(identityLimit("places_details", 30, time.Minute)).Get("/dashboard/places/details", cfg.GetPlaceDetails)
+				}
 				r.With(identityLimit("media_upload", 30, time.Minute), uploadSlots).Post("/dashboard/uploads/event-banner", cfg.UploadEventBanner)
 				r.With(identityLimit("media_upload", 30, time.Minute), uploadSlots).Post("/dashboard/uploads/organizer-update", cfg.UploadOrganizerUpdateImage)
 				r.Route("/dashboard/events", func(r chi.Router) {
@@ -417,6 +428,9 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.Get("/dashboard/promotions/availability", cfg.GetPromotionAvailability)
 				r.Get("/dashboard/promotions", cfg.ListPromotionCampaigns)
 				r.With(rateLimit("promotion_checkout_ip", 10, 10*time.Minute)).Post("/dashboard/promotions/checkout", cfg.CreatePromotionCheckout)
+				if cfg.ReconcilePromotionCheckout != nil {
+					r.With(rateLimit("promotion_reconcile_ip", 10, time.Minute)).Post("/dashboard/promotions/{id}/reconcile", cfg.ReconcilePromotionCheckout)
+				}
 				r.Post("/dashboard/organizer/profile", cfg.CreateOrganizerProfile)
 				r.Get("/dashboard/organizer/profile/{id}", cfg.GetOrganizerProfile)
 				r.Post("/dashboard/organizer/agreement", cfg.AcceptOrganizerAgreement)

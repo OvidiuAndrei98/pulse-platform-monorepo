@@ -55,6 +55,21 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 	}
 
 	switch string(event.Type) {
+	case "payment_intent.succeeded", "payment_intent.canceled":
+		var intent stripe.PaymentIntent
+		if event.Data == nil || json.Unmarshal(event.Data.Raw, &intent) != nil {
+			http.Error(w, "Invalid PaymentIntent", http.StatusBadRequest)
+			return
+		}
+		if h.checkout == nil {
+			http.Error(w, "Checkout is not configured", http.StatusServiceUnavailable)
+			return
+		}
+		if err := h.checkout.reconcileNativePaymentEvent(r.Context(), intent, event.Account, event.Livemode); err != nil {
+			log.Printf("native payment webhook reconciliation failed: event=%s", event.ID)
+			http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
+			return
+		}
 	case "checkout.session.completed":
 		var session stripe.CheckoutSession
 		if event.Data == nil || json.Unmarshal(event.Data.Raw, &session) != nil {

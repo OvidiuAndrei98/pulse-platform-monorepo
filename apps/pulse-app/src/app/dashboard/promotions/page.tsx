@@ -24,7 +24,6 @@ import {
 } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { ThemedSelect } from "@/features/events/form/ThemedSelect";
-import type { InvoiceDetails } from "@/features/checkout/InvoiceDetailsFields";
 import {
   readSavedBillingDetails,
   saveBillingDetails,
@@ -36,33 +35,10 @@ import {
   type PromotionBillingDetails,
   validatePromotionBillingDetails,
 } from "@/features/promotions/PromotionBillingDetailsFields";
+import { normalizedCUI, promotionBillingFromSaved, savedCompanyBilling } from "@/features/promotions/promotionBilling";
 
 const toDateKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-
-const normalizedCUI = (value: string) =>
-  value.trim().toUpperCase().replace(/\s+/g, "").replace(/^RO/, "");
-
-const promotionBillingFromSaved = (
-  details: InvoiceDetails,
-): PromotionBillingDetails => ({
-  registrationNumber: details.registrationNumber,
-  address: details.address,
-  city: details.city,
-  county: details.county,
-  sector: details.sector,
-  country: details.country,
-});
-
-const savedCompanyBilling = (
-  details: PromotionBillingDetails,
-  profile: OrganizerProfile,
-): InvoiceDetails => ({
-  type: "company",
-  name: profile.companyName,
-  taxId: profile.cui,
-  ...details,
-});
 
 export default function PromotionsPage() {
   const { t, i18n } = useTranslation();

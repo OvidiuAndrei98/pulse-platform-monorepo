@@ -1,4 +1,6 @@
-import type { SocialFeedItem } from "@/core/DataProvider";
+import type { ReadableSchema } from "@packages/api-client/src/Client";
+
+export type SocialFeedItem = ReadableSchema<"SocialFeedItemResponse">;
 
 export type FeedGroup = {
   kind: "friends" | "organizer" | "update";

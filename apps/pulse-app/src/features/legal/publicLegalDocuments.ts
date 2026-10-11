@@ -1,4 +1,4 @@
-import type { LegalSection } from "@/features/legal/LegalDocument";
+import type { LegalSection } from "./types";
 
 export type PublicLegalDocument = {
   eyebrow: string;

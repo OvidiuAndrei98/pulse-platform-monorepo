@@ -11,6 +11,17 @@ test('checkout retries reuse their intent while changed purchases get a new UUID
   assert.notEqual(checkoutRequestKey(first, 'two tickets').key, first.key);
 });
 
+test('checkout accepts injected secure bytes and never generates new entropy for a retry', () => {
+  const { checkoutRequestKey } = modules().load('features/checkout/requestKey');
+  let calls = 0;
+  const random = () => { calls++; return Uint8Array.from({ length: 16 }, (_, i) => i); };
+  const first = checkoutRequestKey(null, 'one ticket', random);
+  assert.equal(first.key, '00010203-0405-4607-8809-0a0b0c0d0e0f');
+  assert.equal(checkoutRequestKey(first, 'one ticket', random), first);
+  assert.equal(calls, 1);
+  assert.throws(() => checkoutRequestKey(null, 'bad entropy', () => new Uint8Array(15)), /INVALID_RANDOM_BYTES_LENGTH/);
+});
+
 test('API forwards idempotency, cancellation and explicit cache bypass', async () => {
   const calls = [];
   const { ApiClient } = modules({}, { fetch: async (url, options) => {

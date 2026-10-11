@@ -472,6 +472,11 @@ type InvitationTickets struct {
 	BatchIndex     int32              `json:"batch_index"`
 }
 
+type NativePaymentSheetOrders struct {
+	OrderID   pgtype.UUID        `json:"order_id"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+}
+
 type Notifications struct {
 	ID        pgtype.UUID        `json:"id"`
 	UserID    pgtype.UUID        `json:"user_id"`

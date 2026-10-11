@@ -334,12 +334,17 @@ func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct {
 		EventID        string                         `json:"eventId"`
+		Client         string                         `json:"client,omitempty"`
 		Plan           string                         `json:"plan"`
 		Placement      string                         `json:"placement"`
 		StartDate      string                         `json:"startDate"`
 		BillingDetails promotionBillingDetailsRequest `json:"billingDetails"`
 	}
 	if !router.DecodeJSON(w, r, &body, maxPromotionJSONBytes) {
+		return
+	}
+	if !common.ValidOrganizerClient(body.Client) {
+		router.RespondWithError(w, http.StatusBadRequest, "Client invalid")
 		return
 	}
 	var invoiceConfig invoicing.PromotionInvoiceConfig
@@ -471,8 +476,8 @@ func (h *Handler) HandleCreateCheckout(w http.ResponseWriter, r *http.Request) {
 	campaignIDString := common.UUIDToString(campaignID)
 	params := &stripe.CheckoutSessionCreateParams{
 		Mode:               stripe.String("payment"),
-		SuccessURL:         stripe.String(h.appURL + "/dashboard/promotions?payment=success"),
-		CancelURL:          stripe.String(h.appURL + "/dashboard/promotions?payment=cancelled"),
+		SuccessURL:         stripe.String(common.OrganizerReturnURL(h.appURL, body.Client, "promotion", "complete", campaignIDString)),
+		CancelURL:          stripe.String(common.OrganizerReturnURL(h.appURL, body.Client, "promotion", "cancelled", campaignIDString)),
 		CustomerEmail:      stripe.String(organizer.Email),
 		ExpiresAt:          stripe.Int64(time.Now().Add(promotionCheckoutExpiration).Unix()),
 		PaymentMethodTypes: []*string{stripe.String("card")},

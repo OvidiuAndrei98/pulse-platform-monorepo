@@ -274,7 +274,7 @@ func (h *Handler) HandleCreateEvent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := saveEventLineup(ctx, qtx, newEvent.ID, req.Lineup, false); err != nil {
+	if err := saveEventLineup(ctx, qtx, newEvent.ID, organizerUUID, req.Lineup, false); err != nil {
 		router.RespondWithError(w, http.StatusBadRequest, "Lineup-ul nu a putut fi salvat: "+err.Error())
 		return
 	}
@@ -585,7 +585,7 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Lineup != nil {
-		if err := saveEventLineup(r.Context(), qtx, eventUUID, *req.Lineup, true); err != nil {
+		if err := saveEventLineup(r.Context(), qtx, eventUUID, organizerUUID, *req.Lineup, true); err != nil {
 			router.RespondWithError(w, http.StatusBadRequest, "Lineup-ul nu a putut fi salvat: "+err.Error())
 			return
 		}

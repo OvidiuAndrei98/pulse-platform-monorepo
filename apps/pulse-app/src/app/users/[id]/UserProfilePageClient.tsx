@@ -10,6 +10,7 @@ import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client"
 import { Event, PublicEventsService } from "@/core/DataProvider";
 import { OrganizerProfile } from "@/components/social/OrganizerProfile";
 import { ProfileActions } from "@/components/social/ProfileActions";
+import { splitOrganizerEvents } from "@/components/social/organizerEvents";
 
 type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 
@@ -82,22 +83,7 @@ export default function PublicProfilePage() {
     };
   }, [profile?.id, profile?.role, eventsAttempt]);
 
-  const { upcomingEvents, pastEvents } = useMemo(() => {
-    const now = Date.now();
-    const sorted = [...organizerEvents].sort(
-      (left, right) =>
-        new Date(right.startTime).getTime() - new Date(left.startTime).getTime(),
-    );
-
-    return {
-      upcomingEvents: sorted
-        .filter((event) => new Date(event.endTime).getTime() > now)
-        .reverse(),
-      pastEvents: sorted.filter(
-        (event) => new Date(event.endTime).getTime() <= now,
-      ),
-    };
-  }, [organizerEvents]);
+  const { upcomingEvents, pastEvents } = useMemo(() => splitOrganizerEvents(organizerEvents), [organizerEvents]);
 
   if (!loaded) {
     return (

@@ -1,0 +1,75 @@
+name: Build iPhone IPA for AltStore
+
+# Manual only: macOS runners consume the account's GitHub Actions allowance.
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'Public HTTPS API URL, including /api/v1 (no secret keys)'
+        type: string
+        required: true
+      web_url:
+        description: 'Public HTTPS website URL used by links (no secret keys)'
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-ios-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_NO_DOTENV: '1'
+      EXPO_PUBLIC_API_URL: ${{ inputs.api_url }}
+      EXPO_PUBLIC_WEB_URL: ${{ inputs.web_url }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Validate public configuration
+        run: node apps/spottr-native/scripts/build-ios-ipa.cjs --check
+      - uses: pnpm/action-setup@v6
+        with:
+          version: '11.28.5'
+          run_install: false
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check native app
+        run: pnpm --filter @apps/spottr-native typecheck
+      - name: Build unsigned Release app with embedded JavaScript
+        run: pnpm --filter @apps/spottr-native ios:ipa
+      - name: Downloadable IPA for signing through AltStore Classic
+        uses: actions/upload-artifact@v7
+        with:
+          name: spottr-iphone-altstore
+          path: apps/spottr-native/artifacts/spottr-native-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+      - name: Installation instructions
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'INFO'
+          Download **spottr-iphone-altstore** under Artifacts and extract the ZIP.
+          The IPA must be signed and installed with **AltStore Classic + AltServer**;
+          Safari cannot directly install this unsigned file.
+
+          This is a **Release build with embedded JavaScript**. No Metro or Expo Go
+          is needed to open it. The configured API must remain reachable.
+
+          A free Apple account requires signing refresh at least every 7 days.
+          AltServer must be reachable for refresh, not for normal app use.
+          Apple Pay and associated-domain entitlements are excluded from this
+          personal testing build. No Apple password/certificate is used in CI.
+          INFO

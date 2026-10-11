@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const ts = require("typescript");
+const { modules } = require("./helpers/qaHarness.cjs");
 
 function load(file, globals = {}) {
   const source = fs.readFileSync(path.join(__dirname, "../src/", file), "utf8");
@@ -55,7 +56,7 @@ test("requests which never resolve are bounded by a timeout", async () => {
   assert.equal(await api.checkPaymentConfirmation(() => new Promise(() => {}), () => true, noWait), "unavailable");
 });
 test("billing errors identify missing fields, including company and Bucharest requirements", () => {
-  const { emptyInvoiceDetails, getInvoiceFieldErrors, validateInvoiceDetails } = load("features/checkout/InvoiceDetailsFields.tsx");
+  const { emptyInvoiceDetails, getInvoiceFieldErrors, validateInvoiceDetails } = load("features/checkout/invoiceDetails.ts");
   const details = emptyInvoiceDetails();
   assert.deepEqual(Object.keys(getInvoiceFieldErrors(details)), ["name", "address", "city", "county"]);
   Object.assign(details, { type: "company", name: "Test", address: "Street 1", city: "București" });
@@ -64,6 +65,26 @@ test("billing errors identify missing fields, including company and Bucharest re
   assert.equal(validateInvoiceDetails(details), null);
   details.city = "Cluj";
   assert.equal(getInvoiceFieldErrors(details).county, "checkout.invoiceCountyRequired");
+});
+
+test("the billing component keeps the original helper exports after extraction", () => {
+  const loader = modules({ "react-i18next": {}, "@/features/events/form/ThemedSelect": {} });
+  const helpers = loader.load("features/checkout/invoiceDetails");
+  const component = loader.load("features/checkout/InvoiceDetailsFields");
+  for (const key of ["emptyInvoiceDetails", "getInvoiceFieldErrors", "isBucharestAddress", "validateInvoiceDetails"]) {
+    assert.equal(component[key], helpers[key], key);
+  }
+});
+
+test("billing validates stored fields against both API byte limits and canonical sectors", () => {
+  const { emptyInvoiceDetails, getInvoiceFieldErrors } = load("features/checkout/invoiceDetails.ts");
+  const valid = { ...emptyInvoiceDetails("Buyer"), address: "Street", city: "Cluj", county: "Cluj" };
+  assert.equal(getInvoiceFieldErrors({ ...valid, name: "ă".repeat(100) }).name, undefined);
+  assert.equal(getInvoiceFieldErrors({ ...valid, name: "ă".repeat(101) }).name, "feedback.fieldTooLong");
+  assert.equal(getInvoiceFieldErrors({ ...valid, taxId: "A".repeat(33), type: "company" }).taxId, "feedback.fieldTooLong");
+  assert.equal(getInvoiceFieldErrors({ ...valid, address: "A".repeat(301) }).address, "feedback.fieldTooLong");
+  assert.equal(getInvoiceFieldErrors({ ...valid, city: "Bucuresti", sector: "1" }).sector, "checkout.invoiceSectorRequired");
+  assert.equal(getInvoiceFieldErrors({ ...valid, city: "Bucuresti", sector: "Sector 6" }).sector, undefined);
 });
 test("email validation works without a mounted billing input", () => {
   const { checkoutEmailError } = load("features/checkout/validateEmail.ts");

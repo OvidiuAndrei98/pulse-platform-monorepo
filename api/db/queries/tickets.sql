@@ -211,6 +211,7 @@ SELECT id, 'external_outcome_unknown'
 FROM orders
 WHERE status = 'pending'
   AND stripe_checkout_session_id IS NULL
+  AND stripe_payment_intent_id IS NULL
   AND stripe_connected_account_id IS NOT NULL
   AND stripe_charge_type = 'direct'
   AND created_at <= CURRENT_TIMESTAMP - INTERVAL '35 minutes'

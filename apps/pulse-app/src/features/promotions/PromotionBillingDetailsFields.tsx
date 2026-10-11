@@ -3,60 +3,8 @@
 import { useTranslation } from "react-i18next";
 import { ThemedSelect } from "@/features/events/form/ThemedSelect";
 
-export type PromotionBillingDetails = {
-  registrationNumber: string;
-  address: string;
-  city: string;
-  county: string;
-  sector: string;
-  country: string;
-};
-
-export const emptyPromotionBillingDetails = (
-  fiscalAddress = "",
-): PromotionBillingDetails => ({
-  registrationNumber: "",
-  address: fiscalAddress,
-  city: "",
-  county: "",
-  sector: "",
-  country: "Romania",
-});
-
-const withoutDiacritics = (value: string) =>
-  value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-
-const isBucharestAddress = (details: PromotionBillingDetails) => {
-  const city = withoutDiacritics(details.city);
-  const country = withoutDiacritics(details.country);
-  return (country === "romania" || country === "ro") && (city === "bucuresti" || city === "bucharest");
-};
-
-export type PromotionBillingFieldErrors = Partial<
-  Record<keyof PromotionBillingDetails, string>
->;
-
-export function getPromotionBillingFieldErrors(
-  details: PromotionBillingDetails,
-): PromotionBillingFieldErrors {
-  const errors: PromotionBillingFieldErrors = {};
-  for (const field of ["address", "city", "country"] as const) {
-    if (!details[field].trim()) errors[field] = "feedback.fieldRequired";
-  }
-  if (isBucharestAddress(details) && !details.sector) {
-    errors.sector = "checkout.invoiceSectorRequired";
-  }
-  if (!isBucharestAddress(details) && !details.county.trim()) {
-    errors.county = "checkout.invoiceCountyRequired";
-  }
-  return errors;
-}
-
-export function validatePromotionBillingDetails(
-  details: PromotionBillingDetails,
-): string | null {
-  return Object.values(getPromotionBillingFieldErrors(details))[0] ?? null;
-}
+import { isPromotionBucharestAddress, type PromotionBillingDetails, type PromotionBillingFieldErrors } from './promotionBilling';
+export { emptyPromotionBillingDetails, getPromotionBillingFieldErrors, validatePromotionBillingDetails, type PromotionBillingDetails, type PromotionBillingFieldErrors } from './promotionBilling';
 
 export function PromotionBillingDetailsFields({
   value,
@@ -80,7 +28,7 @@ export function PromotionBillingDetailsFields({
       ? `${idPrefix}-billing-${suffix}-error`
       : undefined,
   });
-  const bucharest = isBucharestAddress(value);
+  const bucharest = isPromotionBucharestAddress(value);
   const sectors = Array.from({ length: 6 }, (_, index) => ({
     value: `Sector ${index + 1}`,
     label: `Sector ${index + 1}`,

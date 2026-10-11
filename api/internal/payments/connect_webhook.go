@@ -125,6 +125,15 @@ func (h *ConnectWebhookHandler) HandleStripeConnectWebhook(w http.ResponseWriter
 
 func (h *ConnectWebhookHandler) handleDirectChargeEvent(r *http.Request, event stripe.Event) (bool, error) {
 	switch string(event.Type) {
+	case "payment_intent.succeeded", "payment_intent.canceled":
+		var intent stripe.PaymentIntent
+		if event.Data == nil || json.Unmarshal(event.Data.Raw, &intent) != nil {
+			return true, errors.New("invalid native PaymentIntent")
+		}
+		if h.checkout == nil {
+			return true, errors.New("checkout handler is missing")
+		}
+		return true, h.checkout.reconcileNativePaymentEvent(r.Context(), intent, event.Account, event.Livemode)
 	case "checkout.session.completed":
 		var session stripe.CheckoutSession
 		if event.Data == nil || json.Unmarshal(event.Data.Raw, &session) != nil {

@@ -34,9 +34,12 @@ type GoogleOAuthConfig struct {
 }
 
 type googleOAuthState struct {
-	ReturnTo    string `json:"returnTo"`
-	Mobile      bool   `json:"mobile"`
-	AccountType string `json:"accountType"`
+	ReturnTo      string `json:"returnTo"`
+	Mobile        bool   `json:"mobile"`
+	AccountType   string `json:"accountType"`
+	Native        bool   `json:"native,omitempty"`
+	ClientNonce   string `json:"clientNonce,omitempty"`
+	PreviewOrigin string `json:"previewOrigin,omitempty"`
 }
 
 type googleOrganizerRegistration struct {
@@ -98,10 +101,19 @@ func (h *Handler) HandleGoogleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	returnTo := safeReturnTo(r.URL.Query().Get("returnTo"))
+	nativeClient := r.URL.Query().Get("client") == "native"
+	clientNonce := r.URL.Query().Get("clientNonce")
+	if nativeClient && (len(clientNonce) < 32 || len(clientNonce) > 128) {
+		router.RespondWithError(w, http.StatusBadRequest, "Sesiunea de autentificare este invalida")
+		return
+	}
 	statePayload, err := json.Marshal(googleOAuthState{
-		ReturnTo:    returnTo,
-		Mobile:      r.URL.Query().Get("client") == "mobile",
-		AccountType: accountType,
+		ReturnTo:      returnTo,
+		Mobile:        r.URL.Query().Get("client") == "mobile",
+		AccountType:   accountType,
+		Native:        nativeClient,
+		ClientNonce:   clientNonce,
+		PreviewOrigin: nativePreviewOrigin(r.URL.Query().Get("previewOrigin")),
 	})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Nu s-a putut porni autentificarea Google")
@@ -211,12 +223,24 @@ func (h *Handler) HandleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	callbackBase := strings.TrimRight(h.googleOAuth.PublicAppURL, "/") + "/auth/google/callback"
-	if oauthState.Mobile {
-		callbackBase = normalizedMobileAppScheme(h.googleOAuth.MobileAppScheme) + "://auth/google/callback"
+	oauthState.ReturnTo = returnTo
+	http.Redirect(w, r, googleCallbackURL(h.googleOAuth, oauthState, token), http.StatusFound)
+}
+
+func googleCallbackURL(config GoogleOAuthConfig, state googleOAuthState, token string) string {
+	base := strings.TrimRight(config.PublicAppURL, "/") + "/auth/google/callback"
+	if state.Mobile {
+		base = normalizedMobileAppScheme(config.MobileAppScheme) + "://auth/google/callback"
 	}
-	redirectURL := callbackBase + "#token=" + url.QueryEscape(token) + "&returnTo=" + url.QueryEscape(returnTo)
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+	values := url.Values{"token": {token}, "returnTo": {safeReturnTo(state.ReturnTo)}}
+	if state.Native {
+		base = "spottr-native://auth/google/callback"
+		if origin := nativePreviewOrigin(state.PreviewOrigin); origin != "" {
+			base = origin + "/auth/google/callback"
+		}
+		values.Set("clientNonce", state.ClientNonce)
+	}
+	return base + "#" + values.Encode()
 }
 
 func (h *Handler) fetchGoogleProfile(r *http.Request, code string) (googleProfile, error) {
@@ -318,6 +342,14 @@ func googleAccountType(value string) string {
 		return "organizer"
 	}
 	return "user"
+}
+
+// Local Expo preview only. Never accept an arbitrary OAuth redirect origin.
+func nativePreviewOrigin(value string) string {
+	if value == "http://localhost:8081" || value == "http://127.0.0.1:8081" {
+		return value
+	}
+	return ""
 }
 
 func (h *Handler) applyGoogleAccountType(ctx context.Context, user db.Users, accountType string) (db.Users, error) {

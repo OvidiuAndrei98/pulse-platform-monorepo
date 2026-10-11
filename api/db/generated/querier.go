@@ -38,6 +38,7 @@ type Querier interface {
 	ClaimOrderRefundOperations(ctx context.Context, batchSize int32) ([]OrderRefundOperations, error)
 	ClaimPlatformCommissionInvoices(ctx context.Context, batchSize int32) ([]PlatformCommissionInvoices, error)
 	ClaimPromotionInvoices(ctx context.Context, batchSize int32) ([]PromotionInvoices, error)
+	ClaimReadyEventArtistImageAsset(ctx context.Context, arg ClaimReadyEventArtistImageAssetParams) (int64, error)
 	ClaimTicketEmail(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error)
 	ClearOrganizerStripeAccount(ctx context.Context, stripeAccountID pgtype.Text) (OrganizerProfiles, error)
 	CompleteEndedEvents(ctx context.Context) error
@@ -245,6 +246,7 @@ type Querier interface {
 	RecordPromotionClick(ctx context.Context, arg RecordPromotionClickParams) error
 	RecordPromotionImpression(ctx context.Context, arg RecordPromotionImpressionParams) error
 	RecordPromotionRefundState(ctx context.Context, arg RecordPromotionRefundStateParams) (bool, error)
+	RegisterReferencedArtistImageAsset(ctx context.Context, arg RegisterReferencedArtistImageAssetParams) error
 	RejectEventCancellation(ctx context.Context, arg RejectEventCancellationParams) (pgtype.UUID, error)
 	ReleaseTicketEmailClaim(ctx context.Context, arg ReleaseTicketEmailClaimParams) error
 	RemoveFriend(ctx context.Context, arg RemoveFriendParams) (int64, error)

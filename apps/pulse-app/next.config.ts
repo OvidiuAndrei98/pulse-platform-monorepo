@@ -6,6 +6,8 @@ const stagingApiUrl = "https://api-staging.spottr.ro/api/v1";
 
 const nextConfig: NextConfig = {
   output: isMobileBuild ? "export" : undefined,
+  // The iOS association file has no extension; serve its actual JSON type.
+  ...(isMobileBuild ? {} : { async headers() { return [{ source: '/.well-known/apple-app-site-association', headers: [{ key: 'Content-Type', value: 'application/json' }] }]; } }),
   // Keep the explicit Vercel environment variable as the primary source. The
   // branch fallback is a safety net: a staging deployment must never silently
   // fall back to the production API when its Preview variable is mis-scoped.

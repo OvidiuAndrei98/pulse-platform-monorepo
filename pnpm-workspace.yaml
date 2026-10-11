@@ -1,7 +1,14 @@
 packages:
   - "apps/*"
   - "packages/*"
+# The resolver imports Zod without declaring it as a peer. Bind that import to
+# the app's Zod instead of whichever version another workspace package hoists.
+packageExtensions:
+  '@hookform/resolvers@5.4.0':
+    peerDependencies:
+      zod: '^3.25.0 || ^4.0.0'
 allowBuilds:
-  '@stripe/cli': set this to true or false
+  '@stripe/cli': false
   core-js: true
+  esbuild: true
   sharp: true

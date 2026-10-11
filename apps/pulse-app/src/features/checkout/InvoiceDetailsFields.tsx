@@ -4,58 +4,9 @@ import { ReceiptText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ThemedSelect } from "@/features/events/form/ThemedSelect";
 
-export type InvoiceDetails = {
-  type: "individual" | "company";
-  name: string;
-  taxId: string;
-  registrationNumber: string;
-  address: string;
-  city: string;
-  county: string;
-  sector: string;
-  country: string;
-};
-
-export const emptyInvoiceDetails = (name = ""): InvoiceDetails => ({
-  type: "individual",
-  name,
-  taxId: "",
-  registrationNumber: "",
-  address: "",
-  city: "",
-  county: "",
-  sector: "",
-  country: "Romania",
-});
-
-const withoutDiacritics = (value: string) =>
-  value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-
-const isBucharestAddress = (details: InvoiceDetails) => {
-  const city = withoutDiacritics(details.city);
-  const country = withoutDiacritics(details.country);
-  return (country === "romania" || country === "ro") && (city === "bucuresti" || city === "bucharest");
-};
-
-export type InvoiceFieldErrors = Partial<Record<keyof InvoiceDetails, string>>;
-
-export function getInvoiceFieldErrors(details: InvoiceDetails): InvoiceFieldErrors {
-  const errors: InvoiceFieldErrors = {};
-  if (details.name.trim().length < 2) errors.name = "checkout.invoiceNameRequired";
-  if (details.type === "company" && !details.taxId.trim()) {
-    errors.taxId = "checkout.invoiceTaxIdRequired";
-  }
-  for (const field of ["address", "city", "country"] as const) {
-    if (!details[field].trim()) errors[field] = "feedback.fieldRequired";
-  }
-  if (isBucharestAddress(details) && !details.sector) errors.sector = "checkout.invoiceSectorRequired";
-  if (!isBucharestAddress(details) && !details.county.trim()) errors.county = "checkout.invoiceCountyRequired";
-  return errors;
-}
-
-export function validateInvoiceDetails(details: InvoiceDetails): string | null {
-  return Object.values(getInvoiceFieldErrors(details))[0] ?? null;
-}
+import { invoiceFieldLimits, isBucharestAddress, type InvoiceDetails, type InvoiceFieldErrors } from "./invoiceDetails";
+export { emptyInvoiceDetails, getInvoiceFieldErrors, isBucharestAddress, validateInvoiceDetails } from "./invoiceDetails";
+export type { InvoiceDetails, InvoiceFieldErrors } from "./invoiceDetails";
 
 export function InvoiceDetailsFields({
   value,
@@ -116,7 +67,7 @@ export function InvoiceDetailsFields({
           <Field label={t(value.type === "company" ? "checkout.companyName" : "checkout.fullName")} htmlFor={`${idPrefix}-billing-name`} error={errors.name}>
             <input
               id={`${idPrefix}-billing-name`} {...errorProps("name", "name")}
-              value={value.name}
+              value={value.name} maxLength={invoiceFieldLimits.name}
               onChange={(event) => update("name", event.target.value)}
               autoComplete={value.type === "company" ? "organization" : "name"}
               className={inputClass}
@@ -128,16 +79,16 @@ export function InvoiceDetailsFields({
               <Field label={t("checkout.taxId")} htmlFor={`${idPrefix}-billing-tax-id`} error={errors.taxId}>
                 <input
                   id={`${idPrefix}-billing-tax-id`} {...errorProps("taxId", "tax-id")}
-                  value={value.taxId}
+                  value={value.taxId} maxLength={invoiceFieldLimits.taxId}
                   onChange={(event) => update("taxId", event.target.value)}
                   autoCapitalize="characters"
                   className={inputClass}
                 />
               </Field>
-              <Field label={t("checkout.registrationNumber")} htmlFor={`${idPrefix}-billing-reg`} optional>
+              <Field label={t("checkout.registrationNumber")} htmlFor={`${idPrefix}-billing-reg`} error={errors.registrationNumber} optional>
                 <input
-                  id={`${idPrefix}-billing-reg`}
-                  value={value.registrationNumber}
+                  id={`${idPrefix}-billing-reg`} {...errorProps("registrationNumber", "reg")}
+                  value={value.registrationNumber} maxLength={invoiceFieldLimits.registrationNumber}
                   onChange={(event) => update("registrationNumber", event.target.value)}
                   className={inputClass}
                 />
@@ -148,7 +99,7 @@ export function InvoiceDetailsFields({
           <Field label={t("checkout.billingAddress")} htmlFor={`${idPrefix}-billing-address`} error={errors.address}>
             <input
               id={`${idPrefix}-billing-address`} {...errorProps("address", "address")}
-              value={value.address}
+              value={value.address} maxLength={invoiceFieldLimits.address}
               onChange={(event) => update("address", event.target.value)}
               autoComplete="street-address"
               className={inputClass}
@@ -159,7 +110,7 @@ export function InvoiceDetailsFields({
             <Field label={t("checkout.billingCity")} htmlFor={`${idPrefix}-billing-city`} error={errors.city}>
               <input
                 id={`${idPrefix}-billing-city`} {...errorProps("city", "city")}
-                value={value.city}
+                value={value.city} maxLength={invoiceFieldLimits.city}
                 onChange={(event) => update("city", event.target.value)}
                 autoComplete="address-level2"
                 className={inputClass}
@@ -183,7 +134,7 @@ export function InvoiceDetailsFields({
               <Field label={t("checkout.billingCounty")} htmlFor={`${idPrefix}-billing-county`} error={errors.county}>
                 <input
                   id={`${idPrefix}-billing-county`} {...errorProps("county", "county")}
-                  value={value.county}
+                  value={value.county} maxLength={invoiceFieldLimits.county}
                   onChange={(event) => update("county", event.target.value)}
                   autoComplete="address-level1"
                   className={inputClass}
@@ -197,7 +148,7 @@ export function InvoiceDetailsFields({
           <Field label={t("checkout.billingCountry")} htmlFor={`${idPrefix}-billing-country`} error={errors.country}>
             <input
               id={`${idPrefix}-billing-country`} {...errorProps("country", "country")}
-              value={value.country}
+              value={value.country} maxLength={invoiceFieldLimits.country}
               onChange={(event) => update("country", event.target.value)}
               autoComplete="country-name"
               className={inputClass}

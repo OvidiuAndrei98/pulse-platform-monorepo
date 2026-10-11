@@ -58,6 +58,7 @@ type CheckoutHandler struct {
 	mailer                  ticketMailer
 	invoicing               *invoicing.Service
 	configured              bool
+	publishableKey          string
 	expectedLiveMode        bool
 	expectedLiveModeKnown   bool
 	retrieveSession         func(context.Context, string, string) (*stripe.CheckoutSession, error)
@@ -75,6 +76,7 @@ type CreateCheckoutRequest struct {
 	Items          []CheckoutItemRequest `json:"items"`
 	PromoCode      string                `json:"promoCode"`
 	BillingDetails BillingDetailsRequest `json:"billingDetails"`
+	Client         string                `json:"client,omitempty"`
 }
 
 type BillingDetailsRequest struct {
@@ -92,6 +94,7 @@ type BillingDetailsRequest struct {
 type CreateCheckoutResponse struct {
 	CheckoutURL string `json:"checkoutUrl"`
 	OrderID     string `json:"orderId"`
+	SessionID   string `json:"sessionId"`
 }
 
 type BookFreeTicketRequest struct {
@@ -130,9 +133,13 @@ func NewCheckoutHandler(queries *db.Queries, pool *pgxpool.Pool, stripeSecret, a
 		delivery = mailer
 	}
 	return &CheckoutHandler{
-		queries:               queries,
-		db:                    pool,
-		client:                stripe.NewClient(stripeSecret),
+		queries: queries,
+		db:      pool,
+		// Provider error objects can contain a nested PaymentIntent and its client
+		// secret. Keep only the sanitized application-level payment logs below.
+		client: stripe.NewClient(stripeSecret, stripe.WithBackends(stripe.NewBackendsWithConfig(&stripe.BackendConfig{
+			LeveledLogger: &stripe.LeveledLogger{Level: stripe.LevelNull},
+		}))),
 		appURL:                strings.TrimRight(appURL, "/"),
 		mailer:                delivery,
 		invoicing:             invoicingService,
@@ -177,6 +184,21 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	var req CreateCheckoutRequest
 	if !router.DecodeJSON(w, r, &req, maxCheckoutJSONBytes) {
 		return
+	}
+	if req.Client != "" && req.Client != checkoutClientNative && req.Client != checkoutClientNativeSheet {
+		router.RespondWithError(w, http.StatusBadRequest, "Clientul de plata este invalid")
+		return
+	}
+	if req.Client == checkoutClientNativeSheet {
+		if !h.nativePaymentSheetConfigured() {
+			router.RespondWithError(w, http.StatusServiceUnavailable, "Plata nativa nu este configurata")
+			return
+		}
+		if strings.TrimSpace(r.Header.Get("Idempotency-Key")) == "" {
+			router.RespondWithError(w, http.StatusBadRequest, "Idempotency-Key este obligatoriu pentru plata nativa")
+			return
+		}
+		r = r.WithContext(context.WithValue(r.Context(), nativePaymentSheetContextKey{}, true))
 	}
 
 	req.Email = strings.TrimSpace(req.Email)
@@ -240,10 +262,14 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	if req.Client == checkoutClientNativeSheet {
+		h.createNativePaymentSheet(w, r, order, organizerStripeAccount)
+		return
+	}
 	params := &stripe.CheckoutSessionCreateParams{
 		Mode:               stripe.String("payment"),
-		SuccessURL:         stripe.String(fmt.Sprintf("%s/checkout/success?event_id=%s&session_id={CHECKOUT_SESSION_ID}", h.appURL, eventIDString)),
-		CancelURL:          stripe.String(fmt.Sprintf("%s/events/%s?checkout=cancelled", h.appURL, eventIDString)),
+		SuccessURL:         stripe.String(h.checkoutSuccessURL(req.Client, eventIDString, "{CHECKOUT_SESSION_ID}")),
+		CancelURL:          stripe.String(h.checkoutCancelURL(req.Client, eventIDString)),
 		CustomerEmail:      stripe.String(req.Email),
 		ClientReferenceID:  stripe.String(common.UUIDToString(order.ID)),
 		ExpiresAt:          stripe.Int64(time.Now().Add(checkoutExpiration).Unix()),
@@ -370,6 +396,7 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	response := CreateCheckoutResponse{
 		CheckoutURL: session.URL,
 		OrderID:     common.UUIDToString(order.ID),
+		SessionID:   session.ID,
 	}
 	h.persistCheckoutResponse(requestID, response)
 	router.RespondWithJSON(w, http.StatusCreated, response)
@@ -854,6 +881,11 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 			return db.Orders{}, nil, "", "", "", false, errors.New("checkout request lost ownership")
 		}
 	}
+	if native, _ := ctx.Value(nativePaymentSheetContextKey{}).(bool); native {
+		if _, err := tx.Exec(ctx, `INSERT INTO native_payment_sheet_orders (order_id, expires_at) VALUES ($1,$2)`, order.ID, order.CreatedAt.Time.Add(checkoutExpiration)); err != nil {
+			return db.Orders{}, nil, "", "", "", false, err
+		}
+	}
 
 	for _, item := range items {
 		if err := qtx.CreateOrderItem(ctx, db.CreateOrderItemParams{
@@ -948,7 +980,11 @@ WHERE o.event_id = $1
 }
 
 func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymentIntentID, orderID, connectedAccountID string, liveMode bool) error {
-	if strings.TrimSpace(sessionID) == "" || strings.TrimSpace(paymentIntentID) == "" {
+	return h.fulfillPaidOrder(ctx, sessionID, paymentIntentID, orderID, connectedAccountID, liveMode, nil)
+}
+
+func (h *CheckoutHandler) fulfillPaidOrder(ctx context.Context, sessionID, paymentIntentID, orderID, connectedAccountID string, liveMode bool, nativeIntent *stripe.PaymentIntent) error {
+	if (strings.TrimSpace(sessionID) == "" && nativeIntent == nil) || strings.TrimSpace(paymentIntentID) == "" {
 		return nil
 	}
 	var parsedOrderID pgtype.UUID
@@ -978,7 +1014,21 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 	// ID persisted by SPOTTR proves this is the checkout we created with the
 	// expected application fee. Sessionless orders remain quarantined until an
 	// operator verifies and binds the external outcome.
-	if !order.StripeCheckoutSessionID.Valid || order.StripeCheckoutSessionID.String == "" {
+	if nativeIntent != nil {
+		if err := h.validateNativePaymentIntent(order, nativeIntent, connectedAccountID); err != nil {
+			return err
+		}
+		if nativeIntent.Status != stripe.PaymentIntentStatusSucceeded {
+			return errors.New("native payment has not succeeded")
+		}
+		var marker bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM native_payment_sheet_orders WHERE order_id=$1)`, order.ID).Scan(&marker); err != nil {
+			return err
+		}
+		if !marker {
+			return errors.New("native payment binding is missing")
+		}
+	} else if !order.StripeCheckoutSessionID.Valid || order.StripeCheckoutSessionID.String == "" {
 		if err := qtx.MarkCheckoutReservationForReview(ctx, db.MarkCheckoutReservationForReviewParams{
 			OrderID: order.ID,
 			Reason:  "unbound_completed_session",
@@ -987,7 +1037,7 @@ func (h *CheckoutHandler) FulfillCheckout(ctx context.Context, sessionID, paymen
 		}
 		return tx.Commit(ctx)
 	}
-	if order.StripeCheckoutSessionID.String != sessionID {
+	if nativeIntent == nil && order.StripeCheckoutSessionID.String != sessionID {
 		return tx.Commit(ctx)
 	}
 	// Once a PaymentIntent has been bound to the order it is immutable. This

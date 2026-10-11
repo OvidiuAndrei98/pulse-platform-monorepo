@@ -54,6 +54,11 @@ func NewConnectHandler(queries *db.Queries, stripeSecret, appURL, country string
 }
 
 func (h *ConnectHandler) HandleCreateAccountLink(w http.ResponseWriter, r *http.Request) {
+	client := r.URL.Query().Get("client")
+	if !common.ValidOrganizerClient(client) {
+		router.RespondWithError(w, http.StatusBadRequest, "Client invalid")
+		return
+	}
 	userID, profile, ok := h.getVerifiedOrganizerProfile(w, r)
 	if !ok {
 		return
@@ -155,8 +160,8 @@ func (h *ConnectHandler) HandleCreateAccountLink(w http.ResponseWriter, r *http.
 
 	link, err := h.client.V1AccountLinks.Create(r.Context(), &stripe.AccountLinkCreateParams{
 		Account:    stripe.String(stripeAccountID),
-		RefreshURL: stripe.String(h.appURL + "/dashboard?stripe=refresh"),
-		ReturnURL:  stripe.String(h.appURL + "/dashboard?stripe=complete"),
+		RefreshURL: stripe.String(common.OrganizerReturnURL(h.appURL, client, "connect", "refresh", "")),
+		ReturnURL:  stripe.String(common.OrganizerReturnURL(h.appURL, client, "connect", "complete", "")),
 		Type:       stripe.String("account_onboarding"),
 	})
 	if err != nil {

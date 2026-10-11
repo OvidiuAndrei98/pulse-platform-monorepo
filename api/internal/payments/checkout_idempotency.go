@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stripe/stripe-go/v85"
@@ -76,25 +75,37 @@ func (h *CheckoutHandler) beginCheckoutRequest(w http.ResponseWriter, r *http.Re
 		return r, id, false
 	}
 	if !claimed {
-		h.replayCheckoutRequest(w, r, id)
+		h.replayCheckoutRequest(w, r, id, req.Client)
 		return r, id, false
 	}
 	return r.WithContext(context.WithValue(r.Context(), checkoutRequestContextKey{}, id)), id, true
 }
 
-func (h *CheckoutHandler) replayCheckoutRequest(w http.ResponseWriter, r *http.Request, id pgtype.UUID) {
+func (h *CheckoutHandler) replayCheckoutRequest(w http.ResponseWriter, r *http.Request, id pgtype.UUID, client string) {
+	if client == checkoutClientNativeSheet {
+		h.replayNativePaymentSheet(w, r, id)
+		return
+	}
 	var response []byte
 	var orderID pgtype.UUID
+	var storedSessionID pgtype.Text
 	var created time.Time
-	if err := h.db.QueryRow(r.Context(), `SELECT response,order_id,created_at FROM checkout_requests WHERE id=$1`, id).Scan(&response, &orderID, &created); err != nil {
+	if err := h.db.QueryRow(r.Context(), `SELECT cr.response,cr.order_id,cr.created_at,o.stripe_checkout_session_id
+FROM checkout_requests cr LEFT JOIN orders o ON o.id=cr.order_id WHERE cr.id=$1`, id).Scan(&response, &orderID, &created, &storedSessionID); err != nil {
 		router.RespondWithError(w, 503, "Cererea nu a putut fi verificata")
 		return
 	}
 	if len(response) > 0 && time.Since(created) < 20*time.Minute {
 		var result CreateCheckoutResponse
 		if json.Unmarshal(response, &result) == nil {
-			router.RespondWithJSON(w, http.StatusCreated, result)
-			return
+			// Responses saved by older versions did not include the Session ID.
+			if result.SessionID == "" && storedSessionID.Valid {
+				result.SessionID = storedSessionID.String
+			}
+			if result.SessionID != "" {
+				router.RespondWithJSON(w, http.StatusCreated, result)
+				return
+			}
 		}
 	}
 	if orderID.Valid {
@@ -107,13 +118,13 @@ func (h *CheckoutHandler) replayCheckoutRequest(w http.ResponseWriter, r *http.R
 			if err == nil && session != nil {
 				url := session.URL
 				if session.Status == stripe.CheckoutSessionStatusComplete {
-					url = fmt.Sprintf("%s/checkout/success?event_id=%s&session_id=%s", h.appURL, common.UUIDToString(eventID), session.ID)
+					url = h.checkoutSuccessURL(client, common.UUIDToString(eventID), session.ID)
 				} else if session.Status == stripe.CheckoutSessionStatusExpired {
 					router.RespondWithError(w, http.StatusConflict, "Sesiunea de plata a expirat. Reincearca.")
 					return
 				}
 				if url != "" {
-					router.RespondWithJSON(w, http.StatusCreated, CreateCheckoutResponse{CheckoutURL: url, OrderID: common.UUIDToString(orderID)})
+					router.RespondWithJSON(w, http.StatusCreated, CreateCheckoutResponse{CheckoutURL: url, OrderID: common.UUIDToString(orderID), SessionID: session.ID})
 					return
 				}
 			}

@@ -1,0 +1,171 @@
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import BottomSheet, { ANIMATION_CONFIGS, ANIMATION_SOURCE, ANIMATION_STATUS, BottomSheetBackdrop, useBottomSheetGestureHandlers, useBottomSheetInternal, type BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
+import { Gesture, GestureDetector, GestureHandlerRootView, State } from 'react-native-gesture-handler';
+import Animated, { runOnUI, useAnimatedReaction, useSharedValue } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { drawerDesign } from '../../../pulse-app/src/components/ui/drawerDesign';
+import { SheetScrollProvider, sheetGestureHandlersHook, useSheetScrollSurface } from './SheetScrollBridge';
+
+type Props = React.PropsWithChildren<{ open: boolean; onClose: () => void; height?: number; embedded?: boolean; edgeToEdge?: boolean; label: string; testID?: string }>;
+
+/** Same black surface, grabber, drag-to-dismiss and 90% event height as the web sheets. */
+export function AppSheet({ open, onClose, height = 0.9, embedded = false, edgeToEdge = false, label, testID, children }: Props) {
+  if (!open) return null;
+  const content = <SheetContent height={height} onClose={onClose} edgeToEdge={edgeToEdge} label={label} testID={testID}>{children}</SheetContent>;
+  // A modal does not add a browser/navigation history entry. Native horizontal
+  // Back stays a navigation gesture belonging to Search and Checkout.
+  return embedded ? content : <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
+    <GestureHandlerRootView style={s.root}>{content}</GestureHandlerRootView>
+  </Modal>;
+}
+function SheetContent({ height = 0.9, onClose, edgeToEdge, label, testID, children }: Omit<Props, 'open'>) {
+  const ref = useRef<BottomSheet>(null), viewport = useWindowDimensions(), safe = useSafeAreaInsets();
+  const points = useMemo(() => [Math.max(180, Math.min(viewport.height - safe.top - 8, viewport.height * height))], [height, viewport.height, safe.top]);
+  // Keep Gorhom's original spring trajectory/velocity. Reanimated's default
+  // energy threshold waits for subpixel settling, leaving the invisible Modal
+  // blocking taps. Finish that tail earlier through the normal onClose callback,
+  // without timers or changing Android's existing timing animation.
+  const animationConfigs = useMemo(() => Platform.OS === 'android' ? ANIMATION_CONFIGS : { ...ANIMATION_CONFIGS, energyThreshold: 1e-5 }, []);
+  // Gorhom handles mount and snap-point changes. A second imperative snap here
+  // can restart the opening animation after the user has already grabbed it.
+  const backdrop = useCallback((props: BottomSheetBackdropProps) => <BottomSheetBackdrop {...props} opacity={0.7} appearsOnIndex={0} disappearsOnIndex={-1} pressBehavior="close" />, []);
+  return <SheetScrollProvider><View style={s.root} testID={testID}>
+    <BottomSheet ref={ref} index={0} snapPoints={points} animateOnMount animationConfigs={animationConfigs} enableDynamicSizing={false} enablePanDownToClose
+      gestureEventsHandlersHook={sheetGestureHandlersHook}
+      enableContentPanningGesture keyboardBehavior="interactive" keyboardBlurBehavior="restore" enableBlurKeyboardOnGesture
+      android_keyboardInputMode="adjustResize" onClose={onClose} backdropComponent={backdrop}
+      backgroundStyle={s.surface} handleComponent={null}>
+      {/* Gorhom adds overdrag padding below its visible content. BottomSheetView
+          is absolute-positioned, so percentage heights need this unpadded box. */}
+      <SheetGestureBoundary>
+        <View style={[s.body, !edgeToEdge && { marginTop: drawerDesign.handleAreaHeight }]}>{children}</View>
+        <SheetHandleOverlay label={label} onClose={() => ref.current?.close()} />
+      </SheetGestureBoundary>
+    </BottomSheet>
+  </View></SheetScrollProvider>;
+}
+function SheetGestureBoundary({ children }: React.PropsWithChildren) {
+  const { animatedAnimationState, animatedContentGestureState, animatedHandleGestureState, stopAnimation, animateToPosition } = useBottomSheetInternal();
+  const pausedTarget = useSharedValue<{ position: number; source: ANIMATION_SOURCE } | null>(null);
+  const resumeFrame = useRef<number | null>(null);
+  const surface = useRef<View>(null);
+  useSheetScrollSurface(surface);
+  // The library normally cancels its spring only after Pan activates. On web
+  // that requires 15px of movement, so an opening or returning sheet can escape
+  // a held finger. Preserve the animation source when a stationary grab resumes.
+  const pause = useCallback(() => {
+    'worklet';
+    const animation = animatedAnimationState.get();
+    if (pausedTarget.get() !== null || animation.status !== ANIMATION_STATUS.RUNNING || animation.nextPosition === undefined || animation.nextIndex === undefined || animation.nextIndex < 0) return;
+    pausedTarget.set({ position: animation.nextPosition, source: animation.source });
+    stopAnimation();
+  }, [animatedAnimationState, pausedTarget, stopAnimation]);
+  useAnimatedReaction(() => {
+    const content = animatedContentGestureState.get(), handle = animatedHandleGestureState.get();
+    return content === State.BEGAN || content === State.ACTIVE || handle === State.BEGAN || handle === State.ACTIVE;
+  }, claimed => {
+    if (claimed) pausedTarget.set(null);
+  }, [animatedContentGestureState, animatedHandleGestureState, pausedTarget]);
+  const resume = useCallback(() => {
+    'worklet';
+    const target = pausedTarget.get();
+    pausedTarget.set(null);
+    if (target === null || animatedAnimationState.get().status !== ANIMATION_STATUS.STOPPED) return;
+    animateToPosition(target.position, target.source, 0);
+  }, [animatedAnimationState, animateToPosition, pausedTarget]);
+  const touch = useCallback(() => {
+    if (resumeFrame.current !== null) cancelAnimationFrame(resumeFrame.current);
+    resumeFrame.current = null;
+    // Web animations already run on this thread; queuing runOnUI there adds a
+    // frame in which a fast opening spring can travel beyond the grab target.
+    if (Platform.OS === 'web') pause();
+    else runOnUI(pause)();
+  }, [pause]);
+  const release = useCallback(() => {
+    if (resumeFrame.current !== null) cancelAnimationFrame(resumeFrame.current);
+    // Let Pan's finalization or a handle press select its destination first.
+    resumeFrame.current = requestAnimationFrame(() => { resumeFrame.current = null; if (Platform.OS === 'web') resume(); else runOnUI(resume)(); });
+  }, [resume]);
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    // RN Web does not forward onClickCapture. A native DOM capture listener
+    // prevents its child Pressable from treating a completed drag as a click.
+    const element = surface.current as unknown as HTMLElement;
+    if (!element) return;
+    let origin: { x: number; y: number; id: number } | null = null;
+    let moved = false, clearFrame: number | null = null;
+    const down = (event: PointerEvent) => {
+      if (event.button !== 0 || !event.isPrimary) return;
+      if (clearFrame !== null) cancelAnimationFrame(clearFrame);
+      origin = { x: event.clientX, y: event.clientY, id: event.pointerId };
+      moved = false;
+      touch();
+    };
+    const move = (event: PointerEvent) => {
+      if (origin && event.pointerId === origin.id && Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > 10) moved = true;
+    };
+    const up = () => {
+      origin = null;
+      release();
+      if (clearFrame !== null) cancelAnimationFrame(clearFrame);
+      clearFrame = requestAnimationFrame(() => { clearFrame = null; moved = false; });
+    };
+    const click = (event: MouseEvent) => {
+      if (!moved) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      moved = false;
+    };
+    element.addEventListener('pointerdown', down, true);
+    element.addEventListener('click', click, true);
+    window.addEventListener('pointermove', move, true);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('pointercancel', up, true);
+    window.addEventListener('blur', up);
+    return () => {
+      element.removeEventListener('pointerdown', down, true);
+      element.removeEventListener('click', click, true);
+      window.removeEventListener('pointermove', move, true);
+      window.removeEventListener('pointerup', up, true);
+      window.removeEventListener('pointercancel', up, true);
+      window.removeEventListener('blur', up);
+      if (clearFrame !== null) cancelAnimationFrame(clearFrame);
+    };
+  }, [touch, release]);
+  useEffect(() => () => { if (resumeFrame.current !== null) cancelAnimationFrame(resumeFrame.current); }, []);
+  return <View ref={surface} testID="sheet-content-viewport" style={s.content}
+    onTouchStart={touch} onTouchEnd={release} onTouchCancel={release}>
+    {children}
+  </View>;
+}
+function SheetHandleOverlay({ label, onClose }: { label: string; onClose: () => void }) {
+  // Use the library's handle recognizer so the grabber remains draggable even
+  // when the content below it has scrolled, without reserving a black header.
+  const { handlePanGestureHandler: handler } = useBottomSheetGestureHandlers();
+  const pan = useMemo(() => Gesture.Pan().shouldCancelWhenOutside(false).runOnJS(false)
+    .onStart(handler.handleOnStart).onChange(handler.handleOnChange)
+    .onEnd(handler.handleOnEnd).onFinalize(handler.handleOnFinalize), [handler]);
+  return <View pointerEvents="box-none" style={s.overlay}>
+    <LinearGradient pointerEvents="none" colors={drawerDesign.shadeColors} locations={drawerDesign.shadeLocations} style={s.shade} />
+    <GestureDetector gesture={pan}>
+      <Animated.View style={s.handle}>
+        <Pressable testID="sheet-handle" accessibilityRole="button" accessibilityLabel={label} onPress={onClose} style={s.grabArea}>
+          <View testID="sheet-pill" style={s.capsule} />
+        </Pressable>
+      </Animated.View>
+    </GestureDetector>
+  </View>;
+}
+const s = StyleSheet.create({
+  root: { flex: 1, width: '100%', maxWidth: Platform.OS === 'web' ? 600 : undefined, alignSelf: 'center' },
+  surface: { backgroundColor: '#000', borderTopLeftRadius: 32, borderTopRightRadius: 32 },
+  content: { flex: 1, minHeight: 0, borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden' },
+  body: { flex: 1, minHeight: 0 },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, height: drawerDesign.shadeHeight, zIndex: 30 },
+  shade: { position: 'absolute', top: 0, left: 0, right: 0, height: drawerDesign.shadeHeight },
+  handle: { height: drawerDesign.handleAreaHeight },
+  grabArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  capsule: { width: drawerDesign.pillWidth, height: drawerDesign.pillHeight, borderRadius: 99, backgroundColor: drawerDesign.pillColor, boxShadow: '0 1px 3px rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1)' },
+});

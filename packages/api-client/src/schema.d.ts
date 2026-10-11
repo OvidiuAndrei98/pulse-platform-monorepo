@@ -216,6 +216,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/checkout/payment-sheet/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Anuleaza PaymentIntent inainte de eliberarea rezervarii; o plata reusita simultan este reconciliata */
+        post: operations["CheckoutOperations_cancelPaymentSheet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/checkout/payment-sheet/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verifica PaymentSheet pe server; confirmarea din aplicatie nu emite singura bilete */
+        post: operations["CheckoutOperations_reconcilePaymentSheet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/checkout/reconcile": {
         parameters: {
             query?: never;
@@ -656,6 +690,22 @@ export interface paths {
         get: operations["DashboardOperations_listPromotionPlans"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/promotions/{id}/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DashboardOperations_reconcilePromotionCheckout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1714,6 +1764,7 @@ export interface components {
         CheckoutSessionResponse: {
             checkoutUrl: string;
             orderId: string;
+            sessionId: string;
         };
         CheckoutTicketItemPayload: {
             ticketTypeId: string;
@@ -1733,6 +1784,11 @@ export interface components {
             items: components["schemas"]["CheckoutTicketItemPayload"][];
             promoCode?: string;
             billingDetails: components["schemas"]["BillingDetailsPayload"];
+            /**
+             * @description Omit for hosted web checkout; native uses hosted app return. native_sheet returns a direct connected-account PaymentIntent for PaymentSheet and requires Idempotency-Key.
+             * @enum {string}
+             */
+            client?: "native" | "native_sheet";
         };
         CreateEventCancellationPayload: {
             reason: string;
@@ -1792,6 +1848,8 @@ export interface components {
         };
         CreatePromotionCheckoutPayload: {
             eventId: string;
+            /** @enum {string} */
+            client?: "native" | "native-preview";
             /** @enum {string} */
             plan: "one_day" | "thu_sat" | "full_week";
             /** @enum {string} */
@@ -2039,6 +2097,24 @@ export interface components {
         };
         MessageResponse: {
             message: string;
+        };
+        NativePaymentSheetPayload: {
+            orderId: string;
+            eventId: string;
+            paymentIntentId: string;
+            paymentIntentClientSecret: string;
+        };
+        NativePaymentSheetResponse: {
+            /** @enum {string} */
+            mode: "payment_sheet";
+            orderId: string;
+            paymentIntentId: string;
+            /** @description Sensitive payment capability. Keep only in memory; never put it in URLs, logs, navigation state or persistent storage. */
+            paymentIntentClientSecret: string;
+            stripeAccountId: string;
+            publishableKey: string;
+            /** Format: date-time */
+            expiresAt: string;
         };
         NotificationListResponse: {
             items: components["schemas"]["NotificationResponse"][];
@@ -2301,6 +2377,12 @@ export interface components {
             amountRon: number;
             /** Format: int32 */
             days: number;
+        };
+        PromotionReconciliationResponse: {
+            campaignId: string;
+            /** @enum {string} */
+            status: "pending_payment" | "scheduled" | "active" | "completed" | "cancelled";
+            checkoutUrl?: string;
         };
         PublicProfileResponse: {
             id: string;
@@ -2972,6 +3054,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+        };
+    };
+    CheckoutOperations_cancelPaymentSheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NativePaymentSheetPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconcileCheckoutResponse"];
+                };
+            };
+        };
+    };
+    CheckoutOperations_reconcilePaymentSheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NativePaymentSheetPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconcileCheckoutResponse"];
                 };
             };
         };
@@ -3796,6 +3926,28 @@ export interface operations {
             };
         };
     };
+    DashboardOperations_reconcilePromotionCheckout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionReconciliationResponse"];
+                };
+            };
+        };
+    };
     DashboardOperations_disconnectStripeAccount: {
         parameters: {
             query?: never;
@@ -3816,7 +3968,9 @@ export interface operations {
     };
     DashboardOperations_createStripeAccountLink: {
         parameters: {
-            query?: never;
+            query?: {
+                client?: "native" | "native-preview";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -4764,7 +4918,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CheckoutSessionResponse"];
+                    "application/json": components["schemas"]["CheckoutSessionResponse"] | components["schemas"]["NativePaymentSheetResponse"];
                 };
             };
         };

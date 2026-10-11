@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Spottr Native",
+    "slug": "spottr-native",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "spottr-native",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "backgroundColor": "#000000",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ro.codelab.spottr.nativepreview",
+      "infoPlist": {
+        "CADisableMinimumFrameDurationOnPhone": true,
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "ro.codelab.spottr.nativepreview",
+      "adaptiveIcon": { "foregroundImage": "./assets/icon.png", "backgroundColor": "#000000" }
+    },
+    "web": { "bundler": "metro", "name": "Spottr Native Preview", "favicon": "./assets/icon.png" },
+    "plugins": [
+      ["expo-build-properties", { "ios": { "enableSceneSupport": true } }],
+      "expo-localization",
+      "expo-web-browser",
+      "expo-secure-store",
+      ["expo-camera", { "cameraPermission": "Allow SPOTTR to scan profile and ticket QR codes.", "microphonePermission": false, "recordAudioAndroid": false }],
+      ["expo-image-picker", { "photosPermission": "Allow SPOTTR to choose your profile photo.", "cameraPermission": false, "microphonePermission": false }]
+    ]
+  }
+}

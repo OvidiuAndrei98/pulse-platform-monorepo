@@ -1,0 +1,144 @@
+// Real exported React UI; all identity, Stripe and API traffic stays mocked.
+const assert = require('node:assert/strict');
+const { withBrowser } = require('./browser-harness.cjs');
+const campaignId = '00000000-0000-4000-8000-000000000050';
+
+withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, errors }) => {
+  await call('Page.addScriptToEvaluateOnNewDocument', { source: `(${function mock() {
+    const original = window.fetch.bind(window), id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+    const guest = new URL(location.href).searchParams.get('guest') === '1';
+    const parameters = new URL(location.href).searchParams;
+    const billingFixture = parameters.get('billingFixture') === '1' || parameters.get('legacyBilling') === '1';
+    const user = { id: id(1), username: 'Organizer QA', email: 'fixture@example.test', role: 'organizer', hasPassword: true, preferredLanguage: 'en' };
+    if (guest) localStorage.removeItem('spottr-native.session.v1');
+    else localStorage.setItem('spottr-native.session.v1', JSON.stringify({ token: 'organizer-ui-fixture', user }));
+    const qa = window.__qa = { requests: [], opened: [], status: 'pending_payment', stripe: false, blockPopup: false, failReconcile: false, dismiss: false };
+    qa.failProfile = parameters.get('failProfile') === '1';
+    qa.savedBilling = billingFixture ? { type: 'company', name: 'Fixture Club', taxId: 'RO123456', registrationNumber: '', address: 'Saved street 1', city: 'Bucuresti', county: 'Bucuresti', sector: 'Sector 3', country: 'Romania' } : null;
+    if (parameters.get('legacyBilling') === '1') qa.savedBilling.sector = '';
+    qa.profile = { id: id(2), userId: id(1), cui: 'RO123456', companyName: 'Fixture Club', verificationStatus: 'approved', isVerified: true, stripeAccountId: 'acct_fixture', stripeChargesEnabled: false, stripePayoutsEnabled: false, organizerAgreementVersion: '2026-07-27' };
+    qa.event = { id: id(10), organizerId: id(1), title: 'Organizer QA night', status: 'published', category: 'TECHNO', locationName: 'Fixture venue', city: 'Bucuresti', startTime: '2035-01-01T18:00Z', endTime: '2035-01-02T06:00Z', latitude: 44, longitude: 26, ticketTypes: [], lineup: [] };
+    window.open = () => {
+      if (qa.blockPopup) return null;
+      const popup = { opener: null, document: { title: '', body: { style: {} } }, closed: false, close() { this.closed = true; }, location: { replace(url) { qa.opened.push(url); setTimeout(() => { popup.closed = true; if (!qa.dismiss) { qa.status = 'scheduled'; qa.stripe = true; } }, 150); } } };
+      return popup;
+    };
+    window.fetch = async (url, options = {}) => {
+      if (!String(url).includes('/api/v1/')) return original(url, options);
+      const parsed = new URL(url, location.origin), route = parsed.pathname.split('/api/v1')[1], method = options.method || 'GET';
+      qa.requests.push({ route, method, query: parsed.search, body: options.body });
+      const reply = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
+      if (route === '/auth/login') return reply({ token: 'organizer-ui-fixture' });
+      if (route === '/users/me') return reply(user);
+      if (route === '/users/me/billing-details') {
+        if (method === 'PUT') { qa.savedBilling = JSON.parse(options.body); return reply(qa.savedBilling); }
+        return reply({ details: qa.savedBilling });
+      }
+      if (route.startsWith('/dashboard/organizer/profile/')) return qa.failProfile ? reply({}, 503) : reply({ ...qa.profile, stripeChargesEnabled: qa.stripe, stripePayoutsEnabled: qa.stripe });
+      if (route === '/dashboard/events') return reply([qa.event]);
+      if (route === '/dashboard/stripe/status') return reply({ ...qa.profile, stripeChargesEnabled: qa.stripe, stripePayoutsEnabled: qa.stripe });
+      if (route === '/dashboard/stripe/account-link') return reply({ url: 'https://connect.stripe.com/setup/fixture' });
+      if (route === '/dashboard/promotions/plans') return reply([{ id: 'one_day', placement: 'home_banner', name: 'One day', description: 'Fixture', days: 1, amountRon: 50 }, { id: 'one_day', placement: 'feed', name: 'One day', description: 'Fixture', days: 1, amountRon: 10 }]);
+      if (route === '/dashboard/promotions/availability') return reply({ capacity: 5, availableSlots: 5 });
+      if (route.startsWith('/dashboard/promotions/') && route.endsWith('/reconcile')) return qa.failReconcile ? reply({}, 503) : reply({ campaignId: route.split('/')[3], status: qa.status, ...(qa.status === 'pending_payment' ? { checkoutUrl: 'https://checkout.stripe.com/c/pay/owned_session' } : {}) });
+      if (route === '/dashboard/promotions/checkout') { qa.created = true; return reply({ checkoutUrl: 'https://checkout.stripe.com/c/pay/new_session', campaignId: id(51) }, 201); }
+      if (route === '/dashboard/promotions') return reply(billingFixture && !qa.created ? [] : [{ id: id(billingFixture ? 51 : 50), eventId: id(10), eventTitle: 'Organizer QA night', plan: 'one_day', placement: 'feed', status: qa.status, startsAt: '2035-01-01T00:00Z', endsAt: '2035-01-02T00:00Z', amountRon: 10, impressionsCount: 0, clicksCount: 0, ctr: 0 }]);
+      if (route === '/notifications') return reply({ items: [], unreadCount: 0 });
+      return reply([]);
+    };
+  }.toString()})();` });
+  const press = async text => {
+    await until(`Array.from(document.querySelectorAll('[role="button"]')).some(el=>el.textContent.trim()===${JSON.stringify(text)})`);
+    await evaluate(`Array.from(document.querySelectorAll('[role="button"]')).find(el=>el.textContent.trim()===${JSON.stringify(text)}).click()`);
+  };
+  await call('Page.navigate', { url: base + '/organizers/agreement' });
+  await until(`document.body.innerText.includes('Organizer agreement') && document.body.innerText.includes('Commission and settlement')`);
+  assert.equal(await evaluate(`window.__qa.opened.length`), 0);
+  await capture('native-organizer-agreement');
+  await call('Page.navigate', { url: base + '/organizers/stripe-connect' });
+  await until(`document.body.innerText.includes('Stripe Connect') && document.body.innerText.includes('View')`);
+  assert.equal(await evaluate(`window.__qa.opened.length`), 0);
+  await capture('native-organizer-stripe-information');
+  await call('Page.navigate', { url: base + '/organizer/return?flow=connect&status=complete' });
+  await until(`window.__qa.requests.some(r=>r.route==='/dashboard/stripe/status')`);
+  assert.equal(await evaluate(`window.__qa.stripe`), false, 'A complete return is not proof of activated Stripe');
+  await evaluate(`window.__qa.blockPopup=true`);
+  await press('Continue Stripe');
+  await until(`document.body.innerText.includes("We couldn't load")`);
+  assert.equal(await evaluate(`window.__qa.requests.filter(r=>r.route==='/dashboard/stripe/account-link').length`), 0, 'Blocked popup must not create onboarding');
+  await evaluate(`window.__qa.blockPopup=false`);
+  // Existing account chooses Continue setup rather than creating a separate account.
+  await until(`Array.from(document.querySelectorAll('[role="button"]')).some(el=>/Continue.*Stripe|Continue.*setup/i.test(el.textContent))`);
+  await evaluate(`{const el=Array.from(document.querySelectorAll('[role="button"]')).find(el=>/Continue.*Stripe|Continue.*setup/i.test(el.textContent));el.click();el.click();}`);
+  await until(`window.__qa.opened.length===1 && window.__qa.requests.filter(r=>r.route==='/dashboard/stripe/status').length>=2`);
+  assert.equal(await evaluate(`window.__qa.requests.filter(r=>r.route==='/dashboard/stripe/account-link').length`), 1);
+  assert.match(await evaluate(`window.__qa.requests.find(r=>r.route==='/dashboard/stripe/account-link').query`), /client=native-preview/);
+  await call('Page.navigate', { url: base + '/organizer/return?flow=promotion&status=complete&campaignId=' + campaignId });
+  await until(`window.__qa.requests.some(r=>r.route.endsWith('/reconcile')) && document.body.innerText.includes('Awaiting payment')`);
+  assert.equal(await evaluate(`window.__qa.status`), 'pending_payment', 'Do not present paid state from redirect');
+  await evaluate(`window.__qa.failReconcile=true`);
+  await press('Try again');
+  await until(`document.body.innerText.includes("We couldn't load")`);
+  await evaluate(`window.__qa.failReconcile=false`);
+  await press('Try again');
+  await until(`document.body.innerText.includes('Awaiting payment')`);
+  // The recovery action reopens the verified existing session; no checkout POST.
+  await until(`Array.from(document.querySelectorAll('[role="button"]')).filter(el=>el.textContent.trim()==='Pay and promote' && el.getAttribute('aria-disabled')!=='true').length>=1`);
+  await evaluate(`Array.from(document.querySelectorAll('[role="button"]')).find(el=>el.textContent.trim()==='Pay and promote' && el.getAttribute('aria-disabled')!=='true').click()`);
+  await until(`window.__qa.status==='scheduled' && document.body.innerText.includes('Scheduled')`);
+  assert.equal(await evaluate(`window.__qa.opened[0]`), 'https://checkout.stripe.com/c/pay/owned_session');
+  assert.equal(await evaluate(`window.__qa.requests.filter(r=>r.route==='/dashboard/promotions/checkout').length`), 0);
+  await capture('native-promotion-return');
+  await call('Page.navigate', { url: base + '/dashboard/promotions?billingFixture=1' });
+  await until(`document.body.innerText.includes('Saved street 1')`);
+  await until(`Array.from(document.querySelectorAll('[role="radio"]')).some(el=>el.textContent.includes('One day') && el.querySelector('svg.lucide-check'))`);
+  assert.equal(await evaluate(`Array.from(document.querySelectorAll('[role="radio"]')).some(el=>el.textContent.includes('One day') && el.querySelector('svg.lucide-check'))`), true, 'Original plan radio has its check indicator');
+  assert.equal(await evaluate(`!!document.querySelector('input[aria-label="Billing address"]')`), false, 'Saved billing starts selected');
+  await evaluate(`Array.from(document.querySelectorAll('[role="radio"]')).find(el=>el.textContent.trim()==='Use or edit different details').click()`);
+  await until(`document.querySelector('input[aria-label="Billing address"]')`);
+  await press('Pay and promote');
+  await until(`document.body.innerText.includes('Please fill in this field')`);
+  assert.equal(await evaluate(`window.__qa.opened.length`), 0, 'Invalid billing never opens a purchase');
+  const fillLabel = async (label, value) => { await evaluate(`{const el=document.querySelector('input[aria-label="${label}"]');el.focus();el.select();}`); await call('Input.insertText', { text: value }); };
+  await fillLabel('Billing address', 'New street 2'); await fillLabel('City', 'București');
+  await until(`document.querySelector('[role="button"][aria-label="Sector"]')`);
+  assert.equal(await evaluate(`!!document.querySelector('input[aria-label="County / region"]')`), false);
+  await evaluate(`document.querySelector('[role="button"][aria-label="Sector"]').click()`); await press('Sector 2');
+  await until(`!document.querySelector('[data-testid="sheet-handle"]')`);
+  await evaluate(`{const el=Array.from(document.querySelectorAll('[role="button"]')).find(el=>el.textContent.trim()==='Pay and promote');el.click();el.click();}`);
+  await until(`window.__qa.requests.some(r=>r.route==='/dashboard/promotions/checkout') && document.body.innerText.includes('Scheduled')`);
+  assert.equal(await evaluate(`window.__qa.requests.filter(r=>r.route==='/dashboard/promotions/checkout').length`), 1);
+  const billingBody = await evaluate(`JSON.parse(window.__qa.requests.find(r=>r.route==='/dashboard/promotions/checkout').body)`);
+  assert.equal(billingBody.billingDetails.sector, 'Sector 2'); assert.equal(billingBody.billingDetails.county, 'Bucuresti'); assert.equal(billingBody.client, 'native-preview');
+  assert.equal(await evaluate(`window.__qa.savedBilling.type`), 'company'); assert.equal(await evaluate(`window.__qa.savedBilling.taxId`), 'RO123456'); assert.equal(await evaluate(`window.__qa.savedBilling.address`), 'New street 2');
+  await capture('native-promotion-billing');
+  await call('Page.navigate', { url: base + '/dashboard/promotions?legacyBilling=1' });
+  await until(`document.querySelector('input[aria-label="Billing address"]')?.value==='Saved street 1'`);
+  assert.equal(await evaluate(`!!document.querySelector('[role="button"][aria-label="Sector"]')`), true, 'Incomplete saved Bucharest address is editable immediately');
+  await press('Pay and promote');
+  await until(`document.body.innerText.includes('Select the sector')`);
+  assert.equal(await evaluate(`window.__qa.opened.length`), 0, 'Legacy invalid data shows validation and cannot create a payment');
+  await evaluate(`document.querySelector('[role="button"][aria-label="Sector"]').click()`); await press('Sector 2');
+  await until(`!document.querySelector('[data-testid="sheet-handle"]')`);
+  await press('Pay and promote');
+  await until(`window.__qa.requests.some(r=>r.route==='/dashboard/promotions/checkout') && document.body.innerText.includes('Scheduled')`);
+  assert.equal(await evaluate(`JSON.parse(window.__qa.requests.find(r=>r.route==='/dashboard/promotions/checkout').body).billingDetails.sector`), 'Sector 2');
+  await call('Page.navigate', { url: base + '/dashboard/promotions?failProfile=1&billingFixture=1' });
+  await until(`document.body.innerText.includes("We couldn't load")`);
+  assert.equal(await evaluate(`Array.from(document.querySelectorAll('[role="button"]')).find(el=>el.textContent.trim()==='Pay and promote')?.getAttribute('aria-disabled')`), 'true', 'Missing company profile blocks purchase with visible retry');
+  assert.equal(await evaluate(`window.__qa.opened.length`), 0);
+  await evaluate(`window.__qa.failProfile=false`); await press('Try again');
+  await until(`document.body.innerText.includes('Saved street 1') && Array.from(document.querySelectorAll('[role="button"]')).find(el=>el.textContent.trim()==='Pay and promote')?.getAttribute('aria-disabled')!=='true'`);
+  await call('Page.navigate', { url: base + '/organizer/return?flow=promotion&status=complete&campaignId=' + campaignId + '&guest=1' });
+  await until(`document.querySelector('[data-testid="auth-screen"]')`);
+  assert.equal(await evaluate(`window.__qa.requests.filter(r=>r.route.endsWith('/reconcile')).length`), 0, 'Guest return must wait for authentication');
+  await click('auth-email-choice'); await input('auth-email', 'fixture@example.test'); await input('auth-password', 'fixture-password'); await click('auth-submit');
+  await until(`!document.querySelector('[data-testid="auth-screen"]') && window.__qa.requests.some(r=>r.route.endsWith('/reconcile'))`);
+  assert.equal(await evaluate(`window.__qa.requests.find(r=>r.route.endsWith('/reconcile')).route`), '/dashboard/promotions/' + campaignId + '/reconcile');
+  await call('Page.navigate', { url: base + '/organizer/return?flow=connect&status=complete&guest=1' });
+  await until(`document.querySelector('[data-testid="auth-screen"]')`); await click('auth-back');
+  await until(`!document.querySelector('[data-testid="auth-screen"]') && !!document.querySelector('[data-testid="home-search"]')`);
+  await delay(300); assert.equal(await evaluate(`!!document.querySelector('[data-testid="auth-screen"]')`), false, 'Closing login must not bounce into the protected dashboard');
+  assert.deepEqual(errors, []);
+  console.log('PASS native organizer documents, cold Connect/promotion return, duplicate taps, blocked popup, error/retry, same-session resume, saved/editable billing, Bucharest sector validation, legacy saved billing repair, profile error recovery, login return and auth dismissal');
+}).catch(error => { console.error(error); process.exitCode = 1; });

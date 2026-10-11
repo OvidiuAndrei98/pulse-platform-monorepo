@@ -88,6 +88,15 @@ function promoHarness() {
   return { h, requests, ApiError, changeEvent: value => { event = value; h.render(); } };
 }
 
+test('promo helper extraction preserves the hook export and integer ticket-price rounding', () => {
+  const loader = modules({ react: {}, '@packages/api-client/src/Client': {} });
+  const { discountedUnitPrice } = loader.load('features/events/promoPrice');
+  assert.equal(loader.load('features/events/useEventPromoCode').discountedUnitPrice, discountedUnitPrice);
+  for (const [price, discount, expected] of [[50, 0, 50], [50, 10, 45], [49, 33, 33], [5, 50, 3], [50, 100, 1]]) {
+    assert.equal(discountedUnitPrice(price, discount), expected);
+  }
+});
+
 test('promo ignores an old success after user types a new code and prevents duplicate submit', async () => {
   const { h, requests } = promoHarness();
   h.render().setCode('first');

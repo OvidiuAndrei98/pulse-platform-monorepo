@@ -22,6 +22,7 @@ import (
 	"pulse-api/internal/notifications"
 	"pulse-api/internal/organizer"
 	"pulse-api/internal/payments"
+	"pulse-api/internal/places"
 	"pulse-api/internal/promotions"
 	"pulse-api/internal/router"
 	"pulse-api/internal/safetygroups"
@@ -218,6 +219,7 @@ func (app *Application) BuildRouter() http.Handler {
 	organizerHandler := organizer.NewHandler(app.Queries)
 	ticketingHandler := tickets.NewHandler(app.Queries, app.Pool, os.Getenv("PUBLIC_APP_URL"))
 	stripeCheckoutHandler := payments.NewCheckoutHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), mailerService, app.Invoicing, app.Abuse)
+	stripeCheckoutHandler.ConfigureNativePaymentSheet(os.Getenv("STRIPE_PUBLISHABLE_KEY"))
 	app.Refunds = stripeCheckoutHandler
 	promotionHandler := promotions.NewHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), app.Invoicing)
 	stripeWebhookHandler := payments.NewWebhookHandler(os.Getenv("STRIPE_WEBHOOK_SECRET"), stripeCheckoutHandler, promotionHandler)
@@ -232,6 +234,7 @@ func (app *Application) BuildRouter() http.Handler {
 		os.Getenv("SPOTIFY_CLIENT_ID"),
 		os.Getenv("SPOTIFY_CLIENT_SECRET"),
 	)
+	placesHandler := places.NewHandler(os.Getenv("GOOGLE_MAPS_API_KEY"))
 
 	// 2. Mapăm funcțiile în noua structură de configurare din router
 	cfg := router.HandlersConfig{
@@ -266,14 +269,17 @@ func (app *Application) BuildRouter() http.Handler {
 		},
 
 		// Auth
-		Register:             authHandler.HandleRegister,
-		Activate:             authHandler.HandleActivate,
-		Login:                authHandler.Login,
-		GoogleLogin:          authHandler.HandleGoogleLogin,
-		GoogleCallback:       authHandler.HandleGoogleCallback,
-		SearchSpotifyArtists: spotifyHandler.Search,
-		ForgotPassword:       authHandler.ForgotPassword,
-		ResetPassword:        authHandler.ResetPassword,
+		Register:                   authHandler.HandleRegister,
+		Activate:                   authHandler.HandleActivate,
+		Login:                      authHandler.Login,
+		GoogleLogin:                authHandler.HandleGoogleLogin,
+		GoogleCallback:             authHandler.HandleGoogleCallback,
+		SearchSpotifyArtists:       spotifyHandler.Search,
+		ReconcilePromotionCheckout: promotionHandler.HandleReconcileCheckout,
+		SearchPlaces:               placesHandler.Autocomplete,
+		GetPlaceDetails:            placesHandler.Details,
+		ForgotPassword:             authHandler.ForgotPassword,
+		ResetPassword:              authHandler.ResetPassword,
 
 		// Users
 		GetMe:                       usersHandler.HandleGetMe,
@@ -323,6 +329,8 @@ func (app *Application) BuildRouter() http.Handler {
 		StripeWebhook:                  stripeWebhookHandler.HandleStripeWebhook,
 		StripeConnectWebhook:           stripeConnectWebhookHandler.HandleStripeConnectWebhook,
 		ReconcileCheckout:              stripeCheckoutHandler.HandleReconcileCheckout,
+		ReconcilePaymentSheet:          stripeCheckoutHandler.HandleReconcilePaymentSheet,
+		CancelPaymentSheet:             stripeCheckoutHandler.HandleCancelPaymentSheet,
 		CreateStripeAccountLink:        stripeConnectHandler.HandleCreateAccountLink,
 		GetStripeAccountStatus:         stripeConnectHandler.HandleGetAccountStatus,
 		CreateStripeLoginLink:          stripeConnectHandler.HandleCreateDashboardLoginLink,

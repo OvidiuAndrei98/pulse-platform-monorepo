@@ -93,6 +93,13 @@ WITH candidates AS MATERIALIZED (
     WHERE asset.status = 'ready'
       AND asset.delete_after IS NULL
       AND NOT EXISTS (
+          SELECT 1 FROM event_artists artist
+          WHERE right(
+              spottr_percent_decode_ascii(split_part(split_part(artist.image_url, '#', 1), '?', 1)),
+              length('/api/v1/media/' || asset.s3_key)
+          ) = '/api/v1/media/' || asset.s3_key
+      )
+      AND NOT EXISTS (
           SELECT 1 FROM event_banner_references reference WHERE reference.asset_id = asset.id
       )
       AND NOT EXISTS (
@@ -143,6 +150,31 @@ SET delete_after = NULL,
     last_error = NULL
 WHERE id = $1 AND owner_id = $2 AND s3_key = $3 AND status = 'ready';
 
+-- name: ClaimReadyEventArtistImageAsset :execrows
+WITH candidate AS (
+    SELECT image_asset.id FROM event_banner_assets image_asset
+    WHERE image_asset.owner_id = $1 AND image_asset.s3_key = $2 AND image_asset.status = 'ready'
+    FOR UPDATE NOWAIT
+)
+UPDATE event_banner_assets asset
+SET delete_after = NULL, updated_at = clock_timestamp(), last_error = NULL
+FROM candidate
+WHERE asset.id = candidate.id AND asset.status = 'ready';
+
+-- name: RegisterReferencedArtistImageAsset :exec
+INSERT INTO event_banner_assets (owner_id, s3_key, status)
+SELECT sqlc.arg(owner_id)::uuid, sqlc.arg(s3_key)::text, 'ready'
+WHERE EXISTS (
+    SELECT 1 FROM event_artists artist
+    JOIN events event ON event.id = artist.event_id
+    WHERE event.organizer_id = sqlc.arg(owner_id)::uuid
+      AND right(
+          spottr_percent_decode_ascii(split_part(split_part(artist.image_url, '#', 1), '?', 1)),
+          length('/api/v1/media/' || sqlc.arg(s3_key)::text)
+      ) = '/api/v1/media/' || sqlc.arg(s3_key)::text
+)
+ON CONFLICT (s3_key) DO NOTHING;
+
 -- name: UpsertEventBannerReference :exec
 INSERT INTO event_banner_references (event_id, asset_id)
 VALUES ($1, $2)
@@ -158,6 +190,13 @@ SET delete_after = COALESCE(asset.delete_after, $2),
     updated_at = clock_timestamp()
 WHERE asset.id = $1
   AND asset.status = 'ready'
+  AND NOT EXISTS (
+      SELECT 1 FROM event_artists artist
+      WHERE right(
+          spottr_percent_decode_ascii(split_part(split_part(artist.image_url, '#', 1), '?', 1)),
+          length('/api/v1/media/' || asset.s3_key)
+      ) = '/api/v1/media/' || asset.s3_key
+  )
   AND NOT EXISTS (
       SELECT 1 FROM event_banner_references reference WHERE reference.asset_id = asset.id
   )
@@ -178,6 +217,13 @@ WITH candidate AS (
         OR (asset.status = 'pending_upload' AND asset.created_at <= clock_timestamp() - INTERVAL '24 hours')
         OR (asset.status = 'deleting' AND asset.deletion_lease_expires_at <= clock_timestamp())
     )
+      AND NOT EXISTS (
+          SELECT 1 FROM event_artists artist
+          WHERE right(
+              spottr_percent_decode_ascii(split_part(split_part(artist.image_url, '#', 1), '?', 1)),
+              length('/api/v1/media/' || asset.s3_key)
+          ) = '/api/v1/media/' || asset.s3_key
+      )
       AND NOT EXISTS (
           SELECT 1 FROM event_banner_references reference WHERE reference.asset_id = asset.id
       )
@@ -207,6 +253,13 @@ DELETE FROM event_banner_assets asset
 WHERE asset.id = $1
   AND asset.status = 'deleting'
   AND asset.deletion_lease_id = $2
+  AND NOT EXISTS (
+      SELECT 1 FROM event_artists artist
+      WHERE right(
+          spottr_percent_decode_ascii(split_part(split_part(artist.image_url, '#', 1), '?', 1)),
+          length('/api/v1/media/' || asset.s3_key)
+      ) = '/api/v1/media/' || asset.s3_key
+  )
   AND NOT EXISTS (
       SELECT 1 FROM event_banner_references reference WHERE reference.asset_id = asset.id
   )

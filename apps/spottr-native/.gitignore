@@ -1,0 +1,11 @@
+node_modules/
+.expo/
+dist/
+dist-native/
+dist-final/
+artifacts/
+ios/
+android/
+*.tsbuildinfo
+.env*
+!.env.sample

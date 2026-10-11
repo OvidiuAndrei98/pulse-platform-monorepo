@@ -527,6 +527,7 @@ model PromotionPlanResponse {
 
 model CreatePromotionCheckoutPayload {
   eventId: string;
+  client?: "native" | "native-preview";
   plan: "one_day" | "thu_sat" | "full_week";
   placement: "home_banner" | "feed";
   startDate: string;
@@ -545,6 +546,12 @@ model PromotionBillingDetailsPayload {
 model PromotionCheckoutResponse {
   checkoutUrl: string;
   campaignId: string;
+}
+
+model PromotionReconciliationResponse {
+  campaignId: string;
+  status: "pending_payment" | "scheduled" | "active" | "completed" | "cancelled";
+  checkoutUrl?: string;
 }
 
 model PromotionCampaignResponse {
@@ -694,6 +701,8 @@ model CreateCheckoutSessionPayload {
   items: CheckoutTicketItemPayload[];
   promoCode?: string;
   billingDetails: BillingDetailsPayload;
+  @doc("Omit for hosted web checkout; native uses hosted app return. native_sheet returns a direct connected-account PaymentIntent for PaymentSheet and requires Idempotency-Key.")
+  client?: "native" | "native_sheet";
 }
 
 model ValidatePromoCodePayload {
@@ -708,6 +717,25 @@ model PromoCodeValidationResponse {
 model CheckoutSessionResponse {
   checkoutUrl: string;
   orderId: string;
+  sessionId: string;
+}
+
+model NativePaymentSheetResponse {
+  mode: "payment_sheet";
+  orderId: string;
+  paymentIntentId: string;
+  @doc("Sensitive payment capability. Keep only in memory; never put it in URLs, logs, navigation state or persistent storage.")
+  paymentIntentClientSecret: string;
+  stripeAccountId: string;
+  publishableKey: string;
+  expiresAt: utcDateTime;
+}
+
+model NativePaymentSheetPayload {
+  orderId: string;
+  eventId: string;
+  paymentIntentId: string;
+  paymentIntentClientSecret: string;
 }
 
 model BookFreeTicketPayload {
@@ -1102,6 +1130,16 @@ interface CheckoutOperations {
   @post
   @route("/reconcile")
   reconcile(@body payload: ReconcileCheckoutPayload): ReconcileCheckoutResponse;
+
+  @summary("Verifica PaymentSheet pe server; confirmarea din aplicatie nu emite singura bilete")
+  @post
+  @route("/payment-sheet/reconcile")
+  reconcilePaymentSheet(@body payload: NativePaymentSheetPayload): ReconcileCheckoutResponse;
+
+  @summary("Anuleaza PaymentIntent inainte de eliberarea rezervarii; o plata reusita simultan este reconciliata")
+  @post
+  @route("/payment-sheet/cancel")
+  cancelPaymentSheet(@body payload: NativePaymentSheetPayload): ReconcileCheckoutResponse;
 }
 
 @route("/events")
@@ -1224,7 +1262,7 @@ interface EventOperations {
     @header("Idempotency-Key") idempotencyKey?: string,
   ): {
     @statusCode statusCode: 201;
-    @body checkout: CheckoutSessionResponse;
+    @body checkout: CheckoutSessionResponse | NativePaymentSheetResponse;
   };
 
   @summary("Rezerva direct un bilet gratuit pentru utilizatorul autentificat")
@@ -1404,6 +1442,10 @@ interface DashboardOperations {
     @body response: PromotionCheckoutResponse;
   };
 
+  @post
+  @route("/promotions/{id}/reconcile")
+  reconcilePromotionCheckout(@path id: string): PromotionReconciliationResponse;
+
   @get
   @route("/finance")
   @summary("Situația financiară a evenimentelor organizatorului, bazată pe comenzi finalizate")
@@ -1471,7 +1513,7 @@ interface DashboardOperations {
   @summary("Creeaza sau reia onboarding-ul Stripe Connect pentru organizatorul curent")
   @post
   @route("/stripe/account-link")
-  createStripeAccountLink(): StripeAccountLinkResponse;
+  createStripeAccountLink(@query client?: "native" | "native-preview"): StripeAccountLinkResponse;
 
   @summary("Actualizeaza starea Stripe Connect a organizatorului curent")
   @get

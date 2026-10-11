@@ -21,6 +21,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { User, type AppNotification } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { notificationText, formatNotificationTime } from "./notificationContent";
 import { formatEventDateShort } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 import { startVisiblePolling } from "@/lib/visiblePolling";
@@ -180,7 +181,7 @@ export function NotificationsPopover() {
                           {notificationText(notification, t).title}
                         </p>
                         <span className="shrink-0 text-[11px] text-muted-foreground">
-                          {formatRelativeTime(notification.createdAt, t)}
+                          {formatNotificationTime(notification.createdAt, t, formatEventDateShort)}
                         </span>
                       </div>
                       <p className="mt-0.5 text-xs text-muted-foreground">
@@ -235,38 +236,4 @@ function NotificationIcon({ notification }: { notification: AppNotification }) {
       <Icon className="h-4 w-4 text-primary" />
     </div>
   );
-}
-
-function notificationText(
-  notification: AppNotification,
-  t: (key: string, options?: Record<string, unknown>) => string,
-) {
-  if (notification.type === "organizer_event") {
-    return {
-      title: t("notifications.organizerEventTitle"),
-      body: t("notifications.organizerEventBody", {
-        name: notification.actorUsername || "SPOTTR",
-      }),
-    };
-  }
-  if (notification.type === "ticket_purchased") {
-    return {
-      title: t("notifications.ticketPurchasedTitle"),
-      body: t("notifications.ticketPurchasedBody"),
-    };
-  }
-  return { title: notification.title, body: notification.body };
-}
-
-function formatRelativeTime(
-  value: string,
-  t: (key: string, options?: Record<string, unknown>) => string,
-) {
-  const elapsed = Math.max(0, Date.now() - new Date(value).getTime());
-  const minutes = Math.floor(elapsed / 60000);
-  if (minutes < 1) return t("notifications.now");
-  if (minutes < 60) return t("notifications.minutes", { count: minutes });
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return t("notifications.hours", { count: hours });
-  return formatEventDateShort(value);
 }

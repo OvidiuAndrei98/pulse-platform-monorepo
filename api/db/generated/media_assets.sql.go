@@ -43,6 +43,13 @@ WITH candidate AS (
         OR (asset.status = 'deleting' AND asset.deletion_lease_expires_at <= clock_timestamp())
     )
       AND NOT EXISTS (
+          SELECT 1 FROM event_artists artist
+          WHERE right(
+              spottr_percent_decode_ascii(split_part(split_part(artist.image_url, '#', 1), '?', 1)),
+              length('/api/v1/media/' || asset.s3_key)
+          ) = '/api/v1/media/' || asset.s3_key
+      )
+      AND NOT EXISTS (
           SELECT 1 FROM event_banner_references reference WHERE reference.asset_id = asset.id
       )
       AND NOT EXISTS (
@@ -80,11 +87,43 @@ func (q *Queries) ClaimDueEventBannerAssetDeletion(ctx context.Context) (ClaimDu
 	return i, err
 }
 
+const claimReadyEventArtistImageAsset = `-- name: ClaimReadyEventArtistImageAsset :execrows
+WITH candidate AS (
+    SELECT image_asset.id FROM event_banner_assets image_asset
+    WHERE image_asset.owner_id = $1 AND image_asset.s3_key = $2 AND image_asset.status = 'ready'
+    FOR UPDATE NOWAIT
+)
+UPDATE event_banner_assets asset
+SET delete_after = NULL, updated_at = clock_timestamp(), last_error = NULL
+FROM candidate
+WHERE asset.id = candidate.id AND asset.status = 'ready'
+`
+
+type ClaimReadyEventArtistImageAssetParams struct {
+	OwnerID pgtype.UUID `json:"owner_id"`
+	S3Key   string      `json:"s3_key"`
+}
+
+func (q *Queries) ClaimReadyEventArtistImageAsset(ctx context.Context, arg ClaimReadyEventArtistImageAssetParams) (int64, error) {
+	result, err := q.db.Exec(ctx, claimReadyEventArtistImageAsset, arg.OwnerID, arg.S3Key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const completeEventBannerAssetDeletion = `-- name: CompleteEventBannerAssetDeletion :execrows
 DELETE FROM event_banner_assets asset
 WHERE asset.id = $1
   AND asset.status = 'deleting'
   AND asset.deletion_lease_id = $2
+  AND NOT EXISTS (
+      SELECT 1 FROM event_artists artist
+      WHERE right(
+          spottr_percent_decode_ascii(split_part(split_part(artist.image_url, '#', 1), '?', 1)),
+          length('/api/v1/media/' || asset.s3_key)
+      ) = '/api/v1/media/' || asset.s3_key
+  )
   AND NOT EXISTS (
       SELECT 1 FROM event_banner_references reference WHERE reference.asset_id = asset.id
   )
@@ -334,6 +373,31 @@ func (q *Queries) RecordEventBannerAssetDeletionFailure(ctx context.Context, arg
 	return result.RowsAffected(), nil
 }
 
+const registerReferencedArtistImageAsset = `-- name: RegisterReferencedArtistImageAsset :exec
+INSERT INTO event_banner_assets (owner_id, s3_key, status)
+SELECT $1::uuid, $2::text, 'ready'
+WHERE EXISTS (
+    SELECT 1 FROM event_artists artist
+    JOIN events event ON event.id = artist.event_id
+    WHERE event.organizer_id = $1::uuid
+      AND right(
+          spottr_percent_decode_ascii(split_part(split_part(artist.image_url, '#', 1), '?', 1)),
+          length('/api/v1/media/' || $2::text)
+      ) = '/api/v1/media/' || $2::text
+)
+ON CONFLICT (s3_key) DO NOTHING
+`
+
+type RegisterReferencedArtistImageAssetParams struct {
+	OwnerID pgtype.UUID `json:"owner_id"`
+	S3Key   string      `json:"s3_key"`
+}
+
+func (q *Queries) RegisterReferencedArtistImageAsset(ctx context.Context, arg RegisterReferencedArtistImageAssetParams) error {
+	_, err := q.db.Exec(ctx, registerReferencedArtistImageAsset, arg.OwnerID, arg.S3Key)
+	return err
+}
+
 const removeStaleEventBannerReferences = `-- name: RemoveStaleEventBannerReferences :execrows
 WITH stale AS MATERIALIZED (
     SELECT reference.event_id, reference.asset_id
@@ -369,6 +433,13 @@ WITH candidates AS MATERIALIZED (
     WHERE asset.status = 'ready'
       AND asset.delete_after IS NULL
       AND NOT EXISTS (
+          SELECT 1 FROM event_artists artist
+          WHERE right(
+              spottr_percent_decode_ascii(split_part(split_part(artist.image_url, '#', 1), '?', 1)),
+              length('/api/v1/media/' || asset.s3_key)
+          ) = '/api/v1/media/' || asset.s3_key
+      )
+      AND NOT EXISTS (
           SELECT 1 FROM event_banner_references reference WHERE reference.asset_id = asset.id
       )
       AND NOT EXISTS (
@@ -402,6 +473,13 @@ SET delete_after = COALESCE(asset.delete_after, $2),
     updated_at = clock_timestamp()
 WHERE asset.id = $1
   AND asset.status = 'ready'
+  AND NOT EXISTS (
+      SELECT 1 FROM event_artists artist
+      WHERE right(
+          spottr_percent_decode_ascii(split_part(split_part(artist.image_url, '#', 1), '?', 1)),
+          length('/api/v1/media/' || asset.s3_key)
+      ) = '/api/v1/media/' || asset.s3_key
+  )
   AND NOT EXISTS (
       SELECT 1 FROM event_banner_references reference WHERE reference.asset_id = asset.id
   )

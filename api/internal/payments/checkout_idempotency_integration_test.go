@@ -64,9 +64,9 @@ func TestCheckoutRequestDeduplicatesConcurrentRetriesAndBindsInventory(t *testin
 	if !errors.As(err, &conflict) || conflict.status != 409 {
 		t.Fatal("different payload silently reused", err)
 	}
-	h.persistCheckoutResponse(requestID, CreateCheckoutResponse{CheckoutURL: "https://example.invalid/checkout", OrderID: common.UUIDToString(order.ID)})
+	h.persistCheckoutResponse(requestID, CreateCheckoutResponse{CheckoutURL: "https://example.invalid/checkout", OrderID: common.UUIDToString(order.ID), SessionID: "cs_test_idempotent"})
 	w := httptest.NewRecorder()
-	h.replayCheckoutRequest(w, httptest.NewRequest("POST", "/checkout", nil), requestID)
+	h.replayCheckoutRequest(w, httptest.NewRequest("POST", "/checkout", nil), requestID, "")
 	if w.Code != 201 {
 		t.Fatalf("lost response not recovered: %d %s", w.Code, w.Body.String())
 	}

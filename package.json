@@ -5,6 +5,11 @@
     "node": ">=20.0.0"
   },
   "scripts": {
+    "native:start": "pnpm --filter @apps/spottr-native start",
+    "native:web": "pnpm --filter @apps/spottr-native web",
+    "native:android": "pnpm --filter @apps/spottr-native android",
+    "native:ios": "pnpm --filter @apps/spottr-native ios",
+    "native:test": "pnpm --filter @apps/spottr-native test",
     "codegen": "pnpm --filter @packages/api-schema exec tsp compile . && pnpm --filter @packages/api-client build"
   },
   "devDependencies": {

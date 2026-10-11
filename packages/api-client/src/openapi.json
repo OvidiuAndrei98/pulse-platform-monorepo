@@ -394,6 +394,64 @@
         }
       }
     },
+    "/checkout/payment-sheet/cancel": {
+      "post": {
+        "operationId": "CheckoutOperations_cancelPaymentSheet",
+        "summary": "Anuleaza PaymentIntent inainte de eliberarea rezervarii; o plata reusita simultan este reconciliata",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconcileCheckoutResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NativePaymentSheetPayload"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/checkout/payment-sheet/reconcile": {
+      "post": {
+        "operationId": "CheckoutOperations_reconcilePaymentSheet",
+        "summary": "Verifica PaymentSheet pe server; confirmarea din aplicatie nu emite singura bilete",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconcileCheckoutResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NativePaymentSheetPayload"
+              }
+            }
+          }
+        }
+      }
+    },
     "/checkout/reconcile": {
       "post": {
         "operationId": "CheckoutOperations_reconcile",
@@ -1419,6 +1477,33 @@
         }
       }
     },
+    "/dashboard/promotions/{id}/reconcile": {
+      "post": {
+        "operationId": "DashboardOperations_reconcilePromotionCheckout",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionReconciliationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/dashboard/stripe/account": {
       "delete": {
         "operationId": "DashboardOperations_disconnectStripeAccount",
@@ -1435,7 +1520,21 @@
       "post": {
         "operationId": "DashboardOperations_createStripeAccountLink",
         "summary": "Creeaza sau reia onboarding-ul Stripe Connect pentru organizatorul curent",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "client",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "native",
+                "native-preview"
+              ]
+            },
+            "explode": false
+          }
+        ],
         "responses": {
           "200": {
             "description": "The request has succeeded.",
@@ -2774,7 +2873,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CheckoutSessionResponse"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/CheckoutSessionResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NativePaymentSheetResponse"
+                    }
+                  ]
                 }
               }
             }
@@ -4093,13 +4199,17 @@
         "type": "object",
         "required": [
           "checkoutUrl",
-          "orderId"
+          "orderId",
+          "sessionId"
         ],
         "properties": {
           "checkoutUrl": {
             "type": "string"
           },
           "orderId": {
+            "type": "string"
+          },
+          "sessionId": {
             "type": "string"
           }
         }
@@ -4169,6 +4279,14 @@
           },
           "billingDetails": {
             "$ref": "#/components/schemas/BillingDetailsPayload"
+          },
+          "client": {
+            "type": "string",
+            "enum": [
+              "native",
+              "native_sheet"
+            ],
+            "description": "Omit for hosted web checkout; native uses hosted app return. native_sheet returns a direct connected-account PaymentIntent for PaymentSheet and requires Idempotency-Key."
           }
         }
       },
@@ -4369,6 +4487,13 @@
         "properties": {
           "eventId": {
             "type": "string"
+          },
+          "client": {
+            "type": "string",
+            "enum": [
+              "native",
+              "native-preview"
+            ]
           },
           "plan": {
             "type": "string",
@@ -5207,6 +5332,69 @@
         "properties": {
           "message": {
             "type": "string"
+          }
+        }
+      },
+      "NativePaymentSheetPayload": {
+        "type": "object",
+        "required": [
+          "orderId",
+          "eventId",
+          "paymentIntentId",
+          "paymentIntentClientSecret"
+        ],
+        "properties": {
+          "orderId": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "paymentIntentId": {
+            "type": "string"
+          },
+          "paymentIntentClientSecret": {
+            "type": "string"
+          }
+        }
+      },
+      "NativePaymentSheetResponse": {
+        "type": "object",
+        "required": [
+          "mode",
+          "orderId",
+          "paymentIntentId",
+          "paymentIntentClientSecret",
+          "stripeAccountId",
+          "publishableKey",
+          "expiresAt"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "payment_sheet"
+            ]
+          },
+          "orderId": {
+            "type": "string"
+          },
+          "paymentIntentId": {
+            "type": "string"
+          },
+          "paymentIntentClientSecret": {
+            "type": "string",
+            "description": "Sensitive payment capability. Keep only in memory; never put it in URLs, logs, navigation state or persistent storage."
+          },
+          "stripeAccountId": {
+            "type": "string"
+          },
+          "publishableKey": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -6078,6 +6266,31 @@
           "days": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "PromotionReconciliationResponse": {
+        "type": "object",
+        "required": [
+          "campaignId",
+          "status"
+        ],
+        "properties": {
+          "campaignId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_payment",
+              "scheduled",
+              "active",
+              "completed",
+              "cancelled"
+            ]
+          },
+          "checkoutUrl": {
+            "type": "string"
           }
         }
       },
