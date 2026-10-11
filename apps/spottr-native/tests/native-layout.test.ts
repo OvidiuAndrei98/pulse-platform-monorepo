@@ -56,10 +56,92 @@ function apply(node: any, style: any) {
   if (s.height !== undefined) node.setHeight(s.height);
   if (s.minHeight !== undefined) node.setMinHeight(s.minHeight);
   if (s.flexGrow !== undefined) node.setFlexGrow(s.flexGrow);
+  if (s.flexShrink !== undefined) node.setFlexShrink(s.flexShrink);
+  if (s.flexBasis !== undefined) s.flexBasis === 'auto' ? node.setFlexBasisAuto() : node.setFlexBasis(s.flexBasis);
   if (s.flex !== undefined) node.setFlex(s.flex);
   if (s.padding !== undefined) node.setPadding(Yoga.EDGE_ALL, s.padding);
   if (s.gap !== undefined) node.setGap(Yoga.GUTTER_ALL, s.gap);
 }
+
+function sheetViewportStyle(platform: string, screenHeight = 874, fraction = .9, keyboardHeight = 0, containerHeight = screenHeight) {
+  const shared = (value: any) => ({ get: () => value, set() {} });
+  const internal = {
+    animatedAnimationState: shared({}), animatedContentGestureState: shared(0), animatedHandleGestureState: shared(0),
+    animatedLayoutState: shared({ containerHeight }),
+    animatedKeyboardState: shared({ status: keyboardHeight ? 1 : 2, heightWithinContainer: keyboardHeight }),
+  };
+  const ui = loadUI('ui/AppSheet.tsx', {
+    'react-native': { View: 'View', Platform: { OS: platform }, useWindowDimensions: () => ({ width: 402, height: screenHeight }), StyleSheet: { create: (s: any) => s } },
+    '@gorhom/bottom-sheet': { __esModule: true, default: 'BottomSheet', ANIMATION_CONFIGS: {}, KEYBOARD_STATUS: { SHOWN: 1, HIDDEN: 2 }, useBottomSheetInternal: () => internal },
+    'react-native-gesture-handler': { State: { BEGAN: 2, ACTIVE: 4 } },
+    'react-native-reanimated': { __esModule: true, default: { View: 'AnimatedView' }, useAnimatedReaction() {}, useSharedValue: shared,
+      useAnimatedStyle: (fn: any) => fn(), withSpring: (value: number) => value, withTiming: (value: number) => value },
+    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 62 }) },
+    '../../../pulse-app/src/components/ui/drawerDesign': { drawerDesign: { handleAreaHeight: 32 } },
+    './SheetScrollBridge': { SheetScrollProvider: 'Provider', useSheetScrollSurface() {} },
+  }, platform);
+  const app = ui.AppSheet({ open: true, embedded: true, height: fraction, onClose() {}, label: 'Close' });
+  const sheet = app.type(app.props);
+  const boundary = elements(sheet).find(el => el.type.name === 'SheetGestureBoundary');
+  const view = boundary.type(boundary.props);
+  return view.props.style;
+}
+
+function scrollViewportHeight(style: any, parentHeight: number, contentHeight: number, handleSpace = 0) {
+  const root = Yoga.Node.create(), boundary = Yoga.Node.create(), body = Yoga.Node.create(), scroll = Yoga.Node.create(), content = Yoga.Node.create();
+  root.setWidth(402); root.setHeight(parentHeight);
+  apply(boundary, style);
+  body.setFlex(1); body.setMinHeight(0); body.setMargin(Yoga.EDGE_TOP, handleSpace);
+  // RN ScrollView's baseVertical style plus the app's style={{flex:1}}.
+  scroll.setFlex(1); scroll.setFlexGrow(1); scroll.setFlexShrink(1); scroll.setOverflow(Yoga.OVERFLOW_SCROLL);
+  content.setHeight(contentHeight);
+  root.insertChild(boundary, 0); boundary.insertChild(body, 0); body.insertChild(scroll, 0); scroll.insertChild(content, 0);
+  root.calculateLayout(402, parentHeight, Yoga.DIRECTION_LTR);
+  const viewport = scroll.getComputedHeight(); root.freeRecursive(); return viewport;
+}
+
+test('native sheet viewport is bounded by its open snap even when its ancestor grows beyond the screen', () => {
+  // Real iPhone trace: content=1294.67, UIScrollView viewport=1471.67,
+  // sheet top=87.4 on an 874pt screen. UIKit therefore selected targetY=0.
+  const contentHeight = 1294.6666259765625, oversizedAncestor = 1471.6666666666665;
+  for (const platform of ['ios', 'android']) {
+    const viewport = scrollViewportHeight(sheetViewportStyle(platform), oversizedAncestor, contentHeight);
+    assert.ok(Math.abs(viewport - 786.6) < 1, `${platform}: viewport grew to ${viewport} instead of the sheet's 786.6pt`);
+    assert.ok(contentHeight - viewport > 500, 'Long content must have a positive scroll range after releasing the finger');
+  }
+});
+
+test('native sheet viewport fits shorter parents, compact sheets and changing screen sizes', () => {
+  for (const platform of ['ios', 'android']) for (const screen of [568, 874, 932]) for (const fraction of [.55, .9]) {
+    const expected = Math.min(screen - 62 - 8, screen * fraction);
+    const style = sheetViewportStyle(platform, screen, fraction);
+    for (const handleSpace of [0, 32]) {
+      const full = scrollViewportHeight(style, screen * 2, 2000, handleSpace);
+      assert.ok(Math.abs(full - (expected - handleSpace)) < 1, 'Content must fit the sheet after resizing');
+      const reduced = scrollViewportHeight(style, 280, 2000, handleSpace);
+      assert.ok(Math.abs(reduced - (280 - handleSpace)) < 1, 'Content must shrink with the keyboard-adjusted parent');
+    }
+  }
+});
+
+test('browser sheet viewport keeps the existing flex sizing', () => {
+  const style = sheetViewportStyle('web');
+  for (const height of [420, 760]) assert.equal(scrollViewportHeight(style, height, 1800), height);
+});
+
+test('keyboard constrains the native viewport even if the ancestor still reports excess height', () => {
+  for (const platform of ['ios', 'android']) {
+    const style = sheetViewportStyle(platform, 874, .9, 340);
+    const viewport = scrollViewportHeight(style, 1471.6667, 1294.6667, 32);
+    assert.ok(Math.abs(viewport - (874 - 340 - 32)) < 1, `Keyboard left an oversized ${viewport}pt viewport`);
+    const compact = scrollViewportHeight(sheetViewportStyle(platform, 874, .5, 340), 1471.6667, 1294.6667, 32);
+    assert.ok(Math.abs(compact - (437 - 32)) < 1, 'A compact sheet should stay at its requested height when it already fits above the keyboard');
+  }
+  // adjustResize has already reduced the native root; Gorhom reports zero
+  // remaining keyboard height inside that container.
+  const resized = sheetViewportStyle('android', 874, .9, 0, 534);
+  assert.equal(scrollViewportHeight(resized, 1471.6667, 1294.6667, 32), 502);
+});
 function gridCardHeight(cardStyle: any, contentHeight: number, viewportHeight: number) {
   const root = Yoga.Node.create(), grid = Yoga.Node.create(), cell = Yoga.Node.create(), card = Yoga.Node.create(), content = Yoga.Node.create();
   root.setWidth(350); root.setHeight(viewportHeight); root.setFlexDirection(Yoga.FLEX_DIRECTION_COLUMN);
@@ -139,12 +221,14 @@ test('ordinary native sheet touches leave scroll unlocking and animation ownersh
   const internal = {
     animatedAnimationState: shared({ status: 1, nextPosition: 84, nextIndex: 0, source: 1 }),
     animatedContentGestureState: shared(0), animatedHandleGestureState: shared(0),
+    animatedLayoutState: shared({ containerHeight: 844 }), animatedKeyboardState: shared({ status: 2, heightWithinContainer: 0 }),
     stopAnimation: () => { stopped++; }, animateToPosition() {},
   };
   const ui = loadUI('ui/AppSheet.tsx', {
-    '@gorhom/bottom-sheet': { __esModule: true, default: 'BottomSheet', ANIMATION_CONFIGS: {}, ANIMATION_STATUS: { RUNNING: 1, STOPPED: 0 }, useBottomSheetInternal: () => internal },
+    '@gorhom/bottom-sheet': { __esModule: true, default: 'BottomSheet', ANIMATION_CONFIGS: {}, KEYBOARD_STATUS: { SHOWN: 1, HIDDEN: 2 }, ANIMATION_STATUS: { RUNNING: 1, STOPPED: 0 }, useBottomSheetInternal: () => internal },
     'react-native-gesture-handler': { State: { BEGAN: 2, ACTIVE: 4 } },
-    'react-native-reanimated': { runOnUI: (fn: any) => fn, useAnimatedReaction() {}, useSharedValue: shared },
+    'react-native-reanimated': { __esModule: true, default: { View: 'AnimatedView' }, runOnUI: (fn: any) => fn, useAnimatedReaction() {}, useSharedValue: shared,
+      useAnimatedStyle: (fn: any) => fn(), withSpring: (value: number) => value, withTiming: (value: number) => value },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0 }) },
     '../../../pulse-app/src/components/ui/drawerDesign': { drawerDesign: {} },
     './SheetScrollBridge': { SheetScrollProvider: 'Provider', useSheetScrollSurface() {} },

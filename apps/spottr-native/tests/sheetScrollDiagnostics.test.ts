@@ -16,7 +16,7 @@ test('scroll report retains the measurements needed to separate native rebound f
   now = 350;
   diagnostic.record({ ...sample, phase: 'momentum-end', y: 900 });
   const report = JSON.parse(diagnostic.report());
-  assert.equal(report.diagnostic, 'spottr-sheet-scroll-2026-10-12-a');
+  assert.equal(report.diagnostic, 'spottr-sheet-scroll-2026-10-12-b');
   assert.equal(report.samples[0].ms, 0);
   assert.equal(report.samples[1].ms, 250);
   assert.equal(report.samples[0].position, 84.4000001);

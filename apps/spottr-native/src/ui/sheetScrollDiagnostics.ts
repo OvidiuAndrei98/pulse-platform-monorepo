@@ -42,7 +42,7 @@ export function createSheetScrollDiagnostics(now = Date.now) {
       if (samples.length > 48) samples.shift();
     },
     report() {
-      return JSON.stringify({ diagnostic: 'spottr-sheet-scroll-2026-10-12-a', samples }, null, 2);
+      return JSON.stringify({ diagnostic: 'spottr-sheet-scroll-2026-10-12-b', samples }, null, 2);
     },
   };
 }

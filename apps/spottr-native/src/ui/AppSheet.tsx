@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Alert, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import BottomSheet, { ANIMATION_CONFIGS, ANIMATION_SOURCE, ANIMATION_STATUS, BottomSheetBackdrop, BottomSheetFooter, useBottomSheetGestureHandlers, useBottomSheetInternal, type BottomSheetBackdropProps, type BottomSheetFooterProps } from '@gorhom/bottom-sheet';
+import BottomSheet, { ANIMATION_CONFIGS, ANIMATION_SOURCE, ANIMATION_STATUS, KEYBOARD_STATUS, BottomSheetBackdrop, BottomSheetFooter, useBottomSheetGestureHandlers, useBottomSheetInternal, type BottomSheetBackdropProps, type BottomSheetFooterProps } from '@gorhom/bottom-sheet';
 import { Gesture, GestureDetector, GestureHandlerRootView, State } from 'react-native-gesture-handler';
-import Animated, { useAnimatedReaction, useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring, withTiming, type WithSpringConfig, type WithTimingConfig } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { drawerDesign } from '../../../pulse-app/src/components/ui/drawerDesign';
@@ -45,21 +45,42 @@ function SheetContent({ height = 0.9, onClose, edgeToEdge, label, testID, footer
       enableContentPanningGesture keyboardBehavior="interactive" keyboardBlurBehavior="restore" enableBlurKeyboardOnGesture
       android_keyboardInputMode="adjustResize" onClose={onClose} backdropComponent={backdrop}
       backgroundStyle={s.surface} handleComponent={null}>
-      {/* Gorhom adds overdrag padding below its visible content. BottomSheetView
-          is absolute-positioned, so percentage heights need this unpadded box. */}
-      <SheetGestureBoundary>
+      {/* The native viewport needs its own bound. Flex alone can inherit an
+          oversized animated ancestor: UIKit then thinks long content fits and
+          rubber-bands every drag back to zero. Exclude Gorhom's overdrag padding. */}
+      <SheetGestureBoundary viewportHeight={points[0]!}>
         <View style={[s.body, !edgeToEdge && { marginTop: drawerDesign.handleAreaHeight }]}>{children}</View>
         <SheetHandleOverlay label={label} onClose={() => ref.current?.close()} />
       </SheetGestureBoundary>
     </BottomSheet>
   </View></SheetScrollProvider></FooterContext.Provider>;
 }
-function SheetGestureBoundary({ children }: React.PropsWithChildren) {
-  const { animatedAnimationState, animatedContentGestureState, animatedHandleGestureState, stopAnimation, animateToPosition } = useBottomSheetInternal();
+function SheetGestureBoundary({ children, viewportHeight }: React.PropsWithChildren<{ viewportHeight: number }>) {
+  const { animatedAnimationState, animatedContentGestureState, animatedHandleGestureState, animatedLayoutState, animatedKeyboardState, stopAnimation, animateToPosition } = useBottomSheetInternal();
   const pausedTarget = useSharedValue<{ position: number; source: ANIMATION_SOURCE } | null>(null);
   const resumeFrame = useRef<number | null>(null);
   const surface = useRef<View>(null);
   useSheetScrollSurface(surface);
+  const nativeViewportStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') return {};
+    const { containerHeight } = animatedLayoutState.get();
+    const keyboard = animatedKeyboardState.get();
+    const keyboardHeight = keyboard.status === KEYBOARD_STATUS.SHOWN ? Math.max(0, keyboard.heightWithinContainer) : 0;
+    // Our single interactive snap keeps its height until the keyboard leaves
+    // less room. On Android adjustResize, Gorhom reports keyboardHeight=0 and
+    // the container itself shrinks, so the keyboard is not subtracted twice.
+    const availableHeight = Math.max(0, (containerHeight > 0 ? containerHeight : viewportHeight) - keyboardHeight);
+    const height = Math.min(viewportHeight, availableHeight);
+    // Same resize animation as Gorhom's content. Bound the native viewport
+    // independently of intrinsic content, allowing shorter parents to shrink it.
+    return {
+      flex: 0,
+      flexShrink: 1,
+      height: Platform.OS === 'android'
+        ? withTiming(height, ANIMATION_CONFIGS as WithTimingConfig)
+        : withSpring(height, ANIMATION_CONFIGS as WithSpringConfig),
+    };
+  }, [viewportHeight, animatedLayoutState, animatedKeyboardState]);
   // The library normally cancels its spring only after Pan activates. On web
   // that requires 15px of movement, so an opening or returning sheet can escape
   // a held finger. Preserve the animation source when a stationary grab resumes.
@@ -142,9 +163,10 @@ function SheetGestureBoundary({ children }: React.PropsWithChildren) {
     };
   }, [touch, release]);
   useEffect(() => () => { if (resumeFrame.current !== null) cancelAnimationFrame(resumeFrame.current); }, []);
-  return <View ref={surface} testID="sheet-content-viewport" style={s.content}>
+  const Viewport = Platform.OS === 'web' ? View : Animated.View;
+  return <Viewport ref={surface} testID="sheet-content-viewport" collapsable={false} style={[s.content, nativeViewportStyle]}>
     {children}
-  </View>;
+  </Viewport>;
 }
 function SheetHandleOverlay({ label, onClose }: { label: string; onClose: () => void }) {
   // Temporary diagnostic for installed iPhone builds, which cannot be inspected
