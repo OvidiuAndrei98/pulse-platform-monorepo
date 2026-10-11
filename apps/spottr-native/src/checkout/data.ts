@@ -47,7 +47,7 @@ export function parseBilling(value: unknown): InvoiceDetails | null {
   }
   return result;
 }
-export function parseCheckout(value: unknown, webUrl: string): CheckoutSession {
+export function parseCheckout(value: unknown, webUrl: string, returnOrigin?: string): CheckoutSession {
   const row = value as Partial<CheckoutSession> | null;
   if (!row || !isEventId(row.orderId) || typeof row.checkoutUrl !== 'string') throw new ApiError(0, 'INVALID_RESPONSE');
   let url: URL;
@@ -55,11 +55,12 @@ export function parseCheckout(value: unknown, webUrl: string): CheckoutSession {
   const web = new URL(webUrl);
   const stripe = url.protocol === 'https:' && url.hostname === 'checkout.stripe.com' && !url.port;
   const returned = url.origin === web.origin && ['/checkout/success', '/checkout/native-return'].includes(url.pathname);
-  if (url.username || url.password || (!stripe && !returned)) throw new ApiError(0, 'INVALID_RESPONSE');
+  const returnedToPreview = returnOrigin !== undefined && url.origin === returnOrigin && url.pathname === '/checkout/return';
+  if (url.username || url.password || (!stripe && !returned && !returnedToPreview)) throw new ApiError(0, 'INVALID_RESPONSE');
   // Older deployed APIs return only checkoutUrl + orderId. Recover the ID from
   // a recognized URL only after validating its origin; never from its fragment.
   // This identifies the session to reconcile, not proof of a successful payment.
-  const returnIds = url.searchParams.getAll('session_id');
+  const returnIds = url.searchParams.getAll(returnedToPreview ? 'sessionId' : 'session_id');
   const urlSession = stripe
     ? /^\/(?:c\/)?pay\/(cs_[A-Za-z0-9_]+)\/?$/.exec(url.pathname)?.[1]
     : returnIds.length === 1 ? returnIds[0] : undefined;

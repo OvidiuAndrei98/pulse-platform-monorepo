@@ -1,4 +1,5 @@
 import { ApiError } from '../data/http';
+import { PaymentSheetFailure } from './paymentSheetFailure';
 
 type CheckoutFailure = { messageKey: string; resetSelection: boolean };
 
@@ -12,6 +13,8 @@ const unavailableSelections = new Set([
   'Evenimentul nu a fost gasit',
 ]);
 const apiMessages = new Map([
+  ['Adresa de revenire la plata nu este configurata', 'checkout.paymentNotConfigured'],
+  ['Clientul de plata este invalid', 'checkout.paymentNotConfigured'],
   ['Platile nu sunt configurate', 'checkout.paymentNotConfigured'],
   ['Plata nativa nu este configurata', 'checkout.paymentNotConfigured'],
   ['Organizatorul nu poate accepta plati pentru acest eveniment', 'checkout.paymentOrganizerSetup'],
@@ -32,6 +35,7 @@ const apiMessages = new Map([
 
 export function checkoutFailure(error: unknown): CheckoutFailure {
   const failure = (messageKey: string, resetSelection = false) => ({ messageKey, resetSelection });
+  if (error instanceof PaymentSheetFailure) return failure(error.messageKey);
   if (error instanceof ApiError) {
     if (error.status >= 400 && error.status < 500 && unavailableSelections.has(error.code)) {
       return failure('checkout.selectionUnavailable', true);

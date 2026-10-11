@@ -55,6 +55,7 @@ type CheckoutHandler struct {
 	db                      *pgxpool.Pool
 	client                  *stripe.Client
 	appURL                  string
+	webReturnOrigins        map[string]bool
 	mailer                  ticketMailer
 	invoicing               *invoicing.Service
 	configured              bool
@@ -77,6 +78,7 @@ type CreateCheckoutRequest struct {
 	PromoCode      string                `json:"promoCode"`
 	BillingDetails BillingDetailsRequest `json:"billingDetails"`
 	Client         string                `json:"client,omitempty"`
+	ReturnOrigin   string                `json:"returnOrigin,omitempty"`
 }
 
 type BillingDetailsRequest struct {
@@ -185,8 +187,12 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	if !router.DecodeJSON(w, r, &req, maxCheckoutJSONBytes) {
 		return
 	}
-	if req.Client != "" && req.Client != checkoutClientNative && req.Client != checkoutClientNativeSheet {
+	if req.Client != "" && req.Client != checkoutClientNative && req.Client != checkoutClientNativeSheet && req.Client != checkoutClientNativeWeb {
 		router.RespondWithError(w, http.StatusBadRequest, "Clientul de plata este invalid")
+		return
+	}
+	if (req.Client == checkoutClientNativeWeb && !h.allowedWebReturnOrigin(req.ReturnOrigin)) || (req.Client != checkoutClientNativeWeb && req.ReturnOrigin != "") {
+		router.RespondWithError(w, http.StatusBadRequest, "Adresa de revenire la plata nu este configurata")
 		return
 	}
 	if req.Client == checkoutClientNativeSheet {
@@ -268,8 +274,8 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	}
 	params := &stripe.CheckoutSessionCreateParams{
 		Mode:               stripe.String("payment"),
-		SuccessURL:         stripe.String(h.checkoutSuccessURL(req.Client, eventIDString, "{CHECKOUT_SESSION_ID}")),
-		CancelURL:          stripe.String(h.checkoutCancelURL(req.Client, eventIDString)),
+		SuccessURL:         stripe.String(h.checkoutSuccessURL(req.Client, eventIDString, "{CHECKOUT_SESSION_ID}", req.ReturnOrigin)),
+		CancelURL:          stripe.String(h.checkoutCancelURL(req.Client, eventIDString, req.ReturnOrigin)),
 		CustomerEmail:      stripe.String(req.Email),
 		ClientReferenceID:  stripe.String(common.UUIDToString(order.ID)),
 		ExpiresAt:          stripe.Int64(time.Now().Add(checkoutExpiration).Unix()),

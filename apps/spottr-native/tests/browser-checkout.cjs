@@ -70,8 +70,9 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await capture('checkout-summary');
   await evaluate(`document.querySelector('[data-testid="checkout-next"]').click();document.querySelector('[data-testid="checkout-next"]').click()`);
   await until('window.__qa.opened'); assert.equal(await evaluate('window.__qa.purchase.length'), 1);
-  const order = await evaluate('window.__qa.purchase[0]'); assert.equal(order.body.email, 'guest@example.test'); assert.equal(order.body.billingDetails.sector, 'Sector 3'); assert.equal(order.body.promoCode, 'SECOND'); assert.equal(order.body.client, undefined); assert.match(order.key, /^[a-f\d-]{36}$/);
-  await evaluate('window.__qa.popup.close()'); await until(`document.querySelector('[data-testid="checkout-recheck"]')`);
+  const order = await evaluate('window.__qa.purchase[0]'); assert.equal(order.body.email, 'guest@example.test'); assert.equal(order.body.billingDetails.sector, 'Sector 3'); assert.equal(order.body.promoCode, 'SECOND'); assert.equal(order.body.client, 'native_web'); assert.equal(order.body.returnOrigin, base); assert.match(order.key, /^[a-f\d-]{36}$/);
+  await evaluate(`window.dispatchEvent(new Event('blur'));window.dispatchEvent(new Event('focus'))`); await until(`document.querySelector('[data-testid="checkout-recheck"]')`);
+  assert.equal(await evaluate('window.__qa.popup.closed'), false, 'Returning early must keep the provider tab available');
   assert.equal(await evaluate('window.__qa.reconciliations[0].sessionId'), 'cs_test_qa', 'Legacy session IDs still require server-side confirmation');
   assert.equal(await evaluate(`!!document.querySelector('[data-testid="checkout-view-tickets"]')`), false);
   await evaluate(`window.__qa.confirmation='completed'`); await click('checkout-recheck'); await until(`document.querySelector('[data-testid="checkout-view-tickets"]')`);
@@ -91,7 +92,11 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await input('billing-taxId', 'RO123'); await click('checkout-remember'); await click('checkout-next'); await until('window.__qa.billingWrites.length===1');
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 568, deviceScaleFactor: 1, mobile: true });
   await delay(200);
+  const headerTop = await evaluate(`document.querySelector('[data-testid="checkout-header"]').getBoundingClientRect().top`);
   await evaluate(`window.__qa.paymentCode=503; const scroll=document.querySelector('[data-testid="checkout-scroll"]'); scroll.scrollTop=scroll.scrollHeight`);
+  await delay(100);
+  assert.ok(await evaluate(`document.querySelector('[data-testid="checkout-scroll"]').scrollTop > 0`));
+  assert.equal(await evaluate(`document.querySelector('[data-testid="checkout-header"]').getBoundingClientRect().top`), headerTop, 'Checkout title and step bars stay fixed while summary scrolls');
   await click('checkout-next'); await until(`document.querySelector('[data-testid="checkout-error"]')`);
   assert.equal(await evaluate('window.__qa.popup.closed'), true, 'Failed preparation closes the unused popup');
   assert.ok(await evaluate(`{const el=document.querySelector('[data-testid="checkout-error"]'),r=el.getBoundingClientRect();r.top>=0&&r.bottom<=innerHeight&&el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))}`), 'Payment errors must be visible beside Pay, even when the summary is scrolled down');
@@ -128,6 +133,15 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await click('checkout-return-to-event');
   await until(`document.querySelector('[data-testid="event-continue"]')`);
   console.log('PASS cancelled cold-start return opens its event, never a false payment success');
+  await click('event-continue'); await until(`document.querySelector('[data-testid="checkout-screen"]')`);
+  await click('checkout-next'); await input('billing-address', 'Strada Test 1'); await input('billing-city', 'Cluj'); await input('billing-county', 'Cluj');
+  await click('checkout-next'); await until(`document.querySelector('[data-testid="checkout-next"]').textContent.includes('Pay')`);
+  await click('checkout-next'); await until('window.__qa.opened');
+  await evaluate(`window.__qa.confirmation='completed';window.dispatchEvent(new Event('blur'));window.dispatchEvent(new Event('focus'))`);
+  await until(`document.querySelector('[data-testid="checkout-view-tickets"]')`);
+  assert.equal(await evaluate('window.__qa.popup.closed'), false);
+  assert.equal(await evaluate('window.__qa.reconciliations.length'), 1, 'Returning after payment checks once rather than waiting for tab closure');
+  console.log('PASS completed hosted payment returns to confirmation while the provider tab stays open');
   for (const query of ['', '?eventId=' + id(1) + '&cancelled=1&sessionId=bad', '?eventId=' + id(1) + '&cancelled=1&sessionId=']) {
     await call('Page.navigate', { url: base + '/checkout/return' + query });
     await until(`document.querySelector('[data-testid="checkout-return"]')?.textContent.includes('incomplete')`);

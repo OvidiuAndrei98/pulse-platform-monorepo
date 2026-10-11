@@ -18,7 +18,11 @@ import (
 )
 
 func TestCreateCheckoutPreservesReturnClientAndReservationOnRetry(t *testing.T) {
-	for _, clientName := range []string{"", checkoutClientNative} {
+	for _, clientName := range []string{"", checkoutClientNative, checkoutClientNativeWeb} {
+		origin := ""
+		if clientName == checkoutClientNativeWeb {
+			origin = "http://localhost:8082"
+		}
 		name := clientName
 		if name == "" {
 			name = "web"
@@ -46,10 +50,10 @@ func TestCreateCheckoutPreservesReturnClientAndReservationOnRetry(t *testing.T) 
 				if r.Method != http.MethodPost || r.URL.Path != "/v1/checkout/sessions" || r.Header.Get("Stripe-Account") == "" || !strings.HasPrefix(r.Header.Get("Idempotency-Key"), "pulse-checkout-") {
 					t.Errorf("unexpected Stripe checkout context: %s %s", r.Method, r.URL.Path)
 				}
-				if got, want := r.Form.Get("success_url"), h.checkoutSuccessURL(clientName, eventID, "{CHECKOUT_SESSION_ID}"); got != want {
+				if got, want := r.Form.Get("success_url"), h.checkoutSuccessURL(clientName, eventID, "{CHECKOUT_SESSION_ID}", origin); got != want {
 					t.Errorf("success URL: got %q want %q", got, want)
 				}
-				if got, want := r.Form.Get("cancel_url"), h.checkoutCancelURL(clientName, eventID); got != want {
+				if got, want := r.Form.Get("cancel_url"), h.checkoutCancelURL(clientName, eventID, origin); got != want {
 					t.Errorf("cancel URL: got %q want %q", got, want)
 				}
 				w.Header().Set("Content-Type", "application/json")
@@ -58,7 +62,7 @@ func TestCreateCheckoutPreservesReturnClientAndReservationOnRetry(t *testing.T) 
 			defer server.Close()
 			h.client = stripe.NewClient("sk_test_fixture", stripe.WithBackends(stripe.NewBackendsWithConfig(&stripe.BackendConfig{URL: stripe.String(server.URL), HTTPClient: server.Client(), MaxNetworkRetries: stripe.Int64(0)})))
 			body, err := json.Marshal(CreateCheckoutRequest{
-				Email: f.buyerEmail, Client: clientName,
+				Email: f.buyerEmail, Client: clientName, ReturnOrigin: origin,
 				Items:          []CheckoutItemRequest{{TicketTypeID: common.UUIDToString(f.paidTicketID), Quantity: 1}},
 				BillingDetails: BillingDetailsRequest{Type: "individual", Name: "Buyer", Address: "Address", City: "City", County: "County", Country: "RO"},
 			})

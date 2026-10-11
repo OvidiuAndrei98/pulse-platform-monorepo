@@ -69,10 +69,10 @@ export async function resolveNativePayment(entry: PendingNativePayment, request:
 }
 
 export async function presentAndResolveNativePayment(entry: PendingNativePayment,
-  present: () => Promise<'completed' | 'cancelled'>, request: PaymentRequest): Promise<'verify' | 'cancelled' | 'failed'> {
+  present: () => Promise<'completed' | 'cancelled'>, request: PaymentRequest, onFailure?: (error: unknown) => void): Promise<'verify' | 'cancelled' | 'failed'> {
   let sdkFailed = false;
   try { entry.cancelRequested = await present() === 'cancelled'; }
-  catch { entry.cancelRequested = true; sdkFailed = true; }
+  catch (error) { entry.cancelRequested = true; sdkFailed = true; onFailure?.(error); }
   if (entry.cancelRequested) {
     try {
       const result = await resolveNativePayment(entry, request);

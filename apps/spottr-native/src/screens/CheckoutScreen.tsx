@@ -24,7 +24,7 @@ import { returnToEvent } from '../navigation/returnToEvent';
 import { checkoutTotals, parseBilling, parseCheckout, validPaidSelection, type Quantities } from '../checkout/data';
 import { usePromoCode } from '../checkout/usePromoCode';
 import { BillingFields, billingStyles } from '../checkout/BillingFields';
-import { preparePaymentBrowser } from '../checkout/paymentBrowser';
+import { preparePaymentBrowser, paymentReturnOrigin } from '../checkout/paymentBrowser';
 import { checkoutFailure } from '../checkout/errors';
 import { checkoutRequestKey } from '../../../pulse-app/src/features/checkout/requestKey';
 import { checkoutEmailError } from '../../../pulse-app/src/features/checkout/validateEmail';
@@ -130,11 +130,11 @@ function CheckoutContent({ route, navigation }: Props) {
         }
         // Web popup creation stays synchronous with the press to avoid blockers.
         if (Platform.OS === 'web') browser.current = preparePaymentBrowser();
-        const body = { email: email.trim(), items: totals.tickets.map(ticket => ({ ticketTypeId: ticket.id, quantity: quantities[ticket.id] })), promoCode: promo.applied?.code, billingDetails: details, ...(Platform.OS !== 'web' ? { client: 'native_sheet' } : {}) };
+        const body = { email: email.trim(), items: totals.tickets.map(ticket => ({ ticketTypeId: ticket.id, quantity: quantities[ticket.id] })), promoCode: promo.applied?.code, billingDetails: details, ...(Platform.OS !== 'web' ? { client: 'native_sheet' } : { client: 'native_web', returnOrigin: paymentReturnOrigin() }) };
         intent.current = checkoutRequestKey(intent.current, JSON.stringify({ eventId, userId: user?.id, body }), () => Crypto.getRandomBytes(16));
         const raw = await accountApi('/events/' + eventId + '/tickets/purchase', { method: 'POST', body, token, idempotencyKey: intent.current.key });
         if (Platform.OS === 'web') {
-          const response = parseCheckout(raw, WEB_URL);
+          const response = parseCheckout(raw, WEB_URL, paymentReturnOrigin());
           if (!alive.current || controller.getToken() !== token) return;
           await browser.current!.open(response.checkoutUrl, { eventId, sessionId: response.sessionId });
           if (alive.current && controller.getToken() === token) setReturned({ sessionId: response.sessionId });
@@ -148,11 +148,12 @@ function CheckoutContent({ route, navigation }: Props) {
         }
         const retained = rememberNativePayment(response, eventId, token);
         nativePayment.current = retained;
+        let nativeFailure: unknown;
         const outcome = await presentAndResolveNativePayment(retained,
-          () => openNativePaymentSheet(response, email.trim(), details), accountApi);
+          () => openNativePaymentSheet(response, email.trim(), details), accountApi, error => { nativeFailure = error; });
         if (outcome !== 'verify') {
           nativePayment.current = null; intent.current = null;
-          if (outcome === 'failed' && alive.current && controller.getToken() === token) setError('eventSheet.purchaseError');
+          if (outcome === 'failed' && alive.current && controller.getToken() === token) setError(checkoutFailure(nativeFailure).messageKey);
           return;
         }
         if (alive.current && controller.getToken() === token) setReturned({ nativeOrderId: response.orderId });
@@ -179,12 +180,14 @@ function CheckoutContent({ route, navigation }: Props) {
     <View style={s.total}><Text style={s.totalText}>{copy('checkout.total')}</Text><Text style={[s.totalText, { color: colors.accent }]}>{formatRon(totals.total)}</Text></View>
   </View>;
   return <View testID="checkout-screen" style={s.screen}>
-    <FormScrollView ref={scroll} bottomOffset={footerHeight + 16} testID="checkout-scroll" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: Math.max(16, safe.top + 12), paddingBottom: 20 }}>
+    <View testID="checkout-header" style={{ paddingTop: Math.max(16, safe.top + 12) }}>
       <View style={s.header}><Pressable testID="checkout-back" accessibilityRole="button" accessibilityLabel={copy('common.back')} disabled={busy} onPress={() => { if (!pending.current) { if (step) changeStep(step - 1); else navigation.goBack(); } }} style={s.back}><ArrowLeft size={20} color="white" /></Pressable>
         <View style={{ flex: 1, alignItems: 'center' }}><Text style={s.title}>{copy('checkout.checkoutTitle')}</Text><Text style={s.subtitle}>{copy('checkout.stepOf', { step: step + 1, total: 3 })}</Text></View>
         <Pressable testID="checkout-close" accessibilityRole="button" accessibilityLabel={copy('checkout.backToTickets')} disabled={busy} onPress={() => { if (!pending.current) navigation.goBack(); }} style={s.back}><X size={16} color="#ffffff80" /></Pressable>
       </View>
       <View style={s.progress}>{[0, 1, 2].map(index => <View key={index} style={[s.progressPart, index <= step && { backgroundColor: colors.accent }]} />)}</View>
+    </View>
+    <FormScrollView ref={scroll} style={{ flex: 1 }} bottomOffset={footerHeight + 16} testID="checkout-scroll" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 20 }}>
       {!event ? query.isPending ? <Loading /> : <Feedback title={copy('feedback.loadFailed')} retry={() => void query.refetch()} /> : <View style={s.body}>
         <View style={s.event}><View style={s.date}><Text style={s.day}>{new Date(event.startTime).toLocaleDateString(language, { day: '2-digit', timeZone: 'Europe/Bucharest' })}</Text><Text style={s.month}>{new Date(event.startTime).toLocaleDateString(language, { month: 'short', timeZone: 'Europe/Bucharest' })}</Text></View><View style={{ flex: 1 }}><Text style={s.title}>{event.title}</Text><Text style={s.category}>{event.category}</Text></View></View>
         {query.isError && <Feedback compact title={copy('checkout.availabilityCheckFailed')} retry={() => void query.refetch()} />}

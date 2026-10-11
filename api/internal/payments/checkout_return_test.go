@@ -39,6 +39,53 @@ func TestCheckoutReturnURLsEncodeValuesWithoutChangingDestination(t *testing.T) 
 	}
 }
 
+func TestExpoWebCheckoutReturnOrigins(t *testing.T) {
+	h := &CheckoutHandler{appURL: "https://dev.spottr.ro", expectedLiveModeKnown: true}
+	for _, origin := range []string{"http://localhost:8082", "http://127.0.0.1:8081", "http://[::1]:8082"} {
+		if !h.allowedWebReturnOrigin(origin) {
+			t.Fatalf("test preview rejected: %s", origin)
+		}
+		if got := h.checkoutSuccessURL(checkoutClientNativeWeb, "event", "{CHECKOUT_SESSION_ID}", origin); got != origin+"/checkout/return?eventId=event&sessionId={CHECKOUT_SESSION_ID}" {
+			t.Fatal(got)
+		}
+		if got := h.checkoutCancelURL(checkoutClientNativeWeb, "event", origin); got != origin+"/checkout/return?eventId=event&cancelled=1" {
+			t.Fatal(got)
+		}
+	}
+	for _, origin := range []string{"", "//localhost:8082", "http://localhost.evil.test:8082", "http://localhost:8082@evil.test", "http://localhost:8082/path", "http://localhost:8082?redirect=x", "http://localhost:8082#x", "http://localhost:8082?", "https://outside.test", "http://192.168.1.4:8082"} {
+		if h.allowedWebReturnOrigin(origin) {
+			t.Fatalf("unsafe origin accepted: %s", origin)
+		}
+	}
+	h.expectedLiveMode = true
+	if h.allowedWebReturnOrigin("http://localhost:8082") {
+		t.Fatal("implicit localhost enabled for live payments")
+	}
+	h.ConfigureWebCheckoutReturns("https://preview.spottr.ro,https://outside.test/path")
+	if !h.allowedWebReturnOrigin("https://preview.spottr.ro") || h.allowedWebReturnOrigin("https://outside.test/path") {
+		t.Fatal("explicit origin allowlist failed")
+	}
+	parsed, _ := url.Parse(h.checkoutSuccessURL(checkoutClientNativeWeb, "event&bad=1", "cs_test_example", "https://preview.spottr.ro"))
+	if parsed.Query().Get("eventId") != "event&bad=1" || len(parsed.Query()) != 2 {
+		t.Fatal("query injection")
+	}
+}
+
+func TestExpoWebRejectsUnconfiguredReturnBeforeReserving(t *testing.T) {
+	h := &CheckoutHandler{configured: true, expectedLiveModeKnown: true}
+	for _, req := range []CreateCheckoutRequest{
+		{Client: checkoutClientNativeWeb}, {Client: checkoutClientNativeWeb, ReturnOrigin: "https://outside.test"},
+		{ReturnOrigin: "http://localhost:8082"}, {Client: checkoutClientNativeSheet, ReturnOrigin: "http://localhost:8082"},
+	} {
+		payload, _ := json.Marshal(req)
+		w := httptest.NewRecorder()
+		h.HandleCreateCheckout(w, httptest.NewRequest(http.MethodPost, "/checkout", bytes.NewReader(payload)))
+		if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "revenire") {
+			t.Fatalf("unexpected status %d %s", w.Code, w.Body.String())
+		}
+	}
+}
+
 func TestCheckoutRejectsUnknownClientsBeforeCreatingAnOrder(t *testing.T) {
 	h := &CheckoutHandler{configured: true} // No database or Stripe client: invalid input must stop first.
 	for _, client := range []string{"web", "NATIVE", " native ", "https://outside.invalid", "spottr-native://checkout/return"} {

@@ -98,6 +98,14 @@ test('idempotency reuses one intent, but changes for quantity, account or event 
   for (const payload of ['event1:user1:qty2', 'event1:user2:qty1', 'event2:user1:qty1']) assert.notEqual(checkoutRequestKey(first, payload, random).key, first.key);
   assert.match(first.key, /^[a-f\d]{8}-[a-f\d]{4}-4[a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/);
 });
+
+test('hosted checkout replay accepts only this Expo preview origin and a fixed return route', () => {
+  const row = { orderId: id(), sessionId: 'cs_test_return', checkoutUrl: 'http://localhost:8082/checkout/return?sessionId=cs_test_return' };
+  assert.equal(parseCheckout(row, 'https://dev.spottr.ro', 'http://localhost:8082').sessionId, row.sessionId);
+  for (const checkoutUrl of ['http://localhost:8083/checkout/return?sessionId=cs_test_return', 'http://localhost:8082/other?sessionId=cs_test_return', 'http://localhost:8082/checkout/return?sessionId=cs_test_other']) {
+    assert.throws(() => parseCheckout({ ...row, checkoutUrl }, 'https://dev.spottr.ro', 'http://localhost:8082'));
+  }
+});
 test('free booking and RSVP parse authoritative responses without inventing successful state', () => {
   for (const value of [null, {}, { orderId: id() }, { orderId: 'bad', alreadyBooked: false }]) assert.throws(() => parseBooking(value));
   assert.equal(parseBooking({ orderId: id(), alreadyBooked: true }).alreadyBooked, true);

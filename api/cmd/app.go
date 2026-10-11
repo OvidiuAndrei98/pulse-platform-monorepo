@@ -220,6 +220,7 @@ func (app *Application) BuildRouter() http.Handler {
 	ticketingHandler := tickets.NewHandler(app.Queries, app.Pool, os.Getenv("PUBLIC_APP_URL"))
 	stripeCheckoutHandler := payments.NewCheckoutHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), mailerService, app.Invoicing, app.Abuse)
 	stripeCheckoutHandler.ConfigureNativePaymentSheet(os.Getenv("STRIPE_PUBLISHABLE_KEY"))
+	stripeCheckoutHandler.ConfigureWebCheckoutReturns(os.Getenv("CHECKOUT_WEB_RETURN_ORIGINS"))
 	app.Refunds = stripeCheckoutHandler
 	promotionHandler := promotions.NewHandler(app.Queries, app.Pool, os.Getenv("STRIPE_SECRET_KEY"), os.Getenv("PUBLIC_APP_URL"), app.Invoicing)
 	stripeWebhookHandler := payments.NewWebhookHandler(os.Getenv("STRIPE_WEBHOOK_SECRET"), stripeCheckoutHandler, promotionHandler)

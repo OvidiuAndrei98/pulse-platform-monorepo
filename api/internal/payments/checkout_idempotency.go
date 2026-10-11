@@ -75,13 +75,13 @@ func (h *CheckoutHandler) beginCheckoutRequest(w http.ResponseWriter, r *http.Re
 		return r, id, false
 	}
 	if !claimed {
-		h.replayCheckoutRequest(w, r, id, req.Client)
+		h.replayCheckoutRequest(w, r, id, req.Client, req.ReturnOrigin)
 		return r, id, false
 	}
 	return r.WithContext(context.WithValue(r.Context(), checkoutRequestContextKey{}, id)), id, true
 }
 
-func (h *CheckoutHandler) replayCheckoutRequest(w http.ResponseWriter, r *http.Request, id pgtype.UUID, client string) {
+func (h *CheckoutHandler) replayCheckoutRequest(w http.ResponseWriter, r *http.Request, id pgtype.UUID, client string, origins ...string) {
 	if client == checkoutClientNativeSheet {
 		h.replayNativePaymentSheet(w, r, id)
 		return
@@ -118,7 +118,7 @@ FROM checkout_requests cr LEFT JOIN orders o ON o.id=cr.order_id WHERE cr.id=$1`
 			if err == nil && session != nil {
 				url := session.URL
 				if session.Status == stripe.CheckoutSessionStatusComplete {
-					url = h.checkoutSuccessURL(client, common.UUIDToString(eventID), session.ID)
+					url = h.checkoutSuccessURL(client, common.UUIDToString(eventID), session.ID, origins...)
 				} else if session.Status == stripe.CheckoutSessionStatusExpired {
 					router.RespondWithError(w, http.StatusConflict, "Sesiunea de plata a expirat. Reincearca.")
 					return
