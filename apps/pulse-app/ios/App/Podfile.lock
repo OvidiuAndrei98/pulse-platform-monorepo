@@ -2,7 +2,7 @@ PODS:
   - AparajitaCapacitorSecureStorage (8.0.0):
     - Capacitor
     - KeychainSwift (~> 21.0)
-  - Capacitor (8.4.2):
+  - Capacitor (8.5.2):
     - CapacitorCordova
   - CapacitorApp (8.1.1):
     - Capacitor
@@ -11,7 +11,7 @@ PODS:
   - CapacitorCamera (8.2.1):
     - Capacitor
     - IONCameraLib (~> 1.0.4)
-  - CapacitorCordova (8.4.2)
+  - CapacitorCordova (8.5.2)
   - CapacitorGeolocation (8.2.0):
     - Capacitor
     - IONGeolocationLib (= 2.1.0)
@@ -78,17 +78,17 @@ PODS:
 
 DEPENDENCIES:
   - "AparajitaCapacitorSecureStorage (from `../../../../node_modules/.pnpm/@aparajita+capacitor-secure-storage@8.0.0/node_modules/@aparajita/capacitor-secure-storage`)"
-  - "Capacitor (from `../../../../node_modules/.pnpm/@capacitor+ios@8.4.2_@capacitor+core@8.4.2/node_modules/@capacitor/ios`)"
-  - "CapacitorApp (from `../../../../node_modules/.pnpm/@capacitor+app@8.1.1_@capacitor+core@8.4.2/node_modules/@capacitor/app`)"
-  - "CapacitorBrowser (from `../../../../node_modules/.pnpm/@capacitor+browser@8.0.4_@capacitor+core@8.4.2/node_modules/@capacitor/browser`)"
-  - "CapacitorCamera (from `../../../../node_modules/.pnpm/@capacitor+camera@8.2.1_@capacitor+core@8.4.2/node_modules/@capacitor/camera`)"
-  - "CapacitorCordova (from `../../../../node_modules/.pnpm/@capacitor+ios@8.4.2_@capacitor+core@8.4.2/node_modules/@capacitor/ios`)"
-  - "CapacitorGeolocation (from `../../../../node_modules/.pnpm/@capacitor+geolocation@8.2.0_@capacitor+core@8.4.2/node_modules/@capacitor/geolocation`)"
-  - "CapacitorMlkitBarcodeScanning (from `../../../../node_modules/.pnpm/@capacitor-mlkit+barcode-scanning@8.1.0_@capacitor+core@8.4.2/node_modules/@capacitor-mlkit/barcode-scanning`)"
-  - "CapacitorNetwork (from `../../../../node_modules/.pnpm/@capacitor+network@8.0.1_@capacitor+core@8.4.2/node_modules/@capacitor/network`)"
-  - "CapacitorPreferences (from `../../../../node_modules/.pnpm/@capacitor+preferences@8.0.1_@capacitor+core@8.4.2/node_modules/@capacitor/preferences`)"
-  - "CapacitorPushNotifications (from `../../../../node_modules/.pnpm/@capacitor+push-notifications@8.1.2_@capacitor+core@8.4.2/node_modules/@capacitor/push-notifications`)"
-  - "CapacitorShare (from `../../../../node_modules/.pnpm/@capacitor+share@8.0.1_@capacitor+core@8.4.2/node_modules/@capacitor/share`)"
+  - "Capacitor (from `../../../../node_modules/.pnpm/@capacitor+ios@8.5.2_@capacitor+core@8.5.2/node_modules/@capacitor/ios`)"
+  - "CapacitorApp (from `../../../../node_modules/.pnpm/@capacitor+app@8.1.1_@capacitor+core@8.5.2/node_modules/@capacitor/app`)"
+  - "CapacitorBrowser (from `../../../../node_modules/.pnpm/@capacitor+browser@8.0.4_@capacitor+core@8.5.2/node_modules/@capacitor/browser`)"
+  - "CapacitorCamera (from `../../../../node_modules/.pnpm/@capacitor+camera@8.2.1_@capacitor+core@8.5.2/node_modules/@capacitor/camera`)"
+  - "CapacitorCordova (from `../../../../node_modules/.pnpm/@capacitor+ios@8.5.2_@capacitor+core@8.5.2/node_modules/@capacitor/ios`)"
+  - "CapacitorGeolocation (from `../../../../node_modules/.pnpm/@capacitor+geolocation@8.2.0_@capacitor+core@8.5.2/node_modules/@capacitor/geolocation`)"
+  - "CapacitorMlkitBarcodeScanning (from `../../../../node_modules/.pnpm/@capacitor-mlkit+barcode-scanning@8.1.0_@capacitor+core@8.5.2/node_modules/@capacitor-mlkit/barcode-scanning`)"
+  - "CapacitorNetwork (from `../../../../node_modules/.pnpm/@capacitor+network@8.0.1_@capacitor+core@8.5.2/node_modules/@capacitor/network`)"
+  - "CapacitorPreferences (from `../../../../node_modules/.pnpm/@capacitor+preferences@8.0.1_@capacitor+core@8.5.2/node_modules/@capacitor/preferences`)"
+  - "CapacitorPushNotifications (from `../../../../node_modules/.pnpm/@capacitor+push-notifications@8.1.2_@capacitor+core@8.5.2/node_modules/@capacitor/push-notifications`)"
+  - "CapacitorShare (from `../../../../node_modules/.pnpm/@capacitor+share@8.0.1_@capacitor+core@8.5.2/node_modules/@capacitor/share`)"
 
 SPEC REPOS:
   trunk:
@@ -111,35 +111,35 @@ EXTERNAL SOURCES:
   AparajitaCapacitorSecureStorage:
     :path: "../../../../node_modules/.pnpm/@aparajita+capacitor-secure-storage@8.0.0/node_modules/@aparajita/capacitor-secure-storage"
   Capacitor:
-    :path: "../../../../node_modules/.pnpm/@capacitor+ios@8.4.2_@capacitor+core@8.4.2/node_modules/@capacitor/ios"
+    :path: "../../../../node_modules/.pnpm/@capacitor+ios@8.5.2_@capacitor+core@8.5.2/node_modules/@capacitor/ios"
   CapacitorApp:
-    :path: "../../../../node_modules/.pnpm/@capacitor+app@8.1.1_@capacitor+core@8.4.2/node_modules/@capacitor/app"
+    :path: "../../../../node_modules/.pnpm/@capacitor+app@8.1.1_@capacitor+core@8.5.2/node_modules/@capacitor/app"
   CapacitorBrowser:
-    :path: "../../../../node_modules/.pnpm/@capacitor+browser@8.0.4_@capacitor+core@8.4.2/node_modules/@capacitor/browser"
+    :path: "../../../../node_modules/.pnpm/@capacitor+browser@8.0.4_@capacitor+core@8.5.2/node_modules/@capacitor/browser"
   CapacitorCamera:
-    :path: "../../../../node_modules/.pnpm/@capacitor+camera@8.2.1_@capacitor+core@8.4.2/node_modules/@capacitor/camera"
+    :path: "../../../../node_modules/.pnpm/@capacitor+camera@8.2.1_@capacitor+core@8.5.2/node_modules/@capacitor/camera"
   CapacitorCordova:
-    :path: "../../../../node_modules/.pnpm/@capacitor+ios@8.4.2_@capacitor+core@8.4.2/node_modules/@capacitor/ios"
+    :path: "../../../../node_modules/.pnpm/@capacitor+ios@8.5.2_@capacitor+core@8.5.2/node_modules/@capacitor/ios"
   CapacitorGeolocation:
-    :path: "../../../../node_modules/.pnpm/@capacitor+geolocation@8.2.0_@capacitor+core@8.4.2/node_modules/@capacitor/geolocation"
+    :path: "../../../../node_modules/.pnpm/@capacitor+geolocation@8.2.0_@capacitor+core@8.5.2/node_modules/@capacitor/geolocation"
   CapacitorMlkitBarcodeScanning:
-    :path: "../../../../node_modules/.pnpm/@capacitor-mlkit+barcode-scanning@8.1.0_@capacitor+core@8.4.2/node_modules/@capacitor-mlkit/barcode-scanning"
+    :path: "../../../../node_modules/.pnpm/@capacitor-mlkit+barcode-scanning@8.1.0_@capacitor+core@8.5.2/node_modules/@capacitor-mlkit/barcode-scanning"
   CapacitorNetwork:
-    :path: "../../../../node_modules/.pnpm/@capacitor+network@8.0.1_@capacitor+core@8.4.2/node_modules/@capacitor/network"
+    :path: "../../../../node_modules/.pnpm/@capacitor+network@8.0.1_@capacitor+core@8.5.2/node_modules/@capacitor/network"
   CapacitorPreferences:
-    :path: "../../../../node_modules/.pnpm/@capacitor+preferences@8.0.1_@capacitor+core@8.4.2/node_modules/@capacitor/preferences"
+    :path: "../../../../node_modules/.pnpm/@capacitor+preferences@8.0.1_@capacitor+core@8.5.2/node_modules/@capacitor/preferences"
   CapacitorPushNotifications:
-    :path: "../../../../node_modules/.pnpm/@capacitor+push-notifications@8.1.2_@capacitor+core@8.4.2/node_modules/@capacitor/push-notifications"
+    :path: "../../../../node_modules/.pnpm/@capacitor+push-notifications@8.1.2_@capacitor+core@8.5.2/node_modules/@capacitor/push-notifications"
   CapacitorShare:
-    :path: "../../../../node_modules/.pnpm/@capacitor+share@8.0.1_@capacitor+core@8.4.2/node_modules/@capacitor/share"
+    :path: "../../../../node_modules/.pnpm/@capacitor+share@8.0.1_@capacitor+core@8.5.2/node_modules/@capacitor/share"
 
 SPEC CHECKSUMS:
   AparajitaCapacitorSecureStorage: 8128d05cafcb13b00448e20fb388a0edccd44b12
-  Capacitor: 52f999235b8bd6a7d01694753f4f4d54d182e3a3
+  Capacitor: 89067779e14fb7ea56af07b4817f45d1f0c2a269
   CapacitorApp: 305bd13c44f6f9d164e2ee66a4faa956ed8c0e06
   CapacitorBrowser: 752e0208aa07c7aa63d1f7cde895a3e9519b2656
   CapacitorCamera: 1b9dde3aaffbd1f051486f4cee2b4cdd962662ae
-  CapacitorCordova: 345eacdc4c8282415446aea4acd8c77d82480bd4
+  CapacitorCordova: 5bec5648cbd09a176ce34ce5e7b6cdabb2c8a327
   CapacitorGeolocation: b36f6287bfc9f2eefa04dc900496f2c8ae666136
   CapacitorMlkitBarcodeScanning: 31c6af9f39873ff69e16ed5b39ebe2e1915f16fe
   CapacitorNetwork: 8812ce60d11fb63d8f2e4ba51a49b2e59892ebe2
@@ -161,6 +161,6 @@ SPEC CHECKSUMS:
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
 
-PODFILE CHECKSUM: cb148b738bc921438a9a38555fbda32468cfe7d4
+PODFILE CHECKSUM: abdf8535ff58fd962e1fc4d2da6f0b858aebc181
 
 COCOAPODS: 1.17.0
