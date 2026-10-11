@@ -1,16 +1,26 @@
 import { useCallback } from 'react';
 import { State } from 'react-native-gesture-handler';
 import { scrollTo } from 'react-native-reanimated';
-import { SCROLLABLE_STATUS, SHEET_STATE, useBottomSheetInternal, useScrollEventsHandlersDefault, type ScrollEventsHandlersHookType, type ScrollEventHandlerCallbackType } from '@gorhom/bottom-sheet';
+import { ANIMATION_STATUS, SCROLLABLE_STATUS, SHEET_STATE, useBottomSheetInternal, useScrollEventsHandlersDefault, type ScrollEventsHandlersHookType, type ScrollEventHandlerCallbackType } from '@gorhom/bottom-sheet';
 
 /** Native-only fixes around Gorhom 5.2.14's scroll lock. Pan stays library-owned. */
 export const useSheetScrollEvents: ScrollEventsHandlersHookType = (ref, offset) => {
   const original = useScrollEventsHandlersDefault(ref, offset);
-  const { animatedScrollableStatus, animatedSheetState, animatedHandleGestureState } = useBottomSheetInternal();
+  const { animatedScrollableStatus, animatedScrollableState, animatedAnimationState, animatedSheetState, animatedHandleGestureState, animatedPosition, animatedDetentsState } = useBottomSheetInternal();
   type Handler = ScrollEventHandlerCallbackType<Record<string, unknown>>;
+  const isAtOpenPosition = useCallback(() => {
+    'worklet';
+    const highest = animatedDetentsState.get().highestDetentPosition;
+    // Gorhom's derived EXTENDED state uses exact coordinate equality. Native
+    // layout/animation rounding must not turn an expanded sheet into a scroll
+    // lock. Keyboard-raised positions are also above this snap. The grabber
+    // still owns its lock while it is actively moving the sheet.
+    return highest !== undefined && animatedHandleGestureState.value !== State.ACTIVE
+      && animatedPosition.value <= highest + 0.5;
+  }, [animatedDetentsState, animatedHandleGestureState, animatedPosition]);
   const lock = useCallback((y: number, context: Record<string, unknown>) => {
     'worklet';
-    if (animatedScrollableStatus.value !== SCROLLABLE_STATUS.LOCKED) return false;
+    if (animatedScrollableStatus.value !== SCROLLABLE_STATUS.LOCKED || isAtOpenPosition()) return false;
     const position = context.shouldLockInitialPosition && typeof context.initialContentOffsetY === 'number' ? context.initialContentOffsetY : 0;
     offset.value = position;
     // On Fabric, scrollTo can synchronously emit another onScroll. Repeating
@@ -18,25 +28,34 @@ export const useSheetScrollEvents: ScrollEventsHandlersHookType = (ref, offset) 
     // Native pixel rounding also needs tolerance, not exact float equality.
     if (Math.abs(y - position) > 0.5) scrollTo(ref as Parameters<typeof scrollTo>[0], 0, position, false);
     return true;
-  }, [animatedScrollableStatus, offset, ref]);
+  }, [animatedScrollableStatus, isAtOpenPosition, offset, ref]);
+  const handleOnBeginDrag: Handler = useCallback((event, context) => {
+    'worklet';
+    (original.handleOnBeginDrag as Handler | undefined)?.(event, context);
+    if (isAtOpenPosition()) context.shouldLockInitialPosition = false;
+  }, [isAtOpenPosition, original.handleOnBeginDrag]);
   const handleOnScroll: Handler = useCallback((event, context) => {
     'worklet';
-    if (animatedSheetState.value === SHEET_STATE.EXTENDED || animatedSheetState.value === SHEET_STATE.FILL_PARENT) context.shouldLockInitialPosition = false;
+    if (isAtOpenPosition() || animatedSheetState.value === SHEET_STATE.EXTENDED || animatedSheetState.value === SHEET_STATE.FILL_PARENT) context.shouldLockInitialPosition = false;
     if (animatedHandleGestureState.value === State.ACTIVE) {
       context.shouldLockInitialPosition = true;
       context.initialContentOffsetY = event.contentOffset.y;
     }
-    if (!lock(event.contentOffset.y, context)) (original.handleOnScroll as Handler | undefined)?.(event, context);
-  }, [animatedSheetState, animatedHandleGestureState, lock, original.handleOnScroll]);
-  const handleOnEndDrag: Handler = useCallback((event, context) => {
+    // Keep the scroll view's own offset current, including momentum and focus
+    // changes. Do not update the pan recognizer's offset here: it combines the
+    // start offset with cumulative translation until the gesture ends.
+    if (!lock(event.contentOffset.y, context)) offset.value = event.contentOffset.y;
+  }, [isAtOpenPosition, animatedSheetState, animatedHandleGestureState, lock, offset]);
+  const handleOnFinish: Handler = useCallback((event, context) => {
     'worklet';
-    if (!lock(event.contentOffset.y, context)) (original.handleOnEndDrag as Handler | undefined)?.(event, context);
-  }, [lock, original.handleOnEndDrag]);
-  const handleOnMomentumEnd: Handler = useCallback((event, context) => {
-    'worklet';
-    // The original locked branch stores zero even when lockPosition > 0.
-    // Keep the real offset so refocus/next drag does not jump back to the top.
-    if (!lock(event.contentOffset.y, context)) (original.handleOnMomentumEnd as Handler | undefined)?.(event, context);
-  }, [lock, original.handleOnMomentumEnd]);
-  return { ...original, handleOnScroll, handleOnEndDrag, handleOnMomentumEnd };
+    if (lock(event.contentOffset.y, context)) return;
+    offset.value = event.contentOffset.y;
+    // A slow release may have no momentum-end event. Save it now even if an
+    // opening/keyboard animation is settling at the open snap; otherwise the
+    // next gesture or focus registration can restore the initial zero.
+    if (isAtOpenPosition() || animatedAnimationState.get().status !== ANIMATION_STATUS.RUNNING) {
+      animatedScrollableState.set(state => ({ ...state, contentOffsetY: event.contentOffset.y }));
+    }
+  }, [lock, offset, isAtOpenPosition, animatedAnimationState, animatedScrollableState]);
+  return { ...original, handleOnBeginDrag, handleOnScroll, handleOnEndDrag: handleOnFinish, handleOnMomentumEnd: handleOnFinish };
 };
