@@ -13,10 +13,10 @@ const C = {
 };
 const shared = <T>(value: T) => ({ value, get() { return this.value; }, set(next: T | ((previous: T) => T)) { this.value = typeof next === 'function' ? (next as (v: T) => T)(this.value) : next; } });
 function fixture(reentrant = true) {
-  const offset = shared(0), commands: number[] = [], destinations: number[] = [];
+  const offset = shared(0), commands: number[] = [], destinations: number[] = [], trace: any[] = [];
   const internal = {
     animatedScrollableStatus: shared(C.SCROLLABLE_STATUS.LOCKED), animatedSheetState: shared(C.SHEET_STATE.OPENED),
-    animatedHandleGestureState: shared(0), animatedScrollableState: shared({ contentOffsetY: 0, type: C.SCROLLABLE_TYPE.SCROLLVIEW, refreshable: false }),
+    animatedHandleGestureState: shared(0), animatedContentGestureState: shared(0), animatedScrollableState: shared({ contentOffsetY: 0, type: C.SCROLLABLE_TYPE.SCROLLVIEW, refreshable: false }),
     animatedAnimationState: shared({ status: C.ANIMATION_STATUS.STOPPED }),
     animatedPosition: shared(250), animatedDetentsState: shared({ highestDetentPosition: 84.4, detents: [84.4], closedDetentPosition: 844 }),
     animatedLayoutState: shared({ containerHeight: 844, window: { height: 844 } }),
@@ -37,6 +37,7 @@ function fixture(reentrant = true) {
       if (reentrant) handlers.handleOnScroll({ contentOffset: { y } }, context);
     } },
     '../constants': C,
+    './sheetScrollDiagnostics': { recordSheetScroll: (sample: any) => { trace.push(sample); } },
     './useBottomSheetInternal': { useBottomSheetInternal: () => internal },
   };
   const load = (file: string) => {
@@ -53,11 +54,46 @@ function fixture(reentrant = true) {
   const hook = process.env.TEST_NATIVE_SCROLL_BASELINE ? defaults.useScrollEventsHandlersDefault : load('../src/ui/useSheetScrollEvents.ts').useSheetScrollEvents;
   handlers = hook({}, offset);
   return {
-    internal, offset, commands, destinations,
+    internal, offset, commands, destinations, trace,
     gesture(name: string, translationY: number, velocityY = 0) { pan[name](C.GESTURE_SOURCE.CONTENT, { translationY, velocityY, absoluteY: 400 }); },
-    run(name: string, y: number) { handlers[name]({ contentOffset: { y } }, context); },
+    run(name: string, y: number, metrics = {}) { handlers[name]({ contentOffset: { y }, ...metrics }, context); },
   };
 }
+
+test('native diagnostic captures UIKit release target and dimensions without changing the scroll', () => {
+  const f = fixture();
+  f.internal.animatedPosition.value = 84.4;
+  f.internal.animatedScrollableStatus.value = C.SCROLLABLE_STATUS.UNLOCKED;
+  f.run('handleOnBeginDrag', 0);
+  for (let y = 1; y <= 400; y++) f.run('handleOnScroll', y);
+  assert.equal(f.trace.length, 1, 'Ordinary frames must not enqueue diagnostic work on JS');
+  f.run('handleOnEndDrag', 400, {
+    contentSize: { width: 390, height: 1500 }, layoutMeasurement: { width: 390, height: 740 },
+    contentInset: { top: 0, bottom: 0 }, targetContentOffset: { x: 0, y: 700 }, velocity: { x: 0, y: 2 },
+  });
+  const release = f.trace.at(-1);
+  assert.equal(release.phase, 'release');
+  assert.equal(release.contentHeight, 1500);
+  assert.equal(release.viewportHeight, 740);
+  assert.equal(release.targetY, 700);
+  assert.equal(release.y, 400);
+  f.run('handleOnMomentumBegin', 400);
+  f.run('handleOnMomentumEnd', 700);
+  assert.equal(f.trace.at(-1).y, 700);
+  assert.deepEqual(f.commands, []);
+  assert.equal(f.offset.value, 700);
+});
+
+test('native diagnostic records one corrective command per drag without flooding JS', () => {
+  const f = fixture(false);
+  f.run('handleOnBeginDrag', 220);
+  for (let y = 240; y <= 250; y++) f.run('handleOnScroll', y);
+  assert.equal(f.trace.filter(sample => sample.phase === 'lock').length, 1);
+  assert.equal(f.trace.find(sample => sample.phase === 'lock').lockY, 220);
+  f.run('handleOnBeginDrag', 220);
+  f.run('handleOnScroll', 250);
+  assert.equal(f.trace.filter(sample => sample.phase === 'lock').length, 2);
+});
 test('native locked scroll cannot recursively dispatch scrollTo on Fabric', () => {
   const f = fixture();
   f.run('handleOnScroll', 42);
