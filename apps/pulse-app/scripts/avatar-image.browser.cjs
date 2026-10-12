@@ -16,6 +16,7 @@ const chrome = process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Applic
 const child = spawn(chrome, ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "about:blank"], { windowsHide: true, stdio: ["ignore", "ignore", "pipe"] });
 let socket;
 
+
 async function run() {
   const endpoint = await new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error("Chrome startup timed out")), 15000);
