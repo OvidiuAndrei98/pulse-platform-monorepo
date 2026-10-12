@@ -1,4 +1,5 @@
 import { Text } from "./ui/Text";
+import { captureAppError, diagnosticScreen } from './diagnostics/runtime';
 import React, { useEffect, useId, useState } from "react";
 import { AppState, Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -42,6 +43,8 @@ import { SavedEventsScreen, TicketsScreen, OrdersScreen } from "./screens/Accoun
 import { AuthScreen } from "./screens/AuthScreen";
 import { CheckoutScreen } from "./screens/CheckoutScreen";
 import { CheckoutReturnScreen } from "./screens/CheckoutReturnScreen";
+import { PaymentRecovery } from './checkout/PaymentRecovery';
+import { TicketCacheSync } from './data/useTickets';
 import { isStripeReturnURL } from "./checkout/nativePayment";
 import { paymentBrowserActive } from "./checkout/paymentBrowser";
 import { NATIVE_CHECKOUT_RETURN } from "../../pulse-app/src/features/checkout/nativeReturn";
@@ -218,7 +221,7 @@ function Navigator() {
   const navigator = useNavigationContainerRef<RootParamList>();
   const [dashboardWorkspace, setDashboardWorkspace] = useState(false);
   const [rootState, setRootState] = useState<NavigationState>();
-  const syncWorkspace = () => { const state=navigator.getRootState(); setRootState(state); const name=state?.routes[state.index]?.name; setDashboardWorkspace(name==='Dashboard'||name==='Scanner'); };
+  const syncWorkspace = () => { const state=navigator.getRootState(); setRootState(state); diagnosticScreen(navigator.getCurrentRoute()?.name); const name=state?.routes[state.index]?.name; setDashboardWorkspace(name==='Dashboard'||name==='Scanner'); };
 
   useEffect(() => {
     if (Platform.OS === "web") return;
@@ -281,6 +284,8 @@ function Navigator() {
         <Root.Screen name="Admin" component={AdminScreen}/>
         <Root.Screen name="CheckoutReturn" component={CheckoutReturnScreen} options={{ presentation: "transparentModal", animation: "fade", gestureEnabled: false }} />
       </Root.Navigator>
+      <PaymentRecovery navigation={navigator} state={rootState} />
+      <TicketCacheSync />
       </MainTabBarProvider>
     </NavigationContainer></View>
   );
@@ -294,6 +299,7 @@ class ErrorBoundary extends React.Component<
     return { failed: true };
   }
   componentDidCatch(error: Error) {
+    captureAppError(error, true, true);
     console.error("Spottr native screen failed", error);
   }
   render() {

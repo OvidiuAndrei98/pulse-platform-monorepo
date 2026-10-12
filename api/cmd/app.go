@@ -15,6 +15,7 @@ import (
 	db "pulse-api/db/generated"
 	"pulse-api/internal/abuse"
 	"pulse-api/internal/auth"
+	"pulse-api/internal/diagnostics"
 	"pulse-api/internal/email"
 	"pulse-api/internal/events"
 	"pulse-api/internal/interactions"
@@ -211,6 +212,7 @@ func (app *Application) BuildRouter() http.Handler {
 	interactionsHandler := interactions.NewHandler(app.Queries)
 	usersHandler := users.NewHandler(app.Queries, app.Pool)
 	notificationsHandler := notifications.NewHandler(app.Queries)
+	diagnosticsHandler := &diagnostics.Handler{Store: diagnostics.PostgresStore{Pool: app.Pool}}
 	safetyGroupsHandler := safetygroups.NewHandler(app.Pool, app.Abuse)
 	authMiddleware := auth.AuthMiddleware
 	scannerAuthMiddleware := auth.ScannerAuthMiddleware
@@ -248,6 +250,15 @@ func (app *Application) BuildRouter() http.Handler {
 		OrganizerMiddleware:    requireOrganizer,
 		AdminMiddleware:        requireAdmin,
 		RateLimit:              app.Abuse.Middleware,
+		ReportClientError:      diagnosticsHandler.Ingest,
+		ListClientErrors:       diagnosticsHandler.List,
+		DiagnosticRateLimit: func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if app.Abuse.Enforce(r.Context(), w, "diagnostics_global", "all", 1000, time.Hour) {
+					next.ServeHTTP(w, r)
+				}
+			})
+		},
 		IdentityRateLimit: func(scope string, limit int, window time.Duration) func(http.Handler) http.Handler {
 			return func(next http.Handler) http.Handler {
 				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -458,6 +469,10 @@ func (app *Application) StartAbuseProtectionWorker(ctx context.Context) {
 
 func (app *Application) StartSafetyGroupCleanupWorker(ctx context.Context) {
 	safetygroups.NewHandler(app.Pool, app.Abuse).StartCleanupWorker(ctx)
+}
+
+func (app *Application) StartDiagnosticsCleanupWorker(ctx context.Context) {
+	(&diagnostics.Handler{Store: diagnostics.PostgresStore{Pool: app.Pool}}).StartCleanupWorker(ctx)
 }
 
 func (app *Application) StartUserMediaDeletionWorker(ctx context.Context) {

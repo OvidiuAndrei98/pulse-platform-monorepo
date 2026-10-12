@@ -32,6 +32,7 @@ func main() {
 	coreApp.StartCheckoutReconciliationWorker(workerCtx)
 	coreApp.StartAbuseProtectionWorker(workerCtx)
 	coreApp.StartSafetyGroupCleanupWorker(workerCtx)
+	coreApp.StartDiagnosticsCleanupWorker(workerCtx)
 	coreApp.StartUserMediaDeletionWorker(workerCtx)
 
 	port := os.Getenv("PORT")

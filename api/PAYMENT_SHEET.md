@@ -47,11 +47,25 @@ After installing dependencies on the Mac, run
 `pnpm --filter @apps/spottr-native android`. A Metro reload of an old installed
 binary cannot add Stripe, Keyboard Controller or Haptics native modules.
 
-Pending payments are resumed when reopening checkout in the same app session.
-The in-memory capability is intentionally cleared when the account changes and
-is not persisted across app termination. After a process restart, server
-reconciliation/webhooks still issue paid tickets and email; the user's tickets
-page is the recovery entry point. A guest relies on the ticket email.
+Before presenting Stripe, native checkout commits recovery context to Expo
+SecureStore (iOS Keychain / Android Keystore-backed storage). Records are scoped
+by API URL and stable account ID, with a separate guest scope, and contain no
+card data, billing details or copied login tokens. In-memory capabilities are
+cleared when the account changes; returning to the same account restores only
+its own records using the current login token.
+
+After a cold start and auth hydration, the app opens server confirmation from
+the main tabs, once per recovered order. It defers to active event links, checkout
+and scanner screens. Pending/offline results remain recoverable; checkout waits
+for storage hydration before allowing another purchase of the same event.
+Foregrounding confirmation rechecks a pending result. Explicit cancellation uses
+the existing server state machine, so a cancellation race can still show success.
+Leaving a confirmed terminal result removes its durable recovery record.
+
+Recovery applies to payments started with this client version. Older terminated
+sessions have no saved capability; server reconciliation/webhooks and My tickets
+(or the guest ticket email) remain their recovery path. Uninstalling or clearing
+device storage is not guaranteed to preserve local recovery.
 
 ## Contract and recovery
 
@@ -62,9 +76,12 @@ to Stripe; no card details should pass through the SPOTTR API.
 
 `POST /api/v1/checkout/payment-sheet/reconcile` and `/cancel` accept the exact
 `orderId`, `eventId`, `paymentIntentId` and `paymentIntentClientSecret`. The secret is
-the guest payment capability. Keep it only in memory, send it only over HTTPS in
-the request body, and exclude it from logs, analytics, URLs, persistent navigation
-state and storage. Responses use `Cache-Control: no-store`.
+the guest payment capability. Send it only over HTTPS in the request body and
+exclude it from logs, analytics, URLs, navigation state and ordinary storage.
+The native recovery journal may persist it only through SecureStore with
+`WHEN_UNLOCKED_THIS_DEVICE_ONLY`, one small item per order; there is no
+AsyncStorage/localStorage fallback. A failed journal write prevents presenting
+Stripe and attempts server cancellation. Responses use `Cache-Control: no-store`.
 
 Both endpoints return the committed order state: `pending`, `completed`, `failed`
 or `refunded`. A successful SDK dismissal or redirect alone is not payment proof.
@@ -89,3 +106,11 @@ They use only a local mock Stripe server, including concurrent success/cancel,
 repeated callbacks, exact-account/capability validation, unknown cancellation,
 expiry, retryable failures and idempotent creation. Real Stripe test-mode payments,
 3DS, cancellation and refunds remain necessary before deployment.
+
+Native regression tests: `pnpm --filter @apps/spottr-native test`. The recovery
+tests simulate process restart, changed login tokens/accounts, guests, missing
+or corrupt storage, concurrent writes, offline/ambiguous results and native Back.
+The UI tests execute the actual startup/confirmation components with simulated
+native views, storage and API responses. On a real device, start a Stripe **test**
+payment, terminate the app before confirmation, then reopen it; verify pending,
+paid, canceled and offline outcomes, including return from bank authentication.

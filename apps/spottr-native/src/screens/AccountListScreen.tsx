@@ -9,7 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { components } from '@packages/api-client/src/schema';
 import { accountApi, useAuth } from '../auth/AuthProvider';
 import { usePreferences } from '../PreferencesProvider';
-import { useTickets } from './ProfileScreen';
+import { useTickets } from '../data/useTickets';
+import { TicketAvailability } from '../profile/TicketAvailability';
 import { TicketSheet } from '../profile/TicketSheet';
 import { ticketStatus, type UserTicket } from '../data/tickets';
 import { EventImage, Feedback, Loading, useOpenLink } from '../ui/common';
@@ -31,7 +32,7 @@ export function SavedEventsScreen() {
 }
 
 export function TicketsScreen() {
-  const tickets = useTickets(), { user } = useAuth(), { copy, language } = usePreferences(), focused = useIsFocused();
+  const focused = useIsFocused(), tickets = useTickets(focused), { user } = useAuth(), { copy, language } = usePreferences();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const [tab, setTab] = useState<'active' | 'history' | 'used' | 'expired'>('active'), [selected, setSelected] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -48,6 +49,7 @@ export function TicketsScreen() {
       return <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={() => setTab(value)} style={{ flex: 1, padding: 12, alignItems: 'center', borderRadius: 99, backgroundColor: active ? colors.accent : 'transparent' }}><Text style={title}>{copy('tickets.' + value)} <Text style={{fontSize:12}}>({value === 'active' ? activeCount : all.length - activeCount})</Text></Text></Pressable>;
     })}</View>
     {tab !== 'active' && <View style={{ flexDirection: 'row', gap: 8 }}>{(['history', 'used', 'expired'] as const).map(value => <Pressable key={value} accessibilityRole="button" onPress={() => setTab(value)} style={{ paddingHorizontal:14,paddingVertical:10,borderWidth:1,borderColor:tab===value?'#ff00444d':'#ffffff1a',borderRadius:99,backgroundColor:tab===value?'#ff00441a':'transparent' }}><Text style={{ color: tab === value ? colors.accent : colors.muted, fontSize: 12 }}>{copy(value === 'history' ? 'tickets.allHistory' : 'tickets.' + value)}</Text></Pressable>)}</View>}
+    <TicketAvailability offline={tickets.offline} savedAt={tickets.savedAt} storageError={tickets.storageError} refreshing={tickets.isFetching} onRefresh={() => void tickets.refetch()} />
     {tickets.isPending ? <Loading /> : tickets.isError ? <Feedback title={copy('feedback.loadFailed')} retry={() => void tickets.refetch()} /> : [...groups.values()].sort((a, b) => (Date.parse(a[0]!.startTime) - Date.parse(b[0]!.startTime)) * (tab === 'active' ? 1 : -1)).map((group,index) => {
       const event = group[0]!, featured = tab === 'active' && index === 0, happening = Date.parse(event.startTime)<=now;
       return <View key={event.eventId} style={{borderRadius:26,borderWidth:1,borderColor:featured?'#ff00444d':'#ffffff1a',backgroundColor:'#ffffff06',overflow:'hidden',marginTop:8}}>
@@ -68,7 +70,7 @@ export function TicketsScreen() {
       </View>;
     })}
     {!tickets.isPending && !tickets.isError && !data.length && <View style={{paddingHorizontal:20,paddingVertical:48,borderRadius:26,borderWidth:1,borderStyle:'dashed',borderColor:'#ffffff26',alignItems:'center',gap:12}}><Ticket size={28} color={colors.accent}/><Text style={title}>{copy(tab==='active'?'tickets.noUpcoming':'tickets.noHistory')}</Text><Text style={[muted,{textAlign:'center'}]}>{copy(tab==='active'?'tickets.noUpcomingHint':'tickets.emptyHint')}</Text>{tab==='active' && <Pressable accessibilityRole="button" onPress={()=>navigation.navigate('Tabs',{screen:'Explore'})} style={{paddingHorizontal:20,minHeight:44,borderRadius:99,backgroundColor:colors.accent,justifyContent:'center',marginTop:8}}><Text style={title}>{copy('tickets.exploreEvents')}</Text></Pressable>}</View>}
-  </AccountPage>{chosen && user && <TicketSheet key={user.id} initialId={chosen.id} tickets={data.filter(item => item.eventId === chosen.eventId)} onClose={() => setSelected(null)} />}</>;
+  </AccountPage>{chosen && user && <TicketSheet key={user.id} initialId={chosen.id} tickets={data.filter(item => item.eventId === chosen.eventId)} offline={tickets.offline} savedAt={tickets.savedAt} onClose={() => setSelected(null)} />}</>;
 }
 
 export function OrdersScreen() {

@@ -1,5 +1,6 @@
 import { ApiError } from '../data/http';
 import { isEventId } from '../data/events';
+import type { PaymentRecoveryStorage } from './paymentRecoveryStore';
 
 export const STRIPE_RETURN_URL = 'spottr-native://stripe-redirect';
 export function isStripeReturnURL(value: string) {
@@ -32,11 +33,56 @@ export function parseNativePayment(value: unknown): NativePaymentSession {
 export type PendingNativePayment = {
   session: NativePaymentSession; eventId: string; owner: string | null;
   cancelRequested: boolean; status: NativePaymentStatus;
+  accountId?: string | null;
+  restored?: boolean;
 };
-// Secrets never enter navigation state (which can become a URL), logs or storage.
-// Reopening after a process restart relies on server/webhook fulfillment and My tickets.
+// Capabilities never enter navigation URLs, logs or ordinary storage. Native
+// recovery uses Keychain/Keystore; bearer tokens themselves are not duplicated.
 const pending = new Map<string, PendingNativePayment>();
-export function clearNativePayments() { pending.clear(); }
+let recoveryStorage: PaymentRecoveryStorage | undefined;
+let recoveryIdentity: { accountId: string | null; owner: string | null } | undefined;
+let recoveryGeneration = 0;
+let hydration: Promise<PendingNativePayment[]> | undefined;
+export function configureNativePaymentRecovery(storage: PaymentRecoveryStorage) { recoveryStorage = storage; }
+export function clearNativePayments() {
+  pending.clear(); recoveryIdentity = undefined; hydration = undefined; recoveryGeneration++;
+}
+export function restoreNativePayments(accountId: string | null, owner: string | null): Promise<PendingNativePayment[]> {
+  if (!recoveryStorage) return Promise.resolve([]);
+  if ((accountId === null) !== (owner === null) || (accountId !== null && !isEventId(accountId))) return Promise.reject(new ApiError(0, 'PAYMENT_SESSION_CHANGED'));
+  if (recoveryIdentity?.accountId !== accountId || recoveryIdentity.owner !== owner) {
+    clearNativePayments();
+    recoveryIdentity = { accountId, owner };
+  }
+  if (hydration) return hydration;
+  const generation = recoveryGeneration;
+  const task = recoveryStorage.load(accountId).then(rows => {
+    if (generation !== recoveryGeneration) return [];
+    for (const row of rows) {
+      if (pending.has(row.session.orderId)) continue;
+      // Persisted status/expiry is never proof of payment or failure. Always
+      // reconcile with the existing server endpoint, even after expiration.
+      const entry = rememberNativePayment(row.session, row.eventId, owner);
+      entry.accountId = accountId; entry.cancelRequested = row.cancelRequested; entry.restored = true;
+    }
+    return Array.from(pending.values()).filter(entry => entry.owner === owner && entry.restored);
+  });
+  hydration = task;
+  void task.catch(() => { if (hydration === task) hydration = undefined; });
+  return task;
+}
+export async function persistNativePayment(entry: PendingNativePayment, accountId: string | null) {
+  if (!recoveryStorage) throw new ApiError(0, 'PAYMENT_RECOVERY_STORAGE');
+  if (pending.get(entry.session.orderId) !== entry || recoveryIdentity?.accountId !== accountId || recoveryIdentity.owner !== entry.owner) throw new ApiError(0, 'PAYMENT_SESSION_CHANGED');
+  entry.accountId = accountId;
+  await recoveryStorage.save({ session: entry.session, eventId: entry.eventId, accountId, cancelRequested: entry.cancelRequested });
+  if (pending.get(entry.session.orderId) !== entry) throw new ApiError(0, 'PAYMENT_SESSION_CHANGED');
+}
+export async function acknowledgeNativePayment(entry: PendingNativePayment) {
+  if (entry.status === 'pending') return;
+  entry.restored = false;
+  if (recoveryStorage && entry.accountId !== undefined) await recoveryStorage.remove(entry.accountId, entry.session.orderId);
+}
 export function rememberNativePayment(session: NativePaymentSession, eventId: string, owner: string | null) {
   for (const [id, entry] of pending) {
     // A timestamp cannot prove a Stripe payment failed. Keep unresolved orders
@@ -58,13 +104,20 @@ export function getPendingNativePayment(eventId: string, owner: string | null) {
 type PaymentRequest = (path: string, options: { method: 'POST'; body: unknown; token: string | null }) => Promise<unknown>;
 export async function resolveNativePayment(entry: PendingNativePayment, request: PaymentRequest) {
   const { session } = entry;
+  if (entry.cancelRequested && recoveryStorage && entry.accountId !== undefined) {
+    // Remember cancellation across another interruption. A disk error must not
+    // prevent trying to cancel on the server; an ambiguous result stays pending.
+    await recoveryStorage.save({ session, eventId: entry.eventId, accountId: entry.accountId, cancelRequested: true }).catch(() => undefined);
+  }
   const result = await request('/checkout/payment-sheet/' + (entry.cancelRequested ? 'cancel' : 'reconcile'), {
     method: 'POST', token: entry.owner,
     body: { orderId: session.orderId, eventId: entry.eventId, paymentIntentId: session.paymentIntentId, paymentIntentClientSecret: session.paymentIntentClientSecret },
   }) as { status?: unknown; orderId?: unknown } | null;
   if (!result || result.orderId !== session.orderId || typeof result.status !== 'string' ||
     !['pending', 'completed', 'failed', 'refunded'].includes(result.status)) throw new ApiError(0, 'INVALID_PAYMENT_CONFIRMATION');
-  entry.status = result.status as NativePaymentStatus;
+  // Overlapping foreground checks may return out of order. A stale pending
+  // response cannot undo a terminal outcome already verified by the server.
+  if (entry.status === 'pending' || result.status === 'refunded') entry.status = result.status as NativePaymentStatus;
   return { status: entry.status, orderId: session.orderId };
 }
 

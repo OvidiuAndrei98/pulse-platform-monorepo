@@ -10,6 +10,7 @@ import { queryClient } from "../data/queries";
 import { SessionController } from "./session";
 import { sessionStorage } from "./storage";
 import { clearNativePayments } from "../checkout/nativePayment";
+import { ticketCache } from "../data/ticketStorage";
 
 export const accountApi = createHttp(API_URL);
 export const sessionController = new SessionController(
@@ -26,6 +27,8 @@ export const sessionController = new SessionController(
       accountApi("/users/me", { method: "PUT", token, body }),
   },
   () => {
+    const previousAccount = sessionController.getSnapshot().user?.id;
+    if (previousAccount) void ticketCache.remove(previousAccount).catch(() => {});
     clearNativePayments();
     void queryClient.cancelQueries();
     queryClient.clear();

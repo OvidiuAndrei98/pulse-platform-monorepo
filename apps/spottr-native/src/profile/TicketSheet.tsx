@@ -20,16 +20,21 @@ import { exportTicket } from "./exportTicket";
 import { formatTicketDate } from "../../../pulse-app/src/components/tickets/ticketDesign";
 import { ticketStatus, type UserTicket } from "../data/tickets";
 import { useAuth } from "../auth/AuthProvider";
+import { TicketAvailability } from './TicketAvailability';
 export { ticketStatus, type UserTicket } from "../data/tickets";
 
 export function TicketSheet({
   tickets,
   initialId,
   onClose,
+  offline = false,
+  savedAt,
 }: {
   tickets: UserTicket[];
   initialId: string;
   onClose: () => void;
+  offline?: boolean;
+  savedAt?: number;
 }) {
   const { controller } = useAuth();
   const alive = useRef(true);
@@ -117,6 +122,7 @@ export function TicketSheet({
             {copy("tickets.yourEntrance").toUpperCase()}
           </Text>
           <Text style={s.heading}>{copy("tickets.showAtDoor")}</Text>
+          <TicketAvailability offline={offline} savedAt={savedAt} />
         </View>
         <View
           testID="ticket-fit-area"

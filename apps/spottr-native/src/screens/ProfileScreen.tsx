@@ -55,20 +55,8 @@ import { formatDate } from "../data/events";
 import { WEB_URL } from "../config";
 import type { RootParamList } from "../navigation/types";
 import { AuthButton, AuthMessage } from "./AuthScreen";
-import { parseTickets } from "../data/tickets";
-
-export function useTickets() {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["tickets", user?.id],
-    enabled: !!user,
-    queryFn: async ({ signal }) => {
-      return parseTickets(
-        await accountApi<unknown>("/users/me/tickets", { signal }),
-      );
-    },
-  });
-}
+import { useTickets } from "../data/useTickets";
+import { TicketAvailability } from "../profile/TicketAvailability";
 export function ProfileScreen() {
   const auth = useAuth(),
     { copy, saved, savedLoading, savedError, retrySaved, language, setLanguage, actionError } = usePreferences(),
@@ -87,7 +75,7 @@ export function ProfileScreen() {
     [success, setSuccess] = useState("");
   const [username, setUsername] = useState(""),
     [bio, setBio] = useState("");
-  const tickets = useTickets(),
+  const tickets = useTickets(focused),
     hidden = useHiddenCategories(),
     pending = useRef(false);
   const validationEvents = useQuery({ queryKey: ['validation-access', auth.user?.id], enabled: !!auth.user, queryFn: async ({ signal }) => { const result = await accountApi<unknown>('/dashboard/ticket-validation/events', { signal }); if (result === null) return []; if (!Array.isArray(result)) throw new Error('Invalid validation events'); return result; } });
@@ -312,6 +300,7 @@ export function ProfileScreen() {
               </Pressable>
             ))}
           </View>
+          <TicketAvailability offline={tickets.offline} savedAt={tickets.savedAt} storageError={tickets.storageError} refreshing={tickets.isFetching} onRefresh={() => void tickets.refetch()} />
           {tickets.isPending ? (
             <Loading />
           ) : tickets.isError && !tickets.data ? (
@@ -551,6 +540,8 @@ export function ProfileScreen() {
       {ticket && (
         <TicketSheet
           initialId={ticket.id}
+          offline={tickets.offline}
+          savedAt={tickets.savedAt}
           tickets={selectedTickets.filter(
             (item) => item.eventId === ticket.eventId,
           )}

@@ -23,7 +23,8 @@ import { usePreferences } from "../PreferencesProvider";
 import { Text } from "../ui/Text";
 import { EventImage, Feedback, Loading } from "../ui/common";
 import { formatDate } from "../data/events";
-import { useTickets } from "../screens/ProfileScreen";
+import { useTickets } from "../data/useTickets";
+import { TicketAvailability } from '../profile/TicketAvailability';
 import {
   TicketSheet,
   ticketStatus,
@@ -600,6 +601,7 @@ export function DashboardPurchases() {
           );
         })}
       </View>
+      {tab === 'tickets' && <TicketAvailability offline={tickets.offline} savedAt={tickets.savedAt} storageError={tickets.storageError} refreshing={tickets.isFetching} onRefresh={() => void tickets.refetch()} />}
       {(tab === "tickets" ? tickets : orders).isPending ? (
         <Loading />
       ) : (tab === "tickets" ? tickets : orders).isError ? (
@@ -789,7 +791,9 @@ export function DashboardPurchases() {
       )}
       {ticket && (
         <TicketSheet
-          tickets={tickets.data ?? [ticket]}
+          tickets={tickets.data ?? []}
+          offline={tickets.offline}
+          savedAt={tickets.savedAt}
           initialId={ticket.id}
           onClose={() => setTicket(null)}
         />

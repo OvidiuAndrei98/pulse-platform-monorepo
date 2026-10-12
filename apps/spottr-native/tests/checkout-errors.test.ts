@@ -40,6 +40,8 @@ test('payment failures distinguish popup, network, timeouts, server and response
     [new ApiError(504, 'API request timed out.'), 'paymentTimeout'],
     [new ApiError(0, 'INVALID_RESPONSE'), 'paymentInvalidResponse'],
     [new ApiError(0, 'INVALID_PAYMENT_RESPONSE'), 'paymentInvalidResponse'],
+    [new ApiError(0, 'PAYMENT_RECOVERY_STORAGE'), 'paymentRecoveryUnavailable'],
+    [new ApiError(0, 'PAYMENT_SESSION_CHANGED'), 'paymentSignIn'],
     [new ApiError(425, 'pending'), 'paymentPending'],
     [new ApiError(429, 'rate limit'), 'paymentRateLimited'],
     [new ApiError(401, 'expired'), 'paymentSignIn'],

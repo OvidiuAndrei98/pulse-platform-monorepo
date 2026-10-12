@@ -20,6 +20,7 @@
     "test:navbar": "node tests/browser-navbar.cjs",
     "test:profiles": "node tests/browser-profiles.cjs",
     "test:operations": "node tests/browser-operations.cjs",
+    "test:diagnostics": "node tests/browser-diagnostics.cjs",
     "test:map": "node tests/browser-map.cjs",
     "test:organizer": "node tests/browser-organizer.cjs",
     "test:places": "node tests/browser-places.cjs",

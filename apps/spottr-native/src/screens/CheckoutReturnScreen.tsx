@@ -1,7 +1,9 @@
-import { getNativePayment, resolveNativePayment } from "../checkout/nativePayment";
+import '../checkout/paymentRecoveryStorage';
+import { acknowledgeNativePayment, getNativePayment, resolveNativePayment, restoreNativePayments } from "../checkout/nativePayment";
 import { haptic } from "../ui/haptics";
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, AppState, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { AlertCircle, CheckCircle2, Mail, Ticket, UserRoundPlus } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,30 +19,61 @@ import type { RootParamList } from '../navigation/types';
 import { returnToEvent } from '../navigation/returnToEvent';
 
 export function CheckoutReturnScreen({ route, navigation }: NativeStackScreenProps<RootParamList, 'CheckoutReturn'>) {
-  const { eventId = '', sessionId, nativeOrderId, cancelled } = route.params ?? {}, { user, controller } = useAuth(), { copy } = usePreferences(), safe = useSafeAreaInsets();
+  const { eventId = '', sessionId, nativeOrderId, cancelled } = route.params ?? {}, { user, controller, ready } = useAuth(), { copy } = usePreferences(), safe = useSafeAreaInsets();
   const token = controller.getToken();
+  const focused = useIsFocused(), lastResume = useRef(0);
   const [status, setStatus] = useState<'checking' | 'invalid' | 'cancelled' | ConfirmationResult>('checking'), [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    if (!ready) return;
     if (!isEventId(eventId)) { setStatus('invalid'); return; }
-    const native = nativeOrderId ? getNativePayment(nativeOrderId, eventId, token) : undefined;
-    if (nativeOrderId && !native) { setStatus('invalid'); return; }
-    if (!native && sessionId === undefined && cancelled === '1') { setStatus('cancelled'); return; }
-    if (!native && !validCheckoutSession(sessionId)) { setStatus('invalid'); return; }
     let active = true;
     const isActive = () => active && controller.getToken() === token;
     setStatus('checking');
-    void checkPaymentConfirmation(() => native ? resolveNativePayment(native, accountApi) : accountApi('/checkout/reconcile', { method: 'POST', body: { eventId, sessionId }, token }), isActive).then(value => {
+    void (async () => {
+      if (nativeOrderId && Platform.OS !== 'web') await restoreNativePayments(user?.id ?? null, token);
+      if (!isActive()) return;
+      const native = nativeOrderId ? getNativePayment(nativeOrderId, eventId, token) : undefined;
+      if (nativeOrderId && !native) { setStatus('invalid'); return; }
+      if (!native && sessionId === undefined && cancelled === '1') { setStatus('cancelled'); return; }
+      if (!native && !validCheckoutSession(sessionId)) { setStatus('invalid'); return; }
+      const value = await checkPaymentConfirmation(() => native ? resolveNativePayment(native, accountApi) : accountApi('/checkout/reconcile', { method: 'POST', body: { eventId, sessionId }, token }), isActive);
       if (!isActive() || !value) return;
       setStatus(native?.cancelRequested && native.status === 'failed' ? 'cancelled' : value);
       if (value === 'completed') haptic('success');
       if (value === 'completed') for (const key of ['tickets', 'orders', 'event', 'event-social', 'event-friends', 'social-feed', 'notifications']) void queryClient.invalidateQueries({ queryKey: [key] });
-    });
+    })().catch(() => { if (isActive()) setStatus('unavailable'); });
     return () => { active = false; };
-  }, [eventId, sessionId, nativeOrderId, cancelled, attempt, controller, token]);
+  }, [eventId, sessionId, nativeOrderId, cancelled, attempt, controller, token, user?.id, ready]);
+  useEffect(() => {
+    if (Platform.OS === 'web' || !focused || !nativeOrderId || !['pending', 'unavailable'].includes(status)) return;
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active' && Date.now() - lastResume.current > 10_000) {
+        lastResume.current = Date.now(); setAttempt(value => value + 1);
+      }
+    });
+    return () => subscription.remove();
+  }, [focused, nativeOrderId, status]);
+  useEffect(() => () => {
+    // Native swipe/Android Back also acknowledge a displayed terminal result.
+    // Leaving while pending keeps the durable record for the next launch.
+    const entry = nativeOrderId ? getNativePayment(nativeOrderId, eventId, token) : undefined;
+    if (entry) void acknowledgeNativePayment(entry).catch(() => undefined);
+  }, [nativeOrderId, eventId, token]);
   const completed = status === 'completed', failed = status === 'failed' || status === 'invalid';
   const title = status === 'pending' ? 'feedback.confirmationPending' : status === 'unavailable' ? 'feedback.confirmationUnavailable' : completed ? 'checkoutSuccess.confirmed' : failed ? 'checkoutSuccess.problem' : status === 'cancelled' ? 'checkout.paymentClosed' : 'checkoutSuccess.confirming';
   const hint = status === 'pending' ? 'feedback.confirmationPendingHint' : status === 'unavailable' ? 'feedback.confirmationUnavailableHint' : status === 'invalid' ? 'feedback.confirmationInvalid' : completed ? 'checkoutSuccess.confirmedHint' : failed ? 'checkoutSuccess.problemHint' : status === 'cancelled' ? 'checkout.paymentClosedHint' : 'checkoutSuccess.confirmationHint';
+  const acknowledge = () => {
+    const entry = nativeOrderId ? getNativePayment(nativeOrderId, eventId, token) : undefined;
+    if (entry) void acknowledgeNativePayment(entry).catch(() => undefined);
+  };
+  const cancelAttempt = () => {
+    const entry = nativeOrderId ? getNativePayment(nativeOrderId, eventId, token) : undefined;
+    if (!entry || entry.status !== 'pending') return;
+    entry.cancelRequested = true;
+    setAttempt(value => value + 1);
+  };
   const back = () => {
+    acknowledge();
     const state = navigation.getState();
     if (state.routes[state.index - 1]?.name === 'Checkout') navigation.goBack();
     else returnToEvent(navigation, eventId);
@@ -49,11 +82,12 @@ export function CheckoutReturnScreen({ route, navigation }: NativeStackScreenPro
     <View style={s.card}><View style={[s.icon, failed && { borderColor: '#f8717159', backgroundColor: '#f8717126' }]}>{completed ? <CheckCircle2 size={28} color={colors.accent} /> : status === 'checking' ? <ActivityIndicator size="large" color={colors.accent} /> : <AlertCircle size={28} color={failed ? '#f87171' : colors.accent} />}</View>
       <Text style={s.eyebrow}>{copy('checkoutSuccess.thanks')}</Text><Text accessibilityRole="header" style={s.title}>{copy(title)}</Text><Text accessibilityLiveRegion="polite" style={s.hint}>{copy(hint)}</Text>
       {(status === 'pending' || status === 'unavailable') && <Pressable testID="checkout-recheck" accessibilityRole="button" onPress={() => setAttempt(value => value + 1)} style={s.button}><Text style={s.buttonText}>{copy('feedback.checkAgain')}</Text></Pressable>}
+      {nativeOrderId && (status === 'pending' || status === 'unavailable') && getNativePayment(nativeOrderId, eventId, token)?.status === 'pending' && <Pressable testID="checkout-cancel-attempt" accessibilityRole="button" onPress={cancelAttempt} style={{ minHeight: 44, justifyContent: 'center', alignItems: 'center', marginTop: 12 }}><Text style={s.link}>{copy('checkout.cancelPaymentAttempt')}</Text></Pressable>}
       {completed && <View style={s.result}><View style={{ flexDirection: 'row', gap: 12 }}>{user ? <Ticket size={20} color={colors.accent} /> : <Mail size={20} color={colors.accent} />}<View style={{ flex: 1 }}><Text style={s.resultTitle}>{copy(user ? 'checkoutSuccess.ticketsInAccount' : 'checkoutSuccess.ticketsByEmail')}</Text><Text style={s.resultHint}>{copy(user ? 'checkoutSuccess.ticketsInAccountHint' : 'checkoutSuccess.ticketsByEmailHint')}</Text></View></View>
-        <Pressable testID="checkout-view-tickets" accessibilityRole="button" onPress={() => user ? navigation.popTo('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } }) : navigation.replace('Auth', { mode: 'register', returnTab: 'Profile' })} style={[s.button, { flexDirection: 'row', gap: 8 }]}>{user ? <Ticket size={16} color="white" /> : <UserRoundPlus size={16} color="white" />}<Text style={s.buttonText}>{copy(user ? 'checkoutSuccess.viewTickets' : 'auth.createAccount')}</Text></Pressable>
+        <Pressable testID="checkout-view-tickets" accessibilityRole="button" onPress={() => { acknowledge(); user ? navigation.popTo('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } }) : navigation.replace('Auth', { mode: 'register', returnTab: 'Profile' }); }} style={[s.button, { flexDirection: 'row', gap: 8 }]}>{user ? <Ticket size={16} color="white" /> : <UserRoundPlus size={16} color="white" />}<Text style={s.buttonText}>{copy(user ? 'checkoutSuccess.viewTickets' : 'auth.createAccount')}</Text></Pressable>
       </View>}
       {!completed && status !== 'checking' && isEventId(eventId) && <Pressable testID="checkout-return-to-event" accessibilityRole="button" onPress={back} style={{ minHeight: 44, justifyContent: 'center', alignItems: 'center', marginTop: 12 }}><Text style={s.link}>{copy('checkout.backToTickets')}</Text></Pressable>}
-      <Pressable accessibilityRole="button" onPress={() => navigation.popTo('Tabs', { screen: 'Explore' })} style={{ minHeight: 44, justifyContent: 'center', alignItems: 'center', marginTop: 12 }}><Text style={s.link}>{copy('checkoutSuccess.backToEvents')}</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => { acknowledge(); navigation.popTo('Tabs', { screen: 'Explore' }); }} style={{ minHeight: 44, justifyContent: 'center', alignItems: 'center', marginTop: 12 }}><Text style={s.link}>{copy('checkoutSuccess.backToEvents')}</Text></Pressable>
     </View>
   </ScrollView>;
 }

@@ -1,7 +1,8 @@
 import { FormScrollView, KeyboardFooter } from "../ui/KeyboardForms";
 import { haptic } from "../ui/haptics";
 import { openNativePaymentSheet } from "../checkout/paymentSheet";
-import { parseNativePayment, rememberNativePayment, resolveNativePayment, getPendingNativePayment, presentAndResolveNativePayment, type PendingNativePayment } from "../checkout/nativePayment";
+import '../checkout/paymentRecoveryStorage';
+import { parseNativePayment, rememberNativePayment, resolveNativePayment, getPendingNativePayment, presentAndResolveNativePayment, restoreNativePayments, persistNativePayment, acknowledgeNativePayment, type PendingNativePayment } from "../checkout/nativePayment";
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { ArrowLeft, ArrowRight, Check, CreditCard, LockKeyhole, Minus, Plus, Ticket, X } from 'lucide-react-native';
@@ -39,7 +40,7 @@ export function CheckoutScreen(props: Props) {
 }
 function CheckoutContent({ route, navigation }: Props) {
   const { eventId, ticketTypeId } = route.params;
-  const { user, controller } = useAuth(), { copy, language } = usePreferences(), safe = useSafeAreaInsets();
+  const { user, controller, ready } = useAuth(), { copy, language } = usePreferences(), safe = useSafeAreaInsets();
   const query = useEvent(eventId), event = query.data, now = useEventClock(event), promo = usePromoCode(eventId);
   const [quantities, setQuantities] = useState<Quantities>({ [ticketTypeId]: 1 });
   const [step, setStep] = useState(0), [furthest, setFurthest] = useState(0);
@@ -53,13 +54,18 @@ function CheckoutContent({ route, navigation }: Props) {
   const token = controller.getToken();
   const [footerHeight, setFooterHeight] = useState(56 + Math.max(28, safe.bottom));
   useEffect(() => {
-    if (Platform.OS === 'web') return;
-    const outstanding = getPendingNativePayment(eventId, token);
-    if (outstanding) {
-      nativePayment.current = outstanding;
-      setReturned({ nativeOrderId: outstanding.session.orderId });
-    }
-  }, [eventId, token]);
+    if (Platform.OS === 'web' || !ready) return;
+    let active = true;
+    void restoreNativePayments(user?.id ?? null, token).then(() => {
+      if (!active || controller.getToken() !== token) return;
+      const outstanding = getPendingNativePayment(eventId, token);
+      if (outstanding) {
+        nativePayment.current = outstanding;
+        setReturned({ nativeOrderId: outstanding.session.orderId });
+      }
+    }).catch(() => { if (active) setError('checkout.paymentRecoveryUnavailable'); });
+    return () => { active = false; };
+  }, [eventId, token, user?.id, ready, controller]);
   const browser = useRef<ReturnType<typeof preparePaymentBrowser> | null>(null);
   useEffect(() => { alive.current = true; return () => { alive.current = false; browser.current?.dispose(); }; }, []);
   usePreventRemove(busy, () => {});
@@ -121,7 +127,13 @@ function CheckoutContent({ route, navigation }: Props) {
     await withBusy(async () => {
       try {
         // A pending native transaction must be resolved before another purchase.
-        if (Platform.OS !== 'web') nativePayment.current ??= getPendingNativePayment(eventId, token) ?? null;
+        if (Platform.OS !== 'web') {
+          // A fast Pay press must wait for disk recovery too; the startup effect
+          // alone cannot protect against racing another order after a restart.
+          await restoreNativePayments(user?.id ?? null, token);
+          if (!alive.current || controller.getToken() !== token) return;
+          nativePayment.current ??= getPendingNativePayment(eventId, token) ?? null;
+        }
         if (Platform.OS !== 'web' && nativePayment.current?.owner === token) {
           if (nativePayment.current.status !== 'failed' && nativePayment.current.status !== 'refunded') {
             setReturned({ nativeOrderId: nativePayment.current.session.orderId }); return;
@@ -150,8 +162,14 @@ function CheckoutContent({ route, navigation }: Props) {
         nativePayment.current = retained;
         let nativeFailure: unknown;
         const outcome = await presentAndResolveNativePayment(retained,
-          () => openNativePaymentSheet(response, email.trim(), details), accountApi, error => { nativeFailure = error; });
+          async () => {
+            // Commit recovery before the user can authorize any charge.
+            await persistNativePayment(retained, user?.id ?? null);
+            if (!alive.current || controller.getToken() !== token) throw new ApiError(0, 'PAYMENT_SESSION_CHANGED');
+            return openNativePaymentSheet(response, email.trim(), details);
+          }, accountApi, error => { nativeFailure = error; });
         if (outcome !== 'verify') {
+          await acknowledgeNativePayment(retained).catch(() => undefined);
           nativePayment.current = null; intent.current = null;
           if (outcome === 'failed' && alive.current && controller.getToken() === token) setError(checkoutFailure(nativeFailure).messageKey);
           return;

@@ -54,6 +54,26 @@ function request(base: string, path: string, headers: Record<string, string> = {
   });
 }
 
+test('diagnostic preview forwards anonymous reports and restricts admin reads to GET', async () => {
+  const received: { path?: string; auth?: string; body: string }[] = [];
+  const upstream = http.createServer((req, res) => {
+    let body = ''; req.on('data', chunk => { body += chunk; });
+    req.on('end', () => { received.push({ path: req.url, auth: req.headers.authorization, body }); res.writeHead(204); res.end(); });
+  });
+  const api = await listen(upstream), proxy = createApiProxy(api + '/api/v1');
+  const server = http.createServer((req, res) => proxy(req, res, () => res.end())), base = await listen(server);
+  try {
+    assert.equal((await request(base, '/api/v1/diagnostics/errors', { 'content-type': 'application/json' }, 'POST', '{"platform":"ios"}')).status, 204);
+    assert.equal(received[0]!.auth, undefined);
+    assert.equal(received[0]!.body, '{"platform":"ios"}');
+    assert.equal((await request(base, '/api/v1/admin/client-errors?platform=ios', { authorization: 'Bearer qa-only' })).status, 204);
+    assert.equal(received[1]!.auth, 'Bearer qa-only');
+    assert.equal(received[1]!.path, '/api/v1/admin/client-errors?platform=ios');
+    assert.equal((await request(base, '/api/v1/admin/client-errors', {}, 'POST', '{}')).status, 405);
+    assert.equal((await request(base, '/api/v1/diagnostics/errors')).status, 405);
+  } finally { await close(server); await close(upstream); }
+});
+
 test('Metro preview reaches a fixed API, keeps queries/status, and excludes browser credentials', async () => {
   const received: { path: string; headers: http.IncomingHttpHeaders }[] = [];
   const upstream = http.createServer((req, res) => {

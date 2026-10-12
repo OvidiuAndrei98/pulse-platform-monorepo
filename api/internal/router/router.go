@@ -27,6 +27,9 @@ type HandlersConfig struct {
 	AdminMiddleware        func(http.Handler) http.Handler // RequireRole("admin")
 	RateLimit              func(scope string, limit int, window time.Duration) func(http.Handler) http.Handler
 	IdentityRateLimit      func(scope string, limit int, window time.Duration) func(http.Handler) http.Handler
+	DiagnosticRateLimit    func(http.Handler) http.Handler
+	ReportClientError      http.HandlerFunc
+	ListClientErrors       http.HandlerFunc
 
 	// Auth
 	Register             http.HandlerFunc
@@ -248,6 +251,9 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 		r.Post("/stripe/webhook", cfg.StripeWebhook)
 		r.Post("/stripe/connect/webhook", cfg.StripeConnectWebhook)
 		r.With(rateLimit("checkout_reconcile_ip", 30, 10*time.Minute)).Post("/checkout/reconcile", cfg.ReconcileCheckout)
+		if cfg.ReportClientError != nil && cfg.DiagnosticRateLimit != nil {
+			r.With(concurrentRequests(2), rateLimit("diagnostics_ip", 60, time.Hour), cfg.DiagnosticRateLimit).Post("/diagnostics/errors", cfg.ReportClientError)
+		}
 		r.With(rateLimit("payment_sheet_reconcile_ip", 60, 10*time.Minute)).Post("/checkout/payment-sheet/reconcile", cfg.ReconcilePaymentSheet)
 		r.With(rateLimit("payment_sheet_cancel_ip", 20, 10*time.Minute)).Post("/checkout/payment-sheet/cancel", cfg.CancelPaymentSheet)
 		r.With(rateLimit("scanner_session_ip", 10, 15*time.Minute)).Post("/ticket-validation/quick-access/session", cfg.CreateScannerSession)
@@ -447,6 +453,9 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 					r.Use(cfg.AdminMiddleware)
 				}
 				r.Get("/admin/organizers", cfg.ListOrganizerVerifications)
+				if cfg.ListClientErrors != nil && cfg.AuthMiddleware != nil && cfg.AdminMiddleware != nil {
+					r.With(identityLimit("diagnostics_admin", 60, time.Minute)).Get("/admin/client-errors", cfg.ListClientErrors)
+				}
 				r.Patch("/admin/organizers/{id}/verification", cfg.ReviewOrganizerVerification)
 				r.Get("/admin/event-cancellations", cfg.ListEventCancellationRequests)
 				r.Post("/admin/event-cancellations/{id}/approve", cfg.ApproveEventCancellation)
