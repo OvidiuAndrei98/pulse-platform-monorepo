@@ -34,8 +34,9 @@ export function useTicketBrightness() {
     );
     return () => {
       mounted = false;
-      listener.remove();
-      void manager.release().catch(() => {});
+      // A close now fades out. Keep watching AppState until restoration ends,
+      // so leaving the app during that fade restores immediately before JS sleeps.
+      void manager.release().catch(() => {}).finally(() => listener.remove());
     };
   }, []);
   return active;

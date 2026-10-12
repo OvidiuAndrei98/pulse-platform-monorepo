@@ -2,7 +2,6 @@ import { haptic } from "../ui/haptics";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Platform,
-  Pressable,
   ScrollView,
   Share,
   StyleSheet,
@@ -11,7 +10,6 @@ import {
 } from "react-native";
 import {
   BadgeCheck,
-  Bookmark,
   CalendarDays,
   Check,
   Share2,
@@ -32,6 +30,9 @@ import { usePreferences } from "../PreferencesProvider";
 import { WEB_URL } from "../config";
 import { EventImage, Feedback, Loading, useOpenLink } from "../ui/common";
 import { Text } from "../ui/Text";
+import { MotionPressable as Pressable } from "../ui/MotionPressable";
+import { AnimatedBookmark } from "../ui/AnimatedBookmark";
+import { SelectionPressable, StateSurface } from "../ui/StateMotion";
 import { colors } from "../ui/theme";
 import type { RootParamList } from "../navigation/types";
 import {
@@ -136,7 +137,9 @@ export function EventScreen({
   const footer = event && !missing ? (
     <View testID="event-actions" style={s.footer}>
       <Pressable
+        testID="event-sheet-bookmark"
         disabled={!ready}
+        accessibilityState={{ selected: saved.some(e => e.id === event.id), disabled: !ready }}
         accessibilityRole="button"
         accessibilityLabel={copy(
           saved.some((e) => e.id === event.id)
@@ -146,11 +149,10 @@ export function EventScreen({
         onPress={() => user ? toggleSaved(event) : signIn()}
         style={s.icon}
       >
-        <Bookmark
+        <AnimatedBookmark
           size={16}
-          color={
-            saved.some((e) => e.id === event.id) ? colors.accent : "white"
-          }
+          color="white"
+          selected={saved.some(e => e.id === event.id)}
         />
       </Pressable>
       <Pressable
@@ -392,32 +394,23 @@ export function EventScreen({
                           !ended && available.some((t) => t.id === tier.id),
                         checked = enabled && tier.id === selected;
                       return (
-                        <Pressable
+                        <SelectionPressable
                           key={tier.id}
+                          testID={'event-ticket-' + tier.id}
+                          background={checked ? '#ff00441a' : '#ffffff08'}
+                          border={checked ? colors.accent : '#ffffff1a'}
                           accessibilityRole="radio"
                           accessibilityState={{ checked, disabled: !enabled || buying }}
                           disabled={!enabled || buying}
                           onPress={() => { if (!pending.current && selected !== tier.id) { haptic("selection"); setSelected(tier.id); } }}
                           style={[
                             s.tier,
-                            checked && {
-                              borderColor: colors.accent,
-                              backgroundColor: "#ff00441a",
-                            },
                             !enabled && { opacity: 0.5 },
                           ]}
                         >
-                          <View
-                            style={[
-                              s.radio,
-                              checked && {
-                                borderColor: colors.accent,
-                                backgroundColor: colors.accent,
-                              },
-                            ]}
-                          >
+                          <StateSurface style={s.radio} background={checked ? colors.accent : '#00000000'} border={checked ? colors.accent : '#ffffff4d'}>
                             {checked && <Check size={16} color="white" />}
-                          </View>
+                          </StateSurface>
                           <View style={{ flex: 1, gap: 4 }}>
                             <Text
                               style={{
@@ -459,7 +452,7 @@ export function EventScreen({
                                       : "checkout.salesEnded",
                                 )}
                           </Text>
-                        </Pressable>
+                        </SelectionPressable>
                       );
                     })}
                 </View>

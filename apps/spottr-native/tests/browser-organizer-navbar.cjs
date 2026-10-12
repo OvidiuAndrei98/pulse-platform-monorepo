@@ -155,10 +155,12 @@ withBrowser(async ({ base, call, evaluate, until, delay, capture, errors }) => {
 
   // Explicit ticket/account links are intentional consumer-stack destinations,
   // even for organizers. Only the bottom Profile tab routes to Dashboard.
-  await open('/users/me/tickets?role=organizer'); await until(`window.__navbarQA.visible('tickets-page')`);
-  check(await evaluate(`window.__navbarQA.bar()?.querySelector('[aria-selected="true"]')?.dataset.testid==='tab-Profile'`), 'Organizer ticket deep link keeps Profile highlighted');
+  await call('Page.navigate', { url: base + '/users/me/tickets?role=organizer' });
+  await until(`window.__navbarQA?.me && window.__navbarQA.visible('tickets-page')`);
+  check(!await evaluate(`window.__navbarQA.bar()`), 'Organizer ticket deep link hides the navbar');
   await evaluate(`document.querySelector('[data-testid="account-back"]').click()`);
   await until(`window.__navbarQA.visible('profile-list')`);
+  check(await evaluate(`window.__navbarQA.bar()?.querySelector('[aria-selected="true"]')?.dataset.testid==='tab-Profile'`), 'Returning from tickets restores Profile highlighted');
   check(!await evaluate(`window.__navbarQA.visible('organizer-dashboard')`), 'Account Back keeps the intentional Profile destination');
   await transition('organizer-account-profile-to-dashboard', 'Profile', 'organizer-dashboard');
 
@@ -167,6 +169,23 @@ withBrowser(async ({ base, call, evaluate, until, delay, capture, errors }) => {
   check(!await evaluate(`window.__navbarQA.visible('organizer-dashboard')`), 'Ordinary user still opens the consumer profile');
   await transition('ordinary-user-home', 'Home', 'home-list');
   await transition('ordinary-user-profile-again', 'Profile', 'profile-list');
+
+  // Changing the system preference while mounted must also stop navbar motion.
+  await call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  await delay(150);
+  await evaluate('window.__navbarQA.start()'); await press('Home'); await delay(450);
+  const reduced = await evaluate('window.__navbarQA.stop()');
+  const reducedPresent = reduced.filter(sample => !sample.missing);
+  check(reducedPresent.length === reduced.length, 'Reduced motion keeps the navbar visible');
+  check(reducedPresent.at(-1)?.selected === 'tab-Home', 'Reduced motion still navigates to the selected tab');
+  const reducedStart = reducedPresent[0]?.x, reducedEnd = reducedPresent.at(-1)?.x;
+  check(Math.abs(reducedEnd - 9) < 1, 'Reduced motion aligns the capsule with Home');
+  check(reducedPresent.every(sample => Math.abs(sample.x - reducedStart) < 1 || Math.abs(sample.x - reducedEnd) < 1), 'Reduced motion jumps to the target without intermediate animation');
+  results.push({ label: 'reduced-motion', samples: reduced });
+  await call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+  await delay(150);
+  await transition('motion-restored-profile', 'Profile', 'profile-list');
+
   check((await evaluate('window.__navbarQA.unexpected')).length === 0, 'Ordinary account fixtures cover all API requests');
   check((await evaluate('window.__navbarQA.writes')).length === 0, 'Ordinary navigation has no mutation side effects');
   fs.writeFileSync(path.join(__dirname, '../artifacts/organizer-navbar-motion.json'), JSON.stringify({ results, failures }, null, 2));

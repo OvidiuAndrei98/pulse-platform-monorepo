@@ -9,7 +9,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
     const qa = window.__qa = { purchase: [], bookings: [], rsvp: [], reconciliations: [], confirmation: 'pending', paymentCode: 200, paymentError: 'test_error', legacyResponse: true, tierPrice: 50, promoDelay: 0, promoRequests: [], status: null, saved: null, billingWrites: [] };
     const event = () => ({ id: id(1), organizerId: id(2), title: 'Checkout QA', category: 'TECHNO', locationName: 'Test venue', city: 'Bucuresti', startTime: '2099-10-08T18:00:00Z', endTime: '2099-10-09T02:00:00Z', description: 'Event content preserved behind checkout. '.repeat(40), ticketTypes: [{ id: id(3), name: 'General access', description: 'Admission', priceRon: qa.tierPrice, capacity: 100, ticketsSold: 0, startSales: '2020-01-01T00:00:00Z', endSales: '2099-10-09T02:00:00Z' }], lineup: [] });
     const social = () => ({ goingCount: qa.status === 'going' ? 2 : 1, interestedCount: qa.status === 'interested' ? 1 : 0, currentUserStatus: qa.status });
-    window.open = () => { if (qa.popupBlocked) return null; qa.popup = { closed: false, document: { title: '', body: { style: {} } }, location: { replace(url) { qa.opened = url; } }, close() { this.closed = true; } }; return qa.popup; };
+    window.open = () => { if (qa.popupBlocked) return null; qa.popup = { closed: false, focus() { qa.focuses = (qa.focuses || 0) + 1; }, document: { title: '', body: { style: {} } }, location: { replace(url) { qa.opened = url; } }, close() { this.closed = true; } }; return qa.popup; };
     window.fetch = async (url, options = {}) => {
       const parsed = new URL(typeof url === 'string' ? url : url.url, location.href);
       if (!parsed.pathname.includes('/api/v1/')) { if (parsed.origin === location.origin) return original(url, options); throw Error('Unexpected external request ' + url); }
@@ -37,7 +37,9 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await call('Page.navigate', { url: base });
   await until(`document.body.innerText.toLowerCase().includes('checkout qa')`);
   await evaluate(`Array.from(document.querySelectorAll('[role=button]')).find(el=>el.getAttribute('aria-label')?.toLowerCase().includes('checkout qa')).click()`);
-  await until(`document.querySelector('[data-testid="event-content"]')`); await delay(600);
+  await until(`document.querySelector('[data-testid="event-content"]')`);
+  // Compare settled geometry, not a frame from the opening spring on a busy CPU.
+  await until(`(()=>{const y=document.querySelector('[data-testid="sheet-handle"]').getBoundingClientRect().top;const old=window.__sheetSettling;window.__sheetSettling={y,count:old&&Math.abs(old.y-y)<.1?old.count+1:0};return window.__sheetSettling.count>=4;})()`);
   await evaluate(`window.__sheet=document.querySelector('[data-testid="event-sheet"]');window.__home=document.querySelector('[data-testid="home-list"]');window.__sheetTop=document.querySelector('[data-testid="sheet-handle"]').getBoundingClientRect().top;document.querySelector('[data-testid="event-content"]').scrollTop=220`);
   await click('event-continue'); await until(`document.querySelector('[data-testid="checkout-screen"]')`);
   await click('checkout-close'); await until(`!document.querySelector('[data-testid="checkout-screen"]')`);
@@ -73,6 +75,9 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   const order = await evaluate('window.__qa.purchase[0]'); assert.equal(order.body.email, 'guest@example.test'); assert.equal(order.body.billingDetails.sector, 'Sector 3'); assert.equal(order.body.promoCode, 'SECOND'); assert.equal(order.body.client, 'native_web'); assert.equal(order.body.returnOrigin, base); assert.match(order.key, /^[a-f\d-]{36}$/);
   await evaluate(`window.dispatchEvent(new Event('blur'));window.dispatchEvent(new Event('focus'))`); await until(`document.querySelector('[data-testid="checkout-recheck"]')`);
   assert.equal(await evaluate('window.__qa.popup.closed'), false, 'Returning early must keep the provider tab available');
+  await click('checkout-resume-payment');
+  assert.equal(await evaluate('window.__qa.focuses'), 1);
+  assert.equal(await evaluate('window.__qa.purchase.length'), 1, 'Continue payment reuses the same provider window and reservation');
   assert.equal(await evaluate('window.__qa.reconciliations[0].sessionId'), 'cs_test_qa', 'Legacy session IDs still require server-side confirmation');
   assert.equal(await evaluate(`!!document.querySelector('[data-testid="checkout-view-tickets"]')`), false);
   await evaluate(`window.__qa.confirmation='completed'`); await click('checkout-recheck'); await until(`document.querySelector('[data-testid="checkout-view-tickets"]')`);

@@ -1,13 +1,17 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Bookmark, CheckCircle2, MapPin } from "lucide-react-native";
+import { CheckCircle2, MapPin } from "lucide-react-native";
+import Animated from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { Event, formatDate, isLive } from "../data/events";
 import { usePreferences } from "../PreferencesProvider";
 import { colors } from "./theme";
 import { EventImage } from "./common";
+import { PromotionArtwork } from "./PromotionArtwork";
 import { Text } from "./Text";
 import { EventFriendsPreview } from '../social/EventFriendsPreview';
+import { MotionPressable, usePressMotion } from './MotionPressable';
+import { AnimatedBookmark } from './AnimatedBookmark';
 
 export function EventCard({
   event,
@@ -21,6 +25,7 @@ export function EventCard({
   promoted?: boolean;
 }) {
   const { language, copy, saved, toggleSaved, ready } = usePreferences();
+  const motion = usePressMotion();
   const bookmarked = saved.some((e) => e.id === event.id),
     live = isLive(event);
   const time = live
@@ -32,14 +37,17 @@ export function EventCard({
       }).format(new Date(event.startTime))
     : formatDate(event.startTime, language);
   return (
-    <LinearGradient
-      colors={["#141414", "#090909", "#0c0c0c"]}
-      style={[s.card, wide && { width: "100%" }]}
+    <Animated.View
+      testID={'event-card-' + event.id}
+      style={[s.card, wide && { width: "100%" }, motion.style]}
     >
+      <LinearGradient pointerEvents="none" colors={["#141414", "#090909", "#0c0c0c"]} style={[StyleSheet.absoluteFill, { borderRadius: 26 }]} />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={event.title}
         onPress={onOpen}
+        onPressIn={motion.pressIn}
+        onPressOut={motion.pressOut}
       >
         <View style={s.imageWrap}>
           <EventImage uri={event.bannerUrl} style={StyleSheet.absoluteFill} />
@@ -78,13 +86,16 @@ export function EventCard({
           <Pressable
             accessibilityRole="button"
             onPress={onOpen}
+            onPressIn={motion.pressIn}
+            onPressOut={motion.pressOut}
             style={{ flex: 1 }}
           >
             <Text numberOfLines={1} style={s.title}>
               {event.title.toLowerCase()}
             </Text>
           </Pressable>
-          <Pressable
+          <MotionPressable
+            testID={'event-bookmark-' + event.id}
             accessibilityRole="button"
             accessibilityLabel={copy(
               bookmarked
@@ -97,17 +108,15 @@ export function EventCard({
             hitSlop={10}
             style={s.save}
           >
-            <Bookmark
-              size={20}
-              color={bookmarked ? colors.accent : "#a1a1aa"}
-              fill={bookmarked ? colors.accent : "transparent"}
-            />
-          </Pressable>
+            <AnimatedBookmark selected={bookmarked} />
+          </MotionPressable>
         </View>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={event.title}
           onPress={onOpen}
+          onPressIn={motion.pressIn}
+          onPressOut={motion.pressOut}
           style={{ gap: 8 }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={s.category}>
@@ -121,25 +130,18 @@ export function EventCard({
           </View>
         </Pressable>
       </View>
-    </LinearGradient>
+    </Animated.View>
   );
 }
 export function HeroCard({
   event,
-  onOpen,
 }: {
   event: Event;
-  onOpen: () => void;
 }) {
   const { language } = usePreferences();
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={event.title}
-      onPress={onOpen}
-      style={s.hero}
-    >
-      <EventImage uri={event.bannerUrl} style={StyleSheet.absoluteFill} />
+    <View pointerEvents="none" style={s.hero}>
+      <PromotionArtwork uri={event.bannerUrl} />
       <LinearGradient
         colors={["#00000033", "#00000026", "#000000ff"]}
         style={StyleSheet.absoluteFill}
@@ -159,7 +161,7 @@ export function HeroCard({
           </Text>
         </View>
       </View>
-    </Pressable>
+    </View>
   );
 }
 const s = StyleSheet.create({

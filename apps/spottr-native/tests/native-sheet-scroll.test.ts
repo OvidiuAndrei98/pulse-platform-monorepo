@@ -155,6 +155,36 @@ test('native drag-to-dismiss still locks at the top once the sheet moves down', 
   assert.equal(f.offset.value, 0);
 });
 
+test('a fast release before the scroll reaches the top leaves momentum inside the scroll view', () => {
+  for (const releaseOrder of ['pan-first', 'scroll-first']) {
+    const f = fixture();
+    f.internal.animatedPosition.value = 84.4;
+    f.internal.animatedSheetState.value = C.SHEET_STATE.EXTENDED;
+    f.internal.animatedScrollableStatus.value = C.SCROLLABLE_STATUS.UNLOCKED;
+    f.run('handleOnBeginDrag', 600);
+    f.gesture('handleOnStart', 0);
+    f.gesture('handleOnChange', 560);
+    f.run('handleOnScroll', 40);
+    if (releaseOrder === 'scroll-first') f.run('handleOnEndDrag', 40);
+    f.gesture('handleOnEnd', 560, 2400);
+    if (releaseOrder === 'pan-first') f.run('handleOnEndDrag', 40);
+    for (const y of [24, 8, 0]) f.run('handleOnScroll', y);
+    f.run('handleOnMomentumEnd', 0);
+    assert.equal(f.internal.animatedPosition.value, 84.4, 'Released scroll momentum must not move the sheet');
+    assert.deepEqual(f.destinations, [], 'A fling through the content must not dismiss the sheet');
+    assert.deepEqual(f.commands, [], 'Native scrolling must remain free of forced resets');
+    assert.equal(f.offset.value, 0);
+
+    // A new deliberate pull still belongs to the sheet once content is at top.
+    f.run('handleOnBeginDrag', 0);
+    f.gesture('handleOnStart', 0);
+    f.gesture('handleOnChange', 80);
+    assert.ok(Math.abs(f.internal.animatedPosition.value - 164.4) < 0.001);
+    f.gesture('handleOnEnd', 80, 1800);
+    assert.deepEqual(f.destinations, [844]);
+  }
+});
+
 test('dragging the grabber preserves its locked offset, including above the open snap', () => {
   const f = fixture();
   f.internal.animatedPosition.value = 60;

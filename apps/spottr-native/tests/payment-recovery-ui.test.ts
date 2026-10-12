@@ -9,6 +9,8 @@ import * as payments from '../src/checkout/nativePayment';
 import { createPaymentRecoveryStore } from '../src/checkout/paymentRecoveryStore';
 import { checkPaymentConfirmation } from '../../pulse-app/src/features/checkout/confirmation';
 import { isEventId } from '../src/data/events';
+import { confirmPayment, canRecheckPayment, canRestartCheckout } from '../src/checkout/confirmation';
+import { ApiError } from '../src/data/http';
 
 const account = '11111111-1111-4111-8111-111111111111';
 const otherAccount = '22222222-2222-4222-8222-222222222222';
@@ -62,8 +64,8 @@ async function fixture() {
   payments.clearNativePayments(); payments.configureNativePaymentRecovery(store);
   const auth = { ready: true, user: { id: account }, token: 'token-A' };
   const controller = { getToken: () => auth.token };
-  const calls: any[] = [], requests: string[] = [], subscriptions = new Set<(state: string) => void>();
-  let server: 'pending' | 'completed' | 'failed' | 'offline' = 'pending', navReady = true;
+  const calls: any[] = [], requests: string[] = [], haptics: string[] = [], subscriptions = new Set<(state: string) => void>();
+  let server: 'pending' | 'completed' | 'failed' | 'refunded' | 'missing' | 'offline' = 'pending', navReady = true;
   let current: any = { name: 'Home' };
   const navigation = {
     isReady: () => navReady, getCurrentRoute: () => current,
@@ -75,12 +77,16 @@ async function fixture() {
     'react-native': { Platform: { OS: 'ios' }, View: 'View', ScrollView: 'ScrollView', Pressable: 'Pressable', ActivityIndicator: 'Spinner', StyleSheet: { create: (v: any) => v }, AppState: { addEventListener: (_: string, fn: (state: string) => void) => { subscriptions.add(fn); return { remove: () => subscriptions.delete(fn) }; } } },
     '@react-navigation/native': { useIsFocused: () => true },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 60, bottom: 34 }) },
-    'lucide-react-native': { AlertCircle: 'Alert', CheckCircle2: 'Success', Mail: 'Mail', Ticket: 'Ticket', UserRoundPlus: 'Account' },
-    '../auth/AuthProvider': { useAuth: () => ({ ...auth, controller }), accountApi: async (path: string) => { requests.push(path); if (server === 'offline') throw Error('offline'); return { orderId, status: server }; } },
+    'lucide-react-native': { AlertCircle: 'Alert', CheckCircle2: 'Success', Mail: 'Mail', Ticket: 'Ticket', UserRoundPlus: 'Account', ArrowLeft: 'Back', ArrowRight: 'Next', Clock3: 'Clock', RotateCcw: 'Retry', WifiOff: 'Offline' },
+    '../auth/AuthProvider': { useAuth: () => ({ ...auth, controller }), accountApi: async (path: string) => { requests.push(path); if (server === 'offline') throw Error('offline'); if (server === 'missing') throw new ApiError(404, 'NOT_FOUND'); return { orderId, status: server }; } },
     '../PreferencesProvider': { usePreferences: () => prefs },
     '../data/queries': { queryClient: { invalidateQueries() {} } },
     '../data/events': { isEventId },
-    '../ui/Text': { Text: 'Text' }, '../ui/theme': { colors: {} }, '../ui/haptics': { haptic() {} },
+    '../ui/Text': { Text: 'Text' }, '../ui/theme': { colors: {} }, '../ui/haptics': { haptic(kind: string) { haptics.push(kind); } },
+    '../ui/MotionPressable': { MotionPressable: 'Pressable' },
+    '../checkout/CheckoutSuccess': { CheckoutSuccessTicket: 'TicketSummary', PaymentSuccessCheck: 'SuccessCheck' },
+    '../checkout/paymentBrowser': { canResumePaymentBrowser: () => false, forgetPaymentBrowser() {} },
+    '../checkout/confirmation': { canRecheckPayment, canRestartCheckout, confirmPayment: (read: any, active: any, _pause: any, attempts: 1 | 4) => confirmPayment(read, active, async () => {}, attempts) },
     '../ui/common': { Feedback: 'Feedback' },
     './paymentRecoveryStorage': {}, '../checkout/paymentRecoveryStorage': {},
     './nativePayment': payments, '../checkout/nativePayment': payments,
@@ -88,7 +94,7 @@ async function fixture() {
     '../../../pulse-app/src/features/checkout/confirmation': { checkPaymentConfirmation: (read: any, active: any) => checkPaymentConfirmation(read, active, async () => {}) },
     '../../../pulse-app/src/features/checkout/nativeReturn': { validCheckoutSession: () => true },
   };
-  return { store, auth, deps, navigation, calls, requests, subscriptions,
+  return { store, auth, deps, navigation, calls, requests, subscriptions, haptics,
     server: (value: typeof server) => { server = value; }, ready: (value: boolean) => { navReady = value; }, route: (value: any) => { current = value; } };
 }
 const tabs = () => ({ index: 0, routes: [{ name: 'Tabs' }] });
@@ -123,11 +129,12 @@ test('restored confirmation shows pending, rechecks on foreground and acknowledg
   const f = await fixture();
   const ui = mount('screens/CheckoutReturnScreen.tsx', 'CheckoutReturnScreen', { navigation: f.navigation, route: { params: { eventId, nativeOrderId: orderId } } }, f.deps);
   await ui.flush();
-  assert.ok(ui.text('feedback.confirmationPending'));
+  assert.ok(ui.text('checkoutResult.pendingTitle'));
   assert.ok(ui.find('checkout-recheck')); assert.equal(ui.find('checkout-view-tickets'), undefined);
   assert.equal(f.requests.length, 4);
   f.server('completed'); f.subscriptions.forEach(fn => fn('active')); await ui.flush();
-  assert.ok(ui.text('checkoutSuccess.confirmed')); assert.ok(ui.find('checkout-view-tickets'));
+  assert.ok(ui.text('checkoutResult.completedTitle')); assert.ok(ui.find('checkout-view-tickets'));
+  assert.deepEqual(f.haptics, ['success']);
   ui.find('checkout-view-tickets').props.onPress(); await ui.flush();
   assert.deepEqual(await f.store.load(account), []);
   assert.equal(f.calls[0][0], 'Tabs');
@@ -137,10 +144,10 @@ test('restored confirmation shows pending, rechecks on foreground and acknowledg
 test('offline recovery stays retryable and the cancel action is verified by the server', async () => {
   const f = await fixture(); f.server('offline');
   const ui = mount('screens/CheckoutReturnScreen.tsx', 'CheckoutReturnScreen', { navigation: f.navigation, route: { params: { eventId, nativeOrderId: orderId } } }, f.deps);
-  await ui.flush(); assert.ok(ui.text('feedback.confirmationUnavailable'));
+  await ui.flush(); assert.ok(ui.text('checkoutResult.unavailableTitle'));
   assert.equal((await f.store.load(account)).length, 1);
   f.server('failed'); ui.find('checkout-cancel-attempt').props.onPress(); await ui.flush();
-  assert.ok(f.requests.at(-1)?.endsWith('/cancel')); assert.ok(ui.text('checkout.paymentClosed'));
+  assert.ok(f.requests.at(-1)?.endsWith('/cancel')); assert.ok(ui.text('checkoutResult.cancelledTitle'));
   ui.find('checkout-return-to-event').props.onPress(); await ui.flush();
   assert.deepEqual(await f.store.load(account), []);
   ui.unmount();
@@ -150,7 +157,7 @@ test('another account cannot verify the previous account order through a restore
   const f = await fixture(); f.auth.user.id = otherAccount; f.auth.token = 'token-B';
   const ui = mount('screens/CheckoutReturnScreen.tsx', 'CheckoutReturnScreen', { navigation: f.navigation, route: { params: { eventId, nativeOrderId: orderId } } }, f.deps);
   await ui.flush();
-  assert.ok(ui.text('feedback.confirmationInvalid')); assert.deepEqual(f.requests, []);
+  assert.ok(ui.text('checkoutResult.invalidHint')); assert.deepEqual(f.requests, []);
   assert.equal((await f.store.load(account)).length, 1);
   ui.unmount();
 });
@@ -161,5 +168,38 @@ test('native Back retains pending recovery but acknowledges a confirmed result',
     const ui = mount('screens/CheckoutReturnScreen.tsx', 'CheckoutReturnScreen', { navigation: f.navigation, route: { params: { eventId, nativeOrderId: orderId } } }, f.deps);
     await ui.flush(); ui.unmount();
     assert.equal((await f.store.load(account)).length, server === 'pending' ? 1 : 0);
+  }
+});
+
+test('one manual check, rapid double taps and unavailable results never create a payment or clear pending recovery', async () => {
+  const f = await fixture();
+  const ui = mount('screens/CheckoutReturnScreen.tsx', 'CheckoutReturnScreen', { navigation: f.navigation, route: { params: { eventId, nativeOrderId: orderId } } }, f.deps);
+  await ui.flush();
+  const press = ui.find('checkout-recheck').props.onPress;
+  f.server('offline'); press(); press(); await ui.flush();
+  assert.equal(f.requests.length, 5);
+  assert.equal(ui.find('checkout-recheck'), undefined);
+  assert.ok(ui.text('checkoutResult.unavailableAfterCheckHint'));
+  assert.equal(ui.find('checkout-return-to-event'), undefined);
+  assert.equal(ui.find('checkout-view-tickets'), undefined);
+  assert.ok(ui.find('checkout-view-orders')); assert.ok(ui.find('checkout-contact-support'));
+  assert.deepEqual(f.haptics, []);
+  assert.equal((await f.store.load(account)).length, 1);
+  f.server('completed'); f.subscriptions.forEach(fn => fn('active')); await ui.flush();
+  assert.ok(ui.find('checkout-view-tickets')); assert.deepEqual(f.haptics, ['success']);
+  f.subscriptions.forEach(fn => fn('active')); await ui.flush();
+  assert.deepEqual(f.haptics, ['success']);
+  ui.unmount();
+});
+
+test('missing payment and refunds get distinct results instead of a generic failure', async () => {
+  for (const status of ['missing', 'refunded'] as const) {
+    const f = await fixture(); f.server(status);
+    const ui = mount('screens/CheckoutReturnScreen.tsx', 'CheckoutReturnScreen', { navigation: f.navigation, route: { params: { eventId, nativeOrderId: orderId } } }, f.deps);
+    await ui.flush();
+    assert.ok(ui.text('checkoutResult.' + status + 'Title'));
+    assert.equal(ui.find('checkout-recheck'), undefined); assert.equal(ui.find('checkout-view-tickets'), undefined);
+    assert.equal(!!ui.find('checkout-return-to-event'), status === 'refunded');
+    assert.deepEqual(f.haptics, []); ui.unmount();
   }
 });

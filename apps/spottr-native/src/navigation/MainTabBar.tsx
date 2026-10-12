@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import {
+  getFocusedRouteNameFromRoute,
   StackActions,
   type NavigationContainerRefWithCurrent,
   type NavigationState,
@@ -37,6 +38,14 @@ export function MainTabBarRegistration(props: BottomTabBarProps) {
       if (bridge.current === props) bridge.current = null;
     };
   }, [bridge, props]);
+  const route = props.state.routes[props.state.index];
+  const profileScreen = route?.name === "Profile"
+    ? getFocusedRouteNameFromRoute(route)
+    : undefined;
+  // These account pages have their own Back control. Keep the tab bridge and
+  // shared indicator state alive so returning to Profile restores its navbar.
+  if (profileScreen && ["Tickets", "Orders", "SavedEvents"].includes(profileScreen))
+    return null;
   return <MainTabBar />;
 }
 

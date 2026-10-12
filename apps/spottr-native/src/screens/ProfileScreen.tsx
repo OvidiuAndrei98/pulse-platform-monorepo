@@ -3,7 +3,6 @@ import { AppSheetScrollView } from "../ui/AppSheetScrollView";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
@@ -11,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
+import { MotionPressable as Pressable } from "../ui/MotionPressable";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
@@ -57,6 +57,9 @@ import type { RootParamList } from "../navigation/types";
 import { AuthButton, AuthMessage } from "./AuthScreen";
 import { useTickets } from "../data/useTickets";
 import { TicketAvailability } from "../profile/TicketAvailability";
+import { TicketCarousel } from "../profile/TicketCarousel";
+import { profileTicketGroups } from "../profile/ticketGroups";
+import { useEventClock } from "../data/useEventClock";
 export function ProfileScreen() {
   const auth = useAuth(),
     { copy, saved, savedLoading, savedError, retrySaved, language, setLanguage, actionError } = usePreferences(),
@@ -78,6 +81,7 @@ export function ProfileScreen() {
   const tickets = useTickets(focused),
     hidden = useHiddenCategories(),
     pending = useRef(false);
+  const now = useEventClock();
   const validationEvents = useQuery({ queryKey: ['validation-access', auth.user?.id], enabled: !!auth.user, queryFn: async ({ signal }) => { const result = await accountApi<unknown>('/dashboard/ticket-validation/events', { signal }); if (result === null) return []; if (!Array.isArray(result)) throw new Error('Invalid validation events'); return result; } });
   const activeSafety = tickets.data?.find(ticket => ticket.isValidated && Date.parse(ticket.endTime) + 86400000 >= Date.now());
   useEffect(() => {
@@ -99,16 +103,9 @@ export function ProfileScreen() {
   if (!auth.ready || !auth.user) return <Loading />;
   const user = auth.user,
     activeTickets = (tickets.data ?? []).filter(
-      (item) => ticketStatus(item) === "active",
+      (item) => ticketStatus(item, now) === "active",
     );
-  const selectedTickets = (tickets.data ?? []).filter((item) =>
-    tab === "active"
-      ? ticketStatus(item) === "active"
-      : ticketStatus(item) !== "active",
-  );
-  const groups = new Map<string, UserTicket[]>();
-  for (const item of selectedTickets)
-    groups.set(item.eventId, [...(groups.get(item.eventId) ?? []), item]);
+  const groups = profileTicketGroups(tickets.data ?? [], tab, now);
   const run = async (operation: () => Promise<unknown>, successFor = "") => {
     if (pending.current) return;
     pending.current = true;
@@ -279,6 +276,7 @@ export function ProfileScreen() {
             {(["active", "history"] as const).map((value) => (
               <Pressable
                 key={value}
+                testID={'profile-tickets-tab-' + value}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: tab === value }}
                 onPress={() => setTab(value)}
@@ -308,30 +306,14 @@ export function ProfileScreen() {
               title={copy("feedback.loadFailed")}
               retry={() => void tickets.refetch()}
             />
-          ) : groups.size ? (
-            [...groups.values()].map((items) => (
-              <Pressable
-                key={items[0]!.eventId}
-                accessibilityRole="button"
-                onPress={() => setTicket(items[0] ?? null)}
-                style={s.ticket}
-              >
-                <View style={{ flex: 1, gap: 5 }}>
-                  <Text
-                    style={{ color: "white", fontWeight: "700", fontSize: 16 }}
-                  >
-                    {items[0]!.eventTitle}
-                  </Text>
-                  <Text style={s.hint}>
-                    {formatDate(items[0]!.startTime, language, true)}
-                  </Text>
-                  <Text style={{ color: colors.accent, fontSize: 12 }}>
-                    {copy("userProfile.ticketCount", { count: items.length })}
-                  </Text>
-                </View>
-                <QrCode size={24} color={colors.accent} />
-              </Pressable>
-            ))
+          ) : groups.length ? (
+            <TicketCarousel
+              key={user.id + ':' + tab}
+              groups={groups}
+              tab={tab}
+              now={now}
+              onOpen={setTicket}
+            />
           ) : (
             <View>
               <Text style={s.empty}>
@@ -542,8 +524,9 @@ export function ProfileScreen() {
           initialId={ticket.id}
           offline={tickets.offline}
           savedAt={tickets.savedAt}
-          tickets={selectedTickets.filter(
-            (item) => item.eventId === ticket.eventId,
+          tickets={(tickets.data ?? []).filter(item =>
+            item.eventId === ticket.eventId &&
+            (item.id === ticket.id || (ticketStatus(item, now) === 'active') === (tab === 'active')),
           )}
           onClose={() => setTicket(null)}
         />
@@ -821,16 +804,6 @@ const s = StyleSheet.create({
     borderColor: "#ffffff1a",
   },
   tab: { flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 99 },
-  ticket: {
-    borderRadius: 26,
-    padding: 20,
-    backgroundColor: "#140f12",
-    borderWidth: 1,
-    borderColor: "#ff004433",
-    flexDirection: "row",
-    gap: 12,
-    alignItems: "center",
-  },
   input: {
     color: "white",
     fontFamily: "Inter_400Regular",

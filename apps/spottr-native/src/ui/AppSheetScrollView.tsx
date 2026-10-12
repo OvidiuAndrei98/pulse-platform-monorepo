@@ -4,8 +4,18 @@ import { BottomSheetScrollView, type BottomSheetScrollViewMethods } from '@gorho
 import { useFocusEffect } from '@react-navigation/native';
 import { useSheetScrollEvents } from './useSheetScrollEvents';
 
-/** Keep vertical touch ownership on web so scrolling can hand off to dragging. */
+/** Scroll to the edge, then let the sheet own the downward movement. */
 export const AppSheetScrollView = forwardRef<BottomSheetScrollViewMethods, React.ComponentProps<typeof BottomSheetScrollView>>((props, ref) => (
-  <BottomSheetScrollView focusHook={useFocusEffect} scrollEventsHandlersHook={useSheetScrollEvents} {...props} ref={ref} {...(Platform.OS === 'web' ? { dataSet: { spottrSheetScroll: 'true' } } : {})} />
+  <BottomSheetScrollView
+    focusHook={useFocusEffect}
+    scrollEventsHandlersHook={useSheetScrollEvents}
+    {...props}
+    ref={ref}
+    // UIKit's independent rubber-band exposes a gap beneath the fixed grabber
+    // when a fling reaches the top after Pan has ended. Gorhom owns sheet drag
+    // and snap-back; the inner scroll view must stop at its content bounds.
+    {...(Platform.OS === 'ios' ? { bounces: false } : {})}
+    {...(Platform.OS === 'web' ? { dataSet: { spottrSheetScroll: 'true' } } : {})}
+  />
 ));
 AppSheetScrollView.displayName = 'AppSheetScrollView';

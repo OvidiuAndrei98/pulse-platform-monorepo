@@ -1,8 +1,15 @@
-import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Easing, Platform } from "react-native";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { AccessibilityInfo } from "react-native";
+import {
+  cancelAnimation,
+  Easing,
+  useSharedValue,
+  withTiming,
+  type SharedValue,
+} from "react-native-reanimated";
 
 export type TabIndicatorMotion = {
-  position: Animated.Value;
+  position: SharedValue<number>;
   itemWidth: number;
   measure: (width: number) => void;
 };
@@ -13,7 +20,7 @@ export function useTabIndicator(
   itemWidth: number,
   enabled = true,
 ) {
-  const position = useRef(new Animated.Value(0)).current;
+  const position = useSharedValue(0);
   const measured = useRef(false);
   const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => {
@@ -33,25 +40,22 @@ export function useTabIndicator(
       listener.remove();
     };
   }, [enabled]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!enabled || !itemWidth) return;
-    if (!measured.current) {
+    const target = activeIndex * itemWidth;
+    if (!measured.current || reduceMotion) {
       measured.current = true;
-      position.setValue(activeIndex * itemWidth);
+      position.value = target;
       return;
     }
-    if (reduceMotion) {
-      position.setValue(activeIndex * itemWidth);
-      return;
-    }
-    const animation = Animated.timing(position, {
-      toValue: activeIndex * itemWidth,
+    // Run each frame on Reanimated's UI runtime (also used by our sheets).
+    // Retarget the current shared position, including across stack scenes,
+    // without reading it back onto JS or restarting at a tab's old position.
+    position.value = withTiming(target, {
       duration: 320,
       easing: Easing.bezier(0.4, 0, 0.2, 1),
-      useNativeDriver: Platform.OS !== "web",
     });
-    animation.start();
-    return () => animation.stop();
+    return () => cancelAnimation(position);
   }, [activeIndex, itemWidth, position, reduceMotion, enabled]);
   return position;
 }

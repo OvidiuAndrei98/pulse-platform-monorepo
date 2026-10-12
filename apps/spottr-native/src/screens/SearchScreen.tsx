@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { FlatList, StyleSheet, TextInput, View } from "react-native";
+import { MotionPressable as Pressable } from "../ui/MotionPressable";
 import { ArrowLeft, ArrowUpRight, BadgeCheck, Search, UserRound, X } from "lucide-react-native";
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../auth/AuthProvider';

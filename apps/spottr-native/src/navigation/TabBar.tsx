@@ -1,7 +1,5 @@
-import { haptic } from "../ui/haptics";
 import React, { useRef, useState } from "react";
 import {
-  Animated,
   Platform,
   Pressable,
   StyleSheet,
@@ -9,6 +7,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { BlurView } from "expo-blur";
@@ -48,6 +47,9 @@ export function TabBar({ state, navigation, activeIndex = state.index, onSelectT
   const itemWidth = width ? width / state.routes.length : (indicatorMotion?.itemWidth ?? 0);
   const localPosition = useTabIndicator(activeIndex, itemWidth, !indicatorMotion);
   const position = indicatorMotion?.position ?? localPosition;
+  const indicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: position.value }],
+  }), [position]);
   return (
     <View pointerEvents="box-none" style={s.position}>
       <View
@@ -66,7 +68,8 @@ export function TabBar({ state, navigation, activeIndex = state.index, onSelectT
             pointerEvents="none"
             style={[
               s.indicator,
-              { width: itemWidth, transform: [{ translateX: position }] },
+              { width: itemWidth },
+              indicatorStyle,
               desktopPreview && ({ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" } as ViewStyle),
             ]}
           />
@@ -75,7 +78,6 @@ export function TabBar({ state, navigation, activeIndex = state.index, onSelectT
           const Icon = icons[index] || HomeIcon;
           const active = index === activeIndex;
           const activate = () => {
-            if (!active) haptic("selection");
             if (onSelectTab) { onSelectTab(route.name); return; }
             const event = navigation.emit({
               type: "tabPress",

@@ -14,9 +14,10 @@ export async function checkPaymentConfirmation(
   read: () => Promise<{ status: string }>,
   isActive: () => boolean,
   pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
+  attempts: 1 | 4 = 4,
 ): Promise<ConfirmationResult | null> {
   let result: ConfirmationResult = "pending";
-  for (let attempt = 0; attempt < 4 && isActive(); attempt++) {
+  for (let attempt = 0; attempt < attempts && isActive(); attempt++) {
     try {
       const response = await withTimeout(read(), 12000);
       if (!isActive()) return null;
@@ -27,7 +28,7 @@ export async function checkPaymentConfirmation(
       if (!isActive()) return null;
       result = "unavailable";
     }
-    if (attempt < 3) await pause(1500);
+    if (attempt < attempts - 1) await pause(1500);
   }
   return isActive() ? result : null;
 }

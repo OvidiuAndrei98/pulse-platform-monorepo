@@ -3,7 +3,10 @@ import { NATIVE_CHECKOUT_RETURN } from '../../../pulse-app/src/features/checkout
 let active = false;
 export const paymentBrowserActive = () => active;
 export const paymentReturnOrigin = (): string | undefined => undefined;
-export function preparePaymentBrowser() {
+export function canResumePaymentBrowser(_eventId: string, _sessionId: string | undefined, _owner: string | null) { return false; }
+export function resumePaymentBrowser(_eventId: string, _sessionId: string | undefined, _owner: string | null) { return false; }
+export function forgetPaymentBrowser(_eventId: string, _sessionId: string | undefined, _owner: string | null) {}
+export function preparePaymentBrowser(_owner: string | null = null) {
   let opened = false;
   return { open: async (url: string, expected: { eventId: string; sessionId: string }) => {
     active = true; opened = true;

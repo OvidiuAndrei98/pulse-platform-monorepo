@@ -1,7 +1,26 @@
 // Open synchronously from the Pay click, before awaiting the API, to avoid popup blocking.
 export const paymentBrowserActive = () => false;
 export const paymentReturnOrigin = () => window.location.origin;
-export function preparePaymentBrowser() {
+let retained: { eventId: string; sessionId: string; owner: string | null; url: string; popup: Window } | undefined;
+export function canResumePaymentBrowser(eventId: string, sessionId: string | undefined, owner: string | null) {
+  return !!retained && retained.eventId === eventId && retained.sessionId === sessionId && retained.owner === owner;
+}
+export function resumePaymentBrowser(eventId: string, sessionId: string | undefined, owner: string | null) {
+  if (!canResumePaymentBrowser(eventId, sessionId, owner) || !retained) return false;
+  if (retained.popup.closed) {
+    const popup = window.open('about:blank', '_blank');
+    if (!popup) return false;
+    popup.opener = null;
+    popup.location.replace(retained.url);
+    retained.popup = popup;
+  }
+  retained.popup.focus();
+  return true;
+}
+export function forgetPaymentBrowser(eventId: string, sessionId: string | undefined, owner: string | null) {
+  if (canResumePaymentBrowser(eventId, sessionId, owner)) retained = undefined;
+}
+export function preparePaymentBrowser(owner: string | null = null) {
   const popup = window.open('about:blank', '_blank');
   if (!popup) throw new Error('PAYMENT_WINDOW_BLOCKED');
   popup.opener = null;
@@ -31,6 +50,9 @@ export function preparePaymentBrowser() {
       finish = () => { cleanup(); resolve(); };
       popup.location.replace(url);
       redirected = true;
+      // Only remember a provider URL, never an app callback or URL from routing.
+      const provider = new URL(url);
+      if (provider.protocol === 'https:' && provider.hostname === 'checkout.stripe.com' && !provider.port && !provider.username && !provider.password) retained = { ...expected, owner, url, popup };
       timer = setInterval(() => {
         if (popup.closed) { finish?.(); return; }
         try {

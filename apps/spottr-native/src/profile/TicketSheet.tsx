@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
+import { MotionPressable as Pressable } from "../ui/MotionPressable";
 import { BottomSheetView } from "@gorhom/bottom-sheet";
 import QRCode from "react-native-qrcode-svg";
 import {

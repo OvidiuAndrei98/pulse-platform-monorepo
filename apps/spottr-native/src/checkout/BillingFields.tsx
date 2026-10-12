@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
+import { MotionPressable as Pressable } from '../ui/MotionPressable';
+import { SelectionPressable } from '../ui/StateMotion';
 import { Check, ChevronDown, ReceiptText } from 'lucide-react-native';
 import { usePreferences } from '../PreferencesProvider';
 import { Text } from '../ui/Text';
@@ -21,7 +23,7 @@ export function BillingFields({ value, onChange, errors, disabled }: { value: In
     <View style={{ flexDirection: 'row', gap: 12 }}><ReceiptText size={16} color={colors.accent} /><View style={{ flex: 1 }}>
       <Text style={s.title}>{copy('checkout.billingDetailsTitle')}</Text><Text style={s.hint}>{copy('checkout.invoiceAutomaticHint')}</Text></View></View>
     <View style={s.fields}>
-      <View style={s.tabs}>{(['individual', 'company'] as const).map(type => <Pressable key={type} testID={'billing-type-' + type} accessibilityRole="radio" accessibilityState={{ checked: value.type === type }} disabled={disabled} onPress={() => onChange({ ...value, type })} style={[s.tab, value.type === type && { backgroundColor: colors.accent }]}><Text style={[s.label, { color: value.type === type ? 'white' : '#ffffff8c' }]}>{copy('checkout.invoiceType.' + type)}</Text></Pressable>)}</View>
+      <View style={s.tabs}>{(['individual', 'company'] as const).map(type => <SelectionPressable key={type} testID={'billing-type-' + type} background={value.type === type ? colors.accent : '#00000000'} accessibilityRole="radio" accessibilityState={{ checked: value.type === type }} disabled={disabled} onPress={() => onChange({ ...value, type })} style={s.tab}><Text style={[s.label, { color: value.type === type ? 'white' : '#ffffff8c' }]}>{copy('checkout.invoiceType.' + type)}</Text></SelectionPressable>)}</View>
       {field('name', value.type === 'company' ? 'checkout.companyName' : 'checkout.fullName')}
       {value.type === 'company' && <>{field('taxId', 'checkout.taxId')}{field('registrationNumber', 'checkout.registrationNumber', true)}</>}
       {field('address', 'checkout.billingAddress')}

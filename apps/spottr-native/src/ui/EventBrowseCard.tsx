@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { MotionPressable as Pressable } from './MotionPressable';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MapPin } from 'lucide-react-native';
 import { Event, formatDate, isLive } from '../data/events';

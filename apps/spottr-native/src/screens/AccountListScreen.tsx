@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
+import { MotionPressable as Pressable } from '../ui/MotionPressable';
 import { ArrowLeft, Bookmark, Calendar, ChevronRight, ExternalLink, MapPin, QrCode, Receipt, Ticket } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
@@ -104,7 +105,7 @@ function AccountPage({ id, title: heading, subtitle, large, children }: React.Pr
   const navigation = useNavigation<CompositeNavigationProp<NativeStackNavigationProp<ProfileParamList>,NativeStackNavigationProp<RootParamList>>>(), safe = useSafeAreaInsets(), { user, ready } = useAuth(), { copy } = usePreferences(), focused=useIsFocused();
   useEffect(() => { if (focused && ready && !user) navigation.navigate('Auth', { returnTab: 'Profile' }); }, [focused,ready,user,navigation]);
   if (!ready || !user) return <Loading />;
-  return <ScrollView testID={id} style={{flex:1,backgroundColor:'#000'}} contentContainerStyle={{paddingHorizontal:20,paddingTop:Math.max(24,safe.top),paddingBottom:128,gap:16}}>
+  return <ScrollView testID={id} style={{flex:1,backgroundColor:'#000'}} contentContainerStyle={{paddingHorizontal:20,paddingTop:Math.max(24,safe.top),paddingBottom:Math.max(28,safe.bottom+16),gap:16}}>
     <Pressable accessibilityRole="button" testID="account-back" onPress={()=>{ /* Only pop this profile stack: canGoBack also sees parent tabs. */ if(navigation.getState().index>0) navigation.goBack(); else navigation.replace('ProfileHome'); }} style={{flexDirection:'row',gap:6,minHeight:40,alignItems:'center'}}><ArrowLeft size={16} color={colors.muted}/><Text style={{color:colors.muted,fontSize:14}}>{copy('tickets.profile')}</Text></Pressable>
     <View style={{gap:large?8:4,marginBottom:12}}><Text style={{color:'white',fontSize:large?30:24,fontWeight:large?'700':'600',letterSpacing:large?-0.5:0}}>{heading}</Text>{!!subtitle && <Text style={{color:colors.muted,fontSize:14}}>{subtitle}</Text>}</View>{children}
   </ScrollView>;

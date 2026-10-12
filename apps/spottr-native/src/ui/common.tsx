@@ -1,6 +1,8 @@
 import { Text } from './Text';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View, type ViewStyle, type StyleProp, type NativeScrollEvent, type NativeSyntheticEvent, Alert, Platform, Linking } from 'react-native';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View, type ViewStyle, type StyleProp, type NativeScrollEvent, type NativeSyntheticEvent, Alert, Platform, Linking } from 'react-native';
+import Animated, { cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import { MotionPressable as Pressable } from './MotionPressable';
 import { Image } from 'expo-image';
 import { openBrowserAsync } from 'expo-web-browser';
 import { usePreferences } from '../PreferencesProvider';
@@ -17,22 +19,30 @@ export function webListScrollProps(loadMore: () => void, threshold = 0.6) {
   } };
 }
 
-export function EventImage({ uri, style }: { uri?: string; style?: React.ComponentProps<typeof Image>['style'] }) {
-  const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [uri]);
-  return <Image source={!failed && uri ? { uri } : require('../../assets/party-event.webp')}
-    style={style} contentFit="cover" cachePolicy="memory-disk" draggable={false} recyclingKey={uri || 'fallback'} onError={() => setFailed(true)} />;
+const AnimatedImage = Animated.createAnimatedComponent(Image);
+export function EventImage({ uri, style, onLoad, fadeIn = true }: { uri?: string; style?: React.ComponentProps<typeof Image>['style']; onLoad?: () => void; fadeIn?: boolean }) {
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  const sourceUri = uri && uri !== failedUri ? uri : undefined;
+  const reduceMotion = useReducedMotion(), animate = fadeIn && !reduceMotion;
+  const opacity = useSharedValue(animate ? 0 : 1);
+  const motion = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  useLayoutEffect(() => { opacity.value = animate ? 0 : 1; }, [sourceUri, animate, opacity]);
+  useEffect(() => () => cancelAnimation(opacity), [opacity]);
+  return <AnimatedImage testID="event-artwork" source={sourceUri ? { uri: sourceUri } : require('../../assets/party-event.webp')}
+    style={[style, motion]} contentFit="cover" cachePolicy="memory-disk" draggable={false} recyclingKey={sourceUri || 'fallback'}
+    onLoad={() => { opacity.value = withTiming(1, { duration: animate ? 220 : 0 }); onLoad?.(); }}
+    onError={() => setFailedUri(uri ?? null)} />;
 }
 
 export function Button({ title, onPress, secondary = false, disabled = false }: { title: string; onPress: () => void; secondary?: boolean; disabled?: boolean }) {
   return <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
-    style={({ pressed }) => [styles.button, secondary && styles.secondary, { opacity: disabled ? 0.4 : pressed ? 0.7 : 1 }]}>
+    style={[styles.button, secondary && styles.secondary, { opacity: disabled ? 0.4 : 1 }]}>
     <Text style={styles.buttonText}>{title}</Text>
   </Pressable>;
 }
 export function IconButton({ label, onPress, children, disabled }: React.PropsWithChildren<{ label: string; onPress: () => void; disabled?: boolean }>) {
   return <Pressable accessibilityLabel={label} accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
-    style={({ pressed }) => [styles.iconButton, { opacity: pressed ? 0.65 : 1 }]}>{children}</Pressable>;
+    style={styles.iconButton}>{children}</Pressable>;
 }
 export function Feedback({ title, detail, retry, compact = false }: { title: string; detail?: string; retry?: () => void; compact?: boolean }) {
   const { t } = usePreferences();

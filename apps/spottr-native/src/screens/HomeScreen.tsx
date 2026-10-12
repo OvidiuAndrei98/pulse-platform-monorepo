@@ -1,7 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
-  Pressable,
   ScrollView,
   StyleSheet,
   View,
@@ -20,7 +19,9 @@ import { useEventClock } from "../data/useEventClock";
 import { manualRefreshOptions, seedEvent, useHomeEvents } from "../data/queries";
 import { RefreshScrollView } from "../ui/RefreshScrollView";
 import { isLive, type Event } from "../data/events";
-import { EventCard, HeroCard } from "../ui/EventCard";
+import { EventCard } from "../ui/EventCard";
+import { PromotionHero } from "../ui/PromotionHero";
+import { MotionPressable as Pressable } from "../ui/MotionPressable";
 import { Feedback, Loading } from "../ui/common";
 import { Text } from "../ui/Text";
 import { Logo } from "../ui/Logo";
@@ -59,9 +60,11 @@ export function HomeScreen() {
     queryFn: ({ signal }) => eventsApi.promotions(signal),
   });
   const [promotionSeed] = useState(() => String(Date.now()));
+  const bannerPromotions = useMemo(() => (promoted.data ?? []).filter(p => p.placement === 'home_banner'), [promoted.data]);
   const feedPromotions = (promoted.data ?? []).filter(p => p.placement === 'feed');
   const campaigns = new Map(feedPromotions.map(p => [p.event.id, p.campaignId]));
   const [refreshing, setRefreshing] = useState(false);
+  const [heroRefreshKey, setHeroRefreshKey] = useState(0);
   const refreshPending = useRef(false);
   const refresh = async () => {
     if (refreshPending.current) return;
@@ -75,6 +78,7 @@ export function HomeScreen() {
     } finally {
       refreshPending.current = false;
       setRefreshing(false);
+      setHeroRefreshKey(current => current + 1);
     }
   };
   const [location, setLocation] = useState<Location.LocationObject | null>(
@@ -180,11 +184,10 @@ export function HomeScreen() {
         </Text>
       </View>
       <PromotionHero
-        events={(promoted.data ?? [])
-          .filter((p) => p.placement === "home_banner")
-          .map((p) => p.event)}
-        campaigns={new Map((promoted.data ?? []).filter(p => p.placement === 'home_banner').map(p => [p.event.id, p.campaignId]))}
+        items={bannerPromotions}
         onOpen={open}
+        refreshKey={heroRefreshKey}
+        refreshing={refreshing}
       />
       {events.isPending ? (
         <Loading />
@@ -244,57 +247,6 @@ export function HomeScreen() {
         </>
       )}
     </RefreshScrollView>
-  );
-}
-function PromotionHero({
-  events,
-  onOpen,
-  campaigns,
-}: {
-  events: Event[];
-  onOpen: (event: Event) => void;
-  campaigns: Map<string, string>;
-}) {
-  const ref = useRef<FlatList<Event>>(null);
-  const [width, setWidth] = useState(0),
-    [index, setIndex] = useState(0),
-    [dragging, setDragging] = useState(false);
-  useEffect(() => {
-    if (events.length < 2 || dragging || !width) return;
-    const timer = setTimeout(() => {
-      const next = (index + 1) % events.length;
-      ref.current?.scrollToOffset({ offset: next * width, animated: true });
-      setIndex(next);
-    }, 4500);
-    return () => clearTimeout(timer);
-  }, [events.length, index, width, dragging]);
-  if (!events.length) return null;
-  return (
-    <View
-      style={{ marginTop: 24, marginHorizontal: 20 }}
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-    >
-      {width > 0 && (
-        <FlatList
-          ref={ref}
-          horizontal
-          pagingEnabled
-          data={events}
-          keyExtractor={(e) => e.id}
-          showsHorizontalScrollIndicator={false}
-          onScrollBeginDrag={() => setDragging(true)}
-          onScrollEndDrag={() => setDragging(false)}
-          onMomentumScrollEnd={(e) =>
-            setIndex(Math.round(e.nativeEvent.contentOffset.x / width))
-          }
-          renderItem={({ item }) => (
-            <VisiblePromotion campaignId={campaigns.get(item.id)} style={{ width }}>
-              <HeroCard event={item} onOpen={() => { trackPromotion(campaigns.get(item.id), 'click'); onOpen(item); }} />
-            </VisiblePromotion>
-          )}
-        />
-      )}
-    </View>
   );
 }
 const s = StyleSheet.create({
