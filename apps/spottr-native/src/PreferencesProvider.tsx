@@ -61,7 +61,7 @@ export function PreferencesProvider({ children }: React.PropsWithChildren) {
   const saves = useRef(
     new Map<
       string,
-      { desired: boolean; confirmed: boolean; running: boolean; revision: number; allowUndo: boolean }
+      { desired: boolean; confirmed: boolean; running: boolean; revision: number }
     >(),
   );
   const saveRevision = useRef(0);
@@ -118,16 +118,15 @@ export function PreferencesProvider({ children }: React.PropsWithChildren) {
       update({ ...stateRef.current, language: user.preferredLanguage });
   }, [ready, user?.preferredLanguage]);
   const saved = user ? (favorites.data ?? []) : [];
-  const changeSaved = (event: Event, desired?: boolean, allowUndo = true) => {
+  const changeSaved = (event: Event) => {
     const token = controller.getToken();
     if (!user || !token) { show({ key: 'toast.signInToSave', kind: 'info' }); return; }
     if (!favorites.data) { show({ key: 'toast.saveFailed', kind: 'error' }); return; }
     const currentlySaved = (queryClient.getQueryData<Event[]>(favoritesKey) ?? []).some(e => e.id === event.id);
-    const entry = saves.current.get(event.id) ?? { desired: currentlySaved, confirmed: currentlySaved, running: false, revision: 0, allowUndo };
+    const entry = saves.current.get(event.id) ?? { desired: currentlySaved, confirmed: currentlySaved, running: false, revision: 0 };
     saves.current.set(event.id, entry);
-    entry.desired = desired ?? !entry.desired;
+    entry.desired = !entry.desired;
     entry.revision = ++saveRevision.current;
-    entry.allowUndo = allowUndo;
     const reflect = (value: boolean) => queryClient.setQueryData<Event[]>(favoritesKey, old =>
       value ? [event, ...(old ?? []).filter(e => e.id !== event.id)] : (old ?? []).filter(e => e.id !== event.id));
     reflect(entry.desired);
@@ -144,15 +143,6 @@ export function PreferencesProvider({ children }: React.PropsWithChildren) {
           if (controller.getToken() !== token) return;
           entry.confirmed = target;
         }
-        if (controller.getToken() !== token || entry.revision !== saveRevision.current) return;
-        const confirmed = entry.confirmed, revision = entry.revision;
-        show({ key: confirmed ? 'toast.eventSaved' : 'toast.eventRemoved',
-          ...(entry.allowUndo ? { action: { key: 'toast.undo', run: () => {
-            // Undo only this completed change, never a later tap or another account.
-            if (controller.getToken() === token && entry.revision === revision)
-              changeSaved(event, !confirmed, false);
-          } } } : {}),
-        });
       } catch {
         if (controller.getToken() === token) {
           entry.desired = entry.confirmed;
