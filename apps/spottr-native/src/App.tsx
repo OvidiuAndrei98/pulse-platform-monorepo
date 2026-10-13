@@ -1,6 +1,6 @@
 import { Text } from "./ui/Text";
 import { captureAppError, diagnosticScreen } from './diagnostics/runtime';
-import React, { useEffect, useId, useState } from "react";
+import React, { useCallback, useEffect, useId, useState } from "react";
 import { AppState, Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -44,6 +44,7 @@ import { AuthScreen } from "./screens/AuthScreen";
 import { CheckoutScreen } from "./screens/CheckoutScreen";
 import { CheckoutReturnScreen } from "./screens/CheckoutReturnScreen";
 import { PaymentRecovery } from './checkout/PaymentRecovery';
+import { PushProvider, PushNavigation } from './notifications/PushProvider';
 import { TicketCacheSync } from './data/useTickets';
 import { isStripeReturnURL } from "./checkout/nativePayment";
 import { paymentBrowserActive } from "./checkout/paymentBrowser";
@@ -64,6 +65,8 @@ import { Button, styles } from "./ui/common";
 import { FormKeyboardProvider } from "./ui/KeyboardForms";
 import { Logo } from "./ui/Logo";
 import { colors } from "./ui/theme";
+import { StartupCover } from './ui/StartupCover';
+import { ToastProvider } from './ui/ToastProvider';
 
 const Root = createNativeStackNavigator<RootParamList>();
 const Purchase = createNativeStackNavigator<RootParamList>();
@@ -217,7 +220,7 @@ function EventFlow({ route }: { route: { params: RootParamList['Event'] } }) {
     <Purchase.Screen name="Auth" component={AuthScreen} options={{ animation: "fade", gestureEnabled: false, presentation: Platform.OS === 'web' ? 'transparentModal' : 'card' }} />
   </Purchase.Navigator></ThemeProvider>;
 }
-function Navigator() {
+function Navigator({ onReady }: { onReady: () => void }) {
   const navigator = useNavigationContainerRef<RootParamList>();
   const [dashboardWorkspace, setDashboardWorkspace] = useState(false);
   const [rootState, setRootState] = useState<NavigationState>();
@@ -235,7 +238,7 @@ function Navigator() {
     };
   }, []);
   return (
-    <View style={{ flex:1, width:'100%', alignSelf:'center', maxWidth:Platform.OS==='web'&&!dashboardWorkspace?600:undefined }}><NavigationContainer ref={navigator} onReady={syncWorkspace} onStateChange={syncWorkspace} theme={theme} linking={linking}>
+    <View style={{ flex:1, width:'100%', alignSelf:'center', maxWidth:Platform.OS==='web'&&!dashboardWorkspace?600:undefined }}><NavigationContainer ref={navigator} onReady={() => { syncWorkspace(); onReady(); }} onStateChange={syncWorkspace} theme={theme} linking={linking}>
       <MainTabBarProvider navigation={navigator} state={rootState}>
       <Root.Navigator
         screenOptions={{
@@ -285,13 +288,14 @@ function Navigator() {
         <Root.Screen name="CheckoutReturn" component={CheckoutReturnScreen} options={{ presentation: "transparentModal", animation: "fade", gestureEnabled: false }} />
       </Root.Navigator>
       <PaymentRecovery navigation={navigator} state={rootState} />
+      <PushNavigation navigation={navigator} state={rootState} />
       <TicketCacheSync />
       </MainTabBarProvider>
     </NavigationContainer></View>
   );
 }
 class ErrorBoundary extends React.Component<
-  React.PropsWithChildren,
+  React.PropsWithChildren<{ onReady: () => void }>,
   { failed: boolean }
 > {
   state = { failed: false };
@@ -306,6 +310,7 @@ class ErrorBoundary extends React.Component<
     if (!this.state.failed) return this.props.children;
     return (
       <View
+        onLayout={this.props.onReady}
         style={{
           flex: 1,
           alignItems: "center",
@@ -326,6 +331,8 @@ class ErrorBoundary extends React.Component<
   }
 }
 export default function App() {
+  const [navigationReady, setNavigationReady] = useState(false);
+  const onReady = useCallback(() => setNavigationReady(true), []);
   const [fontsReady, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -334,8 +341,7 @@ export default function App() {
     Inter_800ExtraBold,
     Inter_900Black,
   });
-  if (!fontsReady && !fontError)
-    return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  const fontsSettled = fontsReady || !!fontError;
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <View
@@ -346,19 +352,26 @@ export default function App() {
         }}
       >
         <SafeAreaProvider>
+          {fontsSettled && (
           <FormKeyboardProvider>
-            <ErrorBoundary>
+            <ErrorBoundary onReady={onReady}>
               <QueryClientProvider client={queryClient}>
                 <AuthProvider>
+                  <ToastProvider>
                   <PreferencesProvider>
+                    <PushProvider>
                     <StatusBar style="light" />
-                    <Navigator />
+                    <Navigator onReady={onReady} />
+                    </PushProvider>
                   </PreferencesProvider>
+                  </ToastProvider>
                 </AuthProvider>
               </QueryClientProvider>
             </ErrorBoundary>
           </FormKeyboardProvider>
+          )}
         </SafeAreaProvider>
+        <StartupCover ready={fontsSettled && navigationReady} />
       </View>
     </GestureHandlerRootView>
   );

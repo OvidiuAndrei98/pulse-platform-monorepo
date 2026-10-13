@@ -23,10 +23,12 @@ import { AppSheetScrollView } from '../ui/AppSheetScrollView';
 import { EventImage, Feedback, Loading } from '../ui/common';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
+import { useToast } from '../ui/ToastProvider';
 import { WEB_URL } from '../config';
 import { drawerDesign } from '../../../pulse-app/src/components/ui/drawerDesign';
 
 export function PublicProfileScreen({ route, navigation }: NativeStackScreenProps<RootParamList, 'PublicProfile'>) {
+  const toast = useToast();
   const id = route.params.id.toLowerCase(), { user } = useAuth(), { copy } = usePreferences(), safe = useSafeAreaInsets();
   const viewport = useWindowDimensions(), heroFontSize = Math.max(32, Math.min(48, viewport.width * .08));
   const query = usePublicProfile(id), profile = query.data;
@@ -56,10 +58,10 @@ export function PublicProfileScreen({ route, navigation }: NativeStackScreenProp
       const title = profile.organizerName || profile.username, url = `${WEB_URL}/users/${encodeURIComponent(id)}`;
       if (Platform.OS === 'web') {
         if (navigator.share) await navigator.share({ title, url });
-        else await navigator.clipboard.writeText(url);
+        else { await navigator.clipboard.writeText(url); toast.show({ key: 'toast.linkCopied' }); }
       } else await Share.share({ title, message: `${title}\n${url}` });
     }
-    catch (cause) { if (!(cause instanceof Error && cause.name === 'AbortError')) setShareFailed(true); }
+    catch (cause) { if (!(cause instanceof Error && cause.name === 'AbortError')) { setShareFailed(true); toast.show({ key: 'feedback.shareFailed', kind: 'error' }); } }
   };
   const organizer = profile?.role === 'organizer', name = profile?.organizerName || profile?.username;
   const hero = [...upcomingEvents, ...pastEvents].find(event => event.bannerUrl)?.bannerUrl || profile?.avatarUrl;

@@ -1,4 +1,7 @@
 import { haptic } from "../ui/haptics";
+import { ToastHost } from '../ui/ToastHost';
+import { useToast } from '../ui/ToastProvider';
+import { EventStory } from '../story/EventStory';
 import React, { useEffect, useRef, useState } from "react";
 import {
   Platform,
@@ -61,6 +64,8 @@ export function EventScreen({
   const pending = useRef(false), revision = useRef(0);
   useEffect(() => { revision.current++; pending.current = false; setBuying(false); setPurchaseError(null); return () => { revision.current++; }; }, [route.params.id, user?.id]);
   const { copy, language, saved, toggleSaved, ready } = usePreferences();
+  const toast = useToast();
+  const [storyOpen, setStoryOpen] = useState(false);
   const query = useEvent(route.params.id),
     event = query.data,
     now = useEventClock(event),
@@ -124,13 +129,17 @@ export function EventScreen({
     if (!event) return;
     setShareError(false);
     try {
-      if (Platform.OS === 'web' && !navigator.share) { await navigator.clipboard.writeText(eventUrl(WEB_URL, event.id)); return; }
+      if (Platform.OS === 'web' && !navigator.share) {
+        await navigator.clipboard.writeText(eventUrl(WEB_URL, event.id));
+        toast.show({ key: 'toast.linkCopied' });
+        return;
+      }
       await Share.share({
         title: event.title,
         message: event.title + "\n" + eventUrl(WEB_URL, event.id),
       });
     } catch (error) {
-      if (!(error instanceof Error && error.name === 'AbortError')) setShareError(true);
+      if (!(error instanceof Error && error.name === 'AbortError')) { setShareError(true); toast.show({ key: 'feedback.shareFailed', kind: 'error' }); }
     }
   };
   const nativeSheet = isSheet && Platform.OS !== "web";
@@ -156,6 +165,7 @@ export function EventScreen({
         />
       </Pressable>
       <Pressable
+        testID="event-share"
         accessibilityRole="button"
         accessibilityLabel={copy("eventSheet.share")}
         onPress={() => void share()}
@@ -343,6 +353,7 @@ export function EventScreen({
                 </Text>
               </View>
               <OrganizerUpdates id={event.id} kind="events" openEvent={() => {}} />
+              <Pressable testID="event-create-story" accessibilityRole="button" onPress={() => setStoryOpen(true)} style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'flex-start' }}><Share2 size={17} color={colors.accent} /><Text style={{ color: colors.accent, fontSize: 13, fontWeight: '600' }}>{copy('eventStory.open')}</Text></Pressable>
               {!!event.lineup.length && (
                 <View style={{ gap: 16 }}>
                   <Text style={s.heading}>{copy("lineup.title")}</Text>
@@ -476,13 +487,13 @@ export function EventScreen({
       )}
     </View>
   );
-  return isSheet ? (
+  return <View style={{ flex: 1 }}>{isSheet ? (
     <AppSheet open embedded edgeToEdge footer={nativeSheet ? footer : undefined} label={copy("common.close")} onClose={close}>
       {content}
     </AppSheet>
   ) : (
     content
-  );
+  )}<ToastHost bottom={92} />{storyOpen && event && <EventStory key={event.id} event={event} onClose={() => setStoryOpen(false)} />}</View>;
 }
 const s = StyleSheet.create({
   sheet: {

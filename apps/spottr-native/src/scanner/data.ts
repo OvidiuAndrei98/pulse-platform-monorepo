@@ -49,7 +49,10 @@ export function parseQuickSession(value: unknown): QuickSession {
   const row = record(value), sessionToken = string(row.sessionToken); if (sessionToken.length < 20) throw new Error('INVALID_SCANNER_RESPONSE');
   return { sessionToken, label: string(row.label), eventTitle: string(row.eventTitle), locationName: string(row.locationName), expiresAt: date(row.expiresAt) };
 }
-export function isConnectivityError(error: unknown) { return error instanceof TypeError || error instanceof ApiError && error.status === 0 && error.code !== 'INVALID_RESPONSE'; }
+export function isConnectivityError(error: unknown) {
+  return error instanceof TypeError || error instanceof ApiError && error.status === 0 && error.code !== 'INVALID_RESPONSE' ||
+    error instanceof Error && /^(Network request failed|Failed to fetch|Load failed|NetworkError when attempting to fetch resource\.)$/i.test(error.message);
+}
 export function createScannerApi(request: ReturnType<typeof createHttp>) {
   const path = (eventId: string) => '/dashboard/ticket-validation/events/' + id(eventId);
   return {

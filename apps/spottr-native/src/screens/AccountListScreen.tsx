@@ -33,9 +33,10 @@ export function SavedEventsScreen() {
 }
 
 export function TicketsScreen() {
-  const focused = useIsFocused(), tickets = useTickets(focused), { user } = useAuth(), { copy, language } = usePreferences();
+  const focused = useIsFocused(), { user } = useAuth(), { copy, language } = usePreferences();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const [tab, setTab] = useState<'active' | 'history' | 'used' | 'expired'>('active'), [selected, setSelected] = useState<string | null>(null);
+  const tickets = useTickets(focused, !!selected);
   const [now, setNow] = useState(Date.now());
   useEffect(() => { if (focused) setNow(Date.now()); const timer = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(timer); }, [focused]);
   useEffect(() => { setSelected(null); setTab('active'); }, [user?.id]);
@@ -43,7 +44,7 @@ export function TicketsScreen() {
   const data = all.filter(ticket => tab === 'history' ? ticketStatus(ticket, now) !== 'active' : ticketStatus(ticket, now) === tab);
   const groups = new Map<string, UserTicket[]>();
   for (const ticket of data) groups.set(ticket.eventId, [...(groups.get(ticket.eventId) ?? []), ticket]);
-  const chosen = data.find(ticket => ticket.id === selected);
+  const chosen = all.find(ticket => ticket.id === selected);
   return <><AccountPage id="tickets-page" title={copy('tickets.title')} large subtitle={tickets.isPending ? copy('common.loading') : tickets.isError ? '' : copy('tickets.count', {count:all.length})}>
     <View style={{ flexDirection: 'row', padding: 4, marginTop:12, backgroundColor: '#ffffff0a', borderWidth:1,borderColor:'#ffffff1a',borderRadius: 99 }}>{(['active', 'history'] as const).map(value => {
       const active = value === 'active' ? tab === 'active' : tab !== 'active';
@@ -71,7 +72,7 @@ export function TicketsScreen() {
       </View>;
     })}
     {!tickets.isPending && !tickets.isError && !data.length && <View style={{paddingHorizontal:20,paddingVertical:48,borderRadius:26,borderWidth:1,borderStyle:'dashed',borderColor:'#ffffff26',alignItems:'center',gap:12}}><Ticket size={28} color={colors.accent}/><Text style={title}>{copy(tab==='active'?'tickets.noUpcoming':'tickets.noHistory')}</Text><Text style={[muted,{textAlign:'center'}]}>{copy(tab==='active'?'tickets.noUpcomingHint':'tickets.emptyHint')}</Text>{tab==='active' && <Pressable accessibilityRole="button" onPress={()=>navigation.navigate('Tabs',{screen:'Explore'})} style={{paddingHorizontal:20,minHeight:44,borderRadius:99,backgroundColor:colors.accent,justifyContent:'center',marginTop:8}}><Text style={title}>{copy('tickets.exploreEvents')}</Text></Pressable>}</View>}
-  </AccountPage>{chosen && user && <TicketSheet key={user.id} initialId={chosen.id} tickets={data.filter(item => item.eventId === chosen.eventId)} offline={tickets.offline} savedAt={tickets.savedAt} onClose={() => setSelected(null)} />}</>;
+  </AccountPage>{chosen && user && <TicketSheet key={user.id} initialId={chosen.id} preferUnused={false} tickets={all.filter(item => item.eventId === chosen.eventId)} offline={tickets.offline} savedAt={tickets.savedAt} onClose={() => setSelected(null)} />}</>;
 }
 
 export function OrdersScreen() {

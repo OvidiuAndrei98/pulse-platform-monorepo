@@ -26,6 +26,8 @@ export type DashboardDropdownProps = {
   testID?: string;
   triggerStyle?: StyleProp<ViewStyle>;
   errorInline?: boolean;
+  hideLabel?: boolean;
+  variant?: 'default' | 'billing';
 };
 
 export function DashboardDropdown({
@@ -40,6 +42,8 @@ export function DashboardDropdown({
   testID,
   triggerStyle,
   errorInline = false,
+  hideLabel = false,
+  variant = 'default',
 }: DashboardDropdownProps) {
   const { copy } = usePreferences();
   const trigger = useRef<View>(null),
@@ -117,7 +121,7 @@ export function DashboardDropdown({
     );
   return (
     <View style={{ gap: 6 }}>
-      <View
+      {!hideLabel && <View
         style={{
           flexDirection: "row",
           flexWrap: "wrap",
@@ -131,7 +135,7 @@ export function DashboardDropdown({
         {errorInline && error && (
           <Text style={{ fontSize: 12, color: "#ef4444" }}>{error}</Text>
         )}
-      </View>
+      </View>}
       <Pressable
         ref={trigger}
         testID={testID}
@@ -139,6 +143,7 @@ export function DashboardDropdown({
         accessibilityLabel={label}
         accessibilityState={{ disabled, expanded: !!anchor }}
         aria-expanded={!!anchor}
+        aria-invalid={!!error}
         disabled={disabled}
         onPress={open}
         style={[
@@ -146,7 +151,7 @@ export function DashboardDropdown({
             minHeight: 44,
             borderWidth: 1,
             borderColor: error ? "#ef4444" : "#ffffff1a",
-            borderRadius: 6,
+            borderRadius: 12,
             backgroundColor: "#ffffff06",
             paddingHorizontal: 13,
             paddingVertical: 10,
@@ -156,13 +161,15 @@ export function DashboardDropdown({
             opacity: disabled ? 0.5 : 1,
           },
           triggerStyle,
+          !!anchor && { borderColor: '#ff004499' },
+          !!error && { borderColor: '#f87171b3' },
         ]}
       >
         {Icon && <Icon size={16} color="#ff0044" />}
         <Text
           numberOfLines={1}
           style={{
-            fontSize: 14,
+            fontSize: variant === 'billing' && viewport.width < 640 ? 16 : 14,
             color: options.some((o) => o.value === value)
               ? "#f7faf2"
               : "#9ca89e80",
@@ -179,7 +186,7 @@ export function DashboardDropdown({
         />
       </Pressable>
       {!errorInline && error && (
-        <Text style={{ fontSize: 12, color: "#ef4444" }}>{error}</Text>
+        <Text accessibilityRole="alert" style={{ fontSize: 12, color: "#f87171" }}>{error}</Text>
       )}
       {anchor && placement && (
         <Modal

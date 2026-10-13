@@ -1117,7 +1117,7 @@ interface NotificationOperations {
 interface ProfileOperations {
   @get
   @route("/search")
-  search(@query q: string): PublicProfileResponse[];
+  search(@query q: string, @query kind?: "people" | "organizers"): PublicProfileResponse[];
 
   @get
   @route("/{id}")

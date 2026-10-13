@@ -14,7 +14,7 @@ export async function uploadProfileAvatar(controller: SessionController) {
     aspect: [1, 1],
     quality: 1,
   });
-  if (result.canceled) return;
+  if (result.canceled) return false;
   const asset = result.assets[0];
   if (!asset) throw new Error("profile.imageProcessingFailed");
   const sourceBytes =
@@ -40,12 +40,13 @@ export async function uploadProfileAvatar(controller: SessionController) {
       : await new File(image.uri).bytes();
   if (bytes.byteLength > 1536 * 1024)
     throw new Error("profile.imageOptimizedTooLarge");
-  if (controller.getToken() !== token) return;
+  if (controller.getToken() !== token) return false;
   await accountApi("/users/me/avatar", {
     method: "POST",
     token,
     binary: Uint8Array.from(bytes).buffer,
     contentType: "image/webp",
   });
-  if (controller.getToken() === token) await controller.refresh();
+  if (controller.getToken() !== token) return false;
+  return Boolean(await controller.refresh());
 }

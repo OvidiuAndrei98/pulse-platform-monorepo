@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	db "pulse-api/db/generated"
 	"pulse-api/internal/auth"
@@ -419,12 +420,17 @@ func (h *Handler) publicProfileResponse(ctx context.Context, viewerID, profileID
 
 func (h *Handler) HandleSearchProfiles(w http.ResponseWriter, r *http.Request) {
 	query := strings.TrimPrefix(strings.TrimSpace(r.URL.Query().Get("q")), "@")
+	kind := r.URL.Query().Get("kind")
+	if (kind != "" && kind != "people" && kind != "organizers") || utf8.RuneCountInString(query) > 120 {
+		router.RespondWithError(w, http.StatusBadRequest, "Invalid search filter")
+		return
+	}
 	if query == "" {
 		router.RespondWithJSON(w, http.StatusOK, []PublicProfileResponse{})
 		return
 	}
 	viewerID, _ := userIDFromRequest(r)
-	profiles, err := h.Queries.SearchProfiles(r.Context(), pgtype.Text{String: query, Valid: true})
+	profiles, err := h.Queries.SearchProfiles(r.Context(), db.SearchProfilesParams{Column1: pgtype.Text{String: query, Valid: true}, Kind: kind})
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Profilurile nu au putut fi cautate")
 		return

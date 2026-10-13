@@ -2,7 +2,7 @@ const fs = require('node:fs'), path = require('node:path'), http = require('node
 const { spawn } = require('node:child_process');
 const { createChromeProfile } = require('./chrome-profile.cjs');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function withBrowser(run) {
+async function withBrowser(run, { fakeCamera = false } = {}) {
   const dist = path.resolve(__dirname, '../dist'), artifacts = path.resolve(__dirname, '../artifacts');
   fs.mkdirSync(artifacts, { recursive: true });
   let child, socket;
@@ -18,7 +18,7 @@ async function withBrowser(run) {
   try {
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const base = `http://127.0.0.1:${server.address().port}`;
-    child = spawn(process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', 'about:blank'], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+    child = spawn(process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', ...(fakeCamera ? ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] : []), 'about:blank'], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
     const endpoint = await new Promise((resolve, reject) => { const timer = setTimeout(() => reject(Error('Chrome startup timeout')), 15000); child.once('error', reject); child.stderr.on('data', bytes => { const match = bytes.toString().match(/DevTools listening on (ws:\/\/\S+)/); if (match) { clearTimeout(timer); resolve(match[1]); } }); });
     socket = new WebSocket(endpoint); await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
     let seq = 0; const pending = new Map(), errors = [];

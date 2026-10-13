@@ -16,6 +16,7 @@ import Svg, { Path, Polyline } from "react-native-svg";
 import { colors } from "../ui/theme";
 import { usePreferences } from "../PreferencesProvider";
 import { useTabIndicator, type TabIndicatorMotion } from "./useTabIndicator";
+import { ToastHost } from "../ui/ToastHost";
 
 // Keep the Home artwork from the original app's Lucide version. The newer
 // native package changed this icon's roof, base and doorway geometry.
@@ -136,6 +137,7 @@ export function TabBar({ state, navigation, activeIndex = state.index, onSelectT
         })}
         </View>
       </View>
+      <ToastHost placement="navbar" />
     </View>
   );
 }

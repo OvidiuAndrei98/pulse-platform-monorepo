@@ -33,6 +33,7 @@ func main() {
 	coreApp.StartAbuseProtectionWorker(workerCtx)
 	coreApp.StartSafetyGroupCleanupWorker(workerCtx)
 	coreApp.StartDiagnosticsCleanupWorker(workerCtx)
+	coreApp.StartPushWorker(workerCtx)
 	coreApp.StartUserMediaDeletionWorker(workerCtx)
 
 	port := os.Getenv("PORT")

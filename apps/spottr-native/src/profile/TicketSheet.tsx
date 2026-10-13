@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { MotionPressable as Pressable } from "../ui/MotionPressable";
 import { BottomSheetView } from "@gorhom/bottom-sheet";
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import QRCode from "react-native-qrcode-svg";
 import {
   ChevronLeft,
@@ -9,6 +11,8 @@ import {
   Download,
   MapPin,
   Zap,
+  CheckCircle2,
+  Clock3,
 } from "lucide-react-native";
 import { AppSheet } from "../ui/AppSheet";
 import { Text } from "../ui/Text";
@@ -22,6 +26,8 @@ import { formatTicketDate } from "../../../pulse-app/src/components/tickets/tick
 import { ticketStatus, type UserTicket } from "../data/tickets";
 import { useAuth } from "../auth/AuthProvider";
 import { TicketAvailability } from './TicketAvailability';
+import { initialGroupTicket } from './ticketGroups';
+import { useEventClock } from '../data/useEventClock';
 export { ticketStatus, type UserTicket } from "../data/tickets";
 
 export function TicketSheet({
@@ -30,12 +36,14 @@ export function TicketSheet({
   onClose,
   offline = false,
   savedAt,
+  preferUnused = true,
 }: {
   tickets: UserTicket[];
   initialId: string;
   onClose: () => void;
   offline?: boolean;
   savedAt?: number;
+  preferUnused?: boolean;
 }) {
   const { controller } = useAuth();
   const alive = useRef(true);
@@ -48,7 +56,7 @@ export function TicketSheet({
   const { copy, language } = usePreferences(),
     brightness = useTicketBrightness(),
     link = useOpenLink();
-  const [id, setId] = useState(initialId),
+  const [id, setId] = useState(() => initialGroupTicket(tickets, initialId, preferUnused)),
     [busy, setBusy] = useState(false),
     [failed, setFailed] = useState(false);
   const qr = useRef<{
@@ -57,10 +65,29 @@ export function TicketSheet({
     pending = useRef(false);
   const [area, setArea] = useState({ width: 320, height: 480 }),
     [cardHeight, setCardHeight] = useState(480);
+  const now = useEventClock();
+  const opacity = useSharedValue(1);
+  const cardMotion = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const moveTicket = (direction: number) => {
+    if (pending.current) return;
+    setId(current => {
+      const position = tickets.findIndex(item => item.id === current);
+      return tickets[position + direction]?.id ?? current;
+    });
+  };
+  useEffect(() => {
+    opacity.value = 0.65;
+    opacity.value = withTiming(1, { duration: 180 });
+  }, [id, opacity]);
+  const swipe = Gesture.Pan().enabled(tickets.length > 1 && !busy)
+    .activeOffsetX([-20, 20]).failOffsetY([-12, 12]).runOnJS(true)
+    .onEnd(({ translationX }) => {
+      if (Math.abs(translationX) >= 45) moveTicket(translationX < 0 ? 1 : -1);
+    });
   const ticket = tickets.find((item) => item.id === id) ?? tickets[0];
   if (!ticket) return null;
   const index = tickets.indexOf(ticket);
-  const status = ticketStatus(ticket),
+  const status = ticketStatus(ticket, now),
     qrSize = Math.max(100, Math.min(230, area.width - 76, area.height - 280));
   const scale = Math.min(1, Math.max(0.1, (area.height - 2) / cardHeight));
   const download = async () => {
@@ -106,6 +133,7 @@ export function TicketSheet({
   return (
     <AppSheet
       open
+      horizontalContent
       onClose={onClose}
       label={copy("common.close")}
       testID="ticket-preview"
@@ -125,7 +153,39 @@ export function TicketSheet({
           <Text style={s.heading}>{copy("tickets.showAtDoor")}</Text>
           <TicketAvailability offline={offline} savedAt={savedAt} />
         </View>
-        <View
+        {tickets.length > 1 && (
+          <View testID="ticket-paging" style={s.paging}>
+            <Pressable
+              disabled={index <= 0 || busy}
+              onPress={() => moveTicket(-1)}
+              accessibilityRole="button"
+              accessibilityLabel={copy("tickets.previousTicket")}
+              style={[s.arrow, index <= 0 && { opacity: 0.25 }]}
+            >
+              <ChevronLeft color="white" size={20} />
+            </Pressable>
+            <Text style={{ color: "white", fontSize: 14, fontWeight: "600" }}>
+              {copy("tickets.ticketPosition", {
+                current: index + 1,
+                total: tickets.length,
+              })}
+            </Text>
+            <Pressable
+              disabled={index === tickets.length - 1 || busy}
+              onPress={() => moveTicket(1)}
+              accessibilityRole="button"
+              accessibilityLabel={copy("tickets.nextTicket")}
+              style={[
+                s.arrow,
+                index === tickets.length - 1 && { opacity: 0.25 },
+              ]}
+            >
+              <ChevronRight color="white" size={20} />
+            </Pressable>
+          </View>
+        )}
+        <GestureDetector gesture={swipe} touchAction="pan-y">
+        <View collapsable={false}
           testID="ticket-fit-area"
           onLayout={(e) => setArea(e.nativeEvent.layout)}
           style={{
@@ -136,14 +196,21 @@ export function TicketSheet({
             overflow: "hidden",
           }}
         >
-          <View
+          <Animated.View
             onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)}
             style={[
               s.pass,
+              cardMotion,
               { width: Math.min(440, area.width - 2), transform: [{ scale }] },
             ]}
           >
             <Wordmark />
+            <View testID="ticket-admission-status" accessibilityLiveRegion="polite" style={[s.statusBadge, status === 'active' && s.validBadge]}>
+              {status === 'expired' ? <Clock3 size={13} color="#b5adb1" /> : <CheckCircle2 size={13} color={status === 'active' ? '#6ee7b7' : '#b5adb1'} />}
+              <Text style={[s.statusText, status === 'active' && { color: '#6ee7b7' }]}>
+                {copy(status === 'active' ? 'tickets.validForEntry' : status === 'used' ? 'tickets.used' : 'tickets.expired')}
+              </Text>
+            </View>
             <Text style={s.type}>{ticket.ticketTypeName.toUpperCase()}</Text>
             <Text style={s.title}>{ticket.eventTitle.toUpperCase()}</Text>
             <Text style={s.date}>
@@ -190,18 +257,10 @@ export function TicketSheet({
               <MapPin size={14} color={colors.accent} />
               <Text style={s.location}>{ticket.locationName}</Text>
             </Pressable>
-            {status !== "active" && (
-              <Text style={s.status}>
-                {copy(
-                  status === "used"
-                    ? "tickets.alreadyUsed"
-                    : "tickets.eventEnded",
-                )}
-              </Text>
-            )}
-            <Text style={s.hint}>{copy("ticketPdf.validationHint")}</Text>
-          </View>
+            <Text style={s.hint}>{copy(status === 'active' ? 'ticketPdf.validationHint' : status === 'used' ? 'tickets.alreadyUsed' : 'tickets.eventEnded')}</Text>
+          </Animated.View>
         </View>
+        </GestureDetector>
         {brightness && (
           <View
             style={{ flexDirection: "row", justifyContent: "center", gap: 7 }}
@@ -219,41 +278,6 @@ export function TicketSheet({
           >
             {copy("feedback.actionFailed")}
           </Text>
-        )}
-        {tickets.length > 1 && (
-          <View style={s.paging}>
-            <Pressable
-              disabled={index <= 0 || busy}
-              onPress={() =>
-                tickets[index - 1] && setId(tickets[index - 1]!.id)
-              }
-              accessibilityRole="button"
-              accessibilityLabel={copy("tickets.previousTicket")}
-              style={[s.arrow, index <= 0 && { opacity: 0.25 }]}
-            >
-              <ChevronLeft color="white" size={20} />
-            </Pressable>
-            <Text style={{ color: "white", fontSize: 14, fontWeight: "600" }}>
-              {copy("tickets.ticketPosition", {
-                current: index + 1,
-                total: tickets.length,
-              })}
-            </Text>
-            <Pressable
-              disabled={index === tickets.length - 1 || busy}
-              onPress={() =>
-                tickets[index + 1] && setId(tickets[index + 1]!.id)
-              }
-              accessibilityRole="button"
-              accessibilityLabel={copy("tickets.nextTicket")}
-              style={[
-                s.arrow,
-                index === tickets.length - 1 && { opacity: 0.25 },
-              ]}
-            >
-              <ChevronRight color="white" size={20} />
-            </Pressable>
-          </View>
         )}
         <Pressable
           testID="ticket-download"
@@ -355,12 +379,9 @@ const s = StyleSheet.create({
     fontSize: 10,
     lineHeight: 15,
   },
-  status: {
-    fontSize: 12,
-    color: colors.accent,
-    textAlign: "center",
-    marginTop: 8,
-  },
+  statusBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 9, paddingVertical: 5, marginTop: 12, borderRadius: 99, backgroundColor: '#ffffff0d' },
+  validBadge: { backgroundColor: '#10b98114' },
+  statusText: { color: '#b5adb1', fontSize: 11, fontWeight: '600', flexShrink: 1 },
   paging: {
     flexDirection: "row",
     alignItems: "center",

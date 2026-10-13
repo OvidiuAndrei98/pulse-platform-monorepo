@@ -6,7 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
-  TextInput,
   View,
   Platform,
   type StyleProp,
@@ -24,6 +23,7 @@ import {
 import { accountApi, useAuth } from "../auth/AuthProvider";
 import { usePreferences } from "../PreferencesProvider";
 import { Text } from "../ui/Text";
+import { FormInput, formStyles } from '../ui/FormInput';
 import { colors as appColors } from "../ui/theme";
 import { DashboardDropdown } from "./DashboardDropdown";
 import { createDashboardApi } from "./data";
@@ -243,9 +243,13 @@ export function Field({
   maxLength?: number;
 }) {
   return (
-    <View style={[{ gap: 8 }, style]}>
-      {!hideLabel && <Text style={s.label}>{label}</Text>}
-      <TextInput
+    <View style={[{ gap: 6 }, style]}>
+      {(!hideLabel || !!error) && <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 4 }}>
+        {!hideLabel && <Text style={s.label}>{label}</Text>}
+        {!!error && <Text accessibilityRole="alert" style={formStyles.error}>{error}</Text>}
+      </View>}
+      <FormInput
+        invalid={!!error}
         testID={testID}
         accessibilityLabel={label}
         value={value}
@@ -272,9 +276,6 @@ export function Field({
           inputStyle,
         ]}
       />
-      {error ? (
-        <Text style={{ color: colors.danger, fontSize: 12 }}>{error}</Text>
-      ) : null}
     </View>
   );
 }
@@ -456,7 +457,7 @@ export const s = StyleSheet.create({
   subtitle: { color: colors.text, fontSize: 17, fontWeight: "600" },
   text: { color: colors.text, fontSize: 14, lineHeight: 21 },
   muted: { color: colors.muted, fontSize: 14, lineHeight: 24 },
-  label: { color: colors.text, fontSize: 14, fontWeight: "500" },
+  label: formStyles.label,
   row: { flexDirection: "row", alignItems: "center", gap: 10 },
   card: {
     borderRadius: 12,
@@ -477,16 +478,7 @@ export const s = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.accent,
   },
-  input: {
-    minHeight: 44,
-    borderWidth: 1,
-    borderColor: "#ffffff1a",
-    borderRadius: 6,
-    paddingHorizontal: 13,
-    color: colors.text,
-    backgroundColor: "#ffffff06",
-    fontSize: 14,
-  },
+  input: formStyles.event,
   divider: {
     borderBottomWidth: 1,
     borderColor: "#ffffff1a",

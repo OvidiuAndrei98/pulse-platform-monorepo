@@ -1,10 +1,10 @@
+import { FormInput as TextInput } from '../ui/FormInput';
 ﻿import React, { useEffect, useRef, useState } from "react";
 import {
   Modal,
   Platform,
   Pressable,
   ScrollView,
-  TextInput,
   View,
   useWindowDimensions,
   type ViewStyle,
@@ -219,7 +219,7 @@ function TimeStepper({
       >
         <Minus size={12} color={dColors.muted} />
       </Pressable>
-      <TextInput
+      <TextInput variant="bare"
         accessibilityLabel={copy("datePicker.enterValue")}
         keyboardType="number-pad"
         selectTextOnFocus

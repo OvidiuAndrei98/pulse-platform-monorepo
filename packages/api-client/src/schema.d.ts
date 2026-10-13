@@ -5242,6 +5242,7 @@ export interface operations {
         parameters: {
             query: {
                 q: string;
+                kind?: "people" | "organizers";
             };
             header?: never;
             path?: never;

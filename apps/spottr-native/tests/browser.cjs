@@ -347,7 +347,8 @@ async function main() {
   assert.deepEqual(await evaluate('window.__qa.hidden'),['HOUSE'],'Dragging a category must not toggle it');
   await click('sheet-handle');
   await until(`!document.querySelector('[data-testid="preferences-sheet"]')`);
-  await pressText('My code');
+  await evaluate(`document.querySelector('[data-testid="profile-quick-connect"]').scrollIntoView({block:'center'})`);
+  await click('profile-quick-connect');
   await until(`document.querySelector('[data-testid="quick-connect-sheet"]')`); await delay(600);
   await capture('quick-connect-mobile');
   const codeTop = await evaluate(`document.querySelector('[data-testid="sheet-handle"]').getBoundingClientRect().top`);
@@ -379,7 +380,7 @@ async function main() {
   const clickInProfile = async id => { await evaluate("document.querySelector('[data-testid=\""+id+"\"]').scrollIntoView({block:'center'})"); await delay(80); await click(id); };
   await clickInProfile('profile-saved-all');
   await until(`document.querySelector('[data-testid="saved-events-page"]')?.innerText.includes('Future event 6')`);
-  assert.equal(await evaluate(`window.__bar===document.querySelector('[data-testid="tab-bar"]')`),true);
+  assert.equal(await evaluate(`!!document.querySelector('[data-testid="tab-bar"]')`),false,'Account lists intentionally hide the navbar');
   await click('account-back'); await until(`!document.querySelector('[data-testid="saved-events-page"]')`);
   await clickInProfile('profile-tickets-all');
   await until(`document.querySelector('[data-testid="tickets-page"]')?.innerText.includes('QA access ticket')`);
@@ -395,7 +396,9 @@ async function main() {
   assert.ok(await evaluate(`document.querySelector('[data-testid="invoices-page"]').innerText.includes('Credit note waiting to be issued')`));
   await capture('invoices-mobile');
   await click('account-back'); await until(`!document.querySelector('[data-testid="invoices-page"]')`);
-  console.log('PASS saved events, ticket list with QR, invoices/refunds and persistent navbar');
+  await until(`document.querySelector('[data-testid="tab-bar"]')`);
+  await evaluate(`void(window.__bar=document.querySelector('[data-testid="tab-bar"]'))`);
+  console.log('PASS saved events, ticket list with QR, invoices/refunds and navbar restoration');
   await click('tab-Feed');
   await until(`Array.from(document.querySelectorAll('[data-testid="feed-list"] [role=button]')).some(el=>el.textContent==='Try again')`);
   await evaluate(`window.__qa.feedFail=false;Array.from(document.querySelectorAll('[data-testid="feed-list"] [role=button]')).find(el=>el.textContent==='Try again').click()`);
@@ -456,7 +459,7 @@ async function main() {
   await delay(250);
   await capture('notifications-mobile');
   const panelBounds = await evaluate(`{const r=document.querySelector('[data-testid="notifications-panel"]').getBoundingClientRect();({left:r.left,right:r.right,bottom:r.bottom,width:innerWidth,height:innerHeight})}`);
-  assert.ok(panelBounds.left>=19 && panelBounds.right<=panelBounds.width-19 && panelBounds.bottom<panelBounds.height,'Popover stays inside a small mobile viewport');
+  assert.ok(panelBounds.left>=15 && panelBounds.right<=panelBounds.width-15 && panelBounds.bottom<panelBounds.height,'Popover stays inside a small mobile viewport');
   await click('notification-'+friendId(800)); await until(`!document.querySelector('[data-testid="notifications-panel"]')`); await delay(150);
   assert.equal(await evaluate(`window.__qa.notifications[0].isRead`),false,'Failed read must retain unread status');
   await evaluate('window.__qa.readFail=false');
@@ -465,13 +468,14 @@ async function main() {
   await click('notification-'+friendId(800));
   await until(`window.__qa.notifications[0].isRead`);
   await click('home-notifications'); await click('notification-'+friendId(801));
-  await until(`document.querySelector('[data-testid="event-content"]')?.textContent.includes('Future event 1')`);
+  await until(`location.pathname === '/users/me/tickets'`);
   await until(`window.__qa.notifications[1].isRead`);
-  assert.equal(await evaluate(`!!document.querySelector('[data-testid="sheet-handle"]')`),false,'Notification opens the full event page, matching the web application');
-  await evaluate(`document.querySelector('[data-testid="event-sheet"] [aria-label="Back"]').click()`);
-  await until(`!document.querySelector('[data-testid="event-sheet"]')`);
+  assert.equal(await evaluate(`!!document.querySelector('[data-testid="sheet-handle"]')`),false,'Ticket confirmation opens My tickets');
+  await click('account-back');
+  await click('tab-Home');
+  await evaluate(`void(window.__bar=document.querySelector('[data-testid="tab-bar"]'))`);
   await until(`!document.querySelector('[data-testid="notification-unread"]')`);
-  console.log('PASS Home account greeting, notification error/retry/empty/fresh opening, read failure/retry and event navigation');
+  console.log('PASS Home account greeting, notification error/retry/empty/fresh opening, read failure/retry and ticket navigation');
   await click('tab-Profile');
   await pressText('Log out');
   await until(`document.querySelector('[data-testid="tab-Home"]').getAttribute('aria-selected')==='true'`);

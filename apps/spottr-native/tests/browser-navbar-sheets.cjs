@@ -91,8 +91,9 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
   await finish('friends-round-trip', 'Feed');
 
   await click('tab-Profile'); await until(`document.querySelector('[data-testid="profile-list"]')`); await delay(450);
+  await capture('profile-quick-connect');
   await evaluate('window.__sheetNavbarQA.remember()');
-  await evaluate(`Array.from(document.querySelectorAll('[role=button]')).find(el=>el.textContent.trim()==='My code').click()`);
+  await click('profile-quick-connect');
   await until(`document.querySelector('[data-testid="quick-connect-sheet"]')`); await delay(650);
   await inspect('quick-connect-open', true); await click('sheet-handle'); await until(`!document.querySelector('[data-testid="quick-connect-sheet"]')`); await delay(650);
   await finish('quick-connect-round-trip', 'Profile');

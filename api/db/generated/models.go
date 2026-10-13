@@ -290,6 +290,15 @@ type CheckoutReservationReviews struct {
 	ResolvedAt pgtype.Timestamptz `json:"resolved_at"`
 }
 
+type ClientErrorReports struct {
+	ID          pgtype.UUID        `json:"id"`
+	Fingerprint string             `json:"fingerprint"`
+	Platform    string             `json:"platform"`
+	AppVersion  string             `json:"app_version"`
+	ReceivedAt  pgtype.Timestamptz `json:"received_at"`
+	Report      []byte             `json:"report"`
+}
+
 type Comments struct {
 	ID        pgtype.UUID        `json:"id"`
 	EventID   pgtype.UUID        `json:"event_id"`
@@ -475,6 +484,35 @@ type InvitationTickets struct {
 type NativePaymentSheetOrders struct {
 	OrderID   pgtype.UUID        `json:"order_id"`
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+}
+
+type NotificationPushDeliveries struct {
+	NotificationID   pgtype.UUID        `json:"notification_id"`
+	DeviceID         pgtype.UUID        `json:"device_id"`
+	UserID           pgtype.UUID        `json:"user_id"`
+	State            string             `json:"state"`
+	RegistrationHash string             `json:"registration_hash"`
+	Attempts         int32              `json:"attempts"`
+	TicketID         pgtype.Text        `json:"ticket_id"`
+	AvailableAt      pgtype.Timestamptz `json:"available_at"`
+	LeaseID          pgtype.UUID        `json:"lease_id"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+}
+
+type NotificationPushDevices struct {
+	ID         pgtype.UUID        `json:"id"`
+	UserID     pgtype.UUID        `json:"user_id"`
+	ExpoToken  string             `json:"expo_token"`
+	RevokeHash string             `json:"revoke_hash"`
+	Platform   string             `json:"platform"`
+	Language   string             `json:"language"`
+	Enabled    bool               `json:"enabled"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
+type NotificationPushRevocations struct {
+	RevokeHash string             `json:"revoke_hash"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 }
 
 type Notifications struct {

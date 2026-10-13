@@ -1,5 +1,6 @@
+import { FormInput as TextInput } from '../ui/FormInput';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { ArrowLeft, Check, Clock3, MapPin, MessageCircle, Send, UserPlus, UsersRound, X } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -83,7 +84,7 @@ function SafetyScreen({ eventId, onBack, onLogin, bottomBar }: SafetyGroupScreen
                 {!compact && <Retention compact />}{!group.messages.length && <Text style={[s.body, { color: colors.muted, textAlign: 'center', paddingVertical: 32 }]}>{copy('safetyGroup.noMessages')}</Text>}
                 {group.messages.map(item => <View key={item.id} testID={'safety-message-' + item.id} style={[s.bubble, item.senderId === state.user?.id && { alignSelf: 'flex-end', backgroundColor: colors.accent }, item.kind === 'help' && s.alertBubble, item.kind === 'help_resolved' && s.resolvedBubble]}><Text style={{ color: 'white', opacity: 0.7, fontSize: 11, fontWeight: '600' }}>{item.senderUsername}</Text><Text style={[s.body, { marginTop: 2, lineHeight: 20 }]}>{item.content}</Text></View>)}
               </ScrollView>
-              <View style={s.composer}><TextInput {...keyboardWeb} testID="safety-message-input" accessibilityLabel={copy('safetyGroup.messagePlaceholder')} value={message} onChangeText={setMessage} onFocus={() => setInviteOpen(false)} maxLength={500} multiline placeholder={copy('safetyGroup.messagePlaceholder')} placeholderTextColor={colors.muted} style={s.input} />
+              <View style={s.composer}><TextInput variant="bare" {...keyboardWeb} testID="safety-message-input" accessibilityLabel={copy('safetyGroup.messagePlaceholder')} value={message} onChangeText={setMessage} onFocus={() => setInviteOpen(false)} maxLength={500} multiline placeholder={copy('safetyGroup.messagePlaceholder')} placeholderTextColor={colors.muted} style={s.input} />
                 <Pressable testID="safety-send" accessibilityRole="button" accessibilityLabel={copy('safetyGroup.send')} disabled={!message.trim() || state.working} onPress={() => void send()} style={[s.send, (!message.trim() || state.working) && { opacity: 0.4 }]}><Send size={20} color="white" /></Pressable>
               </View>
             </View>

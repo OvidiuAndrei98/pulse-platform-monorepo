@@ -10,6 +10,7 @@ import { useNavigation, useScrollToTop } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import * as Location from "expo-location";
 import { usePreferences } from "../PreferencesProvider";
 import { eventsApi } from "../data/api";
@@ -22,7 +23,8 @@ import { isLive, type Event } from "../data/events";
 import { EventCard } from "../ui/EventCard";
 import { PromotionHero } from "../ui/PromotionHero";
 import { MotionPressable as Pressable } from "../ui/MotionPressable";
-import { Feedback, Loading } from "../ui/common";
+import { Feedback } from "../ui/common";
+import { HomeLoading } from '../ui/HomeLoading';
 import { Text } from "../ui/Text";
 import { Logo } from "../ui/Logo";
 import { colors } from "../ui/theme";
@@ -47,6 +49,7 @@ function distance(lat: number, lon: number, event: Event) {
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 export function HomeScreen() {
+  const reduced = useReducedMotion();
   const { user, ready } = useAuth();
   const { copy } = usePreferences(),
     insets = useSafeAreaInsets();
@@ -146,6 +149,7 @@ export function HomeScreen() {
     { key: "home.upcoming", items: mixFeedPromotions(upcoming, feedPromotions, promotionSeed + ':upcoming', e => Date.parse(e.startTime) > now) },
   ];
   return (
+    <View style={{ flex: 1 }}>
     <RefreshScrollView
       ref={scroll}
       testID="home-list"
@@ -183,21 +187,21 @@ export function HomeScreen() {
             : copy("home.exploreTonight", { count: tonight.length })}
         </Text>
       </View>
-      <PromotionHero
+      {promoted.isPending && !promoted.data ? <HomeLoading hero /> : <PromotionHero
         items={bannerPromotions}
         onOpen={open}
         refreshKey={heroRefreshKey}
         refreshing={refreshing}
-      />
+      />}
       {events.isPending ? (
-        <Loading />
+        <HomeLoading />
       ) : events.isError && !events.data ? (
         <Feedback
           title={copy("home.eventsUnavailable")}
           retry={() => void events.refetch()}
         />
       ) : (
-        <>
+        <Animated.View entering={reduced ? undefined : FadeIn.duration(180)}>
           {events.isError && (
             <Feedback
               compact
@@ -244,9 +248,10 @@ export function HomeScreen() {
                 )}
               </View>
             ))}
-        </>
+        </Animated.View>
       )}
     </RefreshScrollView>
+    </View>
   );
 }
 const s = StyleSheet.create({

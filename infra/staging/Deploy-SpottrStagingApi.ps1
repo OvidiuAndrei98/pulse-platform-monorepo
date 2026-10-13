@@ -1,7 +1,11 @@
 [CmdletBinding()]
 param(
     [ValidatePattern("^$|^pk_test_[A-Za-z0-9]+$")]
-    [string]$StripePublishableKey
+    [string]$StripePublishableKey,
+    [ValidatePattern("^$|^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$")]
+    [string]$ExpoPushProjectId,
+    [ValidatePattern("^$|^arn:aws:secretsmanager:eu-central-1:959222626220:secret:spottr/staging/expo-push-[a-zA-Z0-9_-]+$")]
+    [string]$ExpoPushAccessTokenSecretArn
 )
 
 $ErrorActionPreference = "Stop"
@@ -193,6 +197,11 @@ try {
     # which would overwrite manually configured Stripe/SMTP secrets with blanks.
     if ($PSBoundParameters.ContainsKey("StripePublishableKey")) {
         $deploymentParameters += "StripePublishableKey=$StripePublishableKey"
+    }
+    foreach ($pushParameter in @("ExpoPushProjectId", "ExpoPushAccessTokenSecretArn")) {
+        if ($PSBoundParameters.ContainsKey($pushParameter)) {
+            $deploymentParameters += "$pushParameter=$($PSBoundParameters[$pushParameter])"
+        }
     }
 
     $environmentChanged = $true

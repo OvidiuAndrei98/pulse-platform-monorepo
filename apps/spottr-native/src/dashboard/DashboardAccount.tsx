@@ -479,10 +479,12 @@ export function DashboardProfile({
 }
 
 export function DashboardPurchases() {
+  const [tab, setTab] = useState<"tickets" | "orders">("tickets"),
+    [ticket, setTicket] = useState<UserTicket | null>(null);
   const { user } = useAuth(),
     { copy, language } = usePreferences(),
     { width } = useWindowDimensions(),
-    tickets = useTickets();
+    tickets = useTickets(true, !!ticket);
   const orders = useQuery({
     queryKey: ["dashboard-purchases-orders", user?.id],
     enabled: !!user,
@@ -506,8 +508,6 @@ export function DashboardPurchases() {
       return value;
     },
   });
-  const [tab, setTab] = useState<"tickets" | "orders">("tickets"),
-    [ticket, setTicket] = useState<UserTicket | null>(null);
   const empty = (Icon: LucideIcon, title: string, hint: string) => (
     <View
       style={{
@@ -791,7 +791,8 @@ export function DashboardPurchases() {
       )}
       {ticket && (
         <TicketSheet
-          tickets={tickets.data ?? []}
+          tickets={(tickets.data ?? []).filter(item => item.eventId === ticket.eventId)}
+          preferUnused={false}
           offline={tickets.offline}
           savedAt={tickets.savedAt}
           initialId={ticket.id}

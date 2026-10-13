@@ -1,5 +1,6 @@
+import { FormInput as TextInput } from '../ui/FormInput';
 import React, { useEffect, useRef, useState } from "react";
-import { Platform, TextInput, View, useWindowDimensions } from "react-native";
+import { Platform, View, useWindowDimensions } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import {
   Copy,

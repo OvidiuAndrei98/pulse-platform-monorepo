@@ -235,14 +235,14 @@ function TicketCard({
             <Text numberOfLines={2} style={s.title}>
               {ticket.eventTitle}
             </Text>
+            <View style={s.location}>
+              <MapPin size={14} color={active ? colors.accent : colors.muted} />
+              <Text numberOfLines={1} style={s.locationText}>
+                {ticket.locationName}
+              </Text>
+            </View>
             <Text style={s.time}>{time}</Text>
           </View>
-        </View>
-        <View style={s.location}>
-          <MapPin size={14} color={active ? colors.accent : colors.muted} />
-          <Text numberOfLines={1} style={s.locationText}>
-            {ticket.locationName}
-          </Text>
         </View>
         <Text numberOfLines={1} style={s.types}>
           {[...new Set(group.tickets.map((item) => item.ticketTypeName))].join(
@@ -322,7 +322,8 @@ const s = StyleSheet.create({
     letterSpacing: 0.7,
     color: colors.muted,
   },
-  eventRow: { flexDirection: "row", alignItems: "center", gap: 16 },
+  // Keep the perforation aligned across cards with one- and two-line titles.
+  eventRow: { flexDirection: "row", alignItems: "center", gap: 16, minHeight: 96 },
   date: {
     minWidth: 53,
     alignItems: "center",
@@ -345,18 +346,17 @@ const s = StyleSheet.create({
     marginTop: 2,
   },
   year: { color: colors.muted, fontSize: 10, marginTop: 4 },
-  event: { flex: 1, minWidth: 0, gap: 8 },
+  event: { flex: 1, minWidth: 0, gap: 6 },
   title: {
     color: colors.text,
     fontSize: 21,
     lineHeight: 26,
-    minHeight: 52,
     fontWeight: "700",
     letterSpacing: -0.5,
   },
-  time: { color: colors.muted, fontSize: 12 },
+  time: { color: colors.muted, fontSize: 12, lineHeight: 16 },
   location: { flexDirection: "row", alignItems: "center", gap: 6 },
-  locationText: { color: "#b5b5be", fontSize: 12, flex: 1 },
+  locationText: { color: "#b5b5be", fontSize: 12, lineHeight: 16, flex: 1 },
   types: { color: colors.muted, fontSize: 11 },
   perforation: { height: 1, justifyContent: "center" },
   dashes: {

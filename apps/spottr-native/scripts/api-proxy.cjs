@@ -13,6 +13,7 @@ function createApiProxy(apiUrl, { timeoutMs = 15000 } = {}) {
   const transport = base.protocol === 'https:' ? https : http;
   const publicPath = /^\/(?:events(?:\/[0-9a-f-]{36}(?:\/(?:social|updates))?)?|profiles(?:\/(?:search|[0-9a-f-]{36}))?|organizers\/[0-9a-f-]{36}\/updates|promotions\/active)$/i;
   const routes = [
+    [/^\/media\/events\/[0-9a-f-]{36}\/[0-9a-f]+\.(?:jpe?g|png|webp)$/i, ['GET']],
     [/^\/events\/[0-9a-f-]{36}\/attendees$/i, ['GET']],
     [/^\/events\/[0-9a-f-]{36}\/safety-group$/i, ['GET', 'POST']],
     [/^\/events\/[0-9a-f-]{36}\/safety-group\/(?:respond|invite|messages|help|help-resolved)$/i, ['POST']],
@@ -99,7 +100,7 @@ function createApiProxy(apiUrl, { timeoutMs = 15000 } = {}) {
     const allowed = publicPath.test(endpoint) ? ['GET', 'HEAD'] : routes.find(([pattern]) => pattern.test(endpoint))?.[1];
     if (!allowed) { fail(403, 'This endpoint is not available in the preview proxy.'); return; }
     if (!allowed.includes(req.method)) { fail(405, 'Method not allowed for this preview endpoint.'); return; }
-    const headers = { Accept: 'application/json' };
+    const headers = { Accept: endpoint.startsWith('/media/events/') ? 'image/*' : 'application/json' };
     if (/^Bearer [^\s]+$/.test(req.headers.authorization || '')) headers.Authorization = req.headers.authorization;
     if (/^[0-9a-f-]{36}$/i.test(req.headers['idempotency-key'] || '')) headers['Idempotency-Key'] = req.headers['idempotency-key'];
     if (req.headers['content-type']) headers['Content-Type'] = req.headers['content-type'];

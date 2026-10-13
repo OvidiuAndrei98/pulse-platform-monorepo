@@ -66,8 +66,8 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   assert.equal(await evaluate(`document.querySelector('[data-testid="billing-name"]').getAttribute('aria-invalid')`), 'true');
   await input('checkout-email', 'guest@example.test'); await input('billing-name', 'QA Buyer'); await input('billing-address', 'Strada Test 1'); await input('billing-city', 'Bucuresti');
   await click('checkout-next'); assert.equal(await evaluate(`document.querySelector('[data-testid="billing-sector"]').getAttribute('aria-invalid')`), 'true');
-  await click('billing-sector'); await until(`Array.from(document.querySelectorAll('[role=radio]')).some(el=>el.textContent==='Sector 3')`);
-  await evaluate(`Array.from(document.querySelectorAll('[role=radio]')).find(el=>el.textContent==='Sector 3').click()`); await delay(400);
+  await click('billing-sector'); await until(`document.querySelector('[data-testid="billing-sector-options"]')`);
+  await click('billing-sector-option-Sector 3'); await delay(400);
   await click('checkout-next'); await until(`document.querySelector('[data-testid="checkout-next"]').textContent.includes('Pay')`);
   await capture('checkout-summary');
   await evaluate(`document.querySelector('[data-testid="checkout-next"]').click();document.querySelector('[data-testid="checkout-next"]').click()`);

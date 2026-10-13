@@ -41,6 +41,7 @@ type Application struct {
 	Invoicing *invoicing.Service
 	Refunds   *payments.CheckoutHandler
 	Abuse     *abuse.Protection
+	Push      *notifications.PushService
 }
 
 type databaseSettings struct {
@@ -212,6 +213,7 @@ func (app *Application) BuildRouter() http.Handler {
 	interactionsHandler := interactions.NewHandler(app.Queries)
 	usersHandler := users.NewHandler(app.Queries, app.Pool)
 	notificationsHandler := notifications.NewHandler(app.Queries)
+	app.Push = &notifications.PushService{Pool: app.Pool, ProjectID: strings.TrimSpace(os.Getenv("EXPO_PUSH_PROJECT_ID")), AccessToken: strings.TrimSpace(os.Getenv("EXPO_PUSH_ACCESS_TOKEN"))}
 	diagnosticsHandler := &diagnostics.Handler{Store: diagnostics.PostgresStore{Pool: app.Pool}}
 	safetyGroupsHandler := safetygroups.NewHandler(app.Pool, app.Abuse)
 	authMiddleware := auth.AuthMiddleware
@@ -302,6 +304,10 @@ func (app *Application) BuildRouter() http.Handler {
 		GetUserOrders:               ticketingHandler.HandleGetUserOrders,
 		GetSavedEvents:              eventsHandler.HandleListSavedEvents,
 		ListNotifications:           notificationsHandler.HandleList,
+		GetNotification:             app.Push.HandleNotification,
+		PushConfig:                  app.Push.HandleConfig,
+		RegisterPush:                app.Push.HandleRegister,
+		UnregisterPush:              app.Push.HandleUnregister,
 		MarkAllNotificationsRead:    notificationsHandler.HandleMarkAllRead,
 		MarkNotificationRead:        notificationsHandler.HandleMarkRead,
 		ListHiddenCategories:        usersHandler.HandleListHiddenCategories,
@@ -473,6 +479,12 @@ func (app *Application) StartSafetyGroupCleanupWorker(ctx context.Context) {
 
 func (app *Application) StartDiagnosticsCleanupWorker(ctx context.Context) {
 	(&diagnostics.Handler{Store: diagnostics.PostgresStore{Pool: app.Pool}}).StartCleanupWorker(ctx)
+}
+
+func (app *Application) StartPushWorker(ctx context.Context) {
+	if app.Push != nil {
+		app.Push.StartWorker(ctx)
+	}
 }
 
 func (app *Application) StartUserMediaDeletionWorker(ctx context.Context) {

@@ -336,11 +336,19 @@ SELECT u.id, u.username, u.avatar_url, u.bio, u.role,
        COALESCE(op.is_verified, false) AS organizer_verified
 FROM users u
 LEFT JOIN organizer_profiles op ON op.user_id = u.id
-WHERE u.username ILIKE '%' || $1 || '%'
-   OR COALESCE(op.company_name, '') ILIKE '%' || $1 || '%'
+WHERE (u.username ILIKE '%' || $1 || '%'
+   OR COALESCE(op.company_name, '') ILIKE '%' || $1 || '%')
+  AND ($2::text = ''
+       OR ($2::text = 'organizers' AND u.role = 'organizer')
+       OR ($2::text = 'people' AND u.role <> 'organizer'))
 ORDER BY CASE WHEN LOWER(u.username) = LOWER($1) THEN 0 ELSE 1 END, u.username ASC
 LIMIT 20
 `
+
+type SearchProfilesParams struct {
+	Column1 pgtype.Text `json:"column_1"`
+	Kind    string      `json:"kind"`
+}
 
 type SearchProfilesRow struct {
 	ID                pgtype.UUID `json:"id"`
@@ -352,8 +360,8 @@ type SearchProfilesRow struct {
 	OrganizerVerified bool        `json:"organizer_verified"`
 }
 
-func (q *Queries) SearchProfiles(ctx context.Context, dollar_1 pgtype.Text) ([]SearchProfilesRow, error) {
-	rows, err := q.db.Query(ctx, searchProfiles, dollar_1)
+func (q *Queries) SearchProfiles(ctx context.Context, arg SearchProfilesParams) ([]SearchProfilesRow, error) {
+	rows, err := q.db.Query(ctx, searchProfiles, arg.Column1, arg.Kind)
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,10 @@ type Notification = components["schemas"]["NotificationResponse"];
 type Copy = (key: string, values?: Record<string, string | number>) => string;
 
 export function notificationText(notification: Notification, t: Copy) {
+  if (notification.type === "friend_request" || notification.type === "friend_accepted") {
+    const kind = notification.type === "friend_request" ? "friendRequest" : "friendAccepted";
+    return { title: t(`notifications.${kind}Title`), body: t(`notifications.${kind}Body`, { name: notification.actorUsername || t("notifications.someone") }) };
+  }
   if (notification.type === "organizer_event") {
     return {
       title: t("notifications.organizerEventTitle"),

@@ -67,6 +67,11 @@ export function NotificationsPopover() {
   const openNotification = (notification: AppNotification) => {
     if (!notification.isRead) markRead(notification.id);
     setOpen(false);
+    if (notification.type === "ticket_purchased") {
+      window.dispatchEvent(new Event("spottr:layer-navigation"));
+      router.push(routeForPlatform("/users/me/tickets"));
+      return;
+    }
     if (notification.eventId) {
       window.dispatchEvent(new Event("spottr:layer-navigation"));
       const isSafetyNotification = notification.type === "safety_group_invite" ||

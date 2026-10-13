@@ -5,7 +5,7 @@ import { accountApi, useAuth } from '../auth/AuthProvider';
 import { ticketCache } from './ticketStorage';
 import { canUseSavedTickets, ticketQueryOptions, type TicketData } from './ticketQuery';
 
-export function useTickets(enabled = true) {
+export function useTickets(enabled = true, watchAdmission = false) {
   const { user, ready, controller } = useAuth(), client = useQueryClient();
   const accountId = user?.id ?? '', token = controller.getToken() ?? '';
   const [foreground, setForeground] = useState(AppState.currentState !== 'background' && AppState.currentState !== 'inactive');
@@ -14,7 +14,9 @@ export function useTickets(enabled = true) {
     ...ticketQueryOptions(accountId, token, ticketCache, current,
       (owner, signal) => accountApi('/users/me/tickets', { token: owner, signal })),
     enabled: enabled && ready && !!accountId && !!token && foreground,
-    refetchInterval: query => foreground && (query.state.error || query.state.data?.source === 'saved') ? 15_000 : false,
+    refetchInterval: query => !foreground ? false
+      : query.state.error || query.state.data?.source === 'saved' ? 15_000
+      : watchAdmission ? 5_000 : false,
     refetchIntervalInBackground: false,
   });
   useEffect(() => {

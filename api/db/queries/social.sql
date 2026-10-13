@@ -4,8 +4,11 @@ SELECT u.id, u.username, u.avatar_url, u.bio, u.role,
        COALESCE(op.is_verified, false) AS organizer_verified
 FROM users u
 LEFT JOIN organizer_profiles op ON op.user_id = u.id
-WHERE u.username ILIKE '%' || $1 || '%'
-   OR COALESCE(op.company_name, '') ILIKE '%' || $1 || '%'
+WHERE (u.username ILIKE '%' || $1 || '%'
+   OR COALESCE(op.company_name, '') ILIKE '%' || $1 || '%')
+  AND (sqlc.arg(kind)::text = ''
+       OR (sqlc.arg(kind)::text = 'organizers' AND u.role = 'organizer')
+       OR (sqlc.arg(kind)::text = 'people' AND u.role <> 'organizer'))
 ORDER BY CASE WHEN LOWER(u.username) = LOWER($1) THEN 0 ELSE 1 END, u.username ASC
 LIMIT 20;
 

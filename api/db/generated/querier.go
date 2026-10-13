@@ -267,7 +267,7 @@ type Querier interface {
 	SaveStripeEventVATRate(ctx context.Context, arg SaveStripeEventVATRateParams) error
 	ScheduleAllUnreferencedEventBannerAssets(ctx context.Context) (int64, error)
 	ScheduleEventBannerAssetDeletionIfUnreferenced(ctx context.Context, arg ScheduleEventBannerAssetDeletionIfUnreferencedParams) (int64, error)
-	SearchProfiles(ctx context.Context, dollar_1 pgtype.Text) ([]SearchProfilesRow, error)
+	SearchProfiles(ctx context.Context, arg SearchProfilesParams) ([]SearchProfilesRow, error)
 	// Legacy queries retained until the old handlers can be removed in a dedicated cleanup.
 	SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error
 	SetEventStatus(ctx context.Context, arg SetEventStatusParams) error

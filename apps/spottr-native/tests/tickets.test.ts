@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseTickets, ticketStatus, type UserTicket } from '../src/data/tickets';
 import { ApiError } from '../src/data/http';
+import { initialGroupTicket } from '../src/profile/ticketGroups';
 
 function ticket(overrides: Partial<UserTicket> = {}): UserTicket {
   return {
@@ -17,6 +18,17 @@ function ticket(overrides: Partial<UserTicket> = {}): UserTicket {
   };
 }
 const invalid = (error: unknown) => error instanceof ApiError && error.code === 'INVALID_RESPONSE';
+
+test('group opening prefers an unused admission in the same event, while explicit history selection stays intact', () => {
+  const used = ticket({ isValidated: true }), active = ticket({ id: 'second' });
+  const unrelated = ticket({ id: 'other', eventId: 'other-event' });
+  const now = Date.parse(used.startTime);
+  assert.equal(initialGroupTicket([unrelated, used, active], used.id, true, now), active.id);
+  assert.equal(initialGroupTicket([used, active], used.id, false, now), used.id);
+  assert.equal(initialGroupTicket([used], used.id, true, now), used.id);
+  assert.equal(initialGroupTicket([used, active], used.id, true, Date.parse(used.endTime)), used.id);
+  assert.equal(initialGroupTicket([], used.id, true, now), used.id);
+});
 
 test('null and empty ticket collections are valid empty responses', () => {
   assert.deepEqual(parseTickets(null), []);

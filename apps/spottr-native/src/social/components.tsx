@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { ArrowUpRight, Calendar, Check, ImageIcon, Ticket, X } from 'lucide-react-native';
-import { AppSheetTextInput } from '../ui/AppSheetTextInput';
+import { FormInput } from '../ui/FormInput';
 import { Search } from 'lucide-react-native';
 import { usePreferences } from '../PreferencesProvider';
 import { useSocial } from './useSocial';
@@ -37,7 +37,7 @@ export function FriendsListSheet({ social, close, openProfile, manage }: { socia
     <View style={{ paddingHorizontal: 20, paddingBottom: 20, paddingTop: 4 }}><Text style={{ color: 'white', fontSize: 24, fontWeight: '700', letterSpacing: -0.8 }}>{copy('friends.title')}</Text>
       <Text style={[s.muted, { marginTop: 8 }]}>{social.friends.isPending ? copy('common.loading') : social.friends.isError && !social.friends.data ? '—' : copy('friends.count', { count: friends.length })}</Text></View>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 20, marginBottom: 16, borderRadius: 16, backgroundColor: '#161616', paddingHorizontal: 16 }}>
-      <Search color="#ffffff66" size={16} /><AppSheetTextInput testID="friends-sheet-search" value={query} onChangeText={setQuery} placeholder={copy('friends.searchPlaceholder')} accessibilityLabel={copy('friends.searchPlaceholder')} placeholderTextColor="#ffffff59" style={{ flex: 1, minWidth: 0, height: 48, fontSize: 16, color: 'white' }} /></View>
+      <Search color="#ffffff66" size={16} /><FormInput inSheet variant="bare" testID="friends-sheet-search" value={query} onChangeText={setQuery} placeholder={copy('friends.searchPlaceholder')} accessibilityLabel={copy('friends.searchPlaceholder')} placeholderTextColor="#ffffff59" style={{ flex: 1, minWidth: 0, height: 48, fontSize: 16, color: 'white' }} /></View>
     <AppSheetScrollView testID="friends-sheet-list" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }}>
       {social.requests.isError && !!social.requests.data && <Feedback compact title={copy('feedback.actionFailed')} retry={() => void social.requests.refetch()} />}
       {social.requests.isPending ? <View style={s.skeleton} /> : social.requests.isError && !social.requests.data ? <Feedback compact title={copy('feedback.actionFailed')} retry={() => void social.requests.refetch()} /> : requests.length > 0 && <View style={{ marginBottom: 24 }}>

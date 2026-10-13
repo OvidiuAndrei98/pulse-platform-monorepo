@@ -13,6 +13,23 @@ async function close(server: http.Server) {
   await new Promise<void>(resolve => server.close(() => resolve()));
 }
 
+test('story preview proxy returns public image bytes and blocks writes, foreign origins and non-image media paths', async () => {
+  const bytes = Buffer.from([0x52, 0x49, 0x46, 0x46]), received: string[] = [];
+  const upstream = http.createServer((req, res) => { received.push(req.url!); assert.equal(req.headers.accept, 'image/*'); res.writeHead(200, { 'Content-Type': 'image/webp' }); res.end(bytes); });
+  const api = await listen(upstream), proxy = createApiProxy(api + '/api/v1');
+  const server = http.createServer((req, res) => proxy(req, res, () => res.end())), base = await listen(server);
+  const asset = '/api/v1/media/events/00000000-0000-4000-8000-000000000001/abc123.webp';
+  try {
+    const response = await request(base, asset);
+    assert.equal(response.status, 200); assert.equal(response.headers['content-type'], 'image/webp'); assert.equal(response.body, bytes.toString());
+    assert.equal((await request(base, asset, {}, 'POST')).status, 405);
+    assert.equal((await request(base, asset, { origin: 'https://other.example.test' })).status, 403);
+    assert.equal((await request(base, asset.replace('.webp', '.html'))).status, 403);
+    assert.equal((await request(base, '/api/v1/media/private/secret')).status, 403);
+    assert.deepEqual(received, [asset]);
+  } finally { await close(server); await close(upstream); }
+});
+
 test('new native flows retain exact method, auth and upload limits through the preview proxy', async () => {
   const received: string[] = [];
   const upstream = http.createServer((req, res) => { received.push(req.method + ' ' + req.url); assert.equal(req.headers.authorization, 'Bearer local-test'); req.resume(); req.on('end', () => { res.writeHead(204); res.end(); }); });

@@ -24,6 +24,8 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
       const scan = { ...snapshot.tickets[0], clientScanId: id(81), snapshotId: snapshot.snapshotId, deviceId: id(82), scannedAt: '2020-01-01T18:00:00Z', status: 'pending' };
       localStorage.setItem('spottr-native:scanner:v1:' + user.id + ':' + event.id, JSON.stringify({ version: 1, eventId: event.id, snapshot, event, revoked: false, scans: [scan], online: {}, attempts: {} }));
     }
+    qa.validationEvents = query.has('ended') ? [] : [event];
+    if (query.has('mixedAccess')) qa.validationEvents.push({ ...event, id: id(9), organizerId: id(8), title: 'Assigned gate', canManage: false });
     const accepted = () => ({ id: id(5), eventId: id(1), ownerId: id(2), eventTitle: event.title, eventLocation: event.locationName, startTime: event.startTime, endTime: event.endTime, expiresAt: '2035-10-12T04:00:00Z', currentMemberStatus: 'accepted', canSendHelp: true, currentUserNeedsHelp: false, members: [{ ...friend(2), status: 'accepted' }, { ...friend(3), status: 'accepted' }], messages: [] });
     if (query.get('group') === 'accepted') qa.group = accepted();
     if (query.get('group') === 'pending') qa.group = { ...accepted(), currentMemberStatus: 'pending' };
@@ -61,7 +63,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
       if (route === '/dashboard/events') return reply([event]);
       if (route === '/dashboard/events/' + id(1)) return reply(event);
       if (route.startsWith('/dashboard/organizer/profile/') || route === '/dashboard/stripe/status') return reply({ userId: id(2), companyName: 'QA Club SRL', cui: '123456', fiscalAddress: 'QA Address', isVerified: true, verificationStatus: 'approved' });
-      if (route === '/dashboard/ticket-validation/events') return reply(query.has('ended') ? [] : [event]);
+      if (route === '/dashboard/ticket-validation/events') return reply(qa.validationEvents);
       if (route.endsWith('/offline-sync')) return reply({ results: body.scans.map(scan => ({ clientScanId: scan.clientScanId, status: 'accepted' })) });
       if (route.endsWith('/my-scans')) return reply({ totalScans: qa.scanCount ? 1 : 0, scans: qa.scanCount ? [{ ticketId: id(90), ticketType: 'General', validatedAt: '2026-10-11T18:00:00Z' }] : [] });
       if (route === '/dashboard/ticket-validation/events/' + id(1) + '/staff') return reply([{ id: id(3), username: 'Gate staff', email: 'staff@example.test' }]);
@@ -133,6 +135,9 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   console.log('PASS organizer dashboard route, account and event loading');
 
   await open('/ticket-validation'); await until(`document.querySelector('[data-testid="scanner-event-selector"]') && document.body.innerText.includes('QA Night')`);
+  assert.equal(await evaluate(`!!document.querySelector('[data-testid="scanner-tabs"]')`), false, 'Scan-only staff must not see an empty Management tab');
+  assert.equal(await evaluate(`!!document.querySelector('[data-testid="scanner-panel"]')`), true, 'Scan-only staff land directly on the scanner');
+  assert.equal(await evaluate(`window.__qa.requests.filter(v=>v.route.endsWith('/staff') || v.route.endsWith('/quick-access')).length`), 0, 'Scan-only staff must not load management data');
   assert.equal(await evaluate(`!!document.querySelector('[data-testid="scanner-code-input"]')`), false, 'Manual entry is initially collapsed');
   await click('scanner-event-selector'); await until(`document.querySelector('[data-testid="scanner-event-menu"]')`);
   const menu = await evaluate(`{const r=document.querySelector('[data-testid="scanner-event-menu"]').getBoundingClientRect();({x:r.x,y:r.y,right:r.right,bottom:r.bottom})}`);
@@ -150,7 +155,9 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await evaluate(`{const el=document.querySelector('textarea');el.setAttribute('data-testid','qa-scan-input');}`);
   await input('qa-scan-input', 'a'.repeat(64)); await pressText('Validate ticket'); await until(`window.__qa.scanCount===1`);
   await until(`document.querySelector('[data-testid="scanner-panel"]').textContent.includes('Valid ticket')`);
-  await until(textButton('Scan next ticket')); await pressText('Scan next ticket'); await input('qa-scan-input', 'a'.repeat(64)); await pressText('Validate ticket'); await until(`window.__qa.scanCount===2`);
+  assert.equal(await evaluate(`!!${textButton('Scan next ticket')}`), false);
+  await until(`document.querySelector('[data-testid="scanner-validate"]').getAttribute('aria-disabled') !== 'true'`);
+  await input('qa-scan-input', 'a'.repeat(64)); await pressText('Validate ticket'); await until(`window.__qa.scanCount===2`);
   await until(`document.querySelector('[data-testid="scanner-panel"]').textContent.includes('Ticket already used')`);
   await capture('scanner-operations');
   assert.deepEqual(await evaluate('window.__qa.unexpected'), []);
@@ -189,6 +196,23 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await capture('scanner-management-operations');
   assert.deepEqual(await evaluate('window.__qa.unexpected'), []);
   console.log('PASS scanner staff/access rows, link creation and clipboard denied/fallback/retry feedback');
+  await open('/ticket-validation?role=organizer&mixedAccess=true');
+  await click('scanner-tab-management'); await until(`document.querySelector('[data-testid="scanner-management"]')`);
+  await click('scanner-event-selector'); await until(`document.querySelector('[data-testid="scanner-event-menu"]')`);
+  await evaluate(`Array.from(document.querySelectorAll('[data-testid="scanner-event-menu"] [role="button"]')).find(el=>el.textContent.includes('Assigned gate')).click()`);
+  await until(`document.querySelector('[data-testid="scanner-panel"]')?.textContent.includes('Assigned gate')`);
+  assert.equal(await evaluate(`!!document.querySelector('[data-testid="scanner-tabs"]')`), false, 'Organizer role does not imply management access to an assigned event');
+  assert.equal(await evaluate(`!!document.querySelector('[data-testid="scanner-management"]')`), false);
+  assert.equal(await evaluate(`window.__qa.requests.filter(v=>v.route.includes('${id(9)}') && (v.route.endsWith('/staff') || v.route.endsWith('/quick-access'))).length`), 0);
+  await click('scanner-event-selector'); await until(`document.querySelector('[data-testid="scanner-event-menu"]')`);
+  await evaluate(`Array.from(document.querySelectorAll('[data-testid="scanner-event-menu"] [role="button"]')).find(el=>el.textContent.includes('QA Night')).click()`);
+  await until(`document.querySelector('[data-testid="scanner-tab-scan"]') && document.querySelector('[data-testid="scanner-panel"]')?.textContent.includes('QA Night')`);
+  await click('scanner-tab-management'); await until(`document.querySelector('[data-testid="scanner-management"]')`);
+  await evaluate(`window.__qa.validationEvents[0].canManage=false`);
+  await until(`!document.querySelector('[data-testid="scanner-tabs"]') && document.querySelector('[data-testid="scanner-panel"]')`, 20000);
+  assert.equal(await evaluate(`!!document.querySelector('[data-testid="scanner-management"]')`), false, 'Losing management permission during refetch returns to scanning');
+  assert.deepEqual(await evaluate('window.__qa.unexpected'), []);
+  console.log('PASS scanner management follows event permissions, including mixed access and permission changes');
   await open('/ticket-validation?ended=true');
   await until(`window.__qa.writes.some(v=>v.route.endsWith('/offline-sync'))`);
   await until(`JSON.parse(localStorage.getItem('spottr-native:scanner:v1:${id(2)}:${id(1)}')).scans[0].status==='synced'`);

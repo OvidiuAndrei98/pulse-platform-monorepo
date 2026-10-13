@@ -1,12 +1,15 @@
+import { FormInput as TextInput, formStyles } from '../ui/FormInput';
 import { uploadProfileAvatar } from "../profile/avatar";
 import { AppSheetScrollView } from "../ui/AppSheetScrollView";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  Keyboard,
   Platform,
+  Pressable as NativePressable,
   ScrollView,
   StyleSheet,
   Switch,
-  TextInput,
   View,
 } from "react-native";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
@@ -14,11 +17,16 @@ import { MotionPressable as Pressable } from "../ui/MotionPressable";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
-import { AppSheetTextInput } from "../ui/AppSheetTextInput";
+import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+
 import {
   Bookmark,
   Camera,
+  Check,
+  CircleAlert,
   ChevronRight,
+  CircleHelp,
+  FileText,
   Globe2,
   Lock,
   LogOut,
@@ -28,6 +36,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   Trash2,
+  Ticket,
   UserRound,
   ShieldCheck,
   UsersRound,
@@ -41,6 +50,8 @@ import {
   PreferencesSheet,
 } from "../profile/PreferencesSheet";
 import { QuickConnectSheet } from "../profile/QuickConnectSheet";
+import { ProfileDisclosure, PROFILE_DISCLOSURE_MOTION } from "../profile/ProfileDisclosure";
+import { ProfileEmptyState } from '../profile/ProfileEmptyState';
 import {
   TicketSheet,
   ticketStatus,
@@ -60,6 +71,17 @@ import { TicketAvailability } from "../profile/TicketAvailability";
 import { TicketCarousel } from "../profile/TicketCarousel";
 import { profileTicketGroups } from "../profile/ticketGroups";
 import { useEventClock } from "../data/useEventClock";
+
+type ProfileAction = "avatar" | "details" | "password" | "language" | "privacy";
+type ProfileNotice = { kind: "error" | "success"; key: string };
+const actionMessages: Record<ProfileAction, { success: string; error: string }> = {
+  avatar: { success: "profile.avatarUpdated", error: "profile.imageUploadFailed" },
+  details: { success: "profile.updateSuccess", error: "profile.updateFailed" },
+  password: { success: "profile.resetSent", error: "profile.resetFailed" },
+  language: { success: "profile.languageSaved", error: "profile.languageFailed" },
+  privacy: { success: "profile.privacySaved", error: "profile.privacyUpdateFailed" },
+};
+
 export function ProfileScreen() {
   const auth = useAuth(),
     { copy, saved, savedLoading, savedError, retrySaved, language, setLanguage, actionError } = usePreferences(),
@@ -73,12 +95,12 @@ export function ProfileScreen() {
     );
   const [ticket, setTicket] = useState<UserTicket | null>(null),
     [tab, setTab] = useState<"active" | "history">("active");
-  const [busy, setBusy] = useState(false),
-    [message, setMessage] = useState(""),
-    [success, setSuccess] = useState("");
+  const [activeAction, setActiveAction] = useState<ProfileAction | null>(null),
+    [notices, setNotices] = useState<Partial<Record<ProfileAction, ProfileNotice>>>({});
+  const busy = activeAction !== null;
   const [username, setUsername] = useState(""),
     [bio, setBio] = useState("");
-  const tickets = useTickets(focused),
+  const tickets = useTickets(focused, !!ticket),
     hidden = useHiddenCategories(),
     pending = useRef(false);
   const now = useEventClock();
@@ -96,8 +118,7 @@ export function ProfileScreen() {
     setRow("");
     setSheet(null);
     setTicket(null);
-    setMessage("");
-    setSuccess("");
+    setNotices({});
     setTab("active");
   }, [auth.user?.id]);
   if (!auth.ready || !auth.user) return <Loading />;
@@ -106,41 +127,55 @@ export function ProfileScreen() {
       (item) => ticketStatus(item, now) === "active",
     );
   const groups = profileTicketGroups(tickets.data ?? [], tab, now);
-  const run = async (operation: () => Promise<unknown>, successFor = "") => {
+  const explore = () => navigation.navigate('Tabs', { screen: 'Explore' });
+  const clearNotice = (action: ProfileAction) =>
+    setNotices(old => ({ ...old, [action]: undefined }));
+  const run = async (action: ProfileAction, operation: () => Promise<unknown>) => {
     if (pending.current) return;
     pending.current = true;
-    setBusy(true);
-    setMessage("");
-    setSuccess("");
+    setActiveAction(action);
+    clearNotice(action);
     const token = auth.controller.getToken();
     try {
-      await operation();
-      if (auth.controller.getToken() === token) setSuccess(successFor);
+      const result = await operation();
+      // Cancelled image picking and stale session updates are not successful saves.
+      if (auth.controller.getToken() !== token || result === false || result === null) return false;
+      setNotices(old => ({ ...old, [action]: { kind: "success", key: actionMessages[action].success } }));
+      return true;
     } catch (cause) {
       if (auth.controller.getToken() === token)
-        setMessage(
-          copy(
-            cause instanceof Error && cause.message.startsWith("profile.")
-              ? cause.message
-              : "feedback.actionFailed",
-          ),
-        );
+        setNotices(old => ({ ...old, [action]: {
+          kind: "error",
+          key: cause instanceof Error && cause.message.startsWith("profile.")
+            ? cause.message : actionMessages[action].error,
+        } }));
+      return false;
     } finally {
       pending.current = false;
-      setBusy(false);
+      setActiveAction(null);
     }
   };
-  const avatar = () => run(() => uploadProfileAvatar(auth.controller));
+  const avatar = () => run("avatar", () => uploadProfileAvatar(auth.controller));
+  const selectLanguage = async (next: "ro" | "en") => {
+    if (pending.current) return;
+    if (next === language) { setRow(""); return; }
+    const saved = await run("language", async () => {
+      const updated = await auth.controller.update({ preferredLanguage: next });
+      if (updated) setLanguage(next);
+      return updated;
+    });
+    if (saved) setRow("");
+  };
   const toggle = (key: string) => {
     if (pending.current) return;
-    setSuccess("");
-    setMessage("");
+    Keyboard.dismiss();
     setRow((old) => (old === key ? "" : key));
   };
   return (
     <>
       <ScrollView
         testID="profile-list"
+        keyboardShouldPersistTaps="handled"
         style={{ flex: 1, backgroundColor: "#000" }}
         contentContainerStyle={{
           paddingTop: Math.max(24, safe.top),
@@ -168,11 +203,11 @@ export function ProfileScreen() {
               onPress={() => void avatar()}
               style={s.camera}
             >
-              <Camera size={17} color="white" />
+              {activeAction === "avatar" ? <ActivityIndicator size="small" color="white" /> : <Camera size={17} color="white" />}
             </Pressable>
           </View>
-          <View style={{ flex: 1, gap: 7 }}>
-            <Text style={{ color: "white", fontWeight: "600", fontSize: 24 }}>
+          <View style={{ flex: 1, minWidth: 0, gap: 7 }}>
+            <Text numberOfLines={1} style={{ color: "white", fontWeight: "600", fontSize: 24 }}>
               {user.username}
             </Text>
             <View
@@ -180,6 +215,7 @@ export function ProfileScreen() {
             >
               <Mail size={14} color={colors.muted} />
               <Text
+                numberOfLines={1}
                 style={{ color: colors.muted, fontSize: 14, flexShrink: 1 }}
               >
                 {user.email}
@@ -187,17 +223,26 @@ export function ProfileScreen() {
             </View>
             <View style={s.member}>
               <Sparkles size={12} color={colors.accent} />
-              <Text style={{ color: colors.muted, fontSize: 11 }}>
+              <Text numberOfLines={1} style={{ color: colors.muted, fontSize: 11, flexShrink: 1 }}>
                 {copy("userProfile.memberSince", {
                   year: new Date(user.createdAt).getFullYear(),
                 })}
               </Text>
             </View>
           </View>
+          <Pressable
+            testID="profile-quick-connect"
+            accessibilityRole="button"
+            accessibilityLabel={copy("qr.quickConnect")}
+            accessibilityHint={copy("qr.showOrScan")}
+            onPress={() => setSheet("connect")}
+            style={s.quickConnect}
+          >
+            <QrCode size={20} color={colors.accent} />
+          </Pressable>
         </View>
-        {(message || auth.storageError || actionError) && (
-          <AuthMessage text={message || copy("feedback.actionFailed")} />
-        )}
+        <ProfileFeedback action="avatar" notice={notices.avatar} />
+        {auth.storageError && <AuthMessage text={copy("feedback.actionFailed")} />}
         {user.role !== "user" && (
           <Row
             icon={UserRound}
@@ -207,69 +252,6 @@ export function ProfileScreen() {
         )}
         {user.role !== 'organizer' && activeSafety && <Pressable accessibilityRole="button" testID="profile-safety-group" onPress={() => navigation.navigate('SafetyGroup', { eventId: activeSafety.eventId })} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 26, borderWidth: 1, borderColor: '#34d3994d', backgroundColor: '#34d39917' }}><ShieldCheck size={26} color="#34d399"/><View style={{ flex: 1 }}><Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>{copy('safetyGroup.activeEvent', { event: activeSafety.eventTitle })}</Text><Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>{copy('safetyGroup.openGroup')}</Text></View><ChevronRight size={16} color="#6ee7b7"/></Pressable>}
         {user.role !== 'organizer' && !!validationEvents.data?.length && <Row icon={QrCode} title={copy('userProfile.ticketValidation')} hint={copy('userProfile.validationAccess', { count: validationEvents.data.length })} onPress={() => navigation.navigate('Scanner')}/>}
-        <View style={s.connect}>
-          <View style={{ flexDirection: "row", gap: 12 }}>
-            <View style={s.qrIcon}>
-              <QrCode size={20} color={colors.accent} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: "white", fontSize: 14, fontWeight: "700" }}>
-                {copy("qr.quickConnect")}
-              </Text>
-              <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>
-                {copy("qr.showOrScan")}
-              </Text>
-            </View>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setSheet("connect")}
-            style={s.myCode}
-          >
-            <Text style={{ color: "white", fontSize: 12, fontWeight: "600" }}>
-              {copy("qr.myCode")}
-            </Text>
-          </Pressable>
-        </View>
-        <View style={{ gap: 12 }}>
-          <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between"}}><Text style={s.section}>{copy("userProfile.savedEvents")}</Text>{saved.length > 4 && <Pressable accessibilityRole="button" testID="profile-saved-all" onPress={() => navigation.navigate("Tabs", {screen:"Profile",params:{screen:"SavedEvents"}})} style={{minHeight:44,justifyContent:"center"}}><Text style={{fontSize:12,color:colors.accent}}>{copy("common.seeAll")}</Text></Pressable>}</View>
-          {savedLoading ? <Loading /> : savedError ? <Feedback title={copy("feedback.loadFailed")} retry={retrySaved} /> : saved.length ? (
-            saved.slice(0, 4).map((event) => (
-              <Pressable
-                key={event.id}
-                accessibilityRole="button"
-                onPress={() => {
-                  seedEvent(event);
-                  navigation.navigate("Event", { id: event.id });
-                }}
-                style={s.saved}
-              >
-                <EventImage
-                  uri={event.bannerUrl}
-                  style={{ height: 48, width: 48, borderRadius: 12 }}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{ color: "white", fontWeight: "600", fontSize: 14 }}
-                  >
-                    {event.title}
-                  </Text>
-                  <Text style={s.hint}>
-                    {event.locationName} ·{" "}
-                    {formatDate(event.startTime, language)}
-                  </Text>
-                </View>
-                <Bookmark
-                  size={16}
-                  color={colors.accent}
-                  fill={colors.accent}
-                />
-              </Pressable>
-            ))
-          ) : (
-            <Text style={s.empty}>{copy("userProfile.noSavedEvents")}</Text>
-          )}
-        </View>
         <View style={{ gap: 12 }}>
           <Text style={s.section}>{copy("userProfile.ticketsOrders")}</Text>
           <View style={s.tabs}>
@@ -315,17 +297,11 @@ export function ProfileScreen() {
               onOpen={setTicket}
             />
           ) : (
-            <View>
-              <Text style={s.empty}>
-                {copy(
-                  tab === "active"
-                    ? "userProfile.noActiveTickets"
-                    : "tickets.noHistory",
-                )}
-              </Text>
-            </View>
+            <ProfileEmptyState testID="profile-empty-tickets" icon={Ticket}
+              title={copy(tab === 'active' ? 'userProfile.noActiveTickets' : 'tickets.noHistory')}
+              onExplore={explore} />
           )}
-          <Pressable testID="profile-tickets-all" accessibilityRole="button" onPress={() => navigation.navigate("Tabs", {screen:"Profile",params:{screen:"Tickets"}})} style={{minHeight:44,alignItems:"center",justifyContent:"center",borderRadius:99,borderWidth:1,borderColor:"#ffffff1a"}}><Text style={{color:"white",fontSize:14,fontWeight:"600"}}>{copy("userProfile.viewAllTickets")}</Text></Pressable>
+          {(tickets.isPending || tickets.isError || !!tickets.data?.length) && <Pressable testID="profile-tickets-all" accessibilityRole="button" onPress={() => navigation.navigate("Tabs", {screen:"Profile",params:{screen:"Tickets"}})} style={{minHeight:44,alignItems:"center",justifyContent:"center",borderRadius:99,borderWidth:1,borderColor:"#ffffff1a"}}><Text style={{color:"white",fontSize:14,fontWeight:"600"}}>{copy("userProfile.viewAllTickets")}</Text></Pressable>}
           {tab === "history" && (
             <Row
               icon={Receipt}
@@ -336,96 +312,162 @@ export function ProfileScreen() {
           )}
         </View>
         <View style={{ gap: 12 }}>
+          <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between"}}><Text style={s.section}>{copy("userProfile.savedEvents")}</Text>{saved.length > 4 && <Pressable accessibilityRole="button" testID="profile-saved-all" onPress={() => navigation.navigate("Tabs", {screen:"Profile",params:{screen:"SavedEvents"}})} style={{minHeight:44,justifyContent:"center"}}><Text style={{fontSize:12,color:colors.accent}}>{copy("common.seeAll")}</Text></Pressable>}</View>
+          {actionError && <AuthMessage text={copy("feedback.actionFailed")} />}
+          {savedLoading ? <Loading /> : savedError ? <Feedback title={copy("feedback.loadFailed")} retry={retrySaved} /> : saved.length ? (
+            saved.slice(0, 4).map((event) => (
+              <Pressable
+                key={event.id}
+                accessibilityRole="button"
+                onPress={() => {
+                  seedEvent(event);
+                  navigation.navigate("Event", { id: event.id });
+                }}
+                style={s.saved}
+              >
+                <EventImage
+                  uri={event.bannerUrl}
+                  style={{ height: 48, width: 48, borderRadius: 12 }}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{ color: "white", fontWeight: "600", fontSize: 14 }}
+                  >
+                    {event.title}
+                  </Text>
+                  <Text style={s.hint}>
+                    {event.locationName} ·{" "}
+                    {formatDate(event.startTime, language)}
+                  </Text>
+                </View>
+                <Bookmark
+                  size={16}
+                  color={colors.accent}
+                  fill={colors.accent}
+                />
+              </Pressable>
+            ))
+          ) : (
+            <ProfileEmptyState testID="profile-empty-saved" icon={Bookmark} title={copy('userProfile.noSavedEvents')} onExplore={explore} />
+          )}
+        </View>
+        <View style={{ gap: 12 }}>
           <Text style={s.section}>{copy("userProfile.accountSecurity")}</Text>
-          <View style={s.panel}>
+          <View testID="profile-account-settings" style={s.panel}>
             <Row
+              testID="profile-details-toggle"
               icon={UserRound}
               title={copy("userProfile.personalDetails")}
               hint={copy("userProfile.personalDetailsHint")}
+              expanded={row === "details"}
               onPress={() => toggle("details")}
             />
-            {row === "details" && (
+            <ProfileDisclosure expanded={row === "details"} testID="profile-details-content">
               <View style={s.form}>
-                <Text style={s.hint}>{copy("profile.displayName")}</Text>
-                <TextInput
+                <Text style={formStyles.profileLabel}>{copy("profile.displayName")}</Text>
+                <TextInput variant="profile"
+                  invalid={notices.details?.key === "profile.displayNameTooShort"}
                   accessibilityLabel={copy("profile.displayName")}
                   value={username}
-                  onChangeText={setUsername}
+                  onChangeText={value => { setUsername(value); clearNotice("details"); }}
+                  editable={!busy}
                   maxLength={50}
                   style={s.input}
                 />
-                <Text style={s.hint}>{copy("profile.bio")}</Text>
-                <TextInput
+                {notices.details?.key === "profile.displayNameTooShort" && <ProfileFeedback action="details" notice={notices.details} />}
+                <Text style={formStyles.profileLabel}>{copy("profile.bio")}</Text>
+                <TextInput variant="profile"
+                  placeholder={copy("profile.bioPlaceholder")}
                   accessibilityLabel={copy("profile.bio")}
                   value={bio}
-                  onChangeText={setBio}
+                  onChangeText={value => { setBio(value); clearNotice("details"); }}
+                  editable={!busy}
                   maxLength={500}
                   multiline
                   style={[s.input, { minHeight: 84 }]}
                 />
                 <AuthButton
-                  title={copy(
-                    success === "details" ? "profile.saved" : "profile.saveChanges",
-                  )}
+                  testID="profile-details-save"
+                  compact
+                  title={copy(activeAction === "details" ? "profile.saving" : "profile.saveChanges")}
                   busy={busy}
                   onPress={() =>
-                    void run(async () => {
+                    void run("details", async () => {
                       if (username.trim().length < 3)
                         throw new Error("profile.displayNameTooShort");
-                      await auth.controller.update({
+                      return auth.controller.update({
                         username: username.trim(),
                         bio: bio.trim(),
                       });
-                    }, "details")
+                    })
                   }
                 />
+                {notices.details?.key !== "profile.displayNameTooShort" && <ProfileFeedback action="details" notice={notices.details} />}
               </View>
-            )}
+            </ProfileDisclosure>
             <Row
+              testID="profile-password-toggle"
+              separator
               icon={Lock}
               title={copy("userProfile.changePassword")}
+              expanded={row === "password"}
               onPress={() => toggle("password")}
             />
-            {row === "password" && (
+            <ProfileDisclosure expanded={row === "password"} testID="profile-password-content">
               <View style={s.form}>
                 <Text style={s.hint}>
                   {copy("profile.resetHint", { email: user.email })}
                 </Text>
                 <AuthButton
-                  title={copy(
-                    success === "password" ? "profile.linkSent" : "profile.resetPassword",
-                  )}
+                  testID="profile-password-send"
+                  title={copy(activeAction === "password" ? "profile.sending" : "profile.resetPassword")}
                   busy={busy}
                   onPress={() =>
-                    void run(() =>
+                    void run("password", () =>
                       accountApi("/auth/forgot-password", {
                         method: "POST",
                         body: { email: user.email },
                         token: null,
-                      }), "password")
+                      }))
                   }
                 />
+                <ProfileFeedback action="password" notice={notices.password} />
               </View>
-            )}
+            </ProfileDisclosure>
             <Row
+              testID="profile-language-toggle"
+              separator
               icon={Globe2}
               title={copy("profile.language")}
-              hint={copy(
-                language === "ro" ? "profile.romanian" : "profile.english",
-              )}
+              hint={language === "ro" ? "Română" : "English"}
               disabled={busy}
-              onPress={() =>
-                void run(async () => {
-                  const next = language === "ro" ? "en" : "ro";
-                  const updated = await auth.controller.update({
-                    preferredLanguage: next,
-                  });
-                  if (updated) setLanguage(next);
-                })
-              }
+              expanded={row === "language"}
+              onPress={() => toggle("language")}
             />
+            <ProfileDisclosure expanded={row === "language"} testID="profile-language-content">
+              <View accessibilityRole="radiogroup" accessibilityLabel={copy("profile.language")} style={s.languageMenu}>
+                {(["ro", "en"] as const).map(value => (
+                  <NativePressable
+                    key={value}
+                    testID={`profile-language-${value}`}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: language === value, disabled: busy }}
+                    aria-checked={language === value}
+                    disabled={busy}
+                    onPress={() => void selectLanguage(value)}
+                    style={({ pressed }) => [s.languageOption, { backgroundColor: language === value ? "#ff004414" : pressed ? "#ffffff08" : "transparent", opacity: busy ? 0.5 : 1 }]}
+                  >
+                    <Text style={{ color: language === value ? colors.accent : colors.text, fontSize: 14 }}>{value === "ro" ? "Română" : "English"}</Text>
+                    {language === value && <Check size={17} color={colors.accent} />}
+                  </NativePressable>
+                ))}
+              </View>
+            </ProfileDisclosure>
+            {activeAction === "language" && <View style={s.rowFeedback}><Text accessibilityLiveRegion="polite" style={s.hint}>{copy("profile.saving")}</Text></View>}
+            {notices.language && <View style={s.rowFeedback}><ProfileFeedback action="language" notice={notices.language} /></View>}
             {user.role === "user" && (
               <Row
+                separator
                 icon={SlidersHorizontal}
                 title={copy("hiddenCategories.preferencesTitle")}
                 hint={
@@ -439,6 +481,7 @@ export function ProfileScreen() {
               />
             )}
             <Row
+              separator
               icon={UsersRound}
               title={copy("profile.attendancePrivacy")}
               hint={copy(
@@ -448,19 +491,23 @@ export function ProfileScreen() {
               )}
               trailing={
                 <Switch
+                  testID="profile-privacy-switch"
                   accessibilityLabel={copy("profile.attendancePrivacy")}
                   value={user.showAttendancePublicly}
                   disabled={busy}
                   trackColor={{ true: colors.accent, false: "#333" }}
                   onValueChange={(value) =>
-                    void run(() =>
+                    void run("privacy", () =>
                       auth.controller.update({ showAttendancePublicly: value }),
                     )
                   }
                 />
               }
             />
+            {notices.privacy && <View style={s.rowFeedback}><ProfileFeedback action="privacy" notice={notices.privacy} /></View>}
             <Row
+              testID="profile-delete-account"
+              separator
               icon={Trash2}
               title={copy("userProfile.deleteAccount")}
               danger
@@ -470,25 +517,29 @@ export function ProfileScreen() {
         </View>
         <View style={{ gap: 12 }}>
           <Text style={s.section}>{copy("userProfile.supportLegal")}</Text>
-          <View style={s.panel}>
+          <View testID="profile-support-settings" style={s.panel}>
             <Row
-              icon={ChevronRight}
+              testID="profile-help-toggle"
+              icon={CircleHelp}
               title={copy("userProfile.helpSupport")}
               hint={copy("userProfile.helpHint")}
+              expanded={row === "help"}
               onPress={() => toggle("help")}
             />
-            {row === "help" && (
-              <Text style={[s.hint, { padding: 16 }]}>
+            <ProfileDisclosure expanded={row === "help"} testID="profile-help-content">
+              <Text style={[s.hint, s.help]}>
                 {copy("userProfile.helpText")}
               </Text>
-            )}
+            </ProfileDisclosure>
             <Row
-              icon={ChevronRight}
+              separator
+              icon={FileText}
               title={copy("userProfile.terms")}
               onPress={() => navigation.navigate('Legal', { document: 'terms' })}
             />
             <Row
-              icon={ChevronRight}
+              separator
+              icon={ShieldCheck}
               title={copy("userProfile.privacy")}
               onPress={() => navigation.navigate('Legal', { document: 'privacy' })}
             />
@@ -522,16 +573,28 @@ export function ProfileScreen() {
       {ticket && (
         <TicketSheet
           initialId={ticket.id}
+          preferUnused={tab === 'active'}
           offline={tickets.offline}
           savedAt={tickets.savedAt}
-          tickets={(tickets.data ?? []).filter(item =>
-            item.eventId === ticket.eventId &&
-            (item.id === ticket.id || (ticketStatus(item, now) === 'active') === (tab === 'active')),
-          )}
+          tickets={(tickets.data ?? []).filter(item => item.eventId === ticket.eventId)}
           onClose={() => setTicket(null)}
         />
       )}
     </>
+  );
+}
+function ProfileFeedback({ action, notice }: { action: ProfileAction; notice?: ProfileNotice }) {
+  const { copy } = usePreferences();
+  if (!notice) return null;
+  const color = notice.kind === "error" ? "#f87171" : "#34d399";
+  const Icon = notice.kind === "error" ? CircleAlert : Check;
+  return (
+    <View testID={`profile-${action}-feedback`} style={s.feedback}>
+      <Icon size={15} color={color} style={{ marginTop: 2 }} />
+      <Text accessibilityRole={notice.kind === "error" ? "alert" : undefined} accessibilityLiveRegion="polite" style={{ color, fontSize: 12, lineHeight: 18, flex: 1 }}>
+        {copy(notice.key)}
+      </Text>
+    </View>
   );
 }
 function Row({
@@ -542,6 +605,9 @@ function Row({
   trailing,
   disabled,
   danger,
+  expanded,
+  separator,
+  testID,
 }: {
   icon: LucideIcon;
   title: string;
@@ -550,17 +616,28 @@ function Row({
   trailing?: React.ReactNode;
   disabled?: boolean;
   danger?: boolean;
+  expanded?: boolean;
+  separator?: boolean;
+  testID?: string;
 }) {
+  const rotation = useSharedValue(0);
+  useEffect(() => {
+    rotation.value = withTiming(expanded ? 90 : 0, PROFILE_DISCLOSURE_MOTION);
+    return () => cancelAnimation(rotation);
+  }, [expanded, rotation]);
+  const chevronMotion = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
+  const foreground = danger ? "#f87171" : expanded ? colors.accent : colors.text;
   const content = (
     <>
       <View style={s.rowIcon}>
-        <Icon size={16} color={danger ? "#f87171" : colors.muted} />
+        <Icon size={19} color={danger || expanded ? foreground : colors.muted} />
       </View>
       <View style={{ flex: 1 }}>
         <Text
           style={{
-            color: danger ? "#f87171" : "white",
+            color: foreground,
             fontSize: 14,
+            lineHeight: 20,
             fontWeight: "600",
           }}
         >
@@ -568,20 +645,28 @@ function Row({
         </Text>
         {hint && <Text style={s.hint}>{hint}</Text>}
       </View>
-      {trailing ?? <ChevronRight size={16} color={colors.muted} />}
+      {trailing ?? <Animated.View style={chevronMotion}><ChevronRight size={16} color={expanded ? colors.accent : colors.muted} /></Animated.View>}
     </>
   );
-  return onPress ? (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      disabled={disabled}
-      style={s.row}
-    >
-      {content}
-    </Pressable>
-  ) : (
-    <View style={s.row}>{content}</View>
+  return (
+    <View>
+      {separator && <View style={s.separator} />}
+      {onPress ? (
+        <NativePressable
+          testID={testID}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !!disabled, ...(expanded === undefined ? {} : { expanded }) }}
+          aria-expanded={expanded}
+          onPress={onPress}
+          disabled={disabled}
+          style={({ pressed }) => [s.row, { backgroundColor: expanded ? "#ff00440a" : pressed ? "#ffffff08" : "transparent", opacity: disabled ? 0.5 : 1 }]}
+        >
+          {content}
+        </NativePressable>
+      ) : (
+        <View style={s.row}>{content}</View>
+      )}
+    </View>
   );
 }
 function DeleteSheet({ onClose }: { onClose: () => void }) {
@@ -647,7 +732,7 @@ function DeleteSheet({ onClose }: { onClose: () => void }) {
         <Text style={s.hint}>
           {copy("userProfile.deleteConfirmationHint", { email: user.email })}
         </Text>
-        <AppSheetTextInput
+        <TextInput inSheet variant="profile"
           accessibilityLabel={copy("userProfile.deleteConfirmationLabel")}
           value={confirmation}
           onChangeText={setConfirmation}
@@ -657,7 +742,7 @@ function DeleteSheet({ onClose }: { onClose: () => void }) {
           style={s.input}
         />
         {user.hasPassword ? (
-          <AppSheetTextInput
+          <TextInput inSheet variant="profile"
             accessibilityLabel={copy("userProfile.deletePasswordLabel")}
             value={password}
             onChangeText={setPassword}
@@ -714,6 +799,7 @@ const s = StyleSheet.create({
   },
   member: {
     alignSelf: "flex-start",
+    maxWidth: "100%",
     borderRadius: 99,
     borderWidth: 1,
     borderColor: "#ffffff1a",
@@ -726,63 +812,34 @@ const s = StyleSheet.create({
   },
   section: { fontSize: 18, fontWeight: "600", color: "white" },
   hint: { fontSize: 12, lineHeight: 18, color: colors.muted, marginTop: 3 },
-  empty: {
-    paddingVertical: 28,
-    paddingHorizontal: 16,
-    fontSize: 14,
-    color: colors.muted,
-    textAlign: "center",
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: "#ffffff1a",
-    borderRadius: 16,
-  },
   panel: {
-    borderRadius: 26,
-    backgroundColor: "#ffffff0d",
-    borderWidth: 1,
-    borderColor: "#ffffff1a",
+    borderRadius: 22,
+    backgroundColor: "#09090b",
     overflow: "hidden",
   },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: "#ffffff0a", marginLeft: 48, marginRight: 16 },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 16,
+    minHeight: 60,
   },
   rowIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#ffffff0f",
+    width: 20,
+    height: 24,
     alignItems: "center",
     justifyContent: "center",
   },
-  connect: {
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: "#ffffff1a",
-    backgroundColor: "#ffffff08",
-    padding: 16,
-    gap: 16,
-  },
-  qrIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 16,
-    backgroundColor: "#ff00441a",
-    borderWidth: 1,
-    borderColor: "#ff004433",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  myCode: {
-    height: 36,
-    borderRadius: 99,
+  quickConnect: {
+    width: 44,
+    height: 44,
+    flexShrink: 0,
+    borderRadius: 22,
     backgroundColor: "#ffffff0d",
     borderWidth: 1,
-    borderColor: "#ffffff26",
+    borderColor: "#ffffff1a",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -804,19 +861,13 @@ const s = StyleSheet.create({
     borderColor: "#ffffff1a",
   },
   tab: { flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 99 },
-  input: {
-    color: "white",
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    minHeight: 44,
-    borderRadius: 12,
-    backgroundColor: "#ffffff0d",
-    borderWidth: 1,
-    borderColor: "#ffffff1a",
-  },
-  form: { padding: 16, gap: 10 },
+  input: formStyles.profile,
+  form: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 20, gap: 10 },
+  languageMenu: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 16, gap: 4 },
+  languageOption: { minHeight: 44, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  feedback: { flexDirection: "row", alignItems: "flex-start", gap: 7 },
+  rowFeedback: { paddingHorizontal: 16, paddingBottom: 16 },
+  help: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 20, marginTop: 0, lineHeight: 20 },
   logout: {
     padding: 14,
     borderRadius: 16,

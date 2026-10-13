@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 const require = createRequire(import.meta.url);
 const { appLinkPaths, linkHosts, associationDocuments, mergeAppleAssociation } = require('../scripts/native-config.cjs');
 
@@ -33,4 +35,39 @@ test('link activation preserves other apps sharing an Apple association entry', 
   assert.deepEqual(merged.webcredentials, previous.webcredentials);
   assert.deepEqual(mergeAppleAssociation(merged, entry), merged);
   assert.deepEqual(previous.applinks.details[0]?.appIDs, ['TEAM.native', 'TEAM.other']);
+});
+
+test('push configuration stays optional for Personal Team builds and validates the project before activation', () => {
+  const configFile = require.resolve('../app.config.js'), configRequire = createRequire(configFile);
+  const env: Record<string, string> = {}, base = { plugins: [], ios: {}, android: {}, extra: {} as { eas?: { projectId: string } } };
+  const module = { exports: undefined as unknown as () => any };
+  runInNewContext(readFileSync(configFile, 'utf8'), {
+    module, process: { env }, require: (name: string) => name === './app.json' ? { expo: base } : configRequire(name),
+  });
+  const createConfig = module.exports;
+  const pushEnabled = (config: { plugins: unknown[] }) => config.plugins.some(plugin => Array.isArray(plugin) && plugin[0] === './scripts/with-push-notifications.cjs' && plugin[1]?.enabled);
+  assert.equal(pushEnabled(createConfig()), false, 'An unconfigured Personal Team build must not request the push entitlement');
+  env.EXPO_PUBLIC_EAS_PROJECT_ID = '00000000-0000-4000-8000-000000000001';
+  const configured = createConfig();
+  assert.equal(pushEnabled(configured), true);
+  assert.equal(configured.extra.eas.projectId, env.EXPO_PUBLIC_EAS_PROJECT_ID);
+  env.EXPO_PUBLIC_EAS_PROJECT_ID = 'not-an-expo-project';
+  assert.throws(() => createConfig(), /Invalid EXPO_PUBLIC_EAS_PROJECT_ID/);
+  delete env.EXPO_PUBLIC_EAS_PROJECT_ID;
+  base.extra.eas = { projectId: '00000000-0000-4000-8000-000000000002' };
+  assert.equal(createConfig().extra.eas.projectId, base.extra.eas.projectId, 'An existing EAS-linked app needs no duplicate env value');
+});
+
+test('the actual Expo entitlement chain removes APNs for free builds and preserves it for configured push', async () => {
+  const withPush = require('../scripts/with-push-notifications.cjs');
+  const withImplicitNotifications = require('expo-notifications/app.plugin').default;
+  for (const enabled of [false, true]) {
+    let config = withPush({ name: 'QA', slug: 'qa' }, { enabled });
+    config = withImplicitNotifications(config, {});
+    const result = await config.mods.ios.entitlements({
+      ...config, modRequest: {}, modResults: { 'aps-environment': 'production', 'keychain-access-groups': ['qa'] },
+    });
+    assert.equal(result.modResults['aps-environment'], enabled ? 'production' : undefined);
+    assert.deepEqual(result.modResults['keychain-access-groups'], ['qa']);
+  }
 });

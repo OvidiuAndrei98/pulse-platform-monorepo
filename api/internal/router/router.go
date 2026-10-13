@@ -52,6 +52,10 @@ type HandlersConfig struct {
 	GetUserOrders            http.HandlerFunc
 	GetSavedEvents           http.HandlerFunc
 	ListNotifications        http.HandlerFunc
+	GetNotification          http.HandlerFunc
+	PushConfig               http.HandlerFunc
+	RegisterPush             http.HandlerFunc
+	UnregisterPush           http.HandlerFunc
 	MarkAllNotificationsRead http.HandlerFunc
 	MarkNotificationRead     http.HandlerFunc
 	ListHiddenCategories     http.HandlerFunc
@@ -248,6 +252,9 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 		}
 		uploadSlots := concurrentRequests(8)
 		r.Get("/media/*", cfg.GetEventBanner)
+		if cfg.UnregisterPush != nil {
+			r.With(rateLimit("push_unregister_ip", 60, time.Minute)).Post("/notifications/push/unregister", cfg.UnregisterPush)
+		}
 		r.Post("/stripe/webhook", cfg.StripeWebhook)
 		r.Post("/stripe/connect/webhook", cfg.StripeConnectWebhook)
 		r.With(rateLimit("checkout_reconcile_ip", 30, 10*time.Minute)).Post("/checkout/reconcile", cfg.ReconcileCheckout)
@@ -332,6 +339,11 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 
 			r.Route("/notifications", func(r chi.Router) {
 				r.Get("/", cfg.ListNotifications)
+				if cfg.PushConfig != nil {
+					r.Get("/push", cfg.PushConfig)
+					r.With(identityLimit("push_register_user", 120, time.Hour)).Put("/push", cfg.RegisterPush)
+					r.Get("/{id}", cfg.GetNotification)
+				}
 				r.Post("/read-all", cfg.MarkAllNotificationsRead)
 				r.Post("/{id}/read", cfg.MarkNotificationRead)
 			})

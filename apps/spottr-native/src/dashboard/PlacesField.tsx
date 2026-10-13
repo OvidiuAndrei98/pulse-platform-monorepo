@@ -1,5 +1,6 @@
+import { FormInput as TextInput } from '../ui/FormInput';
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Keyboard, Platform, Pressable, TextInput, View, type TextStyle } from "react-native";
+import { ActivityIndicator, Keyboard, Platform, Pressable, View, type TextStyle } from "react-native";
 import { MapPin } from "lucide-react-native";
 import { randomUUID } from "expo-crypto";
 import { accountApi, useAuth } from "../auth/AuthProvider";
@@ -34,7 +35,7 @@ export function PlacesField({ value, onChange, onSelect, disabled = false, error
     <Text style={s.label}>{copy("eventForm.venue")}</Text>
     <View style={[e.input, s.row, { gap: 8 }, focused && { borderColor: "#ff004499" }, (error || state.error) && { borderColor: colors.danger }, disabled && { opacity: 0.5 }]}>
       <MapPin size={16} color={colors.accent} />
-      <TextInput testID="event-venue-input" accessibilityLabel={copy("eventForm.venue")} editable={!disabled}
+      <TextInput variant="bare" testID="event-venue-input" accessibilityLabel={copy("eventForm.venue")} editable={!disabled}
         value={value} maxLength={120} autoCorrect={false} placeholder={copy("common.locationSearchPlaceholder")}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         placeholderTextColor={dColors.muted} style={[e.text, { flex: 1, padding: 0, minHeight: 20, borderWidth: 0, backgroundColor: "transparent", ...Platform.select({ web: { outlineWidth: 0, outlineStyle: "none" } as unknown as TextStyle, default: {} }) }]}

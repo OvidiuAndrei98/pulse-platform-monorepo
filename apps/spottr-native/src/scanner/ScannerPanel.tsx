@@ -1,3 +1,4 @@
+import { FormInput as TextInput } from '../ui/FormInput';
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -9,7 +10,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
   useWindowDimensions,
   type ViewStyle,
@@ -29,7 +29,12 @@ import { Button, Feedback, IconButton, Loading } from "../ui/common";
 import { Text } from "../ui/Text";
 import { Action, dColors as colors } from "../dashboard/common";
 import { formatDate } from "../data/events";
-import type { Admission } from "./admission";
+import { SCAN_COOLDOWN_MS, type Admission, type ScanSource } from "./admission";
+import { scannerFrameSize } from './cameraFrame';
+import { GateToolbar, type GateStatus } from './GateToolbar';
+import { useGateExperience } from './useGateExperience';
+import { ScannerPreparation } from './ScannerPreparation';
+import { offlinePackageStatus, type PrepareScanner } from './preparation';
 
 export function ScannerPanel({
   active,
@@ -37,17 +42,21 @@ export function ScannerPanel({
   result,
   error,
   onScan,
-  onReset,
   eventTitle,
+  gateStatus,
+  onPrepare,
+  canPrepare = false,
   children,
 }: React.PropsWithChildren<{
   active: boolean;
   busy: boolean;
   result?: Admission;
   error: string;
-  onScan: (value: string) => void;
-  onReset: () => void;
+  onScan: (value: string, source?: ScanSource) => void;
   eventTitle?: string;
+  gateStatus?: GateStatus;
+  onPrepare?: PrepareScanner;
+  canPrepare?: boolean;
 }>) {
   const { copy, language } = usePreferences(),
     insets = useSafeAreaInsets(),
@@ -56,6 +65,16 @@ export function ScannerPanel({
     [camera, setCamera] = useState(false),
     [cameraError, setCameraError] = useState(false),
     [manual, setManual] = useState(false);
+  const [cooling, setCooling] = useState(false), [frameSize, setFrameSize] = useState(0);
+  useEffect(() => {
+    if (busy || (!result && !error)) {
+      setCooling(false);
+      return;
+    }
+    setCooling(true);
+    const timer = setTimeout(() => setCooling(false), SCAN_COOLDOWN_MS);
+    return () => clearTimeout(timer);
+  }, [busy, result, error]);
   const [foreground, setForeground] = useState(
       AppState.currentState === "active",
     ),
@@ -66,10 +85,8 @@ export function ScannerPanel({
     );
     return () => subscription.remove();
   }, []);
-  useEffect(() => {
-    if (!active) setCamera(false);
-  }, [active]);
   const ro = language === "ro";
+  const experience = useGateExperience({ visible: camera && !!permission?.granted && !cameraError, active: active && foreground, result, error, busy });
   const success = result?.status === "valid" || result?.status === "accepted";
   const resultKey: Record<Admission["status"], string> = {
     valid: "scanner.validTicket",
@@ -82,10 +99,6 @@ export function ScannerPanel({
     revoked: "validation.invalidTicket",
     uncertain: "",
   };
-  const reset = () => {
-    setHash("");
-    onReset();
-  };
   const feedback = (
     <>
       {busy ? (
@@ -96,6 +109,7 @@ export function ScannerPanel({
       ) : null}
       {result ? (
         <View
+          testID="scanner-result"
           accessibilityLiveRegion="assertive"
           style={[
             s.feedback,
@@ -132,13 +146,9 @@ export function ScannerPanel({
           {error}
         </Text>
       ) : null}
-      {result || error ? (
-        <Action
-          title={ro ? "Scanează următorul bilet" : "Scan next ticket"}
-          onPress={reset}
-          disabled={busy}
-        />
-      ) : null}
+      {!busy && (result || error) ? <Text testID="scanner-ready" style={[s.tiny, { textAlign: 'center' }]}>
+        {cooling ? (ro ? 'O clipă…' : 'One moment…') : (ro ? 'Prezintă următorul bilet. Îndepărtează QR-ul deja scanat.' : 'Present the next ticket. Move the scanned QR out of view.')}
+      </Text> : null}
     </>
   );
   return (
@@ -166,6 +176,7 @@ export function ScannerPanel({
           </Text>
         </View>
       </View>
+      {onPrepare && <ScannerPreparation prepare={onPrepare} verified={offlinePackageStatus(gateStatus?.state, Date.now()) === 'ready'} disabled={!canPrepare || busy} camera={async () => permission?.granted || (await requestPermission()).granted} />}
       <View
         style={{
           marginTop: 20,
@@ -177,6 +188,7 @@ export function ScannerPanel({
         }}
       >
         <Action
+          testID="scanner-open-camera"
           title={ro ? "Deschide camera" : "Open camera"}
           icon={ScanLine}
           disabled={!active || busy}
@@ -230,7 +242,7 @@ export function ScannerPanel({
               value={hash}
               onChangeText={setHash}
               maxLength={256}
-              editable={active && !busy && !result && !error}
+              editable={active && !busy}
               style={[
                 s.input,
                 {
@@ -244,6 +256,7 @@ export function ScannerPanel({
               multiline
             />
             <Action
+              testID="scanner-validate"
               title={copy(busy ? "scanner.validating" : "scanner.validate")}
               icon={ClipboardCheck}
               style={[
@@ -251,8 +264,8 @@ export function ScannerPanel({
                 width >= 640 && { alignSelf: "flex-start" },
               ]}
               textStyle={{ color: colors.accent }}
-              onPress={() => onScan(hash)}
-              disabled={!active || !hash.trim() || busy || !!result || !!error}
+              onPress={() => onScan(hash, 'manual')}
+              disabled={!active || !hash.trim() || busy || cooling}
             />
           </View>
         )}
@@ -278,7 +291,10 @@ export function ScannerPanel({
           }}
         >
           <View style={[s.row, { justifyContent: "space-between" }]}>
-            <Text style={s.heading}>{copy("validation.scanTab")}</Text>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={[s.eyebrow, { fontSize: 10 }]}>{ro ? 'MOD POARTĂ' : 'GATE MODE'}</Text>
+              <Text testID="scanner-gate-event" numberOfLines={2} style={s.heading}>{eventTitle || copy("validation.scanTab")}</Text>
+            </View>
             <IconButton
               label={copy("common.close")}
               onPress={() => setCamera(false)}
@@ -286,11 +302,14 @@ export function ScannerPanel({
               <X size={20} color="white" />
             </IconButton>
           </View>
-          {permission?.granted && !cameraError && foreground && active ? (
+          <GateToolbar status={gateStatus} settings={experience.settings} toggle={experience.toggle} awake={experience.awake} soundAvailable={experience.soundAvailable} />
+          {camera && permission?.granted && !cameraError && foreground ? (
             <View
+              testID="scanner-camera-viewport"
+              onLayout={event => setFrameSize(scannerFrameSize(event.nativeEvent.layout.width, event.nativeEvent.layout.height))}
               style={{
                 flex: 1,
-                minHeight: 180,
+                minHeight: 0,
                 borderRadius: 24,
                 overflow: "hidden",
               }}
@@ -299,26 +318,20 @@ export function ScannerPanel({
                 style={StyleSheet.absoluteFill}
                 facing="back"
                 barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-                onBarcodeScanned={
-                  busy || result || error
-                    ? undefined
-                    : (event) => onScan(event.data)
-                }
+                onBarcodeScanned={active ? (event) => onScan(event.data, 'camera') : undefined}
                 onMountError={() => setCameraError(true)}
               />
               <View
                 pointerEvents="none"
-                style={{
-                  position: "absolute",
-                  left: "12%",
-                  right: "12%",
-                  top: "20%",
-                  bottom: "20%",
+                style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}
+              ><View testID="scanner-camera-frame" style={{
+                  width: frameSize,
+                  height: frameSize,
                   borderColor: colors.accent,
                   borderWidth: 2,
                   borderRadius: 24,
                 }}
-              />
+              /></View>
             </View>
           ) : (
             <View style={{ flex: 1, justifyContent: "center", gap: 20 }}>
@@ -356,6 +369,7 @@ export function ScannerPanel({
             </View>
           )}
           {feedback}
+          {!active && <Text style={[s.tiny, { textAlign: 'center' }]}>{ro ? 'Scanarea este indisponibilă momentan. Verifică evenimentul și pachetul offline.' : 'Scanning is temporarily unavailable. Check the event and its offline package.'}</Text>}
         </View>
       </Modal>
     </View>

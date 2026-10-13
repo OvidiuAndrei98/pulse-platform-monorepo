@@ -60,11 +60,13 @@ export function createProfilesApi(request: ReturnType<typeof createHttp>) {
   const validId = (id: string) => { if (!isEventId(id)) throw new ApiError(404, 'NOT_FOUND'); return encodeURIComponent(id); };
   return {
     async profile(id: string, signal?: AbortSignal) { return parseProfile(await request('/profiles/' + validId(id), { signal }), id); },
-    async search(query: string, signal?: AbortSignal) {
+    async search(query: string, signal?: AbortSignal, kind?: 'people' | 'organizers') {
       const q = query.trim();
       if (q.length < 2) return [];
       if (Array.from(q).length > 120) throw new ApiError(0, 'INVALID_QUERY');
-      return parseProfiles(await request('/profiles/search?q=' + encodeURIComponent(q), { signal }));
+      const profiles = parseProfiles(await request('/profiles/search?q=' + encodeURIComponent(q) + (kind ? '&kind=' + kind : ''), { signal }));
+      // Also tolerate an older API during a rolling deployment.
+      return kind ? profiles.filter(profile => (profile.role === 'organizer') === (kind === 'organizers')) : profiles;
     },
     async updates(kind: 'events' | 'organizers', id: string, signal?: AbortSignal) {
       return parseUpdates(await request('/' + kind + '/' + validId(id) + '/updates', { signal }));

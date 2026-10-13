@@ -7,6 +7,7 @@ import { ApiError, createHttp } from '../src/data/http';
 const id = (number: number) => `00000000-0000-4000-8000-${String(number).padStart(12, '0')}`;
 const row = (extra = {}) => ({ id: id(1), username: 'Alex', role: 'user', relationship: 'none', ...extra });
 const profile = (extra = {}) => parseProfile(row(extra));
+
 test('profile validates identity, role and relationship before showing actionable controls', () => {
   for (const value of [null, undefined, [], '', row({ id: '../me' }), row({ username: null }), row({ role: 'unknown' }), row({ relationship: 'unknown' })]) assert.throws(() => parseProfile(value));
   assert.throws(() => parseProfile(row(), id(2)));
@@ -96,4 +97,16 @@ test('profile requests preserve abort and server failures for retry/error UI', a
   const controller = new AbortController(); controller.abort();
   const aborted = createProfilesApi(createHttp('https://api.example.test', async (_, options) => { options?.signal?.throwIfAborted(); return new Response('{}'); }));
   await assert.rejects(aborted.profile(id(1), controller.signal), { name: 'AbortError' });
+});
+
+test('profile category is sent to the API and older servers cannot mix categories', async () => {
+  const urls: string[] = [];
+  const api = createProfilesApi(createHttp('https://api.example.test', async (url) => {
+    urls.push(String(url));
+    return new Response(JSON.stringify([row(), row({ id: id(2), role: 'organizer' })]));
+  }));
+  assert.deepEqual((await api.search('club', undefined, 'organizers')).map(p => p.id), [id(2)]);
+  assert.ok(urls[0]?.endsWith('q=club&kind=organizers'));
+  assert.deepEqual((await api.search('club', undefined, 'people')).map(p => p.id), [id(1)]);
+  assert.ok(urls[1]?.endsWith('q=club&kind=people'));
 });

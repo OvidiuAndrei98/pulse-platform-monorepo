@@ -79,8 +79,8 @@ export function AuthScreen({
     else if (isEventId(route.params?.returnProfile)) navigation.popTo('PublicProfile', { id: route.params.returnProfile }, { merge: true });
     else if (isEventId(route.params?.returnEvent)) returnToEvent(navigation, route.params.returnEvent);
     else if (route.params?.returnDashboard) navigation.popTo('Dashboard', typeof route.params.returnDashboardParams === 'object' ? route.params.returnDashboardParams : undefined);
-    else if (!route.params?.returnTab && auth.user.role === 'admin') navigation.popTo('Admin', undefined);
-    else if (!route.params?.returnTab && auth.user.role === 'organizer') navigation.popTo('Dashboard', undefined);
+    else if ((!route.params?.returnTab || route.params.returnTab === 'Profile') && auth.user.role === 'admin') navigation.popTo('Admin', undefined);
+    else if ((!route.params?.returnTab || route.params.returnTab === 'Profile') && auth.user.role === 'organizer') navigation.popTo('Dashboard', undefined);
     else navigation.popTo("Tabs", { screen: route.params?.returnTab ?? "Profile" });
   }, [auth.ready, auth.user, mode, navigation, route.params?.returnTab, route.params?.returnEvent, route.params?.returnProfile, route.params?.returnSafetyGroup, route.params?.returnScanner, route.params?.returnDashboard, route.params?.returnDashboardParams]);
   const go = (next: "login" | "register" | "forgot" | "reset") => {
@@ -496,17 +496,22 @@ export function AuthField({
   label: string;
   icon?: React.ReactNode;
 }) {
+  const [focused, setFocused] = useState(false);
   return (
     <View style={{ gap: 8 }}>
       <Text style={s.fieldLabel}>{label.toUpperCase()}</Text>
-      <View style={s.field}>
-        {icon}
+      <View style={[s.field, focused && { borderColor: colors.accent, backgroundColor: '#ff00441a', boxShadow: '0px 0px 0px 1px #ff0044, 0px 10px 15px -3px #ff004440' }, props.editable === false && { opacity: 0.5 }]}>
+        {React.isValidElement<{ color?: string }>(icon) && focused ? React.cloneElement(icon, { color: colors.accent }) : icon}
         <TextInput
           {...props}
           accessibilityLabel={label}
           autoCapitalize={props.autoCapitalize ?? "none"}
           autoCorrect={false}
           placeholderTextColor="#ffffff73"
+          selectionColor={colors.accent}
+          underlineColorAndroid="transparent"
+          onFocus={event => { setFocused(true); props.onFocus?.(event); }}
+          onBlur={event => { setFocused(false); props.onBlur?.(event); }}
           style={[s.input, props.style]}
         />
       </View>
@@ -519,7 +524,9 @@ export function AuthButton({
   busy,
   icon,
   testID,
+  compact = false,
 }: {
+  compact?: boolean;
   title: string;
   onPress: () => void;
   busy?: boolean;
@@ -535,14 +542,15 @@ export function AuthButton({
       onPress={onPress}
       style={({ pressed }) => [
         s.button,
+        compact && { height: 40 },
         { opacity: busy || pressed ? 0.6 : 1 },
       ]}
     >
       {busy ? <ActivityIndicator color="white" /> : icon}
-      <Text style={{ color: "white", fontSize: 14, fontWeight: "600" }}>
+      <Text style={{ color: "white", fontSize: compact ? 12 : 14, fontWeight: compact ? "700" : "600" }}>
         {title}
       </Text>
-      {!busy && !icon && <ArrowRight size={16} color="white" />}
+      {!busy && !icon && !compact && <ArrowRight size={16} color="white" />}
     </Pressable>
   );
 }
@@ -658,6 +666,7 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Inter_500Medium",
     color: "white",
+    ...Platform.select({ web: { outlineStyle: 'none' as never }, default: {} }),
   },
   button: {
     height: 56,

@@ -1,10 +1,10 @@
+import { FormInput as TextInput } from '../ui/FormInput';
 import React, { useEffect, useRef, useState } from "react";
 import {
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
   useWindowDimensions,
   type StyleProp,
@@ -238,7 +238,7 @@ export function EditorStepper({
         >
           <Minus size={14} color={dColors.muted} />
         </Pressable>
-        <TextInput
+        <TextInput variant="bare"
           accessibilityLabel={label}
           keyboardType="decimal-pad"
           editable={!disabled}

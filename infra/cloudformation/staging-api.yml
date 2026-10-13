@@ -17,6 +17,15 @@ Parameters:
     Default: ""
     AllowedPattern: "^$|^pk_test_[A-Za-z0-9]+$"
     Description: Public sandbox key from the same Stripe account as STRIPE_SECRET_KEY. Empty disables native PaymentSheet.
+  ExpoPushProjectId:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+  ExpoPushAccessTokenSecretArn:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^arn:aws:secretsmanager:eu-central-1:959222626220:secret:spottr/staging/expo-push-[a-zA-Z0-9_-]+$"
+    Description: Separate Secrets Manager secret containing only the Expo access token as plain text.
   CertificateArn:
     Type: String
     Default: arn:aws:acm:eu-central-1:959222626220:certificate/43c8ba5f-a264-4638-9969-23a895187f66
@@ -62,6 +71,11 @@ Parameters:
     Type: Number
     Default: 0
     AllowedValues: [0, 1]
+
+Conditions:
+  PushEnabled: !And
+    - !Not [!Equals [!Ref ExpoPushProjectId, ""]]
+    - !Not [!Equals [!Ref ExpoPushAccessTokenSecretArn, ""]]
 
 Resources:
   StagingMediaBucket:
@@ -220,6 +234,7 @@ Resources:
                   - !Ref StagingDatabaseCredentials
                   - !Ref StagingJwtSecret
                   - !Ref StagingApplicationSecrets
+                  - !If [PushEnabled, !Ref ExpoPushAccessTokenSecretArn, !Ref AWS::NoValue]
                   - !Ref RdsMasterSecretArn
 
   StagingTaskRole:
@@ -306,6 +321,8 @@ Resources:
               Value: RO
             - Name: STRIPE_PUBLISHABLE_KEY
               Value: !Ref StripePublishableKey
+            - Name: EXPO_PUSH_PROJECT_ID
+              Value: !If [PushEnabled, !Ref ExpoPushProjectId, ""]
             - Name: SPOTTR_INVOICING_PROVIDER
               Value: ""
             - Name: SMTP_HOST
@@ -319,6 +336,11 @@ Resources:
             - Name: SMTP_RECIPIENT_OVERRIDE
               Value: contact@code-lab.ro
           Secrets:
+            - !If
+              - PushEnabled
+              - Name: EXPO_PUSH_ACCESS_TOKEN
+                ValueFrom: !Ref ExpoPushAccessTokenSecretArn
+              - !Ref AWS::NoValue
             - Name: DB_USER
               ValueFrom: !Sub "${StagingDatabaseCredentials}:username::"
             - Name: DB_PASSWORD

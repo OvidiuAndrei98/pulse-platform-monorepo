@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { createHttp, ApiError } from '../src/data/http';
 import { createScannerApi, mergeValidationEvents, parseSnapshot, parseValidation, ticketCode, type Snapshot, type ValidationEvent } from '../src/scanner/data';
 import { createOfflineScanner, serialLock, type ScannerStorage } from '../src/scanner/offline';
-import { AdmissionGate, admitTicket } from '../src/scanner/admission';
+import { AdmissionGate, admitTicket, SCAN_COOLDOWN_MS, SAME_QR_CLEAR_MS } from '../src/scanner/admission';
+import { scannerFrameSize } from '../src/scanner/cameraFrame';
 
 const id = (value: number) => `00000000-0000-4000-8000-${String(value).padStart(12, '0')}`;
 const hash = (value: number) => value.toString(16).padStart(64, '0');
@@ -129,13 +130,54 @@ test('users and event scopes never share tickets; revoked staff cannot admit off
   assert.equal((await f.store.scan(user, eventId, hash(2))).status, 'revoked'); assert.deepEqual(await f.store.events(user), []);
   assert.equal((await f.store.state(user, eventId)).scans[0]!.status, 'pending');
 });
-test('gate serializes repeated camera frames and requires explicit rearm after success or error', async () => {
-  const gate = new AdmissionGate(); let calls = 0, release!: () => void; const pause = new Promise<void>(resolve => { release = resolve; });
+test('camera gate serializes work, waits after completion and ignores a QR continuously held in view', async () => {
+  let now = 0;
+  const gate = new AdmissionGate(() => now); let calls = 0, release!: () => void; const pause = new Promise<void>(resolve => { release = resolve; });
   const work = async () => { calls++; await pause; return { status: 'unknown' as const }; };
-  const first = gate.run(work); assert.equal(await gate.run(work), undefined); gate.reset(); assert.equal(await gate.run(work), undefined);
-  release(); await first; assert.equal(await gate.run(work), undefined); assert.equal(calls, 1);
-  gate.reset(); await assert.rejects(gate.run(async () => { throw new Error('FAIL'); })); assert.equal(await gate.run(work), undefined);
-  gate.reset(); await gate.run(work); assert.equal(calls, 2);
+  const first = gate.run(hash(1), work, 'camera'); now = 9000;
+  assert.equal(await gate.run(hash(2), work, 'camera'), undefined, 'Long requests still serialize');
+  release(); await first;
+  for (let frame = 0; frame < 100; frame++) { now += 100; assert.equal(await gate.run(hash(1), work, 'camera'), undefined); }
+  assert.equal(calls, 1);
+  assert.equal((await gate.run(hash(2), work, 'camera'))?.status, 'unknown', 'The next ticket needs no button or camera restart');
+  now += SCAN_COOLDOWN_MS - 1;
+  assert.equal(await gate.run(hash(3), work, 'camera'), undefined);
+  now += SAME_QR_CLEAR_MS + 1;
+  assert.equal((await gate.run(hash(2), work, 'camera'))?.status, 'unknown', 'Removing and presenting the ticket again checks for a duplicate');
+});
+
+test('scan failures recover automatically; manual retry is allowed only after the pause', async () => {
+  let now = 0; const gate = new AdmissionGate(() => now);
+  await assert.rejects(gate.run(hash(1), async () => { throw new Error('FAIL'); }));
+  const work = async () => ({ status: 'unknown' as const });
+  assert.equal(await gate.run(hash(1), work), undefined);
+  now = SCAN_COOLDOWN_MS;
+  assert.equal((await gate.run(hash(1), work))?.status, 'unknown');
+});
+
+test('the scan frame fits short, tall, tablet and unmeasured camera viewports', () => {
+  for (const [width, height] of [[350, 620], [350, 220], [900, 400], [400, 0], [0, 400]]) {
+    const side = scannerFrameSize(width!, height!);
+    assert.ok(side >= 0 && side <= Math.min(width!, height!) && side <= 340);
+  }
+  assert.equal(scannerFrameSize(NaN, 400), 0);
+});
+
+test('device going offline bypasses online consumption before the periodic event query notices', async () => {
+  const f = fixture(); await f.store.save(user, snapshot(), event);
+  let calls = 0;
+  const result = await admitTicket({ userId: user, eventId, hash: hash(1), offline: false, isOffline: async () => true, store: f.store, sync: async () => { calls++; }, validate: async () => { calls++; throw Error('must not consume'); } });
+  assert.equal(result.status, 'accepted'); assert.equal(calls, 0);
+  assert.equal((await f.store.state(user, eventId)).scans[0]?.status, 'pending');
+});
+
+test('network loss before validation preserves pending sync IDs and allows a different prepared ticket locally', async () => {
+  const f = fixture(); await f.store.save(user, snapshot(), event); await f.store.scan(user, eventId, hash(1));
+  const originalId = (await f.store.state(user, eventId)).scans[0]!.clientScanId;
+  const options = { userId: user, eventId, hash: hash(2), offline: false, store: f.store, sync: async () => { throw new ApiError(0, 'TIMEOUT'); }, validate: async () => { throw Error('must not consume'); } };
+  assert.equal((await admitTicket(options)).status, 'accepted');
+  assert.equal((await f.store.state(user, eventId)).scans[0]!.clientScanId, originalId);
+  await assert.rejects(admitTicket({ ...options, hash: hash(3), sync: async () => { throw new ApiError(403, 'DENIED'); } }));
 });
 test('ambiguous online timeout is durably blocked from later offline admission and no POST follows failed storage', async () => {
   const f = fixture(); await f.store.save(user, snapshot(), event); let calls = 0;

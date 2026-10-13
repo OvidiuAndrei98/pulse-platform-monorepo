@@ -1,0 +1,10 @@
+import { PushRegistry } from './pushRegistry';
+export type PushStatus = 'off' | 'on' | 'denied' | 'unavailable' | 'error' | 'busy';
+export const pushProjectID = '';
+export const pushSupported = false;
+export const pushRegistry = new PushRegistry({ read: async () => null, write: async () => {}, secret: () => '', register: async () => {}, unregister: async () => {} });
+export const getPushDevice = async (_prompt: boolean, _token: string, report: (state: PushStatus) => void) => { report('unavailable'); return null; };
+export const listenPush = (_show: (data: unknown) => boolean, _receive: (data: unknown) => void, _tap: (data: unknown) => void) => () => {};
+export const onPushForeground = (_callback: () => void) => () => {};
+export const openPushSettings = async () => {};
+export const clearPresentedPush = async () => {};

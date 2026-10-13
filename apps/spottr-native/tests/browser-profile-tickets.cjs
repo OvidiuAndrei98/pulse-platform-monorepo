@@ -11,14 +11,15 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
     localStorage.setItem('spottr-native.session.v1', JSON.stringify({ token: 'tickets-qa-only', user }));
     const ticket = (n, day, title) => ({ id: id(n), eventId: id(n + 10), eventTitle: title, ticketTypeName: 'General Access', locationName: 'Piata Unirii · Bucuresti', validationHash: 'test-admission-' + n, startTime: '2099-10-' + day + 'T18:30:00Z', endTime: '2099-10-' + day + 'T23:00:00Z', isValidated: false });
     const first = ticket(1, '02', 'AFTER DARK');
-    const rows = [ticket(5, '20', 'Last night'), ticket(3, '06', 'ROOFTOP SESSIONS WITH A VERY LONG EVENT NAME'), first, ticket(2, '04', 'NOCTURNE'), ticket(4, '08', 'Pool party'), { ...first, id: id(20), ticketTypeName: 'VIP' }, ticket(6, '21', 'Warehouse'), ticket(7, '22', 'Closing party'), { ...ticket(8, '01', 'Older night'), startTime: '2024-10-01T18:30:00Z', endTime: '2024-10-02T04:00:00Z' }, { ...ticket(9, '01', 'Recent night'), startTime: '2025-10-01T18:30:00Z', endTime: '2025-10-02T04:00:00Z', isValidated: true }];
+    const rows = [ticket(5, '20', 'Last night'), ticket(3, '06', 'ROOFTOP SESSIONS WITH A VERY LONG EVENT NAME'), first, ticket(2, '04', 'NOCTURNE'), ticket(4, '08', 'Pool party'), { ...first, id: id(20), ticketTypeName: 'VIP', validationHash: 'test-admission-20' }, ticket(6, '21', 'Warehouse'), ticket(7, '22', 'Closing party'), { ...ticket(8, '01', 'Older night'), startTime: '2024-10-01T18:30:00Z', endTime: '2024-10-02T04:00:00Z' }, { ...ticket(9, '01', 'Recent night'), startTime: '2025-10-01T18:30:00Z', endTime: '2025-10-02T04:00:00Z', isValidated: true }];
+    if (params.has('admission')) first.isValidated = true;
     const qa = window.__qa = { unexpected: [], ticketRequests: 0, fail: params.has('fail'), empty: params.has('empty'), single: params.has('single') };
     window.fetch = async (input, options = {}) => {
       const url = new URL(String(input), location.origin), route = url.pathname.split('/api/v1')[1];
       if (!route) { if (url.origin === location.origin) return original(input, options); throw Error('External request blocked'); }
       const reply = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
       if (route === '/users/me') return reply(user);
-      if (route === '/users/me/tickets') { qa.ticketRequests++; return qa.fail ? reply({}, 503) : reply(qa.empty ? [] : qa.single ? [first] : rows); }
+      if (route === '/users/me/tickets') { qa.ticketRequests++; return qa.fail ? reply({}, 503) : reply(qa.empty ? [] : qa.single ? [first] : rows.map(row => row.id === qa.usedTicketId ? { ...row, isValidated: true } : row)); }
       if (route === '/notifications') return reply({ items: [], unreadCount: 0 });
       if (['/events', '/promotions/active', '/users/me/saved-events', '/users/me/hidden-categories', '/users/me/orders', '/dashboard/ticket-validation/events', '/friends', '/feed'].includes(route)) return reply([]);
       qa.unexpected.push(route); return reply({}, 404);
@@ -58,6 +59,40 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
   await click('profile-tickets-tab-active'); await until(`${cards}.length>=4`);
   assert.equal(await evaluate(`${rail}.scrollLeft`), 0, 'Returning to active starts with the next event');
 
+  // Server-confirmed admission updates keep the visible QR and group numbering stable.
+  await open('?admission=1'); await until(`${cards}.length>=4`);
+  await click(card(1)); await until(`document.querySelector('[data-testid="ticket-preview"]')`); await delay(700);
+  const preview = `document.querySelector('[data-testid="ticket-preview"]')`;
+  const status = `document.querySelector('[data-testid="ticket-admission-status"]')`;
+  await until(`${preview}.textContent.includes('Ticket 2 of 2') && ${status}.textContent.includes('Valid for entry')`);
+  const drag = async (dx, dy=0) => {
+    const point = await evaluate(`{const r=document.querySelector('[data-testid="ticket-fit-area"]').getBoundingClientRect();({x:r.x+r.width/2,y:r.y+r.height*.42})}`);
+    await call('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});
+    for(let step=1;step<=10;step++){await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:point.x+dx*step/10,y:point.y+dy*step/10,button:'left',buttons:1});await delay(16);}
+    await call('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x+dx,y:point.y+dy,button:'left',clickCount:1});await delay(250);
+  };
+  await drag(110); await until(`${preview}.textContent.includes('Ticket 1 of 2') && ${status}.textContent.includes('Used')`);
+  await drag(110); assert.ok(await evaluate(`${preview}.textContent.includes('Ticket 1 of 2')`),'No wrapping past the first QR');
+  await drag(-110); await until(`${preview}.textContent.includes('Ticket 2 of 2')`);
+  await capture('ticket-group-active');
+  await evaluate(`window.__qa.usedTicketId=${JSON.stringify(id(20))}`);
+  await until(`${status}.textContent.includes('Used')`,8000);
+  assert.ok(await evaluate(`${preview}.textContent.includes('Ticket 2 of 2')`),'Scan does not silently switch or remove the QR');
+  await capture('ticket-group-used');
+  await drag(0,240); await until(`!${preview}`);
+  const requestsAfterClose=await evaluate('window.__qa.ticketRequests');await delay(5300);
+  assert.equal(await evaluate('window.__qa.ticketRequests'),requestsAfterClose,'Admission polling stops when the sheet closes');
+  await call('Page.navigate',{url:base+'/users/me/tickets?admission=1'});
+  await until(`document.querySelector('[data-testid="tickets-page"]') && document.body.innerText.includes('VIP')`);
+  await evaluate(`Array.from(document.querySelectorAll('[role="button"]')).find(el=>el.textContent.includes('VIP')&&el.textContent.includes('Ticket')).click()`);
+  await until(`${preview}`); await delay(650);
+  await evaluate(`window.__qa.usedTicketId=${JSON.stringify(id(20))}`);
+  await until(`${status}.textContent.includes('Used')`,8000);
+  assert.ok(await evaluate(`${preview}.textContent.includes('Ticket 2 of 2')`),'All Tickets keeps the sheet open after admission leaves Active');
+  await click('sheet-handle');await until(`!${preview}`);
+  await open(''); await until(`${cards}.length>=4`);
+  console.log('PASS first unused ticket, horizontal swipe, stable used status, vertical dismissal and bounded polling');
+
   await call('Emulation.setDeviceMetricsOverride', { width: 1024, height: 900, deviceScaleFactor: 1, mobile: false });
   await until(`document.querySelector('[data-testid="profile-ticket-next"]')`);
   await click('profile-ticket-next'); await until(`${rail}.scrollLeft>200`);
@@ -71,6 +106,10 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
   await evaluate(`${rail}.scrollIntoView({block:'center'})`); await capture('profile-ticket-carousel-small-ro');
   assert.ok(await evaluate(`${cards}[0].textContent.includes('2 bilete')`));
   assert.ok(await evaluate(`document.documentElement.scrollWidth<=innerWidth`), 'No horizontal page overflow at 320px');
+  await click(card(3)); await until(`${preview}`); await delay(650);
+  const fit = await evaluate(`{const a=document.querySelector('[data-testid="ticket-fit-area"]').getBoundingClientRect(),b=document.querySelector('[data-testid="ticket-download"]').getBoundingClientRect(),p=document.querySelector('[data-testid="ticket-paging"]');({area:a.height,downloadBottom:b.bottom,paging:!!p})}`);
+  assert.ok(fit.area>100 && fit.downloadBottom<=740,'Long title QR and download fit narrow screen');
+  await capture('ticket-small-ro');await click('sheet-handle');await until(`!${preview}`);
   await open('?single=1'); await until(`${cards}.length===1`);
   assert.ok(await evaluate(`${rail}.scrollWidth<=${rail}.clientWidth+1`), 'One ticket does not leave a phantom next page');
   await open('?empty=1'); await until(`document.body.innerText.includes('You have no active tickets')`);

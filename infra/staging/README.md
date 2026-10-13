@@ -192,6 +192,54 @@ Database bootstrap is a one-time environment operation and is not part of a
 routine deploy. Goose migrations are applied on every API deploy before the
 new staging API starts.
 
+## Native push notifications
+
+Push is optional and disabled until the server and mobile credentials are configured.
+The existing notification inbox keeps working without it. Browser push is not part of
+this integration; browser previews exercise the inbox and navigation only.
+
+iOS remote push requires paid Apple Developer Program membership and APNs credentials.
+A free Xcode Personal Team can keep testing the in-app inbox, but cannot enable APNs.
+Leave the push project unset for that build so the push entitlement is not added.
+
+1. Link the native app to an Expo/EAS project. Put its public UUID in
+   `apps/spottr-native/.env.local` as `EXPO_PUBLIC_EAS_PROJECT_ID` (or use the EAS
+   project already saved in `app.json`). Use a separate project/app identity for staging.
+2. Configure APNs credentials for the iOS bundle ID and FCM v1 credentials for the
+   Android package in that Expo project. On Android also set
+   `SPOTTR_NATIVE_GOOGLE_SERVICES_FILE` to the matching Firebase client configuration.
+   Never put the Firebase service-account key or Expo access token in the app.
+3. Enable enhanced push security in Expo. Create a Secrets Manager secret named
+   `spottr/staging/expo-push` with the Expo access token as its plain-text value.
+   This is separate from the Stripe/SMTP secret; do not overwrite that secret.
+4. Deploy the API and the `20261013120000_notification_push.sql` migration using
+   `Deploy-SpottrStagingApi.ps1 -ExpoPushProjectId <project-uuid>
+   -ExpoPushAccessTokenSecretArn <secret-arn>`. Later deployments preserve omitted
+   parameters. For a local API use `EXPO_PUSH_PROJECT_ID` / `EXPO_PUSH_ACCESS_TOKEN`.
+5. Rebuild the native binary (prebuild + Xcode/Android build), sign with a profile
+   that supports push, log in and choose **Enable notifications** in the bell panel.
+   A JavaScript reload cannot add native modules or Apple push entitlements.
+
+The DB trigger queues only newly created notifications for enabled devices. Workers
+claim batches with leases and `SKIP LOCKED`, send through Expo, check delivery receipts,
+and disable devices reported as `DeviceNotRegistered`. Jobs are retained seven days;
+delivery retries stop after 24 hours or the notification's earlier expiry. Check queue
+state counts and API logs before enabling production. A provider timeout can produce
+a duplicate OS banner: transport delivery is at least once, not exactly once.
+
+Revocation uses a random credential kept in SecureStore; a failed offline logout is
+retried before registering another account. The server cannot learn about logout while
+the phone is disconnected. Push previews contain generic text, not ticket QR codes,
+names or group messages. Taps are checked against the current account and project,
+then resolved through the authenticated API. Safety push expires quickly and must not
+be treated as a guaranteed or immediate emergency channel.
+
+Before release verify real devices: permission accept/deny, background/killed app,
+cold-start taps, logout/account switch, permission revoked in Settings, expired group
+notification, offline reconnect, and APNs/FCM credentials in the release-signed build.
+Automated delivery tests use a local fake Expo server and an isolated PostgreSQL DB;
+they never send notifications to people.
+
 ## Stripe sandbox secrets
 
 Native PaymentSheet additionally requires the **publishable** sandbox key from

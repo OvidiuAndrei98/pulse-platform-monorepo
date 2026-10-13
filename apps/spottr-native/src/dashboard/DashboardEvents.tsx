@@ -1,8 +1,8 @@
+import { FormInput as TextInput } from '../ui/FormInput';
 import React, { useState } from "react";
 import {
   Platform,
   Pressable,
-  TextInput,
   View,
   useWindowDimensions,
 } from "react-native";
@@ -106,7 +106,7 @@ export function DashboardEvents({
           }}
         >
           <Search size={16} color={colors.muted} />
-          <TextInput
+          <TextInput variant="bare"
             accessibilityLabel={copy("organizerEvents.searchPlaceholder")}
             value={q}
             onChangeText={setQ}
