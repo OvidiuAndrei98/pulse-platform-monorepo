@@ -157,7 +157,12 @@ to AWS, and run:
 task deploy:staging
 ```
 
-The task invokes `infra/staging/Deploy-SpottrStagingApi.ps1`.
+The task invokes `infra/staging/Deploy-SpottrStagingApi.ps1` using Windows
+PowerShell on Windows or PowerShell 7 (`pwsh`) on macOS/Linux. On macOS,
+install it first with `brew install --cask powershell`. The same prerequisite
+applies to `staging:start`, `staging:stop`, `staging:status`, and
+`deploy:production`. If PowerShell is missing, the task stops with an explicit
+error.
 
 The script refuses dirty worktrees, non-`staging` branches, unexpected AWS
 accounts, concurrent deploys, unstable services, and any autoscaling or
