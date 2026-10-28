@@ -1,6 +1,7 @@
 import { ApiError } from '../data/http';
 import { isEventId } from '../data/events';
 import type { PaymentRecoveryStorage } from './paymentRecoveryStore';
+import { captureHandledFailure, observeOperation } from '../diagnostics/handled';
 
 export const STRIPE_RETURN_URL = 'spottr-native://stripe-redirect';
 export function isStripeReturnURL(value: string) {
@@ -80,8 +81,9 @@ export async function persistNativePayment(entry: PendingNativePayment, accountI
 }
 export async function acknowledgeNativePayment(entry: PendingNativePayment) {
   if (entry.status === 'pending') return;
-  entry.restored = false;
   if (recoveryStorage && entry.accountId !== undefined) await recoveryStorage.remove(entry.accountId, entry.session.orderId);
+  // A failed secure-storage cleanup must remain eligible for a later retry.
+  entry.restored = false;
 }
 export function rememberNativePayment(session: NativePaymentSession, eventId: string, owner: string | null) {
   for (const [id, entry] of pending) {
@@ -103,6 +105,7 @@ export function getPendingNativePayment(eventId: string, owner: string | null) {
 
 type PaymentRequest = (path: string, options: { method: 'POST'; body: unknown; token: string | null }) => Promise<unknown>;
 export async function resolveNativePayment(entry: PendingNativePayment, request: PaymentRequest) {
+  return observeOperation('payment_confirm', async () => {
   const { session } = entry;
   if (entry.cancelRequested && recoveryStorage && entry.accountId !== undefined) {
     // Remember cancellation across another interruption. A disk error must not
@@ -112,20 +115,32 @@ export async function resolveNativePayment(entry: PendingNativePayment, request:
   const result = await request('/checkout/payment-sheet/' + (entry.cancelRequested ? 'cancel' : 'reconcile'), {
     method: 'POST', token: entry.owner,
     body: { orderId: session.orderId, eventId: entry.eventId, paymentIntentId: session.paymentIntentId, paymentIntentClientSecret: session.paymentIntentClientSecret },
-  }) as { status?: unknown; orderId?: unknown } | null;
+  }) as { status?: unknown; orderId?: unknown; paymentAttempted?: unknown } | null;
   if (!result || result.orderId !== session.orderId || typeof result.status !== 'string' ||
-    !['pending', 'completed', 'failed', 'refunded'].includes(result.status)) throw new ApiError(0, 'INVALID_PAYMENT_CONFIRMATION');
+    !['pending', 'completed', 'failed', 'refunded'].includes(result.status) ||
+    (result.paymentAttempted !== undefined && typeof result.paymentAttempted !== 'boolean')) throw new ApiError(0, 'INVALID_PAYMENT_CONFIRMATION');
   // Overlapping foreground checks may return out of order. A stale pending
   // response cannot undo a terminal outcome already verified by the server.
   if (entry.status === 'pending' || result.status === 'refunded') entry.status = result.status as NativePaymentStatus;
-  return { status: entry.status, orderId: session.orderId };
+  return { status: entry.status, orderId: session.orderId, paymentAttempted: result.paymentAttempted as boolean | undefined };
+  });
+}
+
+// Only the server can establish that the previous form was never submitted.
+// Cancel that exact Stripe intent before starting a fresh checkout: cancellation
+// racing a successful payment must return success, never authorize a duplicate.
+export async function settleUnsubmittedNativePayment(entry: PendingNativePayment, request: PaymentRequest) {
+  const result = await resolveNativePayment(entry, request);
+  if (result.status !== 'pending' || result.paymentAttempted !== false) return result;
+  entry.cancelRequested = true;
+  return resolveNativePayment(entry, request);
 }
 
 export async function presentAndResolveNativePayment(entry: PendingNativePayment,
   present: () => Promise<'completed' | 'cancelled'>, request: PaymentRequest, onFailure?: (error: unknown) => void): Promise<'verify' | 'cancelled' | 'failed'> {
   let sdkFailed = false;
   try { entry.cancelRequested = await present() === 'cancelled'; }
-  catch (error) { entry.cancelRequested = true; sdkFailed = true; onFailure?.(error); }
+  catch (error) { captureHandledFailure(error, 'payment_present'); entry.cancelRequested = true; sdkFailed = true; onFailure?.(error); }
   if (entry.cancelRequested) {
     try {
       const result = await resolveNativePayment(entry, request);

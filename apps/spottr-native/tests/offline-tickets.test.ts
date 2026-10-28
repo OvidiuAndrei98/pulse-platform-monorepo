@@ -10,7 +10,7 @@ import { SessionController, type Account } from '../src/auth/session';
 const id = (n: number) => `12345678-abcd-abcd-abcd-${String(n).padStart(12, '0')}`;
 const user = id(1), other = id(2);
 const ticket = (overrides: Partial<UserTicket> = {}): UserTicket => ({
-  id: id(3), eventId: id(4), validationHash: 'CaseSensitive+/=QR', isValidated: false,
+  id: id(3), eventId: id(4), orderId: id(5), validationHash: 'CaseSensitive+/=QR', isValidated: false,
   ticketTypeName: 'General', eventTitle: 'Noapte în București 🎉', locationName: 'Club',
   startTime: '2026-10-12T18:00:00Z', endTime: '2026-10-13T06:00:00Z', priceRon: 50,
   ticketPriceBani: 5000, ticketingFeeBani: 450, paidTotalBani: 5450,

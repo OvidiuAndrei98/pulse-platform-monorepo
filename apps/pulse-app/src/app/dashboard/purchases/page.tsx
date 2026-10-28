@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Calendar, MapPin, QrCode, Receipt, Ticket } from "lucide-react";
 import {
@@ -11,8 +11,11 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { TicketPreview } from "@/components/tickets/TicketPreview";
 import { formatEventDate } from "@/features/events/dateFormat";
 import { formatRon } from "@/features/events/serviceFee";
+import { isConfirmedPurchase, isVisibleTransaction, orderTotalBani, orderStatusKey } from "@/features/checkout/orderHistory";
 import { useTranslation } from "react-i18next";
 import { Skeleton } from "@/components/ui/loading";
+import { RequestError } from "@/components/ui/RequestFeedback";
+import { useClientQuery } from "@/lib/useClientQuery";
 
 type UserTicket = ReadableSchema<"UserTicketResponse">;
 type UserOrder = ReadableSchema<"UserOrderResponse">;
@@ -22,35 +25,18 @@ export default function DashboardPurchasesPage() {
   const { t } = useTranslation();
   const { user } = useDataProvider();
   const [tab, setTab] = useState<PurchaseTab>("tickets");
-  const [tickets, setTickets] = useState<UserTicket[]>([]);
-  const [orders, setOrders] = useState<UserOrder[]>([]);
-  const [loading, setLoading] = useState(true);
   const [openTicket, setOpenTicket] = useState<UserTicket | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    let active = true;
-    Promise.all([
-      ApiClient.instance.get("/users/me/tickets") as Promise<UserTicket[]>,
-      ApiClient.instance.get("/users/me/orders") as Promise<UserOrder[]>,
-    ])
-      .then(([nextTickets, nextOrders]) => {
-        if (!active) return;
-        setTickets(nextTickets);
-        setOrders(nextOrders);
-      })
-      .catch(() => {
-        if (!active) return;
-        setTickets([]);
-        setOrders([]);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [user]);
+  const { data: { tickets, orders }, pending: loading, error, retry } = useClientQuery(
+    user ? `purchases:${user.properties.id}` : null,
+    async () => {
+      const [nextTickets, nextOrders] = await Promise.all([
+        ApiClient.instance.get("/users/me/tickets") as Promise<UserTicket[]>,
+        ApiClient.instance.get("/users/me/orders") as Promise<UserOrder[]>,
+      ]);
+      return { tickets: nextTickets ?? [], orders: (nextOrders ?? []).filter(isVisibleTransaction) };
+    },
+    { tickets: [] as UserTicket[], orders: [] as UserOrder[] }, 10000,
+  );
 
   return (
     <main className="text-foreground pb-[110px]">
@@ -76,7 +62,7 @@ export default function DashboardPurchasesPage() {
             active={tab === "orders"}
             onClick={() => setTab("orders")}
             icon={Receipt}
-            label={t("purchases.invoices")}
+            label={t("purchases.orders")}
             count={orders.length}
           />
         </div>
@@ -94,7 +80,7 @@ export default function DashboardPurchasesPage() {
               </div>
             ))}
           </div>
-        ) : tab === "tickets" ? (
+        ) : error ? <RequestError onRetry={retry} className="mt-6" /> : tab === "tickets" ? (
           <TicketsList tickets={tickets} onOpen={setOpenTicket} />
         ) : (
           <OrdersList orders={orders} />
@@ -226,11 +212,12 @@ function OrdersList({ orders }: { orders: UserOrder[] }) {
   return (
     <div className="mt-6 overflow-hidden rounded-lg border border-white/10 bg-white/[0.025]">
       {orders.map((order) => {
-        const paidTotal = Number(order.paidTotalBani) / 100;
+        const total = orderTotalBani(order) / 100;
         const refundedAmount = Number(order.refundedAmountBani) / 100;
         return (
           <article
             key={order.id}
+            data-testid={`order-${order.id}`}
             className="flex gap-3 border-b border-white/10 p-4 last:border-b-0"
           >
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -253,17 +240,10 @@ function OrdersList({ orders }: { orders: UserOrder[] }) {
               </p>
             </div>
             <div className="shrink-0 text-right">
-              <p className="text-sm font-semibold">{formatRon(paidTotal)}</p>
+              <p className="text-sm font-semibold">{formatRon(total)}</p>
+              <p className="mt-0.5 text-[10px] text-muted-foreground">{t(isConfirmedPurchase(order) ? "orders.paidTotal" : "orders.orderTotal")}</p>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                {order.status === "completed"
-                  ? t("orders.completed")
-                  : order.status === "pending"
-                    ? t("orders.pending")
-                    : order.status === "canceled"
-                      ? t("orders.canceled")
-                      : order.status === "refunded"
-                        ? t("orders.refunded")
-                        : order.status}
+                {t(orderStatusKey(order.status))}
               </p>
               {refundedAmount > 0 && (
                 <p className="mt-1 text-[11px] font-semibold text-primary">

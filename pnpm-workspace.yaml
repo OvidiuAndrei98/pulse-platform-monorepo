@@ -7,6 +7,12 @@ packageExtensions:
   '@hookform/resolvers@5.4.0':
     peerDependencies:
       zod: '^3.25.0 || ^4.0.0'
+  # The Worklets Babel plugin imports these without declaring dependencies.
+  # Explicit links keep clean, isolated pnpm installs buildable on every host.
+  'react-native-worklets@0.10.1':
+    dependencies:
+      '@babel/generator': '^7.29.0'
+      '@babel/traverse': '^7.29.0'
 allowBuilds:
   '@stripe/cli': false
   core-js: true

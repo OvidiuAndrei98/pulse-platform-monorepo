@@ -1,0 +1,256 @@
+.page {
+  max-width: 850px;
+  margin: 0 auto;
+  padding: 24px 20px 120px;
+  color: #f7faf2;
+}
+.page h1 {
+  font-size: 28px;
+  font-weight: 750;
+  letter-spacing: -0.7px;
+}
+.page h2 {
+  font-size: 18px;
+  font-weight: 650;
+}
+.page p {
+  color: #9ca89e;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.card {
+  border: 1px solid #ffffff16;
+  background: #0d0d0e;
+  border-radius: 24px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.active {
+  border-color: #ff00443d;
+  background: linear-gradient(145deg, #ff004414, #0d0d0e 70%);
+}
+.number {
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: -2px;
+  color: #ff0044;
+  line-height: 1.1;
+}
+.badge {
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  color: #ff0044;
+  background: #ff004419;
+  padding: 6px 10px;
+  border-radius: 30px;
+}
+.button {
+  min-height: 44px;
+  border-radius: 24px;
+  background: #ff0044;
+  padding: 10px 18px;
+  color: white;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  text-align: center;
+}
+.button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.secondary {
+  background: #1b1b1d;
+}
+.tabs {
+  display: flex;
+  gap: 5px;
+  border: 1px solid #ffffff16;
+  background: #0d0d0e;
+  padding: 4px;
+  border-radius: 28px;
+  overflow: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+.tabs .button {
+  flex: 1;
+  white-space: nowrap;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+  color: #a2a2a8;
+  flex: 1;
+  min-width: 120px;
+}
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #ffffff20;
+  border-radius: 12px;
+  background: #141416;
+  padding: 10px 12px;
+  color: #fff;
+  font-size: 14px;
+}
+.field textarea {
+  min-height: 90px;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: 1px solid #ff004480;
+}
+.counter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+}
+.counter button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #ffffff20;
+  border-radius: 50%;
+  background: #18181a;
+}
+.counter button:disabled {
+  opacity: 0.3;
+}
+.counter span:first-child {
+  flex: 1;
+}
+.error {
+  color: #ff8c99 !important;
+  padding: 12px;
+  border: 1px solid #ff004440;
+  border-radius: 12px;
+}
+.success {
+  color: #34d399 !important;
+}
+.qr {
+  align-self: center;
+  padding: 18px;
+  background: #fff;
+  border-radius: 20px;
+  width: 220px;
+  max-width: 100%;
+}
+.entry {
+  display: flex;
+  text-align: left;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #ffffff18;
+  background: #0d0d0e;
+  border-radius: 18px;
+  cursor: pointer;
+}
+.entry strong {
+  color: #ff0044;
+  font-size: 22px;
+}
+.entry small {
+  color: #9ca89e;
+}
+.entry > div {
+  flex: 1;
+}
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #ff00443d;
+  border-radius: 22px;
+  background: #ff004411;
+  padding: 16px;
+  margin: 16px 0;
+}
+.banner div {
+  flex: 1;
+}
+.banner strong {
+  font-size: 14px;
+}
+.banner p {
+  font-size: 12px;
+  color: #9ca89e;
+}
+.camera {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  background: #000;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+}
+.camera > div {
+  max-width: 440px;
+  width: 100%;
+  margin: auto;
+}
+.notice {
+  border-left: 2px solid #ff0044;
+  padding-left: 12px;
+}
+.small {
+  font-size: 12px;
+  color: #9ca89e;
+}
+.divider {
+  border-top: 1px solid #ffffff12;
+  padding-top: 16px;
+}
+
+.card,
+.entry,
+.between > * {
+  min-width: 0;
+}
+.number,
+.entry strong,
+.card b,
+.card h2 {
+  overflow-wrap: anywhere;
+}
+.entry > div {
+  min-width: 0;
+}
+.entry strong {
+  max-width: 100px;
+}
+.entry .badge {
+  flex-shrink: 0;
+}

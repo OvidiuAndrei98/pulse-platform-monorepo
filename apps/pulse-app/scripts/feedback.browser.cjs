@@ -89,6 +89,7 @@ async function run() {
       const state = window.__api;
       state.requests.push(route + url.search);
       const respond = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+      if (route === '/wardrobe/mine') return respond({ deposits: [], staffAccess: false });
       const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
       if (route === '/users/me') return respond({ id: 'test-user', username: 'Test User', email: 'test@example.com', role: 'user', preferredLanguage: 'en' });
       if (route === '/users/me/billing-details') return respond({});
@@ -161,7 +162,7 @@ async function run() {
   await evaluate(`${button("Next")}.click()`);
   await until("document.querySelector('input[type=email]')");
   await evaluate(`${button("Continue to summary")}.click()`);
-  await until("document.querySelector('input[aria-invalid=true]')");
+  await until("document.activeElement?.getAttribute('aria-invalid') === 'true'");
   assert.equal(await evaluate("document.activeElement.getAttribute('aria-invalid')"), "true");
   for (const [suffix, value] of [["name", "Test User"], ["address", "Street 1"], ["city", "Cluj"], ["county", "Cluj"]]) {
     await evaluate(`(() => { const input = document.querySelector('input[id$="-billing-${suffix}"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)}); input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
@@ -185,7 +186,7 @@ async function run() {
     await evaluate("Array.from(document.querySelectorAll('[data-vaul-drawer] button')).find(b => b.textContent.trim().startsWith('Continue')).click()");
     await until(`${button("Next")}`);
     await evaluate(`${button("Next")}.click()`);
-    await until("document.querySelector('[data-vaul-drawer] input[type=email]')");
+    await until("document.querySelector('aside[role=dialog] input[type=email]')");
     if (summary) {
       for (const [suffix, value] of [["name", "Test User"], ["address", "Street 1"], ["city", "Cluj"], ["county", "Cluj"]]) {
         await evaluate(`(() => { const input = document.querySelector('input[id$="-billing-${suffix}"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)}); input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
@@ -193,44 +194,17 @@ async function run() {
       await evaluate(`${button("Continue to summary")}.click()`);
       await until("Array.from(document.querySelectorAll('button')).some(b => b.textContent.trim().startsWith('Pay'))");
     }
-    await until("history.state.__spottrLayer?.length === 1");
+    await until("document.querySelector('aside[role=dialog]')");
     await delay(550);
   };
-  const dismissSheet = async (expectedStep, swipe = false) => {
-    await evaluate(`(() => {
-      window.__sheetFrames = [];
-      const started = performance.now();
-      const sample = () => {
-        const panel = document.querySelector('[data-vaul-drawer]');
-        if (panel) window.__sheetFrames.push({ state: panel.dataset.state, top: panel.getBoundingClientRect().top, checkout: panel.innerText.includes(${JSON.stringify(expectedStep)}) });
-        if (performance.now() - started < 900) requestAnimationFrame(sample);
-        else window.__sheetSampleDone = true;
-      };
-      window.__sheetSampleDone = false;
-      sample();
-    })()`);
-    if (swipe) {
-      const origin = await evaluate("(() => { const rect = document.querySelector('[data-vaul-drawer]').getBoundingClientRect(); return { x: rect.x + rect.width / 2, y: rect.top + 14 }; })()");
-      await call("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ ...origin, id: 1 }] });
-      for (const offset of [40, 90, 150, 220, 300, 370]) {
-        await call("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: origin.x, y: origin.y + offset, id: 1 }] });
-      }
-      await call("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-    } else {
-      await call("Input.dispatchMouseEvent", { type: "mousePressed", x: 5, y: 25, button: "left", clickCount: 1 });
-      await call("Input.dispatchMouseEvent", { type: "mouseReleased", x: 5, y: 25, button: "left", clickCount: 1 });
-    }
-    await until("window.__sheetSampleDone && !document.querySelector('[data-vaul-drawer]')");
-    const frames = await evaluate("window.__sheetFrames");
-    const firstClosed = frames.findIndex(frame => frame.state === "closed");
-    assert.ok(firstClosed >= 0, "The sheet must animate closed");
-    const closing = frames.slice(firstClosed);
-    assert.ok(closing.every(frame => frame.state === "closed"), "Closing must not reopen the event");
-    assert.ok(closing.every(frame => frame.checkout), "Preserve the checkout step throughout the exit");
-    for (let index = 1; index < closing.length; index++) {
-      assert.ok(closing[index].top >= closing[index - 1].top - 2, "The sheet must move down without bouncing up");
-    }
-    assert.equal(await evaluate("new URLSearchParams(location.search).has('eventId') || Boolean(history.state.__spottrLayer?.length)"), false);
+  const dismissCheckoutAndEvent = async expectedStep => {
+    assert.ok(await evaluate(`document.querySelector('aside[role=dialog]').textContent.includes(${JSON.stringify(expectedStep)})`));
+    await evaluate('history.back()');
+    await until("!document.querySelector('aside[role=dialog]') && document.querySelector('[data-vaul-drawer][data-state=open] input[type=radio]')");
+    assert.ok(await evaluate("new URLSearchParams(location.search).has('eventId')"), 'Back from checkout restores the same event');
+    await call('Input.dispatchKeyEvent', { type:'keyDown', key:'Escape', code:'Escape', windowsVirtualKeyCode:27 });
+    await until("!document.querySelector('[data-vaul-drawer]')");
+    assert.equal(await evaluate("new URLSearchParams(location.search).has('eventId')"), false);
   };
   const checkUpwardOverscroll = async (surfaceColor = [0, 0, 0, 255]) => {
     await delay(600);
@@ -267,12 +241,11 @@ async function run() {
   await evaluate("document.querySelector('[data-vaul-drawer] [role=alert] button').click()");
   await until("document.querySelector('[data-vaul-drawer] input[type=radio]')");
   await checkUpwardOverscroll();
+  console.log('PASS upward event sheet drag keeps its background filled and settles without closing');
   await enterSheetCheckout(false);
-  await checkUpwardOverscroll();
-  console.log('PASS upward sheet drag keeps its background filled and settles without closing, including checkout');
-  await dismissSheet("Step 2 of 3");
+  await dismissCheckoutAndEvent("Step 2 of 3");
   assert.equal(await evaluate("location.pathname"), "/");
-  console.log("PASS direct event sheet closes from billing in one downward animation");
+  console.log("PASS Back from billing restores the event; Escape closes the event");
 
   const beforeEvent = await call("Page.getNavigationHistory");
   await evaluate(`(() => {
@@ -280,15 +253,15 @@ async function run() {
     history.pushState({ ...state, __spottrEvent: true }, '', '/?eventId=test-event');
   })()`);
   await enterSheetCheckout(true);
-  await dismissSheet("Step 3 of 3", true);
+  await dismissCheckoutAndEvent("Step 3 of 3");
   assert.equal((await call("Page.getNavigationHistory")).currentIndex, beforeEvent.currentIndex);
-  console.log("PASS event plus checkout history closes together from summary without reopening");
+  console.log("PASS summary returns to its event before dismissal, with no stale history entry");
 
   await navigate('/feed');
   await until(`${button('My friends')}`);
   await evaluate(`${button('My friends')}.click()`);
   await until("document.querySelector('[data-vaul-drawer]')");
-  await checkUpwardOverscroll([11, 11, 12, 255]);
+  await checkUpwardOverscroll();
   await evaluate('history.back()');
   await until("!document.querySelector('[data-vaul-drawer]')");
   await navigate('/users/me');
@@ -296,7 +269,7 @@ async function run() {
   await evaluate(`${button('My code')}.click()`);
   await until("document.querySelector('[data-vaul-drawer] img')");
   assert.ok(await evaluate("document.querySelector('[data-vaul-drawer]').getBoundingClientRect().height > 250"), 'Content-sized QR sheet retains its layout');
-  await checkUpwardOverscroll([16, 19, 17, 255]);
+  await checkUpwardOverscroll();
   await evaluate('history.back()');
   await until("!document.querySelector('[data-vaul-drawer]')");
   console.log('PASS Friends and content-sized QR sheets retain layout, upward drag and Back');
@@ -336,7 +309,7 @@ async function run() {
   await until(hasText("We couldn't check your payment"));
   await evaluate("window.__api.payment = 'completed'");
   await evaluate(`${button("Check again")}.click()`);
-  await until("document.querySelector('main a[href=\"/users/me\"]')");
+  await until("document.querySelector('main a[href=\"/users/me/tickets\"]')");
   console.log("PASS pending and offline confirmation stop spinning; retry can confirm");
   assert.deepEqual(errors, [], "No uncaught runtime errors");
   assert.deepEqual(lifecycleWarnings, [], "No insertion-effect warnings");

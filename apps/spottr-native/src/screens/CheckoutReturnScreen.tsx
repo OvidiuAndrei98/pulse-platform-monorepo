@@ -1,7 +1,7 @@
 ﻿import '../checkout/paymentRecoveryStorage';
 import { acknowledgeNativePayment, getNativePayment, resolveNativePayment, restoreNativePayments } from '../checkout/nativePayment';
 import { canRecheckPayment, canRestartCheckout, confirmPayment, type PaymentResult } from '../checkout/confirmation';
-import { CheckoutSuccessTicket, PaymentSuccessCheck } from '../checkout/CheckoutSuccess';
+import { purchaseCompletion } from '../checkout/purchaseCompletion';
 import { canResumePaymentBrowser, forgetPaymentBrowser, resumePaymentBrowser } from '../checkout/paymentBrowser';
 import { haptic } from '../ui/haptics';
 import React, { useEffect, useRef, useState } from 'react';
@@ -57,12 +57,17 @@ export function CheckoutReturnScreen({ route, navigation }: NativeStackScreenPro
       const result = await confirmPayment(() => native ? resolveNativePayment(native, accountApi) : accountApi('/checkout/reconcile', { method: 'POST', body: { eventId, sessionId }, token }), isActive, undefined, attempts);
       if (!isActive() || !result) return;
       setOrderId(result.orderId ?? native?.session.orderId);
-      if (['completed', 'failed', 'refunded'].includes(result.status)) forgetPaymentBrowser(eventId, sessionId, token);
+      if (['completed', 'failed', 'refunded'].includes(result.status)) {
+        forgetPaymentBrowser(eventId, sessionId, token);
+        for (const key of ['tickets', 'orders', 'event']) void queryClient.invalidateQueries({ queryKey: [key] });
+      }
       setStatus(native?.cancelRequested && native.status === 'failed' ? 'cancelled' : result.status);
       if (result.status === 'completed') {
         const identity = eventId + ':' + (nativeOrderId ?? sessionId);
         if (!successFeedback.current.has(identity)) { successFeedback.current.add(identity); haptic('success'); }
-        for (const key of ['tickets', 'orders', 'event', 'event-social', 'event-friends', 'social-feed', 'notifications']) void queryClient.invalidateQueries({ queryKey: [key] });
+        for (const key of ['event-social', 'event-friends', 'social-feed', 'notifications']) void queryClient.invalidateQueries({ queryKey: [key] });
+        purchaseCompletion.confirm({ status: result.status, orderId: result.orderId ?? native?.session.orderId }, eventId, token);
+        returnToEvent(navigation, eventId);
       }
     })().catch(() => { if (isActive()) setStatus('unavailable'); });
     return () => { active = false; };
@@ -89,17 +94,20 @@ export function CheckoutReturnScreen({ route, navigation }: NativeStackScreenPro
   }, [focused, status]);
 
   useEffect(() => () => {
-    // Preserve pending recovery on Back; acknowledge only a terminal result.
+    // The event confirmation now owns acknowledgment of successful purchases.
+    // Keep recovery durable until the user dismisses it or closes the ticket.
     const entry = nativeOrderId ? getNativePayment(nativeOrderId, eventId, token) : undefined;
+    const receipt = purchaseCompletion.getSnapshot();
+    if (entry?.status === 'completed' && receipt && receipt.orderId === nativeOrderId && receipt.owner === token) return;
     if (entry) void acknowledgeNativePayment(entry).catch(() => undefined);
   }, [nativeOrderId, eventId, token]);
 
   const completed = status === 'completed', checking = status === 'checking';
   const canResume = (status === 'pending' || status === 'unavailable') && canResumePaymentBrowser(eventId, sessionId, token);
   const unresolved = ['pending', 'unavailable', 'missing', 'invalid'].includes(status);
-  const title = 'checkoutResult.' + status + 'Title';
+  const title = 'checkoutResult.' + (completed ? 'checking' : status) + 'Title';
   const hint = status === 'pending' && manualUsed ? 'checkoutResult.pendingAfterCheckHint'
-    : status === 'unavailable' && manualUsed ? 'checkoutResult.unavailableAfterCheckHint' : 'checkoutResult.' + status + 'Hint';
+    : status === 'unavailable' && manualUsed ? 'checkoutResult.unavailableAfterCheckHint' : 'checkoutResult.' + (completed ? 'checking' : status) + 'Hint';
   const acknowledge = () => {
     const entry = nativeOrderId ? getNativePayment(nativeOrderId, eventId, token) : undefined;
     if (entry) void acknowledgeNativePayment(entry).catch(() => undefined);
@@ -113,11 +121,6 @@ export function CheckoutReturnScreen({ route, navigation }: NativeStackScreenPro
     if (!canRecheckPayment(status, manualRequested.current)) return;
     manualRequested.current = true; setManualUsed(true); setStatus('checking'); setAttempt(value => value + 1);
   };
-  const openTickets = () => {
-    acknowledge();
-    if (user) navigation.popTo('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } });
-    else navigation.replace('Auth', { mode: 'register', returnTab: 'Profile' });
-  };
   const contact = () => {
     setSupportError(false);
     void Linking.openURL('mailto:contact@code-lab.ro?subject=' + encodeURIComponent('SPOTTR' + (orderId ? ' · ' + orderId : ''))).catch(() => setSupportError(true));
@@ -126,17 +129,11 @@ export function CheckoutReturnScreen({ route, navigation }: NativeStackScreenPro
 
   return <ScrollView testID="checkout-return" style={s.screen} contentContainerStyle={[s.content, { paddingTop: Math.max(28, safe.top + 16), paddingBottom: Math.max(28, safe.bottom + 16) }]}>
     <View style={s.card}>
-      {completed ? <PaymentSuccessCheck /> : <View style={s.icon}>{checking ? <ActivityIndicator size="small" color={colors.accent} /> : status === 'pending' ? <Clock3 size={30} color={colors.accent} /> : status === 'unavailable' ? <WifiOff size={28} color={colors.accent} /> : <AlertCircle size={28} color={colors.accent} />}</View>}
-      <Text style={s.eyebrow}>{copy(completed ? 'checkoutResult.successEyebrow' : 'checkoutResult.paymentEyebrow')}</Text>
+      <View style={s.icon}>{checking || completed ? <ActivityIndicator size="small" color={colors.accent} /> : status === 'pending' ? <Clock3 size={30} color={colors.accent} /> : status === 'unavailable' ? <WifiOff size={28} color={colors.accent} /> : <AlertCircle size={28} color={colors.accent} />}</View>
+      <Text style={s.eyebrow}>{copy('checkoutResult.paymentEyebrow')}</Text>
       <Text accessibilityRole="header" style={s.title}>{copy(title)}</Text>
       <Text accessibilityLiveRegion="polite" style={s.hint}>{copy(hint)}</Text>
       {status === 'pending' && Platform.OS === 'web' && !canResume && <Text style={s.providerHint}>{copy('checkoutResult.providerWindowHint')}</Text>}
-
-      {completed && <>
-        <CheckoutSuccessTicket eventId={eventId} orderId={orderId} />
-        <Pressable testID="checkout-view-tickets" accessibilityRole="button" onPress={openTickets} style={s.primary}><Ticket size={17} color="white" /><Text style={s.buttonText}>{copy(user ? 'checkoutSuccess.viewTickets' : 'auth.createAccount')}</Text><ArrowRight size={17} color="white" /></Pressable>
-        <View style={s.delivery}><View style={{ width: 15, flexShrink: 0, paddingTop: 2 }}><Mail size={15} color="#ffffff73" /></View><Text style={s.deliveryText}>{copy(user ? 'checkoutResult.accountDelivery' : 'checkoutResult.guestDelivery')}</Text></View>
-      </>}
 
       {canResume && <Pressable testID="checkout-resume-payment" accessibilityRole="button" onPress={() => {
         setResumeError(false); lastResume.current = 0;
@@ -144,7 +141,7 @@ export function CheckoutReturnScreen({ route, navigation }: NativeStackScreenPro
       }} style={s.primary}><Text style={s.buttonText}>{copy('checkoutResult.resumePayment')}</Text><ArrowRight size={16} color="white" /></Pressable>}
       {resumeError && <Text accessibilityRole="alert" style={s.providerHint}>{copy('checkoutResult.resumeFailed')}</Text>}
       {canRecheckPayment(status, manualUsed) && <Pressable testID="checkout-recheck" accessibilityRole="button" onPress={recheck} style={canResume ? s.secondary : s.primary}><RotateCcw size={16} color="white" /><Text style={s.buttonText}>{copy('feedback.checkAgain')}</Text></Pressable>}
-      {unresolved && user && <Pressable testID="checkout-view-orders" accessibilityRole="button" onPress={() => navigation.popTo('Tabs', { screen: 'Profile', params: { screen: 'Orders' } })} style={!canResume && (manualUsed || status === 'missing' || status === 'invalid') ? s.primary : s.secondary}><Ticket size={16} color="white" /><Text style={s.buttonText}>{copy('checkoutResult.viewOrders')}</Text></Pressable>}
+      {unresolved && user && <Pressable testID="checkout-check-tickets" accessibilityRole="button" onPress={() => navigation.popTo('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } })} style={!canResume && (manualUsed || status === 'missing' || status === 'invalid') ? s.primary : s.secondary}><Ticket size={16} color="white" /><Text style={s.buttonText}>{copy('checkoutResult.checkTickets')}</Text></Pressable>}
       {canRestartCheckout(status) && isEventId(eventId) && <Pressable testID="checkout-return-to-event" accessibilityRole="button" onPress={() => { acknowledge(); returnToEvent(navigation, eventId); }} style={s.primary}><Text style={s.buttonText}>{copy('checkoutResult.chooseTickets')}</Text><ArrowRight size={16} color="white" /></Pressable>}
       {canCancel && <Pressable testID="checkout-cancel-attempt" accessibilityRole="button" onPress={cancelAttempt} style={s.secondary}><Text style={s.secondaryText}>{copy('checkout.cancelPaymentAttempt')}</Text></Pressable>}
       {!checking && !completed && <Pressable testID="checkout-contact-support" accessibilityRole="button" onPress={contact} style={s.secondary}><Mail size={16} color="#ffffffb3" /><Text style={s.secondaryText}>{copy('checkoutResult.contactSupport')}</Text></Pressable>}

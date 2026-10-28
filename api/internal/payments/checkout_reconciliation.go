@@ -52,6 +52,9 @@ func (h *CheckoutHandler) reconcileCheckoutSession(ctx context.Context, sessionI
 	if metadataOrderID := firstStripeMetadata(session.Metadata, "spottr_order_id", "pulse_order_id"); metadataOrderID != orderID {
 		return "", "", errors.New("comanda Stripe nu corespunde sesiunii")
 	}
+	if err := h.recordHostedPaymentAttempt(ctx, order, session.PaymentIntent, order.StripeConnectedAccountID.String); err != nil {
+		return "", "", err
+	}
 
 	switch session.Status {
 	case stripe.CheckoutSessionStatusComplete:
@@ -81,9 +84,10 @@ func (h *CheckoutHandler) reconcileCheckoutSession(ctx context.Context, sessionI
 			return "completed", orderID, nil
 		}
 		// A paid Session can require a refund when an old release race cannot
-		// restore capacity. Never show a successful confirmation without tickets.
+		// restore capacity. Never show success without tickets, or claim failure
+		// and invite a second charge while the first payment awaits resolution.
 		if updated.StripeRefundNeedsAttention {
-			return "failed", orderID, nil
+			return "pending", orderID, nil
 		}
 		return string(updated.Status), orderID, nil
 	case stripe.CheckoutSessionStatusExpired:
@@ -113,6 +117,7 @@ func (h *CheckoutHandler) StartCheckoutReconciliationWorker(ctx context.Context)
 	}
 
 	go h.runTicketEmailWorker(ctx)
+	go h.runInvoiceServiceFeeWorker(ctx)
 	go func() {
 		h.reconcilePendingCheckouts(ctx)
 		ticker := time.NewTicker(checkoutReconciliationInterval)

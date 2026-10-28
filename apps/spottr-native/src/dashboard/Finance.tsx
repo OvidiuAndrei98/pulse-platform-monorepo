@@ -49,6 +49,8 @@ export function Invoicing() {
   const { copy } = usePreferences(),
     query = useDashboardQuery<S["InvoicingSettingsResponse"]>(
       "/dashboard/invoicing/settings",
+      true,
+      10000,
     ),
     invoices = useDashboardQuery<S["BillingInvoiceResponse"][] | null>(
       "/dashboard/invoicing/invoices",
@@ -352,7 +354,7 @@ export function Invoicing() {
               onPress={() =>
                 void action.run(
                   () =>
-                    accountApi("/dashboard/invoicing/settings", {
+                    accountApi<S["InvoicingSettingsResponse"]>("/dashboard/invoicing/settings", {
                       method: "PUT",
                       body: {
                         ...settings,
@@ -360,7 +362,7 @@ export function Invoicing() {
                       },
                     }),
                   "invoicing.saved",
-                  () => setSettings((old) => ({ ...old, apiToken: "" })),
+                  (value) => { setSettings((old) => ({ ...old, apiToken: "", enabled: value.enabled })); void query.refetch(); },
                 )
               }
               style={{ borderRadius: 12 }}
@@ -458,7 +460,7 @@ export function Invoicing() {
                     <Text style={p.label}>{invoice.eventTitle}</Text>
                     <InvoiceStatus
                       status={invoice.status}
-                      label={copy("invoicing.status." + invoice.status)}
+                      label={copy("invoicing.status." + (invoice.status === "dispatching" ? "processing" : invoice.status))}
                     />
                   </View>
                   <Text style={p.tiny}>

@@ -13,8 +13,10 @@ WHERE is_live = true
   AND longitude BETWEEN $3 AND $4;
 
 -- name: ListEvents :many
-SELECT 
-    e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
+SELECT
+    COALESCE((SELECT rate_bps FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT rate_bps FROM platform_commission_settings))::integer AS commission_rate_bps,
+    COALESCE((SELECT per_ticket_bani FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT per_ticket_bani FROM platform_commission_settings))::integer AS commission_per_ticket_bani,
+    e.id, e.organizer_id, e.title, e.description, e.category, e.status,
     e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.vat_percentage, e.external_ticket_url, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
@@ -106,14 +108,27 @@ ORDER BY e.start_time DESC, e.id ASC
 LIMIT sqlc.arg(req_limit) OFFSET sqlc.arg(req_offset);
 
 -- name: ListEventsWithStats :many
-SELECT 
+SELECT
+    COALESCE((SELECT rate_bps FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT rate_bps FROM platform_commission_settings))::integer AS commission_rate_bps,
+    COALESCE((SELECT per_ticket_bani FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT per_ticket_bani FROM platform_commission_settings))::integer AS commission_per_ticket_bani,
     e.*,
     (
         SELECT COUNT(*)::bigint 
         FROM check_ins 
         WHERE event_id = e.id
     ) AS total_check_ins,
-    COALESCE(SUM(tt.tickets_sold), 0)::bigint AS total_tickets_sold,
+    -- Inventory also includes unpaid reservations; dashboard sales use issued tickets.
+    (SELECT COUNT(*)::bigint FROM tickets t
+     JOIN orders o ON o.id = t.order_id
+     JOIN ticket_types tier ON tier.id = t.ticket_type_id
+     WHERE tier.event_id = e.id AND o.event_id = e.id AND o.status = 'completed'
+    ) AS total_tickets_sold,
+    (SELECT COUNT(*)::bigint FROM tickets t
+     JOIN orders o ON o.id = t.order_id
+     JOIN ticket_types tier ON tier.id = t.ticket_type_id
+     WHERE tier.event_id = e.id AND o.event_id = e.id AND o.status = 'completed'
+       AND t.is_validated = TRUE
+    ) AS total_tickets_scanned,
     COALESCE((
         SELECT SUM(oi.quantity::bigint * oi.unit_price_ron::bigint)
         FROM order_items oi
@@ -215,8 +230,10 @@ SET status = 'completed', is_live = FALSE
 WHERE status IN ('draft', 'scheduled', 'published') AND end_time <= CURRENT_TIMESTAMP;
 
 -- name: GetEventByID :one
-SELECT 
-    e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
+SELECT
+    COALESCE((SELECT rate_bps FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT rate_bps FROM platform_commission_settings))::integer AS commission_rate_bps,
+    COALESCE((SELECT per_ticket_bani FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT per_ticket_bani FROM platform_commission_settings))::integer AS commission_per_ticket_bani,
+    e.id, e.organizer_id, e.title, e.description, e.category, e.status,
     e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.vat_percentage, e.external_ticket_url, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
@@ -285,7 +302,9 @@ FROM events e
 WHERE e.id = $2 LIMIT 1;
 
 -- name: GetEventWithStats :one
-SELECT 
+SELECT
+    COALESCE((SELECT rate_bps FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT rate_bps FROM platform_commission_settings))::integer AS commission_rate_bps,
+    COALESCE((SELECT per_ticket_bani FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT per_ticket_bani FROM platform_commission_settings))::integer AS commission_per_ticket_bani,
     e.*,
     
     (
@@ -294,14 +313,17 @@ SELECT
         WHERE event_id = e.id
     )::bigint AS total_check_ins,
     
-    COALESCE(
-        (
-            SELECT SUM(tt.tickets_sold) 
-            FROM ticket_types tt 
-            WHERE tt.event_id = e.id
-        ), 
-        0
-    )::bigint AS total_tickets_sold,
+    (SELECT COUNT(*)::bigint FROM tickets t
+     JOIN orders o ON o.id = t.order_id
+     JOIN ticket_types tier ON tier.id = t.ticket_type_id
+     WHERE tier.event_id = e.id AND o.event_id = e.id AND o.status = 'completed'
+    ) AS total_tickets_sold,
+    (SELECT COUNT(*)::bigint FROM tickets t
+     JOIN orders o ON o.id = t.order_id
+     JOIN ticket_types tier ON tier.id = t.ticket_type_id
+     WHERE tier.event_id = e.id AND o.event_id = e.id AND o.status = 'completed'
+       AND t.is_validated = TRUE
+    ) AS total_tickets_scanned,
     
     COALESCE(
         (

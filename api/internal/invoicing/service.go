@@ -170,6 +170,7 @@ func (s *Service) SaveSettings(ctx context.Context, organizerID pgtype.UUID, inp
 	if err != nil {
 		return SettingsResponse{}, err
 	}
+	s.Wake()
 	return s.GetSettings(ctx, organizerID)
 }
 
@@ -330,6 +331,11 @@ func (s *Service) StartWorker(ctx context.Context) {
 }
 
 func (s *Service) backfill(ctx context.Context) {
+	// A crash after dispatch is ambiguous, especially with SmartBill. Keep its
+	// dispatch journal and require reconciliation instead of issuing again.
+	if _, err := s.pool.Exec(ctx, `UPDATE billing_invoices SET status='needs_review',error_message='Emiterea facturii trebuie verificata in contul furnizorului inainte de retrimitere',updated_at=clock_timestamp() WHERE status='dispatching' AND updated_at<clock_timestamp()-interval '10 minutes'`); err != nil && ctx.Err() == nil {
+		log.Print("stale invoice dispatch reconciliation failed")
+	}
 	if _, err := s.queries.BackfillBillingInvoices(ctx); err != nil && ctx.Err() == nil {
 		log.Printf("invoicing backfill failed: %v", err)
 	}
@@ -685,6 +691,11 @@ func (s *Service) processPlatformInvoice(ctx context.Context, job db.PlatformCom
 		fail(errors.New("factura SPOTTR nu mai are tranzactii Stripe live eligibile"), true)
 		return
 	}
+	if liveTotals.UnsettledInvoiceFees > 0 {
+		// Waiting for another durable workflow is not a failed provider attempt.
+		_, _ = s.pool.Exec(ctx, `UPDATE platform_commission_invoices SET status='pending',attempt_count=GREATEST(0,attempt_count-1),next_attempt_at=clock_timestamp()+interval '1 hour',updated_at=clock_timestamp() WHERE id=$1`, job.ID)
+		return
+	}
 	if liveTotals.TransactionCount != data.TransactionCount || liveTotals.TotalFeeBani != data.TotalFeeBani {
 		if err := s.queries.UpdatePlatformCommissionInvoiceTotals(ctx, db.UpdatePlatformCommissionInvoiceTotalsParams{
 			ID:               data.ID,
@@ -712,27 +723,29 @@ func (s *Service) processPlatformInvoice(ctx context.Context, job db.PlatformCom
 	periodLastDay := periodEnd.AddDate(0, 0, -1)
 	periodLabel := periodStart.Format("02.01.2006") + " - " + periodLastDay.Format("02.01.2006")
 	totalRon := float64(data.TotalFeeBani) / 100
+	commissionItems := []InvoiceItem{}
+	if base := data.TotalFeeBani - liveTotals.InvoiceServiceFeeBani; base > 0 {
+		commissionItems = append(commissionItems, InvoiceItem{Name: "Servicii platforma si comisioane SPOTTR", Code: "SPOTTR-COMMISSION-" + periodStart.Format("2006-01"), Quantity: 1, UnitPrice: float64(base) / 100})
+	}
+	if liveTotals.InvoiceServiceFeeBani > 0 {
+		commissionItems = append(commissionItems, InvoiceItem{Name: "Serviciu facturare automata Oblio / SmartBill", Code: "SPOTTR-INVOICING-" + periodStart.Format("2006-01"), Quantity: int32(liveTotals.InvoiceServiceFeeBani / 50), UnitPrice: 0.50})
+	}
 	invoiceID := common.UUIDToString(data.ID)
 	requestContext, cancel := context.WithTimeout(ctx, 25*time.Second)
 	defer cancel()
 	result, err := provider.Issue(requestContext, InvoiceRequest{
-		InvoiceID:       invoiceID,
-		OrderID:         "commission-" + invoiceID,
-		IssueDate:       time.Now().In(bucharestLocation()),
-		CustomerEmail:   data.OrganizerEmail,
-		CustomerType:    "company",
-		CustomerName:    data.CompanyName,
-		CustomerTaxID:   data.Cui,
-		CustomerAddress: data.FiscalAddress,
-		CustomerCountry: "Romania",
-		EventTitle:      "Servicii platforma si comisioane SPOTTR, perioada " + periodLabel,
-		Total:           totalRon,
-		Items: []InvoiceItem{{
-			Name:      "Servicii platforma si comisioane SPOTTR",
-			Code:      "SPOTTR-COMMISSION-" + periodStart.Format("2006-01"),
-			Quantity:  1,
-			UnitPrice: totalRon,
-		}},
+		InvoiceID:        invoiceID,
+		OrderID:          "commission-" + invoiceID,
+		IssueDate:        time.Now().In(bucharestLocation()),
+		CustomerEmail:    data.OrganizerEmail,
+		CustomerType:     "company",
+		CustomerName:     data.CompanyName,
+		CustomerTaxID:    data.Cui,
+		CustomerAddress:  data.FiscalAddress,
+		CustomerCountry:  "Romania",
+		EventTitle:       "Servicii platforma si comisioane SPOTTR, perioada " + periodLabel,
+		Total:            totalRon,
+		Items:            commissionItems,
 		AccountEmail:     s.platformConfig.AccountEmail,
 		APIToken:         s.platformConfig.APIToken,
 		CompanyVATCode:   s.platformConfig.CompanyVATCode,
@@ -764,12 +777,7 @@ func (s *Service) processPlatformInvoice(ctx context.Context, job db.PlatformCom
 func (s *Service) processJob(ctx context.Context, job db.BillingInvoices) {
 	fail := func(err error, needsReview bool) {
 		retrySeconds := int32(math.Min(3600, 15*math.Pow(2, float64(max(0, job.AttemptCount-1)))))
-		if _, markErr := s.queries.MarkBillingInvoiceFailed(ctx, db.MarkBillingInvoiceFailedParams{
-			ID:           job.ID,
-			NeedsReview:  needsReview,
-			ErrorMessage: pgtype.Text{String: truncateError(err), Valid: true},
-			RetrySeconds: retrySeconds,
-		}); markErr != nil {
+		if markErr := s.failInvoiceDispatch(ctx, job, err, needsReview, retrySeconds); markErr != nil {
 			log.Printf("billing invoice failure could not be persisted: invoice=%s err=%v", common.UUIDToString(job.ID), markErr)
 		}
 	}
@@ -793,7 +801,11 @@ func (s *Service) processJob(ctx context.Context, job db.BillingInvoices) {
 		fail(errors.New("factura nu apartine unei plati Stripe live confirmate"), true)
 		return
 	}
-	if !data.IntegrationEnabled || data.ConfiguredProvider != data.Provider {
+	if !data.IntegrationEnabled {
+		_, _ = s.pool.Exec(ctx, `UPDATE billing_invoices SET status='pending',attempt_count=GREATEST(0,attempt_count-1),next_attempt_at=clock_timestamp()+interval '1 minute' WHERE id=$1 AND claim_token=$2 AND status='processing'`, job.ID, job.ClaimToken)
+		return
+	}
+	if data.ConfiguredProvider != data.Provider {
 		fail(errors.New("integrarea de facturare a fost dezactivata sau schimbata"), true)
 		return
 	}
@@ -856,6 +868,14 @@ func (s *Service) processJob(ctx context.Context, job db.BillingInvoices) {
 	}
 	invoiceItems = appendCustomerTicketingFee(invoiceItems, data.CustomerTicketingFeeBani)
 	customerTotalRon := customerInvoiceTotalRon(data.TotalAmount, data.CustomerTicketingFeeBani)
+	started, err := s.beginInvoiceDispatch(ctx, job)
+	if err != nil {
+		fail(err, false)
+		return
+	}
+	if !started {
+		return
+	}
 
 	requestContext, cancel := context.WithTimeout(ctx, 25*time.Second)
 	defer cancel()
@@ -893,13 +913,7 @@ func (s *Service) processJob(ctx context.Context, job db.BillingInvoices) {
 		fail(err, errors.As(err, &failure) && failure.needsReview)
 		return
 	}
-	if _, err := s.queries.MarkBillingInvoiceIssued(ctx, db.MarkBillingInvoiceIssuedParams{
-		ID:                 job.ID,
-		ExternalSeries:     optionalText(result.Series),
-		ExternalNumber:     optionalText(result.Number),
-		ExternalDocumentID: optionalText(result.DocumentID),
-		DocumentUrl:        optionalText(result.DocumentURL),
-	}); err != nil {
+	if err := s.finishInvoiceDispatch(ctx, job, result); err != nil {
 		log.Printf("issued invoice could not be persisted: invoice=%s provider=%s series=%s number=%s err=%v", common.UUIDToString(job.ID), data.Provider, result.Series, result.Number, err)
 		return
 	}

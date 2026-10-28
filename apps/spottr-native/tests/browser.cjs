@@ -78,6 +78,8 @@ async function main() {
       const q = url.searchParams.get('q');
       await new Promise(resolve => setTimeout(resolve, q === 'old' ? 1200 : window.__qa.responseDelay || 40));
       const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+      if (url.pathname.endsWith('/diagnostics/errors')) return new Response(null, { status: 204 });
+      if (url.pathname.endsWith('/wardrobe/mine')) return response({ deposits: [], staffAccess: false });
       if (window.__qa.fail) return response({}, 503);
       const method = init?.method || 'GET', body = init?.body ? JSON.parse(init.body) : {};
       if (method !== 'GET') window.__qa.mutations.push({ path: url.pathname, method, body });
@@ -368,12 +370,12 @@ async function main() {
   await capture('ticket-mobile');
   assert.ok(await evaluate(`document.querySelector('[data-testid="ticket-preview"]').innerText.includes('Download PDF')`));
   const assertTicketBounds = async () => {
-    const bounds = await evaluate(`{const button=document.querySelector('[data-testid="ticket-download"]').getBoundingClientRect();const area=document.querySelector('[data-testid="ticket-fit-area"]').getBoundingClientRect(); const qr=document.querySelector('[data-testid="ticket-fit-area"] svg').getBoundingClientRect(); ({bottom:button.bottom,top:button.top,window:innerHeight,areaTop:area.top,areaBottom:area.bottom,qrTop:qr.top,qrBottom:qr.bottom,qrWidth:qr.width})}`);
+    const bounds = await evaluate(`{const button=document.querySelector('[data-testid="ticket-download"]').getBoundingClientRect();const area=document.querySelector('[data-testid="ticket-fit-area"]').getBoundingClientRect(); const qr=Array.from(document.querySelectorAll('[data-testid="ticket-fit-area"] svg')).sort((a,b)=>b.getBoundingClientRect().width-a.getBoundingClientRect().width)[0].getBoundingClientRect(); ({bottom:button.bottom,top:button.top,window:innerHeight,areaTop:area.top,areaBottom:area.bottom,qrTop:qr.top,qrBottom:qr.bottom,qrWidth:qr.width})}`);
     assert.ok(bounds.bottom <= bounds.window - 20 && bounds.top > 0, 'PDF button remains visible with bottom spacing: '+JSON.stringify(bounds));
     assert.ok(bounds.qrTop >= bounds.areaTop - 1 && bounds.qrBottom <= bounds.areaBottom + 1 && bounds.qrWidth >= 90, 'QR fits the available card area: '+JSON.stringify(bounds));
   };
   await assertTicketBounds();
-  await dragProfileSurface('ticket-preview', `document.querySelector('[data-testid="ticket-fit-area"] svg')`);
+  await dragProfileSurface('ticket-preview', `Array.from(document.querySelectorAll('[data-testid="ticket-fit-area"] svg')).sort((a,b)=>b.getBoundingClientRect().width-a.getBoundingClientRect().width)[0]`);
   await call('Emulation.setDeviceMetricsOverride',{width:360,height:640,deviceScaleFactor:1,mobile:true}); await delay(400); await capture('ticket-small-mobile');
   await assertTicketBounds();
   await click('sheet-handle'); await until(`!document.querySelector('[data-testid="ticket-preview"]')`);

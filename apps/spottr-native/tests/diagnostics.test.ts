@@ -9,6 +9,7 @@ import {
   type ErrorReport,
 } from "../../pulse-app/src/features/diagnostics/report";
 import { createErrorReporter } from "../src/diagnostics/reporter";
+import { groupDiagnosticReports } from '../../pulse-app/src/features/diagnostics/presentation';
 
 const id = (n: number) =>
   `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -34,7 +35,37 @@ const error = (n = 1) => ({
 });
 const makeReport = (n = 1): ErrorReport =>
   reportError(error(n), { ...context, id: id(n) });
+
+test('handled fields are strictly bounded and cannot carry raw context', () => {
+  const report = { ...makeReport(), operation: 'tickets_load', failure: 'server_error', httpStatus: 503 };
+  assert.equal(parseReport({ ...report, accountId: 'private' }).operation, 'tickets_load');
+  for (const patch of [{ operation: '/users/private/tickets' }, { failure: 'private' }, { httpStatus: 200 }, { httpStatus: 600 }, { httpStatus: '503' }, { operation: undefined }, { failure: undefined }])
+    assert.throws(() => parseReport({ ...report, ...patch }));
+  assert.equal(JSON.stringify(parseReport({ ...report, accountId: 'private' })).includes('private'), false);
+});
+
+test('handled retries from different call sites deduplicate while independent operations remain visible', async () => {
+  const h = harness();
+  await h.reporter.capture(error(1), false, false, { operation: 'tickets_load', failure: 'server_error', httpStatus: 503 });
+  await h.reporter.capture(error(2), false, false, { operation: 'tickets_load', failure: 'server_error', httpStatus: 503 });
+  await h.reporter.capture(error(3), false, false, { operation: 'scanner_sync', failure: 'server_error', httpStatus: 503 });
+  assert.equal(h.sent.length, 2);
+  h.advance(300001);
+  await h.reporter.capture(error(4), false, false, { operation: 'tickets_load', failure: 'server_error', httpStatus: 503 });
+  assert.equal(h.sent.length, 3);
+});
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+test('Admin groups loaded repetitions, ignores overlapping page IDs and preserves the latest report', () => {
+  const first = { ...makeReport(1), receivedAt: new Date(timestamp).toISOString(), fingerprint: 'a'.repeat(64) };
+  const later = { ...first, id: id(2), receivedAt: new Date(timestamp + 1000).toISOString() };
+  const other = { ...first, id: id(3), fingerprint: 'b'.repeat(64) };
+  const rows = [first, later, other, first];
+  const groups = groupDiagnosticReports(rows);
+  assert.equal(groups.length, 2);
+  assert.deepEqual(groups[0], { report: later, count: 2 });
+  assert.equal(rows.length, 4, 'export input is not mutated');
+});
 
 function harness(
   initial: unknown = [],

@@ -15,6 +15,7 @@ import { ApiClient, ApiError, ReadableSchema } from "@packages/api-client/src/Cl
 import { TicketPreview } from "@/components/tickets/TicketPreview";
 import { TicketStatusTabs } from "@/components/tickets/TicketStatusTabs";
 import { ProfileConnectionQr } from "@/components/social/ProfileConnectionQr";
+import { WardrobeCard } from "@/features/wardrobe/Wardrobe";
 import { ProfileAvatarUpload } from "@/components/profile/ProfileAvatarUpload";
 import { PersonalDetailsForm } from "@/components/profile/PersonalDetailsForm";
 import { PasswordResetRequest } from "@/components/profile/PasswordResetRequest";
@@ -186,6 +187,7 @@ export default function MePage() {
   };
 
   const handleDeleteAccount = async (confirmation: string, currentPassword: string) => {
+    if (user?.properties.role !== "user" || deletingAccount) return;
     setDeletingAccount(true);
     setDeleteAccountError(null);
     try {
@@ -295,6 +297,7 @@ export default function MePage() {
             )}
 
             {!isOrganizer && <ProfileConnectionQr />}
+            <WardrobeCard />
 
             {/* Securitatea pe Desktop */}
             <section className="hidden md:block">
@@ -652,6 +655,7 @@ export default function MePage() {
       )}
       <DeleteAccountDialog
         open={deleteDialogOpen}
+        accountRole={user.properties.role}
         email={user.properties.email}
         requiresPassword={user.properties.hasPassword !== false}
         busy={deletingAccount}

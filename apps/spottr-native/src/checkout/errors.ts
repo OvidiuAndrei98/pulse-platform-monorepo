@@ -37,6 +37,7 @@ export function checkoutFailure(error: unknown): CheckoutFailure {
   const failure = (messageKey: string, resetSelection = false) => ({ messageKey, resetSelection });
   if (error instanceof PaymentSheetFailure) return failure(error.messageKey);
   if (error instanceof ApiError) {
+    if (error.code === 'CHECKOUT_PRICE_CHANGED') return failure('checkout.priceChanged', true);
     if (error.code === 'PAYMENT_RECOVERY_STORAGE') return failure('checkout.paymentRecoveryUnavailable');
     if (error.code === 'PAYMENT_SESSION_CHANGED') return failure('checkout.paymentSignIn');
     if (error.status >= 400 && error.status < 500 && unavailableSelections.has(error.code)) {

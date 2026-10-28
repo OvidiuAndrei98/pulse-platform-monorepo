@@ -17,7 +17,9 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
     function sample() {
       const card = document.querySelector('[data-testid="event-card-' + id(1) + '"]');
       const art = card?.querySelector('[data-testid="event-artwork"]');
-      if (card && art) qa.frames.push({ height: card.offsetHeight, opacity: Number(getComputedStyle(art).opacity) });
+      // Observe the image's reserved area, independently of asynchronously
+      // loaded social details and fonts elsewhere in the card.
+      if (card && art) qa.frames.push({ height: art.getBoundingClientRect().height, opacity: Number(getComputedStyle(art).opacity) });
       if (qa.recording) requestAnimationFrame(sample);
     }
     requestAnimationFrame(sample);
@@ -25,6 +27,8 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
       const url = new URL(String(input), location.origin), route = url.pathname.split('/api/v1')[1];
       if (!route) { if (url.origin === location.origin) return original(input, options); throw Error('External request blocked'); }
       const reply = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+      if (route === '/wardrobe/mine') return reply({ deposits: [], staffAccess: false });
+      if (route === '/diagnostics/errors') return new Response(null, { status: 204 });
       if (route === '/users/me') return reply(user);
       if (route === '/users/me/saved-events') return reply(qa.saved ? [events[0]] : []);
       if (route.endsWith('/favorite')) { qa.writes.push(options.method); await new Promise(resolve => setTimeout(resolve, 180)); if (qa.failSave) return reply({}, 503); qa.saved = options.method === 'POST'; return reply({}); }
@@ -84,9 +88,14 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
   await evaluate(`${bookmark}.click();${bookmark}.click();${bookmark}.click()`);
   await until(`${bookmark}.getAttribute('aria-label')==='Add to favorites' && window.__qa.saved===false`); await delay(250);
   assert.equal(await evaluate(`Number(getComputedStyle(${bookmark}.querySelector('[data-testid="bookmark-fill"]')).opacity)`), 0);
+  const writesBeforeFailure = await evaluate('window.__qa.writes.length');
   await evaluate('window.__qa.failSave=true'); await click(bookmarkId);
-  await until(`${bookmark}.getAttribute('aria-label')==='Add to favorites'`); await delay(250);
+  await until(`window.__qa.writes.length>${writesBeforeFailure}`);
+  await until(`${bookmark}.getAttribute('aria-label')==='Add to favorites' && Number(getComputedStyle(${bookmark}.querySelector('[data-testid="bookmark-fill"]')).opacity)===0`);
   assert.equal(await evaluate(`Number(getComputedStyle(${bookmark}.querySelector('[data-testid="bookmark-fill"]')).opacity)`), 0, 'Failed save rolls the animation back to the confirmed state');
+  await until(el('toast-dismiss'));
+  await click('toast-dismiss');
+  await until(`!${el('app-toast')}`);
   console.log('PASS bookmark pop/fill, rapid toggles and API failure rollback');
 
   await evaluate(`${card}.querySelector('[role="button"]').click()`); await until(el('event-content')); await delay(500);

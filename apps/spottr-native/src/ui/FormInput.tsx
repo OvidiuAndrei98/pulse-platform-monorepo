@@ -1,6 +1,7 @@
-import React, { forwardRef, useState } from 'react';
+import React, { forwardRef, useContext, useState } from 'react';
 import { Platform, StyleSheet, TextInput, useWindowDimensions, type TextInputProps } from 'react-native';
 import { AppSheetTextInput } from './AppSheetTextInput';
+import { AppFontsReadyContext } from './Text';
 
 // Values from Next: events/form/FormField, profile/PersonalDetailsForm,
 // checkout/InvoiceDetailsFields. Auth and search have their own icon containers.
@@ -19,6 +20,8 @@ export const FormInput = forwardRef<TextInput, Props>(function FormInput({ varia
   const Input = inSheet ? AppSheetTextInput : TextInput;
   const bad = invalid ?? props['aria-invalid'];
   const shape = StyleSheet.flatten(style);
+  const fontsReady = useContext(AppFontsReadyContext);
+  const fontFamily = shape?.fontFamily ?? (variant === 'bare' ? undefined : formStyles[variant].fontFamily);
   return <Input {...props} ref={ref as never} editable={editable} aria-invalid={!!bad} selectionColor="#ff0044" cursorColor="#ff0044"
     underlineColorAndroid="transparent" placeholderTextColor={props.placeholderTextColor ?? (variant === 'billing' ? '#ffffff59' : '#9ca89e99')}
     onFocus={event => { setFocused(true); onFocus?.(event); }} onBlur={event => { setFocused(false); onBlur?.(event); }}
@@ -27,6 +30,7 @@ export const FormInput = forwardRef<TextInput, Props>(function FormInput({ varia
       variant === 'billing' && wide && { fontSize: 14 },
       props.multiline && { height: undefined, minHeight: variant === 'profile' ? 88 : 104, textAlignVertical: 'top', paddingVertical: 14 },
       style,
+      !fontsReady && fontFamily?.startsWith('Inter_') && { fontFamily: undefined },
       typeof shape?.height === 'number' && shape.minHeight === undefined && { minHeight: shape.height },
       Platform.OS === 'web' && ({ outlineStyle: 'none', transition: 'border-color 160ms, background-color 160ms' } as never),
       focused && variant !== 'bare' && { borderColor: variant === 'profile' ? '#ff004480' : '#ff004499', ...(variant === 'event' ? { backgroundColor: '#ffffff0a' } : variant === 'profile' ? { backgroundColor: '#ffffff14' } : {}) },

@@ -10,12 +10,13 @@ withBrowser(async ({ base, call, evaluate, until, click, input, capture, errors 
     if (mode === 'member') user.role = 'user';
     if (mode === 'guest') localStorage.removeItem('spottr-native.session.v1');
     else localStorage.setItem('spottr-native.session.v1', JSON.stringify({ token: 'company-fixture', user }));
-    const profile = { id: id(2), userId: id(1), cui: 'RO123456', companyName: 'Fixture Club', verificationStatus: 'approved', isVerified: true, stripeChargesEnabled: false, stripePayoutsEnabled: false, organizerAgreementVersion: mode === 'old-agreement' ? 'old' : '2026-07-27' };
+    const profile = { id: id(2), userId: id(1), cui: 'RO123456', companyName: 'Fixture Club', verificationStatus: 'approved', isVerified: true, stripeChargesEnabled: false, stripePayoutsEnabled: false, organizerAgreementVersion: mode === 'old-agreement' ? 'old' : '2026-10-18' };
     const qa = window.__company = { profile: mode === 'empty' ? null : profile, writes: [], privateReads: [], fail: false, failProfile: mode === 'error', nextStatus: 'pending' };
     window.fetch = async (url, options = {}) => {
       if (!String(url).includes('/api/v1/')) return original(url, options);
       const route = new URL(url, location.origin).pathname.split('/api/v1')[1], method = options.method || 'GET';
       const reply = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
+      if (route === '/diagnostics/errors' && method === 'POST') return new Response(null, { status: 204 });
       if (method !== 'GET') qa.writes.push({ route, body: options.body });
       if (method === 'GET' && route.startsWith('/dashboard/')) qa.privateReads.push(route);
       if (route === '/users/me') return reply(user);
@@ -57,7 +58,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, capture, errors 
   assert.equal(await evaluate(`${node('company-name')}.value`), '  Fixture Club  ', 'Failed verification preserves inputs');
   await evaluate('window.__company.fail=false'); await click('company-submit');
   await until(node('company-pending'));
-  assert.deepEqual(await evaluate('JSON.parse(window.__company.writes[1].body)'), { cui: 'RO123456', companyName: 'Fixture Club', organizerAgreementVersion: '2026-07-27' });
+  assert.deepEqual(await evaluate('JSON.parse(window.__company.writes[1].body)'), { cui: 'RO123456', companyName: 'Fixture Club', organizerAgreementVersion: '2026-10-18' });
   await capture('dashboard-company-pending-mobile');
   await click('company-retry');
   assert.equal(await evaluate(`${node('company-cui')}.value`), 'RO123456');
@@ -76,7 +77,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, capture, errors 
   await until(`document.body.innerText.includes("The change couldn't be saved")`);
   assert.equal(await evaluate('window.__company.writes.length'), 1);
   await evaluate('window.__company.fail=false'); await click('organizer-agreement-submit');
-  await until(`window.__company.profile.organizerAgreementVersion==='2026-07-27'`);
+  await until(`window.__company.profile.organizerAgreementVersion==='2026-10-18'`);
   await until(`!${node('organizer-agreement')}`);
 
   await call('Page.navigate', { url: base + '/dashboard/company?mode=error' });

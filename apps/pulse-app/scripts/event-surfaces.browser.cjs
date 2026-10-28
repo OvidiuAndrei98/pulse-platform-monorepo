@@ -88,6 +88,7 @@ async function run() {
       if(!url.pathname.includes('/api/v1/')) return originalFetch(input,init);
       const route=url.pathname.split('/api/v1')[1]; window.__api.push(route);
       let data=[];
+      if(route==='/wardrobe/mine') return new Response(JSON.stringify({deposits:[],staffAccess:false}),{headers:{'Content-Type':'application/json'}});
       if(route==='/users/me') data={id:'test-organizer',username:'Test Organizer',email:'test@example.com',role:'organizer',preferredLanguage:'en'};
       else if(route==='/events') data=[event];
       else if(route==='/events/test-event') data=event;

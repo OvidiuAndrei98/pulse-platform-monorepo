@@ -19,7 +19,7 @@ export type EventDraft = Omit<
 export type InvoiceSettings = Schema["InvoicingSettingsPayload"];
 export type Plan = Schema["PromotionPlanResponse"];
 export type Campaign = Schema["PromotionCampaignResponse"];
-export const AGREEMENT_VERSION = "2026-07-27";
+export const AGREEMENT_VERSION = "2026-10-18";
 export const emptyEvent = (): EventDraft => ({
   title: "",
   description: "",

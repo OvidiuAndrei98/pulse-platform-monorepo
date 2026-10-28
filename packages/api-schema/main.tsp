@@ -1,6 +1,7 @@
 import "@typespec/http";
 import "@typespec/rest";
 import "@typespec/openapi3";
+import "./wardrobe.tsp";
 
 using TypeSpec.Http;
 using TypeSpec.Rest;
@@ -103,6 +104,7 @@ model EventStatsResponse {
 
   // Vizibile DOAR pentru organizator în dashboard
   totalTicketsSold?: int64;
+  totalTicketsScanned?: int64;
 
   totalRevenueRon?: int64;
   interestedCount?: int64;
@@ -281,6 +283,8 @@ model SuccessResponse {
 }
 
 model EventResponse {
+  commissionRateBps?: int32;
+  commissionPerTicketBani?: int32;
   id: string;
   organizerId: string;
   title: string;
@@ -356,6 +360,8 @@ model UserTicketResponse {
   vatPercentage?: float64;
   vatAmountBani?: int64;
   id: string;
+  @doc("The completed order that issued this ticket. Present on updated API versions; match this identifier to checkout confirmation instead of matching only the event.")
+  orderId?: string;
   eventId: string;
   validationHash: string;
   isValidated: boolean;
@@ -654,9 +660,14 @@ model UpdateTicketTypePayload {
 }
 
 model UserOrderResponse {
+  @doc("Present only after Stripe reports a submitted payment attempt, never just from opening checkout.")
+  paymentAttemptedAt?: utcDateTime;
   id: string;
   status: string;
   totalAmountRon: int32;
+  @doc("Quoted checkout total including customer fees, in bani. Does not prove payment. Present on updated API versions.")
+  orderTotalBani?: int64;
+  @doc("Legacy alias for orderTotalBani. Also populated before payment; use status to determine whether a purchase completed.")
   paidTotalBani: int64;
   refundedAmountBani: int64;
   stripeRefundStatus: string;
@@ -697,6 +708,7 @@ model BillingDetailsPayload {
 }
 
 model CreateCheckoutSessionPayload {
+  expectedTotalBani?: int64;
   email: string;
   items: CheckoutTicketItemPayload[];
   promoCode?: string;
@@ -755,6 +767,8 @@ model ReconcileCheckoutPayload {
 model ReconcileCheckoutResponse {
   status: "pending" | "completed" | "failed" | "refunded";
   orderId: string;
+  @doc("Whether Stripe has observed a submitted payment attempt. Opening the payment form alone is not an attempt.")
+  paymentAttempted?: boolean;
 }
 
 // --- REQUESTS RESPONSE PAYLOADS ---
@@ -867,6 +881,7 @@ model OrganizerFinanceEventResponse {
   grossRevenueRon: int64;
   customerTicketingFeeBani: int64;
   platformFeeBani: int64;
+  invoiceServiceFeeBani?: int64;
   ticketsSold: int64;
   refundsNeedingAttention: int64;
 }
@@ -970,7 +985,7 @@ model BillingInvoiceResponse {
   id: string;
   orderId: string;
   provider: "oblio" | "smartbill";
-  status: "pending" | "processing" | "issued" | "failed" | "needs_review";
+  status: "pending" | "processing" | "dispatching" | "issued" | "failed" | "needs_review";
   attemptCount: int32;
   series?: string;
   number?: string;
@@ -1656,6 +1671,24 @@ interface DashboardOperations {
 @route("/dashboard/ticket-validation")
 interface TicketValidationOperations {
   @get
+  @route("/events/{id}/scans")
+  @doc("Validated tickets for an event the authenticated account owns or is assigned to scan. Mine is always the authenticated account. Results are newest first; pass nextCursor to load older scans.")
+  listValidationScans(
+    @path id: string,
+    @query scope?: "all" | "mine",
+    @query @minValue(1) @maxValue(100) limit?: int32,
+    @query @maxLength(256) cursor?: string,
+  ): ValidationScanHistoryResponse | {
+    @statusCode statusCode: 400 | 401 | 403 | 404 | 429 | 500;
+    @body response: ApiError;
+  };
+
+  @get
+  @route("/events/{id}/my-scans")
+  @doc("Legacy personal history: the most recent 20 validated tickets, with the total personal count.")
+  listMyValidationScans(@path id: string): ValidationScanHistoryResponse;
+
+  @get
   @route("/events")
   listValidationEvents(): ValidationEventResponse[];
 
@@ -1748,8 +1781,37 @@ interface TicketValidationOperations {
       };
 }
 
+model ValidationScanHistoryResponse {
+  totalScans: int64;
+  scans: ValidationScanHistoryItem[];
+  nextCursor?: string;
+}
+
+model ValidationScanHistoryItem {
+  ticketId: string;
+  ticketType: string;
+  validatedAt: string;
+  scannedBy: ValidationScanActor;
+}
+
+model ValidationScanActor {
+  userId?: string;
+  scannerAccessId?: string;
+  name: string;
+  kind: "user" | "access" | "unknown";
+}
+
+model CommissionTerms { @minValue(0) @maxValue(10000) rateBps: int32; @minValue(0) @maxValue(100000) perTicketBani: int32; }
+model CommissionStandard extends CommissionTerms { revision: int64; }
+model OrganizerCommission { organizerId: string; companyName: string; email: string; override: CommissionTerms | null; revision: int64; }
+model CommissionSettings { standard: CommissionStandard; organizers: OrganizerCommission[]; }
+model SetOrganizerCommissionPayload { override: CommissionTerms | null; revision: int64; }
+model CommissionSaved { saved: boolean; }
 @route("/admin")
 interface AdminOperations {
+  @get @route("/commissions") getCommissions(): CommissionSettings;
+  @put @route("/commissions/standard") setStandardCommission(@body payload: CommissionStandard): CommissionSaved;
+  @put @route("/organizers/{id}/commission") setOrganizerCommission(@path id: string, @body payload: SetOrganizerCommissionPayload): CommissionSaved;
   @get
   @route("/organizers")
   listOrganizerVerifications(): OrganizerVerificationRequest[];

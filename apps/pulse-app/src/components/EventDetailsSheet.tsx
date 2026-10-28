@@ -318,7 +318,7 @@ export function EventDetailsSheet({
   const count = ticketTypes.reduce((sum, t) => sum + (qty[t.id] ?? 0), 0);
   const serviceFee = event.organizerAbsorbsServiceFee
     ? 0
-    : calculateServiceFeeRon(ticketSubtotal, count);
+    : calculateServiceFeeRon(ticketSubtotal, count, event);
   const total = ticketSubtotal + serviceFee;
   const isFreeSelection = count === 1 && ticketSubtotal === 0;
   const checkoutLabel = isFinished
@@ -626,7 +626,7 @@ export function EventDetailsSheet({
       </div>
 
       {/* BOTTOM BAR / ACTIONS */}
-      <div className="relative z-10 flex items-center gap-2.5 bg-linear-to-b from-black/10 via-black/70 to-black px-4 pt-3 pb-7">
+      <div data-event-sheet-actions className="relative z-10 flex items-center gap-2.5 bg-linear-to-b from-black/10 via-black/70 to-black px-4 pt-3 pb-7">
         {user && (
           <button
             type="button"

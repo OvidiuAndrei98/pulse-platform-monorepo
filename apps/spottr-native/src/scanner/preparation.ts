@@ -1,6 +1,7 @@
 import { ApiError } from '../data/http';
 import type { Snapshot, SyncResult, ValidationEvent } from './data';
 import type { OfflineState } from './offline';
+import { reportFailure } from '../diagnostics/handled';
 
 export type PreparationStep = 'camera' | 'access' | 'sync' | 'package';
 export type PreparationProgress = { step: PreparationStep; status: 'checking' | 'done' };
@@ -46,6 +47,7 @@ export async function prepareScanner(options: {
     progress('package', 'done');
     return { tickets: snapshot.ticketCount, conflicts: results.filter(result => result.status !== 'accepted').length };
   } catch (error) {
+    if (error instanceof PreparationError && error.code === 'storage') reportFailure(error, { operation: 'scanner_prepare', failure: 'storage_error' });
     if (options.isCurrent() && error instanceof ApiError && (error.status === 401 || error.status === 403)) await options.revoke();
     throw error;
   }

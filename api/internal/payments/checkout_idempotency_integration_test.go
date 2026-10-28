@@ -46,6 +46,8 @@ func TestCheckoutRequestDeduplicatesConcurrentRetriesAndBindsInventory(t *testin
 		t.Fatalf("%d reservations allowed for one intent", claims)
 	}
 	requestCtx := context.WithValue(ctx, checkoutRequestContextKey{}, requestID)
+	expectedTotal := int64(5400)
+	requestCtx = context.WithValue(requestCtx, expectedCheckoutTotalKey{}, &expectedTotal)
 	order, _, _, _, _, _, err := h.reserveOrder(requestCtx, f.eventID, f.buyerID, f.buyerEmail, nil, map[string]int32{common.UUIDToString(f.paidTicketID): 1}, 1, "", BillingDetailsRequest{Type: "individual", Name: "Test", Address: "Test", City: "Test", County: "Test", Country: "RO"})
 	if err != nil {
 		t.Fatal(err)

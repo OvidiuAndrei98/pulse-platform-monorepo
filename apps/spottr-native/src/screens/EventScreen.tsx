@@ -51,6 +51,7 @@ import { EventSocial } from "../ui/EventSocial";
 import { validSelection, parseBooking } from "../checkout/data";
 import { OrganizerUpdates } from '../profiles/OrganizerUpdates';
 import { EventAttendees } from '../social/EventAttendees';
+import { PurchaseSuccessHost } from '../checkout/PurchaseSuccessSheet';
 
 export function EventScreen({
   route,
@@ -123,7 +124,7 @@ export function EventScreen({
     ? ticket.priceRon +
       (event?.organizerAbsorbsServiceFee
         ? 0
-        : calculateServiceFeeRon(ticket.priceRon, 1))
+        : calculateServiceFeeRon(ticket.priceRon, 1, event))
     : 0;
   const share = async () => {
     if (!event) return;
@@ -493,7 +494,7 @@ export function EventScreen({
     </AppSheet>
   ) : (
     content
-  )}<ToastHost bottom={92} />{storyOpen && event && <EventStory key={event.id} event={event} onClose={() => setStoryOpen(false)} />}</View>;
+  )}<ToastHost bottom={92} />{storyOpen && event && <EventStory key={event.id} event={event} onClose={() => setStoryOpen(false)} />}<PurchaseSuccessHost eventId={route.params.id} /></View>;
 }
 const s = StyleSheet.create({
   sheet: {

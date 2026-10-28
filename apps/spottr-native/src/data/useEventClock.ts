@@ -2,13 +2,17 @@ import { useEffect, useState } from "react";
 import { AppState } from "react-native";
 import type { Event } from "./events";
 
-export function useEventClock(event?: Event) {
+type ClockEvent = Pick<Event, "startTime" | "endTime"> & {
+  ticketTypes?: readonly { startSales: string; endSales: string }[];
+};
+
+export function useEventClock(event?: ClockEvent) {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     const boundaries = [
       event?.startTime,
       event?.endTime,
-      ...(event?.ticketTypes.flatMap((t) => [t.startSales, t.endSales]) ?? []),
+      ...(event?.ticketTypes?.flatMap((t) => [t.startSales, t.endSales]) ?? []),
     ]
       .map((value) => Date.parse(value || ""))
       .filter((value) => value > Date.now());

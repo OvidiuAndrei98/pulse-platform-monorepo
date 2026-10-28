@@ -81,9 +81,10 @@ export function useAction() {
       if (version !== generation.current || token !== controller.getToken())
         return;
       void client.invalidateQueries({ queryKey: ["dashboard", user?.id] });
-      void client.invalidateQueries({ queryKey: ["public-profile"] });
-      void client.invalidateQueries({ queryKey: ["events"] });
-      void client.invalidateQueries({ queryKey: ["organizer-updates"] });
+      // Home deliberately ignores tab/focus refetches. An organizer mutation
+      // must refresh it explicitly, along with mounted public event details.
+      for (const key of ["public-profile", "profile", "events", "home-events", "event", "organizer-events", "organizer-updates"])
+        void client.invalidateQueries({ queryKey: [key] });
       if (success) setMessage(copy(success));
       onSuccess?.(value);
       return value;

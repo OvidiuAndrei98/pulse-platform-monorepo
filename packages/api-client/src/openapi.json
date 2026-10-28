@@ -6,6 +6,52 @@
   },
   "tags": [],
   "paths": {
+    "/admin/commissions": {
+      "get": {
+        "operationId": "AdminOperations_getCommissions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommissionSettings"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/commissions/standard": {
+      "put": {
+        "operationId": "AdminOperations_setStandardCommission",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommissionSaved"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommissionStandard"
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/event-cancellations": {
       "get": {
         "operationId": "AdminOperations_listEventCancellationRequests",
@@ -158,6 +204,43 @@
                     "$ref": "#/components/schemas/OrganizerVerificationRequest"
                   }
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/organizers/{id}/commission": {
+      "put": {
+        "operationId": "AdminOperations_setOrganizerCommission",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommissionSaved"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetOrganizerCommissionPayload"
               }
             }
           }
@@ -1608,6 +1691,34 @@
         }
       }
     },
+    "/dashboard/ticket-validation/events/{id}/my-scans": {
+      "get": {
+        "operationId": "TicketValidationOperations_listMyValidationScans",
+        "description": "Legacy personal history: the most recent 20 validated tickets, with the total personal count.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationScanHistoryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/dashboard/ticket-validation/events/{id}/offline-snapshot": {
       "post": {
         "operationId": "TicketValidationOperations_createOfflineSnapshot",
@@ -1841,6 +1952,129 @@
         "responses": {
           "204": {
             "description": "There is no content to send for this request, but the headers may be useful. "
+          }
+        }
+      }
+    },
+    "/dashboard/ticket-validation/events/{id}/scans": {
+      "get": {
+        "operationId": "TicketValidationOperations_listValidationScans",
+        "description": "Validated tickets for an event the authenticated account owns or is assigned to scan. Mine is always the authenticated account. Results are newest first; pass nextCursor to load older scans.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "mine"
+              ]
+            },
+            "explode": false
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "explode": false
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationScanHistoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access is unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access is forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Client error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
           }
         }
       }
@@ -3854,6 +4088,893 @@
           }
         }
       }
+    },
+    "/wardrobe/events": {
+      "get": {
+        "operationId": "WardrobeOperations_wardrobeEvents",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WardrobeEvent"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access is unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access is forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the current state of the server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wardrobe/events/{eventId}": {
+      "get": {
+        "operationId": "WardrobeOperations_wardrobeOverview",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          },
+          {
+            "name": "history",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "explode": false
+          },
+          {
+            "name": "unclaimed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "explode": false
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WardrobeOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access is unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access is forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the current state of the server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wardrobe/events/{eventId}/commands": {
+      "post": {
+        "operationId": "WardrobeOperations_wardrobeCommand",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WardrobeCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access is unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access is forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the current state of the server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WardrobeCommand"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wardrobe/events/{eventId}/deposits/{depositId}": {
+      "get": {
+        "operationId": "WardrobeOperations_wardrobeDeposit",
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "depositId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deposit": {
+                      "$ref": "#/components/schemas/WardrobeDeposit"
+                    }
+                  },
+                  "required": [
+                    "deposit"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access is unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access is forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the current state of the server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wardrobe/mine": {
+      "get": {
+        "operationId": "WardrobeOperations_myWardrobe",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WardrobeMine"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access is unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access is forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the current state of the server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wardrobe/mine/{depositId}/confirm": {
+      "post": {
+        "operationId": "WardrobeOperations_approveWardrobePickup",
+        "parameters": [
+          {
+            "name": "depositId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access is unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access is forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the current state of the server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pickupId": {
+                    "type": "string"
+                  },
+                  "approve": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "pickupId",
+                  "approve"
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4089,6 +5210,7 @@
             "enum": [
               "pending",
               "processing",
+              "dispatching",
               "issued",
               "failed",
               "needs_review"
@@ -4270,6 +5392,73 @@
           }
         }
       },
+      "CommissionSaved": {
+        "type": "object",
+        "required": [
+          "saved"
+        ],
+        "properties": {
+          "saved": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CommissionSettings": {
+        "type": "object",
+        "required": [
+          "standard",
+          "organizers"
+        ],
+        "properties": {
+          "standard": {
+            "$ref": "#/components/schemas/CommissionStandard"
+          },
+          "organizers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrganizerCommission"
+            }
+          }
+        }
+      },
+      "CommissionStandard": {
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CommissionTerms"
+          }
+        ]
+      },
+      "CommissionTerms": {
+        "type": "object",
+        "required": [
+          "rateBps",
+          "perTicketBani"
+        ],
+        "properties": {
+          "rateBps": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "perTicketBani": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "maximum": 100000
+          }
+        }
+      },
       "CreateCheckoutSessionPayload": {
         "type": "object",
         "required": [
@@ -4278,6 +5467,10 @@
           "billingDetails"
         ],
         "properties": {
+          "expectedTotalBani": {
+            "type": "integer",
+            "format": "int64"
+          },
           "email": {
             "type": "string"
           },
@@ -4811,6 +6004,14 @@
           "stats"
         ],
         "properties": {
+          "commissionRateBps": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "commissionPerTicketBani": {
+            "type": "integer",
+            "format": "int32"
+          },
           "id": {
             "type": "string"
           },
@@ -5061,6 +6262,10 @@
             "type": "boolean"
           },
           "totalTicketsSold": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalTicketsScanned": {
             "type": "integer",
             "format": "int64"
           },
@@ -5588,6 +6793,40 @@
           }
         }
       },
+      "OrganizerCommission": {
+        "type": "object",
+        "required": [
+          "organizerId",
+          "companyName",
+          "email",
+          "override",
+          "revision"
+        ],
+        "properties": {
+          "organizerId": {
+            "type": "string"
+          },
+          "companyName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "override": {
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CommissionTerms"
+              }
+            ],
+            "nullable": true
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "OrganizerEventUpdateResponse": {
         "type": "object",
         "required": [
@@ -5660,6 +6899,10 @@
             "format": "int64"
           },
           "platformFeeBani": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "invoiceServiceFeeBani": {
             "type": "integer",
             "format": "int64"
           },
@@ -6415,6 +7658,10 @@
           },
           "orderId": {
             "type": "string"
+          },
+          "paymentAttempted": {
+            "type": "boolean",
+            "description": "Whether Stripe has observed a submitted payment attempt. Opening the payment form alone is not an attempt."
           }
         }
       },
@@ -6758,6 +8005,28 @@
           "expiresAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "SetOrganizerCommissionPayload": {
+        "type": "object",
+        "required": [
+          "override",
+          "revision"
+        ],
+        "properties": {
+          "override": {
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CommissionTerms"
+              }
+            ],
+            "nullable": true
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -7272,6 +8541,11 @@
           "invoiceRequested"
         ],
         "properties": {
+          "paymentAttemptedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Present only after Stripe reports a submitted payment attempt, never just from opening checkout."
+          },
           "id": {
             "type": "string"
           },
@@ -7282,9 +8556,15 @@
             "type": "integer",
             "format": "int32"
           },
+          "orderTotalBani": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Quoted checkout total including customer fees, in bani. Does not prove payment. Present on updated API versions."
+          },
           "paidTotalBani": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Legacy alias for orderTotalBani. Also populated before payment; use status to determine whether a purchase completed."
           },
           "refundedAmountBani": {
             "type": "integer",
@@ -7422,6 +8702,10 @@
           "id": {
             "type": "string"
           },
+          "orderId": {
+            "type": "string",
+            "description": "The completed order that issued this ticket. Present on updated API versions; match this identifier to checkout confirmation instead of matching only the event."
+          },
           "eventId": {
             "type": "string"
           },
@@ -7515,6 +8799,77 @@
           }
         }
       },
+      "ValidationScanActor": {
+        "type": "object",
+        "required": [
+          "name",
+          "kind"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "scannerAccessId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "user",
+              "access",
+              "unknown"
+            ]
+          }
+        }
+      },
+      "ValidationScanHistoryItem": {
+        "type": "object",
+        "required": [
+          "ticketId",
+          "ticketType",
+          "validatedAt",
+          "scannedBy"
+        ],
+        "properties": {
+          "ticketId": {
+            "type": "string"
+          },
+          "ticketType": {
+            "type": "string"
+          },
+          "validatedAt": {
+            "type": "string"
+          },
+          "scannedBy": {
+            "$ref": "#/components/schemas/ValidationScanActor"
+          }
+        }
+      },
+      "ValidationScanHistoryResponse": {
+        "type": "object",
+        "required": [
+          "totalScans",
+          "scans"
+        ],
+        "properties": {
+          "totalScans": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "scans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationScanHistoryItem"
+            }
+          },
+          "nextCursor": {
+            "type": "string"
+          }
+        }
+      },
       "ValidationStaffResponse": {
         "type": "object",
         "required": [
@@ -7536,6 +8891,458 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "WardrobeAudit": {
+        "type": "object",
+        "required": [
+          "id",
+          "action",
+          "actor",
+          "depositId",
+          "details",
+          "at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "depositId": {
+            "type": "string",
+            "nullable": true
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "WardrobeCommand": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "zone",
+              "staff",
+              "remove-staff",
+              "lookup",
+              "reserve",
+              "store",
+              "cancel",
+              "move",
+              "request-pickup",
+              "return",
+              "recover"
+            ]
+          },
+          "code": {
+            "type": "string"
+          },
+          "zoneId": {
+            "type": "string"
+          },
+          "depositId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "$ref": "#/components/schemas/WardrobeItems"
+          },
+          "additional": {
+            "type": "boolean"
+          },
+          "pickupId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string",
+            "pattern": "^[A-Z]{1,8}$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "any",
+              "coat",
+              "bag"
+            ]
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "operator",
+              "supervisor"
+            ]
+          },
+          "userId": {
+            "type": "string"
+          }
+        }
+      },
+      "WardrobeCommandResult": {
+        "type": "object",
+        "properties": {
+          "deposit": {
+            "$ref": "#/components/schemas/WardrobeDeposit"
+          },
+          "deposits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WardrobeDeposit"
+            }
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "WardrobeDeposit": {
+        "type": "object",
+        "required": [
+          "id",
+          "eventId",
+          "eventTitle",
+          "userId",
+          "customerName",
+          "zoneId",
+          "zoneName",
+          "number",
+          "status",
+          "items",
+          "remaining",
+          "revision",
+          "reservedUntil",
+          "createdAt",
+          "storedAt",
+          "returnedAt",
+          "pickupId",
+          "pickupItems",
+          "pickupExpiresAt",
+          "pickupApproved"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "eventTitle": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "zoneId": {
+            "type": "string"
+          },
+          "zoneName": {
+            "type": "string"
+          },
+          "number": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "reserved",
+              "stored",
+              "returned",
+              "cancelled"
+            ]
+          },
+          "items": {
+            "$ref": "#/components/schemas/WardrobeItems"
+          },
+          "remaining": {
+            "$ref": "#/components/schemas/WardrobeItems"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reservedUntil": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "storedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "returnedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "pickupId": {
+            "type": "string",
+            "nullable": true
+          },
+          "pickupItems": {
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WardrobeItems"
+              }
+            ],
+            "nullable": true
+          },
+          "pickupExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "pickupApproved": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
+      "WardrobeEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "canManage"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "canManage": {
+            "type": "boolean"
+          }
+        }
+      },
+      "WardrobeItems": {
+        "type": "object",
+        "required": [
+          "coat",
+          "bag",
+          "backpack"
+        ],
+        "properties": {
+          "coat": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "bag": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "backpack": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "WardrobeMine": {
+        "type": "object",
+        "required": [
+          "deposits",
+          "staffAccess"
+        ],
+        "properties": {
+          "deposits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WardrobeDeposit"
+            }
+          },
+          "staffAccess": {
+            "type": "boolean"
+          }
+        }
+      },
+      "WardrobeOverview": {
+        "type": "object",
+        "required": [
+          "eventId",
+          "title",
+          "canManage",
+          "canRecover",
+          "accepting",
+          "eventEnded",
+          "unclaimedCount",
+          "unclaimedItems",
+          "zones",
+          "staff",
+          "deposits",
+          "nextCursor",
+          "audit"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "canManage": {
+            "type": "boolean"
+          },
+          "canRecover": {
+            "type": "boolean"
+          },
+          "accepting": {
+            "type": "boolean"
+          },
+          "eventEnded": {
+            "type": "boolean"
+          },
+          "unclaimedCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unclaimedItems": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "zones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WardrobeZone"
+            }
+          },
+          "staff": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WardrobeStaff"
+            }
+          },
+          "deposits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WardrobeDeposit"
+            }
+          },
+          "nextCursor": {
+            "type": "string"
+          },
+          "audit": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WardrobeAudit"
+            }
+          }
+        }
+      },
+      "WardrobeStaff": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "operator",
+              "supervisor"
+            ]
+          }
+        }
+      },
+      "WardrobeZone": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "kind",
+          "capacity",
+          "enabled",
+          "revision",
+          "occupied"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string",
+            "pattern": "^[A-Z]{1,8}$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "any",
+              "coat",
+              "bag"
+            ]
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "occupied": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       }

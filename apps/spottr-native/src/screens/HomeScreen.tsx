@@ -19,6 +19,7 @@ import { NotificationsPopover } from "../notifications/NotificationsPopover";
 import { useEventClock } from "../data/useEventClock";
 import { manualRefreshOptions, seedEvent, useHomeEvents } from "../data/queries";
 import { RefreshScrollView } from "../ui/RefreshScrollView";
+import { WardrobeCard } from "../wardrobe/WardrobeScreen";
 import { isLive, type Event } from "../data/events";
 import { EventCard } from "../ui/EventCard";
 import { PromotionHero } from "../ui/PromotionHero";
@@ -187,6 +188,7 @@ export function HomeScreen() {
             : copy("home.exploreTonight", { count: tonight.length })}
         </Text>
       </View>
+      <View style={{ paddingHorizontal: 20 }}><WardrobeCard /></View>
       {promoted.isPending && !promoted.data ? <HomeLoading hero /> : <PromotionHero
         items={bannerPromotions}
         onOpen={open}

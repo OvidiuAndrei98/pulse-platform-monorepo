@@ -9,7 +9,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
     const original = window.fetch.bind(window), id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
     const query = new URL(location.href).searchParams;
     if (!query.has('resume')) localStorage.clear();
-    const qa = window.__qa = { offline: query.has('offline'), snapshotFailure: true, qr: '', requests: [], unexpected: [], sounds: [], awake: 0 };
+    const qa = window.__qa = { offline: query.has('offline'), snapshotFailure: true, qr: '', requests: [], reports: [], unexpected: [], sounds: [], awake: 0 };
     const originalPlay = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function () { if (this instanceof HTMLAudioElement) { qa.sounds.push(this.src); return Promise.resolve(); } return originalPlay.call(this); };
     Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => {
@@ -27,6 +27,10 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
       qa.requests.push({ route, method, body });
       if (qa.offline) throw new TypeError('Network request failed');
       const reply = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
+      if (route === '/diagnostics/errors' && method === 'POST') {
+        qa.reports.push({ ...body, auth: new Headers(options.headers).get('Authorization') });
+        return new Response(null, { status: 204 });
+      }
       if (route === '/auth/login') return reply({ token: 'scanner-qa-only' });
       if (route === '/users/me') return reply(user);
       if (route === '/events' || route === '/dashboard/events' || route === '/dashboard/ticket-validation/events') return reply([event]);
@@ -92,7 +96,10 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   assert.equal(await evaluate(`document.querySelector('[data-testid="scanner-gate-network"]').textContent`), 'Offline');
   await until(`window.__qa.awake===1`);
   for (const [width, height] of [[390, 844], [320, 568], [844, 390]]) {
-    await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: true }); await delay(250);
+    await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: true });
+    // RN Web measures the new viewport asynchronously. Wait for onLayout rather
+    // than comparing the previous frame size with the already-resized viewport.
+    await until(`(()=>{const frame=document.querySelector('[data-testid="scanner-camera-frame"]').getBoundingClientRect(),view=document.querySelector('[data-testid="scanner-camera-viewport"]').getBoundingClientRect();return frame.width>0&&Math.abs(frame.width-frame.height)<1&&frame.width<=view.width&&frame.height<=view.height;})()`, 2000);
     const sizes = await evaluate(`{const frame=document.querySelector('[data-testid="scanner-camera-frame"]').getBoundingClientRect(), view=document.querySelector('[data-testid="scanner-camera-viewport"]').getBoundingClientRect();({w:frame.width,h:frame.height,vw:view.width,vh:view.height})}`);
     assert.ok(sizes.w > 0 && Math.abs(sizes.w - sizes.h) < 1 && sizes.w <= sizes.vw && sizes.h <= sizes.vh, JSON.stringify(sizes));
   }
@@ -131,6 +138,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   assert.equal(await evaluate(`window.__qa.requests.filter(request=>request.route.endsWith('/tickets/validate')).length`), 0);
   assert.equal(await evaluate(`document.body.innerText.includes('Scan next ticket')`), false);
   await capture('scanner-offline-admission');
+  assert.ok(await evaluate(`window.__qa.reports.some(report=>report.operation==='scanner_prepare' && report.httpStatus===503 && report.auth===null)`), 'The simulated snapshot failure is reported anonymously');
   assert.deepEqual(await evaluate('window.__qa.unexpected'), []);
   console.log('PASS package error/retry, loss of internet with camera open, square frame at three sizes, camera reopening, offline acceptance and duplicate suppression');
   await openCamera(); await click('scanner-sound');

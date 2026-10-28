@@ -34,10 +34,10 @@ test('direct checkout links cannot turn free or externally sold tickets into pai
 });
 test('same prices as web: per-ticket discount rounding, service fees and organizer-covered fees', () => {
   const value = event();
-  assert.equal(checkoutTotals(value, { [id(3)]: 2 }).total, 109);
+  assert.equal(checkoutTotals(value, { [id(3)]: 2 }).total, 108);
   const discounted = checkoutTotals(value, { [id(3)]: 2 }, 15);
   assert.equal(discounted.subtotal, 100); assert.equal(discounted.discount, 14);
-  assert.equal(discounted.fee, 8.44); assert.equal(discounted.total, 94.44);
+  assert.equal(discounted.fee, 7.3); assert.equal(discounted.total, 93.3);
   value.organizerAbsorbsServiceFee = true;
   assert.equal(checkoutTotals(value, { [id(3)]: 2 }, 15).total, 86);
   assert.equal(checkoutTotals(value, { [id(3)]: 1 }, 100).total, 1);

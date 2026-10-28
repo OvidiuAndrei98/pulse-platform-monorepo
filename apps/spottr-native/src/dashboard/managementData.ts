@@ -22,7 +22,7 @@ export function invoiceStats(rows: readonly S["BillingInvoiceResponse"][]) {
     issued: rows.filter((row) => row.status === "issued").length,
     inProgress: rows.filter((row) =>
       [row.status, row.refundStatus].some(
-        (value) => value === "pending" || value === "processing",
+        (value) => value === "pending" || value === "processing" || value === "dispatching",
       ),
     ).length,
     attention: rows.filter((row) =>

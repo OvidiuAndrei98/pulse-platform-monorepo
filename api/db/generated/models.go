@@ -264,6 +264,7 @@ type BillingInvoices struct {
 	IssuedAt           pgtype.Timestamptz `json:"issued_at"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	ClaimToken         pgtype.UUID        `json:"claim_token"`
 }
 
 type CheckIns struct {
@@ -271,6 +272,11 @@ type CheckIns struct {
 	UserID    pgtype.UUID        `json:"user_id"`
 	EventID   pgtype.UUID        `json:"event_id"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type CheckoutPaymentAttempts struct {
+	OrderID     pgtype.UUID        `json:"order_id"`
+	AttemptedAt pgtype.Timestamptz `json:"attempted_at"`
 }
 
 type CheckoutRequests struct {
@@ -305,6 +311,21 @@ type Comments struct {
 	UserID    pgtype.UUID        `json:"user_id"`
 	Content   string             `json:"content"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type CommissionChangeLog struct {
+	ID             int64              `json:"id"`
+	OrganizerID    pgtype.UUID        `json:"organizer_id"`
+	ChangedBy      pgtype.UUID        `json:"changed_by"`
+	ChangedAt      pgtype.Timestamptz `json:"changed_at"`
+	PreviousValues []byte             `json:"previous_values"`
+	NewValues      []byte             `json:"new_values"`
+}
+
+type EffectiveOrganizerCommissions struct {
+	OrganizerID   pgtype.UUID `json:"organizer_id"`
+	RateBps       int32       `json:"rate_bps"`
+	PerTicketBani int32       `json:"per_ticket_bani"`
 }
 
 type EventArtists struct {
@@ -481,6 +502,17 @@ type InvitationTickets struct {
 	BatchIndex     int32              `json:"batch_index"`
 }
 
+type InvoiceServiceUsage struct {
+	InvoiceID   pgtype.UUID        `json:"invoice_id"`
+	OrganizerID pgtype.UUID        `json:"organizer_id"`
+	IsFree      bool               `json:"is_free"`
+	FeeBani     int32              `json:"fee_bani"`
+	State       string             `json:"state"`
+	IssuedAt    pgtype.Timestamptz `json:"issued_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
 type NativePaymentSheetOrders struct {
 	OrderID   pgtype.UUID        `json:"order_id"`
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
@@ -612,31 +644,56 @@ type Orders struct {
 	// Immutable Stripe connected-account context in which this ticket checkout was created.
 	StripeConnectedAccountID pgtype.Text `json:"stripe_connected_account_id"`
 	// Immutable Stripe charge flow used by this order: destination for legacy orders, direct for new orders.
-	StripeChargeType              pgtype.Text        `json:"stripe_charge_type"`
-	StripeChargeID                pgtype.Text        `json:"stripe_charge_id"`
-	StripeAmountRefundedBani      int64              `json:"stripe_amount_refunded_bani"`
-	StripeRefundStatus            string             `json:"stripe_refund_status"`
-	StripeRefundNeedsAttention    bool               `json:"stripe_refund_needs_attention"`
-	StripeRefundUpdatedAt         pgtype.Timestamptz `json:"stripe_refund_updated_at"`
-	AutomaticInvoiceRefundEnabled bool               `json:"automatic_invoice_refund_enabled"`
-	PlatformFeeStatus             string             `json:"platform_fee_status"`
-	PlatformFeeRefundedBani       int64              `json:"platform_fee_refunded_bani"`
-	RefundOrigin                  pgtype.Text        `json:"refund_origin"`
-	ReservationIpHash             []byte             `json:"reservation_ip_hash"`
-	TicketVatPercentage           pgtype.Numeric     `json:"ticket_vat_percentage"`
-	TicketVatName                 pgtype.Text        `json:"ticket_vat_name"`
-	AccountOwnerDeletedAt         pgtype.Timestamptz `json:"account_owner_deleted_at"`
-	TicketEmailClaim              pgtype.UUID        `json:"ticket_email_claim"`
-	TicketEmailClaimUntil         pgtype.Timestamptz `json:"ticket_email_claim_until"`
-	TicketEmailNextAttemptAt      pgtype.Timestamptz `json:"ticket_email_next_attempt_at"`
-	TicketEmailAttempts           int32              `json:"ticket_email_attempts"`
-	CheckoutReconcileAfter        pgtype.Timestamptz `json:"checkout_reconcile_after"`
+	StripeChargeType               pgtype.Text        `json:"stripe_charge_type"`
+	StripeChargeID                 pgtype.Text        `json:"stripe_charge_id"`
+	StripeAmountRefundedBani       int64              `json:"stripe_amount_refunded_bani"`
+	StripeRefundStatus             string             `json:"stripe_refund_status"`
+	StripeRefundNeedsAttention     bool               `json:"stripe_refund_needs_attention"`
+	StripeRefundUpdatedAt          pgtype.Timestamptz `json:"stripe_refund_updated_at"`
+	AutomaticInvoiceRefundEnabled  bool               `json:"automatic_invoice_refund_enabled"`
+	PlatformFeeStatus              string             `json:"platform_fee_status"`
+	PlatformFeeRefundedBani        int64              `json:"platform_fee_refunded_bani"`
+	RefundOrigin                   pgtype.Text        `json:"refund_origin"`
+	ReservationIpHash              []byte             `json:"reservation_ip_hash"`
+	TicketVatPercentage            pgtype.Numeric     `json:"ticket_vat_percentage"`
+	TicketVatName                  pgtype.Text        `json:"ticket_vat_name"`
+	AccountOwnerDeletedAt          pgtype.Timestamptz `json:"account_owner_deleted_at"`
+	TicketEmailClaim               pgtype.UUID        `json:"ticket_email_claim"`
+	TicketEmailClaimUntil          pgtype.Timestamptz `json:"ticket_email_claim_until"`
+	TicketEmailNextAttemptAt       pgtype.Timestamptz `json:"ticket_email_next_attempt_at"`
+	TicketEmailAttempts            int32              `json:"ticket_email_attempts"`
+	CheckoutReconcileAfter         pgtype.Timestamptz `json:"checkout_reconcile_after"`
+	InvoiceServiceFeeBani          int32              `json:"invoice_service_fee_bani"`
+	InvoiceServiceFeeState         string             `json:"invoice_service_fee_state"`
+	InvoiceServiceFeeRefundID      pgtype.Text        `json:"invoice_service_fee_refund_id"`
+	InvoiceServiceFeeNextAttemptAt pgtype.Timestamptz `json:"invoice_service_fee_next_attempt_at"`
+}
+
+type OrganizerCommissionOverrides struct {
+	OrganizerID   pgtype.UUID        `json:"organizer_id"`
+	RateBps       pgtype.Int4        `json:"rate_bps"`
+	PerTicketBani pgtype.Int4        `json:"per_ticket_bani"`
+	Revision      int64              `json:"revision"`
+	UpdatedBy     pgtype.UUID        `json:"updated_by"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }
 
 type OrganizerFollows struct {
 	FollowerID  pgtype.UUID        `json:"follower_id"`
 	OrganizerID pgtype.UUID        `json:"organizer_id"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type OrganizerInvoiceService struct {
+	OrganizerID    pgtype.UUID        `json:"organizer_id"`
+	FreeLimit      int32              `json:"free_limit"`
+	FreeUsed       int32              `json:"free_used"`
+	UnitPriceBani  int32              `json:"unit_price_bani"`
+	PaidEnabled    bool               `json:"paid_enabled"`
+	ConsentedAt    pgtype.Timestamptz `json:"consented_at"`
+	ConsentVersion pgtype.Text        `json:"consent_version"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
 type OrganizerInvoicingSettings struct {
@@ -696,6 +753,15 @@ type PlatformCommissionInvoices struct {
 	IssuedAt           pgtype.Timestamptz `json:"issued_at"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+}
+
+type PlatformCommissionSettings struct {
+	Singleton     bool               `json:"singleton"`
+	RateBps       int32              `json:"rate_bps"`
+	PerTicketBani int32              `json:"per_ticket_bani"`
+	Revision      int64              `json:"revision"`
+	UpdatedBy     pgtype.UUID        `json:"updated_by"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }
 
 type PromoCodes struct {

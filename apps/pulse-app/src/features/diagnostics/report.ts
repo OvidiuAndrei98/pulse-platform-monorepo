@@ -43,6 +43,18 @@ export const categories = [
   "timeout",
   "unknown",
 ] as const;
+export const operations = [
+  'api_request', 'tickets_load', 'tickets_storage', 'orders_load',
+  'payment_prepare', 'payment_confirm', 'payment_present', 'payment_storage',
+  'payment_ticket_delivery', 'scanner_events', 'scanner_prepare',
+  'scanner_validate', 'scanner_sync', 'scanner_storage',
+] as const;
+export const failureKinds = ['server_error', 'invalid_response', 'storage_error', 'sdk_error', 'configuration', 'fulfillment_missing'] as const;
+export type HandledFailure = {
+  operation: (typeof operations)[number];
+  failure: (typeof failureKinds)[number];
+  httpStatus?: number;
+};
 export type ErrorReport = {
   id: string;
   occurredAt: string;
@@ -56,7 +68,7 @@ export type ErrorReport = {
   screen: (typeof screens)[number];
   breadcrumbs: string[];
   frames: { file: string; function: string; line: number; column: number }[];
-};
+} & Partial<HandledFailure>;
 export type ErrorEntry = ErrorReport & {
   receivedAt: string;
   fingerprint: string;
@@ -159,6 +171,10 @@ export function parseReport(value: unknown): ErrorReport {
     r.frames.length > 12
   )
     throw Error("INVALID_DIAGNOSTIC");
+  const handled = r.operation !== undefined || r.failure !== undefined || r.httpStatus !== undefined;
+  if (handled && (!operations.includes(r.operation as never) || !failureKinds.includes(r.failure as never)
+    || r.httpStatus !== undefined && (!Number.isInteger(r.httpStatus) || r.httpStatus < 500 || r.httpStatus > 599)))
+    throw Error('INVALID_DIAGNOSTIC');
   for (const frame of r.frames)
     if (
       !frame ||
@@ -184,6 +200,7 @@ export function parseReport(value: unknown): ErrorReport {
     errorType: r.errorType,
     category: r.category,
     fatal: r.fatal,
+    ...(handled ? { operation: r.operation, failure: r.failure, ...(r.httpStatus !== undefined ? { httpStatus: r.httpStatus } : {}) } : {}),
     screen: r.screen,
     breadcrumbs: [...r.breadcrumbs],
     frames: r.frames.map((f) => ({

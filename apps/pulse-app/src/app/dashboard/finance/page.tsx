@@ -23,6 +23,7 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { formatEventDate } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { StripeAccountPanel } from "@/app/dashboard/components/StripeAccountPanel";
 import { RefundAttentionList } from "@/app/dashboard/components/RefundAttentionList";
 
 const formatRon = (amount: number) =>
@@ -52,35 +53,41 @@ export default function FinancePage() {
   const [refundsError, setRefundsError] = useState("");
   const [reconcilingOrderId, setReconcilingOrderId] = useState<string>();
 
-  const loadFinance = useCallback(async (showLoading = true) => {
-    if (!user) return;
-    if (showLoading) setLoading(true);
-    setError("");
-    try {
-      setItems(await user.getOrganizerFinance());
-    } catch {
-      setError(t("finance.loadFailed"));
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  }, [t, user]);
+  const loadFinance = useCallback(
+    async (showLoading = true) => {
+      if (!user) return;
+      if (showLoading) setLoading(true);
+      setError("");
+      try {
+        setItems(await user.getOrganizerFinance());
+      } catch {
+        setError(t("finance.loadFailed"));
+      } finally {
+        if (showLoading) setLoading(false);
+      }
+    },
+    [t, user],
+  );
 
   useEffect(() => {
     void loadFinance();
   }, [loadFinance]);
 
-  const loadRefunds = useCallback(async (showLoading = true) => {
-    if (!user) return;
-    if (showLoading) setRefundsLoading(true);
-    setRefundsError("");
-    try {
-      setRefunds(await user.listOrganizerRefundsRequiringAttention());
-    } catch {
-      setRefundsError(t("refundAttention.loadFailed"));
-    } finally {
-      if (showLoading) setRefundsLoading(false);
-    }
-  }, [t, user]);
+  const loadRefunds = useCallback(
+    async (showLoading = true) => {
+      if (!user) return;
+      if (showLoading) setRefundsLoading(true);
+      setRefundsError("");
+      try {
+        setRefunds(await user.listOrganizerRefundsRequiringAttention());
+      } catch {
+        setRefundsError(t("refundAttention.loadFailed"));
+      } finally {
+        if (showLoading) setRefundsLoading(false);
+      }
+    },
+    [t, user],
+  );
 
   useEffect(() => {
     void loadRefunds();
@@ -109,32 +116,6 @@ export default function FinancePage() {
     };
   }, [t, user]);
 
-  useEffect(() => {
-    if (!user) return;
-
-    let active = true;
-    void user
-      .refreshStripeAccountStatus()
-      .then((profile) => {
-        if (active) {
-          setStripeReady(
-            Boolean(
-              profile?.verificationStatus === "approved" &&
-              profile?.stripeChargesEnabled &&
-              profile?.stripePayoutsEnabled,
-            ),
-          );
-        }
-      })
-      .catch(() => {
-        if (active) setStripeReady(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [user]);
-
   const openStripeDashboard = async () => {
     if (!user) return;
 
@@ -155,7 +136,11 @@ export default function FinancePage() {
     try {
       const result = await user.reconcileOrganizerRefund(orderId);
       toast[result.requiresAttention ? "info" : "success"](
-        t(result.requiresAttention ? "refundAttention.stillPartial" : "refundAttention.fullyRefunded"),
+        t(
+          result.requiresAttention
+            ? "refundAttention.stillPartial"
+            : "refundAttention.fullyRefunded",
+        ),
       );
       await Promise.all([loadRefunds(false), loadFinance(false)]);
     } catch {
@@ -170,19 +155,32 @@ export default function FinancePage() {
       items.reduce(
         (result, item) => ({
           grossRevenueRon: result.grossRevenueRon + item.grossRevenueRon,
-          customerTicketingFeeBani: result.customerTicketingFeeBani + item.customerTicketingFeeBani,
+          customerTicketingFeeBani:
+            result.customerTicketingFeeBani + item.customerTicketingFeeBani,
           platformFeeBani: result.platformFeeBani + item.platformFeeBani,
           ticketsSold: result.ticketsSold + item.ticketsSold,
-          refundsNeedingAttention: result.refundsNeedingAttention + item.refundsNeedingAttention,
+          refundsNeedingAttention:
+            result.refundsNeedingAttention + item.refundsNeedingAttention,
         }),
-        { grossRevenueRon: 0, customerTicketingFeeBani: 0, platformFeeBani: 0, ticketsSold: 0, refundsNeedingAttention: 0 },
+        {
+          grossRevenueRon: 0,
+          customerTicketingFeeBani: 0,
+          platformFeeBani: 0,
+          ticketsSold: 0,
+          refundsNeedingAttention: 0,
+        },
       ),
     [items],
   );
   const platformFeeRon = totals.platformFeeBani / 100;
-  const customerTotalRon = totals.grossRevenueRon + totals.customerTicketingFeeBani / 100;
+  const invoiceFeeRon = items.reduce((sum, item) => sum + (item.invoiceServiceFeeBani ?? 0), 0) / 100;
+  const hasHistoricalInvoiceFees = invoiceFeeRon > 0;
+  const customerTotalRon =
+    totals.grossRevenueRon + totals.customerTicketingFeeBani / 100;
   const estimatedPayoutRon = customerTotalRon - platformFeeRon;
-  const sales = items.filter((item) => item.ticketsSold > 0 || item.platformFeeBani > 0);
+  const sales = items.filter(
+    (item) => item.ticketsSold > 0 || item.platformFeeBani > 0,
+  );
   const salesPageCount = Math.max(1, Math.ceil(sales.length / SALES_PAGE_SIZE));
   const visibleSales = sales.slice(
     (salesPage - 1) * SALES_PAGE_SIZE,
@@ -252,10 +250,11 @@ export default function FinancePage() {
             <FinanceMetric
               icon={BadgeDollarSign}
               label={t("finance.glowFee")}
-              value={formatRon(platformFeeRon)}
+              value={formatRon(platformFeeRon - invoiceFeeRon)}
               detail={t("finance.feeFormula")}
               accent="muted"
             />
+            {hasHistoricalInvoiceFees && <FinanceMetric icon={ReceiptText} label={t("finance.invoiceServiceFee")} value={formatRon(invoiceFeeRon)} detail={t("finance.invoiceServiceFeeHint")} />}
             <FinanceMetric
               icon={WalletCards}
               label={t("finance.estimatedPayout")}
@@ -277,7 +276,9 @@ export default function FinancePage() {
 
           {totals.refundsNeedingAttention > 0 && (
             <p className="mt-4 border border-amber-400/25 bg-amber-400/[0.08] px-4 py-3 text-sm text-amber-100">
-              {t("finance.refundsNeedAttention", { count: totals.refundsNeedingAttention })}
+              {t("finance.refundsNeedAttention", {
+                count: totals.refundsNeedingAttention,
+              })}
             </p>
           )}
 
@@ -308,22 +309,24 @@ export default function FinancePage() {
 
             {sales.length ? (
               <div className="overflow-hidden border border-white/10 bg-white/[0.025]">
-                <div className="hidden grid-cols-[minmax(0,1.6fr)_0.7fr_0.9fr_0.9fr_0.9fr] gap-4 border-b border-white/10 px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-muted-foreground md:grid">
+                <div className={`hidden gap-4 border-b border-white/10 px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-muted-foreground md:grid ${hasHistoricalInvoiceFees ? "grid-cols-[minmax(0,1.6fr)_0.7fr_0.9fr_0.9fr_0.9fr_0.9fr]" : "grid-cols-[minmax(0,1.6fr)_0.7fr_0.9fr_0.9fr_0.9fr]"}`}>
                   <span>{t("finance.event")}</span>
                   <span>{t("finance.tickets")}</span>
                   <span>{t("finance.revenue")}</span>
                   <span>{t("finance.commission")}</span>
+                  {hasHistoricalInvoiceFees && <span>{t("finance.invoiceServiceFee")}</span>}
                   <span>{t("finance.estimate")}</span>
                 </div>
                 <div className="divide-y divide-white/10">
                   {visibleSales.map((item) => {
                     const commissionRon = item.platformFeeBani / 100;
                     const eventCustomerTotalRon =
-                      item.grossRevenueRon + item.customerTicketingFeeBani / 100;
+                      item.grossRevenueRon +
+                      item.customerTicketingFeeBani / 100;
                     return (
                       <article
                         key={item.eventId}
-                        className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1.6fr)_0.7fr_0.9fr_0.9fr_0.9fr] md:items-center md:gap-4"
+                        className={`grid gap-3 px-4 py-4 md:items-center md:gap-4 ${hasHistoricalInvoiceFees ? "md:grid-cols-[minmax(0,1.6fr)_0.7fr_0.9fr_0.9fr_0.9fr_0.9fr]" : "md:grid-cols-[minmax(0,1.6fr)_0.7fr_0.9fr_0.9fr_0.9fr]"}`}
                       >
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold">
@@ -344,12 +347,15 @@ export default function FinancePage() {
                         />
                         <FinanceCell
                           label={t("finance.commission")}
-                          value={formatRon(commissionRon)}
+                          value={formatRon(commissionRon - (item.invoiceServiceFeeBani ?? 0) / 100)}
                           muted
                         />
+                        {hasHistoricalInvoiceFees && <FinanceCell label={t("finance.invoiceServiceFee")} value={formatRon((item.invoiceServiceFeeBani ?? 0) / 100)} muted />}
                         <FinanceCell
                           label={t("finance.estimate")}
-                          value={formatRon(eventCustomerTotalRon - commissionRon)}
+                          value={formatRon(
+                            eventCustomerTotalRon - commissionRon,
+                          )}
                           primary
                         />
                       </article>
@@ -434,7 +440,9 @@ export default function FinancePage() {
                             month: "long",
                             year: "numeric",
                             timeZone: "UTC",
-                          }).format(new Date(`${invoice.periodStart}T00:00:00Z`))}
+                          }).format(
+                            new Date(`${invoice.periodStart}T00:00:00Z`),
+                          )}
                         </p>
                         <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                           {t(`invoicing.status.${invoice.status}`)}
@@ -478,6 +486,9 @@ export default function FinancePage() {
           </section>
         </>
       )}
+      <div className="mt-8">
+        <StripeAccountPanel onReadyChange={setStripeReady} />
+      </div>
     </main>
   );
 }

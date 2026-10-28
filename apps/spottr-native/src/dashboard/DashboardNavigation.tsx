@@ -15,6 +15,7 @@ import {
   Megaphone,
   Plus,
   QrCode,
+  Shirt,
   ReceiptText,
   Ticket,
   User,
@@ -27,6 +28,7 @@ import { Logo } from "../ui/Logo";
 import { dColors as colors } from "./common";
 
 export type DashboardSection =
+  | "wardrobe"
   | "overview"
   | "events"
   | "new"
@@ -42,6 +44,7 @@ export type DashboardSection =
 export const dashboardTabs = [
   ["overview", "dashboard", LayoutDashboard],
   ["scanner", "ticketValidation", QrCode],
+  ["wardrobe", "wardrobe", Shirt],
   ["events", "events", Calendar],
   ["promotions", "promotions", Megaphone],
   ["new", "newEvent", Plus],
@@ -73,6 +76,7 @@ export function DashboardSidebar({ section, onNavigate, validator }: NavProps) {
         "overview",
         "profile",
         "scanner",
+        "wardrobe",
         "finance",
         "invoicing",
         "purchases",

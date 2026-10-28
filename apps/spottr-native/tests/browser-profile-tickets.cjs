@@ -18,6 +18,8 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
       const url = new URL(String(input), location.origin), route = url.pathname.split('/api/v1')[1];
       if (!route) { if (url.origin === location.origin) return original(input, options); throw Error('External request blocked'); }
       const reply = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+      if (route === '/wardrobe/mine') return reply({ deposits: [], staffAccess: false });
+      if (route === '/diagnostics/errors') return new Response(null, { status: 204 });
       if (route === '/users/me') return reply(user);
       if (route === '/users/me/tickets') { qa.ticketRequests++; return qa.fail ? reply({}, 503) : reply(qa.empty ? [] : qa.single ? [first] : rows.map(row => row.id === qa.usedTicketId ? { ...row, isValidated: true } : row)); }
       if (route === '/notifications') return reply({ items: [], unreadCount: 0 });

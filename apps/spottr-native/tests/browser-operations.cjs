@@ -36,6 +36,8 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
       const route = parsed.pathname.split('/api/v1')[1], method = options.method || 'GET', body = options.body ? JSON.parse(options.body) : undefined;
       qa.requests.push({ route, method }); if (method !== 'GET') qa.writes.push({ route, method, body });
       const reply = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
+      if (route === '/wardrobe/mine') return reply({ deposits: [], staffAccess: false });
+      if (route === '/diagnostics/errors') return new Response(null, { status: 204 });
       if (route === '/users/me') return reply(qa.user);
       if (route === '/auth/login') return reply({ token: 'operations-qa-only' });
       if (route === '/events') return reply([event]);
@@ -65,6 +67,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
       if (route.startsWith('/dashboard/organizer/profile/') || route === '/dashboard/stripe/status') return reply({ userId: id(2), companyName: 'QA Club SRL', cui: '123456', fiscalAddress: 'QA Address', isVerified: true, verificationStatus: 'approved' });
       if (route === '/dashboard/ticket-validation/events') return reply(qa.validationEvents);
       if (route.endsWith('/offline-sync')) return reply({ results: body.scans.map(scan => ({ clientScanId: scan.clientScanId, status: 'accepted' })) });
+      if (route.endsWith('/scans')) return reply({ totalScans: qa.scanCount ? 1 : 0, scans: qa.scanCount ? [{ ticketId: id(90), ticketType: 'General', validatedAt: '2026-10-11T18:00:00Z', scannedBy: { kind: 'user', name: 'Gate staff', userId: id(2) } }] : [] });
       if (route.endsWith('/my-scans')) return reply({ totalScans: qa.scanCount ? 1 : 0, scans: qa.scanCount ? [{ ticketId: id(90), ticketType: 'General', validatedAt: '2026-10-11T18:00:00Z' }] : [] });
       if (route === '/dashboard/ticket-validation/events/' + id(1) + '/staff') return reply([{ id: id(3), username: 'Gate staff', email: 'staff@example.test' }]);
       if (route === '/dashboard/ticket-validation/events/' + id(1) + '/quick-access') {
@@ -164,17 +167,17 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   console.log('PASS staff scanner loads without organizer role and submits ticket validation');
   for (const width of [390, 1024]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: width < 768 }); await delay(150);
-    await click('scanner-open-history'); await until(`document.querySelector('[data-testid="scanner-history-drawer"]')`); await delay(650);
-    const panel = await evaluate(`{const r=document.querySelector('[data-testid="scanner-history-drawer"]').getBoundingClientRect();({x:r.x,width:r.width,height:r.height})}`);
-    assert.ok(Math.abs(panel.width - Math.min(448, width)) < 1, 'Scan history preserves the original right panel width');
+    await click('scanner-open-history'); await until(`document.querySelector('[data-testid="scanner-history-screen"]')`);
+    await until(`document.querySelector('[data-testid="scanner-history-total"]')?.textContent==='1'`);
+    const panel = await evaluate(`{const r=document.querySelector('[data-testid="scanner-history-screen"]').getBoundingClientRect();({x:r.x,width:r.width,height:r.height})}`);
+    assert.ok(Math.abs(panel.width - width) < 1, 'Scan history is a full screen route');
     assert.ok(Math.abs(panel.height - 844) < 1, 'Scan history fills the viewport height');
-    assert.ok(Math.abs(panel.x + panel.width - width) < 1, 'Scan history is anchored to the right viewport edge');
     await capture('scanner-history-parity-' + width);
-    await call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }); await call('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-    await until(`!document.querySelector('[data-testid="scanner-history-drawer"]')`);
+    await click('scanner-history-back');
+    await until(`!document.querySelector('[data-testid="scanner-history-screen"]')`);
   }
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-  console.log('PASS original scanner selector, collapsed manual entry and responsive history drawer');
+  console.log('PASS scanner selector, collapsed manual entry and responsive history page');
   await open('/ticket-validation?role=organizer'); await until(`Array.from(document.querySelectorAll('[role="tab"]')).some(el=>el.textContent==='Management')`);
   await evaluate(`Array.from(document.querySelectorAll('[role="tab"]')).find(el=>el.textContent==='Management').click()`);
   await until(`document.querySelector('[role="button"][aria-label="Active from"]')`);

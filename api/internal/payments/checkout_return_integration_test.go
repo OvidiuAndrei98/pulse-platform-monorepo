@@ -56,15 +56,23 @@ func TestCreateCheckoutPreservesReturnClientAndReservationOnRetry(t *testing.T) 
 				if got, want := r.Form.Get("cancel_url"), h.checkoutCancelURL(clientName, eventID, origin); got != want {
 					t.Errorf("cancel URL: got %q want %q", got, want)
 				}
+				if got := r.Form.Get("payment_intent_data[application_fee_amount]"); got != "400" {
+					t.Errorf("Stripe commission: got %q want 400", got)
+				}
+				if got := r.Form.Get("line_items[1][price_data][unit_amount]"); got != "400" {
+					t.Errorf("buyer ticketing fee: got %q want 400", got)
+				}
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(map[string]any{"id": sessionID, "url": "https://checkout.stripe.com/test", "livemode": false})
 			}))
 			defer server.Close()
 			h.client = stripe.NewClient("sk_test_fixture", stripe.WithBackends(stripe.NewBackendsWithConfig(&stripe.BackendConfig{URL: stripe.String(server.URL), HTTPClient: server.Client(), MaxNetworkRetries: stripe.Int64(0)})))
+			expectedTotal := int64(5400)
 			body, err := json.Marshal(CreateCheckoutRequest{
 				Email: f.buyerEmail, Client: clientName, ReturnOrigin: origin,
-				Items:          []CheckoutItemRequest{{TicketTypeID: common.UUIDToString(f.paidTicketID), Quantity: 1}},
-				BillingDetails: BillingDetailsRequest{Type: "individual", Name: "Buyer", Address: "Address", City: "City", County: "County", Country: "RO"},
+				ExpectedTotalBani: &expectedTotal,
+				Items:             []CheckoutItemRequest{{TicketTypeID: common.UUIDToString(f.paidTicketID), Quantity: 1}},
+				BillingDetails:    BillingDetailsRequest{Type: "individual", Name: "Buyer", Address: "Address", City: "City", County: "County", Country: "RO"},
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -123,6 +131,8 @@ func TestCheckoutReplayReturnsSessionIDForLegacyAndNativeResponses(t *testing.T)
 	}
 	t.Cleanup(func() { _, _ = pool.Exec(context.Background(), "DELETE FROM checkout_requests WHERE id=$1", requestID) })
 	requestCtx := context.WithValue(ctx, checkoutRequestContextKey{}, requestID)
+	expectedTotal := int64(5400)
+	requestCtx = context.WithValue(requestCtx, expectedCheckoutTotalKey{}, &expectedTotal)
 	order, _, _, _, account, _, err := h.reserveOrder(requestCtx, f.eventID, f.buyerID, f.buyerEmail, nil, map[string]int32{common.UUIDToString(f.paidTicketID): 1}, 1, "", BillingDetailsRequest{Type: "individual", Name: "Buyer", Address: "Address", City: "City", County: "County", Country: "RO"})
 	if err != nil {
 		t.Fatal(err)

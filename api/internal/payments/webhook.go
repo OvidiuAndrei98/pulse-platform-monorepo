@@ -55,7 +55,7 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 	}
 
 	switch string(event.Type) {
-	case "payment_intent.succeeded", "payment_intent.canceled":
+	case "payment_intent.succeeded", "payment_intent.canceled", "payment_intent.processing", "payment_intent.requires_action", "payment_intent.payment_failed":
 		var intent stripe.PaymentIntent
 		if event.Data == nil || json.Unmarshal(event.Data.Raw, &intent) != nil {
 			http.Error(w, "Invalid PaymentIntent", http.StatusBadRequest)
@@ -124,14 +124,6 @@ func (h *WebhookHandler) HandleStripeWebhook(w http.ResponseWriter, r *http.Requ
 			}
 		}
 		log.Printf("Stripe checkout expired: id=%s", event.ID)
-	case "payment_intent.payment_failed":
-		var paymentIntent stripe.PaymentIntent
-		if event.Data != nil && json.Unmarshal(event.Data.Raw, &paymentIntent) == nil {
-			// A failed PaymentIntent is not terminal for its Checkout Session.
-			// Retain both ticket and promotion reservations until exact expiry.
-			log.Printf("Stripe payment attempt failed (reservation retained): payment_intent=%s", paymentIntent.ID)
-		}
-		log.Printf("Stripe payment failed: id=%s", event.ID)
 	case "charge.refunded":
 		var charge stripe.Charge
 		if event.Data == nil || json.Unmarshal(event.Data.Raw, &charge) != nil {

@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 
 type DeleteAccountDialogProps = {
   open: boolean;
+  accountRole: string;
   email: string;
   requiresPassword: boolean;
   busy: boolean;
@@ -16,6 +17,7 @@ type DeleteAccountDialogProps = {
 
 export function DeleteAccountDialog({
   open,
+  accountRole,
   email,
   requiresPassword,
   busy,
@@ -33,12 +35,14 @@ export function DeleteAccountDialog({
   onCloseRef.current = onClose;
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || accountRole !== "user") return;
     setConfirmation("");
     setCurrentPassword("");
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    // Show the consequences first without opening the mobile keyboard.
+    dialogRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !busyRef.current) onCloseRef.current();
       if (event.key !== "Tab" || !dialogRef.current) return;
@@ -68,9 +72,9 @@ export function DeleteAccountDialog({
       window.removeEventListener("keydown", onKeyDown);
       previouslyFocused?.focus();
     };
-  }, [open]);
+  }, [open, accountRole, email]);
 
-  if (!open) return null;
+  if (!open || accountRole !== "user") return null;
 
   const matches = confirmation.trim().toLowerCase() === email.trim().toLowerCase();
   const canDelete = matches && (!requiresPassword || currentPassword.length > 0);
@@ -91,7 +95,7 @@ export function DeleteAccountDialog({
         aria-busy={busy}
         aria-labelledby="delete-account-title"
         aria-describedby="delete-account-description"
-        className="max-h-[calc(100dvh-max(1.5rem,var(--native-safe-top))-max(1.5rem,var(--native-safe-bottom)))] w-full max-w-md overflow-y-auto overscroll-contain rounded-[28px] border border-red-500/25 bg-[#0b0b0c] p-5 shadow-2xl shadow-red-950/30 sm:p-6"
+        className="max-h-[calc(100dvh-max(1.5rem,var(--native-safe-top))-max(1.5rem,var(--native-safe-bottom)))] w-full max-w-md overflow-y-auto overscroll-contain rounded-[28px] border border-red-500/25 bg-[#0b0b0c] p-5 shadow-2xl shadow-red-950/30 outline-none sm:p-6"
       >
         <div className="flex items-start gap-3">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-red-500/12 text-red-400">
@@ -116,13 +120,27 @@ export function DeleteAccountDialog({
           </button>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-red-500/15 bg-red-500/[0.06] p-4">
-          <p className="text-sm font-medium text-red-200">{t("userProfile.deleteDialogWarning")}</p>
-          <ul className="mt-2 list-disc space-y-1.5 pl-5 text-xs leading-relaxed text-red-100/70">
-            <li>{t("userProfile.deleteProfileData")}</li>
-            <li>{t("userProfile.deleteTicketsData")}</li>
-            <li>{t("userProfile.retainFiscalData")}</li>
-          </ul>
+        <div className="mt-5 space-y-3">
+          <div className="space-y-2 rounded-2xl bg-white/[0.03] p-4">
+            <h3 className="text-sm font-semibold text-white">{t("userProfile.deleteDialogWarning")}</h3>
+            <p className="text-[13px] leading-5 text-muted-foreground">{t("userProfile.deleteProfileData")}</p>
+            <p className="text-[13px] leading-5 text-muted-foreground">{t("userProfile.deleteSocialData")}</p>
+          </div>
+          <div className="space-y-2 rounded-2xl border border-red-500/15 bg-red-500/[0.06] p-4">
+            <h3 className="text-sm font-semibold text-red-200">{t("userProfile.deleteTicketsTitle")}</h3>
+            <p className="text-[13px] leading-5 text-muted-foreground">{t("userProfile.deleteTicketsData")}</p>
+            <p className="text-xs leading-relaxed text-muted-foreground">{t("userProfile.deleteOfflineNote")}</p>
+          </div>
+          <div className="space-y-2 rounded-2xl bg-white/[0.03] p-4">
+            <h3 className="text-sm font-semibold text-white">{t("userProfile.retainFiscalTitle")}</h3>
+            <p className="text-[13px] leading-5 text-muted-foreground">{t("userProfile.retainFiscalData")}</p>
+            <p className="text-xs leading-relaxed text-muted-foreground">{t("userProfile.deleteCleanupHint")}</p>
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-2">
+          <h3 className="text-sm font-semibold text-white">{t("userProfile.deleteStepsTitle")}</h3>
+          <p className="text-[13px] leading-5 text-muted-foreground">{t(requiresPassword ? "userProfile.deleteStepsPassword" : "userProfile.deleteStepsGoogle")}</p>
         </div>
 
         <label className="mt-5 block text-sm font-medium text-white" htmlFor="delete-account-confirmation">
@@ -138,7 +156,6 @@ export function DeleteAccountDialog({
           autoComplete="off"
           autoCapitalize="none"
           spellCheck={false}
-          autoFocus
           value={confirmation}
           onChange={(event) => setConfirmation(event.target.value)}
           disabled={busy}
@@ -160,6 +177,7 @@ export function DeleteAccountDialog({
               disabled={busy}
               className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm text-white outline-none transition focus:border-red-500/60 focus:ring-2 focus:ring-red-500/15 disabled:opacity-50"
             />
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{t("userProfile.deletePasswordHint")}</p>
           </>
         ) : (
           <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs leading-relaxed text-muted-foreground">
@@ -184,7 +202,7 @@ export function DeleteAccountDialog({
           </button>
           <button
             type="button"
-            onClick={() => onConfirm(confirmation, currentPassword)}
+            onClick={() => { if (canDelete && !busy && accountRole === "user") onConfirm(confirmation, currentPassword); }}
             disabled={!canDelete || busy}
             className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-red-500 text-sm font-semibold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-35"
           >

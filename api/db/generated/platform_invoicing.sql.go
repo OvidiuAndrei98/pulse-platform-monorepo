@@ -167,6 +167,8 @@ func (q *Queries) GetPlatformCommissionInvoiceIssueData(ctx context.Context, id 
 
 const getPlatformCommissionInvoiceLiveTotals = `-- name: GetPlatformCommissionInvoiceLiveTotals :one
 SELECT COUNT(orders.id)::INT AS transaction_count,
+       COALESCE(SUM(CASE WHEN orders.invoice_service_fee_state='earned' THEN orders.invoice_service_fee_bani ELSE 0 END),0)::BIGINT AS invoice_service_fee_bani,
+       COUNT(*) FILTER (WHERE orders.invoice_service_fee_state IN ('held','refund_pending'))::INT AS unsettled_invoice_fees,
        COALESCE(SUM(orders.platform_fee_bani - orders.platform_fee_refunded_bani), 0)::BIGINT AS total_fee_bani
 FROM orders
 JOIN events ON events.id = orders.event_id
@@ -188,14 +190,21 @@ type GetPlatformCommissionInvoiceLiveTotalsParams struct {
 }
 
 type GetPlatformCommissionInvoiceLiveTotalsRow struct {
-	TransactionCount int32 `json:"transaction_count"`
-	TotalFeeBani     int64 `json:"total_fee_bani"`
+	TransactionCount      int32 `json:"transaction_count"`
+	InvoiceServiceFeeBani int64 `json:"invoice_service_fee_bani"`
+	UnsettledInvoiceFees  int32 `json:"unsettled_invoice_fees"`
+	TotalFeeBani          int64 `json:"total_fee_bani"`
 }
 
 func (q *Queries) GetPlatformCommissionInvoiceLiveTotals(ctx context.Context, arg GetPlatformCommissionInvoiceLiveTotalsParams) (GetPlatformCommissionInvoiceLiveTotalsRow, error) {
 	row := q.db.QueryRow(ctx, getPlatformCommissionInvoiceLiveTotals, arg.OrganizerID, arg.PeriodStart, arg.PeriodEnd)
 	var i GetPlatformCommissionInvoiceLiveTotalsRow
-	err := row.Scan(&i.TransactionCount, &i.TotalFeeBani)
+	err := row.Scan(
+		&i.TransactionCount,
+		&i.InvoiceServiceFeeBani,
+		&i.UnsettledInvoiceFees,
+		&i.TotalFeeBani,
+	)
 	return i, err
 }
 

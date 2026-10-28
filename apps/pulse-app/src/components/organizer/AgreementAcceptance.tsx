@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
 
-const AGREEMENT_VERSION = "2026-07-27";
+const AGREEMENT_VERSION = "2026-10-18";
 
 export function AgreementAcceptance() {
   const { user, loading } = useDataProvider();

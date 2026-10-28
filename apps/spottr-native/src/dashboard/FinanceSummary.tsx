@@ -60,7 +60,9 @@ export function Finance() {
     stripe.data.stripeChargesEnabled &&
     stripe.data.stripePayoutsEnabled;
   useEffect(() => setPage((value) => Math.min(value, pages)), [pages]);
-  const headers = ["event", "tickets", "revenue", "commission", "estimate"];
+  const invoiceFee = (sales.data ?? []).reduce((sum, row) => sum + (row.invoiceServiceFeeBani ?? 0), 0) / 100;
+  const hasHistoricalInvoiceFees = invoiceFee > 0;
+  const headers = ["event", "tickets", "revenue", "commission", ...(hasHistoricalInvoiceFees ? ["invoiceServiceFee"] : []), "estimate"];
   return (
     <View style={{ gap: 28 }} testID="dashboard-finance">
       <View
@@ -118,10 +120,13 @@ export function Finance() {
                 },
                 {
                   key: "glowFee",
-                  value: money(totals.platformFee),
+                  value: money(totals.platformFee - invoiceFee),
                   detail: "feeFormula",
                   Icon: BadgeDollarSign,
                 },
+                ...(hasHistoricalInvoiceFees ? [{
+                  key: "invoiceServiceFee", value: money(invoiceFee), detail: "invoiceServiceFeeHint", Icon: ReceiptText,
+                }] : []),
                 {
                   key: "estimatedPayout",
                   value: money(totals.customerTotal - totals.platformFee),
@@ -439,7 +444,8 @@ export function Finance() {
                         row.grossRevenueRon +
                           row.customerTicketingFeeBani / 100,
                       ),
-                      money(row.platformFeeBani / 100),
+                      money((row.platformFeeBani - (row.invoiceServiceFeeBani ?? 0)) / 100),
+                      ...(hasHistoricalInvoiceFees ? [money((row.invoiceServiceFeeBani ?? 0) / 100)] : []),
                       money(
                         row.grossRevenueRon +
                           row.customerTicketingFeeBani / 100 -
@@ -464,7 +470,7 @@ export function Finance() {
                             p.label,
                             {
                               color:
-                                index === 3
+                                index === headers.length - 2
                                   ? colors.accent
                                   : index === 2
                                     ? colors.muted

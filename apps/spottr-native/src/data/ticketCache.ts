@@ -13,7 +13,7 @@ type SecureStorage = {
   setItem(key: string, value: string): Promise<void>;
   removeItem(key: string): Promise<void>;
 };
-const fields = ['id', 'eventId', 'validationHash', 'isValidated', 'validatedAt', 'ticketTypeName', 'eventTitle', 'locationName', 'startTime', 'endTime', 'priceRon', 'ticketPriceBani', 'ticketingFeeBani', 'paidTotalBani', 'vatPercentage', 'vatAmountBani', 'organizerCompanyName', 'organizerCui', 'organizerFiscalAddress'] as const;
+const fields = ['id', 'eventId', 'orderId', 'validationHash', 'isValidated', 'validatedAt', 'ticketTypeName', 'eventTitle', 'locationName', 'startTime', 'endTime', 'priceRon', 'ticketPriceBani', 'ticketingFeeBani', 'paidTotalBani', 'vatPercentage', 'vatAmountBani', 'organizerCompanyName', 'organizerCui', 'organizerFiscalAddress'] as const;
 const fail = () => new Error('TICKET_CACHE_UNAVAILABLE');
 const hex = (value: string) => Array.from(value).map(c => c.charCodeAt(0).toString(16).padStart(4, '0')).join('');
 const maxChunks = 4096;

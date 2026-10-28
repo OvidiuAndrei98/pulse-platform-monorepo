@@ -13,6 +13,8 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
       if (!route) { if (url.origin === location.origin) return original(input, options); throw Error('Unexpected external request'); }
       const method = options.method || 'GET', body = options.body ? JSON.parse(options.body) : undefined;
       const reply = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
+      if (route === '/wardrobe/mine') return reply({ deposits: [], staffAccess: false });
+      if (route === '/diagnostics/errors') return new Response(null, { status: 204 });
       if (method !== 'GET') qa.writes.push({ route, method, body });
       if (route === '/users/me') {
         if (method === 'PUT') {
@@ -69,9 +71,10 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   assert.equal(await evaluate(`${el('profile-details-content')}.contains(${el('profile-details-feedback')})`), true, 'Save errors stay next to the form');
   assert.equal(await evaluate(`document.querySelector('input[aria-label="Display name"]').value`), 'Franco updated');
   await evaluate('window.__qa.failUpdate=false'); await evaluate(`${el('profile-details-save')}.click()`);
-  await until(`window.__qa.user.username==='Franco updated' && ${el('profile-details-feedback')}?.textContent.includes('Profile details updated.')`);
+  await until(`window.__qa.user.username==='Franco updated' && ${el('profile-details-save')}.getAttribute('aria-disabled')!=='true'`);
+  assert.equal(await evaluate(`!!${el('profile-details-feedback')}`), false, 'Saving details clears errors without adding an updated notice');
   await input('qa-name', 'Franco draft');
-  assert.equal(await evaluate(`!!${el('profile-details-feedback')}`), false, 'Editing clears the previous saved confirmation');
+  assert.equal(await evaluate(`!!${el('profile-details-feedback')}`), false, 'Editing does not add a saved confirmation');
   const writesBeforeInvalid = await evaluate('window.__qa.writes.length');
   await input('qa-name', 'A'); await click('profile-details-save');
   await until(`${el('profile-details-feedback')}?.textContent.includes('at least 3 characters')`);
@@ -114,21 +117,23 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   assert.equal(await evaluate(`${el('profile-language-toggle')}.getAttribute('aria-expanded')`), 'true', 'Failed selection remains available for retry');
   await capture('profile-settings-language-error');
   await evaluate(`window.__qa.failUpdate=false;${el('profile-language-ro')}.click()`);
-  await until(`${el('profile-language-feedback')}?.textContent.includes('Limba a fost actualizată.') && ${height('profile-language-content')}<1`);
+  await until(`window.__qa.user.preferredLanguage==='ro' && ${height('profile-language-content')}<1`);
+  assert.equal(await evaluate(`!!${el('profile-language-feedback')}`), false, 'Successful language retry clears the error without adding a notice');
   assert.equal(await evaluate(`window.__qa.user.preferredLanguage`), 'ro');
   assert.equal(await evaluate(`JSON.parse(localStorage.getItem('spottr-native.session.v1')).user.preferredLanguage`), 'ro', 'Language is persisted with the session');
   await click('profile-language-toggle'); await until(`${height('profile-language-content')}>90`); await delay(350);
   assert.equal(await evaluate(`${el('profile-language-ro')}.getAttribute('aria-checked')`), 'true');
   await click('profile-language-en');
-  await until(`${el('profile-language-feedback')}?.textContent.includes('Language updated.') && ${height('profile-language-content')}<1`);
+  await until(`window.__qa.user.preferredLanguage==='en' && ${height('profile-language-content')}<1`);
   assert.equal(await evaluate(languageWrites), 3);
   await evaluate('window.__qa.failUpdate=true'); await click('profile-privacy-switch');
   await until(`${el('profile-privacy-feedback')}?.textContent.includes('This privacy setting could not be updated.')`);
   assert.equal(await evaluate('window.__qa.user.showAttendancePublicly'), false);
   assert.equal(await evaluate(`${el('profile-privacy-switch')}.querySelector('input').checked`), false, 'Failed privacy save restores the switch');
-  assert.equal(await evaluate(`${el('profile-language-feedback')}?.textContent`), 'Language updated.', 'A different action cannot overwrite the language feedback');
+  assert.equal(await evaluate(`!!${el('profile-language-feedback')}`), false, 'Privacy errors do not add a language notice');
   await evaluate('window.__qa.failUpdate=false'); await click('profile-privacy-switch');
-  await until(`${el('profile-privacy-feedback')}?.textContent.includes('Privacy setting saved.')`);
+  await until(`window.__qa.user.showAttendancePublicly && ${el('profile-privacy-switch')}.getAttribute('aria-disabled')!=='true'`);
+  assert.equal(await evaluate(`!!${el('profile-privacy-feedback')}`), false, 'Saving privacy clears errors without adding a notice');
   assert.equal(await evaluate(`${el('profile-privacy-switch')}.querySelector('input').checked`), true);
   console.log('PASS feedback stays with each action, validation prevents writes, language selection/save/failure/retry/persistence, privacy rollback and rapid taps');
   assert.equal(await evaluate(`${el('profile-account-settings')}.contains(${el('profile-delete-account')})`), true);

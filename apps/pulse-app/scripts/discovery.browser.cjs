@@ -86,6 +86,7 @@ async function run() {
       if(!url.pathname.includes('/api/v1/')) return originalFetch(input,init);
       const route=url.pathname.split('/api/v1')[1];
       const reply=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
+      if (route === '/wardrobe/mine') return reply({ deposits: [], staffAccess: false });
       if(route==='/users/me') return reply({id:'test-user',role:'user',username:'Tester',preferredLanguage:'en',email:'test@example.com'});
       if(route==='/profiles/search') return reply([]);
       if(route.endsWith('/social')) return reply({friends:[],goingCount:0,ticketsSoldCount:0,manualGoingCount:0});

@@ -327,8 +327,10 @@ func (q *Queries) GetCommentsForEvent(ctx context.Context, arg GetCommentsForEve
 }
 
 const getEventByID = `-- name: GetEventByID :one
-SELECT 
-    e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
+SELECT
+    COALESCE((SELECT rate_bps FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT rate_bps FROM platform_commission_settings))::integer AS commission_rate_bps,
+    COALESCE((SELECT per_ticket_bani FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT per_ticket_bani FROM platform_commission_settings))::integer AS commission_per_ticket_bani,
+    e.id, e.organizer_id, e.title, e.description, e.category, e.status,
     e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.vat_percentage, e.external_ticket_url, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
@@ -403,6 +405,8 @@ type GetEventByIDParams struct {
 }
 
 type GetEventByIDRow struct {
+	CommissionRateBps          int32              `json:"commission_rate_bps"`
+	CommissionPerTicketBani    int32              `json:"commission_per_ticket_bani"`
 	ID                         pgtype.UUID        `json:"id"`
 	OrganizerID                pgtype.UUID        `json:"organizer_id"`
 	Title                      string             `json:"title"`
@@ -434,6 +438,8 @@ func (q *Queries) GetEventByID(ctx context.Context, arg GetEventByIDParams) (Get
 	row := q.db.QueryRow(ctx, getEventByID, arg.UserID, arg.ID)
 	var i GetEventByIDRow
 	err := row.Scan(
+		&i.CommissionRateBps,
+		&i.CommissionPerTicketBani,
 		&i.ID,
 		&i.OrganizerID,
 		&i.Title,
@@ -527,7 +533,9 @@ func (q *Queries) GetEventForValidation(ctx context.Context, id pgtype.UUID) (Ge
 }
 
 const getEventWithStats = `-- name: GetEventWithStats :one
-SELECT 
+SELECT
+    COALESCE((SELECT rate_bps FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT rate_bps FROM platform_commission_settings))::integer AS commission_rate_bps,
+    COALESCE((SELECT per_ticket_bani FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT per_ticket_bani FROM platform_commission_settings))::integer AS commission_per_ticket_bani,
     e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status, e.organizer_absorbs_service_fee, e.publish_at, e.was_published, e.vat_percentage, e.external_ticket_url,
     
     (
@@ -536,14 +544,17 @@ SELECT
         WHERE event_id = e.id
     )::bigint AS total_check_ins,
     
-    COALESCE(
-        (
-            SELECT SUM(tt.tickets_sold) 
-            FROM ticket_types tt 
-            WHERE tt.event_id = e.id
-        ), 
-        0
-    )::bigint AS total_tickets_sold,
+    (SELECT COUNT(*)::bigint FROM tickets t
+     JOIN orders o ON o.id = t.order_id
+     JOIN ticket_types tier ON tier.id = t.ticket_type_id
+     WHERE tier.event_id = e.id AND o.event_id = e.id AND o.status = 'completed'
+    ) AS total_tickets_sold,
+    (SELECT COUNT(*)::bigint FROM tickets t
+     JOIN orders o ON o.id = t.order_id
+     JOIN ticket_types tier ON tier.id = t.ticket_type_id
+     WHERE tier.event_id = e.id AND o.event_id = e.id AND o.status = 'completed'
+       AND t.is_validated = TRUE
+    ) AS total_tickets_scanned,
     
     COALESCE(
         (
@@ -609,6 +620,8 @@ WHERE e.id = $1 LIMIT 1
 `
 
 type GetEventWithStatsRow struct {
+	CommissionRateBps          int32              `json:"commission_rate_bps"`
+	CommissionPerTicketBani    int32              `json:"commission_per_ticket_bani"`
 	ID                         pgtype.UUID        `json:"id"`
 	OrganizerID                pgtype.UUID        `json:"organizer_id"`
 	Title                      string             `json:"title"`
@@ -634,6 +647,7 @@ type GetEventWithStatsRow struct {
 	ExternalTicketUrl          pgtype.Text        `json:"external_ticket_url"`
 	TotalCheckIns              int64              `json:"total_check_ins"`
 	TotalTicketsSold           int64              `json:"total_tickets_sold"`
+	TotalTicketsScanned        int64              `json:"total_tickets_scanned"`
 	TotalRevenueRon            int64              `json:"total_revenue_ron"`
 	InterestedCount            int64              `json:"interested_count"`
 	GoingCount                 int32              `json:"going_count"`
@@ -646,6 +660,8 @@ func (q *Queries) GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEve
 	row := q.db.QueryRow(ctx, getEventWithStats, id)
 	var i GetEventWithStatsRow
 	err := row.Scan(
+		&i.CommissionRateBps,
+		&i.CommissionPerTicketBani,
 		&i.ID,
 		&i.OrganizerID,
 		&i.Title,
@@ -671,6 +687,7 @@ func (q *Queries) GetEventWithStats(ctx context.Context, id pgtype.UUID) (GetEve
 		&i.ExternalTicketUrl,
 		&i.TotalCheckIns,
 		&i.TotalTicketsSold,
+		&i.TotalTicketsScanned,
 		&i.TotalRevenueRon,
 		&i.InterestedCount,
 		&i.GoingCount,
@@ -804,8 +821,10 @@ func (q *Queries) GetLiveEventsInArea(ctx context.Context, arg GetLiveEventsInAr
 }
 
 const listEvents = `-- name: ListEvents :many
-SELECT 
-    e.id, e.organizer_id, e.title, e.description, e.category, e.status, 
+SELECT
+    COALESCE((SELECT rate_bps FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT rate_bps FROM platform_commission_settings))::integer AS commission_rate_bps,
+    COALESCE((SELECT per_ticket_bani FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT per_ticket_bani FROM platform_commission_settings))::integer AS commission_per_ticket_bani,
+    e.id, e.organizer_id, e.title, e.description, e.category, e.status,
     e.banner_url, e.google_place_id, e.location_name, e.city, e.vibe, e.organizer_absorbs_service_fee, e.vat_percentage, e.external_ticket_url, e.latitude, e.longitude, e.start_time,
     e.end_time, e.is_live, e.created_at,
     
@@ -916,6 +935,8 @@ type ListEventsParams struct {
 }
 
 type ListEventsRow struct {
+	CommissionRateBps          int32              `json:"commission_rate_bps"`
+	CommissionPerTicketBani    int32              `json:"commission_per_ticket_bani"`
 	ID                         pgtype.UUID        `json:"id"`
 	OrganizerID                pgtype.UUID        `json:"organizer_id"`
 	Title                      string             `json:"title"`
@@ -969,6 +990,8 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 	for rows.Next() {
 		var i ListEventsRow
 		if err := rows.Scan(
+			&i.CommissionRateBps,
+			&i.CommissionPerTicketBani,
 			&i.ID,
 			&i.OrganizerID,
 			&i.Title,
@@ -1006,14 +1029,27 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 }
 
 const listEventsWithStats = `-- name: ListEventsWithStats :many
-SELECT 
+SELECT
+    COALESCE((SELECT rate_bps FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT rate_bps FROM platform_commission_settings))::integer AS commission_rate_bps,
+    COALESCE((SELECT per_ticket_bani FROM effective_organizer_commissions c WHERE c.organizer_id = e.organizer_id), (SELECT per_ticket_bani FROM platform_commission_settings))::integer AS commission_per_ticket_bani,
     e.id, e.organizer_id, e.title, e.description, e.category, e.banner_url, e.location_address, e.location_name, e.city, e.vibe, e.latitude, e.longitude, e.start_time, e.end_time, e.is_live, e.created_at, e.google_place_id, e.status, e.organizer_absorbs_service_fee, e.publish_at, e.was_published, e.vat_percentage, e.external_ticket_url,
     (
         SELECT COUNT(*)::bigint 
         FROM check_ins 
         WHERE event_id = e.id
     ) AS total_check_ins,
-    COALESCE(SUM(tt.tickets_sold), 0)::bigint AS total_tickets_sold,
+    -- Inventory also includes unpaid reservations; dashboard sales use issued tickets.
+    (SELECT COUNT(*)::bigint FROM tickets t
+     JOIN orders o ON o.id = t.order_id
+     JOIN ticket_types tier ON tier.id = t.ticket_type_id
+     WHERE tier.event_id = e.id AND o.event_id = e.id AND o.status = 'completed'
+    ) AS total_tickets_sold,
+    (SELECT COUNT(*)::bigint FROM tickets t
+     JOIN orders o ON o.id = t.order_id
+     JOIN ticket_types tier ON tier.id = t.ticket_type_id
+     WHERE tier.event_id = e.id AND o.event_id = e.id AND o.status = 'completed'
+       AND t.is_validated = TRUE
+    ) AS total_tickets_scanned,
     COALESCE((
         SELECT SUM(oi.quantity::bigint * oi.unit_price_ron::bigint)
         FROM order_items oi
@@ -1071,6 +1107,8 @@ ORDER BY e.start_time DESC
 `
 
 type ListEventsWithStatsRow struct {
+	CommissionRateBps          int32              `json:"commission_rate_bps"`
+	CommissionPerTicketBani    int32              `json:"commission_per_ticket_bani"`
 	ID                         pgtype.UUID        `json:"id"`
 	OrganizerID                pgtype.UUID        `json:"organizer_id"`
 	Title                      string             `json:"title"`
@@ -1096,6 +1134,7 @@ type ListEventsWithStatsRow struct {
 	ExternalTicketUrl          pgtype.Text        `json:"external_ticket_url"`
 	TotalCheckIns              int64              `json:"total_check_ins"`
 	TotalTicketsSold           int64              `json:"total_tickets_sold"`
+	TotalTicketsScanned        int64              `json:"total_tickets_scanned"`
 	TotalRevenueRon            int64              `json:"total_revenue_ron"`
 	InterestedCount            int64              `json:"interested_count"`
 	GoingCount                 int32              `json:"going_count"`
@@ -1114,6 +1153,8 @@ func (q *Queries) ListEventsWithStats(ctx context.Context, organizerID pgtype.UU
 	for rows.Next() {
 		var i ListEventsWithStatsRow
 		if err := rows.Scan(
+			&i.CommissionRateBps,
+			&i.CommissionPerTicketBani,
 			&i.ID,
 			&i.OrganizerID,
 			&i.Title,
@@ -1139,6 +1180,7 @@ func (q *Queries) ListEventsWithStats(ctx context.Context, organizerID pgtype.UU
 			&i.ExternalTicketUrl,
 			&i.TotalCheckIns,
 			&i.TotalTicketsSold,
+			&i.TotalTicketsScanned,
 			&i.TotalRevenueRon,
 			&i.InterestedCount,
 			&i.GoingCount,

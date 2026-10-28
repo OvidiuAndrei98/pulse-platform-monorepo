@@ -18,7 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const AgreementVersion = "2026-07-27"
+const AgreementVersion = "2026-10-18"
 
 type Handler struct {
 	Queries *db.Queries
@@ -35,6 +35,7 @@ type FinanceEventResponse struct {
 	GrossRevenueRon          int64  `json:"grossRevenueRon"`
 	CustomerTicketingFeeBani int64  `json:"customerTicketingFeeBani"`
 	PlatformFeeBani          int64  `json:"platformFeeBani"`
+	InvoiceServiceFeeBani    int64  `json:"invoiceServiceFeeBani"`
 	TicketsSold              int64  `json:"ticketsSold"`
 	RefundsNeedingAttention  int64  `json:"refundsNeedingAttention"`
 }
@@ -67,6 +68,7 @@ func (h *Handler) HandleGetOrganizerFinance(w http.ResponseWriter, r *http.Reque
 			GrossRevenueRon:          row.GrossRevenueRon,
 			CustomerTicketingFeeBani: row.CustomerTicketingFeeBani,
 			PlatformFeeBani:          row.PlatformFeeBani,
+			InvoiceServiceFeeBani:    row.InvoiceServiceFeeBani,
 			TicketsSold:              row.TicketsSold,
 			RefundsNeedingAttention:  row.RefundsNeedingAttention,
 		})

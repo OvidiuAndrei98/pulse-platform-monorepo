@@ -61,7 +61,7 @@ CREATE TABLE orders (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(), event_id uuid NOT NULL,
     user_id uuid, email text NOT NULL, status text NOT NULL,
 	reservation_ip_hash bytea,
-	stripe_checkout_session_id text, stripe_connected_account_id text,
+	stripe_checkout_session_id text, stripe_payment_intent_id text, stripe_connected_account_id text,
 	stripe_charge_type text,
     created_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
@@ -87,6 +87,12 @@ func TestStaleReviewBatchesDoNotStarveOrdersAfterFirstFifty(t *testing.T) {
 VALUES($1,$2,'pending','acct_batch_security','direct',clock_timestamp()-interval '100 years')`, eventID, fmt.Sprintf("batch-%d@example.invalid", index)); err != nil {
 			t.Fatal(err)
 		}
+	}
+	// A native PaymentIntent has its own reconciliation path; lacking a hosted
+	// Checkout session must not classify it as an unidentified reservation.
+	if _, err := pool.Exec(ctx, `INSERT INTO orders(event_id,email,status,stripe_connected_account_id,stripe_charge_type,stripe_payment_intent_id,created_at)
+VALUES($1,'native-batch@example.invalid','pending','acct_batch_security','direct','pi_native_batch',clock_timestamp()-interval '100 years')`, eventID); err != nil {
+		t.Fatal(err)
 	}
 	queries := db.New(pool)
 	first, err := queries.MarkStaleSessionlessCheckoutReservationsForReview(ctx)

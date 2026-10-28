@@ -1,29 +1,31 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Pressable, View, useWindowDimensions } from "react-native";
 import {
-  Building2,
   Calendar,
-  CreditCard,
   MapPin,
   Megaphone,
   Plus,
-  RefreshCw,
-  Unplug,
+  ScanLine,
+  Ticket,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { accountApi } from "../auth/AuthProvider";
 import { usePreferences } from "../PreferencesProvider";
 import { Text } from "../ui/Text";
 import { EventImage, Feedback, Loading } from "../ui/common";
 import { formatDate } from "../data/events";
-import { Action, Confirm, dColors as colors, s, useAction } from "./common";
-import {
-  AGREEMENT_VERSION,
-  type DashboardEvent,
-  type OrganizerProfile,
-} from "./data";
+import { Action, dColors as colors } from "./common";
+import type { DashboardEvent } from "./data";
 import { Grid } from "./managementUi";
-import { useOrganizerFlow } from "./useOrganizerFlow";
+import {
+  dashboardTicketCounts,
+  isDashboardEventLive,
+  selectDashboardEvent,
+} from "../../../pulse-app/src/features/events/dashboardFeatured";
+import { useEventClock } from "../data/useEventClock";
+import {
+  dashboardEventGroups,
+  type DashboardEventFilter,
+} from "../../../pulse-app/src/features/events/dashboardEvents";
 
 export function DashboardTitle({
   title,
@@ -56,71 +58,42 @@ export function DashboardTitle({
 }
 export function DashboardOverview({
   events,
-  profile,
   loading,
   error,
   onRetry,
   onEvent,
   onNew,
-  onCompany,
-  onAgreement,
-  onStripeInfo,
   onPromotions,
   onEvents,
-  returning,
 }: {
   events: DashboardEvent[];
-  profile?: OrganizerProfile;
   loading: boolean;
   error: boolean;
   onRetry(): void;
   onEvent(id: string): void;
   onNew(): void;
-  onCompany(): void;
-  onAgreement(): void;
-  onStripeInfo(): void;
   onPromotions(): void;
-  onEvents(): void;
-  returning?: boolean;
+  onEvents(filter: DashboardEventFilter): void;
 }) {
   const { copy, language } = usePreferences(),
     { width } = useWindowDimensions(),
-    action = useAction(),
-    flow = useOrganizerFlow();
-  const [disconnect, setDisconnect] = useState(false),
     wide = width >= 640;
-  useEffect(() => {
-    if (returning) void flow.refresh({ flow: "connect" });
-  }, [returning]);
-  const now = Date.now(),
-    upcoming = events
-      .filter((e) => Date.parse(e.startTime) > now)
-      .sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime)),
-    recent = events
-      .filter((e) => Date.parse(e.startTime) <= now)
-      .sort((a, b) => Date.parse(b.startTime) - Date.parse(a.startTime));
-  const companyReady = profile?.verificationStatus === "approved",
-    stripeReady = !!(
-      profile?.stripeChargesEnabled && profile.stripePayoutsEnabled
-    ),
-    agreementCurrent = profile?.organizerAgreementVersion === AGREEMENT_VERSION;
+  const now = useEventClock(selectDashboardEvent(events, Date.now()));
+  const { upcoming, past: recent } = dashboardEventGroups(events, now);
+  const featured = selectDashboardEvent(events, now);
+  const live = featured ? isDashboardEventLive(featured, now) : false;
+  const counts = dashboardTicketCounts(featured ?? {});
   const tiny = { fontSize: 12, lineHeight: 16, color: colors.muted } as const;
-  const connect = () =>
-    void flow.start(async () => {
-      const result = await accountApi<{ url: string }>(
-        `/dashboard/stripe/account-link?client=${flow.client}`,
-        { method: "POST" },
-      );
-      return { url: result.url, expected: { flow: "connect" } };
-    });
   function eventGroup(
     title: string,
     hint: string,
     items: DashboardEvent[],
     limit: number,
+    filter: DashboardEventFilter,
   ) {
     return (
       <View
+        testID={`dashboard-group-${filter}`}
         style={{
           borderTopWidth: 1,
           borderColor: "#ffffff1a",
@@ -139,13 +112,23 @@ export function DashboardOverview({
               {copy(hint)}
             </Text>
           </View>
-          <Pressable onPress={onEvents}>
-            <Text
-              style={{ color: colors.accent, fontSize: 12, fontWeight: "600" }}
+          {items.length > limit && (
+            <Pressable
+              accessibilityRole="button"
+              testID={`dashboard-see-all-${filter}`}
+              onPress={() => onEvents(filter)}
             >
-              {copy("common.seeAll")}
-            </Text>
-          </Pressable>
+              <Text
+                style={{
+                  color: colors.accent,
+                  fontSize: 12,
+                  fontWeight: "600",
+                }}
+              >
+                {copy("common.seeAll")}
+              </Text>
+            </Pressable>
+          )}
         </View>
         {loading ? (
           <Loading />
@@ -212,10 +195,11 @@ export function DashboardOverview({
       ) : error ? (
         <Feedback title={copy("feedback.loadFailed")} retry={onRetry} />
       ) : (
-        upcoming[0] && (
+        featured && (
           <Pressable
+            testID="dashboard-featured-event"
             accessibilityRole="button"
-            onPress={() => onEvent(upcoming[0]!.id)}
+            onPress={() => onEvent(featured.id)}
             style={{
               minHeight: 176,
               borderRadius: 12,
@@ -226,7 +210,7 @@ export function DashboardOverview({
             }}
           >
             <EventImage
-              uri={upcoming[0].bannerUrl}
+              uri={featured.bannerUrl}
               style={{ position: "absolute", width: "100%", height: "100%" }}
             />
             <LinearGradient
@@ -241,6 +225,7 @@ export function DashboardOverview({
               }}
             >
               <Text
+                testID="dashboard-featured-status"
                 style={{
                   fontSize: 11,
                   fontWeight: "700",
@@ -249,7 +234,7 @@ export function DashboardOverview({
                   color: colors.accent,
                 }}
               >
-                {copy("dashboard.nextEvent")}
+                {copy(live ? "dashboard.liveEvent" : "dashboard.nextEvent")}
               </Text>
               <Text
                 style={{
@@ -259,7 +244,7 @@ export function DashboardOverview({
                   color: colors.text,
                 }}
               >
-                {upcoming[0].title}
+                {featured.title}
               </Text>
               <View
                 style={{
@@ -275,18 +260,89 @@ export function DashboardOverview({
                 >
                   <Calendar size={14} color={colors.accent} />
                   <Text style={{ fontSize: 14, color: "#ffffffbf" }}>
-                    {formatDate(upcoming[0].startTime, language)}
+                    {formatDate(featured.startTime, language)}
                   </Text>
                 </View>
                 <View
-                  style={{ flexDirection: "row", gap: 6, alignItems: "center" }}
+                  style={{
+                    flexDirection: "row",
+                    gap: 6,
+                    alignItems: "center",
+                    flexShrink: 1,
+                  }}
                 >
                   <MapPin size={14} color={colors.accent} />
-                  <Text style={{ fontSize: 14, color: "#ffffffbf" }}>
-                    {upcoming[0].locationName}
+                  <Text
+                    style={{ fontSize: 14, color: "#ffffffbf", flexShrink: 1 }}
+                  >
+                    {featured.locationName}
                   </Text>
                 </View>
               </View>
+              {(counts.sold !== undefined || counts.scanned !== undefined) && (
+                <View
+                  style={{
+                    marginTop: 16,
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    gap: 8,
+                  }}
+                >
+                  {(
+                    [
+                      {
+                        key: "sold",
+                        value: counts.sold,
+                        label: "dashboard.ticketsSold",
+                        Icon: Ticket,
+                        color: colors.accent,
+                      },
+                      {
+                        key: "scanned",
+                        value: counts.scanned,
+                        label: "dashboard.ticketsScanned",
+                        Icon: ScanLine,
+                        color: "#34d399",
+                      },
+                    ] as const
+                  ).map(
+                    ({ key, value, label, Icon, color }) =>
+                      value !== undefined && (
+                        <View
+                          key={key}
+                          testID={`dashboard-featured-${key}`}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 7,
+                            borderRadius: 999,
+                            borderWidth: 1,
+                            borderColor: "#ffffff1a",
+                            backgroundColor: "#00000080",
+                            paddingHorizontal: 12,
+                            paddingVertical: 7,
+                          }}
+                        >
+                          <Icon size={14} color={color} />
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              lineHeight: 18,
+                              color: "#ffffffbf",
+                            }}
+                          >
+                            <Text
+                              style={{ fontWeight: "700", color: "#ffffff" }}
+                            >
+                              {value.toLocaleString(language)}
+                            </Text>{" "}
+                            {copy(label)}
+                          </Text>
+                        </View>
+                      ),
+                  )}
+                </View>
+              )}
             </LinearGradient>
           </Pressable>
         )
@@ -306,216 +362,19 @@ export function DashboardOverview({
           textStyle={{ color: colors.accent }}
         />
       </View>
-      {!loading && !error && (
-        <View
-          style={{
-            borderWidth: 1,
-            borderColor: companyReady ? "#ffffff1a" : "#fbbf2433",
-            backgroundColor: companyReady ? "#ffffff08" : "#fbbf240a",
-            borderRadius: 12,
-            padding: 20,
-            gap: 16,
-            flexDirection: wide ? "row" : "column",
-            alignItems: wide ? "center" : undefined,
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 12,
-              flex: wide ? 1 : undefined,
-            }}
-          >
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 8,
-                backgroundColor: companyReady
-                  ? stripeReady
-                    ? "#ff004426"
-                    : "#ffffff0d"
-                  : "#fbbf241a",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {companyReady ? (
-                <CreditCard
-                  size={20}
-                  color={stripeReady ? colors.accent : colors.muted}
-                />
-              ) : (
-                <Building2 size={20} color="#fcd34d" />
-              )}
-            </View>
-            <View style={{ flex: 1, gap: 3 }}>
-              <Text
-                style={{ fontSize: 14, fontWeight: "600", color: colors.text }}
-              >
-                {copy(
-                  companyReady
-                    ? "dashboard.stripePayments"
-                    : profile?.verificationStatus === "pending"
-                      ? "organizerProfile.companyPending"
-                      : profile?.verificationStatus === "rejected"
-                        ? "organizerProfile.companyRejected"
-                        : "dashboard.companyMissing",
-                )}
-              </Text>
-              <Text style={tiny}>
-                {copy(
-                  !companyReady
-                    ? profile?.verificationStatus === "pending"
-                      ? "dashboard.companyPendingHint"
-                      : profile?.verificationStatus === "rejected"
-                        ? "dashboard.companyRejectedHint"
-                        : "dashboard.companyRequired"
-                    : !agreementCurrent
-                      ? "dashboard.acceptAgreementBeforeStripe"
-                      : stripeReady
-                        ? "dashboard.paymentsActive"
-                        : "dashboard.connectStripeToSell",
-                )}
-              </Text>
-              {companyReady && !stripeReady && (
-                <Pressable onPress={onStripeInfo}>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontWeight: "600",
-                      color: colors.accent,
-                      marginTop: 4,
-                    }}
-                  >
-                    {copy("dashboard.stripeExplainer")}
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-          </View>
-          {!companyReady ? (
-            <Action
-              title={copy("organizerProfile.configureCompany")}
-              onPress={onCompany}
-              style={{
-                minHeight: 40,
-                paddingVertical: 10,
-                paddingHorizontal: 12,
-              }}
-              textStyle={{ fontSize: 12 }}
-            />
-          ) : (
-            <View
-              style={{
-                flexDirection: "row",
-                flexWrap: "wrap",
-                gap: 8,
-                flexShrink: 1,
-              }}
-            >
-              {!agreementCurrent && (
-                <Action
-                  title={copy("dashboard.acceptAgreement")}
-                  secondary
-                  onPress={onAgreement}
-                  style={{
-                    minHeight: 40,
-                    paddingVertical: 10,
-                    paddingHorizontal: 12,
-                    borderColor: "#ff004459",
-                  }}
-                  textStyle={{ fontSize: 12, color: colors.accent }}
-                />
-              )}
-              {profile?.stripeAccountId && (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={copy("dashboard.refreshStripe")}
-                  disabled={flow.busy || action.busy}
-                  onPress={() => void flow.refresh({ flow: "connect" })}
-                  style={{
-                    height: 40,
-                    width: 40,
-                    borderWidth: 1,
-                    borderColor: "#ffffff26",
-                    borderRadius: 8,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <RefreshCw size={16} color={colors.text} />
-                </Pressable>
-              )}
-              {agreementCurrent && !stripeReady && (
-                <Action
-                  title={copy(
-                    profile?.stripeAccountId
-                      ? "dashboard.continueStripe"
-                      : "dashboard.connectStripe",
-                  )}
-                  icon={CreditCard}
-                  disabled={flow.busy || action.busy}
-                  onPress={connect}
-                  style={{
-                    minHeight: 40,
-                    paddingVertical: 10,
-                    paddingHorizontal: 12,
-                  }}
-                  textStyle={{ fontSize: 12 }}
-                />
-              )}
-              {profile?.stripeAccountId && (
-                <Action
-                  title={copy("dashboard.disconnectStripe")}
-                  icon={Unplug}
-                  secondary
-                  danger
-                  disabled={flow.busy || action.busy}
-                  onPress={() => setDisconnect(true)}
-                  style={{
-                    minHeight: 40,
-                    paddingVertical: 10,
-                    paddingHorizontal: 12,
-                    backgroundColor: "transparent",
-                  }}
-                  textStyle={{ fontSize: 12 }}
-                />
-              )}
-            </View>
-          )}
-        </View>
-      )}
-      {action.feedback}
-      {flow.feedback}
       {eventGroup(
         "dashboard.nextEvents",
         "dashboard.nextEventsHint",
         upcoming,
         4,
+        "upcoming",
       )}
       {eventGroup(
         "dashboard.recentEvents",
         "dashboard.recentEventsHint",
         recent,
         2,
-      )}
-      {disconnect && (
-        <Confirm
-          title={copy("dashboard.disconnectStripeTitle")}
-          detail={copy("dashboard.disconnectStripeHint")}
-          busy={action.busy}
-          onClose={() => setDisconnect(false)}
-          onConfirm={() =>
-            void action.run(
-              () =>
-                accountApi("/dashboard/stripe/account", { method: "DELETE" }),
-              "dashboard.stripeDisconnected",
-              () => setDisconnect(false),
-            )
-          }
-        />
+        "completed",
       )}
     </>
   );
@@ -567,7 +426,7 @@ function DashboardMiniEvent({
             numberOfLines={1}
             style={{ fontSize: 12, color: colors.muted, flex: 1 }}
           >
-            {formatDate(event.startTime, language)}
+            {formatDate(event.startTime, language, true)}
           </Text>
         </View>
         <View style={{ flexDirection: "row", gap: 4, alignItems: "center" }}>

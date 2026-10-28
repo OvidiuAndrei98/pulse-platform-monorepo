@@ -3,6 +3,7 @@ import React, { useRef, useState } from "react";
 import { ScrollView, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
+import { useIsFocused } from "@react-navigation/native";
 import { accountApi, useAuth } from "../auth/AuthProvider";
 import { ApiError } from "../data/http";
 import { usePreferences } from "../PreferencesProvider";
@@ -26,6 +27,12 @@ import {
   OrganizerStripeInformation,
 } from "./OrganizerDocuments";
 import { ScannerScreen } from "../scanner/ScannerScreen";
+import { WardrobeScreen } from "../wardrobe/WardrobeScreen";
+import { StripeAccountPanel } from "./StripeAccountPanel";
+import {
+  parseDashboardEventFilter,
+  type DashboardEventFilter,
+} from "../../../pulse-app/src/features/events/dashboardEvents";
 
 export type DashboardScreenProps = {
   onClose(): void;
@@ -37,11 +44,13 @@ export type DashboardScreenProps = {
   onPublicProfile(): void;
   initialSection?: DashboardSection | "scanner";
   initialEventId?: string;
+  initialEventFilter?: string;
   organizerReturn?: "connect" | "promotion";
   campaignId?: string;
   returnStatus?: "complete" | "refresh" | "cancelled";
 };
 export function DashboardScreen(props: DashboardScreenProps) {
+  const focused = useIsFocused();
   const auth = useAuth(),
     { copy } = usePreferences(),
     safe = useSafeAreaInsets(),
@@ -52,16 +61,20 @@ export function DashboardScreen(props: DashboardScreenProps) {
     props.organizerReturn === "promotion"
       ? "promotions"
       : props.organizerReturn === "connect"
-        ? "overview"
+        ? "finance"
         : (props.initialSection ?? (organizer ? "overview" : "scanner")),
   );
   const [eventId, setEventId] = useState(props.initialEventId ?? ""),
     [template, setTemplate] = useState<DashboardEvent>();
+  const [eventFilter, setEventFilter] = useState<DashboardEventFilter>(() =>
+    parseDashboardEventFilter(props.initialEventFilter),
+  );
   const scroll = useRef<ScrollView>(null);
   const events = useQuery({
     queryKey: ["dashboard", auth.user?.id, "/dashboard/events"],
     enabled: organizer,
     queryFn: ({ signal }) => dashboardApi.events(signal),
+    refetchInterval: focused && section === "overview" ? 15_000 : false,
   });
   const profile = useQuery({
     queryKey: [
@@ -98,6 +111,7 @@ export function DashboardScreen(props: DashboardScreenProps) {
       return;
     }
     setTemplate(undefined);
+    if (value === "events") setEventFilter("all");
     setSection(value as DashboardSection | "scanner");
   };
   const openEvent = (id: string) => {
@@ -145,6 +159,8 @@ export function DashboardScreen(props: DashboardScreenProps) {
         )}
         {actualSection === "scanner" ? (
           <ScannerScreen embedded eventId={props.initialEventId} />
+        ) : actualSection === "wardrobe" ? (
+          <WardrobeScreen embedded />
         ) : (
           <FormScrollView
             ref={scroll}
@@ -182,24 +198,24 @@ export function DashboardScreen(props: DashboardScreenProps) {
               {actualSection === "overview" ? (
                 <DashboardOverview
                   events={events.data ?? []}
-                  profile={profile.data ?? undefined}
-                  loading={events.isPending || profile.isPending}
-                  error={events.isError || profile.isError}
+                  loading={events.isPending}
+                  error={events.isError && !events.data}
                   onRetry={() => {
                     void events.refetch();
                     void profile.refetch();
                   }}
                   onEvent={openEvent}
                   onNew={() => go("new")}
-                  onCompany={() => go("company")}
-                  onAgreement={() => go("agreement")}
-                  onStripeInfo={() => go("stripe-info")}
                   onPromotions={() => go("promotions")}
-                  onEvents={() => go("events")}
-                  returning={props.organizerReturn === "connect"}
+                  onEvents={(filter) => {
+                    setEventFilter(filter);
+                    setSection("events");
+                  }}
                 />
               ) : actualSection === "events" ? (
                 <DashboardEvents
+                  filter={eventFilter}
+                  onFilterChange={setEventFilter}
                   events={events.data ?? []}
                   loading={events.isPending}
                   error={events.isError}
@@ -243,7 +259,19 @@ export function DashboardScreen(props: DashboardScreenProps) {
                   />
                 )
               ) : actualSection === "finance" ? (
-                <Finance />
+                <>
+                  <Finance />
+                  <StripeAccountPanel
+                    profile={profile.data ?? undefined}
+                    loading={profile.isPending}
+                    error={profile.isError && profile.data === undefined}
+                    onRetry={() => void profile.refetch()}
+                    onCompany={() => go("company")}
+                    onAgreement={() => go("agreement")}
+                    onStripeInfo={() => go("stripe-info")}
+                    returning={props.organizerReturn === "connect"}
+                  />
+                </>
               ) : actualSection === "invoicing" ? (
                 <Invoicing />
               ) : actualSection === "promotions" ? (
@@ -278,7 +306,7 @@ export function DashboardScreen(props: DashboardScreenProps) {
                   onCompany={() =>
                     auth.user ? go("company") : props.onSignIn?.()
                   }
-                  onAccepted={() => go("overview")}
+                  onAccepted={() => go("finance")}
                   onHome={props.onClose}
                 />
               ) : actualSection === "stripe-info" ? (

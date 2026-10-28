@@ -1,0 +1,107 @@
+SPOTTR purchase and ticket-scanning audit — 2026-10-26
+
+Scope and result
+React Native web export, Next.js development UI, and Go API payment/scanning
+logic were exercised locally. The scenarios below passed after the scanner
+offline-preparation fix. This does not certify physical-device behavior or a
+live Stripe integration. No real payment was submitted.
+
+Automated checks
+- React Native: 463 tests passed, zero failures/skips; TypeScript passed.
+- Next.js: 114 tests passed, zero failures/skips; TypeScript passed.
+- Go API: 292 passing test/subtest results across payments (224), tickets (20),
+  router (11), invoicing (32), and organizer (5); zero failures/skips.
+  Used fresh PostgreSQL 17 databases with all 72 migrations. Stripe/provider
+  transports were simulated. The isolated Docker container was removed.
+- Fresh Expo web export completed before the browser checks.
+
+Browser coverage (real UI; intercepted API/payment responses)
+- React Native checkout: preserved Home/event state, quantity limits, promo
+  races, billing validation, duplicate-submit prevention, request retries,
+  popup blocking, stock conflicts, free booking, hosted return while provider
+  tab remains open, cancelled cold start and malformed callbacks.
+- React Native confirmation: bounded manual recheck, delayed confirmation,
+  offline result, failed/refunded/cancelled states, guest and reduced-motion UI.
+- React Native scanner: offline download failure/retry, loss of connection,
+  square camera guide at three viewports, reopen camera, local acceptance and
+  duplicates, persistent queue after reload, reconnect synchronization exactly
+  once, missing-package guidance, audio/mute and wake-lock cleanup.
+- React Native scan history: personal/all tabs, scanner names, pagination,
+  offline cache, navigation back to selected event, revoked-access handling.
+- Next.js scanner: online valid/duplicate/invalid codes; offline preparation,
+  IndexedDB-backed admission, duplicate/unknown rejection, reconnect sync.
+  Code entry was manual in the automated UI; physical QR capture was not tested.
+- Next.js checkout: no purchase request before submitting checkout, correct
+  5% + 1.50 RON fee, billing, rapid double-submit, browser redirect, success only
+  after server confirmation. Pending/failed/refunded/missing callbacks do not
+  show paid success or start another purchase.
+- Next.js event → checkout → billing → browser Back: six combinations of
+  mobile/desktop viewport and scroll position passed.
+- Both clients' transaction/invoice lists: abandoned reservations hidden;
+  submitted but unpaid attempts shown truthfully; paid orders visible without
+  an invoice; invoice arrival updates without another payment; refunded/free
+  orders, empty state and organizer purchase history. Native also checks
+  returning to the list and foreground refresh.
+
+Backend scenarios include
+- Concurrent reservations/idempotent retries, inventory and promo limits.
+- Native and hosted payment submission evidence controls transaction visibility.
+- Abandonment/cancellation never issue tickets; payment confirmation is bound
+  to the correct order/account/amount; replayed notifications are idempotent.
+- Payment succeeds but DB operation fails: rollback and worker recovery.
+- Invoice dispatch requires confirmed live payment, prevents duplicate issuance
+  and remains free beyond the former twenty-invoice trial.
+- Offline scan/history authorization, synchronization and expired snapshots.
+
+Changes from this audit
+1. Next.js ticket-validation page no longer awaits serviceWorker.ready forever
+   when no worker is installed (development intentionally unregisters it).
+   It caches the page shell only when an active registration exists. Saving
+   the offline ticket package can therefore finish without a worker.
+2. Added apps/pulse-app/scripts/checkout-scanner.browser.cjs reproducing the
+   blocked preparation and exercising checkout/scanning transitions.
+3. Scanner browser test waits for RN Web's asynchronous onLayout after resize,
+   instead of comparing a stale frame after an arbitrary 250 ms sleep.
+4. Order-history browser fixture now returns the current /wardrobe/mine shape
+   when navigating through Profile; the old catch-all [] was an invalid mock.
+
+Evidence
+Logs: apps/spottr-native/artifacts/flow-qa-20261026/
+  native-unit.log, next-unit-final.log, api-tests.jsonl,
+  native-types.log, next-types.log, native-export.log,
+  native-browser-checkout.log, native-browser-confirmation.log,
+  native-browser-scanner-final.log, native-browser-history.log,
+  next-browser-checkout-scanner.log, next-browser-navigation.log,
+  native-browser-orders.log, next-browser-orders.log.
+The initial scanner resize attempt failed on stale layout and passed unchanged
+on retry; the final test explicitly waits for settled layout. The first order
+history run failed on the obsolete wardrobe fixture, corrected as above.
+
+Running the added UI regression
+Start an isolated local Next dev server on port 3206. From apps/pulse-app run:
+  node scripts/checkout-scanner.browser.cjs
+NAVIGATION_TEST_URL can point to another loopback port. The script refuses
+non-local server origins and intercepts API calls. It uses the existing native
+browser harness and requires a local Chrome installation and native web export.
+
+Staging incident found during the audit (read-only AWS inspection)
+- api-staging.spottr.ro returned 503; localhost:8081 relayed that API error.
+- ECS staging desired count was 1, but containers repeatedly exited.
+- Shared RDS pulse-db is inaccessible-encryption-credentials.
+- RDS events: lost KMS access on October 18; seven-day recoverable interval
+  expired October 25. The KMS key currently reports Enabled, AWS-managed.
+- Available final manual snapshot: October 25, 03:48:39 UTC. Latest automated
+  point-in-time restore position: October 18, 01:32:46 UTC.
+- AWS documents restoration to a new DB instance for this terminal state.
+  No AWS settings or data were modified, and no restore was started.
+  Snapshot availability alone does not verify recovered data completeness.
+  Original cause of the earlier loss of KMS access is not established.
+Reference: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.Encryption.html
+
+Still requires verification
+- Restore/verify the shared AWS database and reconnect the API safely.
+- Hosted Stripe sandbox payment/webhook through deployed staging.
+- Actual iPhone/Android PaymentSheet, 3DS, app termination/return, optical QR
+  capture, permissions, gestures and physical-device offline behavior.
+- Production service-worker cold start was not exercised by the Next dev test.
+- Test PostgreSQL major version was 17; deployed RDS reports 18.3.

@@ -23,8 +23,10 @@ export type RootParamList = {
   PublicProfile: { id: string };
   Legal: { document: 'terms' | 'privacy' };
   SafetyGroup: { eventId: string };
-  Dashboard: { section?: string; eventId?: string; organizerReturn?: 'connect' | 'promotion'; campaignId?: string; returnStatus?: 'complete' | 'refresh' | 'cancelled' } | undefined;
+  Dashboard: { section?: string; eventId?: string; filter?: string; organizerReturn?: 'connect' | 'promotion'; campaignId?: string; returnStatus?: 'complete' | 'refresh' | 'cancelled' } | undefined;
   Scanner: { eventId?: string } | undefined;
+  ScannerHistory: { eventId: string; eventTitle?: string };
+  Wardrobe: { staff?: boolean } | undefined;
   Admin: undefined;
   QuickScanner: { token?: string } | undefined;
   Checkout: { eventId: string; ticketTypeId: string };

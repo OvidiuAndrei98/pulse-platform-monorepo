@@ -201,6 +201,14 @@ func (h *CheckoutHandler) replayNativePaymentSheet(w http.ResponseWriter, r *htt
 	var orderID pgtype.UUID
 	if err := h.db.QueryRow(r.Context(), `SELECT order_id FROM checkout_requests WHERE id=$1`, requestID).Scan(&orderID); err == nil && orderID.Valid {
 		order, expiresAt, err := h.nativePaymentOrder(r.Context(), orderID)
+		if err == nil && order.Status == db.OrderStatusFailed && order.StripeRefundNeedsAttention {
+			// Legacy inventory release can leave a genuinely paid order marked
+			// failed while its refund is reviewed. Keep the original request key;
+			// a retryable conflict would incorrectly authorize a second checkout.
+			w.Header().Set("Retry-After", "3")
+			router.RespondWithError(w, http.StatusTooEarly, "Plata este in curs de verificare. Reincearca in cateva secunde.")
+			return
+		}
 		if err == nil && (order.Status == db.OrderStatusFailed || order.Status == db.OrderStatusRefunded) {
 			router.RespondWithError(w, http.StatusConflict, "Aceasta plata s-a incheiat. Reincearca cu o comanda noua.")
 			return
@@ -278,7 +286,15 @@ func (h *CheckoutHandler) handlePaymentSheetState(w http.ResponseWriter, r *http
 		router.RespondWithError(w, http.StatusBadGateway, "Plata este in curs de verificare. Reincearca.")
 		return
 	}
-	router.RespondWithJSON(w, http.StatusOK, ReconcileCheckoutResponse{Status: status, OrderID: common.UUIDToString(order.ID)})
+	var attempted bool
+	if err := h.db.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM checkout_payment_attempts WHERE order_id=$1)`, order.ID).Scan(&attempted); err != nil {
+		router.RespondWithError(w, http.StatusServiceUnavailable, "Plata nu a putut fi verificata")
+		return
+	}
+	router.RespondWithJSON(w, http.StatusOK, struct {
+		ReconcileCheckoutResponse
+		PaymentAttempted bool `json:"paymentAttempted"`
+	}{ReconcileCheckoutResponse{Status: status, OrderID: common.UUIDToString(order.ID)}, attempted || status == "completed" || status == "refunded"})
 }
 
 // Reconciliation, explicit cancellation and expiry all use the same provider
@@ -288,6 +304,11 @@ func (h *CheckoutHandler) reconcileNativePaymentIntent(ctx context.Context, orde
 	accountID := order.StripeConnectedAccountID.String
 	if err := h.validateNativePaymentIntent(order, intent, accountID); err != nil {
 		return "", err
+	}
+	if paymentWasAttempted(intent) {
+		if err := h.recordPaymentAttempt(ctx, order.ID); err != nil {
+			return "", err
+		}
 	}
 	if order.Status == db.OrderStatusCompleted || order.Status == db.OrderStatusRefunded {
 		return string(order.Status), nil
@@ -306,6 +327,11 @@ func (h *CheckoutHandler) reconcileNativePaymentIntent(ctx context.Context, orde
 			return "", err
 		}
 		intent = canceled
+		if paymentWasAttempted(intent) {
+			if err := h.recordPaymentAttempt(ctx, order.ID); err != nil {
+				return "", err
+			}
+		}
 	}
 	switch intent.Status {
 	case stripe.PaymentIntentStatusSucceeded:
@@ -325,27 +351,33 @@ func (h *CheckoutHandler) reconcileNativePaymentIntent(ctx context.Context, orde
 		return "", err
 	}
 	if updated.StripeRefundNeedsAttention && updated.Status != db.OrderStatusCompleted && updated.Status != db.OrderStatusRefunded {
-		return "failed", nil
+		// A paid order can be held for refund review instead of issuing tickets
+		// (for example, the event closed during payment). This is not a failed
+		// charge: clients must retain recovery and must not invite another payment.
+		return "pending", nil
 	}
 	return string(updated.Status), nil
 }
 
-// Only exact PIs persisted for a native order are accepted. Unknown and hosted
-// payment_intent events are deliberately ignored; their Session remains the
-// authority. No metadata lookup can bind a new PI here.
+// Native events require an exact persisted PI. Hosted events can record a
+// submission after verifying their PI against the stored Checkout Session;
+// that Session remains the authority for hosted fulfillment.
 func (h *CheckoutHandler) reconcileNativePaymentEvent(ctx context.Context, intent stripe.PaymentIntent, accountID string, liveMode bool) error {
 	if intent.ID == "" || accountID == "" || !h.acceptsStripeLiveMode(liveMode) || intent.Livemode != liveMode {
 		return nil
 	}
 	order, err := h.queries.GetOrderByStripePaymentIntent(ctx, pgtype.Text{String: intent.ID, Valid: true})
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil
+		return h.recordUnboundHostedPaymentAttempt(ctx, &intent, accountID)
 	}
 	if err != nil {
 		return err
 	}
-	if order.StripeCheckoutSessionID.Valid || !stripeOrderContextMatches(order, accountID) {
+	if !stripeOrderContextMatches(order, accountID) {
 		return nil
+	}
+	if order.StripeCheckoutSessionID.Valid {
+		return h.recordHostedPaymentAttempt(ctx, order, &intent, accountID)
 	}
 	_, expiresAt, err := h.nativePaymentOrder(ctx, order.ID)
 	if errors.Is(err, pgx.ErrNoRows) {

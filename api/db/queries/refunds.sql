@@ -278,6 +278,7 @@ WITH refunded_order AS (
     UPDATE orders
     SET platform_fee_status = 'refunded',
         platform_fee_refunded_bani = platform_fee_bani,
+        invoice_service_fee_state = CASE WHEN invoice_service_fee_bani>0 THEN 'refunded' ELSE invoice_service_fee_state END,
         refund_origin = sqlc.arg(refund_origin),
         stripe_refund_needs_attention = FALSE
     WHERE orders.id = sqlc.arg(order_id)

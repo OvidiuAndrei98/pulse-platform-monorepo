@@ -21,6 +21,8 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
       const route = parsed.pathname.split('/api/v1')[1], method = options.method || 'GET';
       qa.requests.push({ route, method }); if (method !== 'GET') qa.writes.push({ route, method });
       const reply = data => new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } });
+      if (route === '/wardrobe/mine') return reply({ deposits: [], staffAccess: false });
+      if (route === '/diagnostics/errors') return new Response(null, { status: 204 });
       if (route === '/users/me') { qa.me = true; return reply(user); }
       if (route === '/events') return reply([event]);
       if (route === '/events/' + event.id) return reply(event);

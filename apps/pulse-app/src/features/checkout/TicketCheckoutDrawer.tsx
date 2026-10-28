@@ -185,7 +185,7 @@ export function TicketCheckoutDrawer({
   const discountAmount = ticketSubtotal - discountedTicketSubtotal;
   const serviceFee = event.organizerAbsorbsServiceFee
     ? 0
-    : calculateServiceFeeRon(discountedTicketSubtotal, ticketCount);
+    : calculateServiceFeeRon(discountedTicketSubtotal, ticketCount, event);
   const total = discountedTicketSubtotal + serviceFee;
   const selectionAvailable = isTicketSelectionAvailable(ticketTypes, quantities);
   const purchaseUnavailable =
@@ -488,6 +488,7 @@ export function TicketCheckoutDrawer({
     setIsCheckingOut(true);
     try {
       const body = {
+        expectedTotalBani: Math.round(total * 100),
         email,
         items: selectedTickets.map((ticket) => ({ticketTypeId: ticket.id, quantity: quantities[ticket.id] ?? 0})),
         promoCode: promo.applied?.code,
@@ -521,7 +522,7 @@ export function TicketCheckoutDrawer({
         error instanceof ApiError
           ? error.detail || error.title
           : t("eventSheet.purchaseError");
-      toast.error(message);
+      toast.error(message === 'CHECKOUT_PRICE_CHANGED' ? t('checkout.priceChanged') : message);
       resetCheckoutPending();
     }
   };

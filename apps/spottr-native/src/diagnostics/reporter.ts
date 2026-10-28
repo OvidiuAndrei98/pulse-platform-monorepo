@@ -3,6 +3,7 @@ import {
   reportError,
   screenName,
   type ErrorReport,
+  type HandledFailure,
 } from "../../../pulse-app/src/features/diagnostics/report";
 type Storage = {
   read(): Promise<string | null>;
@@ -115,7 +116,7 @@ export function createErrorReporter(options: {
       screen = next;
       breadcrumbs = [...breadcrumbs, next].slice(-8);
     },
-    async capture(error: unknown, fatal = false, render = false) {
+    async capture(error: unknown, fatal = false, render = false, detail?: HandledFailure) {
       try {
         const report = reportError(
           error,
@@ -126,6 +127,7 @@ export function createErrorReporter(options: {
             fatal,
             screen,
             breadcrumbs: [...breadcrumbs],
+            ...(detail ? { operation: detail.operation, failure: detail.failure, httpStatus: detail.httpStatus } : {}),
           },
           render,
         );
@@ -133,7 +135,9 @@ export function createErrorReporter(options: {
           report.screen,
           report.errorType,
           report.category,
-          report.frames,
+          // Handled retries can come from different call sites. Group by the
+          // operation/reason instead of producing a new report for each stack.
+          report.operation ? [report.operation, report.failure, report.httpStatus] : report.frames,
         ]);
         accepted = accepted.filter((at) => now() - at < 3600000);
         for (const [key, at] of seen)

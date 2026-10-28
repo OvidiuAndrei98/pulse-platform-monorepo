@@ -2,6 +2,7 @@ import { queryOptions } from '@tanstack/react-query';
 import { ApiError } from './http';
 import { parseTickets } from './tickets';
 import type { SavedTickets, TicketCache } from './ticketCache';
+import { observeOperation } from '../diagnostics/handled';
 
 export type TicketData = SavedTickets & { source: 'saved' | 'server'; storageError: boolean };
 export function canUseSavedTickets(error: unknown): boolean {
@@ -28,7 +29,7 @@ export function ticketQueryOptions(accountId: string, token: string, cache: Tick
         throw error;
       }
       assertActive();
-      const snapshot: SavedTickets = { accountId, savedAt: Date.now(), tickets: parseTickets(value) };
+      const snapshot: SavedTickets = { accountId, savedAt: Date.now(), tickets: await observeOperation('tickets_load', async () => parseTickets(value)) };
       let storageError = false;
       try { await cache.save(snapshot, active); } catch { storageError = true; }
       assertActive();

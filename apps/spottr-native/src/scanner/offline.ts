@@ -1,4 +1,5 @@
 import { parseSnapshot, record, ticketCode, uuid, type Snapshot, type SyncBatch, type SyncResult, type ValidationEvent, type ValidationResult } from './data';
+import { observeOperation, observeStorage } from '../diagnostics/handled';
 
 export type OfflineScan = { clientScanId: string; snapshotId: string; deviceId: string; validationHash: string; scannedAt: string; ticketId: string; ticketType: string; status: 'pending' | 'synced' | 'conflict'; serverStatus?: SyncResult['status'] };
 export type OfflineState = { version: 1; eventId: string; snapshot?: Snapshot; event?: ValidationEvent; revoked: boolean; scans: OfflineScan[]; online: Record<string, { ticketId: string; ticketType: string; validatedAt: string }>; attempts: Record<string, true> };
@@ -21,7 +22,8 @@ const sharedLock = serialLock();
 export function createOfflineScanner(storage: ScannerStorage, randomUUID: () => string, now = Date.now, exclusive = sharedLock) {
   const syncing = new Map<string, Promise<SyncResult[]>>();
   const empty = (eventId: string): OfflineState => ({ version: 1, eventId, revoked: false, scans: [], online: {}, attempts: {} });
-  async function read(userId: string, eventId: string): Promise<OfflineState> {
+  const read = (userId: string, eventId: string) => observeStorage('scanner_storage', () => readStored(userId, eventId));
+  async function readStored(userId: string, eventId: string): Promise<OfflineState> {
     const raw = await storage.getItem(scope(userId, eventId)); if (raw === null) return empty(eventId);
     // Never replace a corrupt journal with an empty one: that could admit a used ticket.
     const row = record(JSON.parse(raw));
@@ -35,11 +37,11 @@ export function createOfflineScanner(storage: ScannerStorage, randomUUID: () => 
     }
     return row as unknown as OfflineState;
   }
-  async function write(userId: string, eventId: string, state: OfflineState) { await storage.setItem(scope(userId, eventId), JSON.stringify(state)); }
+  async function write(userId: string, eventId: string, state: OfflineState) { await observeStorage('scanner_storage', () => storage.setItem(scope(userId, eventId), JSON.stringify(state))); }
   async function deviceId() {
     return exclusive(PREFIX + 'device', async () => {
-      const value = await storage.getItem(PREFIX + 'device'); if (value && uuid.test(value)) return value;
-      const created = randomUUID(); await storage.setItem(PREFIX + 'device', created); return created;
+      const value = await observeStorage('scanner_storage', () => storage.getItem(PREFIX + 'device')); if (value && uuid.test(value)) return value;
+      const created = randomUUID(); await observeStorage('scanner_storage', () => storage.setItem(PREFIX + 'device', created)); return created;
     });
   }
   async function state(userId: string, eventId: string) { return exclusive(scope(userId, eventId), () => read(userId, eventId)); }
@@ -95,7 +97,7 @@ export function createOfflineScanner(storage: ScannerStorage, randomUUID: () => 
   }
   async function events(userId: string) {
     const prefix = scope(userId), result: ValidationEvent[] = [];
-    for (const key of await storage.getAllKeys()) {
+    for (const key of await observeStorage('scanner_storage', () => storage.getAllKeys())) {
       if (!key.startsWith(prefix) || !uuid.test(key.slice(prefix.length))) continue;
       const current = await state(userId, key.slice(prefix.length)), snapshot = current.snapshot;
       if (!snapshot || !current.event || current.revoked || Date.parse(snapshot.expiresAt) <= now() && !current.scans.some(scan => scan.status === 'pending')) continue;
@@ -105,7 +107,7 @@ export function createOfflineScanner(storage: ScannerStorage, randomUUID: () => 
   }
   function sync(userId: string, eventId: string, send: (batch: SyncBatch) => Promise<{ results: SyncResult[] }>) {
     const key = scope(userId, eventId), current = syncing.get(key); if (current) return current;
-    const task = (async () => {
+    const task = observeOperation('scanner_sync', async () => {
       const pending = (await state(userId, eventId)).scans.filter(scan => scan.status === 'pending');
       const groups = new Map<string, OfflineScan[]>();
       for (const scan of pending) { const key = scan.snapshotId + ':' + scan.deviceId; const group = groups.get(key) ?? []; group.push(scan); groups.set(key, group); }
@@ -126,7 +128,7 @@ export function createOfflineScanner(storage: ScannerStorage, randomUUID: () => 
         all.push(...results as SyncResult[]);
       }
       return all;
-    })().finally(() => syncing.delete(key));
+    }).finally(() => syncing.delete(key));
     syncing.set(key, task); return task;
   }
   return { state, save, scan, beginOnline, rememberOnline, revoke, remove, events, sync };

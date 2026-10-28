@@ -42,7 +42,7 @@ import { getScannerConnection, watchScannerConnection } from './connection';
 import { isConnectivityError, mergeValidationEvents, uuid, type ValidationEvent } from "./data";
 import { scannerApi, offlineScanner } from "./runtime";
 import type { OfflineState } from "./offline";
-import { ScannerPanel, ScannerHistoryPanel, s } from "./ScannerPanel";
+import { ScannerPanel, s } from "./ScannerPanel";
 import { ScannerManagement } from "./ScannerManagement";
 import { prepareScanner, PreparationError, type PrepareScanner } from './preparation';
 import { OfflinePackageStatus } from './OfflinePackageStatus';
@@ -82,8 +82,7 @@ export function ScannerScreen({
     [work, setWork] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
-    [result, setResult] = useState<Admission>(),
-    [historyOpen, setHistoryOpen] = useState(false);
+    [result, setResult] = useState<Admission>();
   const gate = useRef(new AdmissionGate()),
     revision = useRef(0),
     workLock = useRef(false);
@@ -196,7 +195,7 @@ export function ScannerScreen({
   }, [refreshLocal]);
   const history = useQuery({
     queryKey: ["scanner-history", userId, selected],
-    enabled: !!token && !!event && !offline && !events.isError,
+    enabled: !!token && !!event && !offline && !events.isError && focused && foreground,
     retry: false,
     queryFn: () => scannerApi.history(selected, token!),
   });
@@ -973,7 +972,7 @@ export function ScannerScreen({
                       testID="scanner-open-history"
                       accessibilityRole="button"
                       accessibilityLabel={copy("validation.openScanHistory")}
-                      onPress={() => setHistoryOpen(true)}
+                      onPress={() => navigation.navigate('ScannerHistory', { eventId: selected, eventTitle: event?.title })}
                       style={{
                         width: 40,
                         height: 40,
@@ -1003,16 +1002,6 @@ export function ScannerScreen({
           </View>
         )}
       </ScrollView>
-      <ScannerHistoryPanel
-        open={historyOpen && !agreementOpen}
-        onClose={() => setHistoryOpen(false)}
-        loading={history.isFetching}
-        error={history.isError}
-        onRetry={() => {
-          void history.refetch();
-        }}
-        history={history.data}
-      />
     </View>
   );
 }

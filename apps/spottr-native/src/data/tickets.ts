@@ -24,6 +24,7 @@ export function parseTickets(value: unknown): UserTicket[] {
           (key) => typeof row[key] !== "string" || !row[key].trim(),
         ) ||
         typeof row.isValidated !== "boolean" ||
+        (row.orderId !== undefined && (typeof row.orderId !== 'string' || !row.orderId.trim())) ||
         !Number.isFinite(Date.parse(row.startTime)) ||
         !Number.isFinite(Date.parse(row.endTime))
       )

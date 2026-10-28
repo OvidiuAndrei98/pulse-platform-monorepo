@@ -44,7 +44,6 @@ export default function InvoicingPage() {
   const [retrying, setRetrying] = useState<string | null>(null);
   const [providerOptions, setProviderOptions] = useState<InvoicingProviderOptions | null>(null);
   const [loadingOptions, setLoadingOptions] = useState(false);
-
   const loadInvoices = useCallback(async () => {
     if (!user) return;
     setInvoices(await user.listBillingInvoices());
@@ -93,7 +92,7 @@ export default function InvoicingPage() {
   }, [t, user]);
 
   useEffect(() => {
-    if (!user || !invoices.some((invoice) => invoice.status === "pending" || invoice.status === "processing" || invoice.refundStatus === "pending" || invoice.refundStatus === "processing")) return;
+    if (!user || !invoices.some((invoice) => invoice.status === "pending" || (invoice.status === "processing" || invoice.status === "dispatching") || invoice.refundStatus === "pending" || invoice.refundStatus === "processing")) return;
     const timer = window.setInterval(() => void loadInvoices().catch(() => undefined), 10000);
     return () => window.clearInterval(timer);
   }, [invoices, loadInvoices, user]);
@@ -101,7 +100,7 @@ export default function InvoicingPage() {
   const stats = useMemo(
     () => ({
       issued: invoices.filter((invoice) => invoice.status === "issued").length,
-      inProgress: invoices.filter((invoice) => invoice.status === "pending" || invoice.status === "processing" || invoice.refundStatus === "pending" || invoice.refundStatus === "processing").length,
+      inProgress: invoices.filter((invoice) => invoice.status === "pending" || (invoice.status === "processing" || invoice.status === "dispatching") || invoice.refundStatus === "pending" || invoice.refundStatus === "processing").length,
       attention: invoices.filter((invoice) => invoice.status === "failed" || invoice.status === "needs_review" || invoice.refundStatus === "failed" || invoice.refundStatus === "needs_review").length,
     }),
     [invoices],
@@ -262,7 +261,7 @@ export default function InvoicingPage() {
             </div>
 
             <div className="mt-5 space-y-3 border-t border-white/10 pt-4">
-              <Toggle checked={settings.enabled} onChange={(value) => update("enabled", value)} label={t("invoicing.enabled")} hint={t("invoicing.enabledHint")} />
+              <Toggle checked={settings.enabled} disabled={saving} onChange={(value) => update("enabled", value)} label={t("invoicing.enabled")} hint={t("invoicing.enabledHint")} />
               <Toggle checked={settings.sendEmail} onChange={(value) => update("sendEmail", value)} label={t("invoicing.sendEmail")} hint={t("invoicing.sendEmailHint")} />
               {settings.provider === "oblio" ? (
                 <Toggle checked={settings.sendToSpv} onChange={(value) => update("sendToSpv", value)} label={t("invoicing.sendToSpv")} hint={t("invoicing.sendToSpvHint")} />
@@ -310,7 +309,7 @@ export default function InvoicingPage() {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="truncate text-sm font-semibold">{invoice.eventTitle}</p>
-                          <Status status={invoice.status} label={t(`invoicing.status.${invoice.status}`)} />
+                          <Status status={invoice.status} label={t(`invoicing.status.${invoice.status === "dispatching" ? "processing" : invoice.status}`)} />
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">{invoice.customerName} · {invoice.customerEmail}</p>
                         <p className="mt-2 text-xs text-white/45">{new Date(invoice.createdAt).toLocaleString()} · {invoice.totalAmountRon} RON</p>
@@ -379,11 +378,11 @@ function Input({ label, value, onChange, type = "text", ...props }: { label: str
   );
 }
 
-function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: (checked: boolean) => void; label: string; hint: string }) {
+function Toggle({ checked, onChange, label, hint, disabled }: { checked: boolean; onChange: (checked: boolean) => void; label: string; hint: string; disabled?: boolean }) {
   return (
     <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-white/10 bg-black/15 px-3.5 py-3">
       <span><span className="block text-sm font-semibold">{label}</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">{hint}</span></span>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-primary" />
+      <input type="checkbox" disabled={disabled} checked={checked} onChange={(event) => onChange(event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-primary" />
     </label>
   );
 }

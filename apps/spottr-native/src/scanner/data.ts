@@ -1,5 +1,7 @@
 import type { createHttp } from '../data/http';
+import type { components } from '@packages/api-client/src/schema';
 import { ApiError } from '../data/http';
+import { observeOperation } from '../diagnostics/handled';
 
 export type ValidationEvent = { id: string; title: string; startTime: string; endTime: string; status: string; locationName: string; canManage: boolean };
 export type ValidationResult = { status: 'valid' | 'already_validated' | 'revoked'; ticketId: string; ticketType: string; eventTitle: string; validatedAt: string; invitationLabel?: string };
@@ -7,6 +9,9 @@ export type Snapshot = { snapshotId: string; eventId: string; eventTitle: string
 export type SyncResult = { clientScanId: string; status: 'accepted' | 'already_validated' | 'invalid' | 'wrong_event' };
 export type SyncBatch = { snapshotId: string; deviceId: string; scans: { clientScanId: string; validationHash: string; scannedAt: string }[] };
 export type Staff = { id: string; username: string; email: string };
+export type ScanScope = 'all' | 'mine';
+export type HistoryScan = components['schemas']['ValidationScanHistoryItem'];
+export type ScanHistoryPage = components['schemas']['ValidationScanHistoryResponse'];
 export type ScannerAccess = { id: string; label: string; startsAt: string; endsAt: string; revokedAt?: string };
 export type QuickSession = { sessionToken: string; label: string; eventTitle: string; locationName: string; expiresAt: string };
 export const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -53,17 +58,35 @@ export function isConnectivityError(error: unknown) {
   return error instanceof TypeError || error instanceof ApiError && error.status === 0 && error.code !== 'INVALID_RESPONSE' ||
     error instanceof Error && /^(Network request failed|Failed to fetch|Load failed|NetworkError when attempting to fetch resource\.)$/i.test(error.message);
 }
+export function parseScanHistory(value: unknown): ScanHistoryPage {
+  const row = record(value);
+  if (!Number.isSafeInteger(row.totalScans) || (row.totalScans as number) < 0 || !Array.isArray(row.scans) || row.scans.length > 100) throw new Error('INVALID_SCANNER_RESPONSE');
+  const nextCursor = row.nextCursor == null ? undefined : string(row.nextCursor);
+  if (nextCursor !== undefined && (!nextCursor.length || nextCursor.length > 256 || !/^[\w-]+$/.test(nextCursor))) throw new Error('INVALID_SCANNER_RESPONSE');
+  return { totalScans: row.totalScans as number, nextCursor, scans: row.scans.map(value => {
+    const scan = record(value), actor = record(scan.scannedBy);
+    if (!['user', 'access', 'unknown'].includes(String(actor.kind))) throw new Error('INVALID_SCANNER_RESPONSE');
+    return { ticketId: id(scan.ticketId), ticketType: string(scan.ticketType), validatedAt: date(scan.validatedAt), scannedBy: {
+      userId: actor.userId == null ? undefined : id(actor.userId), scannerAccessId: actor.scannerAccessId == null ? undefined : id(actor.scannerAccessId),
+      name: string(actor.name), kind: actor.kind as HistoryScan['scannedBy']['kind'],
+    } };
+  }) };
+}
 export function createScannerApi(request: ReturnType<typeof createHttp>) {
   const path = (eventId: string) => '/dashboard/ticket-validation/events/' + id(eventId);
   return {
-    events: async (token: string, signal?: AbortSignal) => { const rows = await request<unknown>('/dashboard/ticket-validation/events', { token, signal }); if (rows === null) return []; if (!Array.isArray(rows)) throw new Error('INVALID_SCANNER_RESPONSE'); return rows.map(parseEvent); },
-    validate: async (eventId: string, hash: string, token: string) => parseValidation(await request(path(eventId) + '/tickets/validate', { method: 'POST', body: { validationHash: ticketCode(hash) }, token })),
-    snapshot: async (eventId: string, token: string) => parseSnapshot(await request(path(eventId) + '/offline-snapshot', { method: 'POST', token }), eventId),
+    events: (token: string, signal?: AbortSignal) => observeOperation('scanner_events', async () => { const rows = await request<unknown>('/dashboard/ticket-validation/events', { token, signal }); if (rows === null) return []; if (!Array.isArray(rows)) throw new Error('INVALID_SCANNER_RESPONSE'); return rows.map(parseEvent); }),
+    validate: (eventId: string, hash: string, token: string) => observeOperation('scanner_validate', async () => parseValidation(await request(path(eventId) + '/tickets/validate', { method: 'POST', body: { validationHash: ticketCode(hash) }, token }))),
+    snapshot: (eventId: string, token: string) => observeOperation('scanner_prepare', async () => parseSnapshot(await request(path(eventId) + '/offline-snapshot', { method: 'POST', token }), eventId)),
     sync: (eventId: string, body: SyncBatch, token: string) => request<{ results: SyncResult[] }>(path(eventId) + '/offline-sync', { method: 'POST', token, body }),
     history: async (eventId: string, token: string) => {
       const row = record(await request(path(eventId) + '/my-scans', { token }));
       if (!Number.isInteger(row.totalScans) || (row.totalScans as number) < 0 || !Array.isArray(row.scans)) throw new Error('INVALID_SCANNER_RESPONSE');
       return { totalScans: row.totalScans as number, scans: row.scans.map(value => { const row = record(value); return { ticketId: id(row.ticketId), ticketType: string(row.ticketType), validatedAt: date(row.validatedAt) }; }) };
+    },
+    historyPage: async (eventId: string, token: string, scope: ScanScope, cursor?: string, signal?: AbortSignal) => {
+      if (!['all', 'mine'].includes(scope) || cursor !== undefined && (!/^[\w-]+$/.test(cursor) || cursor.length > 256)) throw new Error('INVALID_SCANNER_HISTORY_PAGE');
+      return parseScanHistory(await request(path(eventId) + '/scans?scope=' + scope + '&limit=30' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''), { token, signal }));
     },
     staff: async (eventId: string, token: string) => { const rows = await request<unknown>(path(eventId) + '/staff', { token }); if (rows === null) return []; if (!Array.isArray(rows)) throw new Error('INVALID_SCANNER_RESPONSE'); return rows.map(value => { const row = record(value); return { id: id(row.id), username: string(row.username), email: string(row.email) }; }); },
     addStaff: (eventId: string, email: string, token: string) => { if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || email.length > 254) throw new Error('INVALID_EMAIL'); return request(path(eventId) + '/staff', { method: 'POST', body: { email: email.trim() }, token }); },
@@ -77,6 +100,6 @@ export function createScannerApi(request: ReturnType<typeof createHttp>) {
     },
     revokeAccess: (eventId: string, accessId: string, token: string) => request(path(eventId) + '/quick-access/' + id(accessId), { method: 'DELETE', token }),
     quickSession: async (value: string) => { if (!/^[a-zA-Z0-9_-]{64}$/.test(value)) throw new Error('INVALID_SCANNER_LINK'); return parseQuickSession(await request('/ticket-validation/quick-access/session', { method: 'POST', body: { token: value }, token: null, expireSession: false })); },
-    quickValidate: async (session: QuickSession, value: string, now = Date.now()) => { if (Date.parse(session.expiresAt) <= now) throw new ApiError(401, 'SCANNER_EXPIRED'); return parseValidation(await request('/ticket-validation/quick-access/validate', { method: 'POST', body: { validationHash: ticketCode(value) }, token: session.sessionToken, expireSession: false })); },
+    quickValidate: (session: QuickSession, value: string, now = Date.now()) => observeOperation('scanner_validate', async () => { if (Date.parse(session.expiresAt) <= now) throw new ApiError(401, 'SCANNER_EXPIRED'); return parseValidation(await request('/ticket-validation/quick-access/validate', { method: 'POST', body: { validationHash: ticketCode(value) }, token: session.sessionToken, expireSession: false })); }),
   };
 }

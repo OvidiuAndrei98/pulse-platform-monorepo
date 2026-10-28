@@ -70,9 +70,11 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await click('billing-sector-option-Sector 3'); await delay(400);
   await click('checkout-next'); await until(`document.querySelector('[data-testid="checkout-next"]').textContent.includes('Pay')`);
   await capture('checkout-summary');
+  assert.ok(await evaluate(`document.querySelector('[data-testid="checkout-screen"]').textContent.includes('3,65 RON')`), 'Discounted 43 RON ticket has a 5% + 1.50 RON fee');
   await evaluate(`document.querySelector('[data-testid="checkout-next"]').click();document.querySelector('[data-testid="checkout-next"]').click()`);
   await until('window.__qa.opened'); assert.equal(await evaluate('window.__qa.purchase.length'), 1);
   const order = await evaluate('window.__qa.purchase[0]'); assert.equal(order.body.email, 'guest@example.test'); assert.equal(order.body.billingDetails.sector, 'Sector 3'); assert.equal(order.body.promoCode, 'SECOND'); assert.equal(order.body.client, 'native_web'); assert.equal(order.body.returnOrigin, base); assert.match(order.key, /^[a-f\d-]{36}$/);
+  assert.equal(order.body.expectedTotalBani, 4665, 'The purchase submits the displayed discounted total and current standard fee');
   await evaluate(`window.dispatchEvent(new Event('blur'));window.dispatchEvent(new Event('focus'))`); await until(`document.querySelector('[data-testid="checkout-recheck"]')`);
   assert.equal(await evaluate('window.__qa.popup.closed'), false, 'Returning early must keep the provider tab available');
   await click('checkout-resume-payment');
@@ -81,6 +83,11 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   assert.equal(await evaluate('window.__qa.reconciliations[0].sessionId'), 'cs_test_qa', 'Legacy session IDs still require server-side confirmation');
   assert.equal(await evaluate(`!!document.querySelector('[data-testid="checkout-view-tickets"]')`), false);
   await evaluate(`window.__qa.confirmation='completed'`); await click('checkout-recheck'); await until(`document.querySelector('[data-testid="checkout-view-tickets"]')`);
+  assert.equal(await evaluate(`!!document.querySelector('[data-testid="checkout-screen"]') || !!document.querySelector('[data-testid="checkout-return"]')`), false);
+  assert.ok(await evaluate(`window.__sheet===document.querySelector('[data-testid="event-sheet"]') && window.__home===document.querySelector('[data-testid="home-list"]')`), 'Successful checkout retains the original event and Home');
+  assert.equal(await evaluate(`document.querySelector('[data-testid="event-content"]').scrollTop`), 220, 'Payment completion retains event scroll');
+  await click('checkout-success-dismiss'); await until(`!document.querySelector('[data-testid="purchase-success-sheet"]')`);
+  assert.ok(await evaluate(`!!document.querySelector('[data-testid="event-continue"]')`));
   console.log('PASS quantity bounds, promo race, billing/sector validation, one payment intent and authoritative confirmation');
   // Fresh authenticated run uses the actual login UI and same Event flow.
   await call('Page.navigate', { url: base + '/events/' + id(1) + '?presentation=page' });

@@ -18,6 +18,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { TabBar } from "./TabBar";
 import type { RootParamList } from "./types";
 import { useTabIndicator, type TabIndicatorMotion } from "./useTabIndicator";
+import type { TabIndicatorTimeline } from "./tabIndicatorTimeline";
 
 type TabBridge = React.RefObject<BottomTabBarProps | null>;
 const Context = createContext<{
@@ -101,6 +102,7 @@ export function MainTabBarProvider({
   const activeIndex =
     pendingProfile !== null || focused !== "Tabs" ? 3 : tabState.index;
   const [itemWidth, measure] = useState(0);
+  const timeline = useRef<TabIndicatorTimeline | null>(null);
   const position = useTabIndicator(activeIndex, itemWidth);
 
   const select = (screen: string) => {
@@ -168,7 +170,7 @@ export function MainTabBarProvider({
         tabState,
         activeIndex,
         select,
-        motion: { position, itemWidth, measure },
+        motion: { position, itemWidth, measure, timeline },
       }}
     >
       {children}

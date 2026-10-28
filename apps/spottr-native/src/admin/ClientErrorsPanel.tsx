@@ -7,6 +7,8 @@ import { Text } from "../ui/Text";
 import { Button, Feedback, Loading } from "../ui/common";
 import { parseErrorPage } from "../../../pulse-app/src/features/diagnostics/report";
 import { exportClientErrors } from "./exportClientErrors";
+import { diagnosticTitle, diagnosticFailure, groupDiagnosticReports } from '../../../pulse-app/src/features/diagnostics/presentation';
+import { diagnosticsEnabled } from '../diagnostics/runtime';
 
 export function ClientErrorsPanel() {
   const { user, controller } = useAuth(),
@@ -67,6 +69,9 @@ export function ClientErrorsPanel() {
               ? "Rapoarte tehnice din ultimele 30 de zile. Mesajele brute și datele personale sunt excluse."
               : "Technical reports from the last 30 days. Raw messages and personal data are excluded."}
           </Text>
+          {!diagnosticsEnabled && <Text style={{ color: '#aaa', fontSize: 12 }}>
+            {ro ? 'Raportarea automată este oprită în acest build de dezvoltare. Lista arată în continuare rapoartele primite de la alte dispozitive.' : 'Automatic reporting is disabled in this development build. Reports received from other devices still appear here.'}
+          </Text>}
           <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
             {["", "ios", "android", "web"].map((value) => (
               <Pressable
@@ -110,7 +115,7 @@ export function ClientErrorsPanel() {
               {ro ? "Nicio eroare raportată." : "No reported errors."}
             </Text>
           ) : (
-            rows.map((row) => (
+            groupDiagnosticReports(rows).map(({ report: row, count }) => (
               <View
                 key={row.id}
                 style={{
@@ -121,8 +126,10 @@ export function ClientErrorsPanel() {
                 }}
               >
                 <Text style={{ color: "white", fontWeight: "700" }}>
-                  {row.errorType} · {row.category}
+                  {diagnosticTitle(row, ro)}
                 </Text>
+                {!!row.failure && <Text style={{ color: '#aaa', fontSize: 12 }}>{diagnosticFailure(row, ro)}</Text>}
+                {count > 1 && <Text style={{ color: '#ff0044', fontSize: 12 }}>{ro ? `${count} apariții în rapoartele încărcate` : `${count} occurrences in loaded reports`}</Text>}
                 <Text style={{ color: "#aaa", fontSize: 12 }}>
                   {row.platform} · v{row.appVersion} ({row.buildVersion}) · OS{" "}
                   {row.osVersion} · {row.screen}

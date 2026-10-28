@@ -23,6 +23,8 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
       if (!String(url).includes('/api/v1/')) return original(url, options);
       const parsed = new URL(url, location.origin), route = parsed.pathname.split('/api/v1')[1], method = options.method || 'GET', auth = new Headers(options.headers).has('authorization');
       const reply = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
+      if (route === '/wardrobe/mine') return reply({ deposits: [], staffAccess: false });
+      if (route === '/diagnostics/errors') return new Response(null, { status: 204 });
       qa.requests.push({ route, method, query: parsed.search, auth });
       if (method !== 'GET') qa.writes.push({ route, method, body: options.body });
       if (route === '/auth/login') return reply({ token: 'profile-qa-only' });

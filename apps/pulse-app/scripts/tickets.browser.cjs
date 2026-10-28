@@ -129,6 +129,7 @@ async function run() {
       if (!url.pathname.includes('/api/v1/')) return originalFetch(input, init);
       const route = url.pathname.split('/api/v1')[1];
       const reply = (data, status=200) => new Response(JSON.stringify(data), {status, headers:{'Content-Type':'application/json'}});
+      if (route === '/wardrobe/mine') return reply({ deposits: [], staffAccess: false });
       if (route === '/users/me') return reply({id:'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',username:'Test User',role:location.pathname.startsWith('/dashboard')?'organizer':'user',email:'test@example.com',preferredLanguage:'en'});
       if (route.startsWith('/dashboard/organizer/profile/')) return reply({isVerified:true,verificationStatus:'approved',stripeChargesEnabled:true,stripePayoutsEnabled:true});
       if (route === '/dashboard/events/mobile') {
@@ -330,10 +331,16 @@ async function run() {
     }
     assert.ok(await evaluate(connectionFits), 'My code fits without internal scrolling: '+JSON.stringify(await evaluate("Array.from(document.querySelector('[data-connection-sheet]').querySelectorAll('div')).filter(el=>el.scrollHeight>el.clientHeight+1 || el.scrollWidth>el.clientWidth+1).map(el=>({class:el.className,height:el.clientHeight,scroll:el.scrollHeight,width:el.clientWidth,scrollWidth:el.scrollWidth}))")));
     const codeHeight = await evaluate("document.querySelector('[data-connection-sheet]').getBoundingClientRect().height");
-    await evaluate("document.querySelector('[role=dialog] button[aria-pressed=false]').click()");
-    await delay(60);
-    const midHeight = await evaluate("document.querySelector('[data-connection-sheet]').getBoundingClientRect().height");
-    assert.ok(midHeight>codeHeight+1 && midHeight<height*.9-1, 'Height grows through intermediate positions');
+    const heightFrames = await evaluate(`new Promise(resolve => {
+      const frames = [], started = performance.now();
+      const sample = () => {
+        frames.push(document.querySelector('[data-connection-sheet]').getBoundingClientRect().height);
+        if (performance.now() - started < 350) requestAnimationFrame(sample); else resolve(frames);
+      };
+      document.querySelector('[role=dialog] button[aria-pressed=false]').click();
+      requestAnimationFrame(sample);
+    })`);
+    assert.ok(heightFrames.some(value => value>codeHeight+1 && value<height*.9-1), 'Height grows through intermediate positions: '+JSON.stringify({codeHeight,height,heightFrames}));
     await delay(350);
     assert.ok(Math.abs(await evaluate("document.querySelector('[data-connection-sheet]').getBoundingClientRect().height")-height*.9)<2,'Scan QR fills the event sheet height');
     assert.equal(await evaluate("document.querySelectorAll('[role=dialog] img').length"),0,'Own QR is hidden while scanning');
@@ -458,8 +465,10 @@ async function run() {
   const batch = await evaluate(`(async () => {
     const designExports = {};
     new Function('require','exports',${JSON.stringify(compiled('ticketDesign.ts'))})(() => (${JSON.stringify(design)}),designExports);
+    const htmlExports = {};
+    new Function('require','exports',${JSON.stringify(compiled('ticketPdfHtml.ts'))})(() => designExports,htmlExports);
     const pdfExports = {};
-    new Function('require','exports',${JSON.stringify(compiled('ticketPdf.ts'))})(name => name === './ticketDesign' ? designExports : name === 'jspdf' ? window.jspdf : name === 'html2canvas' ? window.html2canvas : {toDataURL:async () => ${JSON.stringify(qr)}},pdfExports);
+    new Function('require','exports',${JSON.stringify(compiled('ticketPdf.ts'))})(name => name === './ticketDesign' ? designExports : name === './ticketPdfHtml' ? htmlExports : name === 'jspdf' ? window.jspdf : name === 'html2canvas' ? window.html2canvas : {toDataURL:async () => ${JSON.stringify(qr)}},pdfExports);
     const exports = {};
     new Function('require','exports',${JSON.stringify(compiled('invitationBatchPdf.ts'))})(() => pdfExports,exports);
     const before = document.querySelectorAll('iframe').length;
