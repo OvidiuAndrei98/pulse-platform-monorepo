@@ -10,6 +10,8 @@ withBrowser(async ({base,call,evaluate,until,delay,capture,errors}) => {
     window.fetch=async(url,opts={})=>{
       const value=String(url);if(!value.includes('/api/v1/')){if(new URL(value,location.href).origin===location.origin)return original(url,opts);throw Error('External request blocked');}
       const path=new URL(value,location.href).pathname.split('/api/v1')[1],method=opts.method||'GET',reply=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json'}});
+      if(path==='/diagnostics/errors'&&method==='POST')return new Response(null,{status:204});
+      if(path==='/wardrobe/mine')return reply({deposits:[],staffAccess:false});
       if(method!=='GET')qa.writes.push({path,method,body:opts.body&&JSON.parse(opts.body)});
       if(path==='/users/me'&&method==='PUT'){await new Promise(r=>setTimeout(r,150));if(qa.failSave)return reply({error:'Temporary failure'},500);Object.assign(user,JSON.parse(opts.body));return reply(user);}
       if(path==='/users/me')return reply(user);
@@ -40,8 +42,8 @@ withBrowser(async ({base,call,evaluate,until,delay,capture,errors}) => {
   await call('Page.navigate',{url:base+'/dashboard/purchases'});await until(`document.body.innerText.includes('Ticket night')`);
   await evaluate(`Array.from(document.querySelectorAll('[role="button"]')).find(e=>e.textContent.includes('Ticket night')).click()`);
   await until(`document.querySelector('[data-testid="ticket-preview"]')`);
-  await call('Page.navigate',{url:base+'/dashboard/purchases'});await until(`Array.from(document.querySelectorAll('[role="tab"]')).some(e=>e.textContent.includes('Invoices'))`);
-  await evaluate(`Array.from(document.querySelectorAll('[role="tab"]')).find(e=>e.textContent.includes('Invoices')).click()`);
+  await call('Page.navigate',{url:base+'/dashboard/purchases'});await until(`Array.from(document.querySelectorAll('[role="tab"]')).some(e=>e.textContent.includes('Orders'))`);
+  await evaluate(`Array.from(document.querySelectorAll('[role="tab"]')).find(e=>e.textContent.includes('Orders')).click()`);
   await until(`document.body.innerText.includes('Order without invoice')`);assert.ok((await evaluate('document.body.innerText')).includes('55'),'Shows every order, including those without requested invoice');
   await capture('dashboard-account-purchases');
   await evaluate(`document.querySelector('[data-testid="dashboard-nav-logout"]').click()`);await delay(800);

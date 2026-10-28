@@ -453,6 +453,7 @@ export class User {
     events: readonly Event[];
     eventsLoading: boolean;
     eventsError?: Error;
+    refreshEvents: () => Promise<boolean>;
   } {
     const organizerId = user?.properties.id;
     const query = useCachedClientQuery<Event[]>(
@@ -465,6 +466,7 @@ export class User {
       events: query.data,
       eventsLoading: query.pending,
       eventsError: asError(query.error),
+      refreshEvents: query.retryResult,
     };
   }
 

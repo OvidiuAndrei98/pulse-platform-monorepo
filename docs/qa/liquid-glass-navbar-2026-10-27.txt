@@ -1,0 +1,66 @@
+SPOTTR iPhone navbar: Liquid Glass and Apple symbols
+27 October 2026
+
+Scope
+The existing custom navbar now uses expo-glass-effect ~57.0.4 on compatible
+iOS builds. Its single interactive GlassView contains the real tab buttons,
+uses the dark regular system material and leaves content visible underneath.
+The previous stacked blur, gradient, inset shadow and neon selection glow
+are not drawn over the native material. The selected capsule retains SPOTTR
+pink and its existing UI-runtime translation animation. Bottom positioning
+respects the iPhone home-indicator inset.
+
+expo-symbols ~57.0.3 supplies iPhone SF Symbols: house, map, person.2 and
+person.crop.circle, with filled variants when selected. Navigation actions,
+role-specific profile destinations and the absence of navbar haptics remain
+unchanged. This is not a migration to UIKit's UITabBar navigator.
+
+Compatibility
+The native glass adapter checks both compiled-app and runtime API support.
+The glass and symbol adapters avoid importing their native view managers
+when an existing development binary does not yet contain those modules.
+Android, browser and unsupported iOS use the existing navbar material.
+Native SF Symbols can still render on an older iOS supported by the app,
+independently of whether Liquid Glass is available.
+
+Material visibility is not driven by opacity-zero transitions. Each navbar
+remains inside its owning scene so existing sheets cover it normally.
+UIKit controls the system material's accessibility appearance. Its actual
+Reduce Transparency/Increase Contrast rendering still needs a device check.
+
+Build dependency correction
+Reinstalling dependencies exposed undeclared @babel/generator and
+@babel/traverse imports in react-native-worklets@0.10.1's Babel plugin.
+pnpm-workspace.yaml now declares those via packageExtensions. The workspace
+was reinstalled using the existing pnpm 11 store and lockfile; application
+source imports were not changed to work around the missing links.
+
+Validation
+PASS native TypeScript check.
+PASS 8 compatibility and indicator-timeline tests, including installed
+     binaries without the new native modules and unavailable glass APIs.
+PASS browser-navbar: existing browser design matches the Next.js reference.
+PASS browser-navbar-sheets: event/checkout, friends and quick-connect round
+     trips retain the navbar and indicator under their overlays.
+PASS browser-organizer-navbar: rapid tab switching, organizer routing and
+     reduced-motion behavior.
+PASS Expo web export and iOS JavaScript/Hermes export.
+
+Artifacts: apps/spottr-native/artifacts/features-qa-20261026/liquid-glass-*.log
+iOS bundle: same directory, liquid-glass-ios-export/.
+
+Device validation still required
+Windows cannot compile the Apple native sources or show UIGlassEffect.
+These checks do not certify native rendering, UIKit touch feedback or 120 Hz.
+A fresh iOS build including the new Pods is required; a JavaScript refresh
+of the old installed binary intentionally keeps the compatibility surface.
+Check on iPhone: material over event imagery, rapid switching including the
+organizer dashboard, return from sheets/checkout, Home-indicator clearance,
+VoiceOver tab labels and reduced-transparency/motion settings.
+
+References
+https://docs.expo.dev/versions/v57.0.0/sdk/glass-effect/
+https://docs.expo.dev/versions/v57.0.0/sdk/symbols/
+https://www.reddit.com/r/RedditEng/comments/1x487p5/making_reddit_work_with_liquid_glass_on_ios/
+
+All checks were local. No AWS restoration, deployment or database changes.

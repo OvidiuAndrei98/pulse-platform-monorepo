@@ -173,8 +173,9 @@ func TestCheckoutRequiresVATAndSnapshotsEventRateIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := &CheckoutHandler{db: pool, queries: db.New(pool)}
+	expectedTotal := int64(5400)
 	reserve := func() (db.Orders, error) {
-		o, _, _, _, _, _, err := h.reserveOrder(ctx, event, pgtype.UUID{}, suffix+"@example.invalid", nil, map[string]int32{common.UUIDToString(ticketType): 1}, 1, "", BillingDetailsRequest{Type: "individual", Country: "Romania"})
+		o, _, _, _, _, _, err := h.reserveOrder(context.WithValue(ctx, expectedCheckoutTotalKey{}, &expectedTotal), event, pgtype.UUID{}, suffix+"@example.invalid", nil, map[string]int32{common.UUIDToString(ticketType): 1}, 1, "", BillingDetailsRequest{Type: "individual", Country: "Romania"})
 		return o, err
 	}
 	_, err = reserve()
@@ -207,7 +208,7 @@ func TestCheckoutRequiresVATAndSnapshotsEventRateIntegration(t *testing.T) {
 			t.Fatal(err)
 		}
 		actual, _ := order.TicketVatPercentage.Float64Value()
-		if !actual.Valid || actual.Float64 != float64(rate) || order.TotalAmount != 50 || order.CustomerTicketingFeeBani != 450 {
+		if !actual.Valid || actual.Float64 != float64(rate) || order.TotalAmount != 50 || order.CustomerTicketingFeeBani != 400 {
 			t.Fatalf("incorrect inclusive snapshot: %+v", order)
 		}
 		if err := h.failOrder(ctx, order.ID, "", "acct_vat_checkout"); err != nil {

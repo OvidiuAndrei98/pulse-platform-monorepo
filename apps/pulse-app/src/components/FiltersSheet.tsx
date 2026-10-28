@@ -1,6 +1,7 @@
 "use client";
 
 import { useDrawerViewport } from "@/components/ui/useDrawerViewport";
+import { useBackLayer } from "@/lib/navigation/useBackLayer";
 
 import { AnimatePresence, motion } from "framer-motion";
 import { SlidersHorizontal } from "lucide-react";
@@ -19,6 +20,7 @@ type FiltersSheetProps = {
 export function FiltersSheet({ value, onChange }: FiltersSheetProps = {}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  useBackLayer(open, () => setOpen(false));
   const [filters, setFilters] = useState<EventFilters>(
     value ?? defaultEventFilters,
   );

@@ -58,7 +58,7 @@ export const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={setRef}
       data-drawer-viewport
-      className={`fixed ${sideInset ? "w-full md:inset-x-0" : "inset-x-0"} bottom-0 z-[100] flex flex-col overflow-hidden rounded-t-2xl border border-white/15 text-foreground shadow-2xl outline-none ${className}`}
+      className={`fixed ${sideInset ? "w-full md:inset-x-0" : "inset-x-0"} bottom-0 z-[100] flex flex-col overflow-visible rounded-t-2xl border border-white/15 text-foreground shadow-2xl outline-none ${className}`}
       {...props}
     >
       {/* Vaul extends the surface below the drawer with ::after during upward

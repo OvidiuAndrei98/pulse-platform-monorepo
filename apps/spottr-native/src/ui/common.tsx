@@ -3,6 +3,7 @@ import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View, type ViewStyle, type StyleProp, type NativeScrollEvent, type NativeSyntheticEvent, Alert, Platform, Linking } from 'react-native';
 import Animated, { cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { MotionPressable as Pressable } from './MotionPressable';
+import { GlassPressable } from './GlassPressable';
 import { Image } from 'expo-image';
 import { openBrowserAsync } from 'expo-web-browser';
 import { usePreferences } from '../PreferencesProvider';
@@ -41,8 +42,8 @@ export function Button({ title, onPress, secondary = false, disabled = false }: 
   </Pressable>;
 }
 export function IconButton({ label, onPress, children, disabled }: React.PropsWithChildren<{ label: string; onPress: () => void; disabled?: boolean }>) {
-  return <Pressable accessibilityLabel={label} accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
-    style={styles.iconButton}>{children}</Pressable>;
+  return <GlassPressable accessibilityLabel={label} accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
+    style={styles.iconButton}>{children}</GlassPressable>;
 }
 export function Feedback({ title, detail, retry, compact = false }: { title: string; detail?: string; retry?: () => void; compact?: boolean }) {
   const { t } = usePreferences();

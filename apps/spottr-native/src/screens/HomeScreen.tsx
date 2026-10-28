@@ -1,3 +1,5 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
@@ -19,6 +21,7 @@ import { NotificationsPopover } from "../notifications/NotificationsPopover";
 import { useEventClock } from "../data/useEventClock";
 import { manualRefreshOptions, seedEvent, useHomeEvents } from "../data/queries";
 import { RefreshScrollView } from "../ui/RefreshScrollView";
+import { WardrobeCard } from "../wardrobe/WardrobeScreen";
 import { isLive, type Event } from "../data/events";
 import { EventCard } from "../ui/EventCard";
 import { PromotionHero } from "../ui/PromotionHero";
@@ -167,15 +170,15 @@ export function HomeScreen() {
           <Logo size={32} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {user && <NotificationsPopover key={user.id} />}
-          <Pressable
+          <GlassPressable fallback={Pressable}
             testID="home-search"
             accessibilityLabel={copy("search.open")}
             accessibilityRole="button"
             onPress={() => navigation.navigate("Search")}
             style={s.search}
           >
-            <Search size={16} color={colors.accent} />
-          </Pressable>
+            <ActionIcon name="search" size={16} color={colors.accent} />
+          </GlassPressable>
           </View>
         </View>
         <Text style={s.greeting}>
@@ -187,6 +190,7 @@ export function HomeScreen() {
             : copy("home.exploreTonight", { count: tonight.length })}
         </Text>
       </View>
+      <View style={{ paddingHorizontal: 20 }}><WardrobeCard /></View>
       {promoted.isPending && !promoted.data ? <HomeLoading hero /> : <PromotionHero
         items={bannerPromotions}
         onOpen={open}

@@ -4,6 +4,38 @@
  */
 
 export interface paths {
+    "/admin/commissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminOperations_getCommissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/commissions/standard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["AdminOperations_setStandardCommission"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/event-cancellations": {
         parameters: {
             query?: never;
@@ -77,6 +109,22 @@ export interface paths {
         };
         get: operations["AdminOperations_listOrganizerVerifications"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/organizers/{id}/commission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["AdminOperations_setOrganizerCommission"];
         post?: never;
         delete?: never;
         options?: never;
@@ -796,6 +844,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/dashboard/ticket-validation/events/{id}/my-scans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Legacy personal history: the most recent 20 validated tickets, with the total personal count. */
+        get: operations["TicketValidationOperations_listMyValidationScans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/ticket-validation/events/{id}/offline-snapshot": {
         parameters: {
             query?: never;
@@ -855,6 +920,23 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["TicketValidationOperations_revokeScannerAccess"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard/ticket-validation/events/{id}/scans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Validated tickets for an event the authenticated account owns or is assigned to scan. Mine is always the authenticated account. Results are newest first; pass nextCursor to load older scans. */
+        get: operations["TicketValidationOperations_listValidationScans"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1660,6 +1742,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/wardrobe/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["WardrobeOperations_wardrobeEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wardrobe/events/{eventId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["WardrobeOperations_wardrobeOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wardrobe/events/{eventId}/commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["WardrobeOperations_wardrobeCommand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wardrobe/events/{eventId}/deposits/{depositId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["WardrobeOperations_wardrobeDeposit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wardrobe/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["WardrobeOperations_myWardrobe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/wardrobe/mine/{depositId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["WardrobeOperations_approveWardrobePickup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1724,7 +1902,7 @@ export interface components {
             /** @enum {string} */
             provider: "oblio" | "smartbill";
             /** @enum {string} */
-            status: "pending" | "processing" | "issued" | "failed" | "needs_review";
+            status: "pending" | "processing" | "dispatching" | "issued" | "failed" | "needs_review";
             /** Format: int32 */
             attemptCount: number;
             series?: string;
@@ -1779,7 +1957,26 @@ export interface components {
             username: string;
             avatarUrl?: string;
         };
+        CommissionSaved: {
+            saved: boolean;
+        };
+        CommissionSettings: {
+            standard: components["schemas"]["CommissionStandard"];
+            organizers: components["schemas"]["OrganizerCommission"][];
+        };
+        CommissionStandard: {
+            /** Format: int64 */
+            revision: number;
+        } & components["schemas"]["CommissionTerms"];
+        CommissionTerms: {
+            /** Format: int32 */
+            rateBps: number;
+            /** Format: int32 */
+            perTicketBani: number;
+        };
         CreateCheckoutSessionPayload: {
+            /** Format: int64 */
+            expectedTotalBani?: number;
             email: string;
             items: components["schemas"]["CheckoutTicketItemPayload"][];
             promoCode?: string;
@@ -1937,6 +2134,10 @@ export interface components {
             updatedAt: string;
         };
         EventResponse: {
+            /** Format: int32 */
+            commissionRateBps?: number;
+            /** Format: int32 */
+            commissionPerTicketBani?: number;
             id: string;
             organizerId: string;
             title: string;
@@ -2016,6 +2217,8 @@ export interface components {
             isFavorited?: boolean;
             /** Format: int64 */
             totalTicketsSold?: number;
+            /** Format: int64 */
+            totalTicketsScanned?: number;
             /** Format: int64 */
             totalRevenueRon?: number;
             /** Format: int64 */
@@ -2167,6 +2370,14 @@ export interface components {
             ticketCount: number;
             tickets: components["schemas"]["OfflineTicketSnapshot"][];
         };
+        OrganizerCommission: {
+            organizerId: string;
+            companyName: string;
+            email: string;
+            override: components["schemas"]["CommissionTerms"] | null;
+            /** Format: int64 */
+            revision: number;
+        };
         OrganizerEventUpdateResponse: {
             id: string;
             eventId: string;
@@ -2190,6 +2401,8 @@ export interface components {
             customerTicketingFeeBani: number;
             /** Format: int64 */
             platformFeeBani: number;
+            /** Format: int64 */
+            invoiceServiceFeeBani?: number;
             /** Format: int64 */
             ticketsSold: number;
             /** Format: int64 */
@@ -2413,6 +2626,8 @@ export interface components {
             /** @enum {string} */
             status: "pending" | "completed" | "failed" | "refunded";
             orderId: string;
+            /** @description Whether Stripe has observed a submitted payment attempt. Opening the payment form alone is not an attempt. */
+            paymentAttempted?: boolean;
         };
         RefundAttentionResponse: {
             orderId: string;
@@ -2512,6 +2727,11 @@ export interface components {
             locationName: string;
             /** Format: date-time */
             expiresAt: string;
+        };
+        SetOrganizerCommissionPayload: {
+            override: components["schemas"]["CommissionTerms"] | null;
+            /** Format: int64 */
+            revision: number;
         };
         SocialFeedItemResponse: {
             /** @enum {string} */
@@ -2655,11 +2875,24 @@ export interface components {
             avatarUrl?: string;
         };
         UserOrderResponse: {
+            /**
+             * Format: date-time
+             * @description Present only after Stripe reports a submitted payment attempt, never just from opening checkout.
+             */
+            paymentAttemptedAt?: string;
             id: string;
             status: string;
             /** Format: int32 */
             totalAmountRon: number;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Quoted checkout total including customer fees, in bani. Does not prove payment. Present on updated API versions.
+             */
+            orderTotalBani?: number;
+            /**
+             * Format: int64
+             * @description Legacy alias for orderTotalBani. Also populated before payment; use status to determine whether a purchase completed.
+             */
             paidTotalBani: number;
             /** Format: int64 */
             refundedAmountBani: number;
@@ -2706,6 +2939,8 @@ export interface components {
             /** Format: int64 */
             vatAmountBani?: number;
             id: string;
+            /** @description The completed order that issued this ticket. Present on updated API versions; match this identifier to checkout confirmation instead of matching only the event. */
+            orderId?: string;
             eventId: string;
             validationHash: string;
             isValidated: boolean;
@@ -2738,12 +2973,155 @@ export interface components {
             locationName: string;
             canManage: boolean;
         };
+        ValidationScanActor: {
+            userId?: string;
+            scannerAccessId?: string;
+            name: string;
+            /** @enum {string} */
+            kind: "user" | "access" | "unknown";
+        };
+        ValidationScanHistoryItem: {
+            ticketId: string;
+            ticketType: string;
+            validatedAt: string;
+            scannedBy: components["schemas"]["ValidationScanActor"];
+        };
+        ValidationScanHistoryResponse: {
+            /** Format: int64 */
+            totalScans: number;
+            scans: components["schemas"]["ValidationScanHistoryItem"][];
+            nextCursor?: string;
+        };
         ValidationStaffResponse: {
             id: string;
             username: string;
             email: string;
             /** Format: date-time */
             createdAt: string;
+        };
+        WardrobeAudit: {
+            id: string;
+            action: string;
+            actor: string;
+            depositId: string | null;
+            details: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            at: string;
+        };
+        WardrobeCommand: {
+            /** @enum {string} */
+            action: "zone" | "staff" | "remove-staff" | "lookup" | "reserve" | "store" | "cancel" | "move" | "request-pickup" | "return" | "recover";
+            code?: string;
+            zoneId?: string;
+            depositId?: string;
+            requestId?: string;
+            /** Format: int32 */
+            revision?: number;
+            items?: components["schemas"]["WardrobeItems"];
+            additional?: boolean;
+            pickupId?: string;
+            reason?: string;
+            name?: string;
+            prefix?: string;
+            /** @enum {string} */
+            kind?: "any" | "coat" | "bag";
+            /** Format: int32 */
+            capacity?: number;
+            enabled?: boolean;
+            email?: string;
+            /** @enum {string} */
+            role?: "operator" | "supervisor";
+            userId?: string;
+        };
+        WardrobeCommandResult: {
+            deposit?: components["schemas"]["WardrobeDeposit"];
+            deposits?: components["schemas"]["WardrobeDeposit"][];
+            ok?: boolean;
+        };
+        WardrobeDeposit: {
+            id: string;
+            eventId: string;
+            eventTitle: string;
+            userId: string | null;
+            customerName: string;
+            zoneId: string;
+            zoneName: string;
+            number: string;
+            /** @enum {string} */
+            status: "reserved" | "stored" | "returned" | "cancelled";
+            items: components["schemas"]["WardrobeItems"];
+            remaining: components["schemas"]["WardrobeItems"];
+            /** Format: int32 */
+            revision: number;
+            /** Format: date-time */
+            reservedUntil: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            storedAt: string | null;
+            /** Format: date-time */
+            returnedAt: string | null;
+            pickupId: string | null;
+            pickupItems: components["schemas"]["WardrobeItems"] | null;
+            /** Format: date-time */
+            pickupExpiresAt: string | null;
+            pickupApproved: boolean | null;
+        };
+        WardrobeEvent: {
+            id: string;
+            title: string;
+            canManage: boolean;
+        };
+        WardrobeItems: {
+            /** Format: int32 */
+            coat: number;
+            /** Format: int32 */
+            bag: number;
+            /** Format: int32 */
+            backpack: number;
+        };
+        WardrobeMine: {
+            deposits: components["schemas"]["WardrobeDeposit"][];
+            staffAccess: boolean;
+        };
+        WardrobeOverview: {
+            eventId: string;
+            title: string;
+            canManage: boolean;
+            canRecover: boolean;
+            accepting: boolean;
+            eventEnded: boolean;
+            /** Format: int64 */
+            unclaimedCount: number;
+            /** Format: int64 */
+            unclaimedItems: number;
+            zones: components["schemas"]["WardrobeZone"][];
+            staff: components["schemas"]["WardrobeStaff"][];
+            deposits: components["schemas"]["WardrobeDeposit"][];
+            nextCursor: string;
+            audit: components["schemas"]["WardrobeAudit"][];
+        };
+        WardrobeStaff: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            role: "operator" | "supervisor";
+        };
+        WardrobeZone: {
+            id: string;
+            name: string;
+            prefix: string;
+            /** @enum {string} */
+            kind: "any" | "coat" | "bag";
+            /** Format: int32 */
+            capacity: number;
+            enabled: boolean;
+            /** Format: int32 */
+            revision: number;
+            /** Format: int32 */
+            occupied: number;
         };
     };
     responses: never;
@@ -2754,6 +3132,50 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    AdminOperations_getCommissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommissionSettings"];
+                };
+            };
+        };
+    };
+    AdminOperations_setStandardCommission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommissionStandard"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommissionSaved"];
+                };
+            };
+        };
+    };
     AdminOperations_listEventCancellationRequests: {
         parameters: {
             query?: never;
@@ -2868,6 +3290,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrganizerVerificationRequest"][];
+                };
+            };
+        };
+    };
+    AdminOperations_setOrganizerCommission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetOrganizerCommissionPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommissionSaved"];
                 };
             };
         };
@@ -4048,6 +4496,28 @@ export interface operations {
             };
         };
     };
+    TicketValidationOperations_listMyValidationScans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationScanHistoryResponse"];
+                };
+            };
+        };
+    };
     TicketValidationOperations_createOfflineSnapshot: {
         parameters: {
             query?: never;
@@ -4234,6 +4704,86 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    TicketValidationOperations_listValidationScans: {
+        parameters: {
+            query?: {
+                scope?: "all" | "mine";
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationScanHistoryResponse"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access is unauthorized. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Access is forbidden. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Client error */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
             };
         };
     };
@@ -5703,6 +6253,551 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserTicketResponse"][];
+                };
+            };
+        };
+    };
+    WardrobeOperations_wardrobeEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WardrobeEvent"][];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Access is unauthorized. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Access is forbidden. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description The request conflicts with the current state of the server. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+        };
+    };
+    WardrobeOperations_wardrobeOverview: {
+        parameters: {
+            query?: {
+                q?: string;
+                history?: boolean;
+                unclaimed?: boolean;
+                before?: string;
+            };
+            header?: never;
+            path: {
+                eventId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WardrobeOverview"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Access is unauthorized. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Access is forbidden. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description The request conflicts with the current state of the server. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+        };
+    };
+    WardrobeOperations_wardrobeCommand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WardrobeCommand"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WardrobeCommandResult"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Access is unauthorized. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Access is forbidden. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description The request conflicts with the current state of the server. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+        };
+    };
+    WardrobeOperations_wardrobeDeposit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventId: string;
+                depositId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        deposit: components["schemas"]["WardrobeDeposit"];
+                    };
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Access is unauthorized. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Access is forbidden. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description The request conflicts with the current state of the server. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+        };
+    };
+    WardrobeOperations_myWardrobe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WardrobeMine"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Access is unauthorized. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Access is forbidden. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description The request conflicts with the current state of the server. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+        };
+    };
+    WardrobeOperations_approveWardrobePickup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                depositId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    pickupId: string;
+                    approve: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Access is unauthorized. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Access is forbidden. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description The request conflicts with the current state of the server. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error: string;
+                    };
                 };
             };
         };

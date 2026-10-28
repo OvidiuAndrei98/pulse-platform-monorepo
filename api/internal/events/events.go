@@ -678,6 +678,29 @@ func (h *Handler) HandleDeleteEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Cloakroom commands take the same event lock, so no allocation can race
+	// this check. Keep every custody record, including cancelled/returned ones,
+	// but allow deletion of an unused event that only has cloakroom setup.
+	var wardrobeHistory bool
+	if err := tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM wardrobe_deposits WHERE event_id=$1)`, eventUUID).Scan(&wardrobeHistory); err != nil {
+		router.RespondWithError(w, http.StatusInternalServerError, "Istoricul garderobei nu a putut fi verificat")
+		return
+	}
+	if wardrobeHistory {
+		router.RespondWithError(w, http.StatusConflict, "Evenimentul are depozitari sau istoric de garderoba si nu poate fi sters")
+		return
+	}
+	for _, statement := range []string{
+		`DELETE FROM wardrobe_audit WHERE event_id=$1`,
+		`DELETE FROM wardrobe_staff WHERE event_id=$1`,
+		`DELETE FROM wardrobe_zones WHERE event_id=$1`, // slots cascade with their zone
+	} {
+		if _, err := tx.Exec(r.Context(), statement, eventUUID); err != nil {
+			router.RespondWithError(w, http.StatusInternalServerError, "Configurarea garderobei nu a putut fi eliminata")
+			return
+		}
+	}
+
 	if existingEvent.Status == "published" {
 		if err := qtx.SetEventStatus(r.Context(), db.SetEventStatusParams{ID: eventUUID, Status: "draft"}); err != nil {
 			router.RespondWithError(w, http.StatusInternalServerError, "Evenimentul nu a putut fi mutat in draft inainte de stergere")
@@ -887,6 +910,16 @@ func (h *Handler) HandleGetEventByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dbRow.IsLive = pgtype.Bool{Bool: time.Now().After(dbRow.StartTime.Time) && time.Now().Before(dbRow.EndTime.Time), Valid: true}
+
+	// Event content is cached briefly, but checkout pricing must reflect the latest
+	// admin settings, including immediately after a stale quote was rejected.
+	commission, err := h.Queries.GetEffectiveCommission(r.Context(), dbRow.OrganizerID)
+	if err != nil {
+		router.RespondWithError(w, http.StatusServiceUnavailable, "COMMISSION_UNAVAILABLE")
+		return
+	}
+	dbRow.CommissionRateBps = commission.RateBps
+	dbRow.CommissionPerTicketBani = commission.PerTicketBani
 
 	// Returnăm structura curată, cu bilete incluse și fără date financiare secrete
 	router.RespondWithJSON(w, http.StatusOK, MapFromDBGetEvent(dbRow))

@@ -1,0 +1,77 @@
+SPOTTR — Liquid Glass pentru butoanele de navigație, 28 octombrie 2026
+
+Scop
+Extinderea materialului iOS folosit la navbar către Back, închidere, Search
+și Notificări din Home, precum și acțiunile rotunde din eveniment/profil.
+Userul a cerut explicit păstrarea Android și Next.js în forma existentă.
+Next.js nu a fost modificat. React Native Web păstrează și el interfața actuală.
+
+Implementare
+- ui/GlassPressable.ios.tsx: GlassView regular/dark, cu interactivitate UIKit.
+  Controlul Pressable real și conținutul lui sunt în interiorul materialului.
+  Nu se suprapune o animație de scalare peste reacția nativă.
+- ui/GlassPressable.tsx și GlassPressableFallback.tsx: redau exact componenta
+  originală primită de la apelant, cu stilul și handlerii originali. Astfel,
+  un Pressable simplu nu devine accidental animat pe Android sau web.
+- ui/glassButtonStyles.ts: mută paddingul în control pentru a acoperi zona
+  de apăsare; materialul rămâne opac, iar dezactivarea estompează conținutul.
+- ui/ActionIcon.ios.tsx: SF Symbols pentru back, close, search, bell și share.
+  Fallbackul utilizează iconițele Lucide existente, inclusiv dimensiuni/culori.
+- Protecție pentru binare vechi: verifică prezența modulelor native înainte
+  de import, apoi disponibilitatea Liquid Glass la compilare și runtime.
+- Au fost adaptate 33 de utilizări directe/common în 23 de fișiere de
+  ecrane/componente, plus componenta comună IconButton. Acțiunile existente,
+  testID-urile, accesibilitatea și blocarea checkoutului sunt păstrate.
+- Nu s-au adăugat dependențe. expo-glass-effect și expo-symbols existau deja
+  în proiect pentru navbar. Nu s-au efectuat operații AWS sau plăți reale.
+
+Acoperire
+Home, Search, panoul de notificări, pagina evenimentului, bookmark/share,
+checkout, autentificare, profil public, bilete/comenzi/salvate, prieteni,
+pagini legale, scanare/istoric, garderobă, admin, management eveniment,
+filtre, grupul de siguranță și Back din generatorul Share the night.
+
+Verificări executate
+PASS — TypeScript: tsc --noEmit.
+PASS — 8 teste existente navbar-glass și tab-indicator-timeline.
+PASS — verificare izolată a adaptoarelor reale transpiliate: modul absent,
+       iOS incompatibil, API runtime indisponibil, control nativ disponibil,
+       păstrarea handlerului/badge-ului/testID-ului, disabled, fallbackul
+       original și protecția la lipsa modulului SF Symbols.
+PASS — expo export --platform web; bundle în apps/spottr-native/dist.
+PASS — expo export --platform ios; bundle Hermes în
+       apps/spottr-native/artifacts/glass-controls-ios-20261028.
+PASS — browser-search-story.cjs: căutări, filtre, story, export PNG, back.
+PASS — browser-notifications.cjs: deschidere, mark-all, erori, închidere,
+       navigare și dimensiuni responsive.
+PASS — browser-checkout.cjs: păstrarea ecranului/scrollului, validare,
+       pregătire unică, erori, plăți simulate și revenire din Stripe.
+PASS — browser-account-navigation.cjs: Back și navbarul paginilor contului.
+PASS — browser-scan-history.cjs: scope, paginare, offline, Back, revocare.
+PASS — inspecție vizuală capturi web pentru Search și notificări; suprafețele
+       originale rămân prezente, iar badge-ul și controalele sunt vizibile.
+
+Runnerul tsx a întâmpinat inițial o restricție a sandboxului Windows la
+os.userInfo (uv_os_get_passwd/ENOMEM), înaintea execuției testelor. Aceleași
+teste au trecut cu acces local aprobat. Testele de browser au folosit Chrome
+local și API-uri simulate. Exportul web păstrează avertismentele existente
+pentru imaginile CSS Leaflet; acestea nu au oprit exportul.
+
+Revizuire UI
+Severitate | Locație | Înainte | După | Motiv
+MEDIUM | src/ui/common.tsx:44; src/screens/HomeScreen.tsx; src/notifications/NotificationsPopover.tsx | Suprafețe separate de navbarul iOS | Material comun prin GlassPressable | Consistență între controalele de navigație.
+MEDIUM | src/ui/GlassPressable.ios.tsx; src/ui/GlassPressableFallback.tsx | Risc de schimbare implicită pe alte platforme | Implementare iOS separată, fallback cu componenta originală | Păstrarea exactă a interacțiunii Android/web.
+MEDIUM | src/ui/glassButtonStyles.ts | Materialul ar putea estompa sau micșora zona activă | Opacitate pe conținut, padding în control | Stare disabled clară și atingere pe suprafața butonului.
+
+Limite
+Not verified — aspectul, reflexiile și reacția tactilă UIKit pe iPhone fizic.
+Not verified — compilarea/signarea Xcode și rularea unui APK Android.
+Exportul iOS de mai sus verifică pachetul JS/Hermes, nu este un build IPA.
+Pentru un build instalat fără noul cod sau fără modulul nativ este necesară
+actualizarea aplicației. Un client de dezvoltare compatibil poate încărca JS.
+
+Referință oficială consultată:
+https://docs.expo.dev/versions/latest/sdk/glass-effect/
+
+Approve — codul și fluxurile web verificate; randarea fizică iOS rămâne
+Not verified și nu este inclusă în această aprobare.

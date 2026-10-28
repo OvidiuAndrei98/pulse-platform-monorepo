@@ -1,7 +1,9 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import { FormInput as TextInput } from '../ui/FormInput';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { ArrowLeft, Check, Clock3, MapPin, MessageCircle, Send, UserPlus, UsersRound, X } from 'lucide-react-native';
+import { Check, Clock3, MapPin, MessageCircle, Send, UserPlus, UsersRound, X } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthProvider';
@@ -49,7 +51,7 @@ function SafetyScreen({ eventId, onBack, onLogin, bottomBar }: SafetyGroupScreen
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View onLayout={event => setLayoutHeight(event.nativeEvent.layout.height)} style={[s.inner, { paddingTop: safe.top + (compact ? 4 : 12), paddingBottom: viewport.open ? Math.max(8, safe.bottom) : 96 + safe.bottom }]}>
         <View style={[s.header, compact && { paddingVertical: 0, gap: 8 }]}>
-          <Pressable testID="safety-back" accessibilityRole="button" accessibilityLabel={copy('common.back')} onPress={onBack} style={[s.back, compact && { width: 36, height: 36 }]}><ArrowLeft color={colors.text} size={24} /></Pressable>
+          <GlassPressable fallback={Pressable} testID="safety-back" accessibilityRole="button" accessibilityLabel={copy('common.back')} onPress={onBack} style={[s.back, compact && { width: 36, height: 36 }]}><ActionIcon name="back" color={colors.text} size={24} /></GlassPressable>
           <View><Text style={[s.heading, compact && { fontSize: 14 }]}>{copy('safetyGroup.title')}</Text>{!compact && <Text style={s.small}>{copy('safetyGroup.private')}</Text>}</View>
         </View>
         {!state.ready || !state.user || state.pending ? <View style={s.loading}><ActivityIndicator color={colors.accent} accessibilityLabel={copy('common.loading')} /></View>

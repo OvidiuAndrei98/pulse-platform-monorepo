@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   User,
   QrCode,
+  Shirt,
   Calendar,
   Plus,
   Ticket,
@@ -33,6 +34,7 @@ const organizerTabs = [
     icon: QrCode,
   },
   { href: "/dashboard/events", label: "dashboardNav.events", icon: Calendar },
+  { href: "/dashboard/wardrobe", label: "dashboardNav.wardrobe", icon: Shirt },
   { href: "/dashboard/promotions", label: "dashboardNav.promotions", icon: Megaphone },
   { href: "/dashboard/events/new", label: "dashboardNav.newEvent", icon: Plus },
   {

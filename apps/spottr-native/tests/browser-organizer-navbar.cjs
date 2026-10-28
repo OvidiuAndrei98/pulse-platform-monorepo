@@ -25,6 +25,8 @@ withBrowser(async ({ base, call, evaluate, until, delay, capture, errors }) => {
       qa.requests.push({ route, method });
       if (method !== 'GET') qa.writes.push({ route, method });
       const reply = data => new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } });
+      if (route === '/wardrobe/mine') return reply({ deposits: [], staffAccess: false });
+      if (route === '/diagnostics/errors') return new Response(null, { status: 204 });
       if (route === '/users/me') {
         if (new URL(location.href).searchParams.has('pending')) await new Promise(resolve => { qa.resolveMe = resolve; });
         qa.me = true; return reply(user);
@@ -59,7 +61,10 @@ withBrowser(async ({ base, call, evaluate, until, delay, capture, errors }) => {
       const bar = qa.bar(), indicator = bar?.querySelector('[data-testid="tab-indicator"]');
       if (!bar || !indicator) return { t: performance.now(), missing: true, path: location.pathname };
       const r = indicator.getBoundingClientRect(), b = bar.getBoundingClientRect();
-      return { t: performance.now(), x: r.x - b.x, width: r.width, node: nodeId(indicator), path: location.pathname, dashboard: qa.visible('organizer-dashboard'), profile: qa.visible('profile-list'), selected: bar.querySelector('[aria-selected="true"]')?.dataset.testid };
+      // CSS animation geometry belongs to the document's current frame. A
+      // performance.now() read after a slow layout can mislabel that geometry
+      // by tens of milliseconds, then falsely report a jump on the next frame.
+      return { t: Number(document.timeline.currentTime ?? performance.now()), sampledAt: performance.now(), x: r.x - b.x, width: r.width, node: nodeId(indicator), path: location.pathname, dashboard: qa.visible('organizer-dashboard'), profile: qa.visible('profile-list'), selected: bar.querySelector('[aria-selected="true"]')?.dataset.testid };
     };
     qa.start = () => {
       cancelAnimationFrame(qa.frame); qa.samples = [qa.read()]; qa.recording = true;

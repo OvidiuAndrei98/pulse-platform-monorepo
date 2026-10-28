@@ -83,6 +83,40 @@ func TestIngestValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestHandledFailuresAreBoundedAndGrouped(t *testing.T) {
+	r := testReport(1)
+	r.Operation, r.Failure, r.HTTPStatus = "tickets_load", "server_error", 503
+	s := &memoryStore{}
+	h := &Handler{Store: s, Now: func() time.Time { return testNow }}
+	if w := ingest(h, body(r)); w.Code != 204 || len(s.saved) != 1 || s.saved[0].HTTPStatus != 503 {
+		t.Fatalf("handled report not saved: %d", w.Code)
+	}
+	for _, mutate := range []func(*Report){
+		func(r *Report) { r.Operation = "/users/private/tickets" },
+		func(r *Report) { r.Failure = "private-message" },
+		func(r *Report) { r.HTTPStatus = 400 },
+		func(r *Report) { r.HTTPStatus = 600 },
+		func(r *Report) { r.Operation = "" },
+		func(r *Report) { r.Failure = "" },
+	} {
+		bad := r
+		mutate(&bad)
+		if ingest(h, body(bad)).Code != 400 || len(s.saved) != 1 {
+			t.Fatal("unbounded handled context accepted")
+		}
+	}
+	other := r
+	other.ID = testReport(2).ID
+	other.Frames = nil
+	if fingerprint(r) != fingerprint(other) {
+		t.Fatal("retry call sites must group together")
+	}
+	other.Operation = "scanner_sync"
+	if fingerprint(r) == fingerprint(other) {
+		t.Fatal("independent operations must remain distinct")
+	}
+}
 func TestIngestRejectsRawDataAndInvalidJSON(t *testing.T) {
 	valid := body(testReport(1))
 	for _, input := range []string{"", "null", "[]", valid + valid, strings.TrimSuffix(valid, "}") + `,"message":"private-value"}`, strings.TrimSuffix(valid, "}") + `,"userId":"private-value"}`, strings.Replace(valid, `"fatal":true`, `"fatal":"true"`, 1), valid + strings.Repeat(" ", 12288)} {

@@ -1,0 +1,112 @@
+SPOTTR feature audit - 26/27 October 2026
+
+Scope
+Extended the purchase/scanner audit to wardrobe, accounts, social features,
+notifications, discovery, organizer operations, admin commissions, invoicing,
+PDFs and navigation. Existing unrelated working-tree changes were preserved.
+The preceding purchase/scanner results are in purchase-scanner-2026-10-26.txt.
+
+Verified results
+- Entire Go API suite: 520 passing tests/subtests, zero failures and zero
+  skipped individual tests. This includes 24 wardrobe tests/subtests.
+  Database tests used disposable local PostgreSQL databases; full schema
+  databases received all 72 migrations. Push/diagnostics tests initialized
+  their own isolated schemas. Disposable containers were removed afterward.
+- Wardrobe UI passes in both Next.js and React Native Web: configuration,
+  staff permissions, account QR scanning with a synthetic camera, automatic
+  numbers, partial returns, unclaimed filtering/recovery and owner approval.
+  API checks also cover concurrency, idempotency, revocation, expired approval
+  and seven-day cleanup that preserves unclaimed deposits.
+- React Native Web batch: 24 of 25 browser scripts pass. Wardrobe was run
+  separately and also passes. The remaining script is described below.
+- Next.js batch: all 13 browser scripts pass, including wardrobe, account
+  invoices, event surfaces, keyboard/drawer behavior, feedback/retries, layout,
+  logout, navigation, organizer profiles and tickets. Tickets include real QR
+  decoding from a synthetic camera and actual multi-page PDF rendering.
+- Preview proxy HTTP integration: 10 tests pass. Authorization forwarding,
+  queries, permitted methods and rejected routes are checked with local HTTP.
+- TypeScript checking passes in both apps. A malformed generated Next dev
+  validator was archived in the artifacts and regenerated after the temporary
+  dev server stopped; application types were not bypassed.
+
+Application fixes
+1. Expo's preview proxy omitted wardrobe endpoints, producing its own 403
+   before requests reached AWS. Added the exact wardrobe routes and methods,
+   plus shared scanner history GET /scans. Other proxy restrictions remain.
+   Restarted the user's Expo web server on port 8081 to activate the fix.
+2. Next.js filters did not register a Back layer. Back now dismisses filters;
+   navigation tests verify the behavior and subsequent tab navigation.
+3. Next.js's shared drawer clipped Vaul's below-sheet extension. Reversing an
+   elastic drag exposed the underlying page. The outer surface now allows
+   overflow; the existing inner wrapper still clips the sheet content.
+   A screenshot pixel assertion verifies coverage below the raised edge.
+
+Test maintenance
+Several browser fixtures predated wardrobe and returned [] for /wardrobe/mine
+instead of {deposits: [], staffAccess: false}. Updated those fixtures rather
+than treating their crashes as API failures. Also updated obsolete inline
+preferences/checkout selectors, full-width mobile sheet expectations, ticket
+availability fields and the PDF renderer dependency. Animation tests observe
+intermediate frames or settled state instead of an arbitrary short delay.
+The failed-save test now dismisses its intentional error toast before tapping
+the checkout button underneath. It still verifies optimistic rollback.
+
+Finding from the initial audit
+browser-organizer-navbar.cjs consistently detects a frame discontinuity on
+the first cold Home -> organizer dashboard transition in React Native Web.
+Role routing, final selection, interruption, retained Home, normal user tabs
+and reduced motion pass. Recorded jumps of roughly 64-72px follow main-thread
+stalls during cold dashboard mounting. The bars share animation state; the
+recorded jump also occurs while the DOM node remains the same. No animation
+threshold was relaxed and this test remains failed. This is not evidence of
+the same problem on iPhone, where Reanimated uses a separate UI runtime.
+Motion-performance guidance was consulted; no navbar redesign was applied
+during the initial audit. The follow-up below addresses this finding.
+
+Local follow-up - 27 October 2026
+The user chose local tests only. No AWS restore or deployment was performed.
+The web navbar now uses a browser-driven transform animation instead of
+JavaScript frame updates. A shared timeline preserves the current position
+across screen mounts and rapid reversals. The same 320 ms easing and styling
+are retained. iOS/Android continue to use Reanimated's native implementation.
+
+The organizer navbar browser test now passes for cold navigation, pending
+session hydration, route changes, rapid reversals and dynamic reduced motion.
+Its sampling uses document.timeline.currentTime for CSS frame geometry and
+records performance.now separately; previously a slow layout could mislabel
+an earlier frame as a later sample. Jump thresholds were not relaxed.
+The design comparison, navbar/sheet interaction, account navigation and public
+profile browser suites also pass against the new web export. The 13 local
+layout/timeline tests and TypeScript check pass. The iOS JavaScript/Hermes
+export also succeeds; this is not an installed Xcode build. See navbar-*.log and
+navbar-regression-results.json in the audit artifact directory.
+These local checks do not establish a physical device frame rate.
+
+Live service blocker
+AWS RDS pulse-db reports inaccessible-encryption-credentials. Its KMS key
+is enabled, but the instance is past the recoverable state. Staging API calls
+return 503/504 or time out. After the proxy fix, local /wardrobe/mine reaches
+the upstream and returns 504 instead of the preview proxy's earlier 403.
+Local passing tests do not establish that AWS staging is available.
+
+A separate-instance restore plan is in staging-recovery-plan-2026-10-26.txt.
+Restoration has not been executed: on 27 October the user chose to continue
+local tests only. A restore would create a billable instance from data shared
+by staging and production and is not currently authorized. Existing DB,
+backups, credentials and production settings have not been changed.
+
+Limits
+Browser UI flows use controlled local API responses. Go tests exercise real
+local PostgreSQL, not live AWS or Stripe. This run does not certify physical
+iPhone/Android camera behavior, native Stripe/Apple Pay, OS push delivery,
+offline device radios or native 120 Hz rendering. These need device checks
+and, for live service flows, restored staging.
+
+Artifacts
+apps/spottr-native/artifacts/features-qa-20261026/
+  api-tests.jsonl, proxy-tests.log, native-results.json, next-results.json,
+  individual browser logs, native/next typecheck logs, API test runner.
+apps/spottr-native/artifacts/organizer-navbar-motion.json contains the remaining
+animation failure samples. Browser screenshots are in the same artifacts root.
+The temporary Next server on 3206 was stopped; the user's Expo preview on 8081
+was left running.

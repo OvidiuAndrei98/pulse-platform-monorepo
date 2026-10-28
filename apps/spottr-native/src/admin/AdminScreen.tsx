@@ -1,14 +1,16 @@
+import { ActionIcon } from '../ui/ActionIcon';
 import { FormInput as TextInput } from '../ui/FormInput';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Ban, Building2, Check, CreditCard, LogOut, RefreshCw, ShieldCheck, Ticket } from 'lucide-react-native';
+import { Ban, Building2, Check, CreditCard, LogOut, RefreshCw, ShieldCheck, Ticket } from 'lucide-react-native';
 import { useAuth, accountApi } from '../auth/AuthProvider';
 import { usePreferences } from '../PreferencesProvider';
 import { Feedback, IconButton, Loading, useOpenLink } from '../ui/common';
 import { Text } from '../ui/Text';
+import { CommissionsPanel } from './CommissionsPanel';
 import { ClientErrorsPanel } from './ClientErrorsPanel';
 import { colors } from '../ui/theme';
 import { canReviewCancellation, createAdminApi, organizerCounts, stripeStatus, type Cancellation, type CancellationAction, type OrganizerReview, type ReviewStatus } from './data';
@@ -46,11 +48,12 @@ export function AdminScreen() {
   };
   const choose = (value: Confirmation) => { if (busy) return; setNote(''); setError(''); setTarget(value); };
   const back = () => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs', { screen: 'Profile' });
-  if (!allowed) return <View style={{ flex: 1, backgroundColor: colors.bg, padding: 20, paddingTop: insets.top + 20 }}><IconButton label={copy('common.back')} onPress={back}><ArrowLeft color="white" size={22} /></IconButton><Feedback title={language === 'ro' ? 'Acces rezervat administratorilor' : 'Administrator access required'} /></View>;
+  if (!allowed) return <View style={{ flex: 1, backgroundColor: colors.bg, padding: 20, paddingTop: insets.top + 20 }}><IconButton label={copy('common.back')} onPress={back}><ActionIcon name="back" color="white" size={22} /></IconButton><Feedback title={language === 'ro' ? 'Acces rezervat administratorilor' : 'Administrator access required'} /></View>;
   const grid = viewport.width >= 768;
   return <View style={{ flex: 1, backgroundColor: colors.bg }}><ScrollView refreshControl={<RefreshControl refreshing={loading && !organizers.isPending} onRefresh={() => { void refresh(); }} tintColor={colors.accent} />} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 24, paddingBottom: insets.bottom + 40, gap: 24, width: '100%', maxWidth: 1152, alignSelf: 'center' }}>
-    <View style={{ gap: 16, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: '#ffffff18' }}><IconButton label={copy('common.back')} onPress={back}><ArrowLeft color="white" size={22} /></IconButton><View style={styles.row}><View style={styles.brandIcon}><ShieldCheck size={22} color={colors.accent} /></View><View style={{ flex: 1, gap: 5 }}><Text style={styles.eyebrow}>{copy('admin.eyebrow')}</Text><Text style={styles.title}>{copy('admin.title')}</Text></View></View><View style={styles.row}><Action title={copy('admin.refresh')} disabled={loading || busy} onPress={() => { void refresh(); }}><RefreshCw size={16} color={colors.text} /></Action><Action title={copy('dashboardNav.logout')} disabled={busy} onPress={() => { void controller.logout().then(() => navigation.reset({ index: 0, routes: [{ name: 'Tabs' }] })); }}><LogOut size={16} color={colors.text} /></Action></View></View>
+    <View style={{ gap: 16, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: '#ffffff18' }}><IconButton label={copy('common.back')} onPress={back}><ActionIcon name="back" color="white" size={22} /></IconButton><View style={styles.row}><View style={styles.brandIcon}><ShieldCheck size={22} color={colors.accent} /></View><View style={{ flex: 1, gap: 5 }}><Text style={styles.eyebrow}>{copy('admin.eyebrow')}</Text><Text style={styles.title}>{copy('admin.title')}</Text></View></View><View style={styles.row}><Action title={copy('admin.refresh')} disabled={loading || busy} onPress={() => { void refresh(); }}><RefreshCw size={16} color={colors.text} /></Action><Action title={copy('dashboardNav.logout')} disabled={busy} onPress={() => { void controller.logout().then(() => navigation.reset({ index: 0, routes: [{ name: 'Tabs' }] })); }}><LogOut size={16} color={colors.text} /></Action></View></View>
     {notice ? <Text accessibilityLiveRegion="polite" style={[styles.body, { color: colors.accent }]}>{notice}</Text> : null}{error || link.error ? <Text accessibilityLiveRegion="assertive" style={styles.error}>{error || copy('feedback.actionFailed')}</Text> : null}
+    <CommissionsPanel />
     <ClientErrorsPanel />
     <Section title={copy('adminCancellations.title')} hint={copy('adminCancellations.subtitle')}>
       {cancellations.isPending ? <Loading /> : cancellations.isError ? <Feedback compact title={copy('adminCancellations.loadFailed')} retry={() => { void cancellations.refetch(); }} /> : !cancellations.data.length ? <Empty title={copy('adminCancellations.empty')} /> : cancellations.data.map(request => <View key={request.id} style={styles.card}>

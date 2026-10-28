@@ -69,15 +69,20 @@ VALUES($1,$2,$3::order_status,100,$4,$5,$6,'direct',TRUE) RETURNING id`, fixture
 }
 
 func TestDirectPaymentIntentFailureIsNonTerminal(t *testing.T) {
-	payload, err := json.Marshal(stripe.PaymentIntent{ID: "pi_retryable_failure"})
+	pool, checkout, fixture, _, intent := seedNativePaymentFixture(t)
+	intent.Status = stripe.PaymentIntentStatusRequiresPaymentMethod
+	intent.AmountReceived = 0
+	intent.LastPaymentError = &stripe.Error{Code: stripe.ErrorCodeCardDeclined}
+	payload, err := json.Marshal(intent)
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := &ConnectWebhookHandler{}
+	handler := &ConnectWebhookHandler{checkout: checkout}
 	event := stripe.Event{
-		Type:    stripe.EventTypePaymentIntentPaymentFailed,
-		Account: "acct_retryable_failure",
-		Data:    &stripe.EventData{Raw: payload},
+		Type:     stripe.EventTypePaymentIntentPaymentFailed,
+		Account:  fixture.accountID,
+		Livemode: true,
+		Data:     &stripe.EventData{Raw: payload},
 	}
 	handled, err := handler.handleDirectChargeEvent(httptest.NewRequest("POST", "/", nil), event)
 	if err != nil {
@@ -85,6 +90,14 @@ func TestDirectPaymentIntentFailureIsNonTerminal(t *testing.T) {
 	}
 	if !handled {
 		t.Fatal("payment failure event was not acknowledged")
+	}
+	order, err := checkout.queries.GetOrderForUpdate(context.Background(), fixture.orderID)
+	if err != nil || order.Status != db.OrderStatusPending {
+		t.Fatalf("decline must remain retryable: %v %v", order.Status, err)
+	}
+	var attempted bool
+	if err := pool.QueryRow(context.Background(), `SELECT EXISTS(SELECT 1 FROM checkout_payment_attempts WHERE order_id=$1)`, fixture.orderID).Scan(&attempted); err != nil || !attempted {
+		t.Fatalf("submitted decline must be recorded: %v", err)
 	}
 }
 
@@ -313,8 +326,8 @@ func TestReconcilePaidCheckoutDoesNotReportSuccessWithoutTickets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if status != "failed" || orderID != fixture.orderID.String() {
-		t.Fatalf("reconciliation returned %q/%q, want failed/%s", status, orderID, fixture.orderID.String())
+	if status != "pending" || orderID != fixture.orderID.String() {
+		t.Fatalf("reconciliation returned %q/%q, want pending/%s so a paid order cannot invite another charge", status, orderID, fixture.orderID.String())
 	}
 	assertCheckoutRetryState(t, pool, fixture, "failed", 10, 0, true)
 }

@@ -552,6 +552,16 @@ func (h *CheckoutHandler) processRefundOperation(ctx context.Context, operationI
 }
 
 func (h *CheckoutHandler) refundApplicationFee(ctx context.Context, data db.GetOrderRefundExecutionDataRow, completeOperation bool) error {
+	conn, unlock, lockErr := h.lockApplicationFee(ctx, data.OrderID)
+	if lockErr != nil {
+		return h.failRefundOperation(ctx, data, lockErr, false)
+	}
+	defer unlock()
+	// All queries use the lock's connection, so concurrent workers cannot
+	// exhaust the pool while waiting for an additional database connection.
+	bound := *h
+	bound.queries = db.New(conn)
+	h = &bound
 	if data.FeePolicy == "review" {
 		return h.failRefundOperation(ctx, data, errors.New("refundul partial necesita decizie administrativa"), true)
 	}

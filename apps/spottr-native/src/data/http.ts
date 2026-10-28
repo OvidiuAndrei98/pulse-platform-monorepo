@@ -1,3 +1,5 @@
+import { captureHandledFailure, requestOperation } from '../diagnostics/handled';
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -109,6 +111,8 @@ export function createHttp(
       return data as T;
     } catch (error) {
       if (timedOut) throw new ApiError(0, "TIMEOUT");
+      const operation = requestOperation(path);
+      if (operation && !options.signal?.aborted) captureHandledFailure(error, operation);
       throw error;
     } finally {
       clearTimeout(timer);

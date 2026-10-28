@@ -109,6 +109,7 @@ type Querier interface {
 	GetBillingInvoiceIssueData(ctx context.Context, id pgtype.UUID) (GetBillingInvoiceIssueDataRow, error)
 	GetBillingInvoiceRefundIssueData(ctx context.Context, id pgtype.UUID) (GetBillingInvoiceRefundIssueDataRow, error)
 	GetCommentsForEvent(ctx context.Context, arg GetCommentsForEventParams) ([]GetCommentsForEventRow, error)
+	GetEffectiveCommission(ctx context.Context, organizerID pgtype.UUID) (GetEffectiveCommissionRow, error)
 	GetEventBannerReference(ctx context.Context, eventID pgtype.UUID) (pgtype.UUID, error)
 	GetEventByID(ctx context.Context, arg GetEventByIDParams) (GetEventByIDRow, error)
 	GetEventForCheckout(ctx context.Context, id pgtype.UUID) (Events, error)
@@ -149,6 +150,7 @@ type Querier interface {
 	GetPublicProfile(ctx context.Context, id pgtype.UUID) (GetPublicProfileRow, error)
 	GetScannerAccessByID(ctx context.Context, id pgtype.UUID) (GetScannerAccessByIDRow, error)
 	GetScannerAccessByTokenHash(ctx context.Context, tokenHash string) (GetScannerAccessByTokenHashRow, error)
+	GetStandardCommission(ctx context.Context) (PlatformCommissionSettings, error)
 	GetStripeEventVATRate(ctx context.Context, arg GetStripeEventVATRateParams) (string, error)
 	GetTicketByHash(ctx context.Context, validationHash string) (GetTicketByHashRow, error)
 	GetTicketTypeForUpdate(ctx context.Context, id pgtype.UUID) (TicketTypes, error)
@@ -185,6 +187,7 @@ type Querier interface {
 	ListOfflineValidationTickets(ctx context.Context, eventID pgtype.UUID) ([]ListOfflineValidationTicketsRow, error)
 	ListOrderTicketEmailDetails(ctx context.Context, id pgtype.UUID) ([]ListOrderTicketEmailDetailsRow, error)
 	ListOrganizerBillingInvoices(ctx context.Context, organizerID pgtype.UUID) ([]ListOrganizerBillingInvoicesRow, error)
+	ListOrganizerCommissions(ctx context.Context) ([]ListOrganizerCommissionsRow, error)
 	ListOrganizerFinanceEvents(ctx context.Context, organizerID pgtype.UUID) ([]ListOrganizerFinanceEventsRow, error)
 	ListOrganizerPlatformCommissionInvoices(ctx context.Context, organizerID pgtype.UUID) ([]ListOrganizerPlatformCommissionInvoicesRow, error)
 	ListOrganizerRefundsRequiringAttention(ctx context.Context, organizerID pgtype.UUID) ([]ListOrganizerRefundsRequiringAttentionRow, error)
@@ -272,6 +275,7 @@ type Querier interface {
 	SendFriendRequest(ctx context.Context, arg SendFriendRequestParams) error
 	SetEventStatus(ctx context.Context, arg SetEventStatusParams) error
 	SetOrderStripeLivemode(ctx context.Context, arg SetOrderStripeLivemodeParams) error
+	SetOrganizerCommission(ctx context.Context, arg SetOrganizerCommissionParams) (OrganizerCommissionOverrides, error)
 	SetOrganizerStripeAccount(ctx context.Context, arg SetOrganizerStripeAccountParams) (OrganizerProfiles, error)
 	ShowEventCategory(ctx context.Context, arg ShowEventCategoryParams) error
 	SnapshotOrderInvoiceVAT(ctx context.Context, arg SnapshotOrderInvoiceVATParams) error
@@ -281,6 +285,7 @@ type Querier interface {
 	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error
 	UpdateOrganizerStripeAccountStatus(ctx context.Context, arg UpdateOrganizerStripeAccountStatusParams) (OrganizerProfiles, error)
 	UpdatePlatformCommissionInvoiceTotals(ctx context.Context, arg UpdatePlatformCommissionInvoiceTotalsParams) error
+	UpdateStandardCommission(ctx context.Context, arg UpdateStandardCommissionParams) (PlatformCommissionSettings, error)
 	UpdateTicketTypeForEvent(ctx context.Context, arg UpdateTicketTypeForEventParams) (int64, error)
 	UpdateUserActivated(ctx context.Context, id pgtype.UUID) error
 	UpdateUserActivation(ctx context.Context, arg UpdateUserActivationParams) error

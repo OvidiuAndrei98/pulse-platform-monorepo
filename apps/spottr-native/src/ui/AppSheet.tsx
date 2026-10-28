@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { drawerDesign } from '../../../pulse-app/src/components/ui/drawerDesign';
 import { SheetScrollProvider, sheetGestureHandlersHook, useSheetScrollSurface } from './SheetScrollBridge';
 
-type Props = React.PropsWithChildren<{ open: boolean; onClose: () => void; height?: number; embedded?: boolean; edgeToEdge?: boolean; horizontalContent?: boolean; label: string; testID?: string; footer?: React.ReactNode }>;
+type Props = React.PropsWithChildren<{ open: boolean; closing?: boolean; onClose: () => void; height?: number; embedded?: boolean; edgeToEdge?: boolean; horizontalContent?: boolean; label: string; testID?: string; footer?: React.ReactNode }>;
 const FooterContext = createContext<React.ReactNode>(null);
 // Stable component identity keeps the footer mounted when ticket/RSVP data changes.
 function SheetFooter(props: BottomSheetFooterProps) {
@@ -16,17 +16,18 @@ function SheetFooter(props: BottomSheetFooterProps) {
 }
 
 /** Same black surface, grabber, drag-to-dismiss and 90% event height as the web sheets. */
-export function AppSheet({ open, onClose, height = 0.9, embedded = false, edgeToEdge = false, horizontalContent = false, label, testID, footer, children }: Props) {
+export function AppSheet({ open, closing, onClose, height = 0.9, embedded = false, edgeToEdge = false, horizontalContent = false, label, testID, footer, children }: Props) {
   if (!open) return null;
-  const content = <SheetContent height={height} onClose={onClose} edgeToEdge={edgeToEdge} horizontalContent={horizontalContent} label={label} testID={testID} footer={footer}>{children}</SheetContent>;
+  const content = <SheetContent closing={closing} height={height} onClose={onClose} edgeToEdge={edgeToEdge} horizontalContent={horizontalContent} label={label} testID={testID} footer={footer}>{children}</SheetContent>;
   // A modal does not add a browser/navigation history entry. Native horizontal
   // Back stays a navigation gesture belonging to Search and Checkout.
   return embedded ? content : <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
     <GestureHandlerRootView style={s.root}>{content}</GestureHandlerRootView>
   </Modal>;
 }
-function SheetContent({ height = 0.9, onClose, edgeToEdge, horizontalContent, label, testID, footer, children }: Omit<Props, 'open'>) {
+function SheetContent({ closing, height = 0.9, onClose, edgeToEdge, horizontalContent, label, testID, footer, children }: Omit<Props, 'open'>) {
   const ref = useRef<BottomSheet>(null), viewport = useWindowDimensions(), safe = useSafeAreaInsets();
+  useEffect(() => { if (closing) ref.current?.forceClose(); }, [closing]);
   const points = useMemo(() => [Math.max(180, Math.min(viewport.height - safe.top - 8, viewport.height * height))], [height, viewport.height, safe.top]);
   // Keep Gorhom's original spring trajectory/velocity. Reanimated's default
   // energy threshold waits for subpixel settling, leaving the invisible Modal

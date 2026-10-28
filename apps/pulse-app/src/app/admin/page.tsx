@@ -27,6 +27,7 @@ import {
 } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { RefundAttentionList } from "@/app/dashboard/components/RefundAttentionList";
+import { CommissionsPanel } from './CommissionsPanel';
 import { ClientErrorsPanel } from './ClientErrorsPanel';
 
 type VerificationStatus = "pending" | "approved" | "rejected";
@@ -271,7 +272,8 @@ export default function AdminPage() {
           </div>
         </header>
 
-        <ClientErrorsPanel />
+        <CommissionsPanel />
+    <ClientErrorsPanel />
         <section className="space-y-3">
           <div>
             <h2 className="text-lg font-semibold">{t("adminCancellations.title")}</h2>

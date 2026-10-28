@@ -1,8 +1,9 @@
-import { FormInput as TextInput } from '../ui/FormInput';
-import React, { useState } from "react";
+import { FormInput as TextInput } from "../ui/FormInput";
+import React, { useRef, useState } from "react";
 import {
   Platform,
   Pressable,
+  ScrollView,
   View,
   useWindowDimensions,
 } from "react-native";
@@ -24,6 +25,13 @@ import { formatDate } from "../data/events";
 import { Action, dColors as colors } from "./common";
 import type { DashboardEvent } from "./data";
 import { DashboardTitle } from "./DashboardOverview";
+import {
+  dashboardEventFilters,
+  filterDashboardEvents,
+  type DashboardEventFilter,
+} from "../../../pulse-app/src/features/events/dashboardEvents";
+import { useEventClock } from "../data/useEventClock";
+import { selectDashboardEvent } from "../../../pulse-app/src/features/events/dashboardFeatured";
 
 export function DashboardEvents({
   events,
@@ -32,6 +40,8 @@ export function DashboardEvents({
   retry,
   onEvent,
   onNew,
+  filter,
+  onFilterChange,
 }: {
   events: DashboardEvent[];
   loading: boolean;
@@ -39,23 +49,17 @@ export function DashboardEvents({
   retry(): void;
   onEvent(id: string): void;
   onNew(): void;
+  filter: DashboardEventFilter;
+  onFilterChange(filter: DashboardEventFilter): void;
 }) {
   const { copy, language } = usePreferences(),
     { width } = useWindowDimensions(),
     small = width < 640,
     large = width >= 1024;
-  const [q, setQ] = useState(""),
-    [filter, setFilter] = useState("all");
-  const filtered = events.filter((e) => {
-    const ended =
-      e.status === "completed" || Date.parse(e.endTime) <= Date.now();
-    return (
-      (!q || e.title.toLowerCase().includes(q.toLowerCase())) &&
-      (filter === "all" ||
-        (filter === "completed" && ended) ||
-        (filter !== "completed" && !ended && e.status === filter))
-    );
-  });
+  const [q, setQ] = useState("");
+  const filterStrip = useRef<ScrollView>(null);
+  const now = useEventClock(selectDashboardEvent(events, Date.now()));
+  const filtered = filterDashboardEvents(events, filter, q, now);
   return (
     <>
       <View
@@ -85,7 +89,7 @@ export function DashboardEvents({
       </View>
       <View
         style={{
-          flexDirection: small ? "column" : "row",
+          flexDirection: "column",
           alignItems: "center",
           gap: 12,
         }}
@@ -93,8 +97,7 @@ export function DashboardEvents({
         <View
           style={{
             height: 44,
-            width: small ? "100%" : undefined,
-            flex: small ? undefined : 1,
+            width: "100%",
             borderRadius: 99,
             borderWidth: 1,
             borderColor: "#ffffff1a",
@@ -106,7 +109,8 @@ export function DashboardEvents({
           }}
         >
           <Search size={16} color={colors.muted} />
-          <TextInput variant="bare"
+          <TextInput
+            variant="bare"
             accessibilityLabel={copy("organizerEvents.searchPlaceholder")}
             value={q}
             onChangeText={setQ}
@@ -123,48 +127,60 @@ export function DashboardEvents({
             ]}
           />
         </View>
-        <View
+        <ScrollView
+          ref={filterStrip}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          testID="dashboard-event-filters"
+          contentContainerStyle={{ padding: 4, gap: 2 }}
           style={{
             flexDirection: "row",
             height: 44,
-            width: small ? "100%" : undefined,
+            width: "100%",
+            maxWidth: "100%",
+            flexGrow: 0,
             borderRadius: 99,
             borderWidth: 1,
             borderColor: "#ffffff1a",
             backgroundColor: "#ffffff0d",
-            padding: 4,
           }}
         >
-          {["all", "published", "scheduled", "draft", "completed"].map(
-            (value) => (
-              <Pressable
-                key={value}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: filter === value }}
-                onPress={() => setFilter(value)}
+          {dashboardEventFilters.map((value) => (
+            <Pressable
+              key={value}
+              testID={`dashboard-filter-${value}`}
+              onLayout={(event) => {
+                if (filter === value)
+                  filterStrip.current?.scrollTo({
+                    x: Math.max(0, event.nativeEvent.layout.x - 12),
+                    animated: false,
+                  });
+              }}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: filter === value }}
+              aria-selected={filter === value}
+              onPress={() => onFilterChange(value)}
+              style={{
+                paddingHorizontal: 14,
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 99,
+                backgroundColor:
+                  filter === value ? colors.accent : "transparent",
+              }}
+            >
+              <Text
                 style={{
-                  flex: small ? 1 : undefined,
-                  paddingHorizontal: small ? 2 : 16,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: 99,
-                  backgroundColor:
-                    filter === value ? colors.accent : "transparent",
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: filter === value ? "#ffffff" : colors.muted,
                 }}
               >
-                <Text
-                  style={{
-                    fontSize: small ? 10 : 12,
-                    fontWeight: "600",
-                    color: filter === value ? "#ffffff" : colors.muted,
-                  }}
-                >
-                  {copy("organizerEvents." + value)}
-                </Text>
-              </Pressable>
-            ),
-          )}
-        </View>
+                {copy("organizerEvents." + value)}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
       </View>
       {loading ? (
         <Loading />
@@ -396,7 +412,7 @@ export function DashboardEvents({
                       >
                         <Calendar size={14} color={colors.accent} />
                         <Text style={{ fontSize: 12, color: colors.muted }}>
-                          {formatDate(e.startTime, language)}
+                          {formatDate(e.startTime, language, true)}
                         </Text>
                       </View>
                       <View

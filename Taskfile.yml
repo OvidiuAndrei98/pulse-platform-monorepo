@@ -6,6 +6,7 @@ vars:
   GO_APP_DIR: "api"
   NEXT_APP_DIR: "apps/pulse-app"
   BUILD_DIR: "dist"
+  POWERSHELL: '{{if eq OS "windows"}}powershell.exe{{else}}pwsh{{end}}'
 
 tasks:
   setup:
@@ -73,33 +74,43 @@ tasks:
 
   deploy:staging:
     desc: "Testeaza, construieste si publica API-ul numai in staging"
-    platforms: [windows]
+    preconditions:
+      - sh: '{{if eq OS "windows"}}where powershell.exe{{else}}command -v pwsh{{end}}'
+        msg: 'PowerShell is required. On macOS/Linux, install PowerShell 7 (pwsh) and retry. On macOS: brew install --cask powershell'
     cmds:
-      - powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./infra/staging/Deploy-SpottrStagingApi.ps1
+      - '{{.POWERSHELL}} -NoProfile -ExecutionPolicy Bypass -File ./infra/staging/Deploy-SpottrStagingApi.ps1'
 
   staging:start:
     desc: "Porneste API-ul de staging si programeaza oprirea automata peste 4 ore"
-    platforms: [windows]
+    preconditions:
+      - sh: '{{if eq OS "windows"}}where powershell.exe{{else}}command -v pwsh{{end}}'
+        msg: 'PowerShell is required. On macOS/Linux, install PowerShell 7 (pwsh) and retry. On macOS: brew install --cask powershell'
     cmds:
-      - powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./infra/staging/Set-SpottrStagingCapacity.ps1 -DesiredCount 1
+      - '{{.POWERSHELL}} -NoProfile -ExecutionPolicy Bypass -File ./infra/staging/Set-SpottrStagingCapacity.ps1 -DesiredCount 1'
 
   staging:stop:
     desc: "Opreste API-ul de staging si elimina programarea de auto-stop"
-    platforms: [windows]
+    preconditions:
+      - sh: '{{if eq OS "windows"}}where powershell.exe{{else}}command -v pwsh{{end}}'
+        msg: 'PowerShell is required. On macOS/Linux, install PowerShell 7 (pwsh) and retry. On macOS: brew install --cask powershell'
     cmds:
-      - powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./infra/staging/Set-SpottrStagingCapacity.ps1 -DesiredCount 0
+      - '{{.POWERSHELL}} -NoProfile -ExecutionPolicy Bypass -File ./infra/staging/Set-SpottrStagingCapacity.ps1 -DesiredCount 0'
 
   staging:status:
     desc: "Afiseaza taskurile, health-ul si auto-stop-ul API-ului de staging"
-    platforms: [windows]
+    preconditions:
+      - sh: '{{if eq OS "windows"}}where powershell.exe{{else}}command -v pwsh{{end}}'
+        msg: 'PowerShell is required. On macOS/Linux, install PowerShell 7 (pwsh) and retry. On macOS: brew install --cask powershell'
     cmds:
-      - powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./infra/staging/Get-SpottrStagingStatus.ps1
+      - '{{.POWERSHELL}} -NoProfile -ExecutionPolicy Bypass -File ./infra/staging/Get-SpottrStagingStatus.ps1'
 
   deploy:production:
     desc: "Promoveaza in productie exact imaginea API verificata in staging"
-    platforms: [windows]
+    preconditions:
+      - sh: '{{if eq OS "windows"}}where powershell.exe{{else}}command -v pwsh{{end}}'
+        msg: 'PowerShell is required. On macOS/Linux, install PowerShell 7 (pwsh) and retry. On macOS: brew install --cask powershell'
     cmds:
-      - powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./infra/production/Deploy-SpottrProductionApi.ps1
+      - '{{.POWERSHELL}} -NoProfile -ExecutionPolicy Bypass -File ./infra/production/Deploy-SpottrProductionApi.ps1'
 
   db:up:
     desc: "Pornește containerul de PostgreSQL în fundal"

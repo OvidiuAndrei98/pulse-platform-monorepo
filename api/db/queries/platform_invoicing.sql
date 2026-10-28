@@ -63,6 +63,8 @@ WHERE invoice.id = $1;
 
 -- name: GetPlatformCommissionInvoiceLiveTotals :one
 SELECT COUNT(orders.id)::INT AS transaction_count,
+       COALESCE(SUM(CASE WHEN orders.invoice_service_fee_state='earned' THEN orders.invoice_service_fee_bani ELSE 0 END),0)::BIGINT AS invoice_service_fee_bani,
+       COUNT(*) FILTER (WHERE orders.invoice_service_fee_state IN ('held','refund_pending'))::INT AS unsettled_invoice_fees,
        COALESCE(SUM(orders.platform_fee_bani - orders.platform_fee_refunded_bani), 0)::BIGINT AS total_fee_bani
 FROM orders
 JOIN events ON events.id = orders.event_id

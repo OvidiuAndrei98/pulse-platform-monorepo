@@ -30,6 +30,44 @@ test('story preview proxy returns public image bytes and blocks writes, foreign 
   } finally { await close(server); await close(upstream); }
 });
 
+test('wardrobe and shared scan history reach the API with exact paths, methods and credentials', async () => {
+  const received: { path: string; method: string; body: string; auth?: string }[] = [];
+  const upstream = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      received.push({ path: req.url!, method: req.method!, body, auth: req.headers.authorization });
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('{"deposits":[],"staffAccess":false}');
+    });
+  });
+  const api = await listen(upstream), proxy = createApiProxy(api + '/api/v1');
+  const server = http.createServer((req, res) => proxy(req, res, () => res.end())), base = await listen(server);
+  const id = '12345678-abcd-4bcd-8bcd-123456789012';
+  const headers = { origin: base, authorization: 'Bearer wardrobe-qa-only', 'content-type': 'application/json' };
+  const routes = [
+    ['GET', '/wardrobe/mine'], ['GET', '/wardrobe/events'],
+    ['GET', `/wardrobe/events/${id}?unclaimed=true&q=A001`],
+    ['GET', `/wardrobe/events/${id}/deposits/${id}`],
+    ['POST', `/wardrobe/events/${id}/commands`], ['POST', `/wardrobe/mine/${id}/confirm`],
+    ['GET', `/dashboard/ticket-validation/events/${id}/scans?scope=all&limit=20`],
+  ];
+  try {
+    for (const [method, path] of routes) {
+      const body = method === 'POST' ? '{"action":"lookup"}' : undefined;
+      const result = await request(base, '/api/v1' + path, headers, method, body);
+      assert.equal(result.status, 200, `${method} ${path}`);
+      assert.deepEqual(received.at(-1), { path: '/api/v1' + path, method, body: body || '', auth: headers.authorization });
+    }
+    assert.equal((await request(base, `/api/v1/wardrobe/events/${id}/commands`, headers)).status, 405);
+    assert.equal((await request(base, '/api/v1/wardrobe/mine', headers, 'DELETE')).status, 405);
+    assert.equal((await request(base, '/api/v1/wardrobe/private', headers)).status, 403);
+    assert.equal((await request(base, '/api/v1/wardrobe/events/not-an-id', headers)).status, 403);
+    assert.equal((await request(base, '/api/v1/wardrobe/mine', { ...headers, origin: 'https://external.test' })).status, 403);
+    assert.equal(received.length, routes.length, 'Rejected requests never reach the API');
+  } finally { await close(server); await close(upstream); }
+});
+
 test('new native flows retain exact method, auth and upload limits through the preview proxy', async () => {
   const received: string[] = [];
   const upstream = http.createServer((req, res) => { received.push(req.method + ' ' + req.url); assert.equal(req.headers.authorization, 'Bearer local-test'); req.resume(); req.on('end', () => { res.writeHead(204); res.end(); }); });
@@ -38,10 +76,12 @@ test('new native flows retain exact method, auth and upload limits through the p
   const id = '12345678-abcd-abcd-abcd-123456789012';
   try {
     const cases = [
+      ['GET', '/admin/commissions'], ['PUT', '/admin/commissions/standard'], ['PUT', `/admin/organizers/${id}/commission`],
       ['POST', `/events/${id}/safety-group/help`], ['GET', `/events/${id}/attendees`],
       ['POST', `/dashboard/ticket-validation/events/${id}/offline-sync`], ['GET', '/dashboard/ticket-validation/events'],
       ['DELETE', `/dashboard/ticket-validation/events/${id}/staff/${id}`], ['POST', '/ticket-validation/quick-access/validate'],
       ['POST', `/dashboard/events/${id}`], ['GET', '/dashboard/finance'], ['PUT', '/dashboard/invoicing/settings'],
+      ['POST', '/dashboard/invoicing/service/activate'],
       ['POST', '/dashboard/promotions/checkout'], ['PATCH', `/admin/organizers/${id}/verification`],
       ['GET', '/dashboard/finance/refunds-attention'], ['GET', '/dashboard/finance/invoices'],
       ['POST', `/dashboard/finance/refunds-attention/${id}/reconcile`], ['POST', `/dashboard/promotions/${id}/reconcile`],
@@ -54,6 +94,7 @@ test('new native flows retain exact method, auth and upload limits through the p
     assert.equal((await request(base, `/api/v1/admin/organizers/${id}/verification`, {}, 'DELETE')).status, 405);
     assert.equal((await request(base, '/api/v1/admin/anything-else')).status, 403);
     assert.equal((await request(base, '/api/v1/dashboard/places/details', {}, 'POST')).status, 405);
+    assert.equal((await request(base, '/api/v1/dashboard/invoicing/service/activate', {}, 'GET')).status, 405);
     assert.equal((await request(base, '/api/v1/dashboard/places/anything-else')).status, 403);
     assert.equal((await request(base, '/api/v1/dashboard/uploads/event-banner', { authorization: 'Bearer local-test', 'content-type': 'image/webp' }, 'POST', Buffer.alloc(65537))).status, 204);
     assert.equal((await request(base, '/api/v1/dashboard/uploads/event-banner', { 'content-length': '2097153' }, 'POST')).status, 413);

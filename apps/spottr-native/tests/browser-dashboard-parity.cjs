@@ -12,7 +12,21 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
     localStorage.setItem('spottr-native.session.v1', JSON.stringify({ token: 'dashboard-parity-fixture', user }));
     const event = { id: id(10), organizerId: id(1), title: 'Parity night', status: 'published', category: 'TECHNO', locationName: 'QA Club', city: 'Bucuresti', vibe: 'Chill', description: 'The organizer event used by isolated dashboard tests.', startTime: '2035-10-15T18:00:00Z', endTime: '2035-10-16T06:00:00Z', latitude: 44.432, longitude: 26.106, googlePlaceId: 'ChIJ-qa-club', vatPercentage: 21, organizerAbsorbsServiceFee: false, ticketTypes: [{ id: id(11), name: 'General access', priceRon: 50, capacity: 100, ticketsSold: 1, startSales: '2020-01-01T00:00:00Z', endSales: '2035-10-16T06:00:00Z' }], lineup: [] };
     const qa = window.__dashboard = { calls: [], writes: [], unexpected: [], event };
-    const profile = { id: id(2), userId: id(1), companyName: 'QA Club SRL', cui: 'RO123456', fiscalAddress: 'Club Street 1', verificationStatus: 'approved', isVerified: true, stripeAccountId: 'acct_fixture', stripeChargesEnabled: true, stripePayoutsEnabled: true, organizerAgreementVersion: '2026-07-27' };
+    event.stats = { totalCheckIns: 99, totalTicketsSold: 12, totalTicketsScanned: 3 };
+    const featuredMode = new URL(location.href).searchParams.get('featured');
+    qa.events = [event, { ...event, id: id(20), title: 'Second parity night', startTime: '2035-10-17T18:00:00Z', endTime: '2035-10-18T06:00:00Z' }];
+    if (featuredMode === 'lists') {
+      const next = Array.from({ length: 6 }, (_, i) => ({ ...event, id: id(60 + i), title: 'Upcoming ' + (i + 1), startTime: new Date(Date.parse('2035-10-30T18:00Z') + i * 3600000).toISOString(), endTime: new Date(Date.parse('2035-10-31T02:00Z') + i * 3600000).toISOString() }));
+      const past = Array.from({ length: 3 }, (_, i) => ({ ...event, id: id(70 + i), title: 'Past ' + (i + 1), startTime: new Date(Date.parse('2020-10-30T18:00Z') - i * 86400000).toISOString(), endTime: new Date(Date.parse('2020-10-31T02:00Z') - i * 86400000).toISOString() }));
+      const live = { ...event, id: id(80), title: 'Still live', startTime: new Date(Date.now() - 3600000).toISOString(), endTime: new Date(Date.now() + 3600000).toISOString() };
+      qa.events = [next[5], past[2], live, next[0], next[4], past[0], next[1], past[1], next[2], next[3]];
+    }
+    if (featuredMode === 'early' || featuredMode === 'live') {
+      event.startTime = new Date(Date.now() + (featuredMode === 'early' ? 30 : -30) * 60000).toISOString();
+      event.endTime = new Date(Date.now() + 180 * 60000).toISOString();
+      if (featuredMode === 'early') event.stats.totalTicketsScanned = 0;
+    }
+    const profile = { id: id(2), userId: id(1), companyName: 'QA Club SRL', cui: 'RO123456', fiscalAddress: 'Club Street 1', verificationStatus: 'approved', isVerified: true, stripeAccountId: 'acct_fixture', stripeChargesEnabled: true, stripePayoutsEnabled: true, organizerAgreementVersion: '2026-10-18' };
     window.fetch = async (url, options = {}) => {
       if (!String(url).includes('/api/v1/')) {
         if (new URL(url, location.href).origin === location.origin) return original(url, options);
@@ -28,7 +42,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
       if (route.startsWith('/dashboard/organizer/profile/')) return reply(profile);
       if (route === '/dashboard/stripe/status') return reply(profile);
       if (route === '/dashboard/events' && method === 'POST') { qa.created = JSON.parse(options.body); return reply({ ...event, ...qa.created, id: id(12) }); }
-      if (route === '/dashboard/events') return reply([event, { ...event, id: id(20), title: 'Second parity night', startTime: '2035-10-17T18:00:00Z', endTime: '2035-10-18T06:00:00Z' }]);
+      if (route === '/dashboard/events') return reply(qa.events);
       if (route === '/dashboard/events/' + id(10)) return reply(event);
       if (route === '/events/' + id(10)) return reply(event);
       if (route.endsWith('/cancellation-request')) return new Response(null, { status: 204 });
@@ -88,9 +102,16 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
     if (width >= 768) close((await geometry('dashboard-sidebar')).width, 240, 'Original sidebar width');
     else {
       const tab = await geometry('dashboard-nav-overview'); close(tab.height, 36, 'Original mobile tab height'); close(tab.radius, 12, 'Original mobile tab corner radius');
+      await until(exists('dashboard-tab-indicator'));
       const indicator = await geometry('dashboard-tab-indicator'); close(indicator.x, tab.x, 'Active tab highlight aligns with button rather than adding padding twice'); close(indicator.width, tab.width, 'Highlight follows complete active button width');
     }
     const page = await geometry('dashboard-page'); close(page.paddingLeft, width >= 640 ? 32 : 20, 'Original responsive page gutter'); close(page.paddingTop, 32, 'Original page top spacing');
+    await until(exists('dashboard-featured-sold'));
+    assert.equal(await evaluate(`!!${exists('stripe-account-panel')}`), false, 'Stripe setup belongs in Finance, not the event overview');
+    assert.equal(await evaluate(`!!${exists('dashboard-see-all-upcoming')}`), false, 'No redundant See all when the preview already contains all events');
+    assert.equal(await evaluate(`${exists('dashboard-featured-sold')}.textContent`), '12 Sold');
+    assert.equal(await evaluate(`${exists('dashboard-featured-scanned')}.textContent`), '3 Scanned');
+    assert.equal(await evaluate(`${exists('dashboard-featured-status')}.textContent`), 'Next event', 'Early scans do not mark the event live');
     assert.ok(page.width <= 1025, 'Standard dashboard page max width is 1024px');
     await until(`document.querySelectorAll('[data-testid="dashboard-mini-event"]').length===2`);
     const eventRows = await evaluate(`Array.from(document.querySelectorAll('[data-testid="dashboard-mini-event"]')).map(el=>({x:el.getBoundingClientRect().x,y:el.getBoundingClientRect().y}))`);
@@ -100,6 +121,44 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
     if ([390, 768, 1440].includes(width)) await capture('dashboard-parity-overview-' + width);
   }
   console.log('PASS dashboard mobile/tablet/desktop shell: 768px sidebar, original top tabs, 640px gutters and content width');
+
+  await call('Emulation.setDeviceMetricsOverride', { width: 320, height: 844, deviceScaleFactor: 1, mobile: true });
+  await call('Page.navigate', { url: base + '/dashboard?featured=early' });
+  await until(exists('dashboard-featured-sold'));
+  assert.equal(await evaluate(`!!${exists('dashboard-featured-scanned')}`), false, 'Zero scans are hidden');
+  await evaluate('window.__dashboard.event.stats.totalTicketsScanned=1');
+  await until(`${exists('dashboard-featured-scanned')}?.textContent==='1 Scanned'`, 22000);
+  assert.equal(await evaluate(`${exists('dashboard-featured-status')}.textContent`), 'Next event', 'Polling shows early entry scans without changing the event schedule');
+  assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), 'Counters fit a 320px viewport');
+  await capture('dashboard-featured-early');
+  await call('Page.navigate', { url: base + '/dashboard?featured=live' });
+  await until(`${exists('dashboard-featured-status')}?.textContent==='Live now'`);
+  assert.ok((await evaluate(`${exists('dashboard-featured-event')}.textContent`)).includes('Parity night'), 'The live event stays featured ahead of future events');
+  await click('dashboard-featured-event');
+  await until(exists('event-editor'));
+  console.log('PASS featured event: confirmed counters, early scan polling, live priority and event navigation');
+
+  await call('Page.navigate', { url: base + '/dashboard?featured=lists' });
+  await until(exists('dashboard-see-all-upcoming'));
+  assert.ok((await evaluate(`${exists('dashboard-featured-event')}.textContent`)).includes('Still live'));
+  const previewTitles = filter => evaluate(`Array.from(${exists('dashboard-group-' + filter)}.querySelectorAll('[data-testid="dashboard-mini-event"]')).map(el=>el.textContent.match(/(?:Upcoming|Past) [0-9]/)[0])`);
+  assert.deepEqual(await previewTitles('upcoming'), ['Upcoming 1', 'Upcoming 2', 'Upcoming 3', 'Upcoming 4']);
+  assert.deepEqual(await previewTitles('completed'), ['Past 1', 'Past 2'], 'Live event never appears among finished events');
+  await click('dashboard-see-all-upcoming');
+  await until(`${exists('dashboard-filter-upcoming')}?.getAttribute('aria-selected')==='true'`);
+  const eventRows = () => evaluate(`Array.from(document.querySelectorAll('[data-testid]')).filter(el=>/^dashboard-event-[0-9a-f]{8}-/.test(el.dataset.testid)).map(el=>el.textContent.match(/(?:Upcoming|Past) [0-9]|Still live/)?.[0])`);
+  assert.deepEqual(await eventRows(), ['Upcoming 1', 'Upcoming 2', 'Upcoming 3', 'Upcoming 4', 'Upcoming 5', 'Upcoming 6']);
+  await capture('dashboard-list-upcoming');
+  await call('Page.navigate', { url: base + '/dashboard?featured=lists' });
+  await until(exists('dashboard-see-all-completed')); await click('dashboard-see-all-completed');
+  await until(`${exists('dashboard-filter-completed')}?.getAttribute('aria-selected')==='true'`);
+  assert.deepEqual(await eventRows(), ['Past 1', 'Past 2', 'Past 3']);
+  const selectedTab = await geometry('dashboard-filter-completed');
+  assert.ok(selectedTab.x >= 0 && selectedTab.x + selectedTab.width <= 321, 'Selected past filter is visible on a small phone');
+  await call('Page.navigate', { url: base + '/dashboard/events?filter=upcoming&featured=lists' });
+  await until(`${exists('dashboard-filter-upcoming')}?.getAttribute('aria-selected')==='true'`);
+  assert.deepEqual(await eventRows(), ['Upcoming 1', 'Upcoming 2', 'Upcoming 3', 'Upcoming 4', 'Upcoming 5', 'Upcoming 6'], 'Direct links retain the requested filter');
+  console.log('PASS upcoming/past ordering, end-time classification, See all navigation, selected filter visibility and direct links');
 
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await call('Page.navigate', { url: base + '/dashboard' }); await until(exists('dashboard-mobile-tabs')); await delay(500);
@@ -118,6 +177,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   for (const width of widths([390, 800, 1440])) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 768 });
     await call('Page.navigate', { url: base + '/dashboard/finance' }); await until(exists('finance-grossRevenue')); await delay(500);
+    await until(`${exists('stripe-account-panel')}?.textContent.includes('Stripe payments')`);
     const money = n => new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 2 }).format(n).replace(/\s/g, '');
     assert.equal((await evaluate(`${exists('finance-grossRevenue')}.textContent`)).replace(/\s/g, ''), money(1050), 'Customer total includes ticketing fee');
     assert.equal((await evaluate(`${exists('finance-estimatedPayout')}.textContent`)).replace(/\s/g, ''), money(900), 'Payout subtracts platform fee from customer total');
@@ -222,6 +282,8 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   assert.ok((await evaluate(`${exists('management-open-promo')}.textContent`)).includes('0 active codes'), 'Zero promo codes use the plural translation rather than exposing the resource key');
   for (const width of widths([390, 1024])) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: width < 768 });
+    await until(`${width >= 768 ? '!!' : '!'}${exists('dashboard-sidebar')}`);
+    await delay(150); // Let the responsive layout settle before a coordinate-based click.
     await click('management-open-invitations'); await until(exists('management-drawer')); await delay(350);
     const panel = await geometry('management-drawer'); close(panel.width, width < 640 ? width : 480, 'Management panel keeps original responsive width'); close(panel.height, 844, 'Management panel is full height');
     await until(`document.querySelectorAll('[data-testid="invitation-batch"]').length===2`);

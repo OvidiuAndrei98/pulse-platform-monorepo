@@ -44,7 +44,7 @@ import {
   type OfflineTicketScan,
 } from "@/features/tickets/offlineValidationStore";
 
-const ORGANIZER_AGREEMENT_VERSION = "2026-07-27";
+const ORGANIZER_AGREEMENT_VERSION = "2026-10-18";
 const apiHealthUrl = apiRoot.replace(/\/api\/v1\/?$/, "/health");
 
 type ValidationStaff = ReadableSchema<"ValidationStaffResponse">;
@@ -246,8 +246,12 @@ export default function TicketValidationPage() {
         { params: { path: { id: selectedEventId } } },
       )) as OfflineSnapshotResponse;
       await saveOfflineSnapshot(user.properties.id, snapshot, selectedEvent);
-      if ("serviceWorker" in navigator) {
-        const registration = await navigator.serviceWorker.ready;
+      // The worker is disabled in development and may be unavailable in a
+      // browser. Waiting for `ready` would leave a saved package loading forever.
+      const registration = "serviceWorker" in navigator
+        ? await navigator.serviceWorker.getRegistration()
+        : undefined;
+      if (registration?.active) {
         const assets = performance
           .getEntriesByType("resource")
           .map((entry) => entry.name)

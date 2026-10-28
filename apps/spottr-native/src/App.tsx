@@ -1,6 +1,6 @@
-import { Text } from "./ui/Text";
+import { AppFontsReadyContext, Text } from "./ui/Text";
 import { captureAppError, diagnosticScreen } from './diagnostics/runtime';
-import React, { useCallback, useEffect, useId, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import { AppState, Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -65,7 +65,8 @@ import { Button, styles } from "./ui/common";
 import { FormKeyboardProvider } from "./ui/KeyboardForms";
 import { Logo } from "./ui/Logo";
 import { colors } from "./ui/theme";
-import { StartupCover } from './ui/StartupCover';
+import { ScannerHistoryScreen } from './scanner/ScannerHistoryScreen';
+import { WardrobeScreen } from './wardrobe/WardrobeScreen';
 import { ToastProvider } from './ui/ToastProvider';
 
 const Root = createNativeStackNavigator<RootParamList>();
@@ -73,7 +74,7 @@ const Purchase = createNativeStackNavigator<RootParamList>();
 const Tabs = createBottomTabNavigator<TabsParamList>();
 const Profile = createNativeStackNavigator<ProfileParamList>();
 const Feed = createNativeStackNavigator<FeedParamList>();
-// Search and Checkout use UIKit push/pop and its interactive Back gesture.
+// Search, Checkout and scan history use UIKit push/pop and its interactive Back gesture.
 // Leave fullScreenGestureEnabled unset: iOS chooses its own native behavior
 // (edge swipe on older iOS, content swipe on newer iOS). Forcing it on older
 // versions would select the library's custom full-screen transition.
@@ -118,6 +119,8 @@ const linking: LinkingOptions<RootParamList> = {
       SafetyGroup: 'events/:eventId/group',
       Dashboard: 'dashboard/:section?',
       Scanner: 'ticket-validation',
+      ScannerHistory: 'ticket-validation/:eventId/history',
+      Wardrobe: 'wardrobe',
       QuickScanner: 'scan',
       Legal: 'legal/:document',
       Admin: 'admin',
@@ -188,9 +191,9 @@ function DashboardRoute({ route, navigation }: NativeStackScreenProps<RootParamL
   const { user, ready } = useAuth(), focused = useIsFocused();
   const publicDocument = route.params?.section==='agreement'||route.params?.section==='stripe-info';
   useEffect(() => { if (focused && ready && !user && !publicDocument) navigation.navigate('Auth', { returnDashboard: true, returnDashboardParams: route.params }); }, [focused, ready, user, navigation, route.params, publicDocument]);
-  const section = ['overview','events','new','scanner','finance','invoicing','profile','purchases','promotions','edit','company','agreement','stripe-info'].includes(route.params?.section ?? '') ? route.params!.section as DashboardScreenProps['initialSection'] : undefined;
+  const section = ['overview','events','new','scanner','wardrobe','finance','invoicing','profile','purchases','promotions','edit','company','agreement','stripe-info'].includes(route.params?.section ?? '') ? route.params!.section as DashboardScreenProps['initialSection'] : undefined;
   if (!user && !publicDocument) return <View style={{ flex: 1, backgroundColor: colors.bg }}/>;
-  return <View style={{ flex: 1 }}><DashboardScreen onSignIn={() => navigation.navigate('Auth', {returnDashboard:true,returnDashboardParams:{section:'agreement'}})} key={[section, route.params?.eventId, route.params?.organizerReturn, route.params?.campaignId, route.params?.returnStatus].join(':')} initialSection={section} initialEventId={route.params?.eventId} organizerReturn={route.params?.organizerReturn} campaignId={route.params?.campaignId} returnStatus={route.params?.returnStatus} onClose={() => navigation.popTo('Tabs', { screen: 'Home' })} onScanner={() => navigation.navigate('Scanner')} onTickets={() => navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } })} onOrders={() => navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'Orders' } })} onProfileSettings={() => navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'ProfileHome' } })} onPublicProfile={() => { if(user) navigation.navigate('PublicProfile', { id: user.id }); }}/><MainTabBar/></View>;
+  return <View style={{ flex: 1 }}><DashboardScreen onSignIn={() => navigation.navigate('Auth', {returnDashboard:true,returnDashboardParams:{section:'agreement'}})} key={[section, route.params?.eventId, route.params?.filter, route.params?.organizerReturn, route.params?.campaignId, route.params?.returnStatus].join(':')} initialSection={section} initialEventId={route.params?.eventId} initialEventFilter={route.params?.filter} organizerReturn={route.params?.organizerReturn} campaignId={route.params?.campaignId} returnStatus={route.params?.returnStatus} onClose={() => navigation.popTo('Tabs', { screen: 'Home' })} onScanner={() => navigation.navigate('Scanner')} onTickets={() => navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } })} onOrders={() => navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'Orders' } })} onProfileSettings={() => navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'ProfileHome' } })} onPublicProfile={() => { if(user) navigation.navigate('PublicProfile', { id: user.id }); }}/><MainTabBar/></View>;
 }
 function ScannerDashboardRoute({ route, navigation }: NativeStackScreenProps<RootParamList, 'Scanner'>) {
   const { user, ready } = useAuth(), focused = useIsFocused();
@@ -220,11 +223,11 @@ function EventFlow({ route }: { route: { params: RootParamList['Event'] } }) {
     <Purchase.Screen name="Auth" component={AuthScreen} options={{ animation: "fade", gestureEnabled: false, presentation: Platform.OS === 'web' ? 'transparentModal' : 'card' }} />
   </Purchase.Navigator></ThemeProvider>;
 }
-function Navigator({ onReady }: { onReady: () => void }) {
+function Navigator() {
   const navigator = useNavigationContainerRef<RootParamList>();
   const [dashboardWorkspace, setDashboardWorkspace] = useState(false);
   const [rootState, setRootState] = useState<NavigationState>();
-  const syncWorkspace = () => { const state=navigator.getRootState(); setRootState(state); diagnosticScreen(navigator.getCurrentRoute()?.name); const name=state?.routes[state.index]?.name; setDashboardWorkspace(name==='Dashboard'||name==='Scanner'); };
+  const syncWorkspace = () => { const state=navigator.getRootState(); setRootState(state); diagnosticScreen(navigator.getCurrentRoute()?.name); const name=state?.routes[state.index]?.name; setDashboardWorkspace(name==='Dashboard'||name==='Scanner'||name==='ScannerHistory'); };
 
   useEffect(() => {
     if (Platform.OS === "web") return;
@@ -238,7 +241,7 @@ function Navigator({ onReady }: { onReady: () => void }) {
     };
   }, []);
   return (
-    <View style={{ flex:1, width:'100%', alignSelf:'center', maxWidth:Platform.OS==='web'&&!dashboardWorkspace?600:undefined }}><NavigationContainer ref={navigator} onReady={() => { syncWorkspace(); onReady(); }} onStateChange={syncWorkspace} theme={theme} linking={linking}>
+    <View style={{ flex:1, width:'100%', alignSelf:'center', maxWidth:Platform.OS==='web'&&!dashboardWorkspace?600:undefined }}><NavigationContainer ref={navigator} onReady={syncWorkspace} onStateChange={syncWorkspace} theme={theme} linking={linking}>
       <MainTabBarProvider navigation={navigator} state={rootState}>
       <Root.Navigator
         screenOptions={{
@@ -283,6 +286,8 @@ function Navigator({ onReady }: { onReady: () => void }) {
         <Root.Screen name="SafetyGroup" component={SafetyRoute}/>
         <Root.Screen name="Dashboard" component={DashboardRoute} options={{ animation: "none" }}/>
         <Root.Screen name="Scanner" component={ScannerDashboardRoute} options={{ animation: "none" }}/>
+        <Root.Screen name="ScannerHistory" component={ScannerHistoryScreen} options={{ ...nativeBackOptions, presentation: "card" }}/>
+        <Root.Screen name="Wardrobe" component={WardrobeScreen} options={{ ...nativeBackOptions, presentation: "card" }}/>
         <Root.Screen name="QuickScanner" component={QuickScannerScreen}/>
         <Root.Screen name="Admin" component={AdminScreen}/>
         <Root.Screen name="CheckoutReturn" component={CheckoutReturnScreen} options={{ presentation: "transparentModal", animation: "fade", gestureEnabled: false }} />
@@ -295,7 +300,7 @@ function Navigator({ onReady }: { onReady: () => void }) {
   );
 }
 class ErrorBoundary extends React.Component<
-  React.PropsWithChildren<{ onReady: () => void }>,
+  React.PropsWithChildren,
   { failed: boolean }
 > {
   state = { failed: false };
@@ -310,7 +315,6 @@ class ErrorBoundary extends React.Component<
     if (!this.state.failed) return this.props.children;
     return (
       <View
-        onLayout={this.props.onReady}
         style={{
           flex: 1,
           alignItems: "center",
@@ -331,9 +335,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 export default function App() {
-  const [navigationReady, setNavigationReady] = useState(false);
-  const onReady = useCallback(() => setNavigationReady(true), []);
-  const [fontsReady, fontError] = useFonts({
+  const [fontsReady] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
@@ -341,8 +343,8 @@ export default function App() {
     Inter_800ExtraBold,
     Inter_900Black,
   });
-  const fontsSettled = fontsReady || !!fontError;
   return (
+    <AppFontsReadyContext.Provider value={fontsReady}>
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <View
         style={{
@@ -352,16 +354,15 @@ export default function App() {
         }}
       >
         <SafeAreaProvider>
-          {fontsSettled && (
           <FormKeyboardProvider>
-            <ErrorBoundary onReady={onReady}>
+            <ErrorBoundary>
               <QueryClientProvider client={queryClient}>
                 <AuthProvider>
                   <ToastProvider>
                   <PreferencesProvider>
                     <PushProvider>
                     <StatusBar style="light" />
-                    <Navigator onReady={onReady} />
+                    <Navigator />
                     </PushProvider>
                   </PreferencesProvider>
                   </ToastProvider>
@@ -369,10 +370,9 @@ export default function App() {
               </QueryClientProvider>
             </ErrorBoundary>
           </FormKeyboardProvider>
-          )}
         </SafeAreaProvider>
-        <StartupCover ready={fontsSettled && navigationReady} />
       </View>
     </GestureHandlerRootView>
+    </AppFontsReadyContext.Provider>
   );
 }

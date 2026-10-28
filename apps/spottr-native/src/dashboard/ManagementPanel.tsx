@@ -1,3 +1,5 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -12,7 +14,6 @@ import {
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { X } from "lucide-react-native";
 import { usePreferences } from "../PreferencesProvider";
 import { Text } from "../ui/Text";
 import { dColors as colors } from "./common";
@@ -140,7 +141,7 @@ export function ManagementPanel({
                 <Text style={p.sectionTitle}>{title}</Text>
                 {subtitle && <Text style={p.tiny}>{subtitle}</Text>}
               </View>
-              <Pressable
+              <GlassPressable fallback={Pressable}
                 accessibilityRole="button"
                 accessibilityLabel={copy("common.close")}
                 onPress={onClose}
@@ -155,8 +156,8 @@ export function ManagementPanel({
                   justifyContent: "center",
                 }}
               >
-                <X size={16} color={colors.muted} />
-              </Pressable>
+                <ActionIcon name="close" size={16} color={colors.muted} />
+              </GlassPressable>
             </View>
             <ScrollView
               keyboardShouldPersistTaps="handled"

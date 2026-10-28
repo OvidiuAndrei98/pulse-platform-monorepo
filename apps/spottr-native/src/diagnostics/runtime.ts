@@ -6,10 +6,12 @@ import { API_URL } from "../config";
 import { REMOTE_API_URL } from "../config.shared";
 import { safeVersion } from "../../../pulse-app/src/features/diagnostics/report";
 import { createErrorReporter } from "./reporter";
+import { bindHandledReporting } from './handled';
 
 const enabled =
   process.env.EXPO_PUBLIC_DIAGNOSTICS_ENABLED === "true" ||
   (!__DEV__ && process.env.EXPO_PUBLIC_DIAGNOSTICS_ENABLED !== "false");
+export const diagnosticsEnabled = enabled;
 const key = "spottr-native:diagnostics:v1:" + REMOTE_API_URL;
 const reporter = enabled
   ? createErrorReporter({
@@ -58,6 +60,7 @@ const reporter = enabled
       },
     })
   : undefined;
+bindHandledReporting(reporter ? (error, detail) => { void reporter.capture(error, false, false, detail); } : undefined);
 export const captureAppError = (
   error: unknown,
   fatal = false,

@@ -1,6 +1,8 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
-import { BadgeCheck, Ticket, UsersRound, X } from 'lucide-react-native';
+import { BadgeCheck, Ticket, UsersRound } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { BlurView } from 'expo-blur';
 import { accountApi, useAuth } from '../auth/AuthProvider';
@@ -55,7 +57,7 @@ export function EventFriendProfilePopup({ attendee, viewerId, onClose }: { atten
       {Platform.OS !== 'web' && <BlurView pointerEvents="none" intensity={12} tint="dark" style={StyleSheet.absoluteFill} />}
       <Pressable testID="event-friend-backdrop" accessibilityRole="button" accessibilityLabel={copy('social.closeProfile')} onPress={onClose} style={StyleSheet.absoluteFill} />
       <View testID="event-friend-popup" accessibilityViewIsModal accessibilityLabel={copy('social.attendeeProfile', { name })} style={s.popup}>
-        <Pressable testID="event-friend-close" accessibilityRole="button" accessibilityLabel={copy('social.closeProfile')} onPress={onClose} style={s.close}><X color={colors.muted} size={16} /></Pressable>
+        <GlassPressable fallback={Pressable} testID="event-friend-close" accessibilityRole="button" accessibilityLabel={copy('social.closeProfile')} onPress={onClose} style={s.close}><ActionIcon name="close" color={colors.muted} size={16} /></GlassPressable>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14, paddingRight: 36 }}><SocialPhoto uri={profile.avatarUrl} initial={profile.username} initialSize={18} style={s.profileAvatar} /><View style={{ flex: 1 }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Text numberOfLines={1} style={{ flexShrink: 1, color: colors.text, fontSize: 18, fontWeight: '600' }}>{name}</Text>{profile.organizerVerified && <BadgeCheck size={16} color={colors.accent} />}</View><Text style={{ marginTop: 2, color: colors.muted, fontSize: 14 }}>@{profile.username}</Text></View></View>
         {!!profile.bio && <Text numberOfLines={3} style={{ marginTop: 16, fontSize: 14, lineHeight: 24, color: colors.muted }}>{profile.bio}</Text>}
         <View style={s.attendance}>{attendee.attendanceStatus === 'has_ticket' ? <Ticket size={16} color={colors.accent} /> : <UsersRound size={16} color={colors.accent} />}<Text style={{ flexShrink: 1, fontSize: 12, fontWeight: '500', color: colors.muted }}>{copy(attendee.attendanceStatus === 'has_ticket' ? 'social.hasTicketForEvent' : 'social.goingToEvent')}</Text></View>

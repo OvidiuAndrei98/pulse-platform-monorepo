@@ -30,6 +30,8 @@ export type Event = Pick<
   | "endTime"
   | "organizerId"
   | "organizerAbsorbsServiceFee"
+  | "commissionRateBps"
+  | "commissionPerTicketBani"
   | "externalTicketUrl"
 > & {
   ticketTypes: Ticket[];
@@ -110,6 +112,8 @@ export function normalizeEvent(value: unknown): Event | null {
     startTime: string(data.startTime),
     endTime: string(data.endTime),
     organizerAbsorbsServiceFee: data.organizerAbsorbsServiceFee === true,
+    commissionRateBps: finite(data.commissionRateBps) ?? undefined,
+    commissionPerTicketBani: finite(data.commissionPerTicketBani) ?? undefined,
     latitude: lat !== null && Math.abs(lat) <= 90 ? lat : null,
     longitude: lon !== null && Math.abs(lon) <= 180 ? lon : null,
     ticketTypes: tickets.flatMap((value) => {

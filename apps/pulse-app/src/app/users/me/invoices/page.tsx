@@ -10,6 +10,7 @@ import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client"
 import { useDataProvider } from "@/core/DataProviderContext";
 import { formatEventDate } from "@/features/events/dateFormat";
 import { formatRon } from "@/features/events/serviceFee";
+import { isConfirmedPurchase, isVisibleTransaction, isInvoiceOrder, invoiceStatusKey, orderStatusKey, orderTotalBani } from "@/features/checkout/orderHistory";
 import { useTranslation } from "react-i18next";
 
 type UserOrder = ReadableSchema<"UserOrderResponse">;
@@ -20,14 +21,14 @@ export default function InvoicesPage() {
   const router = useRouter();
   const { data: orders, pending, error, retry } = useClientQuery<UserOrder[]>(
     user ? `invoices:${user.properties.id}` : null,
-    () => ApiClient.instance.get("/users/me/orders"), [],
+    () => ApiClient.instance.get("/users/me/orders"), [], 10000,
   );
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login?returnTo=%2Fusers%2Fme%2Finvoices");
   }, [loading, router, user]);
 
-  const invoiceOrders = orders.filter((order) => order.invoiceRequested);
+  const invoiceOrders = orders.filter(isVisibleTransaction);
 
   return (
     <main className="app-page-spacing mx-auto min-h-screen max-w-3xl text-foreground">
@@ -38,9 +39,9 @@ export default function InvoicesPage() {
         <ChevronLeft className="h-4 w-4" /> {t("tickets.profile")}
       </BackLink>
       <div className="mt-5">
-        <h1 className="text-2xl font-semibold">{t("orders.invoiceTitle")}</h1>
+        <h1 className="text-2xl font-semibold">{t("orders.title")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t("orders.invoiceHistory")}
+          {t("orders.history")}
         </p>
       </div>
 
@@ -51,19 +52,20 @@ export default function InvoicesPage() {
       ) : invoiceOrders.length === 0 ? (
         <div className="mt-7 border border-dashed border-white/15 px-5 py-12 text-center">
           <Receipt className="mx-auto h-6 w-6 text-primary" />
-          <p className="mt-3 text-sm font-semibold">{t("orders.invoiceEmpty")}</p>
+          <p className="mt-3 text-sm font-semibold">{t("orders.transactionsEmpty")}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {t("orders.invoiceEmptyHint")}
+            {t("orders.transactionsEmptyHint")}
           </p>
         </div>
       ) : (
         <div className="mt-7 divide-y divide-white/10 border-y border-white/10">
           {invoiceOrders.map((order) => {
-            const paidTotal = Number(order.paidTotalBani) / 100;
+            const paid = isConfirmedPurchase(order), hasInvoice = isInvoiceOrder(order);
+            const paidTotal = orderTotalBani(order) / 100;
             const refundedAmount = Number(order.refundedAmountBani) / 100;
             const isRefunded = order.status === "refunded" || refundedAmount > 0;
             return (
-              <article key={order.id} className="flex gap-3 py-4">
+              <article key={order.id} data-testid={`invoice-${order.id}`} className="flex gap-3 py-4">
                 <span className="grid h-10 w-10 shrink-0 place-items-center bg-primary/10 text-primary">
                   <Receipt className="h-4 w-4" />
                 </span>
@@ -85,7 +87,8 @@ export default function InvoicesPage() {
                 </div>
                 <div className="flex max-w-[46%] shrink-0 flex-col items-end text-right">
                   <p className="text-sm font-semibold">{formatRon(paidTotal)}</p>
-                  <p className="mt-0.5 text-[10px] text-muted-foreground">{t("orders.paidTotal")}</p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">{t(paid ? "orders.paidTotal" : "orders.orderTotal")}</p>
+                  {!paid && <p className="mt-1 text-[11px] text-muted-foreground">{t(orderStatusKey(order.status))}</p>}
                   {isRefunded && (
                     <p className="mt-1 text-[11px] font-semibold text-primary">
                       {t("orders.refunded")}
@@ -96,7 +99,7 @@ export default function InvoicesPage() {
                       {t("orders.refundedAmount", { amount: formatRon(refundedAmount) })}
                     </p>
                   )}
-                  {order.invoiceDocumentUrl ? (
+                  {hasInvoice && (order.invoiceDocumentUrl ? (
                     <a
                       href={order.invoiceDocumentUrl}
                       target="_blank"
@@ -108,10 +111,10 @@ export default function InvoicesPage() {
                     </a>
                   ) : (
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      {t(`orders.invoiceStatus.${order.invoiceStatus || "pending"}`)}
+                      {t(`orders.invoiceStatus.${invoiceStatusKey(order.invoiceStatus)}`)}
                     </p>
-                  )}
-                  {isRefunded &&
+                  ))}
+                  {hasInvoice && isRefunded &&
                     (order.refundInvoiceDocumentUrl ? (
                       <a
                         href={order.refundInvoiceDocumentUrl}
@@ -124,7 +127,7 @@ export default function InvoicesPage() {
                       </a>
                     ) : (
                       <p className="mt-2 text-[11px] text-muted-foreground">
-                        {t(`orders.refundInvoiceStatus.${order.refundInvoiceStatus || "pending"}`)}
+                        {t(`orders.refundInvoiceStatus.${invoiceStatusKey(order.refundInvoiceStatus)}`)}
                       </p>
                     ))}
                 </div>

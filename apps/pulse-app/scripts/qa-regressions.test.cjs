@@ -271,7 +271,7 @@ test('pulled account deletion dialog requires matching email/password and disabl
     'react-i18next': { useTranslation: () => ({ t: key => key }) },
   }, { document, window, HTMLElement: class {} }).load('components/profile/DeleteAccountDialog');
   let busy = false;
-  const render = () => h.render(() => DeleteAccountDialog({ open: true, email: 'user@example.com', requiresPassword: true, busy, onClose() {}, onConfirm() {} }));
+  const render = () => h.render(() => DeleteAccountDialog({ open: true, accountRole: 'user', email: 'user@example.com', requiresPassword: true, busy, onClose() {}, onConfirm() {} }));
   let tree = render();
   const confirm = tree => find(tree, node => node.type === 'button' && node.props.className?.includes('bg-red-'));
   assert.equal(confirm(tree).props.disabled, true);
@@ -280,4 +280,17 @@ test('pulled account deletion dialog requires matching email/password and disabl
   find(tree, node => node.props?.type === 'password').props.onChange({ target: { value: 'password' } });
   tree = render(); assert.equal(confirm(tree).props.disabled, false);
   busy = true; assert.equal(confirm(render()).props.disabled, true); h.unmount();
+});
+
+test('account deletion dialog never offers automatic deletion to organizer or admin accounts', () => {
+  for (const accountRole of ['organizer', 'admin']) {
+    const h = hooks(), document = { activeElement: null, body: { style: {} } }, window = new EventTarget();
+    const { DeleteAccountDialog } = modules({ react: h.react,
+      'react-i18next': { useTranslation: () => ({ t: key => key }) },
+    }, { document, window, HTMLElement: class {} }).load('components/profile/DeleteAccountDialog');
+    const tree = h.render(() => DeleteAccountDialog({ open: true, accountRole, email: 'qa@example.test', requiresPassword: true, busy: false, onClose() {}, onConfirm() { throw Error('Must not delete'); } }));
+    assert.equal(tree, null);
+    assert.equal(document.body.style.overflow, undefined, 'Hidden dialog must not lock the page');
+    h.unmount();
+  }
 });

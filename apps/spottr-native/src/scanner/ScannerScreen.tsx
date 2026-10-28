@@ -1,3 +1,4 @@
+import { ActionIcon } from '../ui/ActionIcon';
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   AppState,
@@ -12,17 +13,7 @@ import {
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  ArrowLeft,
-  ChevronDown,
-  History,
-  RefreshCw,
-  ScanLine,
-  Settings2,
-  Ticket,
-  Wifi,
-  WifiOff,
-} from "lucide-react-native";
+import { ChevronDown, History, RefreshCw, ScanLine, Settings2, Ticket, Wifi, WifiOff } from "lucide-react-native";
 import { accountApi, useAuth } from "../auth/AuthProvider";
 import { usePreferences } from "../PreferencesProvider";
 import { ApiError } from "../data/http";
@@ -42,7 +33,7 @@ import { getScannerConnection, watchScannerConnection } from './connection';
 import { isConnectivityError, mergeValidationEvents, uuid, type ValidationEvent } from "./data";
 import { scannerApi, offlineScanner } from "./runtime";
 import type { OfflineState } from "./offline";
-import { ScannerPanel, ScannerHistoryPanel, s } from "./ScannerPanel";
+import { ScannerPanel, s } from "./ScannerPanel";
 import { ScannerManagement } from "./ScannerManagement";
 import { prepareScanner, PreparationError, type PrepareScanner } from './preparation';
 import { OfflinePackageStatus } from './OfflinePackageStatus';
@@ -82,8 +73,7 @@ export function ScannerScreen({
     [work, setWork] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
-    [result, setResult] = useState<Admission>(),
-    [historyOpen, setHistoryOpen] = useState(false);
+    [result, setResult] = useState<Admission>();
   const gate = useRef(new AdmissionGate()),
     revision = useRef(0),
     workLock = useRef(false);
@@ -196,7 +186,7 @@ export function ScannerScreen({
   }, [refreshLocal]);
   const history = useQuery({
     queryKey: ["scanner-history", userId, selected],
-    enabled: !!token && !!event && !offline && !events.isError,
+    enabled: !!token && !!event && !offline && !events.isError && focused && foreground,
     retry: false,
     queryFn: () => scannerApi.history(selected, token!),
   });
@@ -446,7 +436,7 @@ export function ScannerScreen({
                   : navigation.navigate("Tabs", { screen: "Profile" })
               }
             >
-              <ArrowLeft color="white" size={22} />
+              <ActionIcon name="back" color="white" size={22} />
             </IconButton>
           </View>
         )}
@@ -456,7 +446,7 @@ export function ScannerScreen({
               label={copy("common.back")}
               onPress={() => setAgreementOpen(false)}
             >
-              <ArrowLeft color="white" size={22} />
+              <ActionIcon name="back" color="white" size={22} />
             </IconButton>
             <OrganizerAgreement
               profile={profile.data ?? undefined}
@@ -973,7 +963,7 @@ export function ScannerScreen({
                       testID="scanner-open-history"
                       accessibilityRole="button"
                       accessibilityLabel={copy("validation.openScanHistory")}
-                      onPress={() => setHistoryOpen(true)}
+                      onPress={() => navigation.navigate('ScannerHistory', { eventId: selected, eventTitle: event?.title })}
                       style={{
                         width: 40,
                         height: 40,
@@ -1003,16 +993,6 @@ export function ScannerScreen({
           </View>
         )}
       </ScrollView>
-      <ScannerHistoryPanel
-        open={historyOpen && !agreementOpen}
-        onClose={() => setHistoryOpen(false)}
-        loading={history.isFetching}
-        error={history.isError}
-        onRetry={() => {
-          void history.refetch();
-        }}
-        history={history.data}
-      />
     </View>
   );
 }

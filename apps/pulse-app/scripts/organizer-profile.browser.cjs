@@ -109,6 +109,7 @@ async function run() {
       const state = window.__api;
       state.requests.push(route + url.search);
       const respond = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+      if (route === '/wardrobe/mine') return respond({ deposits: [], staffAccess: false });
       const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
       if (route === '/users/me') return respond({ id: 'test-user', username: 'Test User', email: 'test@example.com', role: 'user', preferredLanguage: 'en' });
       if (route === '/users/me/billing-details') return respond({});
@@ -144,7 +145,7 @@ async function run() {
     const profile = { id: 'test-organizer', username: 'nightcollective', organizerName: 'Night Collective', role: 'organizer',
       avatarUrl: '/spottr-logo-192.png', bio: 'Music, friends and nights to remember.', organizerVerified: true,
       relationship: 'none', followsOrganizer: false, followerCount: 218, eventCount: 12, ticketsSoldCount: 1250 };
-    const event = { organizerId: profile.id, organizerName: profile.organizerName, title: 'Night Session', locationName: 'Test venue', city: 'Bucuresti', category: 'TECHNO', bannerUrl: '/party-event.webp', latitude: 44.4, longitude: 26.1, ticketTypes: [{ id: 'test-tier', name: 'General', priceRon: 150, stock: 100 }], stats: { isFavorited: false, goingCount: 0 } };
+    const event = { organizerId: profile.id, organizerName: profile.organizerName, title: 'Night Session', locationName: 'Test venue', city: 'Bucuresti', category: 'TECHNO', bannerUrl: '/party-event.webp', latitude: 44.4, longitude: 26.1, ticketTypes: [{ id: 'test-tier', name: 'General', priceRon: 150, capacity: 100, ticketsSold: 0, startSales: '2020-01-01T00:00:00Z', endSales: '2099-10-01T17:00:00Z' }], stats: { isFavorited: false, goingCount: 0 } };
     const upcoming = [3,1,4,2].map(id => ({ ...event, id: 'upcoming-' + id, title: 'Night Session ' + id, startTime: '2099-10-0' + id + 'T18:00:00Z', endTime: '2099-10-0' + (id + 1) + 'T04:00:00Z' }));
     const past = [2,4,1,3].map(id => ({ ...event, id: 'past-' + id, title: 'Last edition ' + id, startTime: '2020-10-0' + id + 'T18:00:00Z', endTime: '2020-10-0' + (id + 1) + 'T04:00:00Z' }));
     window.fetch = async (input, init) => {
@@ -176,8 +177,8 @@ async function run() {
     assert.equal(bounds.overflow, false, 'Sheet content stays inside its narrower surface');
     assert.equal(bounds.outline, 'none', 'The dialog container has no browser-blue focus outline');
     if (width < 768) {
-      assert.equal(bounds.left, 12, 'Mobile sheet has a 12px left gutter');
-      assert.equal(bounds.right, 12, 'Mobile sheet has a 12px right gutter');
+      assert.equal(bounds.left, 0, 'Mobile sheet fills the viewport width');
+      assert.equal(bounds.right, 0, 'Mobile sheet reaches the right edge');
     }
   };
   if (process.argv.includes('--sheets-only')) {
@@ -324,11 +325,11 @@ async function run() {
       if (width < 768) {
         await checkSheet('[data-vaul-drawer]', width);
         if (kind === 'upcoming') {
-          await evaluate("document.querySelector('[data-vaul-drawer] input[type=radio]').click()");
-          await until("document.querySelector('[data-drawer-body]').lastElementChild.textContent.includes('Continue')");
+          await evaluate("{ const ticket = document.querySelector('[data-vaul-drawer] input[type=radio]'); if (!ticket.checked) ticket.click(); }");
+          await until("document.querySelector('[data-vaul-drawer] [data-event-sheet-actions]').textContent.includes('Continue')");
         }
         assert.ok(await evaluate(`(() => {
-          const footer = document.querySelector('[data-drawer-body]').lastElementChild;
+          const footer = document.querySelector('[data-vaul-drawer] [data-event-sheet-actions]');
           const r = footer.getBoundingClientRect();
           return [...footer.querySelectorAll('button')].every(button => {
             const b = button.getBoundingClientRect();
@@ -336,7 +337,7 @@ async function run() {
           });
         })()`), 'Footer actions and the price fit without clipping');
         const buttons = await evaluate(`(() => {
-          const footer = document.querySelector('[data-drawer-body]').lastElementChild;
+          const footer = document.querySelector('[data-vaul-drawer] [data-event-sheet-actions]');
           return [...footer.querySelectorAll('button[aria-label]')].map(button => {
             const r = button.getBoundingClientRect(), s = getComputedStyle(button);
             return { width: r.width, height: r.height, radius: s.borderRadius, overflow: s.overflow, highlight: s.webkitTapHighlightColor };
@@ -352,7 +353,7 @@ async function run() {
         }
         await call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
         await call('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
-        await evaluate("document.querySelector('[data-drawer-body]').lastElementChild.querySelector('button').focus()");
+        await evaluate("document.querySelector('[data-vaul-drawer] [data-event-sheet-actions]').querySelector('button').focus()");
         await delay(250);
         assert.ok(await evaluate("document.activeElement.matches(':focus-visible') && getComputedStyle(document.activeElement).boxShadow !== 'none'"), 'Bookmark retains a visible keyboard focus ring');
       }

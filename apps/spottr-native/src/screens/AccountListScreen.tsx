@@ -1,16 +1,18 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { MotionPressable as Pressable } from '../ui/MotionPressable';
-import { ArrowLeft, Bookmark, Calendar, ChevronRight, ExternalLink, MapPin, QrCode, Receipt, Ticket } from 'lucide-react-native';
+import { Bookmark, Calendar, ChevronRight, ExternalLink, MapPin, QrCode, Receipt, Ticket } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useQuery } from '@tanstack/react-query';
 import { useIsFocused, useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { components } from '@packages/api-client/src/schema';
-import { accountApi, useAuth } from '../auth/AuthProvider';
+import { useAuth } from '../auth/AuthProvider';
 import { usePreferences } from '../PreferencesProvider';
 import { useTickets } from '../data/useTickets';
+import { useOrders } from '../data/useOrders';
+import { isConfirmedPurchase, isInvoiceOrder, invoiceStatusKey, orderStatusKey, orderTotalBani } from '../../../pulse-app/src/features/checkout/orderHistory';
 import { TicketAvailability } from '../profile/TicketAvailability';
 import { TicketSheet } from '../profile/TicketSheet';
 import { ticketStatus, type UserTicket } from '../data/tickets';
@@ -76,25 +78,21 @@ export function TicketsScreen() {
 }
 
 export function OrdersScreen() {
-  const { user } = useAuth(), { copy, language } = usePreferences(), link = useOpenLink();
-  const query = useQuery({ queryKey: ['orders', user?.id], enabled: !!user, queryFn: async ({ signal }) => {
-    const value = await accountApi<components['schemas']['UserOrderResponse'][] | null>('/users/me/orders', { signal });
-    if (value === null) return [];
-    if (!Array.isArray(value) || value.some(row=>!row || typeof row.id!=='string' || typeof row.eventTitle!=='string' || !Number.isFinite(row.paidTotalBani) || !Number.isFinite(Date.parse(row.createdAt)))) throw new Error('Invalid orders');
-    return value.filter(row=>row.invoiceRequested);
-  } });
-  const invoiceStatus = (status?: string) => status === 'dispatching' ? 'processing' : ['pending','processing','issued','failed','needs_review'].includes(status??'') ? status : 'pending';
-  return <AccountPage id="invoices-page" title={copy('orders.invoiceTitle')} subtitle={copy('orders.invoiceHistory')}>
-    {query.isPending ? <Loading /> : query.isError ? <Feedback title={copy('feedback.loadFailed')} retry={() => void query.refetch()} /> : !query.data?.length ? <View style={{paddingHorizontal:20,paddingVertical:48,borderWidth:1,borderStyle:'dashed',borderColor:'#ffffff26',gap:8,alignItems:'center'}}><Receipt size={24} color={colors.accent}/><Text style={title}>{copy('orders.invoiceEmpty')}</Text><Text style={[muted,{textAlign:'center'}]}>{copy('orders.invoiceEmptyHint')}</Text></View> : <View style={{borderTopWidth:1,borderColor:'#ffffff1a'}}>{query.data.map(order => {
+  const { copy, language } = usePreferences(), link = useOpenLink();
+  const query = useOrders(), orders = query.data ?? [];
+  return <AccountPage id="invoices-page" title={copy('orders.title')} subtitle={copy('orders.history')}>
+    {query.isPending ? <Loading /> : query.isError ? <Feedback title={copy('feedback.loadFailed')} retry={() => void query.refetch()} /> : !orders.length ? <View style={{paddingHorizontal:20,paddingVertical:48,borderWidth:1,borderStyle:'dashed',borderColor:'#ffffff26',gap:8,alignItems:'center'}}><Receipt size={24} color={colors.accent}/><Text style={title}>{copy('orders.transactionsEmpty')}</Text><Text style={[muted,{textAlign:'center'}]}>{copy('orders.transactionsEmptyHint')}</Text></View> : <View style={{borderTopWidth:1,borderColor:'#ffffff1a'}}>{orders.map(order => {
+      const paid = isConfirmedPurchase(order), hasInvoice = isInvoiceOrder(order);
       const refunded = order.status==='refunded' || order.refundedAmountBani>0;
-      return <View key={order.id} style={{paddingVertical:16,borderBottomWidth:1,borderColor:'#ffffff1a',gap:12,flexDirection:'row',alignItems:'flex-start'}}>
+      return <View key={order.id} testID={`invoice-${order.id}`} style={{paddingVertical:16,borderBottomWidth:1,borderColor:'#ffffff1a',gap:12,flexDirection:'row',alignItems:'flex-start'}}>
         <View style={{width:40,height:40,backgroundColor:'#ff00441a',alignItems:'center',justifyContent:'center'}}><Receipt size={16} color={colors.accent}/></View>
         <View style={{flex:1,gap:4}}><Text numberOfLines={1} style={title}>{order.eventTitle}</Text><View style={{flexDirection:'row',gap:4,alignItems:'center'}}><Calendar size={14} color={colors.muted}/><Text style={muted}>{formatDate(order.createdAt,language)}</Text></View><View style={{flexDirection:'row',gap:4}}><MapPin size={14} color={colors.muted}/><Text style={[muted,{flex:1}]}>{order.locationName}</Text></View><Text style={[muted,{fontSize:10}]}>{copy('orders.order',{id:order.id})}</Text></View>
-        <View style={{maxWidth:'46%',alignItems:'flex-end',gap:4}}><Text style={title}>{formatRon(order.paidTotalBani/100)}</Text><Text style={[muted,{fontSize:10}]}>{copy('orders.paidTotal')}</Text>
+        <View style={{maxWidth:'46%',alignItems:'flex-end',gap:4}}><Text style={title}>{formatRon(orderTotalBani(order)/100)}</Text><Text style={[muted,{fontSize:10}]}>{copy(paid?'orders.paidTotal':'orders.orderTotal')}</Text>
+          {!paid && <Text style={[muted,{fontSize:11,textAlign:'right'}]}>{copy(orderStatusKey(order.status))}</Text>}
           {refunded && <Text style={invoiceText}>{copy('orders.refunded')}</Text>}
           {order.refundedAmountBani>0 && <Text style={invoiceText}>{copy('orders.refundedAmount',{amount:formatRon(order.refundedAmountBani/100)})}</Text>}
-          {order.invoiceDocumentUrl ? <Pressable accessibilityRole="link" onPress={()=>void link.open(order.invoiceDocumentUrl!)} style={invoiceLink}><ExternalLink size={14} color={colors.accent}/><Text style={invoiceText}>{order.invoiceSeries} {order.invoiceNumber}</Text></Pressable> : <Text style={[muted,{fontSize:11,textAlign:'right'}]}>{copy('orders.invoiceStatus.'+invoiceStatus(order.invoiceStatus))}</Text>}
-          {refunded && (order.refundInvoiceDocumentUrl ? <Pressable accessibilityRole="link" onPress={()=>void link.open(order.refundInvoiceDocumentUrl!)} style={[invoiceLink,{borderColor:'#ff004440'}]}><ExternalLink size={14} color={colors.accent}/><Text style={invoiceText}>{copy('orders.storno')} {order.refundInvoiceSeries} {order.refundInvoiceNumber}</Text></Pressable> : <Text style={[muted,{fontSize:11,textAlign:'right'}]}>{copy('orders.refundInvoiceStatus.'+invoiceStatus(order.refundInvoiceStatus))}</Text>)}
+          {hasInvoice && (order.invoiceDocumentUrl ? <Pressable accessibilityRole="link" onPress={()=>void link.open(order.invoiceDocumentUrl!)} style={invoiceLink}><ExternalLink size={14} color={colors.accent}/><Text style={invoiceText}>{order.invoiceSeries} {order.invoiceNumber}</Text></Pressable> : <Text style={[muted,{fontSize:11,textAlign:'right'}]}>{copy('orders.invoiceStatus.'+invoiceStatusKey(order.invoiceStatus))}</Text>)}
+          {hasInvoice && refunded && (order.refundInvoiceDocumentUrl ? <Pressable accessibilityRole="link" onPress={()=>void link.open(order.refundInvoiceDocumentUrl!)} style={[invoiceLink,{borderColor:'#ff004440'}]}><ExternalLink size={14} color={colors.accent}/><Text style={invoiceText}>{copy('orders.storno')} {order.refundInvoiceSeries} {order.refundInvoiceNumber}</Text></Pressable> : <Text style={[muted,{fontSize:11,textAlign:'right'}]}>{copy('orders.refundInvoiceStatus.'+invoiceStatusKey(order.refundInvoiceStatus))}</Text>)}
         </View>
       </View>;
     })}</View>}
@@ -107,7 +105,7 @@ function AccountPage({ id, title: heading, subtitle, large, children }: React.Pr
   useEffect(() => { if (focused && ready && !user) navigation.navigate('Auth', { returnTab: 'Profile' }); }, [focused,ready,user,navigation]);
   if (!ready || !user) return <Loading />;
   return <ScrollView testID={id} style={{flex:1,backgroundColor:'#000'}} contentContainerStyle={{paddingHorizontal:20,paddingTop:Math.max(24,safe.top),paddingBottom:Math.max(28,safe.bottom+16),gap:16}}>
-    <Pressable accessibilityRole="button" testID="account-back" onPress={()=>{ /* Only pop this profile stack: canGoBack also sees parent tabs. */ if(navigation.getState().index>0) navigation.goBack(); else navigation.replace('ProfileHome'); }} style={{flexDirection:'row',gap:6,minHeight:40,alignItems:'center'}}><ArrowLeft size={16} color={colors.muted}/><Text style={{color:colors.muted,fontSize:14}}>{copy('tickets.profile')}</Text></Pressable>
+    <GlassPressable fallback={Pressable} glassStyle={{ paddingHorizontal: 12 }} accessibilityRole="button" testID="account-back" onPress={()=>{ /* Only pop this profile stack: canGoBack also sees parent tabs. */ if(navigation.getState().index>0) navigation.goBack(); else navigation.replace('ProfileHome'); }} style={{flexDirection:'row',gap:6,minHeight:40,alignItems:'center'}}><ActionIcon name="back" size={16} color={colors.muted}/><Text style={{color:colors.muted,fontSize:14}}>{copy('tickets.profile')}</Text></GlassPressable>
     <View style={{gap:large?8:4,marginBottom:12}}><Text style={{color:'white',fontSize:large?30:24,fontWeight:large?'700':'600',letterSpacing:large?-0.5:0}}>{heading}</Text>{!!subtitle && <Text style={{color:colors.muted,fontSize:14}}>{subtitle}</Text>}</View>{children}
   </ScrollView>;
 }

@@ -14,6 +14,7 @@ import { ProfileAvatarUpload } from "@/components/profile/ProfileAvatarUpload";
 import { PersonalDetailsForm } from "@/components/profile/PersonalDetailsForm";
 import { PasswordResetRequest } from "@/components/profile/PasswordResetRequest";
 import { LanguagePreferenceRow } from "@/components/profile/LanguagePreferenceRow";
+import { OrganizerAccountClosure } from "@/components/profile/OrganizerAccountClosure";
 import { useTranslation } from "react-i18next";
 
 export default function ProfilePage() {
@@ -151,6 +152,7 @@ export default function ProfilePage() {
               </div>
             </Section>
           </div>
+          {user && user.properties.role !== "user" && <OrganizerAccountClosure email={user.properties.email} />}
         </div>
       </div>
     </div>

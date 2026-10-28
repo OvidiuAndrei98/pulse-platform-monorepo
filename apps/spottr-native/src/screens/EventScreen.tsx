@@ -1,3 +1,5 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import { haptic } from "../ui/haptics";
 import { ToastHost } from '../ui/ToastHost';
 import { useToast } from '../ui/ToastProvider';
@@ -11,17 +13,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import {
-  BadgeCheck,
-  CalendarDays,
-  Check,
-  Share2,
-  Ticket as TicketIcon,
-  UserRound,
-  UsersRound,
-  Music2,
-  MapPin,
-} from "lucide-react-native";
+import { BadgeCheck, CalendarDays, Check, Share2, Ticket as TicketIcon, UserRound, Music2, MapPin } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -44,13 +36,13 @@ import {
 } from "../../../pulse-app/src/features/events/serviceFee";
 import { AppSheetScrollView } from "../ui/AppSheetScrollView";
 import { AppSheet } from "../ui/AppSheet";
-import { ArrowLeft } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { accountApi, useAuth } from "../auth/AuthProvider";
 import { EventSocial } from "../ui/EventSocial";
 import { validSelection, parseBooking } from "../checkout/data";
 import { OrganizerUpdates } from '../profiles/OrganizerUpdates';
 import { EventAttendees } from '../social/EventAttendees';
+import { PurchaseSuccessHost } from '../checkout/PurchaseSuccessSheet';
 
 export function EventScreen({
   route,
@@ -123,7 +115,7 @@ export function EventScreen({
     ? ticket.priceRon +
       (event?.organizerAbsorbsServiceFee
         ? 0
-        : calculateServiceFeeRon(ticket.priceRon, 1))
+        : calculateServiceFeeRon(ticket.priceRon, 1, event))
     : 0;
   const share = async () => {
     if (!event) return;
@@ -145,7 +137,7 @@ export function EventScreen({
   const nativeSheet = isSheet && Platform.OS !== "web";
   const footer = event && !missing ? (
     <View testID="event-actions" style={s.footer}>
-      <Pressable
+      <GlassPressable fallback={Pressable}
         testID="event-sheet-bookmark"
         disabled={!ready}
         accessibilityState={{ selected: saved.some(e => e.id === event.id), disabled: !ready }}
@@ -163,16 +155,16 @@ export function EventScreen({
           color="white"
           selected={saved.some(e => e.id === event.id)}
         />
-      </Pressable>
-      <Pressable
+      </GlassPressable>
+      <GlassPressable fallback={Pressable}
         testID="event-share"
         accessibilityRole="button"
         accessibilityLabel={copy("eventSheet.share")}
         onPress={() => void share()}
         style={s.icon}
       >
-        <Share2 size={16} color="white" />
-      </Pressable>
+        <ActionIcon name="share" size={16} color="white" />
+      </GlassPressable>
       <Pressable
         testID="event-continue"
         accessibilityRole="button"
@@ -215,14 +207,14 @@ export function EventScreen({
             paddingBottom: 12,
           }}
         >
-          <Pressable
+          <GlassPressable fallback={Pressable}
             accessibilityRole="button"
             accessibilityLabel={copy("common.back")}
             onPress={close}
             style={s.icon}
           >
-            <ArrowLeft color="white" size={20} />
-          </Pressable>
+            <ActionIcon name="back" color="white" size={20} />
+          </GlassPressable>
         </View>
       )}
       {!event || missing ? (
@@ -493,7 +485,7 @@ export function EventScreen({
     </AppSheet>
   ) : (
     content
-  )}<ToastHost bottom={92} />{storyOpen && event && <EventStory key={event.id} event={event} onClose={() => setStoryOpen(false)} />}</View>;
+  )}<ToastHost bottom={92} />{storyOpen && event && <EventStory key={event.id} event={event} onClose={() => setStoryOpen(false)} />}<PurchaseSuccessHost eventId={route.params.id} /></View>;
 }
 const s = StyleSheet.create({
   sheet: {

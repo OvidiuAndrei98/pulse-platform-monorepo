@@ -22,7 +22,7 @@
     },
     "web": { "bundler": "metro", "name": "Spottr Native Preview", "favicon": "./assets/icon.png" },
     "plugins": [
-      ["expo-splash-screen", { "backgroundColor": "#000000", "image": "./assets/splash-logo.png", "imageWidth": 96, "resizeMode": "contain" }],
+      ["expo-splash-screen", { "backgroundColor": "#000000", "android": { "drawable": { "icon": "./assets/launch-empty.xml" } } }],
       ["expo-build-properties", { "ios": { "enableSceneSupport": true } }],
       "expo-localization",
       "expo-web-browser",

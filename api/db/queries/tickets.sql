@@ -140,6 +140,11 @@ SELECT
         WHERE o.event_id = e.id AND o.status IN ('completed', 'refunded') AND o.platform_fee_status = 'earned'
     ), 0)::bigint AS platform_fee_bani,
     COALESCE((
+        SELECT SUM(o.invoice_service_fee_bani)::bigint FROM orders o
+        WHERE o.event_id=e.id AND o.status IN ('completed','refunded')
+          AND o.platform_fee_status='earned' AND o.invoice_service_fee_state IN ('held','earned','refund_pending')
+    ),0)::bigint AS invoice_service_fee_bani,
+    COALESCE((
         SELECT COUNT(*)::bigint
         FROM tickets t
         JOIN orders o ON o.id = t.order_id
@@ -515,6 +520,7 @@ ORDER BY t.created_at DESC;
 
 -- name: ListUserOrders :many
 SELECT o.id, o.status, o.total_amount,
+       attempt.attempted_at AS payment_attempted_at,
        ((o.total_amount::BIGINT * 100) + o.customer_ticketing_fee_bani)::BIGINT AS paid_total_bani,
        o.stripe_amount_refunded_bani AS refunded_amount_bani,
        o.stripe_refund_status,
@@ -534,7 +540,9 @@ FROM orders o
 JOIN events e ON e.id = o.event_id
 LEFT JOIN billing_invoices invoice ON invoice.order_id = o.id
 LEFT JOIN billing_invoice_refunds invoice_refund ON invoice_refund.order_id = o.id
+LEFT JOIN checkout_payment_attempts attempt ON attempt.order_id = o.id
 WHERE o.user_id = $1
+  AND (attempt.order_id IS NOT NULL OR o.status IN ('completed', 'refunded'))
 ORDER BY o.created_at DESC;
 
 -- name: GetInvitationForValidation :one

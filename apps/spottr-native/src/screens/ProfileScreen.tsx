@@ -1,6 +1,6 @@
 import { FormInput as TextInput, formStyles } from '../ui/FormInput';
 import { uploadProfileAvatar } from "../profile/avatar";
-import { AppSheetScrollView } from "../ui/AppSheetScrollView";
+import { DeleteAccountSheet } from "../profile/DeleteAccountSheet";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -43,13 +43,13 @@ import {
   type LucideIcon,
 } from "lucide-react-native";
 import { accountApi, useAuth } from "../auth/AuthProvider";
-import { ApiError } from "../data/http";
 import { usePreferences } from "../PreferencesProvider";
 import {
   useHiddenCategories,
   PreferencesSheet,
 } from "../profile/PreferencesSheet";
 import { QuickConnectSheet } from "../profile/QuickConnectSheet";
+import { WardrobeCard } from "../wardrobe/WardrobeScreen";
 import { ProfileDisclosure, PROFILE_DISCLOSURE_MOTION } from "../profile/ProfileDisclosure";
 import { ProfileEmptyState } from '../profile/ProfileEmptyState';
 import {
@@ -57,7 +57,6 @@ import {
   ticketStatus,
   type UserTicket,
 } from "../profile/TicketSheet";
-import { AppSheet } from "../ui/AppSheet";
 import { Text } from "../ui/Text";
 import { EventImage, Feedback, Loading, useOpenLink } from "../ui/common";
 import { colors } from "../ui/theme";
@@ -74,12 +73,12 @@ import { useEventClock } from "../data/useEventClock";
 
 type ProfileAction = "avatar" | "details" | "password" | "language" | "privacy";
 type ProfileNotice = { kind: "error" | "success"; key: string };
-const actionMessages: Record<ProfileAction, { success: string; error: string }> = {
-  avatar: { success: "profile.avatarUpdated", error: "profile.imageUploadFailed" },
-  details: { success: "profile.updateSuccess", error: "profile.updateFailed" },
+const actionMessages: Record<ProfileAction, { success?: string; error: string }> = {
+  avatar: { error: "profile.imageUploadFailed" },
+  details: { error: "profile.updateFailed" },
   password: { success: "profile.resetSent", error: "profile.resetFailed" },
-  language: { success: "profile.languageSaved", error: "profile.languageFailed" },
-  privacy: { success: "profile.privacySaved", error: "profile.privacyUpdateFailed" },
+  language: { error: "profile.languageFailed" },
+  privacy: { error: "profile.privacyUpdateFailed" },
 };
 
 export function ProfileScreen() {
@@ -140,7 +139,9 @@ export function ProfileScreen() {
       const result = await operation();
       // Cancelled image picking and stale session updates are not successful saves.
       if (auth.controller.getToken() !== token || result === false || result === null) return false;
-      setNotices(old => ({ ...old, [action]: { kind: "success", key: actionMessages[action].success } }));
+      const successMessage = actionMessages[action].success;
+      if (successMessage)
+        setNotices(old => ({ ...old, [action]: { kind: "success", key: successMessage } }));
       return true;
     } catch (cause) {
       if (auth.controller.getToken() === token)
@@ -251,6 +252,7 @@ export function ProfileScreen() {
           />
         )}
         {user.role !== 'organizer' && activeSafety && <Pressable accessibilityRole="button" testID="profile-safety-group" onPress={() => navigation.navigate('SafetyGroup', { eventId: activeSafety.eventId })} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 26, borderWidth: 1, borderColor: '#34d3994d', backgroundColor: '#34d39917' }}><ShieldCheck size={26} color="#34d399"/><View style={{ flex: 1 }}><Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>{copy('safetyGroup.activeEvent', { event: activeSafety.eventTitle })}</Text><Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>{copy('safetyGroup.openGroup')}</Text></View><ChevronRight size={16} color="#6ee7b7"/></Pressable>}
+        <WardrobeCard />
         {user.role !== 'organizer' && !!validationEvents.data?.length && <Row icon={QrCode} title={copy('userProfile.ticketValidation')} hint={copy('userProfile.validationAccess', { count: validationEvents.data.length })} onPress={() => navigation.navigate('Scanner')}/>}
         <View style={{ gap: 12 }}>
           <Text style={s.section}>{copy("userProfile.ticketsOrders")}</Text>
@@ -569,7 +571,7 @@ export function ProfileScreen() {
       {sheet === "connect" && (
         <QuickConnectSheet key={user.id} onClose={() => setSheet(null)} />
       )}
-      {sheet === "delete" && <DeleteSheet onClose={() => setSheet(null)} />}
+      {sheet === "delete" && <DeleteAccountSheet key={user.id} onClose={() => setSheet(null)} />}
       {ticket && (
         <TicketSheet
           initialId={ticket.id}
@@ -667,111 +669,6 @@ function Row({
         <View style={s.row}>{content}</View>
       )}
     </View>
-  );
-}
-function DeleteSheet({ onClose }: { onClose: () => void }) {
-  const { user, controller } = useAuth(),
-    { copy } = usePreferences();
-  const [confirmation, setConfirmation] = useState(""),
-    [password, setPassword] = useState(""),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
-  const pending = useRef(false);
-  if (!user) return null;
-  const valid =
-    confirmation.trim().toLowerCase() === user.email.toLowerCase() &&
-    (!user.hasPassword || password.length > 0);
-  const remove = async () => {
-    if (!valid || pending.current) return;
-    pending.current = true;
-    setBusy(true);
-    setError("");
-    const token = controller.getToken();
-    try {
-      await accountApi("/users/me", {
-        method: "DELETE",
-        token,
-        body: {
-          confirmation: confirmation.trim(),
-          ...(user.hasPassword ? { currentPassword: password } : {}),
-        },
-      });
-      if (controller.getToken() === token) await controller.logout();
-    } catch (cause) {
-      setError(
-        copy(
-          cause instanceof ApiError && cause.status === 401
-            ? user.hasPassword
-              ? "userProfile.deletePasswordInvalid"
-              : "userProfile.deleteGoogleReauthRequired"
-            : "userProfile.deleteFailed",
-        ),
-      );
-    } finally {
-      pending.current = false;
-      setBusy(false);
-    }
-  };
-  return (
-    <AppSheet open onClose={onClose} label={copy("common.close")} height={0.85}>
-      <AppSheetScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 28 }}
-      >
-        <Text style={s.section}>{copy("userProfile.deleteDialogTitle")}</Text>
-        <Text style={s.hint}>
-          {copy("userProfile.deleteDialogDescription")}
-        </Text>
-        {["deleteProfileData", "deleteTicketsData", "retainFiscalData"].map(
-          (key) => (
-            <Text key={key} style={s.hint}>
-              • {copy("userProfile." + key)}
-            </Text>
-          ),
-        )}
-        <Text style={s.hint}>
-          {copy("userProfile.deleteConfirmationHint", { email: user.email })}
-        </Text>
-        <TextInput inSheet variant="profile"
-          accessibilityLabel={copy("userProfile.deleteConfirmationLabel")}
-          value={confirmation}
-          onChangeText={setConfirmation}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          editable={!busy}
-          style={s.input}
-        />
-        {user.hasPassword ? (
-          <TextInput inSheet variant="profile"
-            accessibilityLabel={copy("userProfile.deletePasswordLabel")}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            editable={!busy}
-            style={s.input}
-          />
-        ) : (
-          <Text style={s.hint}>
-            {copy("userProfile.deleteGoogleReauthHint")}
-          </Text>
-        )}
-        {!!error && <AuthMessage text={error} />}
-        <Pressable
-          accessibilityRole="button"
-          disabled={!valid || busy}
-          onPress={() => void remove()}
-          style={[s.logout, (!valid || busy) && { opacity: 0.4 }]}
-        >
-          <Text style={{ color: "#f87171", fontWeight: "700" }}>
-            {copy(
-              busy
-                ? "userProfile.deletingAccount"
-                : "userProfile.confirmDelete",
-            )}
-          </Text>
-        </Pressable>
-      </AppSheetScrollView>
-    </AppSheet>
   );
 }
 const s = StyleSheet.create({

@@ -22,6 +22,8 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
       if (!route) { if (qa.failImage && url.pathname.includes('party-event')) return new Response('', { status: 503 }); if (url.origin === location.origin) return original(input, options); throw Error('Unexpected external request'); }
       qa.requests.push({ route, query: url.search }); if (options.method && options.method !== 'GET') qa.writes.push(route);
       const reply = value => new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json' } });
+      if (route === '/wardrobe/mine') return reply({ deposits: [], staffAccess: false });
+      if (route === '/diagnostics/errors') return new Response(null, { status: 204 });
       if (route === '/users/me') return reply(user);
       if (route === '/profiles/search') { if (url.searchParams.get('q') === 'slow') { await new Promise(resolve => setTimeout(resolve, 1100)); qa.slowFinished = true; } const kind = url.searchParams.get('kind'); return reply(people.filter(p => !kind || (p.role === 'organizer') === (kind === 'organizers'))); }
       if (route === '/events') { if (url.searchParams.get('q') === 'slow') { await new Promise(resolve => setTimeout(resolve, 1000)); return reply([{ ...event, title: 'Stale event' }]); } return reply([event]); }

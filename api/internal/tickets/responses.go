@@ -62,14 +62,23 @@ type TicketValidationResponse struct {
 }
 
 type ValidationScanHistoryItem struct {
-	TicketID    string `json:"ticketId"`
-	TicketType  string `json:"ticketType"`
-	ValidatedAt string `json:"validatedAt"`
+	TicketID    string              `json:"ticketId"`
+	TicketType  string              `json:"ticketType"`
+	ValidatedAt string              `json:"validatedAt"`
+	ScannedBy   ValidationScanActor `json:"scannedBy"`
+}
+
+type ValidationScanActor struct {
+	UserID          string `json:"userId,omitempty"`
+	ScannerAccessID string `json:"scannerAccessId,omitempty"`
+	Name            string `json:"name"`
+	Kind            string `json:"kind"`
 }
 
 type ValidationScanHistoryResponse struct {
 	TotalScans int64                       `json:"totalScans"`
 	Scans      []ValidationScanHistoryItem `json:"scans"`
+	NextCursor string                      `json:"nextCursor,omitempty"`
 }
 
 type UserTicketResponse struct {
@@ -79,6 +88,7 @@ type UserTicketResponse struct {
 	VatPercentage          *float64 `json:"vatPercentage,omitempty"`
 	VatAmountBani          *int64   `json:"vatAmountBani,omitempty"`
 	ID                     string   `json:"id"`
+	OrderID                string   `json:"orderId,omitempty"`
 	EventID                string   `json:"eventId"`
 	ValidationHash         string   `json:"validationHash"`
 	IsValidated            bool     `json:"isValidated"`
@@ -95,9 +105,11 @@ type UserTicketResponse struct {
 }
 
 type UserOrderResponse struct {
+	PaymentAttemptedAt       string `json:"paymentAttemptedAt,omitempty"`
 	ID                       string `json:"id"`
 	Status                   string `json:"status"`
 	TotalAmountRon           int32  `json:"totalAmountRon"`
+	OrderTotalBani           int64  `json:"orderTotalBani"`
 	PaidTotalBani            int64  `json:"paidTotalBani"`
 	RefundedAmountBani       int64  `json:"refundedAmountBani"`
 	StripeRefundStatus       string `json:"stripeRefundStatus"`
@@ -223,6 +235,7 @@ func MapUserTicket(ticket db.GetUserTicketsRow) UserTicketResponse {
 		TicketingFeeBani:       ticket.TicketFeeBani,
 		PaidTotalBani:          ticket.TicketPriceBani + ticket.TicketFeeBani,
 		ID:                     common.UUIDToString(ticket.ID),
+		OrderID:                common.UUIDToString(ticket.OrderID),
 		EventID:                common.UUIDToString(ticket.EventID),
 		ValidationHash:         ticket.ValidationHash,
 		IsValidated:            ticket.IsValidated,
@@ -248,9 +261,13 @@ func MapUserTicket(ticket db.GetUserTicketsRow) UserTicketResponse {
 
 func MapUserOrder(order db.ListUserOrdersRow) UserOrderResponse {
 	return UserOrderResponse{
-		ID:                       common.UUIDToString(order.ID),
-		Status:                   string(order.Status),
-		TotalAmountRon:           order.TotalAmount,
+		PaymentAttemptedAt: common.TimestampToString(order.PaymentAttemptedAt),
+		ID:             common.UUIDToString(order.ID),
+		Status:         string(order.Status),
+		TotalAmountRon: order.TotalAmount,
+		OrderTotalBani: order.PaidTotalBani,
+		// Legacy alias: this is the checkout quote, not proof of payment.
+		// Keep it for installed clients; new displays use OrderTotalBani + Status.
 		PaidTotalBani:            order.PaidTotalBani,
 		RefundedAmountBani:       order.RefundedAmountBani,
 		StripeRefundStatus:       order.StripeRefundStatus,

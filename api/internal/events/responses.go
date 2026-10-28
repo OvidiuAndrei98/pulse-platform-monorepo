@@ -31,17 +31,20 @@ type ArtistResponse struct {
 }
 
 type EventStatsResponse struct {
-	TotalCheckIns     int64  `json:"totalCheckIns"`
-	UserHasCheckedIn  *bool  `json:"userHasCheckedIn,omitempty"`
-	IsFavorited       *bool  `json:"isFavorited,omitempty"`
-	TotalTicketsSold  *int64 `json:"totalTicketsSold,omitempty"`
-	TotalRevenueRon   *int64 `json:"totalRevenueRon,omitempty"`
-	InterestedCount   *int64 `json:"interestedCount,omitempty"`
-	GoingCount        *int64 `json:"goingCount,omitempty"`
-	TicketHolderCount *int64 `json:"ticketHolderCount,omitempty"`
+	TotalCheckIns       int64  `json:"totalCheckIns"`
+	UserHasCheckedIn    *bool  `json:"userHasCheckedIn,omitempty"`
+	IsFavorited         *bool  `json:"isFavorited,omitempty"`
+	TotalTicketsSold    *int64 `json:"totalTicketsSold,omitempty"`
+	TotalTicketsScanned *int64 `json:"totalTicketsScanned,omitempty"`
+	TotalRevenueRon     *int64 `json:"totalRevenueRon,omitempty"`
+	InterestedCount     *int64 `json:"interestedCount,omitempty"`
+	GoingCount          *int64 `json:"goingCount,omitempty"`
+	TicketHolderCount   *int64 `json:"ticketHolderCount,omitempty"`
 }
 
 type EventResponse struct {
+	CommissionRateBps          int32                `json:"commissionRateBps"`
+	CommissionPerTicketBani    int32                `json:"commissionPerTicketBani"`
 	VATPercentage              *float64             `json:"vatPercentage,omitempty"`
 	ID                         string               `json:"id"`
 	OrganizerID                string               `json:"organizerId"`
@@ -185,6 +188,8 @@ func MapFromDBListEvents(row db.ListEventsRow) EventResponse {
 		City:                       row.City,
 		Vibe:                       row.Vibe,
 		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		CommissionRateBps:          row.CommissionRateBps,
+		CommissionPerTicketBani:    row.CommissionPerTicketBani,
 		ExternalTicketURL:          row.ExternalTicketUrl.String,
 		VATPercentage:              vatResponse(row.VatPercentage),
 		Latitude:                   row.Latitude,
@@ -210,6 +215,7 @@ func MapFromDBListEventsWithStats(row db.ListEventsWithStatsRow) EventResponse {
 	tickets := parseTicketTypesWithLogs("MapFromDBListEventsWithStats", row.TicketTypes)
 	lineup := parseLineup(row.Lineup)
 	ticketsSold := row.TotalTicketsSold
+	ticketsScanned := row.TotalTicketsScanned
 	revenue := row.TotalRevenueRon
 	interested := row.InterestedCount
 	going := int64(row.GoingCount)
@@ -232,6 +238,8 @@ func MapFromDBListEventsWithStats(row db.ListEventsWithStatsRow) EventResponse {
 		City:                       row.City,
 		Vibe:                       row.Vibe,
 		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		CommissionRateBps:          row.CommissionRateBps,
+		CommissionPerTicketBani:    row.CommissionPerTicketBani,
 		ExternalTicketURL:          row.ExternalTicketUrl.String,
 		VATPercentage:              vatResponse(row.VatPercentage),
 		Latitude:                   row.Latitude,
@@ -244,14 +252,15 @@ func MapFromDBListEventsWithStats(row db.ListEventsWithStatsRow) EventResponse {
 		TicketTypes:                tickets,
 		Lineup:                     lineup,
 		Stats: EventStatsResponse{
-			TotalCheckIns:     row.TotalCheckIns,
-			UserHasCheckedIn:  nil,
-			IsFavorited:       nil,
-			TotalTicketsSold:  &ticketsSold,
-			TotalRevenueRon:   &revenue,
-			InterestedCount:   &interested,
-			GoingCount:        &going,
-			TicketHolderCount: &ticketHolders,
+			TotalCheckIns:       row.TotalCheckIns,
+			UserHasCheckedIn:    nil,
+			IsFavorited:         nil,
+			TotalTicketsSold:    &ticketsSold,
+			TotalTicketsScanned: &ticketsScanned,
+			TotalRevenueRon:     &revenue,
+			InterestedCount:     &interested,
+			GoingCount:          &going,
+			TicketHolderCount:   &ticketHolders,
 		},
 	}
 }
@@ -276,6 +285,8 @@ func MapFromDBGetEvent(row db.GetEventByIDRow) EventResponse {
 		City:                       row.City,
 		Vibe:                       row.Vibe,
 		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		CommissionRateBps:          row.CommissionRateBps,
+		CommissionPerTicketBani:    row.CommissionPerTicketBani,
 		ExternalTicketURL:          row.ExternalTicketUrl.String,
 		VATPercentage:              vatResponse(row.VatPercentage),
 		Latitude:                   row.Latitude,
@@ -301,6 +312,7 @@ func MapFromDBGetEventWithStats(row db.GetEventWithStatsRow) EventResponse {
 	tickets := parseTicketTypesWithLogs("MapFromDBGetEventWithStats", row.TicketTypes)
 	lineup := parseLineup(row.Lineup)
 	ticketsSold := row.TotalTicketsSold
+	ticketsScanned := row.TotalTicketsScanned
 	revenue := row.TotalRevenueRon
 	interested := row.InterestedCount
 	going := int64(row.GoingCount)
@@ -323,6 +335,8 @@ func MapFromDBGetEventWithStats(row db.GetEventWithStatsRow) EventResponse {
 		City:                       row.City,
 		Vibe:                       row.Vibe,
 		OrganizerAbsorbsServiceFee: row.OrganizerAbsorbsServiceFee,
+		CommissionRateBps:          row.CommissionRateBps,
+		CommissionPerTicketBani:    row.CommissionPerTicketBani,
 		ExternalTicketURL:          row.ExternalTicketUrl.String,
 		VATPercentage:              vatResponse(row.VatPercentage),
 		Latitude:                   row.Latitude,
@@ -335,14 +349,15 @@ func MapFromDBGetEventWithStats(row db.GetEventWithStatsRow) EventResponse {
 		TicketTypes:                tickets,
 		Lineup:                     lineup,
 		Stats: EventStatsResponse{
-			TotalCheckIns:     row.TotalCheckIns,
-			UserHasCheckedIn:  nil,
-			IsFavorited:       nil,
-			TotalTicketsSold:  &ticketsSold,
-			TotalRevenueRon:   &revenue,
-			InterestedCount:   &interested,
-			GoingCount:        &going,
-			TicketHolderCount: &ticketHolders,
+			TotalCheckIns:       row.TotalCheckIns,
+			UserHasCheckedIn:    nil,
+			IsFavorited:         nil,
+			TotalTicketsSold:    &ticketsSold,
+			TotalTicketsScanned: &ticketsScanned,
+			TotalRevenueRon:     &revenue,
+			InterestedCount:     &interested,
+			GoingCount:          &going,
+			TicketHolderCount:   &ticketHolders,
 		},
 	}
 }

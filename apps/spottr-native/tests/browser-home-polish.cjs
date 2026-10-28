@@ -12,7 +12,7 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
     const user = { id: '00000000-0000-4000-8000-000000000100', username: 'QA', role: 'user', email: 'qa@example.test', hasPassword: true, preferredLanguage: params.get('lang') || 'en', createdAt: '2026-01-01T00:00:00Z' };
     localStorage.setItem('spottr-native.session.v1', JSON.stringify({ token: 'polish-qa-only', user }));
     const event = { id, title: 'After dark', organizerId: '00000000-0000-4000-8000-000000000050', category: 'TECHNO', city: 'Bucuresti', locationName: 'Test venue', startTime: '2020-10-08T18:00:00Z', endTime: '2099-10-09T02:00:00Z', bannerUrl: location.origin + banner, ticketTypes: [], lineup: [], description: 'QA event' };
-    const qa = window.__qa = { saved: false, writes: [], failSave: false, failCopy: false, copied: [], eventRequests: 0, unexpected: [], empty: params.has('empty') };
+    const qa = window.__qa = { saved: false, writes: [], failSave: false, failCopy: false, copied: [], eventRequests: 0, unexpected: [], reports: [], empty: params.has('empty') };
     let releaseFonts, releaseEvents;
     const fontGate = new Promise(resolve => releaseFonts = resolve), eventsGate = new Promise(resolve => releaseEvents = resolve);
     qa.releaseFonts = releaseFonts; qa.releaseEvents = releaseEvents;
@@ -25,6 +25,8 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
       const url = new URL(String(input), location.origin), route = url.pathname.split('/api/v1')[1];
       if (!route) { if (url.origin === location.origin) return original(input, options); throw Error('External request blocked'); }
       const reply = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
+      if (route === '/wardrobe/mine') return reply({ deposits: [], staffAccess: false });
+      if (route === '/diagnostics/errors') { qa.reports.push(JSON.parse(options.body)); return new Response(null, { status: 204 }); }
       if (route === '/users/me') return reply(user);
       if (route === '/users/me/saved-events') return reply(qa.saved ? [event] : []);
       if (route === '/events') { qa.eventRequests++; await eventsGate; return reply(qa.empty ? [] : [event]); }
@@ -44,16 +46,14 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
   }.toString()})(${JSON.stringify(banner)},${JSON.stringify(id)});` });
   const el = id => `document.querySelector('[data-testid="${id}"]')`;
   await call('Page.navigate', { url: base });
-  await until(`${el('startup-cover')}?.querySelector('img')?.naturalWidth>0`);
-  assert.ok(await evaluate(`${el('startup-cover')}.getBoundingClientRect().height >= innerHeight-1`));
-  await capture('startup-logo');
-  await evaluate('window.__qa.releaseFonts()');
   await until(`!${el('startup-cover')} && ${el('home-loading-rails')} && ${el('home-loading-hero')}`);
   await capture('home-loading-skeleton');
   assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'), 'Skeleton rails cannot overflow the screen');
   await evaluate('window.__qa.releaseEvents()');
   await until(`${el('event-card-' + id)} && !${el('home-loading-rails')}`); await delay(350);
-  console.log('PASS startup covers font loading, releases without waiting for API, skeleton becomes real cards');
+  assert.equal(await evaluate(`!!${el('startup-cover')}`), false, 'Home renders even while font loading is blocked');
+  await evaluate('window.__qa.releaseFonts()');
+  console.log('PASS Home and skeletons render without a logo cover or waiting for fonts, then cards appear');
 
   const bookmark = 'event-bookmark-' + id;
   await click(bookmark);
@@ -106,6 +106,7 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
   await capture('profile-empty-states-small-ro');
   assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'));
   assert.deepEqual(await evaluate('window.__qa.unexpected'), []);
+  assert.deepEqual(await evaluate("window.__qa.reports.filter(r => r.operation !== 'api_request' || r.failure !== 'server_error' || r.httpStatus !== 503)"), [], 'Only the deliberately failed bookmark request may be reported');
   assert.deepEqual(errors, []);
   console.log('PASS compact empty states, Explore navigation, Romanian/narrow layout and reduced motion');
 }).catch(error => { console.error(error); process.exitCode = 1; });

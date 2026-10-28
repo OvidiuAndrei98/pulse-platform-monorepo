@@ -36,6 +36,9 @@ type Report struct {
 	Screen       string    `json:"screen"`
 	Breadcrumbs  []string  `json:"breadcrumbs"`
 	Frames       []Frame   `json:"frames"`
+	Operation    string    `json:"operation,omitempty"`
+	Failure      string    `json:"failure,omitempty"`
+	HTTPStatus   int       `json:"httpStatus,omitempty"`
 }
 type Entry struct {
 	Report
@@ -75,6 +78,11 @@ func (r Report) valid(now time.Time) bool {
 	if !oneOf(r.ErrorType, "Error|TypeError|ReferenceError|RangeError|SyntaxError|InvariantViolation|Unknown") || !oneOf(r.Category, "property_access|undefined_identifier|invalid_hook|render_exception|network|timeout|unknown") || !Screen(r.Screen) || len(r.Breadcrumbs) > 8 || len(r.Frames) > 12 {
 		return false
 	}
+	if r.Operation != "" || r.Failure != "" || r.HTTPStatus != 0 {
+		if !oneOf(r.Operation, "api_request|tickets_load|tickets_storage|orders_load|payment_prepare|payment_confirm|payment_present|payment_storage|payment_ticket_delivery|scanner_events|scanner_prepare|scanner_validate|scanner_sync|scanner_storage") || !oneOf(r.Failure, "server_error|invalid_response|storage_error|sdk_error|configuration|fulfillment_missing") || (r.HTTPStatus != 0 && (r.HTTPStatus < 500 || r.HTTPStatus > 599)) {
+			return false
+		}
+	}
 	for _, s := range r.Breadcrumbs {
 		if !Screen(s) {
 			return false
@@ -90,6 +98,10 @@ func (r Report) valid(now time.Time) bool {
 func fingerprint(r Report) string {
 	// Exclude timestamps/report IDs so repeated occurrences can be correlated.
 	data, _ := json.Marshal([]any{r.Platform, r.AppVersion, r.BuildVersion, r.ErrorType, r.Category, r.Screen, r.Frames})
+	if r.Operation != "" {
+		// Retries of one handled failure may have different JavaScript call sites.
+		data, _ = json.Marshal([]any{r.Platform, r.AppVersion, r.BuildVersion, r.Screen, r.Operation, r.Failure, r.HTTPStatus})
+	}
 	digest := sha256.Sum256(data)
 	return hex.EncodeToString(digest[:])
 }

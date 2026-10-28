@@ -1,34 +1,24 @@
+import { ActionIcon } from '../ui/ActionIcon';
 import { FormInput as TextInput } from '../ui/FormInput';
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Animated,
   AppState,
   Linking,
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
   useWindowDimensions,
-  type ViewStyle,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { BlurView } from "expo-blur";
-import {
-  CheckCircle2,
-  ClipboardCheck,
-  ScanLine,
-  X,
-  XCircle,
-} from "lucide-react-native";
+import { CheckCircle2, ClipboardCheck, ScanLine, XCircle } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePreferences } from "../PreferencesProvider";
-import { Button, Feedback, IconButton, Loading } from "../ui/common";
+import { Button, IconButton } from "../ui/common";
 import { Text } from "../ui/Text";
 import { Action, dColors as colors } from "../dashboard/common";
-import { formatDate } from "../data/events";
 import { SCAN_COOLDOWN_MS, type Admission, type ScanSource } from "./admission";
 import { scannerFrameSize } from './cameraFrame';
 import { GateToolbar, type GateStatus } from './GateToolbar';
@@ -299,7 +289,7 @@ export function ScannerPanel({
               label={copy("common.close")}
               onPress={() => setCamera(false)}
             >
-              <X size={20} color="white" />
+              <ActionIcon name="close" size={20} color="white" />
             </IconButton>
           </View>
           <GateToolbar status={gateStatus} settings={experience.settings} toggle={experience.toggle} awake={experience.awake} soundAvailable={experience.soundAvailable} />
@@ -376,254 +366,6 @@ export function ScannerPanel({
   );
 }
 
-export function ScannerHistoryPanel({
-  open,
-  onClose,
-  loading,
-  error,
-  onRetry,
-  history,
-}: {
-  open: boolean;
-  onClose(): void;
-  loading: boolean;
-  error: boolean;
-  onRetry(): void;
-  history?: {
-    totalScans: number;
-    scans: { ticketId: string; ticketType: string; validatedAt: string }[];
-  };
-}) {
-  const { copy, language } = usePreferences(),
-    insets = useSafeAreaInsets(),
-    { width } = useWindowDimensions();
-  const [visible, setVisible] = useState(open),
-    x = useRef(new Animated.Value(1)).current,
-    panelWidth = Math.min(448, width);
-  useEffect(() => {
-    if (open) setVisible(true);
-    const animation = Animated.spring(x, {
-      toValue: open ? 0 : 1,
-      stiffness: 320,
-      damping: 34,
-      mass: 1,
-      useNativeDriver: Platform.OS !== "web",
-    });
-    animation.start(({ finished }) => {
-      if (finished && !open) setVisible(false);
-    });
-    return () => animation.stop();
-  }, [open, x]);
-  useEffect(() => {
-    if (!open || Platform.OS !== "web") return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open, onClose]);
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
-      <View style={{ flex: 1 }}>
-        <Animated.View
-          style={{
-            position: "absolute",
-            inset: 0,
-            opacity: x.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
-          }}
-        >
-          {Platform.OS !== "web" && (
-            <BlurView
-              intensity={20}
-              tint="dark"
-              style={StyleSheet.absoluteFill}
-            />
-          )}
-          <Pressable
-            accessibilityLabel={copy("common.close")}
-            onPress={onClose}
-            style={[
-              { flex: 1, backgroundColor: "#000000a6" },
-              Platform.OS === "web" &&
-                ({ backdropFilter: "blur(4px)" } as ViewStyle),
-            ]}
-          />
-        </Animated.View>
-        <Animated.View
-          testID="scanner-history-drawer"
-          accessibilityViewIsModal
-          style={{
-            width: panelWidth,
-            height: "100%",
-            position: "absolute",
-            right: 0,
-            backgroundColor: "#0b0e0c",
-            borderLeftWidth: 1,
-            borderLeftColor: "#ffffff1a",
-            boxShadow: "-24px 0px 70px rgba(0,0,0,0.5)",
-            transform: [
-              {
-                translateX: x.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, panelWidth],
-                }),
-              },
-            ],
-          }}
-        >
-          <View
-            style={[
-              s.row,
-              {
-                alignItems: "flex-start",
-                gap: 16,
-                borderBottomWidth: 1,
-                borderBottomColor: "#ffffff1a",
-                paddingHorizontal: 20,
-                paddingBottom: 20,
-                paddingTop: Math.max(20, insets.top + 16),
-              },
-            ]}
-          >
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text style={s.eyebrow}>{copy("validation.yourScans")}</Text>
-              <Text style={[s.heading, { fontSize: 20, fontWeight: "700" }]}>
-                {copy("validation.scanHistory")}
-              </Text>
-              <Text style={s.muted}>{copy("validation.scansForEvent")}</Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={copy("common.close")}
-              onPress={onClose}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: "#ffffff1a",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <X size={20} color={colors.muted} />
-            </Pressable>
-          </View>
-          <View
-            style={{
-              padding: 20,
-              borderBottomWidth: 1,
-              borderColor: "#ffffff1a",
-            }}
-          >
-            <View
-              style={{
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: "#ff004440",
-                backgroundColor: "#ff00440f",
-                padding: 16,
-              }}
-            >
-              <Text style={s.eyebrow}>{copy("validation.totalScans")}</Text>
-              <Text
-                style={{
-                  marginTop: 4,
-                  fontSize: 36,
-                  fontWeight: "700",
-                  color: colors.text,
-                }}
-              >
-                {loading || error ? "–" : (history?.totalScans ?? 0)}
-              </Text>
-            </View>
-          </View>
-          <ScrollView
-            contentContainerStyle={{
-              padding: 20,
-              paddingBottom: Math.max(24, insets.bottom + 16),
-              gap: 12,
-            }}
-          >
-            {loading ? (
-              <Loading />
-            ) : error ? (
-              <Feedback
-                compact
-                title={copy("feedback.loadFailed")}
-                retry={onRetry}
-              />
-            ) : history?.scans.length ? (
-              history.scans.map((scan) => (
-                <View
-                  key={scan.ticketId}
-                  style={{
-                    padding: 16,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: "#ffffff1a",
-                    backgroundColor: "#ffffff09",
-                  }}
-                >
-                  <View style={[s.row, { alignItems: "flex-start", gap: 12 }]}>
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <Text
-                        style={[s.heading, { fontSize: 14 }]}
-                        numberOfLines={1}
-                      >
-                        {scan.ticketType}
-                      </Text>
-                      <Text style={s.tiny}>
-                        {formatDate(scan.validatedAt, language, true)}
-                      </Text>
-                    </View>
-                    <CheckCircle2 size={16} color={colors.accent} />
-                  </View>
-                  <Text
-                    selectable
-                    style={[
-                      s.tiny,
-                      {
-                        marginTop: 12,
-                        fontSize: 11,
-                        fontFamily:
-                          Platform.OS === "ios" ? "Menlo" : "monospace",
-                      },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {copy("validation.ticketId", { id: scan.ticketId })}
-                  </Text>
-                </View>
-              ))
-            ) : (
-              <View
-                style={{
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderStyle: "dashed",
-                  borderColor: "#ffffff26",
-                  paddingHorizontal: 16,
-                  paddingVertical: 32,
-                }}
-              >
-                <Text style={[s.muted, { textAlign: "center" }]}>
-                  {copy("validation.noScansYet")}
-                </Text>
-              </View>
-            )}
-          </ScrollView>
-        </Animated.View>
-      </View>
-    </Modal>
-  );
-}
 export const s = StyleSheet.create({
   panel: {
     padding: 20,

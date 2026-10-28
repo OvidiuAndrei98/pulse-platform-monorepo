@@ -31,8 +31,8 @@ import (
 )
 
 const (
-	platformFeePercent       = int64(4)
-	platformFeePerTicketBani = int64(250)
+	platformFeePercent       = int64(5)
+	platformFeePerTicketBani = int64(150)
 	checkoutExpiration       = 30 * time.Minute
 	maxCheckoutJSONBytes     = 32 << 10
 	maxActiveCheckoutOrders  = 3
@@ -72,13 +72,16 @@ type CheckoutItemRequest struct {
 	Quantity     int32  `json:"quantity"`
 }
 
+type expectedCheckoutTotalKey struct{}
+
 type CreateCheckoutRequest struct {
-	Email          string                `json:"email"`
-	Items          []CheckoutItemRequest `json:"items"`
-	PromoCode      string                `json:"promoCode"`
-	BillingDetails BillingDetailsRequest `json:"billingDetails"`
-	Client         string                `json:"client,omitempty"`
-	ReturnOrigin   string                `json:"returnOrigin,omitempty"`
+	ExpectedTotalBani *int64                `json:"expectedTotalBani,omitempty"`
+	Email             string                `json:"email"`
+	Items             []CheckoutItemRequest `json:"items"`
+	PromoCode         string                `json:"promoCode"`
+	BillingDetails    BillingDetailsRequest `json:"billingDetails"`
+	Client            string                `json:"client,omitempty"`
+	ReturnOrigin      string                `json:"returnOrigin,omitempty"`
 }
 
 type BillingDetailsRequest struct {
@@ -254,6 +257,7 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	r = r.WithContext(context.WithValue(r.Context(), expectedCheckoutTotalKey{}, req.ExpectedTotalBani))
 	order, checkoutItems, eventTitle, eventIDString, organizerStripeAccount, organizerAbsorbsServiceFee, err := h.reserveOrder(r.Context(), eventID, userID, req.Email, reservationIPHash, items, totalTicketCount, req.PromoCode, billingDetails)
 	if err != nil {
 		var requestError *checkoutRequestError
@@ -833,7 +837,11 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusBadRequest, message: "Valoarea totala a comenzii este invalida"}
 	}
 
-	platformFeeBani := calculatePlatformFeeBani(totalAmount*100, totalTicketCount)
+	commission, err := qtx.GetEffectiveCommission(ctx, event.OrganizerID)
+	if err != nil {
+		return db.Orders{}, nil, "", "", "", false, err
+	}
+	platformFeeBani := calculateCommissionBani(totalAmount*100, totalTicketCount, commission.RateBps, commission.PerTicketBani)
 	if event.OrganizerAbsorbsServiceFee && platformFeeBani >= totalAmount*100 {
 		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusBadRequest, message: "Valoarea biletelor trebuie sa depaseasca comisionul platformei"}
 	}
@@ -842,6 +850,15 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 		customerTicketingFeeBani = platformFeeBani
 	}
 
+	expected, _ := ctx.Value(expectedCheckoutTotalKey{}).(*int64)
+	// Buyer-paid fees require an explicit quote. Older clients without one must
+	// refresh/update instead of silently accepting a new standard or negotiated fee.
+	if (expected != nil && *expected != totalAmount*100+customerTicketingFeeBani) || (expected == nil && !event.OrganizerAbsorbsServiceFee) {
+		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusConflict, message: "CHECKOUT_PRICE_CHANGED"}
+	}
+	if platformFeeBani > int64(^uint32(0)>>1) || totalAmount*100+customerTicketingFeeBani > int64(^uint32(0)>>1) {
+		return db.Orders{}, nil, "", "", "", false, &checkoutRequestError{status: http.StatusBadRequest, message: "Valoarea totala a comenzii este invalida"}
+	}
 	for _, item := range items {
 		if err := qtx.IncrementTicketsSold(ctx, db.IncrementTicketsSoldParams{
 			ID:          item.ticketType.ID,
@@ -1051,6 +1068,11 @@ func (h *CheckoutHandler) fulfillPaidOrder(ctx context.Context, sessionID, payme
 	// the payment identity stored during Checkout creation or reconciliation.
 	if order.StripePaymentIntentID.Valid && order.StripePaymentIntentID.String != "" && order.StripePaymentIntentID.String != paymentIntentID {
 		return tx.Commit(ctx)
+	}
+	// Paid-but-not-yet-fulfilled orders must remain visible for support/recovery,
+	// including an event closing while the payment was being authorized.
+	if _, err := tx.Exec(ctx, `INSERT INTO checkout_payment_attempts(order_id) VALUES($1) ON CONFLICT DO NOTHING`, order.ID); err != nil {
+		return err
 	}
 	if order.Status == db.OrderStatusPending || order.Status == db.OrderStatusFailed {
 		// Checkout creation commonly returns before Stripe attaches its
@@ -1673,6 +1695,7 @@ func (h *CheckoutHandler) retrieveCheckoutSession(ctx context.Context, sessionID
 		return nil, errors.New("Stripe checkout client is not configured")
 	}
 	params := &stripe.CheckoutSessionRetrieveParams{}
+	params.AddExpand("payment_intent")
 	if connectedAccountID != "" {
 		params.SetStripeAccount(connectedAccountID)
 	}
@@ -1890,9 +1913,12 @@ func parseCheckoutItems(w http.ResponseWriter, requested []CheckoutItemRequest) 
 	return items, total, true
 }
 
+// Ceiling to a ban is shared by the checkout preview and the persisted order.
+func calculateCommissionBani(totalBani int64, ticketCount, rateBps, perTicketBani int32) int64 {
+	return (totalBani*int64(rateBps)+9999)/10000 + int64(ticketCount)*int64(perTicketBani)
+}
 func calculatePlatformFeeBani(totalBani int64, ticketCount int32) int64 {
-	percentageFee := (totalBani*platformFeePercent + 99) / 100
-	return percentageFee + int64(ticketCount)*platformFeePerTicketBani
+	return calculateCommissionBani(totalBani, ticketCount, int32(platformFeePercent*100), int32(platformFeePerTicketBani))
 }
 
 func normalizeBillingDetails(details BillingDetailsRequest) (BillingDetailsRequest, error) {

@@ -1,3 +1,5 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -8,12 +10,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import {
-  List,
-  Map as MapIcon,
-  SlidersHorizontal,
-  X,
-} from "lucide-react-native";
+import { List, Map as MapIcon, SlidersHorizontal } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   useNavigation,
@@ -260,14 +257,14 @@ export function DiscoveryScreen() {
                   {copy("filters.title")}
                 </Text>
               </View>
-              <Pressable
+              <GlassPressable fallback={Pressable}
                 accessibilityLabel={copy("common.close")}
                 accessibilityRole="button"
                 onPress={() => setOpen(false)}
                 style={s.close}
               >
-                <X size={14} color="white" />
-              </Pressable>
+                <ActionIcon name="close" size={14} color="white" />
+              </GlassPressable>
             </View>
             <ScrollView
               contentContainerStyle={{ padding: 24, paddingTop: 20, gap: 24 }}

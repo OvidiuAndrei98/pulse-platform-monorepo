@@ -125,7 +125,7 @@ func (h *ConnectWebhookHandler) HandleStripeConnectWebhook(w http.ResponseWriter
 
 func (h *ConnectWebhookHandler) handleDirectChargeEvent(r *http.Request, event stripe.Event) (bool, error) {
 	switch string(event.Type) {
-	case "payment_intent.succeeded", "payment_intent.canceled":
+	case "payment_intent.succeeded", "payment_intent.canceled", "payment_intent.processing", "payment_intent.requires_action", "payment_intent.payment_failed":
 		var intent stripe.PaymentIntent
 		if event.Data == nil || json.Unmarshal(event.Data.Raw, &intent) != nil {
 			return true, errors.New("invalid native PaymentIntent")
@@ -169,16 +169,6 @@ func (h *ConnectWebhookHandler) handleDirectChargeEvent(r *http.Request, event s
 			return true, errors.New("direct checkout handler or connected account is missing")
 		}
 		return true, h.checkout.ReleaseExpiredCheckout(r.Context(), session, event.Account)
-
-	case "payment_intent.payment_failed":
-		var paymentIntent stripe.PaymentIntent
-		if event.Data == nil || json.Unmarshal(event.Data.Raw, &paymentIntent) != nil {
-			return true, errors.New("invalid failed PaymentIntent")
-		}
-		// A failed PaymentIntent is only a failed attempt. Checkout can attach a
-		// new payment method and later complete the same Session successfully.
-		log.Printf("Stripe direct payment attempt failed (reservation retained): payment_intent=%s account=%s", paymentIntent.ID, event.Account)
-		return true, nil
 
 	case "charge.refunded":
 		var charge stripe.Charge

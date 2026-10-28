@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, View, useWindowDimensions } from "react-native";
-import { useQuery } from "@tanstack/react-query";
-import type { components } from "@packages/api-client/src/schema";
 import {
   ArrowUpRight,
   Building2,
@@ -24,6 +22,8 @@ import { Text } from "../ui/Text";
 import { EventImage, Feedback, Loading } from "../ui/common";
 import { formatDate } from "../data/events";
 import { useTickets } from "../data/useTickets";
+import { useOrders } from "../data/useOrders";
+import { isConfirmedPurchase, orderTotalBani, orderStatusKey } from "../../../pulse-app/src/features/checkout/orderHistory";
 import { TicketAvailability } from '../profile/TicketAvailability';
 import {
   TicketSheet,
@@ -31,6 +31,7 @@ import {
   type UserTicket,
 } from "../profile/TicketSheet";
 import { uploadProfileAvatar } from "../profile/avatar";
+import { OrganizerAccountClosure } from "../profile/OrganizerAccountClosure";
 import { formatRon } from "../../../pulse-app/src/features/events/serviceFee";
 import { Action, Field, dColors as colors, useAction } from "./common";
 import type { OrganizerProfile } from "./data";
@@ -474,6 +475,7 @@ export function DashboardProfile({
           </>,
         )}
       </Grid>
+      <OrganizerAccountClosure />
     </>
   );
 }
@@ -485,29 +487,7 @@ export function DashboardPurchases() {
     { copy, language } = usePreferences(),
     { width } = useWindowDimensions(),
     tickets = useTickets(true, !!ticket);
-  const orders = useQuery({
-    queryKey: ["dashboard-purchases-orders", user?.id],
-    enabled: !!user,
-    queryFn: async ({ signal }) => {
-      const value = await accountApi<
-        components["schemas"]["UserOrderResponse"][] | null
-      >("/users/me/orders", { signal });
-      if (value === null) return [];
-      if (
-        !Array.isArray(value) ||
-        value.some(
-          (row) =>
-            !row ||
-            typeof row.id !== "string" ||
-            typeof row.eventTitle !== "string" ||
-            !Number.isFinite(row.paidTotalBani) ||
-            !Number.isFinite(Date.parse(row.createdAt)),
-        )
-      )
-        throw new Error("Invalid orders");
-      return value;
-    },
-  });
+  const orders = useOrders();
   const empty = (Icon: LucideIcon, title: string, hint: string) => (
     <View
       style={{
@@ -584,7 +564,7 @@ export function DashboardPurchases() {
                 {copy(
                   value === "tickets"
                     ? "purchases.tickets"
-                    : "purchases.invoices",
+                    : "purchases.orders",
                 )}
               </Text>
               <Text
@@ -711,6 +691,7 @@ export function DashboardPurchases() {
           {orders.data.map((order, i) => (
             <View
               key={order.id}
+              testID={`order-${order.id}`}
               style={{
                 flexDirection: "row",
                 gap: 12,
@@ -760,14 +741,13 @@ export function DashboardPurchases() {
                     color: colors.text,
                   }}
                 >
-                  {formatRon(order.paidTotalBani / 100)}
+                  {formatRon(orderTotalBani(order) / 100)}
+                </Text>
+                <Text style={{ fontSize: 10, color: colors.muted }}>
+                  {copy(isConfirmedPurchase(order) ? "orders.paidTotal" : "orders.orderTotal")}
                 </Text>
                 <Text style={{ fontSize: 11, color: colors.muted }}>
-                  {["completed", "pending", "canceled", "refunded"].includes(
-                    order.status,
-                  )
-                    ? copy("orders." + order.status)
-                    : order.status}
+                  {copy(orderStatusKey(order.status))}
                 </Text>
                 {order.refundedAmountBani > 0 && (
                   <Text

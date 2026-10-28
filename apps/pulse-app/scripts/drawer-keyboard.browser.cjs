@@ -90,6 +90,7 @@ async function run() {
       const method = (init?.method || (typeof input !== 'string' && input.method) || 'GET').toUpperCase();
       state.requests.push(route + url.search);
       const respond = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+      if (route === '/wardrobe/mine') return respond({ deposits: [], staffAccess: false });
       const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
       if (route === '/users/me') return respond({ id: 'test-user', username: 'Test User', email: 'test@example.com', role: location.pathname.startsWith('/dashboard') ? 'organizer' : 'user', preferredLanguage: 'en' });
       if (route === '/users/me/billing-details' && method === 'GET') return respond(state.billing ? { details: state.billing } : {});
@@ -147,7 +148,7 @@ async function run() {
     const bounds = await evaluate('({top:__panel.getBoundingClientRect().top,bottom:__panel.getBoundingClientRect().bottom,fieldTop:__field.getBoundingClientRect().top,fieldBottom:__field.getBoundingClientRect().bottom,scroll:scrollY})');
     assert.ok(bounds.bottom<=421 && bounds.top>=0,JSON.stringify(bounds));
     assert.ok(bounds.fieldTop>=bounds.top && bounds.fieldBottom<=bounds.bottom,'Focused field stays visible: '+JSON.stringify(bounds));
-    assert.ok(await evaluate("document.body.style.position==='fixed' || (document.body.hasAttribute('data-scroll-locked') && getComputedStyle(document.body).overflowY==='hidden')"),'Keyboard keeps the underlying page locked');
+    assert.ok(await evaluate("document.body.style.position==='fixed' || (getComputedStyle(document.body).overflowY==='hidden' && (document.body.hasAttribute('data-scroll-locked') || getComputedStyle(document.documentElement).overflowY==='hidden'))"),'Keyboard keeps the underlying page locked, including the scroll-preserving side-panel lock');
     const currentTop=bounds.top;
     await keyboard(390,30);
     assert.ok(Math.abs(await evaluate('__panel.getBoundingClientRect().top')-currentTop-30)<2,'Compensate viewport pan once, not twice');

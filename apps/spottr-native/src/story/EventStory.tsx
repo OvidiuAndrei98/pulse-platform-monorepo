@@ -1,7 +1,9 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Svg, { Defs, G, Image, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
-import { ArrowLeft, Copy, Download, Share2 } from 'lucide-react-native';
+import { Copy, Download, Share2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { Text } from '../ui/Text';
@@ -52,7 +54,7 @@ export function EventStory({ event, onClose }: { event: Event; onClose: () => vo
   };
   return <Modal visible animationType="fade" presentationStyle="fullScreen" onRequestClose={onClose}>
     <View testID="event-story" style={[s.screen, { paddingTop: Math.max(safe.top, 16), paddingBottom: Math.max(safe.bottom, 16) }]}>
-      <View style={s.header}><Pressable testID="story-close" accessibilityRole="button" accessibilityLabel={copy('common.back')} onPress={onClose} style={s.back}><ArrowLeft size={20} color="white" /></Pressable><Text style={s.title}>{copy('eventStory.title')}</Text><View style={{ width: 44 }} /></View>
+      <View style={s.header}><GlassPressable fallback={Pressable} testID="story-close" accessibilityRole="button" accessibilityLabel={copy('common.back')} onPress={onClose} style={s.back}><ActionIcon name="back" size={20} color="white" /></GlassPressable><Text style={s.title}>{copy('eventStory.title')}</Text><View style={{ width: 44 }} /></View>
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         {!image ? <View style={{ width, aspectRatio: 9 / 16, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24, borderRadius: 20, backgroundColor: '#131012' }}>{error ? <><Text accessibilityRole="alert" style={s.hint}>{copy(error)}</Text><Pressable accessibilityRole="button" testID="story-image-retry" onPress={() => setRetry(x => x + 1)} style={[s.back, { paddingHorizontal: 16 }]}><Text style={{ color: colors.accent }}>{copy('common.retry')}</Text></Pressable></> : <ActivityIndicator color={colors.accent} />}</View> :
           <Svg ref={svg} testID="story-artwork" width={width} height={width * 16 / 9} viewBox="0 0 1080 1920" style={{ overflow: 'hidden' }} accessibilityLabel={event.title}>

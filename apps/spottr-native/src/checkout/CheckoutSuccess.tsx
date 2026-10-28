@@ -13,16 +13,16 @@ import { colors } from '../ui/theme';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-export function PaymentSuccessCheck() {
+export function PaymentSuccessCheck({ green = false, size = 76 }: { green?: boolean; size?: number }) {
   const reduceMotion = useReducedMotion(), progress = useSharedValue(reduceMotion ? 1 : 0);
   const animatedProps = useAnimatedProps(() => ({ strokeDashoffset: 50 * (1 - progress.value) }));
   useEffect(() => {
     progress.value = withTiming(1, { duration: reduceMotion ? 0 : 460, easing: Easing.out(Easing.cubic) });
     return () => cancelAnimation(progress);
   }, [progress, reduceMotion]);
-  return <View testID="checkout-success-check" style={s.check}>
+  return <View testID="checkout-success-check" style={[s.check, { width: size, height: size, borderRadius: size / 2 }, green && { backgroundColor: '#10b9810a', borderWidth: 2, borderColor: '#10b981' }]}>
     <Svg width={40} height={40} viewBox="0 0 40 40" pointerEvents="none">
-      <AnimatedPath d="M9 20.5 16.5 28 31 12" stroke={colors.accent} strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="50 50" animatedProps={animatedProps} />
+      <AnimatedPath d="M9 20.5 16.5 28 31 12" stroke={green ? '#10b981' : colors.accent} strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="50 50" animatedProps={animatedProps} />
     </Svg>
   </View>;
 }

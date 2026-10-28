@@ -1,6 +1,8 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, Share, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { ArrowLeft, BadgeCheck, Check, ChevronLeft, ChevronRight, Info, Share2, UserMinus, UserPlus, UsersRound, X } from 'lucide-react-native';
+import { BadgeCheck, Check, ChevronLeft, ChevronRight, Info, UserMinus, UserPlus, UsersRound } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -77,8 +79,8 @@ export function PublicProfileScreen({ route, navigation }: NativeStackScreenProp
           <LinearGradient colors={['#00000040', '#0000001a', '#050505']} style={StyleSheet.absoluteFill} />
           <LinearGradient colors={['transparent', '#05050580', '#050505']} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '67%' }} />
           <View style={[s.controls, { paddingTop: Math.max(20, safe.top) }]}>
-            <Pressable testID="public-profile-back" accessibilityRole="button" accessibilityLabel={copy('common.back')} onPress={back} style={s.icon}><X size={16} color={colors.text} strokeWidth={2.2} /></Pressable>
-            <Pressable testID="public-profile-share" accessibilityRole="button" accessibilityLabel={copy('publicProfile.share')} onPress={() => void share()} style={s.icon}><Share2 size={16} color={colors.text} strokeWidth={2.2} /></Pressable>
+            <GlassPressable fallback={Pressable} testID="public-profile-back" accessibilityRole="button" accessibilityLabel={copy('common.back')} onPress={back} style={s.icon}><ActionIcon name="close" size={16} color={colors.text} strokeWidth={2.2} /></GlassPressable>
+            <GlassPressable fallback={Pressable} testID="public-profile-share" accessibilityRole="button" accessibilityLabel={copy('publicProfile.share')} onPress={() => void share()} style={s.icon}><ActionIcon name="share" size={16} color={colors.text} strokeWidth={2.2} /></GlassPressable>
           </View>
           <View style={{ paddingHorizontal: 20, paddingTop: 96, paddingBottom: 20 }}>
             <Text style={{ color: colors.accent, fontSize: 11, fontWeight: '700', letterSpacing: 1.98, textTransform: 'uppercase', marginBottom: 8 }}>@{profile.username}</Text>
@@ -118,7 +120,7 @@ export function PublicProfileScreen({ route, navigation }: NativeStackScreenProp
 }
 function Back({ onPress }: { onPress: () => void }) {
   const { copy } = usePreferences();
-  return <Pressable testID="public-profile-back" accessibilityRole="button" onPress={onPress} style={{ minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 8 }}><ArrowLeft size={16} color={colors.muted} /><Text style={{ fontSize: 12, color: colors.muted, fontWeight: '600' }}>{copy('common.back')}</Text></Pressable>;
+  return <GlassPressable fallback={Pressable} glassStyle={{ paddingHorizontal: 12 }} testID="public-profile-back" accessibilityRole="button" onPress={onPress} style={{ minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 8 }}><ActionIcon name="back" size={16} color={colors.muted} /><Text style={{ fontSize: 12, color: colors.muted, fontWeight: '600' }}>{copy('common.back')}</Text></GlassPressable>;
 }
 function Verified({ size = 24 }: { size?: number }) { const { copy } = usePreferences(); return <BadgeCheck accessibilityLabel={copy('publicProfile.verifiedOrganizer')} size={size} color={colors.accent} />; }
 function ProfileActions({ profile, signIn, large }: { profile: PublicProfile; signIn: () => void; large?: boolean }) {

@@ -74,7 +74,7 @@ func TestNativePaymentCreationAndIdempotentReplay(t *testing.T) {
 			if r.URL.Path != "/v1/payment_intents" || !strings.HasPrefix(r.Header.Get("Idempotency-Key"), "spottr-native-sheet-") {
 				t.Error("wrong native create/idempotency context")
 			}
-			if r.Form.Get("amount") != "5450" || r.Form.Get("application_fee_amount") != "450" || r.Form.Get("currency") != "ron" || r.Form.Get("capture_method") != "automatic" || r.Form.Get("payment_method_types[0]") != "card" {
+			if r.Form.Get("amount") != "5400" || r.Form.Get("application_fee_amount") != "400" || r.Form.Get("currency") != "ron" || r.Form.Get("capture_method") != "automatic" || r.Form.Get("payment_method_types[0]") != "card" {
 				t.Error("native charge amount/fee/method not preserved")
 			}
 			amount, _ := strconv.ParseInt(r.Form.Get("amount"), 10, 64)
@@ -84,7 +84,8 @@ func TestNativePaymentCreationAndIdempotentReplay(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(intent)
 	})
-	body, _ := json.Marshal(CreateCheckoutRequest{Email: f.buyerEmail, Client: checkoutClientNativeSheet, Items: []CheckoutItemRequest{{TicketTypeID: common.UUIDToString(f.paidTicketID), Quantity: 1}}, BillingDetails: BillingDetailsRequest{Type: "individual", Name: "Buyer", Address: "Address", City: "City", County: "County", Country: "RO"}})
+	expectedTotal := int64(5400)
+	body, _ := json.Marshal(CreateCheckoutRequest{ExpectedTotalBani: &expectedTotal, Email: f.buyerEmail, Client: checkoutClientNativeSheet, Items: []CheckoutItemRequest{{TicketTypeID: common.UUIDToString(f.paidTicketID), Quantity: 1}}, BillingDetails: BillingDetailsRequest{Type: "individual", Name: "Buyer", Address: "Address", City: "City", County: "County", Country: "RO"}})
 	var original NativePaymentSheetResponse
 	for attempt := range 2 {
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(string(body)))
@@ -318,10 +319,77 @@ func TestNativePaymentFailedAttemptRetainsReservationAndEventClosureHoldsPaidOrd
 	intent.Status = stripe.PaymentIntentStatusSucceeded
 	intent.AmountReceived = 10000
 	status, err = h.reconcileNativePaymentIntent(ctx, order, &intent, time.Now().Add(time.Minute), false)
-	if err != nil || status != "failed" {
+	if err != nil || status != "pending" {
 		t.Fatalf("closed event payment: status=%s err=%v", status, err)
 	}
 	assertCheckoutRetryState(t, pool, f, "pending", 2, 0, true)
+	// A user cancelling the screen after the charge succeeded must not receive
+	// a retryable failed/cancelled result or lose the payment recovery record.
+	status, err = h.reconcileNativePaymentIntent(ctx, order, &intent, time.Now().Add(-time.Minute), true)
+	if err != nil || status != "pending" {
+		t.Fatalf("paid review after cancellation: status=%s err=%v", status, err)
+	}
+	assertCheckoutRetryState(t, pool, f, "pending", 2, 0, true)
+}
+
+func TestNativePaymentAbandonedAppExpiresWithoutIssuingTickets(t *testing.T) {
+	pool, h, f, _, intent := seedNativePaymentFixture(t)
+	ctx := context.Background()
+	intent.Status = stripe.PaymentIntentStatusRequiresPaymentMethod
+	intent.AmountReceived = 0
+	var canceled atomic.Bool
+	var cancels atomic.Int32
+	useNativeStripeMock(t, h, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Header.Get("Stripe-Account") != f.accountID {
+			t.Error("abandoned payment used the wrong connected account")
+		}
+		if r.Method == http.MethodPost {
+			if r.URL.Path != "/v1/payment_intents/"+intent.ID+"/cancel" {
+				t.Error("unexpected payment operation during abandonment")
+			}
+			cancels.Add(1)
+			canceled.Store(true)
+		}
+		value := intent
+		if canceled.Load() {
+			value.Status = stripe.PaymentIntentStatusCanceled
+		}
+		_ = json.NewEncoder(w).Encode(value)
+	})
+	// Opening PaymentSheet reserves stock but the app is killed before paying.
+	// There is no client reconcile/cancel callback; only the server worker runs.
+	if _, err := pool.Exec(ctx, `UPDATE orders SET created_at=clock_timestamp()-interval '1 minute',checkout_reconcile_after=clock_timestamp()-interval '1 minute' WHERE id=$1`, f.orderID); err != nil {
+		t.Fatal(err)
+	}
+	h.reconcilePendingPaymentSheets(ctx)
+	assertCheckoutRetryState(t, pool, f, "pending", 2, 0, false)
+	if cancels.Load() != 0 {
+		t.Fatal("unexpired reservation was canceled before its payment window ended")
+	}
+	if _, err := pool.Exec(ctx, `UPDATE native_payment_sheet_orders SET expires_at=clock_timestamp()-interval '1 minute' WHERE order_id=$1`, f.orderID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE orders SET checkout_reconcile_after=clock_timestamp()-interval '1 minute' WHERE id=$1`, f.orderID); err != nil {
+		t.Fatal(err)
+	}
+	h.reconcilePendingPaymentSheets(ctx)
+	assertCheckoutRetryState(t, pool, f, "failed", 0, 0, false)
+	h.reconcilePendingPaymentSheets(ctx)
+	assertCheckoutRetryState(t, pool, f, "failed", 0, 0, false)
+	if cancels.Load() != 1 {
+		t.Fatalf("abandoned payment canceled %d times, want exactly once", cancels.Load())
+	}
+	var invoiceCount, notificationCount int
+	if err := pool.QueryRow(ctx, `SELECT COUNT(*) FROM billing_invoices WHERE order_id=$1`, f.orderID).Scan(&invoiceCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT COUNT(*) FROM notifications WHERE event_id=$1`, f.eventID).Scan(&notificationCount); err != nil {
+		t.Fatal(err)
+	}
+	if invoiceCount != 0 || notificationCount != 0 {
+		t.Fatalf("abandoned payment emitted purchase artifacts: invoices=%d notifications=%d", invoiceCount, notificationCount)
+	}
 }
 
 func TestNativePaymentExpiredReplayNeverInvitesRetryWhileStillPayable(t *testing.T) {

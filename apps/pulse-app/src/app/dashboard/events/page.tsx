@@ -12,16 +12,26 @@ import {
   UsersRound,
   Clock3,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
-import { formatEventDateShort } from "@/features/events/dateFormat";
+import {
+  formatEventDateShort,
+  formatEventTime,
+} from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { useEventDetails } from "@/components/EventDetailsSheet";
 
-type Filter = "all" | "published" | "scheduled" | "draft" | "completed";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  dashboardEventFilters,
+  filterDashboardEvents,
+  parseDashboardEventFilter,
+  type DashboardEventFilter,
+} from "@/features/events/dashboardEvents";
+import { useDashboardClock } from "@/features/events/useDashboardClock";
 
 function EventRowSkeleton() {
   return (
@@ -37,36 +47,45 @@ function EventRowSkeleton() {
 }
 
 export default function EventsListPage() {
+  return (
+    <Suspense fallback={<EventRowSkeleton />}>
+      <EventsListContent />
+    </Suspense>
+  );
+}
+function EventsListContent() {
   const { t, i18n } = useTranslation();
   const { user } = useDataProvider();
   const { close: closeEventDetails } = useEventDetails();
   const { events, eventsLoading, eventsError } = User.useOrganizerEvents(user);
-  const [filter, setFilter] = useState<Filter>("all");
+  const router = useRouter(),
+    params = useSearchParams();
+  const filter = parseDashboardEventFilter(params.get("filter"));
+  const filterStrip = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const active = filterStrip.current?.querySelector<HTMLButtonElement>(
+      '[aria-pressed="true"]',
+    );
+    if (active && filterStrip.current)
+      filterStrip.current.scrollLeft = Math.max(0, active.offsetLeft - 12);
+  }, [filter]);
+  const setFilter = (value: DashboardEventFilter) => {
+    const next = new URLSearchParams(params.toString());
+    if (value === "all") next.delete("filter");
+    else next.set("filter", value);
+    router.replace(
+      "/dashboard/events" + (next.size ? "?" + next.toString() : ""),
+      { scroll: false },
+    );
+  };
+  const now = useDashboardClock(events);
   const [q, setQ] = useState("");
 
-  const filtered = useMemo(() => {
-    return (events || []).filter((e) => {
-      const completed =
-        e.status === "completed" || new Date(e.endTime).getTime() <= Date.now();
-      if (filter === "published" && (completed || e.status !== "published"))
-        return false;
-      if (filter === "scheduled" && (completed || e.status !== "scheduled"))
-        return false;
-      if (filter === "draft" && (completed || e.status !== "draft"))
-        return false;
-      if (filter === "completed" && !completed) return false;
-      if (q && !e.title.toLowerCase().includes(q.toLowerCase())) return false;
-      return true;
-    });
-  }, [filter, q, events]);
-
-  const filterOptions = [
-    { id: "all", label: t("organizerEvents.all") },
-    { id: "published", label: t("organizerEvents.published") },
-    { id: "scheduled", label: t("organizerEvents.scheduled") },
-    { id: "draft", label: t("organizerEvents.draft") },
-    { id: "completed", label: t("organizerEvents.completed") },
-  ] as const;
+  const filtered = filterDashboardEvents(events, filter, q, now);
+  const filterOptions = dashboardEventFilters.map((id) => ({
+    id,
+    label: t("organizerEvents." + id),
+  }));
 
   return (
     <div className="w-full text-foreground pb-[110px]">
@@ -80,7 +99,9 @@ export default function EventsListPage() {
             <p className="text-xs sm:text-sm text-muted-foreground">
               {t("organizerEvents.total", {
                 total: (events || []).length,
-                published: (events || []).filter((e) => e.status === "published").length,
+                published: (events || []).filter(
+                  (e) => e.status === "published",
+                ).length,
               })}
             </p>
           </div>
@@ -95,7 +116,7 @@ export default function EventsListPage() {
         </div>
 
         {/* FILTERS & SEARCH BAR */}
-        <div className="flex flex-col sm:flex-row items-center gap-3">
+        <div className="flex flex-col items-stretch gap-3">
           {/* Search Input */}
           <div className="relative flex-1 w-full">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -108,14 +129,19 @@ export default function EventsListPage() {
           </div>
 
           {/* SEGMENTED CONTROL */}
-          <div className="relative grid h-11 w-full shrink-0 grid-cols-5 items-center rounded-full border border-white/10 bg-white/5 p-1 sm:flex sm:w-auto">
+          <div
+            ref={filterStrip}
+            className="relative flex h-11 w-full max-w-full shrink-0 items-center gap-0.5 overflow-x-auto rounded-full border border-white/10 bg-white/5 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
             {filterOptions.map((f) => {
               const isActive = filter === f.id;
               return (
                 <button
                   key={f.id}
+                  data-testid={`dashboard-filter-${f.id}`}
+                  aria-pressed={isActive}
                   onClick={() => setFilter(f.id)}
-                  className="relative z-10 flex h-full min-w-0 items-center justify-center px-0.5 text-[10px] font-semibold leading-none transition-colors duration-200 sm:flex-none sm:px-4 sm:text-xs"
+                  className="relative z-10 flex h-full shrink-0 items-center justify-center px-3.5 text-xs font-semibold leading-none transition-colors duration-200"
                   style={{
                     color: isActive
                       ? "var(--primary-foreground)"
@@ -242,13 +268,15 @@ export default function EventsListPage() {
                           {e.status === "completed" ||
                           new Date(e.endTime).getTime() <= Date.now()
                             ? t("organizerEvents.completed")
-                            : e.status === "cancel_pending" || e.status === "refunding" || e.status === "cancelled"
+                            : e.status === "cancel_pending" ||
+                                e.status === "refunding" ||
+                                e.status === "cancelled"
                               ? t(`eventCancellation.eventStatus.${e.status}`)
-                            : e.status === "published"
-                              ? t("organizerEvents.published")
-                              : e.status === "scheduled"
-                                ? t("organizerEvents.scheduled")
-                                : t("organizerEvents.draft")}
+                              : e.status === "published"
+                                ? t("organizerEvents.published")
+                                : e.status === "scheduled"
+                                  ? t("organizerEvents.scheduled")
+                                  : t("organizerEvents.draft")}
                         </span>
                         <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground truncate">
                           {e.category}
@@ -264,7 +292,8 @@ export default function EventsListPage() {
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-0.5">
                         <span className="flex items-center gap-1.5 shrink-0">
                           <Calendar className="h-3.5 w-3.5 text-primary shrink-0" />
-                          {formatEventDateShort(e.startTime)}
+                          {formatEventDateShort(e.startTime)} ·{" "}
+                          {formatEventTime(e.startTime)}
                         </span>
                         <span className="flex items-center gap-1.5 truncate">
                           <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />

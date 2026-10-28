@@ -7,28 +7,18 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
-import { LinearGradient } from "expo-linear-gradient";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { BlurView } from "expo-blur";
-import { Map, UsersRound, UserRound } from "lucide-react-native";
-import Svg, { Path, Polyline } from "react-native-svg";
 import { colors } from "../ui/theme";
 import { usePreferences } from "../PreferencesProvider";
 import { useTabIndicator, type TabIndicatorMotion } from "./useTabIndicator";
 import { ToastHost } from "../ui/ToastHost";
+import { TabIndicator } from "./TabIndicator";
+import type { TabIndicatorTimeline } from "./tabIndicatorTimeline";
+import { TabBarSurface, usesLiquidGlass } from "./TabBarSurface";
+import { TabBarIcon } from "./TabBarIcon";
 
-// Keep the Home artwork from the original app's Lucide version. The newer
-// native package changed this icon's roof, base and doorway geometry.
-function HomeIcon({ size, color, strokeWidth }: { size: number; color: string; strokeWidth: number }) {
-  return <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" pointerEvents="none">
-    <Path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-    <Polyline points="9 22 9 12 15 12 15 22" />
-  </Svg>;
-}
-const icons = [HomeIcon, Map, UsersRound, UserRound];
 const labels = ["nav.home", "nav.map", "nav.feed", "nav.profile"] as const;
-export function TabBar({ state, navigation, activeIndex = state.index, onSelectTab, indicatorMotion }: BottomTabBarProps & { activeIndex?: number; onSelectTab?: (name: string) => void; indicatorMotion?: TabIndicatorMotion }) {
+export function TabBar({ state, navigation, insets, activeIndex = state.index, onSelectTab, indicatorMotion }: BottomTabBarProps & { activeIndex?: number; onSelectTab?: (name: string) => void; indicatorMotion?: TabIndicatorMotion }) {
   const { copy } = usePreferences();
   const { width: viewportWidth } = useWindowDimensions();
   const desktopPreview = Platform.OS === "web" && viewportWidth >= 768;
@@ -48,35 +38,28 @@ export function TabBar({ state, navigation, activeIndex = state.index, onSelectT
   const itemWidth = width ? width / state.routes.length : (indicatorMotion?.itemWidth ?? 0);
   const localPosition = useTabIndicator(activeIndex, itemWidth, !indicatorMotion);
   const position = indicatorMotion?.position ?? localPosition;
-  const indicatorStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: position.value }],
-  }), [position]);
+  const localTimeline = useRef<TabIndicatorTimeline | null>(null);
   return (
-    <View pointerEvents="box-none" style={s.position}>
-      <View
+    <View pointerEvents="box-none" style={[s.position, usesLiquidGlass && { bottom: Math.max(insets.bottom, 20) }]}>
+      <TabBarSurface
         testID="tab-bar"
         style={[s.bar, Platform.OS === "web" && webGlass]}
       >
-        {Platform.OS !== "web" && <>
-          <BlurView pointerEvents="none" tint="dark" intensity={32} style={StyleSheet.absoluteFill} />
-          <LinearGradient pointerEvents="none" colors={["rgba(31,31,31,0.48)", "rgba(26,26,26,0.58)", "rgba(18,18,18,0.7)"]} style={StyleSheet.absoluteFill} />
-          <View pointerEvents="none" style={[StyleSheet.absoluteFill, s.innerShadow]} />
-        </>}
         <View style={s.items} onLayout={(event) => { const nextWidth = event.nativeEvent.layout.width; setWidth(nextWidth); indicatorMotion?.measure(nextWidth / state.routes.length); }}>
         {itemWidth > 0 && (
-          <Animated.View
-            testID="tab-indicator"
-            pointerEvents="none"
+          <TabIndicator
+            position={position}
+            target={activeIndex * itemWidth}
+            timeline={indicatorMotion?.timeline ?? localTimeline}
             style={[
               s.indicator,
+              usesLiquidGlass && s.glassIndicator,
               { width: itemWidth },
-              indicatorStyle,
               desktopPreview && ({ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" } as ViewStyle),
             ]}
           />
         )}
         {state.routes.map((route, index) => {
-          const Icon = icons[index] || HomeIcon;
           const active = index === activeIndex;
           const activate = () => {
             if (onSelectTab) { onSelectTab(route.name); return; }
@@ -127,16 +110,18 @@ export function TabBar({ state, navigation, activeIndex = state.index, onSelectT
                 navigation.emit({ type: "tabLongPress", target: route.key })
               }
             >
-              <Icon
-                size={20}
+              <TabBarIcon
+                index={index}
+                active={active}
+                size={usesLiquidGlass ? 22 : 20}
                 strokeWidth={active ? 2.2 : 1.6}
-                color={active ? colors.accent : "#9f9fa9"}
+                color={active ? colors.accent : usesLiquidGlass ? "#c9c9d2" : "#9f9fa9"}
               />
             </Pressable>
           );
         })}
         </View>
-      </View>
+      </TabBarSurface>
       <ToastHost placement="navbar" />
     </View>
   );
@@ -159,10 +144,6 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
     boxShadow: "0 12px 32px rgba(0,0,0,0.6)",
-  },
-  innerShadow: {
-    borderRadius: 999,
-    boxShadow: "inset 0 -8px 16px rgba(0,0,0,0.35)",
   },
   items: {
     position: "relative",
@@ -188,5 +169,10 @@ const s = StyleSheet.create({
     borderColor: "rgba(255,0,68,0.6)",
     backgroundColor: "rgba(255,0,68,0.38)",
     boxShadow: "0 0 12px rgba(225,29,72,0.4)",
+  },
+  glassIndicator: {
+    backgroundColor: "rgba(255,0,68,0.18)",
+    borderColor: "rgba(255,90,135,0.28)",
+    boxShadow: "none",
   },
 });

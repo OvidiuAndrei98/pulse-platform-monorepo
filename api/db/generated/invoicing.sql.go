@@ -121,6 +121,8 @@ WITH claimable AS (
     SELECT id
     FROM billing_invoices
     WHERE attempt_count < 8
+      AND EXISTS (SELECT 1 FROM organizer_invoicing_settings settings
+                  WHERE settings.organizer_id=billing_invoices.organizer_id AND settings.enabled=TRUE)
       AND (
         (status IN ('pending', 'failed') AND next_attempt_at <= CURRENT_TIMESTAMP)
         OR (status = 'processing' AND updated_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes')
@@ -131,12 +133,13 @@ WITH claimable AS (
 )
 UPDATE billing_invoices invoice
 SET status = 'processing',
+    claim_token = gen_random_uuid(),
     attempt_count = attempt_count + 1,
     error_message = NULL,
     updated_at = CURRENT_TIMESTAMP
 FROM claimable
 WHERE invoice.id = claimable.id
-RETURNING invoice.id, invoice.order_id, invoice.organizer_id, invoice.provider, invoice.status, invoice.attempt_count, invoice.next_attempt_at, invoice.external_series, invoice.external_number, invoice.external_document_id, invoice.document_url, invoice.error_message, invoice.issued_at, invoice.created_at, invoice.updated_at
+RETURNING invoice.id, invoice.order_id, invoice.organizer_id, invoice.provider, invoice.status, invoice.attempt_count, invoice.next_attempt_at, invoice.external_series, invoice.external_number, invoice.external_document_id, invoice.document_url, invoice.error_message, invoice.issued_at, invoice.created_at, invoice.updated_at, invoice.claim_token
 `
 
 func (q *Queries) ClaimBillingInvoices(ctx context.Context, batchSize int32) ([]BillingInvoices, error) {
@@ -164,6 +167,7 @@ func (q *Queries) ClaimBillingInvoices(ctx context.Context, batchSize int32) ([]
 			&i.IssuedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ClaimToken,
 		); err != nil {
 			return nil, err
 		}
@@ -187,7 +191,7 @@ WHERE o.id = $1
   AND settings.enabled = TRUE
 ON CONFLICT (order_id) DO UPDATE
 SET updated_at = billing_invoices.updated_at
-RETURNING id, order_id, organizer_id, provider, status, attempt_count, next_attempt_at, external_series, external_number, external_document_id, document_url, error_message, issued_at, created_at, updated_at
+RETURNING id, order_id, organizer_id, provider, status, attempt_count, next_attempt_at, external_series, external_number, external_document_id, document_url, error_message, issued_at, created_at, updated_at, claim_token
 `
 
 func (q *Queries) CreateBillingInvoiceForOrder(ctx context.Context, id pgtype.UUID) (BillingInvoices, error) {
@@ -209,6 +213,7 @@ func (q *Queries) CreateBillingInvoiceForOrder(ctx context.Context, id pgtype.UU
 		&i.IssuedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ClaimToken,
 	)
 	return i, err
 }
@@ -283,6 +288,7 @@ const deleteUnissuedBillingInvoiceForRefund = `-- name: DeleteUnissuedBillingInv
 DELETE FROM billing_invoices
 WHERE order_id = $1
   AND status IN ('pending', 'failed', 'needs_review')
+  AND NOT EXISTS (SELECT 1 FROM invoice_service_usage usage WHERE usage.invoice_id=billing_invoices.id AND usage.state IN ('dispatching','needs_review','issued'))
 `
 
 func (q *Queries) DeleteUnissuedBillingInvoiceForRefund(ctx context.Context, orderID pgtype.UUID) (int64, error) {
@@ -299,6 +305,7 @@ USING orders
 WHERE orders.id = invoice.order_id
   AND orders.status = 'refunded'
   AND invoice.status IN ('pending', 'failed', 'needs_review')
+  AND NOT EXISTS (SELECT 1 FROM invoice_service_usage usage WHERE usage.invoice_id=invoice.id AND usage.state IN ('dispatching','needs_review','issued'))
 `
 
 func (q *Queries) DeleteUnissuedBillingInvoicesForRefundedOrders(ctx context.Context) (int64, error) {
@@ -662,7 +669,7 @@ SET status = CASE WHEN $1::BOOLEAN THEN 'needs_review' ELSE 'failed' END,
     next_attempt_at = CURRENT_TIMESTAMP + make_interval(secs => $3::INT),
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $4
-RETURNING id, order_id, organizer_id, provider, status, attempt_count, next_attempt_at, external_series, external_number, external_document_id, document_url, error_message, issued_at, created_at, updated_at
+RETURNING id, order_id, organizer_id, provider, status, attempt_count, next_attempt_at, external_series, external_number, external_document_id, document_url, error_message, issued_at, created_at, updated_at, claim_token
 `
 
 type MarkBillingInvoiceFailedParams struct {
@@ -696,6 +703,7 @@ func (q *Queries) MarkBillingInvoiceFailed(ctx context.Context, arg MarkBillingI
 		&i.IssuedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ClaimToken,
 	)
 	return i, err
 }
@@ -711,7 +719,7 @@ SET status = 'issued',
     issued_at = CURRENT_TIMESTAMP,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, order_id, organizer_id, provider, status, attempt_count, next_attempt_at, external_series, external_number, external_document_id, document_url, error_message, issued_at, created_at, updated_at
+RETURNING id, order_id, organizer_id, provider, status, attempt_count, next_attempt_at, external_series, external_number, external_document_id, document_url, error_message, issued_at, created_at, updated_at, claim_token
 `
 
 type MarkBillingInvoiceIssuedParams struct {
@@ -747,6 +755,7 @@ func (q *Queries) MarkBillingInvoiceIssued(ctx context.Context, arg MarkBillingI
 		&i.IssuedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ClaimToken,
 	)
 	return i, err
 }
@@ -856,10 +865,12 @@ SET status = 'pending',
     next_attempt_at = CURRENT_TIMESTAMP,
     error_message = NULL,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
-  AND organizer_id = $2
-  AND status IN ('failed', 'needs_review')
-RETURNING id, order_id, organizer_id, provider, status, attempt_count, next_attempt_at, external_series, external_number, external_document_id, document_url, error_message, issued_at, created_at, updated_at
+WHERE billing_invoices.id = $1
+  AND billing_invoices.organizer_id = $2
+  AND billing_invoices.status IN ('failed', 'needs_review')
+  AND NOT EXISTS (SELECT 1 FROM invoice_service_usage usage
+                  WHERE usage.invoice_id=billing_invoices.id AND usage.state IN ('dispatching','needs_review','issued'))
+RETURNING id, order_id, organizer_id, provider, status, attempt_count, next_attempt_at, external_series, external_number, external_document_id, document_url, error_message, issued_at, created_at, updated_at, claim_token
 `
 
 type RetryBillingInvoiceParams struct {
@@ -886,6 +897,7 @@ func (q *Queries) RetryBillingInvoice(ctx context.Context, arg RetryBillingInvoi
 		&i.IssuedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ClaimToken,
 	)
 	return i, err
 }

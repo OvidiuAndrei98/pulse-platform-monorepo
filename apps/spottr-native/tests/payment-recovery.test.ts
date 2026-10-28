@@ -1,7 +1,34 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createPaymentRecoveryStore, type StoredNativePayment } from '../src/checkout/paymentRecoveryStore';
-import { acknowledgeNativePayment, clearNativePayments, configureNativePaymentRecovery, getNativePayment, getPendingNativePayment, persistNativePayment, presentAndResolveNativePayment, rememberNativePayment, resolveNativePayment, restoreNativePayments, type NativePaymentSession } from '../src/checkout/nativePayment';
+import { acknowledgeNativePayment, clearNativePayments, configureNativePaymentRecovery, getNativePayment, getPendingNativePayment, persistNativePayment, presentAndResolveNativePayment, rememberNativePayment, resolveNativePayment, restoreNativePayments, settleUnsubmittedNativePayment, type NativePaymentSession } from '../src/checkout/nativePayment';
+
+test('reopening an unsubmitted form can restart only after Stripe confirms cancellation', async () => {
+  fixture();
+  const entry = rememberNativePayment(session, eventId, 'token');
+  const calls: string[] = [];
+  const result = await settleUnsubmittedNativePayment(entry, async path => {
+    calls.push(path);
+    return { orderId, status: path.endsWith('/cancel') ? 'failed' : 'pending', paymentAttempted: false };
+  });
+  assert.equal(result.status, 'failed');
+  assert.deepEqual(calls, ['/checkout/payment-sheet/reconcile', '/checkout/payment-sheet/cancel']);
+  assert.equal(getPendingNativePayment(eventId, 'token'), undefined);
+});
+
+test('a real/unknown attempt is retained and a cancellation racing payment returns success', async () => {
+  for (const attempted of [true, undefined]) {
+    fixture(); const entry = rememberNativePayment(session, eventId, 'token');
+    const result = await settleUnsubmittedNativePayment(entry, async path => {
+      assert.ok(path.endsWith('/reconcile'));
+      return { orderId, status: 'pending', paymentAttempted: attempted };
+    });
+    assert.equal(result.status, 'pending'); assert.equal(entry.cancelRequested, false);
+  }
+  fixture(); const entry = rememberNativePayment(session, eventId, 'token');
+  const result = await settleUnsubmittedNativePayment(entry, async path => ({ orderId, status: path.endsWith('/cancel') ? 'completed' : 'pending', paymentAttempted: path.endsWith('/cancel') }));
+  assert.equal(result.status, 'completed');
+});
 
 const accountA = '11111111-1111-4111-8111-111111111111';
 const accountB = '22222222-2222-4222-8222-222222222222';
@@ -61,6 +88,20 @@ test('guest recovery stays on this device and cannot be restored into an authent
   assert.equal(guest?.session.orderId, orderId);
   await assert.rejects(restoreNativePayments(null, 'token-A'), /PAYMENT_SESSION_CHANGED/);
   assert.equal((await f.store.load(null)).length, 1);
+});
+
+test('failed secure cleanup stays eligible for retry; pending orders cannot be acknowledged', async () => {
+  const f = fixture(); await f.store.save(record());
+  const [entry] = await restoreNativePayments(accountA, 'token');
+  await acknowledgeNativePayment(entry!);
+  assert.equal(entry!.restored, true); assert.equal((await f.store.load(accountA)).length, 1);
+  await resolveNativePayment(entry!, async () => ({ orderId, status: 'failed' }));
+  f.faults.write = true;
+  await assert.rejects(acknowledgeNativePayment(entry!));
+  assert.equal(entry!.restored, true);
+  f.faults.write = false;
+  await acknowledgeNativePayment(entry!);
+  assert.equal(entry!.restored, false); assert.deepEqual(await f.store.load(accountA), []);
 });
 
 test('switching accounts and late hydration cannot leak another account payment', async () => {

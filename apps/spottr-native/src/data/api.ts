@@ -7,6 +7,7 @@ import {
 } from "./events";
 
 import { ApiError, authorizedFetch } from "./http";
+import { captureHandledFailure } from '../diagnostics/handled';
 export { ApiError } from "./http";
 
 export function parseEventSocial(data: unknown) {
@@ -57,6 +58,7 @@ export function createEventsApi(
       }
     } catch (error) {
       if (timedOut) throw new ApiError(0, "TIMEOUT");
+      if (!signal?.aborted) captureHandledFailure(error, 'api_request');
       throw error;
     } finally {
       clearTimeout(timer);

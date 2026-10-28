@@ -1,0 +1,28 @@
+Proposed AWS database recovery — not executed
+
+27 October: user selected "Continue local tests only". Do not execute this
+plan without new authorization; no restore or infrastructure changes were made.
+
+Observed: pulse-db is in inaccessible-encryption-credentials. KMS is enabled.
+Source: available final snapshot rds-final:pulse-db-db-zz2f22uazpybyme3sje42n2ati,
+created 2026-10-25 03:48:39 UTC. Region eu-central-1.
+
+1. Restore to a separate instance pulse-db-recovery-20261026, preserving the
+   existing instance and snapshot. Match db.t4g.micro, PostgreSQL 18.3, 20 GiB
+   gp3, single AZ, private access, port 5432, parameter group default.postgres18,
+   subnet group default-vpc-0c0133fabd96b3613, security group sg-09ef2d1f9155733b0.
+   Keep encryption; do not change or export credentials.
+2. Wait for AWS to mark the restored instance available. Verify both databases,
+   schema/migration history and record counts without publishing personal data.
+   Snapshot availability is not a guarantee of recovered-data completeness.
+3. Update only staging's database host to the restored endpoint. Restart staging
+   and verify health, public events and authenticated flows. Retain the old host
+   for rollback. Check migrations before restarting: pending migrations require
+   review against the restored shared database.
+4. Production shares this database instance. Keep production configuration
+   unchanged until staging and restored data have been checked; plan production
+   cutover separately. Do not delete the original instance or any backup.
+
+Approval needed before step 1 because this provisions a billable RDS instance
+and works with the shared staging/production data. Temporary overlap can incur
+additional AWS charges. No infrastructure changes have been made by this audit.

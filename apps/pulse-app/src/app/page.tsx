@@ -1,4 +1,5 @@
 "use client";
+import { WardrobeCard } from "@/features/wardrobe/Wardrobe";
 import { RequestError } from "@/components/ui/RequestFeedback";
 import { useCachedClientQuery } from "@/lib/useCachedClientQuery";
 import { HomeCarouselSkeleton } from "@/components/ui/loading";
@@ -245,6 +246,7 @@ export default function Home() {
           </div>
         </div>
 
+        <div className="app-page-gutter mx-auto max-w-7xl"><WardrobeCard /></div>
         {bannerPromotions.length > 0 && (
           <PromotedEventsHeroCarousel
             items={bannerPromotions}

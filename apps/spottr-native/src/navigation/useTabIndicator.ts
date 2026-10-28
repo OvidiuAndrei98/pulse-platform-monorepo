@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AccessibilityInfo } from "react-native";
+import { AccessibilityInfo, Platform } from "react-native";
+import type { TabIndicatorTimelineRef } from "./tabIndicatorTimeline";
 import {
   cancelAnimation,
   Easing,
@@ -12,6 +13,7 @@ export type TabIndicatorMotion = {
   position: SharedValue<number>;
   itemWidth: number;
   measure: (width: number) => void;
+  timeline: TabIndicatorTimelineRef;
 };
 
 /** One animation can drive navbar views in different native stack screens. */
@@ -24,7 +26,7 @@ export function useTabIndicator(
   const measured = useRef(false);
   const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || Platform.OS === "web") return;
     let alive = true;
     void AccessibilityInfo.isReduceMotionEnabled()
       .then((value) => {
@@ -41,7 +43,7 @@ export function useTabIndicator(
     };
   }, [enabled]);
   useLayoutEffect(() => {
-    if (!enabled || !itemWidth) return;
+    if (!enabled || !itemWidth || Platform.OS === "web") return;
     const target = activeIndex * itemWidth;
     if (!measured.current || reduceMotion) {
       measured.current = true;

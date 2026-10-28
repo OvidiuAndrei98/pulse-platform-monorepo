@@ -174,6 +174,7 @@ test('long native event sheets expose fixed actions and reserve scroll space for
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 59, bottom: 34 }) },
     '../ui/AppSheet': { AppSheet: 'AppSheet' },
     '../ui/AppSheetScrollView': { AppSheetScrollView: 'AppSheetScrollView' },
+    '../ui/ToastProvider': { useToast: () => ({ show() {} }) },
   };
   for (const platform of ['ios', 'android', 'web']) for (const presentation of ['sheet', 'page']) {
     const ui = loadUI('screens/EventScreen.tsx', dependencies, platform);
@@ -183,7 +184,8 @@ test('long native event sheets expose fixed actions and reserve scroll space for
     const nativeSheet = platform !== 'web' && presentation === 'sheet';
     assert.equal(scroller.props.enableFooterMarginAdjustment === true, nativeSheet, 'Only native sheets reserve space for their overlaid footer');
     if (nativeSheet) {
-      assert.equal(tree.props.footer?.props.testID, 'event-actions', 'Native actions must use the dedicated fixed footer');
+      const sheet = elements(tree).find(el => el.type === 'AppSheet');
+      assert.equal(sheet?.props.footer?.props.testID, 'event-actions', 'Native actions must use the dedicated fixed footer');
       assert.equal(elements(tree).some(el => el.props.testID === 'event-actions'), false, 'A long scroll container must not determine action-bar placement');
     } else {
       assert.equal(elements(tree).filter(el => el.props.testID === 'event-actions').length, 1, 'Pages and browser sheets retain their single flex footer');

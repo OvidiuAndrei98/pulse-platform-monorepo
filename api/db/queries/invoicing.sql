@@ -73,13 +73,16 @@ DELETE FROM billing_invoices invoice
 USING orders
 WHERE orders.id = invoice.order_id
   AND orders.status = 'refunded'
-  AND invoice.status IN ('pending', 'failed', 'needs_review');
+  AND invoice.status IN ('pending', 'failed', 'needs_review')
+  AND NOT EXISTS (SELECT 1 FROM invoice_service_usage usage WHERE usage.invoice_id=invoice.id AND usage.state IN ('dispatching','needs_review','issued'));
 
 -- name: ClaimBillingInvoices :many
 WITH claimable AS (
     SELECT id
     FROM billing_invoices
     WHERE attempt_count < 8
+      AND EXISTS (SELECT 1 FROM organizer_invoicing_settings settings
+                  WHERE settings.organizer_id=billing_invoices.organizer_id AND settings.enabled=TRUE)
       AND (
         (status IN ('pending', 'failed') AND next_attempt_at <= CURRENT_TIMESTAMP)
         OR (status = 'processing' AND updated_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes')
@@ -90,6 +93,7 @@ WITH claimable AS (
 )
 UPDATE billing_invoices invoice
 SET status = 'processing',
+    claim_token = gen_random_uuid(),
     attempt_count = attempt_count + 1,
     error_message = NULL,
     updated_at = CURRENT_TIMESTAMP
@@ -143,7 +147,8 @@ WHERE invoice.id = $1;
 -- name: DeleteUnissuedBillingInvoiceForRefund :execrows
 DELETE FROM billing_invoices
 WHERE order_id = $1
-  AND status IN ('pending', 'failed', 'needs_review');
+  AND status IN ('pending', 'failed', 'needs_review')
+  AND NOT EXISTS (SELECT 1 FROM invoice_service_usage usage WHERE usage.invoice_id=billing_invoices.id AND usage.state IN ('dispatching','needs_review','issued'));
 
 -- name: SnapshotOrderInvoiceVAT :exec
 UPDATE orders
@@ -223,9 +228,11 @@ SET status = 'pending',
     next_attempt_at = CURRENT_TIMESTAMP,
     error_message = NULL,
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
-  AND organizer_id = $2
-  AND status IN ('failed', 'needs_review')
+WHERE billing_invoices.id = $1
+  AND billing_invoices.organizer_id = $2
+  AND billing_invoices.status IN ('failed', 'needs_review')
+  AND NOT EXISTS (SELECT 1 FROM invoice_service_usage usage
+                  WHERE usage.invoice_id=billing_invoices.id AND usage.state IN ('dispatching','needs_review','issued'))
 RETURNING *;
 
 -- name: CreateBillingInvoiceRefundForOrder :one

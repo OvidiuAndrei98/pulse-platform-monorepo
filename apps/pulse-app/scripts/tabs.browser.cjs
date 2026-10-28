@@ -112,6 +112,7 @@ async function run() {
       const state = window.__api;
       state.requests.push(route + url.search);
       const respond = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+      if (route === '/wardrobe/mine') return respond({ deposits: [], staffAccess: false });
       const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
       if (route === '/users/me') return respond({ id: 'test-user', username: 'Test User', email: 'test@example.com', role: 'user', preferredLanguage: 'en' });
       if (route === '/users/me/billing-details') return respond({});

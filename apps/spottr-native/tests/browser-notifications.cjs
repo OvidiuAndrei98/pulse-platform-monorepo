@@ -14,6 +14,8 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
       if (!route) { if (url.origin === location.origin) return original(input, options); throw Error('External request blocked'); }
       qa.calls.push(route);
       const reply = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+      if (route === '/wardrobe/mine') return reply({ deposits: [], staffAccess: false });
+      if (route === '/diagnostics/errors') return new Response(null, { status: 204 });
       if (route === '/users/me') return reply(user);
       if (route === '/notifications') return reply({ items: qa.items, unreadCount: qa.count });
       if (route === '/notifications/read-all') {

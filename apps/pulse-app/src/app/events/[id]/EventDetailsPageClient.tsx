@@ -102,7 +102,7 @@ export default function EventStandalonePage() {
   );
   const serviceFee = event.organizerAbsorbsServiceFee
     ? 0
-    : calculateServiceFeeRon(ticketSubtotal, ticketCount);
+    : calculateServiceFeeRon(ticketSubtotal, ticketCount, event);
   const total = ticketSubtotal + serviceFee;
   const isFreeSelection = ticketCount === 1 && ticketSubtotal === 0;
   const bannerUrl = event.bannerUrl || "/party-event.webp";

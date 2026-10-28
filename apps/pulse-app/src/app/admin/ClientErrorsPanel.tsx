@@ -5,6 +5,7 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { apiRoot } from "@/core/apiRoot";
 import { getAccessTokenSync } from "@/lib/native/sessionStorage";
 import { parseErrorPage, type ErrorEntry } from "@/features/diagnostics/report";
+import { diagnosticTitle, diagnosticFailure, groupDiagnosticReports } from '@/features/diagnostics/presentation';
 
 export function ClientErrorsPanel() {
   const { user, isAdmin } = useDataProvider(),
@@ -145,10 +146,12 @@ export function ClientErrorsPanel() {
           {!busy && !failed && !rows.length && (
             <p>{ro ? "Nicio eroare raportată." : "No reported errors."}</p>
           )}
-          {rows.map((row) => (
+          {groupDiagnosticReports(rows).map(({ report: row, count }) => (
             <details key={row.id} className="rounded-2xl bg-white/5 p-4">
               <summary className="cursor-pointer">
-                {row.errorType} · {row.category} · {row.screen}
+                {diagnosticTitle(row, ro)} · {row.screen}
+                {!!row.failure && <span className="block text-xs text-muted-foreground">{diagnosticFailure(row, ro)}</span>}
+                {count > 1 && <span className="block text-xs text-primary">{ro ? `${count} apariții în rapoartele încărcate` : `${count} occurrences in loaded reports`}</span>}
                 <span className="block text-xs text-muted-foreground">
                   {row.platform} · v{row.appVersion} ({row.buildVersion}) · OS{" "}
                   {row.osVersion} ·{" "}

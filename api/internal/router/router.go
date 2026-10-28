@@ -16,6 +16,7 @@ import (
 
 // HandlersConfig colectează toate funcțiile HTTP și middleware-urile necesare.
 type HandlersConfig struct {
+	Wardrobe http.Handler
 	// HealthCheck verifies critical dependencies before the load balancer accepts the task.
 	HealthCheck func(context.Context) error
 
@@ -151,6 +152,9 @@ type HandlersConfig struct {
 	GetOrganizerProfile         http.HandlerFunc
 	CreateOrganizerProfile      http.HandlerFunc
 	ListOrganizerVerifications  http.HandlerFunc
+	GetCommissions              http.HandlerFunc
+	SetStandardCommission       http.HandlerFunc
+	SetOrganizerCommission      http.HandlerFunc
 	ReviewOrganizerVerification http.HandlerFunc
 	AcceptOrganizerAgreement    http.HandlerFunc
 	GetOrganizerFinance         http.HandlerFunc
@@ -170,6 +174,7 @@ type HandlersConfig struct {
 	ValidateTicket        http.HandlerFunc
 	ListValidationEvents  http.HandlerFunc
 	ListMyValidationScans http.HandlerFunc
+	ListValidationScans   http.HandlerFunc
 	ListValidationStaff   http.HandlerFunc
 	AddValidationStaff    http.HandlerFunc
 	RemoveValidationStaff http.HandlerFunc
@@ -349,6 +354,9 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			})
 
 			// --- INTERACȚIUNI EVENIMENTE (orice utilizator autentificat) ---
+			if cfg.Wardrobe != nil {
+				r.With(identityLimit("wardrobe", 300, time.Minute)).Mount("/wardrobe", cfg.Wardrobe)
+			}
 			r.Post("/events/{id}/check-in", cfg.CreateCheckIn)
 			r.With(rateLimit("free_ticket_booking_ip", 3000, 10*time.Minute), identityLimit("free_ticket_booking_user", 20, 10*time.Minute)).Post("/events/{id}/tickets/book", cfg.BookFreeTicket)
 			r.Post("/events/{id}/comments", cfg.AddComment)
@@ -384,6 +392,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			r.Route("/dashboard/ticket-validation", func(r chi.Router) {
 				r.Get("/events", cfg.ListValidationEvents)
 				r.Get("/events/{id}/my-scans", cfg.ListMyValidationScans)
+				r.With(identityLimit("scan_history", 120, time.Minute)).Get("/events/{id}/scans", cfg.ListValidationScans)
 				r.Get("/events/{id}/staff", cfg.ListValidationStaff)
 				r.Post("/events/{id}/staff", cfg.AddValidationStaff)
 				r.Delete("/events/{id}/staff/{userId}", cfg.RemoveValidationStaff)
@@ -465,6 +474,11 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 					r.Use(cfg.AdminMiddleware)
 				}
 				r.Get("/admin/organizers", cfg.ListOrganizerVerifications)
+				if cfg.AuthMiddleware != nil && cfg.AdminMiddleware != nil && cfg.GetCommissions != nil && cfg.SetStandardCommission != nil && cfg.SetOrganizerCommission != nil {
+					r.Get("/admin/commissions", cfg.GetCommissions)
+					r.Put("/admin/commissions/standard", cfg.SetStandardCommission)
+					r.Put("/admin/organizers/{id}/commission", cfg.SetOrganizerCommission)
+				}
 				if cfg.ListClientErrors != nil && cfg.AuthMiddleware != nil && cfg.AdminMiddleware != nil {
 					r.With(identityLimit("diagnostics_admin", 60, time.Minute)).Get("/admin/client-errors", cfg.ListClientErrors)
 				}

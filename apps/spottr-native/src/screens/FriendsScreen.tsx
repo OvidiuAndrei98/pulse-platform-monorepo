@@ -1,10 +1,12 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import { FormInput as TextInput } from '../ui/FormInput';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, UserMinus, UserRoundPlus, UsersRound, Search } from 'lucide-react-native';
+import { UserMinus, UserRoundPlus, UsersRound, Search } from 'lucide-react-native';
 import type { FeedParamList, RootParamList } from '../navigation/types';
 import { useAuth } from '../auth/AuthProvider';
 import { usePreferences } from '../PreferencesProvider';
@@ -64,7 +66,7 @@ export function FriendsManageScreen() {
   const friends = social.friends.data ?? [], matches = friends.filter(friend => friend.username.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   const back = () => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('FeedHome');
   return <ScrollView testID="friends-page" style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: Math.max(32, safe.top), paddingBottom: 128 }}>
-    <Pressable testID="friends-back" accessibilityRole="button" onPress={back} style={{ minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' }}><ArrowLeft size={16} color={colors.muted} /><Text style={[s.muted, { fontWeight: '600' }]}>{copy('friends.backToFeed')}</Text></Pressable>
+    <GlassPressable fallback={Pressable} glassStyle={{ paddingHorizontal: 12 }} testID="friends-back" accessibilityRole="button" onPress={back} style={{ minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' }}><ActionIcon name="back" size={16} color={colors.muted} /><Text style={[s.muted, { fontWeight: '600' }]}>{copy('friends.backToFeed')}</Text></GlassPressable>
     {!ready ? <Loading /> : !user ? <Pressable accessibilityRole="button" onPress={() => navigation.navigate('Auth', { returnTab: 'Feed' })} style={s.signin}><Text style={{ color: 'white' }}>{copy('social.signIn')}</Text></Pressable> : user.role === 'organizer' ? <View style={s.empty}><Text style={s.title}>{copy('friends.organizerProfile')}</Text><Text style={s.muted}>{copy('friends.organizerHint')}</Text></View> : <>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 }}><View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#ff004426', alignItems: 'center', justifyContent: 'center' }}><UsersRound size={20} color={colors.accent} /></View><View><Text style={s.title}>{copy('friends.title')}</Text><Text style={{ color: colors.muted, fontSize: 14 }}>{social.friends.isPending ? copy('common.loading') : social.friends.isError && !social.friends.data ? '' : copy('friends.count', { count: friends.length })}</Text></View></View>
       <View style={s.search}><Search size={16} color="#ffffff66" /><TextInput variant="bare" testID="friends-page-search" value={query} onChangeText={setQuery} placeholder={copy('friends.searchPlaceholder')} accessibilityLabel={copy('friends.searchPlaceholder')} placeholderTextColor="#ffffff59" style={{ height: 48, minWidth: 0, flex: 1, fontSize: 14, color: 'white' }} /></View>

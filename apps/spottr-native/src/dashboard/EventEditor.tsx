@@ -1,3 +1,5 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 ﻿import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -5,17 +7,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  ChevronDown,
-  Copy,
-  MapPin,
-  Music2,
-  Tags,
-  Trash2,
-} from "lucide-react-native";
+import { ArrowRight, Check, ChevronDown, Copy, MapPin, Music2, Tags, Trash2 } from "lucide-react-native";
 import { usePreferences } from "../PreferencesProvider";
 import { Text } from "../ui/Text";
 import { colors } from "../ui/theme";
@@ -347,7 +339,7 @@ export function EventEditor({
   return (
     <View testID="event-editor">
       {onBack && (
-        <Pressable
+        <GlassPressable fallback={Pressable} glassStyle={{ paddingHorizontal: 12 }}
           accessibilityRole="button"
           onPress={onBack}
           disabled={busy}
@@ -358,9 +350,9 @@ export function EventEditor({
             alignSelf: "flex-start",
           }}
         >
-          <ArrowLeft size={14} color={dColors.muted} />
+          <ActionIcon name="back" size={14} color={dColors.muted} />
           <Text style={e.small}>{copy("dashboardNav.backToDashboard")}</Text>
-        </Pressable>
+        </GlassPressable>
       )}
       <Text
         accessibilityRole="header"
@@ -655,20 +647,20 @@ export function EventEditor({
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             {!event && step > 0 && (
-              <Pressable
+              <GlassPressable fallback={Pressable}
                 testID="editor-back"
                 accessibilityRole="button"
                 disabled={busy}
                 onPress={() => go(step - 1)}
                 style={e.ghost}
               >
-                <ArrowLeft size={16} color={dColors.muted} />
+                <ActionIcon name="back" size={16} color={dColors.muted} />
                 <Text
                   style={[e.text, { color: dColors.muted, fontWeight: "500" }]}
                 >
                   {copy("common.back")}
                 </Text>
-              </Pressable>
+              </GlassPressable>
             )}
             {event && !readOnly && wide && (
               <Text style={[e.small, { flex: 1 }]}>

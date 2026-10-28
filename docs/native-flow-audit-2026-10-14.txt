@@ -1,0 +1,77 @@
+Audit tehnic local SPOTTR — 14 octombrie 2026
+
+Scop
+Verificarea conexiunilor dintre React Native, logica partajata cu Next.js si API:
+parametri, raspunsuri, validare, sesiune, operatii concurente, cache si erori.
+Au fost rulate toate testele unitare existente ale celor doua aplicatii si toate
+testele API, inclusiv integrarile cu PostgreSQL activate. Revizuirea manuala a
+vizat autentificarea, transportul HTTP, checkout/recovery, biletele, actiunile din
+dashboard, scannerul offline, notificarile si navigarea dupa plata.
+Acesta este un audit al fluxurilor acoperite, nu o certificare a fiecarei linii.
+
+Probleme de aplicatie demonstrate si corectate
+1. Dupa o mutatie reusita din dashboard, Home putea ramane cu datele vechi.
+   useAction invalida events, dar Home foloseste home-events si nu reincarca la
+   schimbarea tabului. Sunt invalidate acum si Home, detaliile evenimentelor,
+   informatiile organizatorului si lista evenimentelor sale.
+   Testul nou executa hookul real cu QueryClient/QueryObserver real si reproduce
+   valoarea veche inainte de corectie. Verifica actualizarea dupa salvare,
+   blocarea apasarilor duble si ignorarea raspunsului dupa schimbarea sesiunii.
+2. Butonul de reincercare din confirmarea cumpararii folosea cheia inexistenta
+   feedback.tryAgain. Foloseste acum feedback.retry, existenta in RO si EN.
+
+Corectii ale verificarilor
+- Pasii inchiderii contului de organizator folosesc chei explicite; textele
+  existau deja, dar prefixul din concatenare era raportat ca traducere lipsa.
+- Testul de layout identifica acum AppSheet in noul container al evenimentului
+  si include hookul pentru mesaje. Pastreaza verificarea footerului fix.
+- Schema temporara a testului de rezervari include stripe_payment_intent_id.
+  Cazul verifica si ca o plata nativa identificata nu intra in coada rezervarilor
+  fara identificator Stripe. Schema reala migrata avea deja coloana.
+- Simularile browser pentru scanner si stergerea contului raspund la endpointul
+  de diagnostic. Verifica raportarea anonima a erorii 503 si excluderea parolei,
+  emailului si erorii de parola incorecta din rapoarte.
+
+Rezultate finale
+- React Native: 430 teste trecute, 0 esuate, 0 omise.
+- Next.js: 114 teste trecute, 0 esuate, 0 omise.
+- API: 249 teste principale si 189 subcazuri trecute in 20 de pachete;
+  0 teste esuate sau omise. Pachetele fara teste sunt raportate separat de Go.
+- TypeScript: verificare reusita in ambele aplicatii.
+- TypeSpec: compilare reusita cu --no-emit.
+- Browser, build exportat: 8 suite trecute — checkout, confirmation, scanner,
+  scan-history, order-history, dashboard-parity, account-deletion, diagnostics.
+- Export web si bundle iOS/Hermes generate cu succes.
+- Verificarea whitespace a fisierelor modificate a trecut.
+
+Probe importante acoperite
+- Inchiderea aplicatiei inainte de plata nu emite bilete sau facturi.
+- Confirmarea/anularea concurenta si replay-ul nu dubleaza emiterea.
+- O eroare PostgreSQL in timpul emiterii anuleaza intreaga tranzactie;
+  procesarea ulterioara poate emite exact biletele si notificarea asteptate.
+- Comenzile neconfirmate nu apar ca facturi platite.
+- Raspunsurile intarziate nu publica succesul in alta sesiune.
+- Scannerul pastreaza jurnalul offline, detecteaza duplicatele, sincronizeaza
+  dupa expirarea pachetului si aplica verificarile de acces ale evenimentului.
+- Istoricul de scanare verifica filtrele, paginarea si autorul scanarii.
+- Formularele de eveniment valideaza pasii si impiedica trimiterea dubla.
+
+Mediu si limite
+PostgreSQL 17 a rulat intr-un container temporar fara porturi publicate si fara
+retea externa. Cele 65 de migratii au fost aplicate in bazele locale de test.
+Containerul a fost oprit si eliminat la final. API-urile Stripe si emailurile au
+fost simulate; nu s-au creat plati, rezervari sau conturi pe staging/productie.
+Bundle-ul iOS nu inseamna build Xcode instalat sau test fizic pe iPhone.
+Nu s-au verificat aici banca/3DS reala, performanta gesturilor pe dispozitiv,
+livrarea APNs/FCM sau functionarea infrastructurii live sub trafic.
+Nu s-a facut deploy si nu s-a instalat un build pe telefon in acest audit.
+
+Probe locale
+apps/spottr-native/artifacts/audit-native-tests.log
+apps/spottr-native/artifacts/audit-next-tests.log
+apps/spottr-native/artifacts/audit-api-integration.jsonl
+apps/spottr-native/artifacts/audit-db-migrations.log
+apps/spottr-native/artifacts/audit-browser-*.log
+apps/spottr-native/artifacts/audit-web-export.log
+apps/spottr-native/artifacts/audit-ios-export.log
+apps/spottr-native/artifacts/ios-audit-20261014

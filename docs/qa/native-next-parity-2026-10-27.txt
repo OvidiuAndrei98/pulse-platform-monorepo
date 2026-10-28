@@ -1,0 +1,204 @@
+SPOTTR — comparație React Native / Next.js, 27 octombrie 2026
+
+Scop și metodă
+Comparate implementările locale din apps/spottr-native și apps/pulse-app:
+rute, ecrane, acțiuni, cereri API și logica reutilizată. Comparația include
+modificările necomise existente în workspace. React Native Web este versiunea
+web a apps/spottr-native; nu este aplicația Next.js din apps/pulse-app.
+
+Acesta este un audit de cod și de paritate, nu o nouă certificare end-to-end.
+Nu au fost rulate acum plăți reale, verificări pe iPhone sau operații AWS.
+Nu au fost schimbate implementările aplicațiilor în timpul acestui audit.
+Testele locale precedente sunt documentate separat în:
+  docs/qa/features-audit-2026-10-26.txt
+  docs/qa/purchase-scanner-2026-10-26.txt
+Ele verifică scenariile implementate; trecerea lor nu dovedește paritate 1:1.
+
+Rezultat
+Modulele principale există în ambele aplicații. Next.js nu include însă toate
+îmbunătățirile adăugate ulterior în React Native. Mai jos sunt diferențe
+concrete identificate în implementarea locală, nu o listă de pagini dedusă
+doar din numele fișierelor.
+
+Diferențe de adus în Next.js
+
+01. Scanner: tabul Management este afișat și conturilor fără administrare.
+    Next: cele două taburi sunt necondiționate; conținutul Management este
+    condiționat de rol/canManage. Rezultatul poate fi un tab fără conținut.
+    RN: taburile apar doar când event.canManage este true; schimbarea pe un
+    eveniment fără drepturi selectează automat Scan.
+    Prioritate: ridicată — problemă de interfață pentru personalul desemnat;
+    nu rezultă de aici că backendul permite operații neautorizate.
+    Next: apps/pulse-app/src/app/dashboard/ticket-validation/page.tsx:830
+    RN: apps/spottr-native/src/scanner/ScannerScreen.tsx:171 și :714
+
+02. Istoricul scanărilor: lipsesc Toate / Ale mele și numele scanatorului.
+    Next: cere /my-scans, arată total, tip de bilet, dată și ID de bilet,
+    într-un panou lateral. Nu are selector de scop și paginare cu cursor.
+    RN: cere /scans?scope=all|mine, afișează scannedBy și încarcă paginile
+    următoare. Are ecran propriu cu navigație înapoi prin stackul nativ.
+    Prioritate: ridicată — informație operațională lipsă.
+    Next: apps/pulse-app/src/app/dashboard/ticket-validation/page.tsx:144,
+          :1340 și :1401
+    RN: apps/spottr-native/src/scanner/ScannerHistoryScreen.tsx:24, :46, :99
+        apps/spottr-native/src/scanner/data.ts
+
+03. Confirmarea cumpărării și reverificarea plății nu au același flux.
+    Next: /checkout/success rămâne o pagină separată, cu biletul/legătura
+    către bilete și întoarcere la lista de evenimente. Check again rămâne
+    disponibil pentru pending/unavailable, fără limita manuală din RN.
+    RN: după confirmarea de la server revine la eveniment și afișează
+    PurchaseSuccessSheet; verificarea manuală are propria limită.
+    Diferența nu înseamnă că Next confirmă plăți fără Stripe: și pagina
+    Next face reconcilierea serverului înainte de succes.
+    Prioritate: ridicată — fluxul stabilit cu utilizatorul nu este comun.
+    Next: apps/pulse-app/src/app/checkout/success/page.tsx:34, :51, :61, :71
+    RN: apps/spottr-native/src/screens/CheckoutReturnScreen.tsx:31, :143
+        apps/spottr-native/src/checkout/PurchaseSuccessSheet.tsx:24
+        apps/spottr-native/src/checkout/PaymentRecovery.tsx
+
+04. Profil: istoricul biletelor și ordinea secțiunilor nu sunt aceleași.
+    Next are deja carusel pentru biletele active. În tabul Istoric din
+    profilul mobil afișează legătura către facturi, fără caruselul de bilete
+    trecute din RN. Gruparea activelor păstrează ordinea API, fără sortarea
+    explicită după startTime din RN. Saved events precedă biletele.
+    RN pune biletele înaintea evenimentelor salvate și sortează activele
+    crescător, istoricul descrescător după data evenimentului.
+    Next are separat pagina completă /users/me/tickets cu istoric și sortare;
+    nu lipsește istoricul din întreaga aplicație.
+    Quick connect este încă un card separat în Next, nu scurtătura din
+    antetul profilului din RN.
+    Prioritate: medie.
+    Next: apps/pulse-app/src/app/users/me/page.tsx:102, :219, :299, :355, :407
+          apps/pulse-app/src/app/users/me/tickets/page.tsx:26
+    RN: apps/spottr-native/src/screens/ProfileScreen.tsx:128, :294, :307, :317
+        apps/spottr-native/src/profile/ticketGroups.ts:14
+
+05. Navbarul rămâne pe subpaginile contului în Next.
+    Next BottomNavGate nu exclude /users/me/tickets, /users/me/invoices și
+    /users/me/saved-events. RN ascunde explicit navbarul pe aceste ecrane,
+    conform comportamentului cerut anterior.
+    Prioritate: medie — diferență de navigație, separată de Liquid Glass.
+    Next: apps/pulse-app/src/components/BottomNav.tsx:17
+    RN: apps/spottr-native/src/navigation/MainTabBar.tsx:34
+
+06. Search: lipsesc istoricul local și filtrele separate.
+    RN: căutări recente, ștergere individuală / totală, reutilizarea unei
+    căutări și taburi Toate / Evenimente / Persoane / Organizatori.
+    Next: căutare de evenimente și secțiune combinată persoane/organizatori,
+    fără istoricul și selectorul de scop respective.
+    Recomandările există în ambele; nu sunt o funcție lipsă.
+    Prioritate: medie.
+    Next: apps/pulse-app/src/components/SearchPopover.tsx
+    RN: apps/spottr-native/src/screens/SearchScreen.tsx:32, :117, :134
+
+07. Generatorul de story lipsește din Next.
+    RN: butonul din eveniment deschide EventStory, generează un poster
+    cu fotografia evenimentului, identitatea SPOTTR și informațiile sale,
+    apoi permite exportul imaginii / distribuirea prin opțiunile sistemului.
+    Next: shareEvent distribuie linkul și textul sau copiază linkul. Nu are
+    generatorul/exportatorul de poster și previzualizarea Share the night.
+    Prioritate: medie.
+    Next: apps/pulse-app/src/lib/native/share.ts:10
+          apps/pulse-app/src/components/EventDetailsSheet.tsx:340
+          apps/pulse-app/src/app/events/[id]/EventDetailsPageClient.tsx:110
+    RN: apps/spottr-native/src/screens/EventScreen.tsx:357 și :497
+        apps/spottr-native/src/story/EventStory.tsx:40 și :86
+
+08. Notificări: lipsește butonul Marchează toate ca citite din Next.
+    Backendul și metoda markAllNotificationsRead există deja în Next, dar
+    popoverul nu le oferă utilizatorului. RN are butonul și starea de lucru.
+    Citirea individuală, lista și badge-ul de necitite există în ambele.
+    Prioritate: medie; portare mică, fără endpoint nou.
+    Next: apps/pulse-app/src/core/DataProvider.ts:418
+          apps/pulse-app/src/components/NotificationsPopover.tsx:33
+    RN: apps/spottr-native/src/notifications/NotificationsPopover.tsx:60
+        apps/spottr-native/src/notifications/useNotifications.ts:32
+
+09. Home: refreshul prin tragere cu animația de reflector nu există în Next.
+    RN folosește RefreshScrollView și RefreshSpotlight. Home din Next are
+    reîncercare la eroare, fără mecanismul dedicat de pull-to-refresh.
+    Refreshul normal al browserului nu este aceeași implementare.
+    Prioritate: medie.
+    Next: apps/pulse-app/src/app/page.tsx:76 și :267
+    RN: apps/spottr-native/src/screens/HomeScreen.tsx:154
+        apps/spottr-native/src/ui/RefreshScrollView.tsx
+        apps/spottr-native/src/ui/RefreshSpotlight.tsx
+
+10. Bannerul promovat nu avansează după aceeași regulă.
+    RN avansează o dată la revenirea în Home sau la finalul refreshului;
+    păstrează campania selectată când se reordonează datele.
+    Next are autoplay și navigare manuală, însă nu regula focus/refreshKey
+    din RN. Există deja tranziție în Next; nu lipsește întregul carusel.
+    Prioritate: medie.
+    Next: apps/pulse-app/src/features/events/home/PromotedEventsHeroCarousel.tsx:33
+    RN: apps/spottr-native/src/ui/PromotionHero.tsx:23 și :40
+
+11. Biletele clientului: nu am găsit în Next echivalentul cache-ului offline
+    persistent pe cont folosit de RN. Next încarcă lista din API și folosește
+    stare în memorie; în RN există cache local în SecureStore și sincronizare.
+    Asta privește redeschiderea biletelor/QR-urilor din aplicație fără rețea.
+    Descărcarea PDF și scannerul offline există separat și în Next.
+    Prioritate: de stabilit pentru web/PWA; nu se rezolvă doar prin copierea
+    ecranului, ci și prin strategie de stocare, expirare și izolare pe cont.
+    Next: apps/pulse-app/src/app/users/me/tickets/page.tsx:43
+          apps/pulse-app/src/lib/useClientQuery.ts:7
+          apps/pulse-app/src/lib/clientQueryCache.ts:10
+          apps/pulse-app/public/offline-scanner-sw.js
+    RN: apps/spottr-native/src/data/ticketStorage.ts:7
+        apps/spottr-native/src/data/ticketQuery.ts:14
+        apps/spottr-native/src/App.tsx:297
+
+Diferențe în sens invers și reguli care merită unificate
+- Recomandările search din Next prioritizează favoritele, apoi goingCount,
+  apoi data. RN ordonează recomandările doar după startTime. Dacă regula din
+  Next este cea dorită, ea trebuie reutilizată și în RN.
+  Next: apps/pulse-app/src/components/SearchPopover.tsx:125
+  RN: apps/spottr-native/src/screens/SearchScreen.tsx:55
+- Nu am identificat în modulele parcurse un dashboard, admin, garderobă sau
+  alt modul principal disponibil numai în Next și complet absent din RN.
+  Aceasta nu este o garanție că toate microinteracțiunile sunt identice.
+
+Module găsite în ambele implementări
+- Autentificare, recuperare cont, profil public, preferințe, ștergere cont.
+- Descoperire evenimente, hartă, filtre, pagină și sheet de eveniment.
+- Cumpărare, rezervare, cod promoțional, date de facturare, bilete și PDF,
+  listarea comenzilor și facturilor. Formularele Stripe diferă după platformă.
+- Scanner online/offline, pachete și sincronizare. Next folosește deja
+  scanare continuă și protecție împotriva citirilor repetate ale aceluiași QR;
+  acestea nu trebuie raportate ca funcții absente.
+- Garderobă: QR de cont, numere, personal, predare/retur, aprobări și Neridicate.
+  RN reutilizează WardrobeStore din Next:
+  apps/spottr-native/src/wardrobe/useWardrobe.ts:8
+- Dashboard: evenimente, creare/editare, statistici, bilete/invitații,
+  coduri promoționale, actualizări, anulare, promovare, finanțe, companie,
+  facturare, Stripe Connect și acord organizator.
+- Admin: verificare organizatori, anulări/refunduri, atenționări facturare,
+  erori aplicație și comisioane standard/negociate.
+- Social: prieteni, cereri, profil QR, urmărire organizator, grup/ajutor.
+- Calculul comisionului este reutilizat de RN din
+  apps/pulse-app/src/features/events/serviceFee.ts (5% + 1,50 lei/bilet,
+  cu posibilitatea configurației negociate), prin checkout/data.ts.
+
+Diferențe de platformă, nu module lipsă
+- Liquid Glass și SF Symbols adăugate acum sunt în implementările .ios.tsx
+  ale navbarului RN. Next folosește CSS și iconițe Lucide. Acestea nu se
+  propagă automat între aplicații și nu devin componente native în browser.
+- Swipe-back iOS, tastatura nativă, luminozitatea biletului și vibrațiile
+  folosesc API-uri native. Interfața web are nevoie de comportament web.
+- RN are mod poartă cu comenzi de sunet/vibrație și menținerea ecranului
+  aprins (GateToolbar/useGateExperience). Next nu oferă aceeași bară.
+- Push-urile native au integrare proprie și depind de configurarea buildului;
+  existența codului nu dovedește activarea lor pe un Personal Team gratuit.
+
+Ordine recomandată de aliniere
+1. Permisiunile vizuale scanner, istoric all/mine și fluxul de confirmare.
+2. Navbar pe subpagini, profil/bilete și notificările mark-all.
+3. Search, story, refresh și bannerul din Home.
+4. Decizia separată pentru wallet offline în web/PWA, apoi verificare UI
+   în ambele aplicații cu aceleași date și aceleași roluri.
+
+Aspecte de curățat fără a le confunda cu buguri vizibile
+Next users/me/page.tsx mai conține orderHistory demonstrativ. Cele două
+randări ale sale sunt ascunse prin clasa hidden; auditul nu susține că aceste
+comenzi fictive sunt afișate utilizatorilor sau că ar fi comenzi reale.

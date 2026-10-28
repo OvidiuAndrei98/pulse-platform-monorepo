@@ -167,6 +167,7 @@ async function run() {
       const state = window.__api;
       state.requests.push(route + url.search);
       const respond = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+      if (route === '/wardrobe/mine') return respond({ deposits: [], staffAccess: false });
       const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
       if (route === '/users/me') return respond({ id: 'test-user', username: 'Test User', email: 'test@example.com', role: 'user', preferredLanguage: 'en' });
       if (route === '/users/me/billing-details') return respond({});
@@ -376,19 +377,22 @@ async function run() {
         "px",
     );
     await navigate("/users/me");
+    await until("Array.from(document.querySelectorAll('button')).some(b => b.textContent.includes('Event preferences'))");
+    await evaluate("Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Event preferences')).click()");
+    await delay(550);
     await until(
-      "window.__releaseCategories && document.querySelector('section button[aria-pressed]')",
+      "window.__releaseCategories && document.querySelector('[data-preferences-sheet] button[aria-pressed]')",
     );
     const preferencesHeight = await evaluate(
-      "document.querySelector('section button[aria-pressed]').closest('section').getBoundingClientRect().height",
+      "document.querySelector('[data-preferences-sheet] button[aria-pressed]').closest('[data-preferences-sheet]').getBoundingClientRect().height",
     );
     await evaluate("window.__releaseCategories()");
     await until(
-      "!document.querySelector('section button[aria-pressed]').disabled",
+      "!document.querySelector('[data-preferences-sheet] button[aria-pressed]').disabled",
     );
     assert.equal(
       await evaluate(
-        "document.querySelector('section button[aria-pressed]').closest('section').getBoundingClientRect().height",
+        "document.querySelector('[data-preferences-sheet] button[aria-pressed]').closest('[data-preferences-sheet]').getBoundingClientRect().height",
       ),
       preferencesHeight,
     );
@@ -398,7 +402,7 @@ async function run() {
         "px",
     );
     const categoryButton =
-      "document.querySelector('section button[aria-pressed]')";
+      "document.querySelector('[data-preferences-sheet] button[aria-pressed]')";
     const initialCategoryReads = await evaluate("window.__api.categoryReads");
     assert.equal(
       await evaluate(`${categoryButton}.getAttribute('aria-pressed')`),
@@ -420,7 +424,7 @@ async function run() {
     );
     assert.equal(
       await evaluate(
-        `${categoryButton} === window.__categoryElement && !${categoryButton}.closest('section').querySelector('[role=status], button:disabled, [aria-busy=true]')`,
+        `${categoryButton} === window.__categoryElement && !${categoryButton}.closest('[data-preferences-sheet]').querySelector('[role=status], button:disabled, [aria-busy=true]')`,
       ),
       true,
       "No remount, spinner or disabled categories during saving",
@@ -462,7 +466,7 @@ async function run() {
     );
     await until(`${categoryButton}.getAttribute('aria-pressed') === 'true'`);
     const secondCategory =
-      "document.querySelectorAll('section button[aria-pressed]')[1]";
+      "document.querySelectorAll('[data-preferences-sheet] button[aria-pressed]')[1]";
     await evaluate(
       `window.__api.failCategoryMutation = true; ${secondCategory}.click()`,
     );
@@ -489,6 +493,8 @@ async function run() {
         width +
         "px",
     );
+    await call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+    await until("!document.querySelector('[data-preferences-sheet]')");
   }
   assert.deepEqual(errors, [], "No uncaught runtime errors");
   assert.deepEqual(lifecycleWarnings, [], "No insertion-effect warnings");

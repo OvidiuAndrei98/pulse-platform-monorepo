@@ -1,21 +1,23 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import { FormInput as TextInput } from '../ui/FormInput';
 import { FormScrollView, KeyboardFooter } from "../ui/KeyboardForms";
 import { haptic } from "../ui/haptics";
 import { openNativePaymentSheet } from "../checkout/paymentSheet";
 import '../checkout/paymentRecoveryStorage';
-import { parseNativePayment, rememberNativePayment, resolveNativePayment, getPendingNativePayment, presentAndResolveNativePayment, restoreNativePayments, persistNativePayment, acknowledgeNativePayment, type PendingNativePayment } from "../checkout/nativePayment";
+import { parseNativePayment, rememberNativePayment, resolveNativePayment, settleUnsubmittedNativePayment, getNativePayment, getPendingNativePayment, presentAndResolveNativePayment, restoreNativePayments, persistNativePayment, acknowledgeNativePayment, type PendingNativePayment } from "../checkout/nativePayment";
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Platform, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { MotionPressable as Pressable } from '../ui/MotionPressable';
 import { SelectionPressable, StateSurface, ValueText } from '../ui/StateMotion';
-import { ArrowLeft, ArrowRight, Check, CreditCard, LockKeyhole, Minus, Plus, Ticket, X } from 'lucide-react-native';
+import { ArrowRight, Check, CreditCard, LockKeyhole, Minus, Plus, Ticket, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Crypto from 'expo-crypto';
 import { usePreventRemove } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, accountApi } from '../auth/AuthProvider';
-import { useEvent } from '../data/queries';
+import { queryClient, useEvent } from '../data/queries';
 import { useEventClock } from '../data/useEventClock';
 import { usePreferences } from '../PreferencesProvider';
 import { Text } from '../ui/Text';
@@ -25,11 +27,13 @@ import { WEB_URL } from '../config';
 import { ApiError } from '../data/http';
 import type { RootParamList } from '../navigation/types';
 import { returnToEvent } from '../navigation/returnToEvent';
+import { purchaseCompletion } from '../checkout/purchaseCompletion';
 import { checkoutTotals, parseBilling, parseCheckout, validPaidSelection, type Quantities } from '../checkout/data';
 import { usePromoCode } from '../checkout/usePromoCode';
 import { BillingFields, billingStyles } from '../checkout/BillingFields';
 import { preparePaymentBrowser, paymentReturnOrigin } from '../checkout/paymentBrowser';
 import { checkoutFailure } from '../checkout/errors';
+import { captureHandledFailure } from '../diagnostics/handled';
 import { checkoutRequestKey } from '../../../pulse-app/src/features/checkout/requestKey';
 import { checkoutEmailError } from '../../../pulse-app/src/features/checkout/validateEmail';
 import { emptyInvoiceDetails, getInvoiceFieldErrors, validateInvoiceDetails, type InvoiceDetails } from '../../../pulse-app/src/features/checkout/invoiceDetails';
@@ -64,7 +68,6 @@ function CheckoutContent({ route, navigation }: Props) {
       const outstanding = getPendingNativePayment(eventId, token);
       if (outstanding) {
         nativePayment.current = outstanding;
-        setReturned({ nativeOrderId: outstanding.session.orderId });
       }
     }).catch(() => { if (active) setError('checkout.paymentRecoveryUnavailable'); });
     return () => { active = false; };
@@ -77,8 +80,18 @@ function CheckoutContent({ route, navigation }: Props) {
   useEffect(() => {
     if (!returned || busy) return;
     setReturned(null);
+    const entry = returned.nativeOrderId ? getNativePayment(returned.nativeOrderId, eventId, token) : undefined;
+    // presentAndResolveNativePayment already verified this result with the API.
+    // The SDK's successful UI outcome alone never reaches this branch.
+    if (entry?.status === 'completed') {
+      purchaseCompletion.confirm({ status: entry.status, orderId: entry.session.orderId }, eventId, token);
+      for (const key of ['tickets', 'orders', 'event', 'event-social', 'event-friends', 'social-feed', 'notifications']) void queryClient.invalidateQueries({ queryKey: [key] });
+      haptic('success');
+      returnToEvent(navigation, eventId);
+      return;
+    }
     navigation.navigate('CheckoutReturn', { eventId, ...returned });
-  }, [returned, busy, navigation, eventId]);
+  }, [returned, busy, navigation, eventId, token]);
   useEffect(() => {
     if (!user) return;
     let active = true;
@@ -138,14 +151,19 @@ function CheckoutContent({ route, navigation }: Props) {
           nativePayment.current ??= getPendingNativePayment(eventId, token) ?? null;
         }
         if (Platform.OS !== 'web' && nativePayment.current?.owner === token) {
+          if (nativePayment.current.status === 'pending') {
+            await settleUnsubmittedNativePayment(nativePayment.current, accountApi);
+            if (!alive.current || controller.getToken() !== token) return;
+          }
           if (nativePayment.current.status !== 'failed' && nativePayment.current.status !== 'refunded') {
             setReturned({ nativeOrderId: nativePayment.current.session.orderId }); return;
           }
+          await acknowledgeNativePayment(nativePayment.current).catch(() => undefined);
           nativePayment.current = null; intent.current = null;
         }
         // Web popup creation stays synchronous with the press to avoid blockers.
         if (Platform.OS === 'web') browser.current = preparePaymentBrowser(token);
-        const body = { email: email.trim(), items: totals.tickets.map(ticket => ({ ticketTypeId: ticket.id, quantity: quantities[ticket.id] })), promoCode: promo.applied?.code, billingDetails: details, ...(Platform.OS !== 'web' ? { client: 'native_sheet' } : { client: 'native_web', returnOrigin: paymentReturnOrigin() }) };
+        const body = { expectedTotalBani: Math.round(totals.total * 100), email: email.trim(), items: totals.tickets.map(ticket => ({ ticketTypeId: ticket.id, quantity: quantities[ticket.id] })), promoCode: promo.applied?.code, billingDetails: details, ...(Platform.OS !== 'web' ? { client: 'native_sheet' } : { client: 'native_web', returnOrigin: paymentReturnOrigin() }) };
         intent.current = checkoutRequestKey(intent.current, JSON.stringify({ eventId, userId: user?.id, body }), () => Crypto.getRandomBytes(16));
         const raw = await accountApi('/events/' + eventId + '/tickets/purchase', { method: 'POST', body, token, idempotencyKey: intent.current.key });
         if (Platform.OS === 'web') {
@@ -179,6 +197,7 @@ function CheckoutContent({ route, navigation }: Props) {
         }
         if (alive.current && controller.getToken() === token) setReturned({ nativeOrderId: response.orderId });
       } catch (error) {
+        captureHandledFailure(error, 'payment_prepare');
         if (!alive.current || controller.getToken() !== token) return;
         // No payload, token, billing details or Stripe secrets in diagnostics.
         if (__DEV__) console.warn('[checkout] Payment preparation failed', error instanceof ApiError
@@ -202,9 +221,9 @@ function CheckoutContent({ route, navigation }: Props) {
   </View>;
   return <View testID="checkout-screen" style={s.screen}>
     <View testID="checkout-header" style={{ paddingTop: Math.max(16, safe.top + 12) }}>
-      <View style={s.header}><Pressable testID="checkout-back" accessibilityRole="button" accessibilityLabel={copy('common.back')} disabled={busy} onPress={() => { if (!pending.current) { if (step) changeStep(step - 1); else navigation.goBack(); } }} style={s.back}><ArrowLeft size={20} color="white" /></Pressable>
+      <View style={s.header}><GlassPressable fallback={Pressable} testID="checkout-back" accessibilityRole="button" accessibilityLabel={copy('common.back')} disabled={busy} onPress={() => { if (!pending.current) { if (step) changeStep(step - 1); else navigation.goBack(); } }} style={s.back}><ActionIcon name="back" size={20} color="white" /></GlassPressable>
         <View style={{ flex: 1, alignItems: 'center' }}><Text style={s.title}>{copy('checkout.checkoutTitle')}</Text><Text style={s.subtitle}>{copy('checkout.stepOf', { step: step + 1, total: 3 })}</Text></View>
-        <Pressable testID="checkout-close" accessibilityRole="button" accessibilityLabel={copy('checkout.backToTickets')} disabled={busy} onPress={() => { if (!pending.current) navigation.goBack(); }} style={s.back}><X size={16} color="#ffffff80" /></Pressable>
+        <GlassPressable fallback={Pressable} testID="checkout-close" accessibilityRole="button" accessibilityLabel={copy('checkout.backToTickets')} disabled={busy} onPress={() => { if (!pending.current) navigation.goBack(); }} style={s.back}><ActionIcon name="close" size={16} color="#ffffff80" /></GlassPressable>
       </View>
       <View style={s.progress}>{[0, 1, 2].map(index => <StateSurface key={index} background={index <= step ? colors.accent : '#ffffff1a'} style={s.progressPart} />)}</View>
     </View>

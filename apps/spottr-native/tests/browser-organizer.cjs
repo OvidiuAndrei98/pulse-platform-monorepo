@@ -16,7 +16,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
     qa.failProfile = parameters.get('failProfile') === '1';
     qa.savedBilling = billingFixture ? { type: 'company', name: 'Fixture Club', taxId: 'RO123456', registrationNumber: '', address: 'Saved street 1', city: 'Bucuresti', county: 'Bucuresti', sector: 'Sector 3', country: 'Romania' } : null;
     if (parameters.get('legacyBilling') === '1') qa.savedBilling.sector = '';
-    qa.profile = { id: id(2), userId: id(1), cui: 'RO123456', companyName: 'Fixture Club', verificationStatus: 'approved', isVerified: true, stripeAccountId: 'acct_fixture', stripeChargesEnabled: false, stripePayoutsEnabled: false, organizerAgreementVersion: '2026-07-27' };
+    qa.profile = { id: id(2), userId: id(1), cui: 'RO123456', companyName: 'Fixture Club', verificationStatus: 'approved', isVerified: true, stripeAccountId: 'acct_fixture', stripeChargesEnabled: false, stripePayoutsEnabled: false, organizerAgreementVersion: '2026-10-18' };
     qa.event = { id: id(10), organizerId: id(1), title: 'Organizer QA night', status: 'published', category: 'TECHNO', locationName: 'Fixture venue', city: 'Bucuresti', startTime: '2035-01-01T18:00Z', endTime: '2035-01-02T06:00Z', latitude: 44, longitude: 26, ticketTypes: [], lineup: [] };
     window.open = () => {
       if (qa.blockPopup) return null;

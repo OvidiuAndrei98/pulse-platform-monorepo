@@ -1,6 +1,7 @@
 import { checkPaymentConfirmation } from '../../../pulse-app/src/features/checkout/confirmation';
 import { ApiError } from '../data/http';
 import { isEventId } from '../data/events';
+import { captureHandledFailure } from '../diagnostics/handled';
 
 export type PaymentResult = 'pending' | 'unavailable' | 'completed' | 'failed' | 'refunded' | 'missing';
 export type PaymentConfirmation = { status: PaymentResult; orderId?: string };
@@ -23,6 +24,7 @@ export async function confirmPayment(
       if (response.status === 'refunded') terminal = 'refunded';
       return { status: response.status };
     } catch (error) {
+      if (active()) captureHandledFailure(error, 'payment_confirm');
       if (error instanceof ApiError && error.status === 404) {
         terminal = 'missing';
         return { status: 'failed' }; // End polling; absence is not a failed charge.

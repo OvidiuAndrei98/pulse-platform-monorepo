@@ -30,6 +30,7 @@ import (
 	"pulse-api/internal/spotify"
 	"pulse-api/internal/tickets"
 	"pulse-api/internal/users"
+	"pulse-api/internal/wardrobe"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -244,6 +245,7 @@ func (app *Application) BuildRouter() http.Handler {
 	// 2. Mapăm funcțiile în noua structură de configurare din router
 	cfg := router.HandlersConfig{
 		HealthCheck: app.Pool.Ping,
+		Wardrobe:    (&wardrobe.Handler{Pool: app.Pool}).Routes(),
 
 		// Middleware-uri
 		AuthMiddleware:         authMiddleware,
@@ -324,6 +326,9 @@ func (app *Application) BuildRouter() http.Handler {
 		SendSafetyGroupHelp:         safetyGroupsHandler.HandleHelp,
 		ResolveSafetyGroupHelp:      safetyGroupsHandler.HandleHelpResolved,
 		ListOrganizerVerifications:  organizerHandler.HandleAdminListOrganizerVerifications,
+		GetCommissions:              organizerHandler.HandleAdminCommissions,
+		SetStandardCommission:       organizerHandler.HandleAdminSetStandardCommission,
+		SetOrganizerCommission:      organizerHandler.HandleAdminSetOrganizerCommission,
 		ReviewOrganizerVerification: organizerHandler.HandleAdminReviewOrganizerVerification,
 
 		// Events
@@ -421,6 +426,7 @@ func (app *Application) BuildRouter() http.Handler {
 		ValidateTicket:        ticketingHandler.HandleValidateTicket,
 		ListValidationEvents:  ticketingHandler.HandleListValidationEvents,
 		ListMyValidationScans: ticketingHandler.HandleListMyValidationScans,
+		ListValidationScans:   ticketingHandler.HandleListValidationScans,
 		ListValidationStaff:   ticketingHandler.HandleListValidationStaff,
 		AddValidationStaff:    ticketingHandler.HandleAddValidationStaff,
 		RemoveValidationStaff: ticketingHandler.HandleRemoveValidationStaff,
@@ -479,6 +485,10 @@ func (app *Application) StartSafetyGroupCleanupWorker(ctx context.Context) {
 
 func (app *Application) StartDiagnosticsCleanupWorker(ctx context.Context) {
 	(&diagnostics.Handler{Store: diagnostics.PostgresStore{Pool: app.Pool}}).StartCleanupWorker(ctx)
+}
+
+func (app *Application) StartWardrobeCleanupWorker(ctx context.Context) {
+	(&wardrobe.Handler{Pool: app.Pool}).StartCleanupWorker(ctx)
 }
 
 func (app *Application) StartPushWorker(ctx context.Context) {

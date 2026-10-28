@@ -112,7 +112,7 @@ async function run() {
   assert.equal(await evaluate("location.pathname"), "/events");
   console.log("PASS Back closes filters without leaving the events route");
 
-  await delay(300);
+  await until("!document.querySelector('[role=dialog][aria-modal=true]')");
   await evaluate("document.querySelector('button[aria-label=\"Home\"]').click()");
   await until("location.pathname === '/'");
   await evaluate("document.querySelector('button[aria-label=\"Map\"]').click()");
