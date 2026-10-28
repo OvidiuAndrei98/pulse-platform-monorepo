@@ -1,8 +1,8 @@
+import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft } from 'lucide-react-native';
 import { usePreferences } from '../PreferencesProvider';
 import { ApiError } from '../data/http';
 import { Feedback, IconButton, Loading } from '../ui/common';
@@ -53,7 +53,7 @@ export function QuickScannerScreen({ route }: { route?: { params?: { token?: str
   };
   return <View style={{ flex: 1, backgroundColor: colors.bg }}>
     <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 20, paddingBottom: insets.bottom + 28, width: '100%', maxWidth: 620, alignSelf: 'center', gap: 20 }}>
-      <IconButton label={copy('common.back')} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs')}><ArrowLeft color="white" size={22} /></IconButton>
+      <IconButton label={copy('common.back')} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs')}><ActionIcon name="back" color="white" size={22} /></IconButton>
       {loading ? <Loading /> : session ? <>
         <View style={s.panel}><Text style={{ color: colors.accent, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5 }}>{session.label}</Text><Text style={[s.heading, { fontSize: 25 }]}>{session.eventTitle}</Text><Text style={s.muted}>{session.locationName}</Text></View>
         <ScannerPanel key={session.sessionToken} eventTitle={session.eventTitle} gateStatus={{ connection: connected === false ? 'offline' : connected ? 'online' : 'checking', quick: true }} active={focused} busy={busy} error={error} result={result} onScan={submit} />

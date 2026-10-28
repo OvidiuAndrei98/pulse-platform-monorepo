@@ -1,3 +1,5 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import { FormScrollView } from "../ui/KeyboardForms";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -9,15 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import {
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle2,
-  LockKeyhole,
-  Mail,
-  UserRound,
-  X,
-} from "lucide-react-native";
+import { ArrowRight, CheckCircle2, LockKeyhole, Mail, UserRound } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -224,7 +218,7 @@ export function AuthScreen({
           paddingBottom: Math.max(32, safe.bottom + 24),
         }}
       >
-        <Pressable
+        <GlassPressable fallback={Pressable}
           accessibilityRole="button"
           testID="auth-back"
           accessibilityLabel={copy("common.back")}
@@ -240,13 +234,13 @@ export function AuthScreen({
         >
           {form ? (
             <>
-              <ArrowLeft size={16} color="white" />
+              <ActionIcon name="back" size={16} color="white" />
               <Text style={s.backText}>{copy("common.back")}</Text>
             </>
           ) : (
-            <X size={24} color="white" />
+            <ActionIcon name="close" size={24} color="white" />
           )}
-        </Pressable>
+        </GlassPressable>
         {!form && (
           <View style={s.hero}>
             <Logo size={80} />

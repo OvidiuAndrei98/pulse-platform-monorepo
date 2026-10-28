@@ -1,8 +1,9 @@
+import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Keyboard, ScrollView, StyleSheet, View } from "react-native";
 import { FormInput as TextInput } from '../ui/FormInput';
 import { MotionPressable as Pressable } from "../ui/MotionPressable";
-import { ArrowLeft, ArrowUpRight, BadgeCheck, Clock3, Search, UserRound, X } from "lucide-react-native";
+import { ArrowUpRight, BadgeCheck, Clock3, Search, UserRound, X } from "lucide-react-native";
 import { useRecentSearches } from '../search/useRecentSearches';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../auth/AuthProvider';
@@ -73,7 +74,7 @@ export function SearchScreen({
           label={copy("common.back")}
           onPress={() => navigation.goBack()}
         >
-          <ArrowLeft color={colors.text} size={20} />
+          <ActionIcon name="back" color={colors.text} size={20} />
         </IconButton>
         <Text style={{ color: colors.text, fontSize: 20, fontWeight: "600" }}>
           {copy("search.open")}

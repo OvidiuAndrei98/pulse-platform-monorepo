@@ -1,3 +1,4 @@
+import { ActionIcon } from '../ui/ActionIcon';
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   AppState,
@@ -12,17 +13,7 @@ import {
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  ArrowLeft,
-  ChevronDown,
-  History,
-  RefreshCw,
-  ScanLine,
-  Settings2,
-  Ticket,
-  Wifi,
-  WifiOff,
-} from "lucide-react-native";
+import { ChevronDown, History, RefreshCw, ScanLine, Settings2, Ticket, Wifi, WifiOff } from "lucide-react-native";
 import { accountApi, useAuth } from "../auth/AuthProvider";
 import { usePreferences } from "../PreferencesProvider";
 import { ApiError } from "../data/http";
@@ -445,7 +436,7 @@ export function ScannerScreen({
                   : navigation.navigate("Tabs", { screen: "Profile" })
               }
             >
-              <ArrowLeft color="white" size={22} />
+              <ActionIcon name="back" color="white" size={22} />
             </IconButton>
           </View>
         )}
@@ -455,7 +446,7 @@ export function ScannerScreen({
               label={copy("common.back")}
               onPress={() => setAgreementOpen(false)}
             >
-              <ArrowLeft color="white" size={22} />
+              <ActionIcon name="back" color="white" size={22} />
             </IconButton>
             <OrganizerAgreement
               profile={profile.data ?? undefined}

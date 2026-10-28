@@ -1,3 +1,5 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import { FormInput as TextInput } from '../ui/FormInput';
 import { FormScrollView, KeyboardFooter } from "../ui/KeyboardForms";
 import { haptic } from "../ui/haptics";
@@ -8,7 +10,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Platform, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { MotionPressable as Pressable } from '../ui/MotionPressable';
 import { SelectionPressable, StateSurface, ValueText } from '../ui/StateMotion';
-import { ArrowLeft, ArrowRight, Check, CreditCard, LockKeyhole, Minus, Plus, Ticket, X } from 'lucide-react-native';
+import { ArrowRight, Check, CreditCard, LockKeyhole, Minus, Plus, Ticket, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Crypto from 'expo-crypto';
 import { usePreventRemove } from '@react-navigation/native';
@@ -219,9 +221,9 @@ function CheckoutContent({ route, navigation }: Props) {
   </View>;
   return <View testID="checkout-screen" style={s.screen}>
     <View testID="checkout-header" style={{ paddingTop: Math.max(16, safe.top + 12) }}>
-      <View style={s.header}><Pressable testID="checkout-back" accessibilityRole="button" accessibilityLabel={copy('common.back')} disabled={busy} onPress={() => { if (!pending.current) { if (step) changeStep(step - 1); else navigation.goBack(); } }} style={s.back}><ArrowLeft size={20} color="white" /></Pressable>
+      <View style={s.header}><GlassPressable fallback={Pressable} testID="checkout-back" accessibilityRole="button" accessibilityLabel={copy('common.back')} disabled={busy} onPress={() => { if (!pending.current) { if (step) changeStep(step - 1); else navigation.goBack(); } }} style={s.back}><ActionIcon name="back" size={20} color="white" /></GlassPressable>
         <View style={{ flex: 1, alignItems: 'center' }}><Text style={s.title}>{copy('checkout.checkoutTitle')}</Text><Text style={s.subtitle}>{copy('checkout.stepOf', { step: step + 1, total: 3 })}</Text></View>
-        <Pressable testID="checkout-close" accessibilityRole="button" accessibilityLabel={copy('checkout.backToTickets')} disabled={busy} onPress={() => { if (!pending.current) navigation.goBack(); }} style={s.back}><X size={16} color="#ffffff80" /></Pressable>
+        <GlassPressable fallback={Pressable} testID="checkout-close" accessibilityRole="button" accessibilityLabel={copy('checkout.backToTickets')} disabled={busy} onPress={() => { if (!pending.current) navigation.goBack(); }} style={s.back}><ActionIcon name="close" size={16} color="#ffffff80" /></GlassPressable>
       </View>
       <View style={s.progress}>{[0, 1, 2].map(index => <StateSurface key={index} background={index <= step ? colors.accent : '#ffffff1a'} style={s.progressPart} />)}</View>
     </View>

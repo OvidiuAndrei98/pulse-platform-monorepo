@@ -1,3 +1,5 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
@@ -168,15 +170,15 @@ export function HomeScreen() {
           <Logo size={32} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {user && <NotificationsPopover key={user.id} />}
-          <Pressable
+          <GlassPressable fallback={Pressable}
             testID="home-search"
             accessibilityLabel={copy("search.open")}
             accessibilityRole="button"
             onPress={() => navigation.navigate("Search")}
             style={s.search}
           >
-            <Search size={16} color={colors.accent} />
-          </Pressable>
+            <ActionIcon name="search" size={16} color={colors.accent} />
+          </GlassPressable>
           </View>
         </View>
         <Text style={s.greeting}>

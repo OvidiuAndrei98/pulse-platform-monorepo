@@ -1,3 +1,4 @@
+import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useRef, useState } from "react";
 import {
   Modal,
@@ -12,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import QRCode from "react-native-qrcode-svg";
 import { randomUUID } from "expo-crypto";
-import { ArrowLeft, ChevronRight, Shirt } from "lucide-react-native";
+import { ChevronRight, Shirt } from "lucide-react-native";
 import { Text } from "../ui/Text";
 import { FormInput } from "../ui/FormInput";
 import { FormScrollView } from "../ui/KeyboardForms";
@@ -280,7 +281,7 @@ export function WardrobeScreen({
                 : navigation.navigate("Tabs", { screen: "Profile" })
             }
           >
-            <ArrowLeft size={20} color="white" />
+            <ActionIcon name="back" size={20} color="white" />
           </IconButton>
           <Shirt color="#ff0044" />
           <Text style={s.title}>{c.title}</Text>

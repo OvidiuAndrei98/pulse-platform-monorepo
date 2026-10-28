@@ -1,3 +1,4 @@
+import { ActionIcon } from '../ui/ActionIcon';
 import { FormInput as TextInput } from '../ui/FormInput';
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -12,13 +13,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import {
-  CheckCircle2,
-  ClipboardCheck,
-  ScanLine,
-  X,
-  XCircle,
-} from "lucide-react-native";
+import { CheckCircle2, ClipboardCheck, ScanLine, XCircle } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePreferences } from "../PreferencesProvider";
 import { Button, IconButton } from "../ui/common";
@@ -294,7 +289,7 @@ export function ScannerPanel({
               label={copy("common.close")}
               onPress={() => setCamera(false)}
             >
-              <X size={20} color="white" />
+              <ActionIcon name="close" size={20} color="white" />
             </IconButton>
           </View>
           <GateToolbar status={gateStatus} settings={experience.settings} toggle={experience.toggle} awake={experience.awake} soundAvailable={experience.soundAvailable} />

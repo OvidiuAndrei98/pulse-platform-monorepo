@@ -1,3 +1,5 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
@@ -5,7 +7,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
-import { ArrowLeft, Check, History, RefreshCw, UserRound, Users, WifiOff } from 'lucide-react-native';
+import { Check, History, RefreshCw, UserRound, Users, WifiOff } from 'lucide-react-native';
 import { useAuth } from '../auth/AuthProvider';
 import { usePreferences } from '../PreferencesProvider';
 import type { RootParamList } from '../navigation/types';
@@ -83,7 +85,7 @@ export function ScannerHistoryScreen({ route, navigation }: NativeStackScreenPro
     <View style={s.body}>
       <View style={s.header}>
         <View style={[s.row, { justifyContent: 'space-between' }]}>
-          <Pressable testID="scanner-history-back" accessibilityRole="button" accessibilityLabel={copy('common.back')} onPress={back} style={s.back}><ArrowLeft size={20} color={colors.text} /></Pressable>
+          <GlassPressable fallback={Pressable} testID="scanner-history-back" accessibilityRole="button" accessibilityLabel={copy('common.back')} onPress={back} style={s.back}><ActionIcon name="back" size={20} color={colors.text} /></GlassPressable>
           {!!user && <IconButton label={copy('validation.historyRefresh')} onPress={retry} disabled={connected === false || history.isFetching}>
             {history.isFetching && !history.isFetchingNextPage ? <ActivityIndicator size="small" color={colors.accent} /> : <RefreshCw size={18} color={colors.muted} />}
           </IconButton>}

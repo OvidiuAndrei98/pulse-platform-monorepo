@@ -1,6 +1,8 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Bell, Calendar, Heart, MessageCircle, ShieldAlert, Sparkles, Ticket, UserPlus, UsersRound, X } from 'lucide-react-native';
+import { Bell, Calendar, Heart, MessageCircle, ShieldAlert, Sparkles, Ticket, UserPlus, UsersRound } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -45,16 +47,16 @@ export function NotificationsPopover() {
     else if (target) navigation.navigate('SafetyGroup', { eventId: target.id });
   };
   return <View ref={anchor} collapsable={false}>
-    <MotionPressable testID="home-notifications" accessibilityRole="button" accessibilityLabel={copy('notifications.title')} onPress={open} style={s.bell}>
-      <View><Bell color={colors.text} size={16} strokeWidth={2.2} />{(query.data?.unreadCount ?? 0) > 0 && <View testID="notification-unread" style={s.badge} />}</View>
-    </MotionPressable>
+    <GlassPressable fallback={MotionPressable} testID="home-notifications" accessibilityRole="button" accessibilityLabel={copy('notifications.title')} onPress={open} style={s.bell}>
+      <View><ActionIcon name="bell" color={colors.text} size={16} strokeWidth={2.2} />{(query.data?.unreadCount ?? 0) > 0 && <View testID="notification-unread" style={s.badge} />}</View>
+    </GlassPressable>
     {/* Web Modal keeps an invisible backdrop until an effect runs; unmount it with the panel. */}
     {(Platform.OS !== 'web' || position !== null) && <Modal transparent visible={position !== null} animationType="none" onRequestClose={() => setPosition(null)} statusBarTranslucent>
       <Pressable testID="notifications-backdrop" accessibilityRole="button" accessibilityLabel={copy('notifications.close')} onPress={() => setPosition(null)} style={StyleSheet.absoluteFill} />
       {position && <Animated.View testID="notifications-panel" accessibilityViewIsModal entering={Platform.OS === 'web' ? undefined : FadeIn.duration(180)} exiting={Platform.OS === 'web' ? undefined : FadeOut.duration(120)} style={[s.panel, { left: position.x, top: position.y, width }, Platform.OS === 'web' && webFade]}>
         <LinearGradient pointerEvents="none" colors={['#ffffff0f', '#ffffff00']} style={StyleSheet.absoluteFill} />
         <View style={s.header}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Bell color={colors.accent} size={16} strokeWidth={2.2} /><Text style={s.title}>{copy('notifications.title')}</Text></View>
-          <Pressable testID="notifications-close" accessibilityRole="button" accessibilityLabel={copy('notifications.close')} onPress={() => setPosition(null)} style={s.close}><X size={14} color={colors.text} /></Pressable></View>
+          <GlassPressable fallback={Pressable} testID="notifications-close" accessibilityRole="button" accessibilityLabel={copy('notifications.close')} onPress={() => setPosition(null)} style={s.close}><ActionIcon name="close" size={14} color={colors.text} /></GlassPressable></View>
         <ScrollView testID="notifications-list" style={{ maxHeight: Math.min(viewport.height * 0.6, viewport.height - position.y - insets.bottom - 72), marginTop: 12 }} contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 12, gap: 4 }}>
           <PushPreference />
           {(query.data?.unreadCount ?? 0) > 0 && <View style={s.unreadHeader}>

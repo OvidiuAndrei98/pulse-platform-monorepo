@@ -1,3 +1,5 @@
+import { GlassPressable } from '../ui/GlassPressable';
+import { ActionIcon } from '../ui/ActionIcon';
 ﻿import '../checkout/paymentRecoveryStorage';
 import { acknowledgeNativePayment, getNativePayment, resolveNativePayment, restoreNativePayments } from '../checkout/nativePayment';
 import { canRecheckPayment, canRestartCheckout, confirmPayment, type PaymentResult } from '../checkout/confirmation';
@@ -7,7 +9,7 @@ import { haptic } from '../ui/haptics';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
-import { AlertCircle, ArrowLeft, ArrowRight, Clock3, Mail, RotateCcw, Ticket, WifiOff } from 'lucide-react-native';
+import { AlertCircle, ArrowRight, Clock3, Mail, RotateCcw, Ticket, WifiOff } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { validCheckoutSession } from '../../../pulse-app/src/features/checkout/nativeReturn';
@@ -146,7 +148,7 @@ export function CheckoutReturnScreen({ route, navigation }: NativeStackScreenPro
       {canCancel && <Pressable testID="checkout-cancel-attempt" accessibilityRole="button" onPress={cancelAttempt} style={s.secondary}><Text style={s.secondaryText}>{copy('checkout.cancelPaymentAttempt')}</Text></Pressable>}
       {!checking && !completed && <Pressable testID="checkout-contact-support" accessibilityRole="button" onPress={contact} style={s.secondary}><Mail size={16} color="#ffffffb3" /><Text style={s.secondaryText}>{copy('checkoutResult.contactSupport')}</Text></Pressable>}
       {supportError && <Text selectable accessibilityRole="alert" style={s.deliveryText}>{copy('checkoutResult.supportFallback')} contact@code-lab.ro</Text>}
-      <Pressable testID="checkout-back-events" accessibilityRole="button" onPress={() => { acknowledge(); navigation.popTo('Tabs', { screen: 'Explore' }); }} style={s.back}><ArrowLeft size={15} color="#ffffff80" /><Text style={s.backText}>{copy('checkoutSuccess.backToEvents')}</Text></Pressable>
+      <GlassPressable fallback={Pressable} glassStyle={{ paddingHorizontal: 12 }} testID="checkout-back-events" accessibilityRole="button" onPress={() => { acknowledge(); navigation.popTo('Tabs', { screen: 'Explore' }); }} style={s.back}><ActionIcon name="back" size={15} color="#ffffff80" /><Text style={s.backText}>{copy('checkoutSuccess.backToEvents')}</Text></GlassPressable>
     </View>
   </ScrollView>;
 }
