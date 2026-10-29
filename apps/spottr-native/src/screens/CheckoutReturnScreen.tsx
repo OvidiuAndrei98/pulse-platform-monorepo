@@ -1,4 +1,3 @@
-import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 ﻿import '../checkout/paymentRecoveryStorage';
 import { acknowledgeNativePayment, getNativePayment, resolveNativePayment, restoreNativePayments } from '../checkout/nativePayment';
@@ -148,7 +147,7 @@ export function CheckoutReturnScreen({ route, navigation }: NativeStackScreenPro
       {canCancel && <Pressable testID="checkout-cancel-attempt" accessibilityRole="button" onPress={cancelAttempt} style={s.secondary}><Text style={s.secondaryText}>{copy('checkout.cancelPaymentAttempt')}</Text></Pressable>}
       {!checking && !completed && <Pressable testID="checkout-contact-support" accessibilityRole="button" onPress={contact} style={s.secondary}><Mail size={16} color="#ffffffb3" /><Text style={s.secondaryText}>{copy('checkoutResult.contactSupport')}</Text></Pressable>}
       {supportError && <Text selectable accessibilityRole="alert" style={s.deliveryText}>{copy('checkoutResult.supportFallback')} contact@code-lab.ro</Text>}
-      <GlassPressable fallback={Pressable} glassStyle={{ paddingHorizontal: 12 }} testID="checkout-back-events" accessibilityRole="button" onPress={() => { acknowledge(); navigation.popTo('Tabs', { screen: 'Explore' }); }} style={s.back}><ActionIcon name="back" size={15} color="#ffffff80" /><Text style={s.backText}>{copy('checkoutSuccess.backToEvents')}</Text></GlassPressable>
+      <Pressable testID="checkout-back-events" accessibilityRole="button" onPress={() => { acknowledge(); navigation.popTo('Tabs', { screen: 'Explore' }); }} style={s.back}><ActionIcon name="back" size={15} color="#ffffff80" /><Text style={s.backText}>{copy('checkoutSuccess.backToEvents')}</Text></Pressable>
     </View>
   </ScrollView>;
 }

@@ -1,0 +1,56 @@
+Native navbar follow-up — 2026-10-29
+
+Request/evidence
+- Reviewed navbar nu cum trebuie.mp4 (30.27s) and aaaaa navbar cum trebuie.mp4
+  (23.60s). User confirmed a new Xcode build with pod-install.
+- SPOTTR recording is visually consistent with the custom fallback: fixed-size
+  pink selection surface, rather than Instagram's interactive system selection.
+- Definitive repository defect: `git check-ignore -v` showed that the app's
+  unanchored `ios/` rule excluded ALL THREE module source files. `git ls-files`
+  listed only modules/spottr-native-tabs/expo-module.config.json. A Git checkout
+  on the build Mac therefore had no native module implementation/podspec to link.
+- Local autolinking and Hermes export alone did not detect this delivery defect.
+  No access to the actual phone's runtime logs; do not claim a device trace.
+
+Fix
+- Anchored generated-project ignores to /ios/ and /android/ at the app root.
+  Swift files and the local podspec now appear in ordinary Git changes.
+- Added iOS source preflight to ios, ios:release, ios:ipa and prebuild:ios scripts.
+  A configuration-only checkout now fails clearly before these build commands.
+- Development runtime reports UIKit enabled vs missing-module fallback in console.
+- No additional painted capsule, custom drag recognizer, private UIKit view access,
+  or replacement spring. Existing UIKit integration receives its own gestures.
+- Android/Next behavior unchanged.
+
+Checks
+- TypeScript PASS.
+- 13 tests PASS, including actual Git-ignore behavior, missing-source preflight,
+  UIKit routing/guard tests, fallback behavior and circular-control Yoga geometry.
+- `git ls-files --cached --others --exclude-standard` includes configuration,
+  SpottrNativeTabs.podspec, SpottrNativeTabsModule.swift and SpottrTabIcons.swift.
+- iOS Hermes export PASS (4269 modules). This validates JS bundling, not Swift
+  compilation or the actual UIKit interaction on a device.
+
+Mac handoff
+1. Include the now-visible three native source files when committing/transferring
+   the changes; pull/sync the complete update on the Mac.
+2. From apps/spottr-native, run `node scripts/verify-ios-native-sources.cjs`.
+3. Run `npx pod-install`. Confirm SpottrNativeTabs appears in ios/Podfile.lock.
+4. Build/run the .xcworkspace in Xcode. Debug console should say:
+   [navbar] UIKit tab bar enabled; selection and dragging are owned by iOS.
+5. Verify hold/drag/release, rapid reversal, role routing, sheets and safe areas
+   on the actual iPhone. This Windows session cannot compile/run UIKit.
+
+Research/limits
+- Apple WWDC25 confirms UITabBarController adopts Liquid Glass; native chrome
+  should own the effect instead of putting a separately animated pill on top.
+  https://developer.apple.com/videos/play/wwdc2025/284/
+- A primary implementation documents that iOS 26 may override the selection tint:
+  https://github.com/DroidKaigi/conference-app-2026/blob/main/docs/ios-liquid-glass.md
+- The supported tint request remains configured, but pink cannot be promised
+  across OS versions. Do not fake it with an overlay that defeats the requested
+  system interaction. Exact Instagram parity still needs device verification.
+
+Local video contact sheets (ignored)
+apps/spottr-native/artifacts/glass-reference-20261029/current-0-contact.png
+apps/spottr-native/artifacts/glass-reference-20261029/current-1-contact.png

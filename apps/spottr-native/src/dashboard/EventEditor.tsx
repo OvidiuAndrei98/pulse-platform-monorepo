@@ -1,4 +1,3 @@
-import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 ﻿import React, { useState } from "react";
 import {
@@ -339,7 +338,7 @@ export function EventEditor({
   return (
     <View testID="event-editor">
       {onBack && (
-        <GlassPressable fallback={Pressable} glassStyle={{ paddingHorizontal: 12 }}
+        <Pressable
           accessibilityRole="button"
           onPress={onBack}
           disabled={busy}
@@ -352,7 +351,7 @@ export function EventEditor({
         >
           <ActionIcon name="back" size={14} color={dColors.muted} />
           <Text style={e.small}>{copy("dashboardNav.backToDashboard")}</Text>
-        </GlassPressable>
+        </Pressable>
       )}
       <Text
         accessibilityRole="header"
@@ -647,7 +646,7 @@ export function EventEditor({
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             {!event && step > 0 && (
-              <GlassPressable fallback={Pressable}
+              <Pressable
                 testID="editor-back"
                 accessibilityRole="button"
                 disabled={busy}
@@ -660,7 +659,7 @@ export function EventEditor({
                 >
                   {copy("common.back")}
                 </Text>
-              </GlassPressable>
+              </Pressable>
             )}
             {event && !readOnly && wide && (
               <Text style={[e.small, { flex: 1 }]}>
