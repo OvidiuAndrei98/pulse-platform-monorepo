@@ -217,7 +217,7 @@ func (app *Application) BuildRouter() http.Handler {
 	app.Push = &notifications.PushService{Pool: app.Pool, ProjectID: strings.TrimSpace(os.Getenv("EXPO_PUSH_PROJECT_ID")), AccessToken: strings.TrimSpace(os.Getenv("EXPO_PUSH_ACCESS_TOKEN"))}
 	diagnosticsHandler := &diagnostics.Handler{Store: diagnostics.PostgresStore{Pool: app.Pool}}
 	safetyGroupsHandler := safetygroups.NewHandler(app.Pool, app.Abuse)
-	authMiddleware := auth.AuthMiddleware
+	authMiddleware := authHandler.AuthMiddleware
 	scannerAuthMiddleware := auth.ScannerAuthMiddleware
 	requireOrganizer := auth.RequireRole("organizer", "admin")
 	requireAdmin := auth.RequireRole("admin")
@@ -249,7 +249,7 @@ func (app *Application) BuildRouter() http.Handler {
 
 		// Middleware-uri
 		AuthMiddleware:         authMiddleware,
-		OptionalAuthMiddleware: auth.OptionalAuthMiddleware,
+		OptionalAuthMiddleware: authHandler.OptionalAuthMiddleware,
 		ScannerAuthMiddleware:  scannerAuthMiddleware,
 		OrganizerMiddleware:    requireOrganizer,
 		AdminMiddleware:        requireAdmin,

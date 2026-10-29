@@ -326,24 +326,27 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if h.Abuse != nil {
 		_ = h.Abuse.Clear(r.Context(), "auth_login_email", normalizedEmail)
 	}
-	h.claimGuestPurchases(r.Context(), user.ID)
-
-	tokenString, err := issueUserJWT(user)
+	tokenString, err := h.issueUserSession(r.Context(), user)
 	if err != nil {
 		log.Printf("Login token creation failed: %v", err)
 		router.RespondWithError(w, http.StatusInternalServerError, "Eroare la generarea token-ului de autentificare")
 		return
 	}
+	h.claimGuestPurchases(r.Context(), user.ID)
 
 	router.RespondWithJSON(w, http.StatusOK, LoginResponse{Token: tokenString})
 }
 
-func issueUserJWT(user db.Users) (string, error) {
+func issueUserJWT(user db.Users, version int64) (string, error) {
+	if version <= 0 {
+		return "", errors.New("session version must be positive")
+	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":  user.ID.String(),
 		"role": user.Role.String,
 		"exp":  time.Now().Add(24 * time.Hour).Unix(),
 		"iat":  time.Now().Unix(),
+		"sv":   fmt.Sprint(version),
 	})
 
 	key, err := JWTSigningKey()

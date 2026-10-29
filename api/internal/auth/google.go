@@ -216,12 +216,12 @@ func (h *Handler) HandleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	h.claimGuestPurchases(r.Context(), user.ID)
-	token, err := issueUserJWT(user)
+	token, err := h.issueUserSession(r.Context(), user)
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Sesiunea nu a putut fi creata")
 		return
 	}
+	h.claimGuestPurchases(r.Context(), user.ID)
 
 	oauthState.ReturnTo = returnTo
 	http.Redirect(w, r, googleCallbackURL(h.googleOAuth, oauthState, token), http.StatusFound)
@@ -296,6 +296,9 @@ func (h *Handler) findOrCreateGoogleUser(r *http.Request, profile googleProfile,
 	googleID := pgtype.Text{String: profile.Subject, Valid: true}
 	user, err := h.Queries.GetUserByGoogleID(r.Context(), googleID)
 	if err == nil {
+		if !user.IsActive.Valid || !user.IsActive.Bool {
+			return db.Users{}, errors.New("Google account is unavailable")
+		}
 		linkedUser, linkErr := h.Queries.LinkGoogleIdentity(r.Context(), db.LinkGoogleIdentityParams{
 			ID:        user.ID,
 			GoogleID:  googleID,
@@ -312,6 +315,10 @@ func (h *Handler) findOrCreateGoogleUser(r *http.Request, profile googleProfile,
 
 	user, err = h.Queries.GetUserByEmail(r.Context(), strings.ToLower(profile.Email))
 	if err == nil {
+		if !user.IsActive.Valid || !user.IsActive.Bool ||
+			(user.GoogleID.Valid && user.GoogleID.String != profile.Subject) {
+			return db.Users{}, errors.New("Google account is unavailable")
+		}
 		linkedUser, linkErr := h.Queries.LinkGoogleIdentity(r.Context(), db.LinkGoogleIdentityParams{
 			ID:        user.ID,
 			GoogleID:  googleID,

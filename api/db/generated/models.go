@@ -975,6 +975,11 @@ type UserMediaDeletionJobs struct {
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
+type UserSessionVersions struct {
+	UserID  pgtype.UUID `json:"user_id"`
+	Version int64       `json:"version"`
+}
+
 type UserTokens struct {
 	ID        pgtype.UUID        `json:"id"`
 	UserID    pgtype.UUID        `json:"user_id"`

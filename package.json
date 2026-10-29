@@ -13,6 +13,6 @@
     "codegen": "pnpm --filter @packages/api-schema exec tsp compile . && pnpm --filter @packages/api-client build"
   },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.9.3"
   }
 }

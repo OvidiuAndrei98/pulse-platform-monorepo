@@ -1,10 +1,15 @@
 packages:
   - "apps/*"
   - "packages/*"
+# Keep compatible transitive security fixes even when a parent pins an older
+# patch/minor. Do not force Zod 3 consumers onto the incompatible Zod 4 API.
+overrides:
+  'undici@>=7.0.0 <7.30.1': '^7.30.1'
+  'fast-uri@>=3.0.0 <3.1.9': '^3.1.9'
 # The resolver imports Zod without declaring it as a peer. Bind that import to
 # the app's Zod instead of whichever version another workspace package hoists.
 packageExtensions:
-  '@hookform/resolvers@5.4.0':
+  '@hookform/resolvers@5.9.2':
     peerDependencies:
       zod: '^3.25.0 || ^4.0.0'
   # The Worklets Babel plugin imports these without declaring dependencies.

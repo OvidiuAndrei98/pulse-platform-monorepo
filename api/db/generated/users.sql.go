@@ -194,9 +194,9 @@ func (q *Queries) HideEventCategory(ctx context.Context, arg HideEventCategoryPa
 const linkGoogleIdentity = `-- name: LinkGoogleIdentity :one
 UPDATE users
 SET google_id = $2,
-    avatar_url = COALESCE(NULLIF(avatar_url, ''), NULLIF($3::TEXT, '')),
-    is_active = TRUE
-WHERE id = $1
+    avatar_url = COALESCE(NULLIF(avatar_url, ''), NULLIF($3::TEXT, ''))
+WHERE id = $1 AND is_active IS TRUE
+  AND (google_id IS NULL OR google_id = $2)
 RETURNING id, username, email, password_hash, avatar_url, role, bio, created_at, is_active, google_id, preferred_language, show_attendance_publicly
 `
 

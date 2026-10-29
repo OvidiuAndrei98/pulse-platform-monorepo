@@ -15,9 +15,9 @@ SELECT * FROM users WHERE google_id = $1 LIMIT 1;
 -- name: LinkGoogleIdentity :one
 UPDATE users
 SET google_id = $2,
-    avatar_url = COALESCE(NULLIF(avatar_url, ''), NULLIF(sqlc.arg(avatar_url)::TEXT, '')),
-    is_active = TRUE
-WHERE id = $1
+    avatar_url = COALESCE(NULLIF(avatar_url, ''), NULLIF(sqlc.arg(avatar_url)::TEXT, ''))
+WHERE id = $1 AND is_active IS TRUE
+  AND (google_id IS NULL OR google_id = $2)
 RETURNING *;
 
 -- name: PromoteUserToOrganizer :one

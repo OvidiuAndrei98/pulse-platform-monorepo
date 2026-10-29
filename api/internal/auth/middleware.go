@@ -69,6 +69,9 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		ctx := context.WithValue(r.Context(), UserIDKey, userIDStr)
 		ctx = context.WithValue(ctx, RoleKey, role)
+		if version, ok := claims["sv"].(string); ok {
+			ctx = context.WithValue(ctx, sessionVersionKey, version)
+		}
 		if issuedAt, issuedAtErr := claims.GetIssuedAt(); issuedAtErr == nil && issuedAt != nil {
 			ctx = context.WithValue(ctx, IssuedAtKey, issuedAt.Time)
 		}

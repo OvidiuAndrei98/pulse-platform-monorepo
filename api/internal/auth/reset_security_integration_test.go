@@ -83,6 +83,13 @@ func securityDB(t *testing.T) (*Handler, *pgxpool.Pool, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sessionMigration, err := os.ReadFile("../database/migrations/20261030120000_add_user_session_versions.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = pool.Exec(ctx, strings.Split(string(sessionMigration), "-- +goose Down")[0]); err != nil {
+		t.Fatal(err)
+	}
 	protection, err := abuse.NewProtection(pool, []byte("01234567890123456789012345678901"), "")
 	if err != nil {
 		t.Fatal(err)

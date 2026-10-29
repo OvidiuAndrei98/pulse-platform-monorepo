@@ -20,7 +20,7 @@ func TestJWTSigningKeyFailClosed(t *testing.T) {
 		if _, err := JWTSigningKey(); err == nil {
 			t.Fatal("unsafe key accepted")
 		}
-		if _, err := issueUserJWT(db.Users{}); err == nil {
+		if _, err := issueUserJWT(db.Users{}, 1); err == nil {
 			t.Fatal("issued session with unsafe key")
 		}
 		for _, middleware := range []func(http.Handler) http.Handler{AuthMiddleware, ScannerAuthMiddleware} {
@@ -107,7 +107,7 @@ func TestSessionValidation(t *testing.T) {
 	if err := id.Scan("ea79b1ed-99b1-4000-a000-000000000001"); err != nil {
 		t.Fatal(err)
 	}
-	token, err := issueUserJWT(db.Users{ID: id, Role: pgtype.Text{String: "user", Valid: true}})
+	token, err := issueUserJWT(db.Users{ID: id, Role: pgtype.Text{String: "user", Valid: true}}, 1)
 	if err != nil || sessionStatus(AuthMiddleware, token) != 204 {
 		t.Fatal("real user session rejected", err)
 	}
