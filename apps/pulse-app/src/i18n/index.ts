@@ -12,4 +12,6 @@ void i18n.use(initReactI18next).init({
   react: { useSuspense: false },
 });
 
+
+
 export default i18n;
