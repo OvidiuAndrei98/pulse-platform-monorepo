@@ -4,8 +4,9 @@ dist/
 dist-native/
 dist-final/
 artifacts/
-ios/
-android/
+# Ignore generated app projects, not the source of local Expo modules.
+/ios/
+/android/
 *.tsbuildinfo
 .env*
 !.env.sample

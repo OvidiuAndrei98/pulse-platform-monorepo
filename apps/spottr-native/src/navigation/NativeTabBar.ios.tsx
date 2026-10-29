@@ -16,9 +16,15 @@ type NativeProps = ViewProps & {
 // working; the actual system tab bar becomes available after the Pods rebuild.
 const glass: typeof import('expo-glass-effect') | null =
   requireOptionalNativeModule('ExpoGlassEffect') ? require('expo-glass-effect') : null;
-const NativeView = requireOptionalNativeModule('SpottrNativeTabs')
-  && glass?.isLiquidGlassAvailable() && glass.isGlassEffectAPIAvailable()
+const nativeTabs = requireOptionalNativeModule('SpottrNativeTabs');
+const supportsGlass = Boolean(glass?.isLiquidGlassAvailable() && glass.isGlassEffectAPIAvailable());
+const NativeView = nativeTabs && supportsGlass
   ? requireNativeView<NativeProps>('SpottrNativeTabs') : null;
+
+if (__DEV__ && supportsGlass) {
+  if (NativeView) console.info('[navbar] UIKit tab bar enabled; selection and dragging are owned by iOS.');
+  else console.warn('[navbar] SpottrNativeTabs is missing from this binary. The legacy navbar has no native drag. Sync modules/spottr-native-tabs/ios, install Pods and rebuild in Xcode.');
+}
 
 const labels = ['nav.home', 'nav.map', 'nav.feed', 'nav.profile'] as const;
 

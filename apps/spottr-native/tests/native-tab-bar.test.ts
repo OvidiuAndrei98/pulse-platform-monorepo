@@ -13,7 +13,7 @@ function load(native = true, glass = true, available = true) {
   }).outputText;
   const exports: any = {};
   const react = { ...React, useState: () => [revision, (next: (v: number) => number) => { revision = next(revision); }] };
-  runInNewContext(output, { exports, require(name: string) {
+  runInNewContext(output, { exports, __DEV__: false, require(name: string) {
     if (name === 'react') return react;
     if (name === 'react-native') return { StyleSheet: { create: (s: unknown) => s } };
     if (name === 'expo') return {
