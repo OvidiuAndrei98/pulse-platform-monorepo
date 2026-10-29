@@ -78,24 +78,22 @@ test('supported iOS keeps the actual tab controls inside the native glass conten
   assert.equal(style.opacity, undefined, 'UIKit must not be hidden behind an opacity animation');
 });
 
-test('a binary without SF Symbols still renders its tab icons after a JS refresh', () => {
+test('iPhone navigation artwork does not require SF Symbols and has a consistent optical size', () => {
   const output = ts.transpileModule(readFileSync(resolve(__dirname, '../src/navigation/TabBarIcon.ios.tsx'), 'utf8'), {
     compilerOptions: { jsx: ts.JsxEmit.React, module: ts.ModuleKind.CommonJS, esModuleInterop: true, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const exports: any = {};
   runInNewContext(output, { exports, require(name: string) {
     if (name === 'react') return React;
-    if (name === 'expo') return { requireOptionalNativeModule: (nativeName: string) => {
-      assert.equal(nativeName, 'SymbolModule');
-      return null;
-    } };
-    if (name === './TabBarIconFallback') return { TabBarIconFallback: 'LegacyIcon' };
+    if (name === 'react-native-svg') return { __esModule: true, default: 'Svg', Path: 'Path' };
     throw new Error('Must not load an uninstalled native symbol manager: ' + name);
   } });
   for (let index = 0; index < 4; index++) {
     const icon = exports.TabBarIcon({ index, active: true, color: '#ff0044', size: 22, strokeWidth: 2.2 });
-    assert.equal(icon.type, 'LegacyIcon');
-    assert.equal(icon.props.index, index);
-    assert.equal(icon.props.active, true);
+    assert.equal(icon.type, 'Svg');
+    assert.equal(icon.props.width, 26);
+    assert.equal(icon.props.height, 26);
+    assert.equal(icon.props.stroke, 'white');
+    assert.ok(icon.props.children.props.d.length > 20);
   }
 });

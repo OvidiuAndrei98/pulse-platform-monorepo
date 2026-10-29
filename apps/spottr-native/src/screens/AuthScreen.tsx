@@ -221,7 +221,6 @@ export function AuthScreen({
         <GlassPressable fallback={Pressable}
           accessibilityRole="button"
           testID="auth-back"
-          accessibilityLabel={copy("common.back")}
           disabled={busy}
           onPress={() =>
             mode !== "login"
@@ -230,12 +229,13 @@ export function AuthScreen({
                 ? setEmailForm(false)
                 : close()
           }
-          style={s.back}
+          style={[s.back, Platform.OS === 'ios' && { width: 48, paddingHorizontal: 0 }]}
+          accessibilityLabel={copy(mode !== 'login' || emailForm ? 'common.back' : 'common.close')}
         >
           {form ? (
             <>
               <ActionIcon name="back" size={16} color="white" />
-              <Text style={s.backText}>{copy("common.back")}</Text>
+              {Platform.OS !== 'ios' && <Text style={s.backText}>{copy("common.back")}</Text>}
             </>
           ) : (
             <ActionIcon name="close" size={24} color="white" />

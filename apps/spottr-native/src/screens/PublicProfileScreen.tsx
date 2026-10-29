@@ -120,7 +120,7 @@ export function PublicProfileScreen({ route, navigation }: NativeStackScreenProp
 }
 function Back({ onPress }: { onPress: () => void }) {
   const { copy } = usePreferences();
-  return <GlassPressable fallback={Pressable} glassStyle={{ paddingHorizontal: 12 }} testID="public-profile-back" accessibilityRole="button" onPress={onPress} style={{ minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 8 }}><ActionIcon name="back" size={16} color={colors.muted} /><Text style={{ fontSize: 12, color: colors.muted, fontWeight: '600' }}>{copy('common.back')}</Text></GlassPressable>;
+  return <Pressable testID="public-profile-back" accessibilityRole="button" onPress={onPress} style={{ minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 8 }}><ActionIcon name="back" size={16} color={colors.muted} /><Text style={{ fontSize: 12, color: colors.muted, fontWeight: '600' }}>{copy('common.back')}</Text></Pressable>;
 }
 function Verified({ size = 24 }: { size?: number }) { const { copy } = usePreferences(); return <BadgeCheck accessibilityLabel={copy('publicProfile.verifiedOrganizer')} size={size} color={colors.accent} />; }
 function ProfileActions({ profile, signIn, large }: { profile: PublicProfile; signIn: () => void; large?: boolean }) {

@@ -16,9 +16,15 @@ import { TabIndicator } from "./TabIndicator";
 import type { TabIndicatorTimeline } from "./tabIndicatorTimeline";
 import { TabBarSurface, usesLiquidGlass } from "./TabBarSurface";
 import { TabBarIcon } from "./TabBarIcon";
+import { NativeTabBar } from "./NativeTabBar";
 
 const labels = ["nav.home", "nav.map", "nav.feed", "nav.profile"] as const;
-export function TabBar({ state, navigation, insets, activeIndex = state.index, onSelectTab, indicatorMotion }: BottomTabBarProps & { activeIndex?: number; onSelectTab?: (name: string) => void; indicatorMotion?: TabIndicatorMotion }) {
+export function TabBar(props: BottomTabBarProps & { activeIndex?: number; onSelectTab?: (name: string) => void; indicatorMotion?: TabIndicatorMotion }) {
+  if (NativeTabBar) return <NativeTabBar {...props} />;
+  return <CustomTabBar {...props} />;
+}
+
+function CustomTabBar({ state, navigation, insets, activeIndex = state.index, onSelectTab, indicatorMotion }: Parameters<typeof TabBar>[0]) {
   const { copy } = usePreferences();
   const { width: viewportWidth } = useWindowDimensions();
   const desktopPreview = Platform.OS === "web" && viewportWidth >= 768;

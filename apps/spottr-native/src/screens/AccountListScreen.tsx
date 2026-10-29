@@ -1,4 +1,3 @@
-import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
@@ -105,7 +104,7 @@ function AccountPage({ id, title: heading, subtitle, large, children }: React.Pr
   useEffect(() => { if (focused && ready && !user) navigation.navigate('Auth', { returnTab: 'Profile' }); }, [focused,ready,user,navigation]);
   if (!ready || !user) return <Loading />;
   return <ScrollView testID={id} style={{flex:1,backgroundColor:'#000'}} contentContainerStyle={{paddingHorizontal:20,paddingTop:Math.max(24,safe.top),paddingBottom:Math.max(28,safe.bottom+16),gap:16}}>
-    <GlassPressable fallback={Pressable} glassStyle={{ paddingHorizontal: 12 }} accessibilityRole="button" testID="account-back" onPress={()=>{ /* Only pop this profile stack: canGoBack also sees parent tabs. */ if(navigation.getState().index>0) navigation.goBack(); else navigation.replace('ProfileHome'); }} style={{flexDirection:'row',gap:6,minHeight:40,alignItems:'center'}}><ActionIcon name="back" size={16} color={colors.muted}/><Text style={{color:colors.muted,fontSize:14}}>{copy('tickets.profile')}</Text></GlassPressable>
+    <Pressable accessibilityRole="button" testID="account-back" onPress={()=>{ /* Only pop this profile stack: canGoBack also sees parent tabs. */ if(navigation.getState().index>0) navigation.goBack(); else navigation.replace('ProfileHome'); }} style={{flexDirection:'row',gap:6,minHeight:40,alignItems:'center'}}><ActionIcon name="back" size={16} color={colors.muted}/><Text style={{color:colors.muted,fontSize:14}}>{copy('tickets.profile')}</Text></Pressable>
     <View style={{gap:large?8:4,marginBottom:12}}><Text style={{color:'white',fontSize:large?30:24,fontWeight:large?'700':'600',letterSpacing:large?-0.5:0}}>{heading}</Text>{!!subtitle && <Text style={{color:colors.muted,fontSize:14}}>{subtitle}</Text>}</View>{children}
   </ScrollView>;
 }

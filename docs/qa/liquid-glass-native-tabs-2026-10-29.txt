@@ -1,0 +1,72 @@
+SPOTTR iPhone glass controls and system tab bar — 2026-10-29
+
+Reference and scope
+- Inspected the local Instagram navbar recording and the 5-minute SPOTTR recording.
+- User specifically wants finger tracking/drag selection, not just a timed pill animation.
+- iPhone only. Existing Android and browser rendering/gestures are preserved.
+- No Next.js files or external data changed. No AWS operations.
+
+Implemented
+- Native glass icon surfaces have bounded square dimensions (minimum 44pt), half-size
+  corner radii, and an absolute-fill touch control. Inner flexGrow could previously
+  stretch a button across its parent. Padding and minimum dimensions also disagreed
+  with the original radius on smaller buttons.
+- Auth Back/Close is icon-only and 48x48 on iOS, including the non-glass fallback.
+- Removed glass from labeled Back actions in dashboard event editing, account lists,
+  Friends, Legal, checkout return and the ordinary public-profile header.
+- Replaced iOS SF Symbol action artwork with consistent stroke icons. Navbar artwork
+  has consistent 26pt outline/selected forms and white foregrounds.
+- Added a local Apple-only Expo module, SpottrNativeTabs. It embeds a real
+  UITabBarController with four icon-only items and delegates completed selections to
+  existing React Navigation/role routing. UIKit owns touch tracking and animations;
+  no custom PanResponder or emulated drag physics were added.
+- Each native control belongs to its screen, not a global window overlay. Empty
+  controller content does not intercept touches above the tab bar. React route
+  changes don't recreate items in the mounted control. Programmatic selection is
+  guarded against emitting user navigation. Acknowledgements restore a selection
+  when JS navigation is prevented.
+- Pink selection is requested through UITabBarAppearance.selectionIndicatorTintColor.
+  No private UIKit subview access, gesture replacements or haptic generators.
+- Missing local module / unsupported Liquid Glass runtime uses the existing navbar.
+
+Validation completed locally
+- TypeScript: tsc --noEmit PASS.
+- 14 tests PASS: Yoga button geometry (rows, columns, 320/390/430/768pt widths),
+  disabled state, native module availability, selection/role delegation, prevented
+  navigation, repeated tab selection, existing fallback and indicator regressions.
+- Expo autolinking resolves SpottrNativeTabs on iOS; zero registrations on Android.
+- Web production export PASS.
+- iOS Hermes JS export PASS (this is NOT a Swift/Xcode build).
+- browser-navbar: PASS comparison against Next at mobile/desktop widths, over plain
+  and patterned backgrounds; changed pixels above comparison threshold: 0%.
+- browser-organizer-navbar: PASS role routing, cold session, repeated selection,
+  interrupted animation and ordinary user profile.
+- browser-navbar-sheets: PASS event/checkout, Friends and Quick Connect round trips;
+  zero disconnected navbar frames.
+- browser-profiles: PASS auth Back/return, profile actions, organizer/event/checkout
+  round trips, friend actions and error/empty exits.
+- Initial tsx execution was blocked before loading tests by sandbox os.userInfo;
+  rerun with approved local process access passed.
+
+Native verification still required
+- Windows has no Xcode/UIKit SDK or attached iPhone testing facility. Swift compilation,
+  UIKit rendering, actual finger tracking, tint behavior, Reduce Motion/Transparency
+  and transitions across root Dashboard/Tabs screens have NOT been device-verified.
+- Do not describe pixel/motion parity with Instagram or 120fps as verified.
+- Rebuild on the Mac: sync the new modules/spottr-native-tabs directory, run
+  `npx pod-install` from apps/spottr-native, then build the .xcworkspace in Xcode.
+  A Metro refresh/JS update alone cannot install this native module.
+- Check dragging through several tabs and back without lifting the finger; releasing
+  outside; fast reversals; role-specific Profile; back from sheets/checkout; login
+  Back/Close sizing; safe-area alignment. Check that the OS renders the requested
+  pink indicator. UIKit version-specific rendering remains system controlled.
+
+Reference documentation
+https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass
+https://docs.expo.dev/modules/get-started/
+https://docs.expo.dev/modules/module-api/
+
+Local inspection artifacts (ignored)
+apps/spottr-native/artifacts/glass-reference-20261029/video-0-contact.png
+apps/spottr-native/artifacts/glass-reference-20261029/video-1-contact.png
+apps/spottr-native/artifacts/glass-reference-20261029/ios-export/
