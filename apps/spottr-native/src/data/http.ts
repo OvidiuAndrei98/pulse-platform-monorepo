@@ -1,9 +1,11 @@
 import { captureHandledFailure, requestOperation } from '../diagnostics/handled';
+import { httpDiagnostic, type DiagnosticContext } from '../../../pulse-app/src/features/diagnostics/context';
 
 export class ApiError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
+    readonly diagnostic?: DiagnosticContext,
   ) {
     super(code);
   }
@@ -106,6 +108,8 @@ export function createHttp(
             : typeof row.error === "string"
               ? row.error
               : "HTTP_ERROR",
+          response.status >= 500 ? httpDiagnostic(path, options.method ?? 'GET', response.status,
+            response.headers.get('X-Request-ID'), row.diagnosticCode) : undefined,
         );
       }
       return data as T;

@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
+	"strings"
 )
 
 // DecodeJSON limits request memory/CPU exposure, rejects unknown fields, and
@@ -36,7 +38,22 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, destination any, maxByte
 
 // RespondWithError trimite un răspuns JSON standardizat în caz de eroare
 func RespondWithError(w http.ResponseWriter, code int, message string) {
-	RespondWithJSON(w, code, map[string]string{"error": message})
+	payload := map[string]string{"error": message}
+	if code >= 500 && code <= 599 {
+		// A bounded hint, not a copy of SQL, request bodies or provider messages.
+		diagnosticCode := "HTTP_SERVER_ERROR"
+		if strings.Contains(message, "SQLSTATE ") {
+			diagnosticCode = "DATABASE_ERROR"
+		} else if message == "Autentificarea nu poate fi verificata momentan." {
+			diagnosticCode = "AUTH_UNAVAILABLE"
+		}
+		payload["diagnosticCode"] = diagnosticCode
+		// Keep internal SQL/provider messages out of public responses. Correlate
+		// bounded metadata with existing internal logs instead of logging raw input.
+		log.Printf("request failed: request_id=%s status=%d diagnostic_code=%s", w.Header().Get("X-Request-ID"), code, diagnosticCode)
+		payload["error"] = "Serverul nu a putut procesa cererea. Incercati din nou."
+	}
+	RespondWithJSON(w, code, payload)
 }
 
 // RespondWithJSON scrie header-ele corecte și serializează obiectul primit în format JSON

@@ -229,7 +229,7 @@ func (h *Handler) events(w http.ResponseWriter, r *http.Request) {
 		respond(w, nil, err)
 		return
 	}
-	rows, err := jsonRows(r.Context(), h.Pool, `SELECT jsonb_build_object('id',e.id,'title',e.title,'canManage',e.organizer_id=$1::uuid)
+	rows, err := jsonRows(r.Context(), h.Pool, `SELECT jsonb_build_object('id',e.id,'title',e.title,'canManage',e.organizer_id=$1::uuid,'startTime',e.start_time,'location',COALESCE(e.location_name,''))
  FROM events e WHERE e.organizer_id=$1::uuid OR EXISTS(SELECT 1 FROM wardrobe_staff s WHERE s.event_id=e.id AND s.user_id=$1::uuid)
  ORDER BY EXISTS(SELECT 1 FROM wardrobe_deposits d WHERE d.event_id=e.id AND d.status='stored') DESC,(e.end_time>now()) DESC,e.start_time DESC LIMIT 200`, actor)
 	respond(w, rows, err)

@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { useDataProvider } from '@/core/DataProviderContext';
+import { operatorAccount, changeItemCount, taskDeposits,wardrobeFlow,wardrobeTasks,availableZones,canReserveBelongings,wardrobeEventDescription,type WardrobeTask } from './flow';
 import { Shirt, ArrowLeft, ChevronRight } from "lucide-react";
 import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
 import { TicketQrCode } from "@/components/tickets/TicketQrCode";
@@ -17,8 +19,10 @@ import {
   totalItems,
   wardrobeError,
   wardrobeText,
+  readProfileQR,
   type Items,
   type Command,
+  type Deposit,
 } from "./model";
 import s from "./wardrobe.module.css";
 
@@ -28,11 +32,10 @@ export function WardrobeCard() {
     c = wardrobeText(i18n.language.startsWith("ro"));
   if (
     !user ||
-    !state.mine ||
-    (!state.mine.deposits.length && !state.mine.staffAccess)
+    (!operatorAccount(user.properties.role) && (!state.mine || (!state.mine.deposits.length && !state.mine.staffAccess)))
   )
     return null;
-  const deposit = state.mine.deposits[0];
+  const deposit = operatorAccount(user.properties.role) ? undefined : state.mine?.deposits[0];
   return (
     <Link href="/wardrobe" className={s.banner} data-testid="wardrobe-card">
       <Shirt size={24} color="#ff0044" />
@@ -40,7 +43,7 @@ export function WardrobeCard() {
         <strong>{deposit ? c.active : c.staff}</strong>
         <p>
           {deposit
-            ? `${deposit.eventTitle} · ${deposit.number}${state.mine.deposits.length > 1 ? ` +${state.mine.deposits.length - 1}` : ""}`
+            ? `${deposit.eventTitle} · ${deposit.number}${(state.mine?.deposits.length ?? 0) > 1 ? ` +${state.mine!.deposits.length - 1}` : ""}`
             : c.open}
         </p>
       </div>
@@ -56,7 +59,7 @@ function Counters({
   ro,
 }: {
   value: Items;
-  onChange(value: Items): void;
+  onChange: React.Dispatch<React.SetStateAction<Items>>;
   max?: Items;
   disabled?: boolean;
   ro: boolean;
@@ -71,7 +74,7 @@ function Counters({
             type="button"
             aria-label={`− ${c[key]}`}
             disabled={disabled || value[key] <= 0}
-            onClick={() => onChange({ ...value, [key]: value[key] - 1 })}
+            onClick={() => onChange(current=>changeItemCount(current,key,-1,max))}
           >
             −
           </button>
@@ -84,7 +87,7 @@ function Counters({
               totalItems(value) >= 20 ||
               value[key] >= (max?.[key] ?? 20)
             }
-            onClick={() => onChange({ ...value, [key]: value[key] + 1 })}
+            onClick={() => onChange(current=>changeItemCount(current,key,1,max))}
           >
             +
           </button>
@@ -98,19 +101,21 @@ export function WardrobePage({
 }: {
   initialStaff?: boolean;
 }) {
-  const [staff, setStaff] = useState(initialStaff),
-    { store, state, user } = useWardrobe(staff),
+  const { isOrganizer,isAdmin } = useDataProvider(), operatorOnly=isOrganizer||isAdmin;
+  const [staffChoice, setStaff] = useState(initialStaff), staff=operatorOnly||staffChoice;
+  const { store, state, user } = useWardrobe(staff),
     { i18n } = useTranslation(),
     router = useRouter();
-  const ro = i18n.language.startsWith("ro"),
+  const [task,setTask]=useState<WardrobeTask|null>(null),[intakeStep,setIntakeStep]=useState(0),[clientCode,setClientCode]=useState(''),[flowError,setFlowError]=useState(''),[advanced,setAdvanced]=useState(false),[setupTab,setSetupTab]=useState('zones');
+  const ro = i18n.language.startsWith("ro"), flow=wardrobeFlow(ro),
     c = wardrobeText(ro),
-    o = state.overview,
+    overview=state.overview, o = task ? overview : undefined,
     d = state.selected;
   const [tab, setTab] = useState<
       "operations" | "setup" | "history" | "unclaimed"
     >("operations"),
     [zone, setZone] = useState(""),
-    [items, setItems] = useState<Items>({ coat: 1, bag: 0, backpack: 0 });
+    [items, setItems] = useState<Items>({ coat: 0, bag: 0, backpack: 0 });
   const [pickupItems, setPickupItems] = useState<Items>({
       coat: 0,
       bag: 0,
@@ -130,14 +135,16 @@ export function WardrobePage({
     [email, setEmail] = useState(""),
     [role, setRole] = useState("operator");
   const busy = state.busy;
+  const [pickupLookup,setPickupLookup]=useState<Deposit[]|null>(null),[eventFilter,setEventFilter]=useState('');
   useEffect(() => {
     setZone("");
+    setTask(null);setIntakeStep(0);setClientCode('');setFlowError('');setAdvanced(false);
+    setPickupLookup(null);
     setTab((current) => (current === "unclaimed" ? "unclaimed" : "operations"));
     setSearch("");
   }, [state.eventId]);
   useEffect(() => {
-    if (o && !o.zones.some((z) => z.id === zone))
-      setZone(o.zones.find((z) => z.enabled)?.id ?? o.zones[0]?.id ?? "");
+    if (zone && o && !o.zones.some((z) => z.id === zone)) setZone('');
   }, [o, zone]);
   useEffect(() => {
     setPickupItems(
@@ -156,7 +163,7 @@ export function WardrobePage({
     d?.remaining.backpack,
   ]);
   useEffect(() => {
-    setMoveZone(d?.zoneId ?? "");
+    setMoveZone("");setAdvanced(false);setAdding(false);
   }, [d?.id, d?.zoneId]);
   useEffect(() => {
     if (!camera) return;
@@ -180,8 +187,14 @@ export function WardrobePage({
     if (cameraGate.current) return;
     cameraGate.current = true;
     setCamera(false);
-    await reserve(code);
+    if(task==='pickup'){setPickupLookup([]);store.select();}else setClientCode('');
+    const customer=readProfileQR(code); if (!customer) {setFlowError(flow.badCode);return;}
+    setFlowError('');
+    if(task==='pickup') {const result=await store.command({action:'lookup',code:'glow://friend/'+customer});if(result){const rows=(result.deposits??[]).filter(row=>row.status==='stored');setPickupLookup(rows);const current=store.snapshot().selected;store.select(rows.length===1?(current?.id===rows[0]!.id?current:rows[0]):undefined);}}
+    else {setClientCode('glow://friend/'+customer);setIntakeStep(1);}
   };
+  const beginTask=(value:WardrobeTask)=>{if(busy||d?.status==='reserved')return;setTask(value);setTab(value==='receive'||value==='pickup'?'operations':value);setClientCode('');setIntakeStep(0);setFlowError('');setAdvanced(false);setItems({coat:0,bag:0,backpack:0});setZone('');setSearch('');void store.change({history:value==='history',unclaimed:value==='unclaimed',search:''});};
+  const nextClient=()=>{store.select();setClientCode('');setIntakeStep(0);setItems({coat:0,bag:0,backpack:0});setZone('');setAdvanced(false);};
   const button = (
     label: string,
     onClick: () => void,
@@ -227,8 +240,8 @@ export function WardrobePage({
         <Shirt color="#ff0044" />
         <h1>{c.title}</h1>
       </div>
-      <p>{c.hint}</p>
-      {(state.mine?.staffAccess || initialStaff) && (
+      <p>{staff?flow.eventHint:c.hint}</p>
+      {!operatorOnly && (state.mine?.staffAccess || initialStaff) && (
         <div className={s.tabs}>
           {button(c.mine, () => setStaff(false), staff)}
           {button(c.staff, () => setStaff(true), !staff)}
@@ -296,58 +309,16 @@ export function WardrobePage({
         </>
       ) : (
         <>
-          <label className={s.field}>
-            {c.event}
-            <select
-              value={state.eventId}
-              disabled={busy}
-              onChange={(e) =>
-                void store.change({
-                  eventId: e.target.value,
-                  history: false,
-                  unclaimed: tab === "unclaimed",
-                })
-              }
-            >
-              <option value="" disabled>
-                {c.select}
-              </option>
-              {state.events.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.title}
-                </option>
-              ))}
-            </select>
-          </label>
+          {!state.eventId ? <section className={s.stack}><h2>{flow.chooseEvent}</h2><label className={s.field}>{flow.eventSearch}<input value={eventFilter} maxLength={100} onChange={event=>setEventFilter(event.target.value)}/></label>{state.events.filter(event=>event.title.toLowerCase().includes(eventFilter.toLowerCase())).map(event=><button type="button" className={s.eventChoice} data-testid={"wardrobe-event-"+event.id} key={event.id} disabled={busy} onClick={()=>void store.change({eventId:event.id,history:false,unclaimed:false,search:''})}><strong>{event.title}</strong><span>{wardrobeEventDescription(event,ro)}</span><span>{ro?'Deschide garderoba':'Open wardrobe'} →</span></button>)}</section> : <div className={s.card}><h2>{overview?.title || state.events.find(event=>event.id===state.eventId)?.title}</h2>{button(flow.changeEvent,()=>void store.change({eventId:'',history:false,unclaimed:false,search:''}),true,d?.status==='reserved')}</div>}
+          {overview && !task && <div className={s.taskGrid}>{wardrobeTasks(overview.canManage).map(key=><button type="button" className={s.eventChoice} data-testid={"wardrobe-task-"+key} key={key} disabled={busy} onClick={()=>{setPickupLookup(null);beginTask(key);}}><strong>{flow[key]}</strong><span>{flow[(key+'Hint') as 'receiveHint']}</span></button>)}</div>}
           {!state.loading && !state.events.length && <p>{c.noEvents}</p>}
           {o && (
             <>
-              <div className={s.tabs}>
-                {(
-                  [
-                    "operations",
-                    "unclaimed",
-                    ...(o.canManage ? ["setup"] : []),
-                    "history",
-                  ] as const
-                ).map((key) => (
-                  <span key={key}>
-                    {button(
-                      c[key as "operations"],
-                      () => {
-                        setTab(key as typeof tab);
-                        void store.change({
-                          history: key === "history",
-                          unclaimed: key === "unclaimed",
-                          search: "",
-                        });
-                        setSearch("");
-                      },
-                      tab !== key,
-                    )}
-                  </span>
-                ))}
-              </div>
+              {button(flow.backTasks,()=>{store.select();setTask(null);},true,d?.status==='reserved')}
+              <h2>{task && flow[task]}</h2>
+              {task==='setup'&&<div className={s.row}>{button(flow.zones,()=>setSetupTab('zones'),setupTab!=='zones')}{button(flow.team,()=>setSetupTab('team'),setupTab!=='team')}</div>}
+              {task==='pickup'&&<div className={s.card}><p>{flow.pickupHint}</p>{button(c.scan,()=>{cameraGate.current=false;setCamera(true);})}{pickupLookup!==null&&button(ro?'Caută alt client':'Find another customer',()=>{setPickupLookup(null);store.select();},true)}</div>}
+              {!!flowError&&<p role="alert" className={s.error}>{flowError}</p>}
               <p className={s.small}>{c.online}</p>
               {tab === "history" && (
                 <p className={s.small}>{c.retentionHint}</p>
@@ -365,7 +336,7 @@ export function WardrobePage({
               )}
               {tab === "setup" && o.canManage ? (
                 <>
-                  <div className={s.card}>
+                  <div className={s.card} style={setupTab!=='zones'?{display:'none'}:undefined}>
                     <h2>{c.zone}</h2>
                     <p>{c.zonesHint}</p>
                     {o.zones.map((z) => (
@@ -458,7 +429,7 @@ export function WardrobePage({
                         Number(capacity) > 2000,
                     )}
                   </div>
-                  <div className={s.card}>
+                  <div className={s.card} style={setupTab!=='team'?{display:'none'}:undefined}>
                     <h2>{c.team}</h2>
                     {o.staff.map((member) => (
                       <div className={s.between} key={member.id}>
@@ -506,45 +477,13 @@ export function WardrobePage({
                 </>
               ) : (
                 <>
-                  {tab === "operations" && (
-                    <div className={s.card}>
-                      <h2>{c.scan}</h2>
-                      <p>{c.scanHint}</p>
-                      {!o.accepting && <p>{c.closed}</p>}
-                      <label className={s.field}>
-                        {c.zone}
-                        <select
-                          value={zone}
-                          disabled={busy}
-                          onChange={(e) => setZone(e.target.value)}
-                        >
-                          <option value="" disabled>
-                            {c.select}
-                          </option>
-                          {o.zones.map((z) => (
-                            <option key={z.id} value={z.id}>
-                              {z.name} · {z.capacity - z.occupied} {c.free}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <Counters
-                        value={items}
-                        onChange={setItems}
-                        disabled={busy}
-                        ro={ro}
-                      />
-                      {button(
-                        c.scan,
-                        () => {
-                          cameraGate.current = false;
-                          setCamera(true);
-                        },
-                        false,
-                        !zone || !totalItems(items),
-                      )}
-                    </div>
-                  )}
+                  {task === 'receive' && !d && <section className={s.card} data-testid="wardrobe-intake">
+                    <p>{[flow.scanClient,flow.items,flow.place][intakeStep]}</p>
+                    {!o.accepting && <p>{c.closed}</p>}
+                    {intakeStep===0&&<><p>{flow.scanHint}</p>{button(c.scan,()=>{cameraGate.current=false;setCamera(true);},false,!o.accepting)}</>}
+                    {intakeStep===1&&<><p>{flow.scanned}</p><Counters value={items} onChange={setItems} disabled={busy} ro={ro}/>{button(flow.next,()=>{setZone('');setIntakeStep(2);},false,!totalItems(items))}{button(flow.back,()=>setIntakeStep(0),true)}</>}
+                    {intakeStep===2&&<><p>{itemsText(items,ro)}</p><label className={s.field}>{c.zone}<select value={zone} disabled={busy} onChange={event=>setZone(event.target.value)}><option value="">{c.select}</option>{availableZones(items,o.zones).map(z=><option value={z.id} key={z.id}>{z.name} · {z.capacity-z.occupied} {c.free}</option>)}</select></label>{!availableZones(items,o.zones).length&&<p>{flow.noZones}</p>}{button(flow.reserve,()=>void reserve(clientCode),false,!clientCode||!canReserveBelongings(items,zone,o.zones,o.accepting))}{button(flow.back,()=>setIntakeStep(1),true)}</>}
+                  </section>}
                   {d && (
                     <div
                       className={`${s.card} ${s.active}`}
@@ -552,21 +491,21 @@ export function WardrobePage({
                     >
                       <div className={s.between}>
                         <h2>{d.customerName || c.unknown}</h2>
-                        {button(c.close, () => store.select(), true)}
+{button(c.close, () => store.select(), true, d.status==='reserved')}
                       </div>
                       <strong className={s.number}>{d.number}</strong>
                       <span>
                         {d.zoneName} · {c[d.status]}
                       </span>
                       <p>{itemsText(d.remaining, ro)}</p>
-                      {d.status === "reserved" && (
+                      {d.status === "reserved" && task === "receive" && (
                         <>
                           <p>{c.storeHint}</p>
                           {button(c.store, () => act("store"))}
                           {button(c.cancel, () => act("cancel"), true)}
                         </>
                       )}
-                      {d.status === "stored" && (
+                      {d.status === "stored" && (task === "pickup" || task === "unclaimed") && (
                         <>
                           <p>{c.pickupHint}</p>
                           <Counters
@@ -632,7 +571,9 @@ export function WardrobePage({
                           )}
                         </>
                       )}
-                      {(d.status === "reserved" || d.status === "stored") && (
+                      {d.status !== 'reserved' && task === 'receive' && button(flow.nextClient,nextClient)}
+                      {['reserved','stored'].includes(d.status) && (task==='receive'||task==='pickup'||task==='unclaimed') && button(flow.advanced,()=>setAdvanced(!advanced),true)}
+                      {advanced && (d.status === "reserved" || d.status === "stored") && (
                         <>
                           <p>{c.moveHint}</p>
                           <label className={s.field}>
@@ -642,7 +583,8 @@ export function WardrobePage({
                               disabled={busy}
                               onChange={(e) => setMoveZone(e.target.value)}
                             >
-                              {o.zones.map((z) => (
+                              <option value="" disabled>{c.select}</option>
+                              {availableZones(d.remaining,o.zones).filter(z=>z.id!==d.zoneId).map((z) => (
                                 <option key={z.id} value={z.id}>
                                   {z.name} · {z.capacity - z.occupied} {c.free}
                                 </option>
@@ -653,7 +595,7 @@ export function WardrobePage({
                             c.move,
                             () => act("move", { zoneId: moveZone }),
                             true,
-                            !moveZone,
+                            !availableZones(d.remaining,o.zones).some(z=>z.id===moveZone&&z.id!==d.zoneId),
                           )}
                           {d.userId &&
                             button(
@@ -672,7 +614,8 @@ export function WardrobePage({
                                   disabled={busy}
                                   onChange={(e) => setZone(e.target.value)}
                                 >
-                                  {o.zones.map((z) => (
+                                  <option value="" disabled>{c.select}</option>
+                                  {availableZones(items,o.zones).map((z) => (
                                     <option key={z.id} value={z.id}>
                                       {z.name} · {z.capacity - z.occupied}{" "}
                                       {c.free}
@@ -694,10 +637,7 @@ export function WardrobePage({
                                     true,
                                   ),
                                 false,
-                                !totalItems(items) ||
-                                  !o.zones.some(
-                                    (z) => z.id === zone && fitsZone(items, z),
-                                  ),
+                                !canReserveBelongings(items,zone,o.zones,o.accepting),
                               )}
                             </div>
                           )}
@@ -705,7 +645,7 @@ export function WardrobePage({
                       )}
                     </div>
                   )}
-                  <div className={s.row}>
+                  <div className={s.row} style={task==='receive'?{display:'none'}:undefined}>
                     <label className={s.field}>
                       {c.search}
                       <input
@@ -713,24 +653,24 @@ export function WardrobePage({
                         maxLength={100}
                         onChange={(e) => setSearch(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") void store.change({ search });
+                          if (e.key === "Enter") {setPickupLookup(null);void store.change({ search });}
                         }}
                       />
                     </label>
                     {button(
                       c.search,
-                      () => void store.change({ search }),
+() => {setPickupLookup(null);void store.change({ search });},
                       true,
                     )}
                   </div>
-                  {!o.deposits.length && (
+                  {task !== 'receive' && !taskDeposits(task,pickupLookup ?? o.deposits).length && (
                     <p>
                       {tab === "unclaimed" && o.eventEnded && !state.search
                         ? c.unclaimedEmpty
                         : c.noDeposits}
                     </p>
                   )}
-                  {o.deposits.map((deposit) => (
+                  {taskDeposits(task,pickupLookup ?? o.deposits).map((deposit) => (
                     <button
                       type="button"
                       className={s.entry}
@@ -773,7 +713,7 @@ export function WardrobePage({
                       )}
                     </button>
                   ))}
-                  {o.nextCursor &&
+                  {task !== 'receive' && pickupLookup === null && o.nextCursor &&
                     button(
                       c.next,
                       () => void store.change({ cursor: o.nextCursor }),
@@ -816,7 +756,7 @@ export function WardrobePage({
         >
           <div className={s.stack}>
             {button(c.close, () => setCamera(false), true)}
-            <QrCameraScanner embedded enabled onScan={scan} hint={c.scanHint} />
+            <QrCameraScanner embedded enabled onScan={scan} hint={task==='pickup'?flow.pickupHint:flow.scanHint} />
           </div>
         </div>
       )}

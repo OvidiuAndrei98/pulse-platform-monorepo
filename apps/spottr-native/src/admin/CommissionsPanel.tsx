@@ -7,15 +7,16 @@ import { Text } from '../ui/Text';
 import { FormInput } from '../ui/FormInput';
 import { colors } from '../ui/theme';
 import { commissionFormula, commissionText, parseCommissionInputs, parseCommissionSettings, type OrganizerCommission, type CommissionSettings } from '../../../pulse-app/src/features/admin/commissions';
+import type { DirectoryDetail } from '../../../pulse-app/src/features/admin/organizers';
 
-export function CommissionsPanel() {
+export function CommissionsPanel({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
   const { user, controller } = useAuth();
   // Remount on identity change, so a previous account's edit cannot survive logout.
-  return user?.role === 'admin' ? <Panel key={user.id + controller.getToken()} /> : null;
+  return user?.role === 'admin' ? <Panel key={user.id + controller.getToken()} initiallyOpen={initiallyOpen} /> : null;
 }
-function Panel() {
+function Panel({ initiallyOpen }: { initiallyOpen: boolean }) {
   const { user, controller } = useAuth(), { language } = usePreferences(), ro = language === 'ro', t = commissionText(ro);
-  const [open, setOpen] = useState(false), [search, setSearch] = useState(''), [editing, setEditing] = useState<'standard' | OrganizerCommission | null>(null);
+  const [open, setOpen] = useState(initiallyOpen), [search, setSearch] = useState(''), [editing, setEditing] = useState<'standard' | OrganizerCommission | null>(null);
   const query = useQuery({ queryKey: ['admin-commissions', user?.id], enabled: open, retry: false, queryFn: async ({ signal }) => parseCommissionSettings(await accountApi('/admin/commissions', { token: controller.getToken(), signal })) });
   const data = query.data;
   const editor = (target: 'standard' | OrganizerCommission) => <Editor target={target} data={data!} close={() => setEditing(null)} saved={() => { setEditing(null); void query.refetch(); }} />;
@@ -34,6 +35,11 @@ function Panel() {
       </>}
     </>}
   </View>;
+}
+export function OrganizerCommissionSettings({ organizer, saved }: { organizer: DirectoryDetail; saved: () => void }) {
+  const { language } = usePreferences(), ro = language === 'ro', t = commissionText(ro), [editing,setEditing] = useState(false);
+  const target: OrganizerCommission = { organizerId: organizer.userId, companyName: organizer.companyName, email: organizer.email, override: organizer.commissionOverride, revision: organizer.commissionRevision };
+  return <View style={s.card}><Text style={s.title}>{t.title}</Text><Text style={s.formula}>{commissionFormula(target.override ?? organizer.standard,ro)}</Text><Text style={s.hint}>{t.future}</Text>{editing ? <Editor key={target.organizerId + ':' + target.revision} target={target} data={{standard:organizer.standard,organizers:[target]}} close={() => setEditing(false)} saved={() => { setEditing(false); saved(); }} /> : <Button label={t.edit} onPress={() => setEditing(true)} />}</View>;
 }
 function Editor({ target, data, close, saved }: { target: 'standard' | OrganizerCommission; data: CommissionSettings; close: () => void; saved: () => void }) {
   const { controller } = useAuth(), { language } = usePreferences(), ro = language === 'ro', t = commissionText(ro);
@@ -63,6 +69,6 @@ function Editor({ target, data, close, saved }: { target: 'standard' | Organizer
   </View>;
 }
 function Button({ label, onPress, disabled, active, id }: { label: string; onPress: () => void; disabled?: boolean; active?: boolean; id?: string }) {
-  return <Pressable testID={id} accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [s.button, active && { backgroundColor: colors.accent, borderColor: colors.accent }, { opacity: disabled ? .5 : pressed ? .7 : 1 }]}><Text style={{ color: colors.text, fontWeight: '600', fontSize: 13 }}>{label}</Text></Pressable>;
+  return <Pressable testID={id} accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [s.button, active && { backgroundColor: colors.accent, borderColor: colors.accent }, { opacity: disabled ? .5 : pressed ? .7 : 1 }]}><Text style={{ color: active ? '#000' : colors.text, fontWeight: '600', fontSize: 13 }}>{label}</Text></Pressable>;
 }
 const s = StyleSheet.create({ section: { gap: 14 }, card: { gap: 12, borderWidth: 1, borderColor: '#ffffff1a', borderRadius: 16, backgroundColor: '#ffffff06', padding: 16 }, row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }, title: { color: colors.text, fontSize: 16, fontWeight: '600' }, hint: { color: colors.muted, fontSize: 13, lineHeight: 20 }, formula: { color: colors.text, fontWeight: '600', fontSize: 17 }, badge: { color: colors.accent, fontSize: 11, fontWeight: '600' }, input: { color: colors.text, backgroundColor: '#ffffff08', borderWidth: 1, borderColor: '#ffffff1a', borderRadius: 12, minHeight: 44, padding: 12, fontSize: 15 }, button: { minHeight: 42, paddingHorizontal: 16, paddingVertical: 11, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#ffffff1a', backgroundColor: '#18181b' }, error: { color: '#fca5a5', fontSize: 13, lineHeight: 20 } });

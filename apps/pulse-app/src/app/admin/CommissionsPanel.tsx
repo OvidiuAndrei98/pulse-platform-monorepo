@@ -4,15 +4,16 @@ import { useTranslation } from 'react-i18next';
 import { ApiClient } from '@packages/api-client/src/Client';
 import { useDataProvider } from '@/core/DataProviderContext';
 import { commissionFormula, commissionText, parseCommissionInputs, parseCommissionSettings, type CommissionSettings, type OrganizerCommission } from '@/features/admin/commissions';
+import type { DirectoryDetail } from '@/features/admin/organizers';
 
 const card = 'space-y-3 rounded-2xl border border-white/10 bg-white/[0.025] p-4';
 const button = 'min-h-11 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold disabled:opacity-50';
 const input = 'w-full rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3 text-sm outline-none focus:border-primary';
-export function CommissionsPanel() {
+export function CommissionsPanel({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
   const { user, isAdmin } = useDataProvider();
-  return isAdmin && user ? <Panel key={user.properties.id} /> : null;
+  return isAdmin && user ? <Panel key={user.properties.id} initiallyOpen={initiallyOpen} /> : null;
 }
-function Panel() {
+function Panel({ initiallyOpen }: { initiallyOpen: boolean }) {
   const { i18n } = useTranslation(), ro = i18n.language.startsWith('ro'), t = commissionText(ro);
   const [open, setOpen] = useState(false), [data, setData] = useState<CommissionSettings>(), [search, setSearch] = useState(''), [busy, setBusy] = useState(false), [failed, setFailed] = useState(false), [editing, setEditing] = useState<'standard' | OrganizerCommission | null>(null);
   const epoch = useRef(0);
@@ -24,6 +25,7 @@ function Panel() {
     finally { if (epoch.current === current) setBusy(false); }
   };
   const editor = (target: 'standard' | OrganizerCommission) => <Editor target={target} data={data!} close={() => setEditing(null)} saved={() => { setEditing(null); void load(); }} />;
+  useEffect(() => { if (initiallyOpen) { setOpen(true); void load(); } }, [initiallyOpen]);
   const rows = data?.organizers.filter(o => `${o.companyName} ${o.email}`.toLowerCase().includes(search.trim().toLowerCase())) ?? [];
   return <section className="space-y-4">
     <button disabled={!!editing} className={button + ' w-full'} onClick={() => { setOpen(!open); if (!open) void load(); }} aria-expanded={open}>{t.title}</button>
@@ -36,6 +38,11 @@ function Panel() {
       </>}
     </>}
   </section>;
+}
+export function OrganizerCommissionSettings({ organizer, saved }: { organizer: DirectoryDetail; saved: () => void }) {
+  const { i18n } = useTranslation(), ro = i18n.language.startsWith('ro'), t = commissionText(ro), [editing,setEditing] = useState(false);
+  const target: OrganizerCommission = { organizerId: organizer.userId, companyName: organizer.companyName, email: organizer.email, override: organizer.commissionOverride, revision: organizer.commissionRevision };
+  return <section className={card}><h2 className="text-lg font-semibold">{t.title}</h2><p className="tabular-nums text-lg font-semibold">{commissionFormula(target.override ?? organizer.standard,ro)}</p><p className="text-sm leading-relaxed text-muted-foreground">{t.future}</p>{editing ? <Editor key={target.organizerId + ':' + target.revision} target={target} data={{standard:organizer.standard,organizers:[target]}} close={() => setEditing(false)} saved={() => { setEditing(false); saved(); }} /> : <button className={button} onClick={() => setEditing(true)}>{t.edit}</button>}</section>;
 }
 function Editor({ target, data, close, saved }: { target: 'standard' | OrganizerCommission; data: CommissionSettings; close: () => void; saved: () => void }) {
   const { i18n } = useTranslation(), ro = i18n.language.startsWith('ro'), t = commissionText(ro);

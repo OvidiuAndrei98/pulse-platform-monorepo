@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { AppState } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { accountApi, useAuth } from "../auth/AuthProvider";
+import { operatorAccount } from '../../../pulse-app/src/features/wardrobe/flow';
 import {
   WardrobeStore,
   type Request,
@@ -23,8 +24,8 @@ export function useWardrobe(staff = false, interval = 5000) {
   const store = useMemo(
     () =>
       new WardrobeStore(((path, options) =>
-        accountApi(path, { ...options, token })) as Request),
-    [id, token],
+        accountApi(path, { ...options, token })) as Request, { personal: !operatorAccount(auth.user?.role), autoSelectFirst:false }),
+    [id, token, auth.user?.role],
   );
   const state = useSyncExternalStore(
     store.subscribe,

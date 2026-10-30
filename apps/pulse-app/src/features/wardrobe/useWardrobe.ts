@@ -4,6 +4,7 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { apiRoot } from "@/core/apiRoot";
 import { apiFetch } from "@/lib/native/apiFetch";
 import { WardrobeStore, type Request } from "./model";
+import { operatorAccount } from './flow';
 
 export function useWardrobe(staff = false, interval = 5000) {
   const { user, getToken } = useDataProvider();
@@ -34,8 +35,8 @@ export function useWardrobe(staff = false, interval = 5000) {
         );
       return result;
     };
-    return new WardrobeStore(request);
-  }, [id, getToken]);
+    return new WardrobeStore(request,{personal:!operatorAccount(user?.properties.role),autoSelectFirst:false});
+  }, [id, getToken, user?.properties.role]);
   const state = useSyncExternalStore(
     store.subscribe,
     store.snapshot,

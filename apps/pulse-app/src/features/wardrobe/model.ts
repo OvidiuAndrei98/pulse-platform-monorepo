@@ -35,7 +35,7 @@ export type Deposit = {
   pickupExpiresAt: string | null;
   pickupApproved: boolean | null;
 };
-export type WardrobeEvent = { id: string; title: string; canManage: boolean };
+export type WardrobeEvent = { id: string; title: string; canManage: boolean; startTime?:string; location?:string };
 export type Mine = { deposits: Deposit[]; staffAccess: boolean };
 export type Overview = {
   eventId: string;
@@ -466,7 +466,7 @@ export class WardrobeStore {
   private reading = false;
   private disposed = false;
   private lifetime = new AbortController();
-  constructor(private transport: Request) {}
+  constructor(private transport: Request, private options: { personal?: boolean; autoSelectFirst?: boolean } = {}) {}
   private request: Request = (path, options = {}) =>
     this.transport(path, { ...options, signal: this.lifetime.signal });
   start = () => {
@@ -496,19 +496,22 @@ export class WardrobeStore {
     this.lifetime.abort();
   };
   async refresh(staff = false) {
+    if (!staff && this.options.personal === false) return;
     if (this.reading || this.state.busy || this.disposed) return;
     this.reading = true;
     const epoch = this.epoch;
     this.set({ loading: true });
     try {
-      const mine = await this.request<Mine>("/wardrobe/mine");
-      if (epoch !== this.epoch || this.disposed) return;
-      this.set({ mine });
+      if (this.options.personal !== false) {
+        const mine = await this.request<Mine>("/wardrobe/mine");
+        if (epoch !== this.epoch || this.disposed) return;
+        this.set({ mine });
+      }
       if (staff) {
         const events = await this.request<WardrobeEvent[]>("/wardrobe/events");
         if (epoch !== this.epoch || this.disposed) return;
         this.set({ events });
-        if (!this.state.eventId && events[0])
+        if (!this.state.eventId && events[0] && this.options.autoSelectFirst !== false)
           this.set({ eventId: events[0].id });
         if (this.state.eventId) {
           const { eventId, search, history, unclaimed, cursor, selected } =
@@ -641,7 +644,7 @@ export class WardrobeStore {
     const epoch = ++this.epoch,
       event = this.state.eventId;
     this.reading = false;
-    this.set({ busy: true, error: null });
+    this.set({ busy: true, error: null, ...(command.action === 'lookup' ? {selected:undefined} : {}) });
     let result: { deposit?: Deposit; deposits?: Deposit[] } | null = null;
     try {
       result = await this.request(`/wardrobe/events/${event}/commands`, {
@@ -649,9 +652,13 @@ export class WardrobeStore {
         body: command,
       });
       if (epoch !== this.epoch || this.disposed) return null;
-      if (result?.deposit) this.set({ selected: result.deposit });
-      else if (result?.deposits?.length)
-        this.set({ selected: result.deposits[0] });
+      // Lookup is read-only. Never publish an implicit customer selection while
+      // the following refresh is still running; callers choose eligible rows.
+      if (command.action !== 'lookup') {
+        if (result?.deposit) this.set({ selected: result.deposit });
+        else if (result?.deposits?.length)
+          this.set({ selected: result.deposits[0] });
+      }
     } catch (error) {
       if (epoch === this.epoch) this.set({ error });
     } finally {
@@ -659,6 +666,7 @@ export class WardrobeStore {
     }
     const error = this.state.error;
     await this.refresh(true);
+    if (epoch !== this.epoch || this.disposed || event !== this.state.eventId) return null;
     if (error && epoch === this.epoch) this.set({ error });
     return result;
   }

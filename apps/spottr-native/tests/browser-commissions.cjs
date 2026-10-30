@@ -26,9 +26,8 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
     };
   }.toString()})();` });
   await call('Emulation.setDeviceMetricsOverride', { width: 393, height: 852, deviceScaleFactor: 1, mobile: true });
-  await call('Page.navigate', { url: base + '/admin' });
+  await call('Page.navigate', { url: base + '/admin?section=commissions' });
   await until(`!!document.querySelector('[data-testid="admin-commissions"]')`);
-  await click('admin-commissions');
   await until(`document.body.innerText.includes('Standard Club')`);
   await until(`document.body.innerText.includes('5% + 1.5 RON / ticket')`);
   const org = '00000000-0000-4000-8000-000000000003';

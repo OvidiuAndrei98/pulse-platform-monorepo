@@ -326,6 +326,8 @@ func (app *Application) BuildRouter() http.Handler {
 		SendSafetyGroupHelp:         safetyGroupsHandler.HandleHelp,
 		ResolveSafetyGroupHelp:      safetyGroupsHandler.HandleHelpResolved,
 		ListOrganizerVerifications:  organizerHandler.HandleAdminListOrganizerVerifications,
+		AdminOrganizerDirectory:     organizerHandler.HandleAdminOrganizerDirectory,
+		AdminOrganizerDetail:        organizerHandler.HandleAdminOrganizerDetail,
 		GetCommissions:              organizerHandler.HandleAdminCommissions,
 		SetStandardCommission:       organizerHandler.HandleAdminSetStandardCommission,
 		SetOrganizerCommission:      organizerHandler.HandleAdminSetOrganizerCommission,

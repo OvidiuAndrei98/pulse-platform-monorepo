@@ -1,7 +1,6 @@
 package organizer
 
 import (
-	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -38,6 +37,10 @@ type ReviewVerificationRequest struct {
 }
 
 func (h *Handler) HandleAdminListOrganizerVerifications(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	if _, ok := commissionAdmin(w, r); !ok {
+		return
+	}
 	rows, err := h.Queries.ListOrganizerVerificationRequests(r.Context())
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Cererile organizatorilor nu au putut fi incarcate")
@@ -69,6 +72,10 @@ func (h *Handler) HandleAdminListOrganizerVerifications(w http.ResponseWriter, r
 }
 
 func (h *Handler) HandleAdminReviewOrganizerVerification(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	if _, ok := commissionAdmin(w, r); !ok {
+		return
+	}
 	var userID pgtype.UUID
 	if err := userID.Scan(chi.URLParam(r, "id")); err != nil || !userID.Valid {
 		router.RespondWithError(w, http.StatusBadRequest, "ID-ul organizatorului este invalid")
@@ -76,8 +83,7 @@ func (h *Handler) HandleAdminReviewOrganizerVerification(w http.ResponseWriter, 
 	}
 
 	var req ReviewVerificationRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		router.RespondWithError(w, http.StatusBadRequest, "Datele verificarii sunt invalide")
+	if !router.DecodeJSON(w, r, &req, 4096) {
 		return
 	}
 

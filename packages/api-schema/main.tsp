@@ -1807,8 +1807,24 @@ model OrganizerCommission { organizerId: string; companyName: string; email: str
 model CommissionSettings { standard: CommissionStandard; organizers: OrganizerCommission[]; }
 model SetOrganizerCommissionPayload { override: CommissionTerms | null; revision: int64; }
 model CommissionSaved { saved: boolean; }
+model OrganizerDirectorySearch { search: string; status: string; after: string; }
+model OrganizerDirectoryItem {
+  userId: string; companyName: string; cui: string; username: string; email: string;
+  verificationStatus: string; accountActive: boolean; stripeStatus: string; createdAt: string; updatedAt: string;
+}
+model OrganizerDirectoryPage { items: OrganizerDirectoryItem[]; nextCursor: string; }
+model OrganizerDirectoryEvent { id: string; title: string; startTime: string; status: string; location: string; }
+model OrganizerDirectoryDetail extends OrganizerDirectoryItem {
+  fiscalAddress: string; verifiedAt: string; stripeAccountId: string; stripeChargesEnabled: boolean; stripePayoutsEnabled: boolean; stripeDetailsSubmitted: boolean;
+  agreementVersion: string; agreementAcceptedAt: string;
+  standard: CommissionStandard; commissionOverride: CommissionTerms | null; commissionRevision: int64;
+  eventCount: int64; upcomingCount: int64; liveRefundsAttention: int64; testRefundsAttention: int64; unknownRefundsAttention: int64;
+  recentEvents: OrganizerDirectoryEvent[];
+}
 @route("/admin")
 interface AdminOperations {
+  @post @route("/organizer-directory") searchOrganizerDirectory(@body payload: OrganizerDirectorySearch): OrganizerDirectoryPage;
+  @get @route("/organizer-directory/{id}") getOrganizerDirectoryDetail(@path id: string): OrganizerDirectoryDetail;
   @get @route("/commissions") getCommissions(): CommissionSettings;
   @put @route("/commissions/standard") setStandardCommission(@body payload: CommissionStandard): CommissionSaved;
   @put @route("/organizers/{id}/commission") setOrganizerCommission(@path id: string, @body payload: SetOrganizerCommissionPayload): CommissionSaved;

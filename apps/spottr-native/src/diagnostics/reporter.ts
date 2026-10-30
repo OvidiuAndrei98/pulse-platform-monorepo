@@ -135,6 +135,7 @@ export function createErrorReporter(options: {
           report.screen,
           report.errorType,
           report.category,
+          report.errorCode, report.errorSource, report.endpoint, report.httpMethod,
           // Handled retries can come from different call sites. Group by the
           // operation/reason instead of producing a new report for each stack.
           report.operation ? [report.operation, report.failure, report.httpStatus] : report.frames,

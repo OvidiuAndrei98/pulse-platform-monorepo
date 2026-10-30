@@ -17,6 +17,9 @@ type Querier interface {
 	ActivateScheduledPromotionCampaigns(ctx context.Context) error
 	AddComment(ctx context.Context, arg AddCommentParams) (Comments, error)
 	AddValidationStaff(ctx context.Context, arg AddValidationStaffParams) error
+	AdminOrganizerDetail(ctx context.Context, userID pgtype.UUID) (AdminOrganizerDetailRow, error)
+	AdminOrganizerDirectory(ctx context.Context, arg AdminOrganizerDirectoryParams) ([]AdminOrganizerDirectoryRow, error)
+	AdminOrganizerRecentEvents(ctx context.Context, organizerID pgtype.UUID) ([]AdminOrganizerRecentEventsRow, error)
 	ApproveEventCancellation(ctx context.Context, arg ApproveEventCancellationParams) (pgtype.UUID, error)
 	AssignGuestOrdersToUser(ctx context.Context, userID pgtype.UUID) error
 	AssignGuestTicketsToUser(ctx context.Context, userID pgtype.UUID) error

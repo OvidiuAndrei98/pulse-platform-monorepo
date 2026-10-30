@@ -7,11 +7,11 @@ import { getAccessTokenSync } from "@/lib/native/sessionStorage";
 import { parseErrorPage, type ErrorEntry } from "@/features/diagnostics/report";
 import { diagnosticTitle, diagnosticFailure, groupDiagnosticReports } from '@/features/diagnostics/presentation';
 
-export function ClientErrorsPanel() {
+export function ClientErrorsPanel({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
   const { user, isAdmin } = useDataProvider(),
     { i18n } = useTranslation(),
     ro = i18n.language.startsWith("ro");
-  const [open, setOpen] = useState(false),
+  const [open, setOpen] = useState(initiallyOpen),
     [platform, setPlatform] = useState(""),
     [rows, setRows] = useState<ErrorEntry[]>([]),
     [cursor, setCursor] = useState(""),
@@ -151,6 +151,8 @@ export function ClientErrorsPanel() {
               <summary className="cursor-pointer">
                 {diagnosticTitle(row, ro)} · {row.screen}
                 {!!row.failure && <span className="block text-xs text-muted-foreground">{diagnosticFailure(row, ro)}</span>}
+                {!!row.errorCode && <span className="block text-xs text-muted-foreground">{ro ? 'Raportat de client' : 'Client reported'}: {row.errorSource} · {row.errorCode} · {row.safeMessage}</span>}
+                {!!row.endpoint && <span className="block break-all text-xs text-muted-foreground">{row.httpMethod} · {row.endpoint}{row.requestId ? ` · Request ID: ${row.requestId}` : ''}</span>}
                 {count > 1 && <span className="block text-xs text-primary">{ro ? `${count} apariții în rapoartele încărcate` : `${count} occurrences in loaded reports`}</span>}
                 <span className="block text-xs text-muted-foreground">
                   {row.platform} · v{row.appVersion} ({row.buildVersion}) · OS{" "}

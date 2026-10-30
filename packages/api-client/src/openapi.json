@@ -189,6 +189,61 @@
         }
       }
     },
+    "/admin/organizer-directory": {
+      "post": {
+        "operationId": "AdminOperations_searchOrganizerDirectory",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizerDirectoryPage"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizerDirectorySearch"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/organizer-directory/{id}": {
+      "get": {
+        "operationId": "AdminOperations_getOrganizerDirectoryDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizerDirectoryDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/organizers": {
       "get": {
         "operationId": "AdminOperations_listOrganizerVerifications",
@@ -6827,6 +6882,212 @@
           }
         }
       },
+      "OrganizerDirectoryDetail": {
+        "type": "object",
+        "required": [
+          "fiscalAddress",
+          "verifiedAt",
+          "stripeAccountId",
+          "stripeChargesEnabled",
+          "stripePayoutsEnabled",
+          "stripeDetailsSubmitted",
+          "agreementVersion",
+          "agreementAcceptedAt",
+          "standard",
+          "commissionOverride",
+          "commissionRevision",
+          "eventCount",
+          "upcomingCount",
+          "liveRefundsAttention",
+          "testRefundsAttention",
+          "unknownRefundsAttention",
+          "recentEvents"
+        ],
+        "properties": {
+          "fiscalAddress": {
+            "type": "string"
+          },
+          "verifiedAt": {
+            "type": "string"
+          },
+          "stripeAccountId": {
+            "type": "string"
+          },
+          "stripeChargesEnabled": {
+            "type": "boolean"
+          },
+          "stripePayoutsEnabled": {
+            "type": "boolean"
+          },
+          "stripeDetailsSubmitted": {
+            "type": "boolean"
+          },
+          "agreementVersion": {
+            "type": "string"
+          },
+          "agreementAcceptedAt": {
+            "type": "string"
+          },
+          "standard": {
+            "$ref": "#/components/schemas/CommissionStandard"
+          },
+          "commissionOverride": {
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CommissionTerms"
+              }
+            ],
+            "nullable": true
+          },
+          "commissionRevision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "eventCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "upcomingCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "liveRefundsAttention": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "testRefundsAttention": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unknownRefundsAttention": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "recentEvents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrganizerDirectoryEvent"
+            }
+          }
+        },
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/OrganizerDirectoryItem"
+          }
+        ]
+      },
+      "OrganizerDirectoryEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "startTime",
+          "status",
+          "location"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          }
+        }
+      },
+      "OrganizerDirectoryItem": {
+        "type": "object",
+        "required": [
+          "userId",
+          "companyName",
+          "cui",
+          "username",
+          "email",
+          "verificationStatus",
+          "accountActive",
+          "stripeStatus",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "companyName": {
+            "type": "string"
+          },
+          "cui": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "verificationStatus": {
+            "type": "string"
+          },
+          "accountActive": {
+            "type": "boolean"
+          },
+          "stripeStatus": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "OrganizerDirectoryPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrganizerDirectoryItem"
+            }
+          },
+          "nextCursor": {
+            "type": "string"
+          }
+        }
+      },
+      "OrganizerDirectorySearch": {
+        "type": "object",
+        "required": [
+          "search",
+          "status",
+          "after"
+        ],
+        "properties": {
+          "search": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "after": {
+            "type": "string"
+          }
+        }
+      },
       "OrganizerEventUpdateResponse": {
         "type": "object",
         "required": [
@@ -9159,6 +9420,12 @@
           },
           "canManage": {
             "type": "boolean"
+          },
+          "startTime": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
           }
         }
       },

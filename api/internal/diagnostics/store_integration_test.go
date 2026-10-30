@@ -41,6 +41,7 @@ func TestPostgresReports(t *testing.T) {
 	defer pool.Exec(context.Background(), "DROP TABLE client_error_reports")
 	store := PostgresStore{Pool: pool}
 	r := testReport(1)
+	r.ErrorCode, r.SafeMessage, r.ErrorSource = "JS_PROPERTY_ACCESS", diagnosticMessages["JS_PROPERTY_ACCESS"], "javascript"
 	var wg sync.WaitGroup
 	failures := make(chan error, 32)
 	for i := 0; i < 32; i++ {
@@ -90,6 +91,9 @@ func TestPostgresReports(t *testing.T) {
 				t.Fatal("duplicate across pages")
 			}
 			seen[row.ID] = true
+			if row.ID == r.ID && (row.ErrorCode != r.ErrorCode || row.SafeMessage != r.SafeMessage || row.ErrorSource != r.ErrorSource) {
+				t.Fatal("new diagnostic context lost during storage/list round trip")
+			}
 			if row.Fingerprint != fingerprint(row.Report) {
 				t.Fatal("report changed on storage round trip")
 			}

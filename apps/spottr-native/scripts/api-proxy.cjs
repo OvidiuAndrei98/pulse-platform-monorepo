@@ -53,6 +53,8 @@ function createApiProxy(apiUrl, { timeoutMs = 15000 } = {}) {
     [/^\/wardrobe\/events\/[0-9a-f-]{36}(?:\/deposits\/[0-9a-f-]{36})?$/i, ['GET']],
     [/^\/wardrobe\/events\/[0-9a-f-]{36}\/commands$/i, ['POST']],
     [/^\/admin\/(?:organizers|commissions|event-cancellations|refunds-attention|promotion-invoices-attention|client-errors)$/, ['GET']],
+    [/^\/admin\/organizer-directory$/, ['POST']],
+    [/^\/admin\/organizer-directory\/[0-9a-f-]{36}$/i, ['GET']],
     [/^\/admin\/commissions\/standard$/, ['PUT']],
     [/^\/admin\/organizers\/[0-9a-f-]{36}\/commission$/i, ['PUT']],
     [/^\/diagnostics\/errors$/, ['POST']],
@@ -122,6 +124,8 @@ function createApiProxy(apiUrl, { timeoutMs = 15000 } = {}) {
       for (const key of ['content-type', 'content-encoding', 'content-length', 'retry-after']) {
         if (response.headers[key] !== undefined) headers[key] = response.headers[key];
       }
+      const requestId = response.headers['x-request-id'];
+      if (typeof requestId === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(requestId)) headers['X-Request-ID'] = requestId;
       res.writeHead(response.statusCode || 502, headers);
       response.on('error', () => res.destroy());
       response.pipe(res);

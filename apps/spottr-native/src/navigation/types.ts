@@ -27,7 +27,7 @@ export type RootParamList = {
   Scanner: { eventId?: string } | undefined;
   ScannerHistory: { eventId: string; eventTitle?: string };
   Wardrobe: { staff?: boolean } | undefined;
-  Admin: undefined;
+  Admin: { section?: string; organizerId?: string } | undefined;
   QuickScanner: { token?: string } | undefined;
   Checkout: { eventId: string; ticketTypeId: string };
   CheckoutReturn: { eventId: string; sessionId?: string; nativeOrderId?: string; cancelled?: string };

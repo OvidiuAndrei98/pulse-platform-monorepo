@@ -1,5 +1,6 @@
 import type { components } from '@packages/api-client/src/schema';
 import { ApiError, type createHttp } from '../data/http';
+import { parseDirectoryPage, parseDirectoryDetail } from '../../../pulse-app/src/features/admin/organizers';
 
 type Schema = components['schemas'];
 export type OrganizerReview = Schema['OrganizerVerificationRequest'];
@@ -54,6 +55,8 @@ export function canReviewCancellation(request: Pick<Cancellation, 'status' | 'fa
 export function createAdminApi(request: ReturnType<typeof createHttp>, session: () => { token: string | null; role?: string }) {
   const token = () => { const access = session(); if (!access.token || access.role !== 'admin') throw new ApiError(403, 'ADMIN_REQUIRED'); return access.token; };
   return {
+    directory: async (body: {search:string;status:string;after:string}, signal?:AbortSignal) => parseDirectoryPage(await request('/admin/organizer-directory',{method:'POST',token:token(),body,signal})),
+    detail: async (organizerId:string,signal?:AbortSignal) => parseDirectoryDetail(await request('/admin/organizer-directory/'+id(organizerId),{token:token(),signal})),
     organizers: async (signal?: AbortSignal) => parseOrganizers(await request('/admin/organizers', { token: token(), signal })),
     cancellations: async (signal?: AbortSignal) => parseCancellations(await request('/admin/event-cancellations', { token: token(), signal })),
     refunds: async (signal?: AbortSignal) => parseRefunds(await request('/admin/refunds-attention', { token: token(), signal })),

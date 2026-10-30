@@ -19,6 +19,7 @@ export function BottomNavGate() {
 
   if (pathname === "/login" || pathname === "/register") return null;
   if (pathname === "/wardrobe") return null;
+  if (pathname === "/admin" || pathname?.startsWith("/admin/")) return null;
   if (pathname === "/checkout/success" || pathname === "/checkout/success/") return null;
   if (/^\/events\/[^/]+\/?$/.test(pathname ?? "")) return null;
 

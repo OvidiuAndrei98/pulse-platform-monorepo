@@ -39,6 +39,12 @@ type Report struct {
 	Operation    string    `json:"operation,omitempty"`
 	Failure      string    `json:"failure,omitempty"`
 	HTTPStatus   int       `json:"httpStatus,omitempty"`
+	ErrorCode    string    `json:"errorCode,omitempty"`
+	SafeMessage  string    `json:"safeMessage,omitempty"`
+	ErrorSource  string    `json:"errorSource,omitempty"`
+	Endpoint     string    `json:"endpoint,omitempty"`
+	HTTPMethod   string    `json:"httpMethod,omitempty"`
+	RequestID    string    `json:"requestId,omitempty"`
 }
 type Entry struct {
 	Report
@@ -60,6 +66,7 @@ type Handler struct {
 }
 
 var uuid = regexp.MustCompile(`(?i)^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`)
+var requestID = regexp.MustCompile(`^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$`)
 var version = regexp.MustCompile(`^(unknown|[0-9][0-9A-Za-z.+_-]{0,39})$`)
 var symbol = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_.$<> -]{0,79}$`)
 var filename = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,80}\.(js|jsx|ts|tsx|bundle|jsbundle|hbc)$`)
@@ -75,7 +82,7 @@ func (r Report) valid(now time.Time) bool {
 	if !uuid.MatchString(r.ID) || r.OccurredAt.Before(now.Add(-7*24*time.Hour)) || r.OccurredAt.After(now.Add(5*time.Minute)) || !oneOf(r.Platform, "ios|android|web") || !version.MatchString(r.AppVersion) || !version.MatchString(r.BuildVersion) || !version.MatchString(r.OSVersion) {
 		return false
 	}
-	if !oneOf(r.ErrorType, "Error|TypeError|ReferenceError|RangeError|SyntaxError|InvariantViolation|Unknown") || !oneOf(r.Category, "property_access|undefined_identifier|invalid_hook|render_exception|network|timeout|unknown") || !Screen(r.Screen) || len(r.Breadcrumbs) > 8 || len(r.Frames) > 12 {
+	if !r.validContext() || !oneOf(r.ErrorType, "Error|TypeError|ReferenceError|RangeError|SyntaxError|InvariantViolation|Unknown") || !oneOf(r.Category, "property_access|undefined_identifier|invalid_hook|render_exception|network|timeout|unknown") || !Screen(r.Screen) || len(r.Breadcrumbs) > 8 || len(r.Frames) > 12 {
 		return false
 	}
 	if r.Operation != "" || r.Failure != "" || r.HTTPStatus != 0 {
@@ -101,6 +108,9 @@ func fingerprint(r Report) string {
 	if r.Operation != "" {
 		// Retries of one handled failure may have different JavaScript call sites.
 		data, _ = json.Marshal([]any{r.Platform, r.AppVersion, r.BuildVersion, r.Screen, r.Operation, r.Failure, r.HTTPStatus})
+	}
+	if r.ErrorCode != "" {
+		data, _ = json.Marshal([]any{string(data), r.ErrorCode, r.ErrorSource, r.Endpoint, r.HTTPMethod})
 	}
 	digest := sha256.Sum256(data)
 	return hex.EncodeToString(digest[:])

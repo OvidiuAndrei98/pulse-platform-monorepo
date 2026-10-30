@@ -152,6 +152,8 @@ type HandlersConfig struct {
 	GetOrganizerProfile         http.HandlerFunc
 	CreateOrganizerProfile      http.HandlerFunc
 	ListOrganizerVerifications  http.HandlerFunc
+	AdminOrganizerDirectory     http.HandlerFunc
+	AdminOrganizerDetail        http.HandlerFunc
 	GetCommissions              http.HandlerFunc
 	SetStandardCommission       http.HandlerFunc
 	SetOrganizerCommission      http.HandlerFunc
@@ -213,7 +215,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 		optionalAuthMiddleware = func(next http.Handler) http.Handler { return next }
 	}
 
-	r.Use(middleware.RequestID)
+	r.Use(requestCorrelation)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
@@ -221,6 +223,7 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type", "Idempotency-Key", "Cache-Control"},
+		ExposedHeaders:   []string{"X-Request-ID"},
 		AllowCredentials: true,
 	}))
 
@@ -474,6 +477,10 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 					r.Use(cfg.AdminMiddleware)
 				}
 				r.Get("/admin/organizers", cfg.ListOrganizerVerifications)
+				if cfg.AuthMiddleware != nil && cfg.AdminMiddleware != nil && cfg.AdminOrganizerDirectory != nil && cfg.AdminOrganizerDetail != nil {
+					r.With(identityLimit("admin_directory", 60, time.Minute)).Post("/admin/organizer-directory", cfg.AdminOrganizerDirectory)
+					r.With(identityLimit("admin_directory", 60, time.Minute)).Get("/admin/organizer-directory/{id}", cfg.AdminOrganizerDetail)
+				}
 				if cfg.AuthMiddleware != nil && cfg.AdminMiddleware != nil && cfg.GetCommissions != nil && cfg.SetStandardCommission != nil && cfg.SetOrganizerCommission != nil {
 					r.Get("/admin/commissions", cfg.GetCommissions)
 					r.Put("/admin/commissions/standard", cfg.SetStandardCommission)

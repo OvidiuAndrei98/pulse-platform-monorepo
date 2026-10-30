@@ -3,9 +3,17 @@ const SCANNER_ROUTE = "/dashboard/ticket-validation";
 
 async function putInCache(request, response) {
   if (!response || !response.ok) return response;
-  const cache = await caches.open(CACHE_NAME);
-  await cache.put(request, response.clone());
+  // Storage can be unavailable/full while the network response is valid.
+  // Offline caching must never turn a successful JS load into a network error.
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, response.clone());
+  } catch { /* Best-effort offline storage. */ }
   return response;
+}
+
+async function cachedResponse(request) {
+  try { return await caches.match(request); } catch { return undefined; }
 }
 
 async function fetchAndCache(request) {
@@ -71,8 +79,8 @@ self.addEventListener("fetch", (event) => {
     const refresh = fetchAndCache(request).catch(() => undefined);
     event.waitUntil(refresh);
     event.respondWith(
-      caches.match(SCANNER_ROUTE).then(async (cached) =>
-        cached || await refresh || await caches.match(SCANNER_ROUTE) || Response.error(),
+      cachedResponse(SCANNER_ROUTE).then(async (cached) =>
+        cached || await refresh || await cachedResponse(SCANNER_ROUTE) || Response.error(),
       ),
     );
     return;
@@ -80,7 +88,7 @@ self.addEventListener("fetch", (event) => {
 
   if (isNextAsset || isManifest) {
     event.respondWith(
-      caches.match(request).then((cached) => cached || fetchAndCache(request).catch(() => Response.error())),
+      cachedResponse(request).then((cached) => cached || fetchAndCache(request).catch(() => Response.error())),
     );
   }
 });

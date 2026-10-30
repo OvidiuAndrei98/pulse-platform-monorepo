@@ -13,6 +13,21 @@ async function close(server: http.Server) {
   await new Promise<void>(resolve => server.close(() => resolve()));
 }
 
+test('preview retains only opaque upstream correlation IDs and never forwards a caller-supplied ID', async () => {
+  let value = '583f24c4-53cd-482e-a324-487a9b7c2846';
+  const upstream = http.createServer((req, res) => {
+    assert.equal(req.headers['x-request-id'], undefined);
+    res.writeHead(503, { 'Content-Type': 'application/json', 'X-Request-ID': value }); res.end('{}');
+  });
+  const api = await listen(upstream), proxy = createApiProxy(api + '/api/v1');
+  const server = http.createServer((req, res) => proxy(req, res, () => res.end())), base = await listen(server);
+  try {
+    assert.equal((await request(base, '/api/v1/events', { 'x-request-id': 'private' })).headers['x-request-id'], value);
+    value = 'private@example.test';
+    assert.equal((await request(base, '/api/v1/events')).headers['x-request-id'], undefined);
+  } finally { await close(server); await close(upstream); }
+});
+
 test('story preview proxy returns public image bytes and blocks writes, foreign origins and non-image media paths', async () => {
   const bytes = Buffer.from([0x52, 0x49, 0x46, 0x46]), received: string[] = [];
   const upstream = http.createServer((req, res) => { received.push(req.url!); assert.equal(req.headers.accept, 'image/*'); res.writeHead(200, { 'Content-Type': 'image/webp' }); res.end(bytes); });

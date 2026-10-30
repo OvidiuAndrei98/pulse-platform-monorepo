@@ -234,6 +234,7 @@ export class ApiClient {
       params?: OperationParameters<Path, "post">;
       body?: OperationRequestBody<Path, "post">;
       idempotencyKey?: string;
+      signal?: AbortSignal;
     },
   ) {
     return this.request("post", path, options);

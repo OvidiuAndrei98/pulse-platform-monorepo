@@ -33,7 +33,8 @@ withBrowser(async ({ base, call, evaluate, until, errors, capture }) => {
         if (qa.empty) return reply({ items: [], nextCursor: '' });
         const platform = url.searchParams.get('platform') || 'ios';
         const report = row(url.searchParams.get('cursor') ? 11 : 10, platform);
-        if (params.has('handled')) Object.assign(report, { operation: 'scanner_sync', failure: 'server_error', httpStatus: 503 });
+        if (params.has('handled')) Object.assign(report, { operation: 'scanner_sync', failure: 'server_error', httpStatus: 503,
+          errorCode: 'HTTP_SERVICE_UNAVAILABLE', safeMessage: 'The service is temporarily unavailable.', errorSource: 'api', endpoint: 'scanner', httpMethod: 'POST', requestId: '583f24c4-53cd-482e-a324-487a9b7c2846' });
         return reply({ items: [report], nextCursor: url.searchParams.get('cursor') ? '' : 'page2' });
       }
       if (route === '/users/me') return reply(user);
@@ -43,7 +44,7 @@ withBrowser(async ({ base, call, evaluate, until, errors, capture }) => {
       qa.unexpected.push(route); return reply({}, 404);
     };
   }.toString()})();` });
-  const open = path => call('Page.navigate', { url: base + path });
+  const open = path => call('Page.navigate', { url: base + (path.startsWith('/admin') ? path + (path.includes('?') ? '&' : '?') + 'section=errors' : path) });
   const button = label => `Array.from(document.querySelectorAll('[data-testid="client-errors-panel"] [role="button"]')).find(el=>el.textContent.trim()===${JSON.stringify(label)})`;
   const press = async label => { await until(button(label)); await evaluate(`${button(label)}.click()`); };
 
@@ -52,8 +53,8 @@ withBrowser(async ({ base, call, evaluate, until, errors, capture }) => {
   assert.equal(await evaluate(`window.__qa.requests.filter(r=>r.route.startsWith('/admin/')).length`), 0);
   assert.equal(await evaluate(`!!document.querySelector('[data-testid="client-errors-panel"]')`), false);
   await open('/admin?offline=1'); await until(button('Application errors'));
-  assert.equal(await evaluate(`window.__qa.requests.filter(r=>r.route==='/admin/client-errors').length`), 0, 'Collapsed panel does not fetch');
-  await evaluate(`{const error=new TypeError('Cannot read properties of undefined person@example.test sk_test_private'); error.stack='TypeError: sensitive\\n    at showTicket (https://private.test/index.bundle?token=secret:1:200)';window.dispatchEvent(new ErrorEvent('error',{error}));}`);
+  await until(`window.__qa.requests.some(r=>r.route==='/admin/client-errors')`);
+  await evaluate(`{const error=new TypeError('Cannot read properties of undefined person@example.test sk_test_private'); error.stack='TypeError: '+error.message+'\\n    at showTicket (https://private.test/index.bundle?token=secret:1:200)';window.dispatchEvent(new ErrorEvent('error',{error}));}`);
   await until('window.__qa.reports.length===1');
   const first = await evaluate('window.__qa.reports[0]');
   assert.equal(first.auth, null); assert.equal(first.credentials, 'omit');
@@ -64,7 +65,7 @@ withBrowser(async ({ base, call, evaluate, until, errors, capture }) => {
   assert.equal(await evaluate('window.__qa.reports[0].report.id'), first.report.id, 'Restart retries the same report');
   console.log('PASS production error listener, no bearer/cookies, offline persistence and restart delivery');
 
-  await press('Application errors'); await until('document.body.innerText.includes("property_access")');
+  await until('document.body.innerText.includes("property_access")');
   await press('Technical details'); await until(`document.body.innerText.includes('showTicket (index.bundle:1:1234)')`);
   await press('More'); await until(`document.body.innerText.includes('2 occurrences in loaded reports')`);
   assert.equal(await evaluate(`document.querySelectorAll('[data-testid="client-error-details"]').length`), 1, 'Repeated reports are grouped');
@@ -90,8 +91,12 @@ withBrowser(async ({ base, call, evaluate, until, errors, capture }) => {
   assert.equal(ticketReports[0].auth, null);
   assert.equal(JSON.stringify(ticketReports).includes('private@example'), false);
   assert.equal(JSON.stringify(ticketReports).includes('secret-payment'), false);
-  await open('/admin?handled=1'); await press('Application errors');
+  await open('/admin?handled=1');
   await until(`document.body.innerText.includes('Synchronizing scans') && document.body.innerText.includes('Internal server error · HTTP 503')`);
+  await until(`document.body.innerText.includes('Client reported: api') && document.body.innerText.includes('HTTP_SERVICE_UNAVAILABLE') && document.body.innerText.includes('583f24c4-53cd-482e-a324-487a9b7c2846')`);
+  await press('Export JSON (loaded reports)'); await until('window.__qa.export');
+  assert.equal(await evaluate('window.__qa.export.reports[0].errorCode'), 'HTTP_SERVICE_UNAVAILABLE');
+  assert.equal(await evaluate('window.__qa.export.reports[0].endpoint'), 'scanner');
   await capture('diagnostics-handled-failure');
   assert.deepEqual(errors, []);
   console.log('PASS handled ticket failure collected automatically, sanitized and shown with operation/reason in Admin');

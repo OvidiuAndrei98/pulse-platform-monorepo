@@ -1,3 +1,5 @@
+import { diagnosticMessages, diagnosticSource, parseDiagnosticContext, type DiagnosticContext, type DiagnosticCode } from './context';
+
 export const screens = [
   "Unknown",
   "Home",
@@ -68,7 +70,7 @@ export type ErrorReport = {
   screen: (typeof screens)[number];
   breadcrumbs: string[];
   frames: { file: string; function: string; line: number; column: number }[];
-} & Partial<HandledFailure>;
+} & Partial<HandledFailure> & DiagnosticContext;
 export type ErrorEntry = ErrorReport & {
   receivedAt: string;
   fingerprint: string;
@@ -100,12 +102,14 @@ export function reportError(
 ): ErrorReport {
   const value =
     error && typeof error === "object"
-      ? (error as { name?: unknown; message?: unknown; stack?: unknown })
+      ? (error as { name?: unknown; message?: unknown; stack?: unknown; diagnostic?: DiagnosticContext })
       : {};
-  const message =
-    typeof value.message === "string" ? value.message.slice(0, 2000) : "";
+  const rawMessage = typeof value.message === 'string' ? value.message : '';
+  const message = rawMessage.slice(0, 2000);
   const category: ErrorReport["category"] =
-    /cannot read propert|undefined is not an object|null is not an object/i.test(
+    // Keep the legacy category vocabulary readable by older admin clients.
+    // errorCode/errorSource provide the more precise server-side classification.
+    context.failure === 'server_error' ? 'network' : /cannot read propert|undefined is not an object|null is not an object/i.test(
       message,
     )
       ? "property_access"
@@ -121,8 +125,15 @@ export function reportError(
                 ? "render_exception"
                 : "unknown";
   const frames: ErrorReport["frames"] = [];
-  if (typeof value.stack === "string")
-    for (const line of value.stack.slice(0, 16000).split("\n").slice(1, 30)) {
+  // V8/Hermes include the entire message at the beginning of stack. A newline
+  // inside that message can look exactly like a frame; never parse that prefix.
+  // Handled failures already have operation/HTTP context and need no stack.
+  const header = !context.operation && rawMessage.length <= 2000 && errorTypes.includes(value.name as never)
+    ? `${value.name}${rawMessage ? ': ' + rawMessage : ''}\n` : '';
+  const trace = header && typeof value.stack === 'string' && value.stack.startsWith(header)
+      ? value.stack.slice(header.length, header.length + 16000) : '';
+  if (trace)
+    for (const line of trace.split("\n").slice(0, 29)) {
       const match = line.match(
         /(?:at\s+(?:address at )?(.*?)\s*\()?([^\s()]+):(\d+):(\d+)\)?$/,
       );
@@ -138,8 +149,22 @@ export function reportError(
       });
       if (frames.length === 12) break;
     }
-  // Deliberately discard message/cause/custom properties. Redacting arbitrary
-  // error strings cannot reliably exclude QR credentials or billing details.
+  const byCategory: Record<ErrorReport['category'], DiagnosticCode> = {
+    property_access: 'JS_PROPERTY_ACCESS', undefined_identifier: 'JS_UNDEFINED_IDENTIFIER', invalid_hook: 'JS_INVALID_HOOK',
+    render_exception: 'JS_RENDER_ERROR', network: 'NETWORK_ERROR', timeout: 'TIMEOUT', unknown: 'UNEXPECTED_ERROR',
+  };
+  const byFailure: Record<HandledFailure['failure'], DiagnosticCode> = {
+    server_error: context.httpStatus === 503 ? 'HTTP_SERVICE_UNAVAILABLE' : context.httpStatus === 502 ? 'HTTP_BAD_GATEWAY' : context.httpStatus === 504 ? 'HTTP_GATEWAY_TIMEOUT' : 'HTTP_SERVER_ERROR',
+    invalid_response: 'INVALID_RESPONSE', storage_error: 'STORAGE_ERROR', sdk_error: 'SDK_ERROR', configuration: 'CONFIGURATION_ERROR', fulfillment_missing: 'FULFILLMENT_MISSING',
+  };
+  const errorCode = context.failure ? byFailure[context.failure] : byCategory[category];
+  let diagnostic: DiagnosticContext = { errorCode, safeMessage: diagnosticMessages[errorCode], errorSource: diagnosticSource(errorCode) };
+  if (value.diagnostic && context.failure === 'server_error') {
+    try { diagnostic = { ...diagnostic, ...parseDiagnosticContext({ ...value.diagnostic, httpStatus: context.httpStatus, failure: context.failure }) }; }
+    catch { /* Never forward malformed or attacker-controlled diagnostic context. */ }
+  }
+  // Raw message/cause/custom properties are still discarded. Only fixed catalog
+  // text survives; arbitrary error strings may contain QR or billing credentials.
   return {
     ...context,
     errorType: errorTypes.includes(value.name as never)
@@ -147,6 +172,7 @@ export function reportError(
       : "Unknown",
     category,
     frames,
+    ...diagnostic,
   };
 }
 export function parseReport(value: unknown): ErrorReport {
@@ -175,6 +201,7 @@ export function parseReport(value: unknown): ErrorReport {
   if (handled && (!operations.includes(r.operation as never) || !failureKinds.includes(r.failure as never)
     || r.httpStatus !== undefined && (!Number.isInteger(r.httpStatus) || r.httpStatus < 500 || r.httpStatus > 599)))
     throw Error('INVALID_DIAGNOSTIC');
+  const diagnostic = parseDiagnosticContext(r);
   for (const frame of r.frames)
     if (
       !frame ||
@@ -209,6 +236,7 @@ export function parseReport(value: unknown): ErrorReport {
       line: f.line,
       column: f.column,
     })),
+    ...diagnostic,
   };
 }
 export function parseErrorPage(value: unknown): ErrorPage {

@@ -10,11 +10,11 @@ import { exportClientErrors } from "./exportClientErrors";
 import { diagnosticTitle, diagnosticFailure, groupDiagnosticReports } from '../../../pulse-app/src/features/diagnostics/presentation';
 import { diagnosticsEnabled } from '../diagnostics/runtime';
 
-export function ClientErrorsPanel() {
+export function ClientErrorsPanel({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
   const { user, controller } = useAuth(),
     { language } = usePreferences(),
     ro = language === "ro";
-  const [open, setOpen] = useState(false),
+  const [open, setOpen] = useState(initiallyOpen),
     [platform, setPlatform] = useState(""),
     [detail, setDetail] = useState(""),
     [exporting, setExporting] = useState(false),
@@ -129,6 +129,8 @@ export function ClientErrorsPanel() {
                   {diagnosticTitle(row, ro)}
                 </Text>
                 {!!row.failure && <Text style={{ color: '#aaa', fontSize: 12 }}>{diagnosticFailure(row, ro)}</Text>}
+                {!!row.errorCode && <Text style={{ color: '#aaa', fontSize: 12 }}>{ro ? 'Raportat de client' : 'Client reported'}: {row.errorSource} · {row.errorCode} · {row.safeMessage}</Text>}
+                {!!row.endpoint && <Text style={{ color: '#aaa', fontSize: 12 }}>{row.httpMethod} · {row.endpoint}{row.requestId ? ` · Request ID: ${row.requestId}` : ''}</Text>}
                 {count > 1 && <Text style={{ color: '#ff0044', fontSize: 12 }}>{ro ? `${count} apariții în rapoartele încărcate` : `${count} occurrences in loaded reports`}</Text>}
                 <Text style={{ color: "#aaa", fontSize: 12 }}>
                   {row.platform} · v{row.appVersion} ({row.buildVersion}) · OS{" "}

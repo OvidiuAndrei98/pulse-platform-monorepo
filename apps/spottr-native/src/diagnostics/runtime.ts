@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
+import * as Application from 'expo-application';
 import { randomUUID } from "expo-crypto";
 import { AppState, Platform } from "react-native";
 import { API_URL } from "../config";
@@ -7,6 +8,7 @@ import { REMOTE_API_URL } from "../config.shared";
 import { safeVersion } from "../../../pulse-app/src/features/diagnostics/report";
 import { createErrorReporter } from "./reporter";
 import { bindHandledReporting } from './handled';
+import { diagnosticVersions } from './metadata';
 
 const enabled =
   process.env.EXPO_PUBLIC_DIAGNOSTICS_ENABLED === "true" ||
@@ -27,21 +29,14 @@ const reporter = enabled
             : Platform.OS === "android"
               ? "android"
               : "web",
-        appVersion: safeVersion(Constants.expoConfig?.version),
-        buildVersion: safeVersion(
-          Platform.OS === "ios"
-            ? Constants.expoConfig?.ios?.buildNumber
-            : Platform.OS === "android"
-              ? String(Constants.expoConfig?.android?.versionCode ?? "unknown")
-              : "unknown",
-        ),
+        ...diagnosticVersions(Application, Constants.expoConfig, Platform.OS, Constants.expoGoConfig != null),
         osVersion: safeVersion(String(Platform.Version ?? "unknown")),
       },
       send: async (report) => {
         const abort = new AbortController(),
           timer = setTimeout(() => abort.abort(), 5000);
         try {
-          // No bearer token, user ID, cookies, request body, error message or URL.
+          // No bearer token, user ID, cookies, request body, raw message or URL.
           const response = await fetch(API_URL + "/diagnostics/errors", {
             method: "POST",
             credentials: "omit",

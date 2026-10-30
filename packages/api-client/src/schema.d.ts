@@ -100,6 +100,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/organizer-directory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AdminOperations_searchOrganizerDirectory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/organizer-directory/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AdminOperations_getOrganizerDirectoryDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/organizers": {
         parameters: {
             query?: never;
@@ -2378,6 +2410,59 @@ export interface components {
             /** Format: int64 */
             revision: number;
         };
+        OrganizerDirectoryDetail: {
+            fiscalAddress: string;
+            verifiedAt: string;
+            stripeAccountId: string;
+            stripeChargesEnabled: boolean;
+            stripePayoutsEnabled: boolean;
+            stripeDetailsSubmitted: boolean;
+            agreementVersion: string;
+            agreementAcceptedAt: string;
+            standard: components["schemas"]["CommissionStandard"];
+            commissionOverride: components["schemas"]["CommissionTerms"] | null;
+            /** Format: int64 */
+            commissionRevision: number;
+            /** Format: int64 */
+            eventCount: number;
+            /** Format: int64 */
+            upcomingCount: number;
+            /** Format: int64 */
+            liveRefundsAttention: number;
+            /** Format: int64 */
+            testRefundsAttention: number;
+            /** Format: int64 */
+            unknownRefundsAttention: number;
+            recentEvents: components["schemas"]["OrganizerDirectoryEvent"][];
+        } & components["schemas"]["OrganizerDirectoryItem"];
+        OrganizerDirectoryEvent: {
+            id: string;
+            title: string;
+            startTime: string;
+            status: string;
+            location: string;
+        };
+        OrganizerDirectoryItem: {
+            userId: string;
+            companyName: string;
+            cui: string;
+            username: string;
+            email: string;
+            verificationStatus: string;
+            accountActive: boolean;
+            stripeStatus: string;
+            createdAt: string;
+            updatedAt: string;
+        };
+        OrganizerDirectoryPage: {
+            items: components["schemas"]["OrganizerDirectoryItem"][];
+            nextCursor: string;
+        };
+        OrganizerDirectorySearch: {
+            search: string;
+            status: string;
+            after: string;
+        };
         OrganizerEventUpdateResponse: {
             id: string;
             eventId: string;
@@ -3073,6 +3158,8 @@ export interface components {
             id: string;
             title: string;
             canManage: boolean;
+            startTime?: string;
+            location?: string;
         };
         WardrobeItems: {
             /** Format: int32 */
@@ -3270,6 +3357,52 @@ export interface operations {
                         /** @enum {string} */
                         status: "refunding";
                     };
+                };
+            };
+        };
+    };
+    AdminOperations_searchOrganizerDirectory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizerDirectorySearch"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizerDirectoryPage"];
+                };
+            };
+        };
+    };
+    AdminOperations_getOrganizerDirectoryDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizerDirectoryDetail"];
                 };
             };
         };

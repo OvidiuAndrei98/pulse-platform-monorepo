@@ -31,13 +31,13 @@ const context = {
 const error = (n = 1) => ({
   name: "TypeError",
   message: "Cannot read properties of undefined",
-  stack: `TypeError: private value\n    at showTicket (https://host.test/private/index.bundle?token=secret:${n}:24)`,
+  stack: `TypeError: Cannot read properties of undefined\n    at showTicket (https://host.test/private/index.bundle?token=secret:${n}:24)`,
 });
 const makeReport = (n = 1): ErrorReport =>
   reportError(error(n), { ...context, id: id(n) });
 
 test('handled fields are strictly bounded and cannot carry raw context', () => {
-  const report = { ...makeReport(), operation: 'tickets_load', failure: 'server_error', httpStatus: 503 };
+  const report = reportError(error(), { ...context, operation: 'tickets_load', failure: 'server_error', httpStatus: 503 });
   assert.equal(parseReport({ ...report, accountId: 'private' }).operation, 'tickets_load');
   for (const patch of [{ operation: '/users/private/tickets' }, { failure: 'private' }, { httpStatus: 200 }, { httpStatus: 600 }, { httpStatus: '503' }, { operation: undefined }, { failure: undefined }])
     assert.throws(() => parseReport({ ...report, ...patch }));
@@ -111,7 +111,7 @@ test("report removes raw messages, URLs, user fields, causes and credential-look
       token: "private-token",
       cause: new Error("secret"),
       stack:
-        error().stack +
+        error().stack.replace('TypeError: Cannot read properties of undefined', 'TypeError: Cannot read properties of undefined email=person@example.test Bearer value') +
         "\n at sk_test_private (https://private.test/sk_test_private.js:9:8)",
     },
     context,
@@ -139,6 +139,7 @@ test("Hermes stack offsets survive and frames are bounded", () => {
   const report = reportError(
     {
       name: "Error",
+      message: "hidden",
       stack:
         "Error: hidden\n" +
         Array.from(
@@ -164,6 +165,9 @@ test("empty and unexpected thrown values do not escape the reporting schema", ()
       ...context,
       errorType: "Unknown",
       category: "unknown",
+      errorCode: 'UNEXPECTED_ERROR',
+      safeMessage: 'An unexpected application error occurred. Check the stack frames.',
+      errorSource: 'javascript',
       frames: [],
     });
   }
@@ -361,7 +365,7 @@ test("reports expiring while the app stays open are removed from storage", async
 });
 
 test("iOS main.jsbundle offsets remain usable without exposing filesystem paths", () => {
-  const report = reportError({ name: "Error", stack: "Error: private\n    at render (address at /var/mobile/private/main.jsbundle:1:2084)" }, context);
+  const report = reportError({ name: "Error", message: "private", stack: "Error: private\n    at render (address at /var/mobile/private/main.jsbundle:1:2084)" }, context);
   assert.deepEqual(report.frames, [{ file: "main.jsbundle", function: "anonymous", line: 1, column: 2084 }]);
   assert.deepEqual(parseReport(report), report);
 });

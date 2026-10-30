@@ -124,7 +124,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
 
   await open('/admin?role=user'); await until(`document.body.innerText.includes('Administrator access required')`); await delay(300);
   assert.equal(await evaluate(`window.__qa.requests.filter(v=>v.route.startsWith('/admin/')).length`), 0);
-  await open('/admin?role=admin'); await until(textButton('Approve'));
+  await open('/admin?role=admin&section=verifications'); await until(textButton('Approve'));
   await pressText('Approve'); await until(textButton('Confirm')); await evaluate(`${textButton('Confirm')}.click();${textButton('Confirm')}.click()`);
   await until(`window.__qa.organizer.verificationStatus==='approved' && !${textButton('Confirm')}`);
   assert.equal(await evaluate(`window.__qa.writes.filter(v=>v.route.endsWith('/verification')).length`), 1);
@@ -232,7 +232,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   assert.equal(await evaluate(`document.body.innerText.includes('Scan next ticket')`), false, 'Previous quick link response cannot consume the new session UI');
   console.log('PASS switching quick links while validating releases old busy state and discards the old result');
   await open('/register?role=organizer'); await until(`document.querySelector('[data-testid="organizer-dashboard"]')`);
-  await open('/register?role=admin'); await until(textButton('Approve'));
+  await open('/register?role=admin'); await until(textButton('Verifications')); await pressText('Verifications'); await until(textButton('Approve'));
   await open('/register?role=user'); await until(`document.querySelector('[data-testid="tab-Profile"][aria-selected="true"]') && document.body.innerText.includes('Operations QA')`);
   assert.equal(await evaluate(`!!document.querySelector('[data-testid="auth-screen"]')`), false);
   console.log('PASS authenticated registration returns organizers, admins and users to their correct destination');
