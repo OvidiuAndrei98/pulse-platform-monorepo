@@ -20,6 +20,9 @@ export function EventViewToggle({
         return (
           <button
             key={item}
+            type="button"
+            data-testid={'events-'+item+'-toggle'}
+            aria-label={t(item==='list'?'eventMap.list':'eventMap.map')}
             onClick={() => onChange(item as "list" | "map")}
             className={`relative z-10 flex h-full min-w-[72px] items-center justify-center gap-2 rounded-full px-4 text-xs font-semibold transition-colors duration-200 ${
               active ? "text-black" : "text-white/70 hover:text-white"

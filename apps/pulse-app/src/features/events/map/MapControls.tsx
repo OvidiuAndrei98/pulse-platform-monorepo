@@ -60,6 +60,7 @@ export function MapControls({
             map.zoomIn();
           }}
           aria-label={t("mapControls.zoomIn")}
+          data-testid="map-zoom-in"
           className="grid h-9 w-9 place-items-center transition-colors hover:bg-white/10 hover:text-white active:bg-white/20"
         >
           <Plus className="h-4 w-4" />
@@ -72,6 +73,7 @@ export function MapControls({
             map.zoomOut();
           }}
           aria-label={t("mapControls.zoomOut")}
+          data-testid="map-zoom-out"
           className="grid h-9 w-9 place-items-center transition-colors hover:bg-white/10 hover:text-white active:bg-white/20"
         >
           <Minus className="h-4 w-4" />

@@ -215,6 +215,7 @@ export const wardrobeText = (ro: boolean) =>
         close: "Închide",
         back: "Înapoi",
         refresh: "Actualizează",
+        syncPaused: "Sincronizarea în fundal este întreruptă. Verifică internetul sau apasă Actualizează.",
         add: "Adaugă alte obiecte",
         addHint:
           "Alege doar obiectele noi. Acestea primesc un loc separat, fără să modifice depozitarea existentă.",
@@ -329,6 +330,7 @@ export const wardrobeText = (ro: boolean) =>
         close: "Close",
         back: "Back",
         refresh: "Refresh",
+        syncPaused: "Background sync is interrupted. Check your connection or select Refresh.",
         add: "Check in more items",
         addHint:
           "Choose only the new items. These receive a separate place; the existing deposit stays unchanged.",
@@ -400,6 +402,7 @@ export function wardrobeError(cause: unknown, ro: boolean) {
         (cause as Error)?.message ||
         "",
     );
+  if (wardrobeAccessFailure(cause)) return c.access;
   if (/INVALID_QR/.test(code)) return c.invalidQR;
   if (/CHANGED|EXPIRED|REQUEST_REUSED|CONFLICT/.test(code)) return c.changed;
   if (/FULL/.test(code)) return c.full;
@@ -434,6 +437,12 @@ export function actionLabel(action: string, ro: boolean) {
   return labels[action] ?? c.audit;
 }
 
+function wardrobeAccessFailure(error: unknown): boolean {
+  const failure = error as { status?: number; code?: string; message?: string } | null;
+  return failure?.status === 401 || failure?.status === 403 ||
+    /ACCESS_DENIED|UNAUTHORIZED/.test(`${failure?.code ?? ''} ${failure?.message ?? ''}`);
+}
+
 type State = {
   mine?: Mine;
   events: WardrobeEvent[];
@@ -442,6 +451,7 @@ type State = {
   selected?: Deposit;
   busy: boolean;
   loading: boolean;
+  syncError: unknown;
   error: unknown;
   search: string;
   history: boolean;
@@ -455,6 +465,7 @@ export class WardrobeStore {
     eventId: "",
     busy: false,
     loading: false,
+    syncError: null,
     error: null,
     search: "",
     history: false,
@@ -464,6 +475,11 @@ export class WardrobeStore {
   private listeners = new Set<() => void>();
   private epoch = 0;
   private reading = false;
+  private readTask?: Promise<void>;
+  private readForeground = false;
+  private readStaff = false;
+  private errorFromRead = false;
+  private queuedStaff?: { epoch: number; foreground: boolean; task: Promise<void> };
   private disposed = false;
   private lifetime = new AbortController();
   constructor(private transport: Request, private options: { personal?: boolean; autoSelectFirst?: boolean } = {}) {}
@@ -484,8 +500,9 @@ export class WardrobeStore {
     };
   };
   snapshot = () => this.state;
-  private set(patch: Partial<State>) {
+  private set(patch: Partial<State>, source?: "read") {
     if (!this.disposed) {
+      if ("error" in patch) this.errorFromRead = source === "read";
       this.state = { ...this.state, ...patch };
       this.listeners.forEach((fn) => fn());
     }
@@ -495,12 +512,49 @@ export class WardrobeStore {
     this.epoch++;
     this.lifetime.abort();
   };
-  async refresh(staff = false) {
-    if (!staff && this.options.personal === false) return;
-    if (this.reading || this.state.busy || this.disposed) return;
+  refresh(staff = false, options: { background?: boolean } = {}): Promise<void> {
+    if ((!staff && this.options.personal === false) || this.state.busy || this.disposed)
+      return Promise.resolve();
+    if (this.reading) {
+      // A deliberate refresh joins the live read rather than racing it.
+      if (!options.background && !this.readForeground) {
+        this.readForeground = true;
+        this.set({ loading: true });
+      }
+      if (staff && !this.readStaff) {
+        if (this.queuedStaff?.epoch === this.epoch) {
+          this.queuedStaff.foreground ||= !options.background;
+          return this.queuedStaff.task;
+        }
+        const queued = { epoch: this.epoch, foreground: !options.background, task: Promise.resolve() };
+        this.queuedStaff = queued;
+        queued.task = (this.readTask ?? Promise.resolve()).then(() => {
+          if (queued.epoch !== this.epoch || this.disposed) return;
+          return this.refresh(true, { background: !queued.foreground });
+        });
+        const clearQueued = () => { if (this.queuedStaff === queued) this.queuedStaff = undefined; };
+        void queued.task.then(clearQueued, clearQueued);
+        return queued.task;
+      }
+      return this.readTask ?? Promise.resolve();
+    }
     this.reading = true;
+    this.readForeground = !options.background;
+    this.readStaff = staff;
     const epoch = this.epoch;
-    this.set({ loading: true });
+    const task = Promise.resolve().then(() => {
+      if (epoch !== this.epoch || this.disposed) return;
+      return this.readRefresh(staff, epoch);
+    });
+    this.readTask = task;
+    if (this.readForeground) this.set({ loading: true });
+    const clearTask = () => {
+      if (this.readTask === task) this.readTask = undefined;
+    };
+    void task.then(clearTask, clearTask);
+    return task;
+  }
+  private async readRefresh(staff: boolean, epoch: number) {
     try {
       if (this.options.personal !== false) {
         const mine = await this.request<Mine>("/wardrobe/mine");
@@ -554,28 +608,38 @@ export class WardrobeStore {
           });
         }
       }
-      if (epoch === this.epoch) this.set({ error: null });
+      if (epoch === this.epoch && !this.disposed) {
+        // Recover read errors automatically without dismissing a failed custody operation.
+        const clearError = this.readForeground || this.errorFromRead;
+        if (clearError || this.state.syncError)
+          this.set({ syncError: null, ...(clearError ? { error: null } : {}) });
+      }
     } catch (error) {
-      if (epoch === this.epoch) {
-        const forbidden = /ACCESS_DENIED|UNAUTHORIZED/.test(
-          String((error as Error)?.message),
-        );
+      if (epoch === this.epoch && !this.disposed) {
+        const forbidden = wardrobeAccessFailure(error);
         this.set({
-          error,
+          ...(this.readForeground || forbidden
+            ? { error, syncError: null }
+            : { syncError: error }),
           ...(forbidden
             ? {
                 overview: undefined,
                 selected: undefined,
                 mine: undefined,
                 events: [],
+                eventId: "",
+                search: "",
+                cursor: "",
+                history: false,
+                unclaimed: false,
               }
             : {}),
-        });
+        }, "read");
       }
     } finally {
       if (epoch === this.epoch) {
         this.reading = false;
-        this.set({ loading: false });
+        if (this.state.loading) this.set({ loading: false });
       }
     }
   }
@@ -644,7 +708,7 @@ export class WardrobeStore {
     const epoch = ++this.epoch,
       event = this.state.eventId;
     this.reading = false;
-    this.set({ busy: true, error: null, ...(command.action === 'lookup' ? {selected:undefined} : {}) });
+    this.set({ busy: true, loading: false, error: null, ...(command.action === 'lookup' ? {selected:undefined} : {}) });
     let result: { deposit?: Deposit; deposits?: Deposit[] } | null = null;
     try {
       result = await this.request(`/wardrobe/events/${event}/commands`, {
@@ -665,7 +729,7 @@ export class WardrobeStore {
       if (epoch === this.epoch) this.set({ busy: false });
     }
     const error = this.state.error;
-    await this.refresh(true);
+    await this.refresh(true, { background: true });
     if (epoch !== this.epoch || this.disposed || event !== this.state.eventId) return null;
     if (error && epoch === this.epoch) this.set({ error });
     return result;
@@ -674,7 +738,7 @@ export class WardrobeStore {
     if (this.state.busy || this.disposed || !deposit.pickupId) return;
     const epoch = ++this.epoch;
     this.reading = false;
-    this.set({ busy: true, error: null });
+    this.set({ busy: true, loading: false, error: null });
     try {
       await this.request(`/wardrobe/mine/${deposit.id}/confirm`, {
         method: "POST",
@@ -686,7 +750,7 @@ export class WardrobeStore {
       if (epoch === this.epoch) this.set({ busy: false });
     }
     const error = this.state.error;
-    await this.refresh();
+    await this.refresh(false, { background: true });
     if (error && epoch === this.epoch) this.set({ error });
   }
 }

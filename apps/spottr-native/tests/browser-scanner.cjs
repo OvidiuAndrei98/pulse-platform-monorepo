@@ -10,6 +10,12 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
     const query = new URL(location.href).searchParams;
     if (!query.has('resume')) localStorage.clear();
     const qa = window.__qa = { offline: query.has('offline'), snapshotFailure: true, qr: '', requests: [], reports: [], unexpected: [], sounds: [], awake: 0 };
+    qa.cameraErrors = [];
+    const getMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia = async constraints => {
+      try { return await getMedia(constraints); }
+      catch (error) { qa.cameraErrors.push({ name: error.name, message: error.message, constraints }); throw error; }
+    };
     const originalPlay = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function () { if (this instanceof HTMLAudioElement) { qa.sounds.push(this.src); return Promise.resolve(); } return originalPlay.call(this); };
     Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async () => {
@@ -57,7 +63,8 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
     await click('scanner-open-camera');
     await until(`document.querySelector('[data-testid="scanner-camera-viewport"]') || document.body.innerText.includes('Allow camera')`);
     if (!await evaluate(`!!document.querySelector('[data-testid="scanner-camera-viewport"]')`)) await pressText('Allow camera');
-    await until(`document.querySelector('[data-testid="scanner-camera-frame"]')?.getBoundingClientRect().width > 0`);
+    try { await until(`document.querySelector('[data-testid="scanner-camera-frame"]')?.getBoundingClientRect().width > 0`); }
+    catch (error) { console.error('Fake camera diagnostics', await evaluate('window.__qa.cameraErrors')); throw error; }
     await delay(350); // Wait for the modal to reach its interactive position.
   };
   const closeCamera = async () => {

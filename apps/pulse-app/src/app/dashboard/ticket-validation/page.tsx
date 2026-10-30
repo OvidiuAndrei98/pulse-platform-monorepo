@@ -17,7 +17,6 @@ import {
   UserRoundCheck,
   UsersRound,
   History,
-  Settings2,
   Download,
   RefreshCw,
   Wifi,
@@ -27,6 +26,7 @@ import {
 } from "lucide-react";
 import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { WardrobeTabs as SectionTabs } from "@/features/wardrobe/WardrobeTabs";
 import { apiRoot } from "@/core/apiRoot";
 import { syncPendingScans } from "@/features/tickets/syncOfflineScans";
 import { OrganizerProfile, ValidationEvent } from "@/core/DataProvider";
@@ -87,7 +87,7 @@ function isValidationEventActive(event: ValidationEvent) {
 
 export default function TicketValidationPage() {
   const { user } = useDataProvider();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isOrganizer =
     user?.properties.role === "organizer" || user?.properties.role === "admin";
   const [profile, setProfile] = useState<OrganizerProfile>();
@@ -100,7 +100,7 @@ export default function TicketValidationPage() {
   const [eventsLoading, setEventsLoading] = useState(true);
   const [selectedEventId, setSelectedEventId] = useState("");
   const [eventMenuOpen, setEventMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"scan" | "management">("scan");
+  const [activeTab, setActiveTab] = useState<"scan" | "team" | "links">("scan");
   const [validationHash, setValidationHash] = useState("");
   const [validating, setValidating] = useState(false);
   const [result, setResult] = useState<ScannerResult>();
@@ -140,6 +140,10 @@ export default function TicketValidationPage() {
     () => events.find((event) => event.id === selectedEventId),
     [events, selectedEventId],
   );
+  const validationTab = selectedEvent?.canManage ? activeTab : "scan";
+  useEffect(() => {
+    if (!selectedEvent?.canManage) setActiveTab("scan");
+  }, [selectedEvent?.canManage]);
 
   const loadScanHistory = async (eventId = selectedEventId) => {
     if (!eventId) {
@@ -304,9 +308,10 @@ export default function TicketValidationPage() {
       );
       if (selectedEventIdRef.current === eventId) setStaff(response);
     } catch {
-      setError(t("validation.staffLoadFailed"));
+      if (selectedEventIdRef.current === eventId)
+        setError(t("validation.staffLoadFailed"));
     } finally {
-      setStaffLoading(false);
+      if (selectedEventIdRef.current === eventId) setStaffLoading(false);
     }
   };
 
@@ -319,9 +324,10 @@ export default function TicketValidationPage() {
       );
       if (selectedEventIdRef.current === eventId) setScannerAccesses(response);
     } catch {
-      setError(t("validation.linksLoadFailed"));
+      if (selectedEventIdRef.current === eventId)
+        setError(t("validation.linksLoadFailed"));
     } finally {
-      setScannerAccessLoading(false);
+      if (selectedEventIdRef.current === eventId) setScannerAccessLoading(false);
     }
   };
 
@@ -827,24 +833,19 @@ export default function TicketValidationPage() {
           </p>
         </section>
 
-        <div className="grid grid-cols-2 rounded-xl border border-white/10 bg-white/[0.03] p-1.5">
-          <button
-            type="button"
-            onClick={() => setActiveTab("scan")}
-            className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition ${activeTab === "scan" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"}`}
-          >
-            <ScanLine className="h-4 w-4" /> {t("validation.scanTab")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("management")}
-            className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition ${activeTab === "management" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"}`}
-          >
-            <Settings2 className="h-4 w-4" /> {t("validation.managementTab")}
-          </button>
-        </div>
+        <SectionTabs id="validation-tabs" panelId="validation-panel"
+          label={t("validation.title")} ro={i18n.language.startsWith("ro")}
+          value={validationTab} onChange={setActiveTab}
+          options={[
+            { value: "scan", label: t("validation.scanTab") },
+            ...(selectedEvent?.canManage ? [
+              { value: "team" as const, label: t("validation.validationTeam") },
+              { value: "links" as const, label: t("validation.quickAccess") },
+            ] : []),
+          ]} />
+        <section id="validation-panel" role="tabpanel" aria-labelledby={'validation-tabs-'+validationTab} className="min-w-0 space-y-6">
 
-        {activeTab === "management" &&
+        {validationTab !== "scan" && selectedEvent?.canManage &&
           isOrganizer &&
           (profileLoading ? (
             <div className="h-28 animate-pulse rounded-xl border border-white/10 bg-white/5" />
@@ -939,7 +940,7 @@ export default function TicketValidationPage() {
             </section>
           ))}
 
-        {activeTab === "scan" && (
+        {validationTab === "scan" && (
           <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
             <div className="flex items-start gap-3">
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -1107,7 +1108,7 @@ export default function TicketValidationPage() {
           </section>
         )}
 
-        {activeTab === "management" && selectedEvent?.canManage && (
+        {validationTab === "team" && selectedEvent?.canManage && (
           <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
             <div className="flex items-start gap-3">
               <UsersRound className="mt-0.5 h-5 w-5 text-primary" />
@@ -1190,7 +1191,7 @@ export default function TicketValidationPage() {
           </section>
         )}
 
-        {activeTab === "management" && selectedEvent?.canManage && (
+        {validationTab === "links" && selectedEvent?.canManage && (
           <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
             <div className="flex items-start gap-3">
               <Link2 className="mt-0.5 h-5 w-5 text-primary" />
@@ -1333,6 +1334,7 @@ export default function TicketValidationPage() {
           </section>
         )}
 
+        </section>
         {notice && <p className="text-sm text-primary">{notice}</p>}
         {error && <p className="text-sm text-red-400">{error}</p>}
       </div>

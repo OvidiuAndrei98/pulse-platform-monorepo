@@ -122,6 +122,7 @@ withBrowser(
               }),
             );
           state.reads.push(route);
+          if(state.authStatus&&route.startsWith("/wardrobe/"))return reply({error:"Sesiunea a expirat. Conectează-te din nou."},state.authStatus);
           if (route === "/users/me" || route === "/auth/me") return reply(user);
           if (route === "/wardrobe/mine")
             return reply({
@@ -326,6 +327,14 @@ withBrowser(
     const chooseEvent=async()=>{await until(`document.querySelector('[data-testid="wardrobe-event-00000000-0000-4000-8000-000000000001"]')`);await evaluate(`document.querySelector('[data-testid="wardrobe-event-00000000-0000-4000-8000-000000000001"]').click()`);};
     const taskClick=async key=>{await until(`document.querySelector('[data-testid="wardrobe-task-${key}"]')`);await evaluate(`document.querySelector('[data-testid="wardrobe-task-${key}"]').click()`);};
     await open("staff");
+    const refreshSize=await evaluate(`{const button=Array.from(document.querySelectorAll('button,[role="button"]')).find(e=>e.getAttribute('aria-label')==='Refresh');const r=button.getBoundingClientRect(),glyph=button.firstElementChild,g=glyph.getBoundingClientRect(),style=getComputedStyle(glyph),icon=button.querySelector('svg');({width:r.width,height:r.height,frame:g.width,frameHeight:g.height,radius:parseFloat(style.borderRadius),background:style.backgroundColor,icon:icon.getBoundingClientRect().width,stroke:getComputedStyle(icon).stroke})}`);
+    assert.ok(refreshSize.width>=44&&refreshSize.height>=44,'A compact refresh icon keeps a real 44px touch target');
+    assert.equal(refreshSize.frame,32,'The primary circle is 32px, never compressed by a flex child rule');
+    assert.equal(refreshSize.frameHeight,32);
+    assert.equal(refreshSize.radius,16);
+    assert.equal(refreshSize.background,'rgb(255, 0, 68)','Refresh uses the application primary color');
+    assert.equal(refreshSize.icon,16);
+    assert.equal(refreshSize.stroke,'rgb(255, 255, 255)','The refresh icon is white on primary');
     assert.equal(await evaluate(`document.body.innerText.includes('Account QR')`),false,'Organizers have no personal belongings surface');
     assert.equal(await evaluate(`window.__wardrobeQA.reads.includes('/wardrobe/mine')`),false,'Organizers never fetch personal belongings');
     assert.equal(await evaluate(`window.__wardrobeQA.reads.some(p=>p.startsWith('/wardrobe/events/'))`),false,'No silent event selection');
@@ -348,9 +357,22 @@ withBrowser(
     try{await until(`document.querySelector('[data-testid="wardrobe-task-setup"][aria-selected="true"]')`);}catch(error){if(next)console.error(await evaluate(`({keys:window.__wardrobeQA.keys,focus:document.activeElement?.outerHTML?.slice(0,600)})`));throw error;}
     await capture('wardrobe-'+(next?'next':'native')+'-tasks');
     await until(`document.body.innerText.includes('Create zone')`);
+    const formStyle=await evaluate(`{const input=Array.from(document.querySelectorAll('input')).find(e=>e.getAttribute('aria-label')==='Zone name'||e.closest('label')?.firstChild?.textContent==='Zone name');const wrapper=input.closest('label')||input.parentElement,card=wrapper.parentElement,button=Array.from(document.querySelectorAll('button,[role="button"]')).find(e=>e.textContent==='Create zone'),text=Array.from(button.querySelectorAll('*')).find(e=>!e.childElementCount&&e.textContent==='Create zone')||button;({inputHeight:input.getBoundingClientRect().height,inputRadius:parseFloat(getComputedStyle(input).borderRadius),inputBackground:getComputedStyle(input).backgroundColor,buttonRadius:parseFloat(getComputedStyle(button).borderRadius),primaryText:getComputedStyle(text).color,cardRadius:parseFloat(getComputedStyle(card).borderRadius)})}`);
+    assert.deepEqual(formStyle,{inputHeight:44,inputRadius:8,inputBackground:'rgba(0, 0, 0, 0.2)',buttonRadius:8,primaryText:'rgb(255, 255, 255)',cardRadius:10},'Cloakroom form surfaces and white primary text match the existing invoice form');
+    await capture('wardrobe-'+(next?'next':'native')+'-form-mobile');
+    await call('Emulation.setDeviceMetricsOverride',{width:1152,height:900,deviceScaleFactor:1,mobile:false});await delay(100);await capture('wardrobe-'+(next?'next':'native')+'-form-desktop');
+    await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
     await fill("Zone name", "Desk B");
     await fill("Prefix (A, B...)", "B");
     await fill("Number of places", "25");
+    assert.equal(await evaluate(`{const button=Array.from(document.querySelectorAll('button,[role="button"]')).find(e=>e.textContent==='Create zone'),text=Array.from(button.querySelectorAll('*')).find(e=>!e.childElementCount&&e.textContent==='Create zone')||button;getComputedStyle(text).color}`),'rgb(255, 255, 255)','Enabled primary buttons also retain white text');
+    await evaluate(`{const button=Array.from(document.querySelectorAll('button,[role="button"]')).find(e=>e.getAttribute('aria-label')==='Refresh');window.__wardrobeQA.loadingFlashes=0;window.__wardrobeQA.watch=new MutationObserver(()=>{if(button.disabled||button.getAttribute('aria-disabled')==='true')window.__wardrobeQA.loadingFlashes++;});window.__wardrobeQA.watch.observe(button,{attributes:true,attributeFilter:['disabled','aria-disabled']});window.__wardrobeQA.beforePoll=window.__wardrobeQA.reads.length;window.__wardrobeQA.draftFocus=document.activeElement;window.__wardrobeQA.zones[0].occupied=1;}`);
+    await until(`window.__wardrobeQA.reads.length>window.__wardrobeQA.beforePoll`,8000);await delay(200);
+    assert.equal(await evaluate('window.__wardrobeQA.loadingFlashes'),0,'Background synchronization never toggles the visible refresh/loading state');
+    assert.equal(await evaluate('document.activeElement===window.__wardrobeQA.draftFocus'),true,'Background sync preserves keyboard focus in the draft');
+    assert.equal(await evaluate(`Array.from(document.querySelectorAll('input')).find(e=>e.getAttribute('aria-label')==='Zone name'||e.closest('label')?.firstChild?.textContent==='Zone name').value`),'Desk B','The draft survives remote changes');
+    await evaluate(`{window.__wardrobeQA.zones[0].occupied=0;window.__wardrobeQA.beforeFocus=window.__wardrobeQA.reads.length;window.dispatchEvent(new Event('focus'));}`);await until(`window.__wardrobeQA.reads.length>window.__wardrobeQA.beforeFocus`,2000);await delay(50);await evaluate('window.__wardrobeQA.watch.disconnect()');
+
     await textClick("Create zone");
     await until(`window.__wardrobeQA.zones.length===2`);
     assert.equal(await evaluate("window.__wardrobeQA.zones[1].capacity"), 25);
@@ -410,7 +432,14 @@ withBrowser(
     await textClick("Checked in");
     await until(`document.body.innerText.includes('Receive the next customer')`);
     await taskClick('pickup');
-    await until(`document.querySelector('[data-testid="wardrobe-record"]')`);await evaluate(`document.querySelector('[data-testid="wardrobe-record"]').click()`);
+    await until(`document.querySelector('[data-testid="wardrobe-record"]')`);
+    if(next){
+      await call('Emulation.setDeviceMetricsOverride',{width:1152,height:900,deviceScaleFactor:1,mobile:false});
+      assert.ok(await evaluate(`{const input=Array.from(document.querySelectorAll('input')).find(e=>e.closest('label')?.firstChild?.textContent==='Search name or number'),button=input.parentElement.parentElement.querySelector('button');Math.abs(input.getBoundingClientRect().bottom-button.getBoundingClientRect().bottom)<1}`),'Search input and button align at their bottom edge');
+      await capture('wardrobe-next-pickup-desktop');
+      await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+    }
+    await evaluate(`document.querySelector('[data-testid="wardrobe-record"]').click()`);
     await until(`document.body.innerText.includes('Request collection approval')`);
     await evaluate(
       `document.querySelector('[data-testid="wardrobe-selected"] [aria-label="− Coats"]').click()`,
@@ -432,9 +461,7 @@ withBrowser(
     await evaluate(
       `window.__wardrobeQA.deposits[0].pickupApproved=true;window.__wardrobeQA.deposits[0].revision++`,
     );
-    await delay(50);
-    await textClick("Refresh");
-    await until(`document.body.innerText.includes('Items handed over')`);
+    await until(`document.body.innerText.includes('Items handed over')`,8000); // Another account's approval arrives through silent polling, without Refresh.
     await textClick("Items handed over");
     await until(`window.__wardrobeQA.deposits[0].remaining.bag===0`);
     assert.equal(
@@ -508,6 +535,7 @@ withBrowser(
     await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
     await open('staff&lang=ro');await chooseEvent();await until(`document.querySelector('[data-testid="wardrobe-task-receive"]').textContent==='Primire'`);await delay(400);await capture('wardrobe-'+(next?'next':'native')+'-tabs-ro');
 
+    await evaluate(`{window.__wardrobeQA.authStatus=401;window.dispatchEvent(new Event('focus'));}`);await until(`!document.body.innerText.includes('Night QA')&&!document.querySelector('[data-testid="wardrobe-selected"]')`);
     await open("operator");
     await textClick("Cloakroom staff");await chooseEvent();
     await until(`document.querySelector('[data-testid="wardrobe-task-receive"]')`);

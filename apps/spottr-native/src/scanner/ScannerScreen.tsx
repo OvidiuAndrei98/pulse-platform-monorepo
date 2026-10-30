@@ -13,7 +13,7 @@ import {
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronDown, History, RefreshCw, ScanLine, Settings2, Ticket, Wifi, WifiOff } from "lucide-react-native";
+import { ChevronDown, History, RefreshCw, Ticket, Wifi, WifiOff } from "lucide-react-native";
 import { accountApi, useAuth } from "../auth/AuthProvider";
 import { usePreferences } from "../PreferencesProvider";
 import { ApiError } from "../data/http";
@@ -35,6 +35,7 @@ import { scannerApi, offlineScanner } from "./runtime";
 import type { OfflineState } from "./offline";
 import { ScannerPanel, s } from "./ScannerPanel";
 import { ScannerManagement } from "./ScannerManagement";
+import { WardrobeTabs as SectionTabs } from "../wardrobe/WardrobeTabs";
 import { prepareScanner, PreparationError, type PrepareScanner } from './preparation';
 import { OfflinePackageStatus } from './OfflinePackageStatus';
 
@@ -66,7 +67,7 @@ export function ScannerScreen({
     ),
     [selected, setSelected] = useState(eventId ?? route?.params?.eventId ?? ""),
     [menu, setMenu] = useState(false),
-    [tab, setTab] = useState<"scan" | "management">("scan");
+    [tab, setTab] = useState<"scan" | "team" | "links">("scan");
   const [offlineState, setOfflineState] = useState<OfflineState>(),
     [offlineError, setOfflineError] = useState(""),
     [busy, setBusy] = useState(false),
@@ -160,6 +161,7 @@ export function ScannerScreen({
   const event = events.data?.events.find((event) => event.id === selected),
     offline = connected === false || events.data?.offline === true;
   const canManage = event?.canManage === true;
+  const visibleTab = canManage ? tab : "scan";
   useEffect(() => {
     if (!canManage) setTab("scan");
   }, [canManage]);
@@ -702,62 +704,19 @@ export function ScannerScreen({
             {!events.isPending && !event && !events.isError ? (
               <Feedback title={copy(offline ? "validation.offlineUnprepared" : "validation.noAssignedEvents")} />
             ) : null}
-            {canManage && <View
-              testID="scanner-tabs"
-              style={[
-                s.row,
-                {
-                  padding: 6,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: "#ffffff1a",
-                  backgroundColor: "#ffffff08",
-                },
-              ]}
-            >
-              {(["scan", "management"] as const).map((value) => {
-                const Icon = value === "scan" ? ScanLine : Settings2;
-                return (
-                  <Pressable
-                    testID={"scanner-tab-" + value}
-                    key={value}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: tab === value }}
-                    onPress={() => {
-                      setMenu(false);
-                      setTab(value);
-                    }}
-                    style={[
-                      s.row,
-                      {
-                        flex: 1,
-                        height: 44,
-                        justifyContent: "center",
-                        gap: 8,
-                        borderRadius: 8,
-                        backgroundColor:
-                          tab === value ? colors.accent : "transparent",
-                      },
-                    ]}
-                  >
-                    <Icon
-                      size={16}
-                      color={tab === value ? colors.text : colors.muted}
-                    />
-                    <Text
-                      style={{
-                        color: tab === value ? colors.text : colors.muted,
-                        fontSize: 14,
-                        fontWeight: "600",
-                      }}
-                    >
-                      {copy("validation." + value + "Tab")}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>}
-            {canManage && tab === "management" ? (
+            <View testID="scanner-tabs">
+              <SectionTabs id="scanner-tab" panelId="scanner-panel" label={copy("validation.title")} ro={ro}
+                value={visibleTab} onChange={value => { setMenu(false); setTab(value); }}
+                options={[
+                  { value: "scan", label: copy("validation.scanTab") },
+                  ...(canManage ? [
+                    { value: "team" as const, label: copy("validation.validationTeam") },
+                    { value: "links" as const, label: copy("validation.quickAccess") },
+                  ] : []),
+                ]} />
+            </View>
+            <View nativeID="scanner-panel" role="tabpanel" aria-labelledby={'scanner-tab-'+visibleTab} style={{gap:24}}>
+            {canManage && tab !== "scan" ? (
               <>
                 {organizer && company}
                 {event?.canManage && (
@@ -765,6 +724,7 @@ export function ScannerScreen({
                     key={event.id + ":" + token}
                     event={event}
                     token={token}
+                    section={tab}
                   />
                 )}
               </>
@@ -982,6 +942,7 @@ export function ScannerScreen({
                 </View>
               </ScannerPanel>
             )}
+            </View>
             {!!notice && (
               <Text
                 accessibilityLiveRegion="polite"

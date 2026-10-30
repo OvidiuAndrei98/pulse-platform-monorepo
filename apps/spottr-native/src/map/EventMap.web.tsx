@@ -52,5 +52,9 @@ export function EventMap(props: EventMapProps) {
   }, []);
   useEffect(() => { mapRef.current?.setView([props.center.latitude, props.center.longitude], props.zoom); }, [props.center.latitude, props.center.longitude, props.zoom]);
   useEffect(() => renderRef.current(), [props.events, props.location, props.selected]);
+  useEffect(() => {
+    const position=mapRef.current?.attributionControl.getContainer()?.parentElement;
+    if(position)position.style.bottom=`${props.attributionBottom??0}px`;
+  }, [props.attributionBottom]);
   return <><style>{eventMapStyles}</style><div data-testid="event-map" ref={container} style={{ position: 'absolute', inset: 0, zIndex: 0, '--primary': '#ff0044', '--primary-foreground': '#fff' } as React.CSSProperties} /></>;
 }

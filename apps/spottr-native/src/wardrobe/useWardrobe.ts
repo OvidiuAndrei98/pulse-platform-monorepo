@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { accountApi, useAuth } from "../auth/AuthProvider";
 import { operatorAccount } from '../../../pulse-app/src/features/wardrobe/flow';
@@ -39,8 +39,16 @@ export function useWardrobe(staff = false, interval = 5000) {
   useEffect(() => {
     if (!id || !focused || !foreground) return;
     void store.refresh(staff);
-    const timer = setInterval(() => void store.refresh(staff), interval);
+    const timer = setInterval(() => void store.refresh(staff, { background: true }), interval);
     return () => clearInterval(timer);
   }, [id, focused, foreground, staff, store, interval]);
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !id || !focused || !foreground) return;
+    const refresh = () => {
+      if (document.visibilityState !== 'hidden') void store.refresh(staff);
+    };
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [id, focused, foreground, staff, store]);
   return { store, state, user: auth.user, active: focused && foreground };
 }

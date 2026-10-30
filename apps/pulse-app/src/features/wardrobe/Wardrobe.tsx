@@ -210,6 +210,12 @@ export function WardrobePage({
   },[state.eventId,staff,user?.properties.id]);
   const eventRow=(event:WardrobeEvent)=><button type="button" key={event.id} data-testid={'wardrobe-event-'+event.id} className={s.eventRow} disabled={busy} onClick={()=>enterEvent(event.id)}><span className={s.eventIcon}><CalendarDays aria-hidden="true" size={22}/></span><span className={s.eventRowCopy}><strong>{event.title}</strong><span>{wardrobeEventDescription(event,ro)}</span>{wardrobeEventPhase(event)!=='other'&&<span>{wardrobeEventPhaseLabel(event,ro)}</span>}</span><ChevronRight aria-hidden="true" size={19}/></button>;
 
+  const refreshControl = (
+    <button type="button" className={s.refresh} aria-label={c.refresh}
+      disabled={state.loading || busy} onClick={() => void store.refresh(staff)}>
+      <span className={s.refreshGlyph} aria-hidden="true"><RefreshCw size={16} /></span>
+    </button>
+  );
   const button = (
     label: string,
     onClick: () => void,
@@ -267,12 +273,8 @@ export function WardrobePage({
           {wardrobeError(state.error, ro)}
         </p>
       )}
-      {!staff&&button(
-        state.loading ? c.loading : c.refresh,
-        () => void store.refresh(staff),
-        true,
-        state.loading,
-      )}
+      <p role="status" className={state.syncError&&!state.error?s.small:s.syncStatusEmpty}>{state.syncError&&!state.error?c.syncPaused:''}</p>
+      {!staff&&<div className={s.refreshRow}>{refreshControl}</div>}
       {!staff ? (
         <>
           {state.mine?.deposits.length === 0 && (
@@ -325,14 +327,14 @@ export function WardrobePage({
       ) : (
         <>
           {!state.eventId?<>
-            <div className={s.between}><h2 id="wardrobe-events-heading">{ro?'Evenimente active':'Active events'}</h2><button type="button" className={s.refresh} aria-label={c.refresh} disabled={state.loading||busy} onClick={()=>void store.refresh(true)}><RefreshCw aria-hidden="true" size={19}/></button></div>
+            <div className={s.between}><h2 id="wardrobe-events-heading">{ro?'Evenimente active':'Active events'}</h2>{refreshControl}</div>
             <p>{ro?'Alege evenimentul pentru primire, predare și gestionarea garderobei.':'Choose an event to receive, return and manage belongings.'}</p>
             {state.loading&&!state.events.length&&<p role="status">{c.loading}</p>}
             <div>{activeEvents.map(eventRow)}</div>
             {!state.loading&&!activeEvents.length&&<p>{!state.events.length?c.noEvents:ro?'Nu ai evenimente active. Evenimentele încheiate și ciornele sunt disponibile mai jos.':'No active events. Past events and drafts are available below.'}</p>}
             {!!otherEvents.length&&<><button type="button" className={s.otherEvents} aria-expanded={otherVisible} aria-controls={otherVisible?"wardrobe-other-events":undefined} onClick={()=>setShowOther(!otherVisible)}>{ro?'Alte evenimente':'Other events'} ({otherEvents.length}){otherVisible?<ChevronDown aria-hidden="true" size={18}/>:<ChevronRight aria-hidden="true" size={18}/>}</button>{otherVisible&&<div id="wardrobe-other-events">{otherEvents.map(eventRow)}</div>}</>}
           </>:<>
-            <div className={s.between}><button type="button" data-testid="wardrobe-back-events" className={s.backEvents} disabled={busy||d?.status==='reserved'} onClick={leaveEvent}><ArrowLeft aria-hidden="true" size={18}/>{ro?'Înapoi la evenimente':'Back to events'}</button><button type="button" className={s.refresh} aria-label={c.refresh} disabled={state.loading||busy} onClick={()=>void store.refresh(true)}><RefreshCw aria-hidden="true" size={19}/></button></div>
+            <div className={s.between}><button type="button" data-testid="wardrobe-back-events" className={s.backEvents} disabled={busy||d?.status==='reserved'} onClick={leaveEvent}><ArrowLeft aria-hidden="true" size={18}/>{ro?'Înapoi la evenimente':'Back to events'}</button>{refreshControl}</div>
             <h2 id="wardrobe-event-heading" className={s.eventTitle}>{overview?.title||state.events.find(event=>event.id===state.eventId)?.title}</h2>
             <p className={s.eventMeta}>{wardrobeEventDescription(state.events.find(event=>event.id===state.eventId)??{id:state.eventId,title:'',canManage},ro)}</p>
             <WardrobeTabs id="wardrobe-operations" label={flow.operations} value={task} options={wardrobeTasks(canManage).map(value=>({value,label:wardrobeTabLabel(value,ro)}))} onChange={beginTask} disabled={busy} locked={d?.status==='reserved'} panelId="wardrobe-panel" ro={ro}/>
@@ -673,7 +675,7 @@ export function WardrobePage({
                       )}
                     </div>
                   )}
-                  <div className={s.row} style={task==='receive'?{display:'none'}:undefined}>
+                  <div className={`${s.row} ${s.searchRow}`} style={task==='receive'?{display:'none'}:undefined}>
                     <label className={s.field}>
                       {c.search}
                       <input

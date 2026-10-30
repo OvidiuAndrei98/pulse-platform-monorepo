@@ -236,6 +236,8 @@ export function EventMapMarkers({
           return (
             <Marker
               key={event.id}
+              title={event.title}
+              alt={event.title}
               position={[event.latitude, event.longitude]}
               icon={createEventPinIcon(event.id === selectedId, !!event.isLive)}
               eventHandlers={{ click: () => onSelect(event.id) }}
@@ -253,6 +255,8 @@ export function EventMapMarkers({
                 return (
                   <Marker
                     key={`radial-pin-${event.id}`}
+                    title={event.title}
+                    alt={event.title}
                     position={position}
                     icon={createEventPinIcon(
                       event.id === selectedId,

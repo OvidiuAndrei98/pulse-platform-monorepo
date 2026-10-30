@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import L from "leaflet";
 import { Marker, MapContainer, TileLayer } from "react-leaflet";
 import { Event } from "@/core/DataProvider";
@@ -20,6 +21,8 @@ import { Coordinates } from "@/features/events/types";
 import { useTranslation } from "react-i18next";
 import { Skeleton } from "@/components/ui/loading";
 import { requestCurrentLocation } from "@/lib/native/location";
+import { formatEventDateShort, formatEventTime } from "@/features/events/dateFormat";
+import carouselStyle from "@/features/events/map/eventMapCarousel.module.css";
 
 import "leaflet/dist/leaflet.css";
 
@@ -59,6 +62,12 @@ export function EventsMapView({
   cityCenter?: Coordinates | null;
 }) {
   const { t } = useTranslation();
+  const rail = useRef<HTMLDivElement>(null);
+  const cards = useRef(new Map<string, HTMLButtonElement>());
+  const railSelection = useRef<string | null>(null);
+  const [mobile, setMobile] = useState(false);
+  const [carouselHeight, setCarouselHeight] = useState(148);
+  const mapEvents = useMemo(() => events.filter(event => Number.isFinite(event.latitude) && Number.isFinite(event.longitude) && Math.abs(event.latitude) <= 90 && Math.abs(event.longitude) <= 180), [events]);
   const [internalId, setInternalId] = useState<string | null>(null);
   const [selectedDisplayPosition, setSelectedDisplayPosition] = useState<{
     eventId: string;
@@ -72,6 +81,12 @@ export function EventsMapView({
   const { open } = useEventDetails();
 
   useEffect(() => setIsMounted(true), []);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 1023px)');
+    const update = () => setMobile(query.matches);
+    update(); query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   useEffect(() => {
     if (userLocationProp) setUserLocation(userLocationProp);
   }, [userLocationProp]);
@@ -127,13 +142,32 @@ export function EventsMapView({
   }, []);
 
   const selectedEvent = useMemo(
-    () => events.find((event) => event.id === selectedId) ?? null,
-    [events, selectedId],
+    () => mapEvents.find((event) => event.id === selectedId) ?? null,
+    [mapEvents, selectedId],
   );
   const focusEvent = useMemo(
-    () => events.find((event) => event.id === focusRequest?.eventId),
-    [events, focusRequest?.eventId],
+    () => mapEvents.find((event) => event.id === focusRequest?.eventId),
+    [mapEvents, focusRequest?.eventId],
   );
+  const activeId = mapEvents.some(event => event.id === selectedId) ? selectedId : mapEvents[0]?.id;
+  useEffect(() => {
+    const node=rail.current;
+    if(!node||!mobile||!isMounted)return;
+    const update=()=>setCarouselHeight(node.offsetHeight);
+    update();const observer=new ResizeObserver(update);observer.observe(node);
+    return()=>observer.disconnect();
+  }, [mobile,isMounted,mapEvents.length>0]);
+  useEffect(() => {
+    if(selectedId&&!mapEvents.some(event=>event.id===selectedId))setSelectedId(null);
+  }, [mapEvents, selectedId]);
+  useEffect(() => {
+    const fromRail=railSelection.current===activeId;
+    railSelection.current=null;
+    if(fromRail)return;
+    if (!mobile || !activeId) return;
+    const node = rail.current, card = cards.current.get(activeId);
+    if (node && card) node.scrollTo({left:card.offsetLeft - 16,behavior:'instant'});
+  }, [activeId, mobile]);
   const desktopHeight = desktopFillViewport
     ? "lg:h-[calc(100dvh-200px)] lg:min-h-0"
     : "lg:h-[78vh] lg:min-h-[640px]";
@@ -156,7 +190,9 @@ export function EventsMapView({
 
   return (
     <div
-      className={`relative w-full overflow-hidden bg-black transform-gpu ${mapSize}`}
+      data-testid="event-map"
+      className={`relative w-full overflow-hidden bg-black transform-gpu ${mapSize} ${carouselStyle.host}`}
+      style={{'--map-carousel-height':`${mapEvents.length?carouselHeight:0}px`} as React.CSSProperties}
     >
       <MapContainer
         maxBounds={[
@@ -196,7 +232,7 @@ export function EventsMapView({
           layoutKey={`${fullScreenOnMobile}-${desktopFillViewport}-${isFullView}`}
         />
         <MapBoundsObserver
-          events={events}
+          events={mapEvents}
           onBoundsEventsChange={onBoundsEventsChange}
         />
         <MapClickDismiss onDismiss={() => setSelectedId(null)} />
@@ -215,8 +251,8 @@ export function EventsMapView({
         )}
 
         <EventMapMarkers
-          events={events}
-          selectedId={selectedId}
+          events={mapEvents}
+          selectedId={mobile ? activeId ?? null : selectedId}
           onSelect={(id, displayPosition) => {
             setSelectedDisplayPosition(
               displayPosition
@@ -232,7 +268,7 @@ export function EventsMapView({
           longitude={focusEvent?.longitude}
           requestId={focusRequest?.requestId ?? 0}
         />
-        {selectedEvent && (
+        {!mobile && selectedEvent && (
           <SelectedEventPopup
             event={selectedEvent}
             position={
@@ -245,6 +281,32 @@ export function EventsMapView({
           />
         )}
       </MapContainer>
+
+      {mapEvents.length > 0 && <div ref={rail} data-testid="map-events-carousel" className={carouselStyle.rail}
+        role="group" aria-label={t('eventMap.map')}
+        onScroll={event=>{
+          if(!mobile)return;
+          const node=event.currentTarget;
+          const nearest=mapEvents.reduce<Event|null>((result,item)=>{
+            const current=cards.current.get(item.id), previous=result&&cards.current.get(result.id);
+            return current&&(!previous||Math.abs(current.offsetLeft-16-node.scrollLeft)<Math.abs(previous.offsetLeft-16-node.scrollLeft))?item:result;
+          },null);
+          if(nearest&&nearest.id!==selectedId){railSelection.current=nearest.id;setSelectedId(nearest.id);}
+        }}>
+        {mapEvents.map(event=><button key={event.id} type="button" data-testid={'map-event-card-'+event.id}
+          ref={node=>{if(node)cards.current.set(event.id,node);else cards.current.delete(event.id);}}
+          className={carouselStyle.card} aria-current={event.id===activeId?'true':undefined}
+          aria-label={`${t('events.viewEvent')}: ${event.title}. ${formatEventDateShort(event.startTime)} · ${formatEventTime(event.startTime)}. ${event.locationName||event.city||''}`}
+          onClick={()=>{setSelectedId(event.id);open(event);}}>
+          <span className={carouselStyle.copy}>
+            <strong className={`${carouselStyle.title} line-clamp-2`}>{event.title}</strong>
+            <span className={carouselStyle.meta}>{formatEventDateShort(event.startTime)} · {formatEventTime(event.startTime)}</span>
+            <span className={`${carouselStyle.meta} ${carouselStyle.location}`}>{event.locationName||event.city}</span>
+            <span className={carouselStyle.action}>{t('events.viewEvent')} →</span>
+          </span>
+          <Image src={event.bannerUrl||'/party-event.webp'} alt="" width={72} height={104} sizes="72px" className={carouselStyle.image}/>
+        </button>)}
+      </div>}
 
       <style jsx global>
         {eventMapStyles}
@@ -265,7 +327,7 @@ export function EventsMapView({
         }
       `}</style>
 
-      {!events.length && (
+      {!mapEvents.length && (
         <div className="pointer-events-none absolute inset-0 z-[1000] grid place-items-center bg-black/80 md:bg-background/50 md:backdrop-blur-sm">
           <p className="text-sm text-muted-foreground">{t("events.noMatch")}</p>
         </div>

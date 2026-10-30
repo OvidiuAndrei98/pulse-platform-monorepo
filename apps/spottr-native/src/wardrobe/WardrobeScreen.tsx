@@ -20,7 +20,9 @@ import { Text } from "../ui/Text";
 import { FormInput } from "../ui/FormInput";
 import { FormScrollView } from "../ui/KeyboardForms";
 import { IconButton } from "../ui/common";
+import { colors } from "../ui/theme";
 import { DashboardDropdown } from "../dashboard/DashboardDropdown";
+import { Action } from "../dashboard/common";
 import { usePreferences } from "../PreferencesProvider";
 import { useAuth } from '../auth/AuthProvider';
 import { operatorAccount, wardrobeEventPhase, wardrobeEventPhaseLabel, wardrobeTabLabel, changeItemCount, taskDeposits,wardrobeFlow,wardrobeTasks,availableZones,canReserveBelongings,wardrobeEventDescription,type WardrobeTask } from '../../../pulse-app/src/features/wardrobe/flow';
@@ -75,7 +77,8 @@ export function WardrobeCard() {
   );
 }
 function Button({title,onPress,secondary=false,disabled=false}:{title:string;onPress:()=>void;secondary?:boolean;disabled?:boolean}) {
-  return <Pressable accessibilityRole="button" accessibilityState={{disabled}} disabled={disabled} onPress={onPress} style={{minHeight:48,paddingHorizontal:18,paddingVertical:13,borderRadius:24,backgroundColor:secondary?'#1b1b1d':'#ff0044',justifyContent:'center',opacity:disabled?.4:1}}><Text style={{color:secondary?'#f7faf2':'#000',fontSize:15,fontWeight:'600',textAlign:'center'}}>{title}</Text></Pressable>;
+  return <Action title={title} onPress={onPress} secondary={secondary} disabled={disabled}
+    style={secondary ? s.secondaryAction : undefined} textStyle={{color:secondary ? colors.accent : '#ffffff'}} />;
 }
 function Counters({
   value,
@@ -237,6 +240,13 @@ export function WardrobeScreen({
   },[state.eventId,staff,user?.id]);
   const eventRow=(event:WardrobeEvent)=><Pressable key={event.id} accessibilityRole="button" accessibilityLabel={(ro?'Deschide garderoba: ':'Open cloakroom: ')+[event.title,wardrobeEventPhaseLabel(event,ro),wardrobeEventDescription(event,ro)].filter(Boolean).join(' · ')} testID={'wardrobe-event-'+event.id} disabled={busy} onPress={()=>enterEvent(event.id)} style={s.eventRow}><View style={s.eventIcon}><CalendarDays color="#9ca89e" size={22}/></View><View style={{flex:1,minWidth:0,gap:6}}><Text style={s.eventRowTitle}>{event.title}</Text><Text style={s.small}>{wardrobeEventDescription(event,ro)}</Text>{wardrobeEventPhase(event)!=='other'&&<Text style={s.small}>{wardrobeEventPhaseLabel(event,ro)}</Text>}</View><ChevronRight size={19} color="#f7faf2"/></Pressable>;
 
+  const refreshControl = (
+    <Pressable accessibilityRole="button" accessibilityLabel={c.refresh}
+      accessibilityState={{ disabled: state.loading || busy }} disabled={state.loading || busy}
+      onPress={() => void store.refresh(staff)} style={[s.refresh, { opacity: state.loading || busy ? .4 : 1 }]}>
+      <View pointerEvents="none" accessible={false} style={s.refreshGlyph}><RefreshCw size={16} color="#ffffff" /></View>
+    </Pressable>
+  );
   const button = (
     label: string,
     onPress: () => void,
@@ -256,9 +266,11 @@ export function WardrobeScreen({
     set: (v: string) => void,
     options: { numeric?: boolean; multiline?: boolean; max?: number } = {},
   ) => (
-    <View style={s.stack}>
-      <Text style={s.small}>{label}</Text>
+    <View style={s.formField}>
+      <Text style={s.formLabel}>{label}</Text>
       <FormInput
+        variant="billing"
+        style={[s.formControl, options.multiline && s.formMultiline]}
         accessibilityLabel={label}
         value={value}
         onChangeText={set}
@@ -275,14 +287,20 @@ export function WardrobeScreen({
     onChange: (v: string) => void,
     options: { value: string; label: string }[],
   ) => (
-    <DashboardDropdown
-      label={label}
-      value={value}
-      onChange={onChange}
-      options={options}
-      placeholder={c.select}
-      disabled={busy}
-    />
+    <View style={s.formField}>
+      <Text style={s.formLabel}>{label}</Text>
+      <DashboardDropdown
+        label={label}
+        hideLabel
+        variant="billing"
+        triggerStyle={s.formControl}
+        value={value}
+        onChange={onChange}
+        options={options}
+        placeholder={c.select}
+        disabled={busy}
+      />
+    </View>
   );
   const date = (value: string) =>
     new Date(value).toLocaleString(ro ? "ro-RO" : "en-GB", {
@@ -344,12 +362,8 @@ export function WardrobeScreen({
               {wardrobeError(state.error, ro)}
             </Text>
           )}
-          {!staff&&button(
-            state.loading ? c.loading : c.refresh,
-            () => void store.refresh(staff),
-            true,
-            state.loading,
-          )}
+          <Text accessibilityLiveRegion="polite" style={state.syncError&&!state.error?s.small:s.syncStatusEmpty}>{state.syncError&&!state.error?c.syncPaused:''}</Text>
+          {!staff&&<View style={{alignItems:'flex-end'}}>{refreshControl}</View>}
           {!staff ? (
             <>
               {state.mine?.deposits.length === 0 && (
@@ -414,14 +428,14 @@ export function WardrobeScreen({
           ) : (
             <>
               {!state.eventId?<>
-                <View style={s.between}><Text nativeID="wardrobe-events-heading" accessibilityRole="header" style={s.heading}>{ro?'Evenimente active':'Active events'}</Text><Pressable accessibilityRole="button" accessibilityLabel={c.refresh} accessibilityState={{disabled:state.loading||busy}} disabled={state.loading||busy} onPress={()=>void store.refresh(true)} style={[s.refresh,{opacity:state.loading||busy?.4:1}]}><RefreshCw size={19} color="#f7faf2"/></Pressable></View>
+                <View style={s.between}><Text nativeID="wardrobe-events-heading" accessibilityRole="header" style={s.heading}>{ro?'Evenimente active':'Active events'}</Text>{refreshControl}</View>
                 <Text style={s.small}>{ro?'Alege evenimentul pentru primire, predare și gestionarea garderobei.':'Choose an event to receive, return and manage belongings.'}</Text>
                 {state.loading&&!state.events.length&&<Text accessibilityLiveRegion="polite" style={s.small}>{c.loading}</Text>}
                 <View>{activeEvents.map(eventRow)}</View>
                 {!state.loading&&!activeEvents.length&&<Text style={s.small}>{!state.events.length?c.noEvents:ro?'Nu ai evenimente active. Evenimentele încheiate și ciornele sunt disponibile mai jos.':'No active events. Past events and drafts are available below.'}</Text>}
                 {!!otherEvents.length&&<><Pressable accessibilityRole="button" accessibilityState={{expanded:otherVisible}} aria-controls={otherVisible?"wardrobe-other-events":undefined} onPress={()=>setShowOther(!otherVisible)} style={s.otherEvents}><Text style={s.bold}>{ro?'Alte evenimente':'Other events'} ({otherEvents.length})</Text>{otherVisible?<ChevronDown color="#f7faf2" size={18}/>:<ChevronRight color="#f7faf2" size={18}/>}</Pressable>{otherVisible&&<View nativeID="wardrobe-other-events">{otherEvents.map(eventRow)}</View>}</>}
               </>:<>
-                <View style={s.between}><Pressable accessibilityRole="button" accessibilityLabel={ro?'Înapoi la evenimente':'Back to events'} disabled={busy||d?.status==='reserved'} accessibilityState={{disabled:busy||d?.status==='reserved'}} testID="wardrobe-back-events" onPress={leaveEvent} style={[s.backEvents,{opacity:busy||d?.status==='reserved'?.4:1}]}><ArrowLeft color="#f7faf2" size={18}/><Text style={s.bold}>{ro?'Înapoi la evenimente':'Back to events'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={c.refresh} accessibilityState={{disabled:state.loading||busy}} disabled={state.loading||busy} onPress={()=>void store.refresh(true)} style={[s.refresh,{opacity:state.loading||busy?.4:1}]}><RefreshCw size={19} color="#f7faf2"/></Pressable></View>
+                <View style={s.between}><Pressable accessibilityRole="button" accessibilityLabel={ro?'Înapoi la evenimente':'Back to events'} disabled={busy||d?.status==='reserved'} accessibilityState={{disabled:busy||d?.status==='reserved'}} testID="wardrobe-back-events" onPress={leaveEvent} style={[s.backEvents,{opacity:busy||d?.status==='reserved'?.4:1}]}><ArrowLeft color="#f7faf2" size={18}/><Text style={s.bold}>{ro?'Înapoi la evenimente':'Back to events'}</Text></Pressable>{refreshControl}</View>
                 <Text nativeID="wardrobe-event-heading" accessibilityRole="header" style={s.eventTitle}>{overview?.title||state.events.find(event=>event.id===state.eventId)?.title}</Text>
                 <Text style={s.small}>{wardrobeEventDescription(state.events.find(event=>event.id===state.eventId)??{id:state.eventId,title:'',canManage},ro)}</Text>
                 <WardrobeTabs id="wardrobe-operations" label={flow.operations} value={task} options={wardrobeTasks(canManage).map(value=>({value,label:wardrobeTabLabel(value,ro)}))} onChange={beginTask} disabled={busy} locked={d?.status==='reserved'} panelId="wardrobe-panel" ro={ro}/>
@@ -918,7 +932,9 @@ const s = StyleSheet.create({
   eventTitle:{fontSize:24,lineHeight:31,fontWeight:'700',color:'#f7faf2'},
   backEvents:{flexDirection:'row',alignItems:'center',gap:10,minHeight:44},
   otherEvents:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12,minHeight:44},
-  refresh:{width:44,minHeight:44,borderWidth:1,borderColor:'#626866',borderRadius:12,alignItems:'center',justifyContent:'center'},
+  refresh:{width:44,height:44,borderRadius:22,alignItems:'center',justifyContent:'center'},
+  refreshGlyph:{width:32,height:32,borderWidth:1,borderColor:'transparent',borderRadius:16,backgroundColor:colors.accent,alignItems:'center',justifyContent:'center'},
+  syncStatusEmpty:{position:'absolute',width:1,height:1,overflow:'hidden'},
   reservationHint:{fontSize:13,lineHeight:20,color:'#f7faf2',padding:12,borderStartWidth:3,borderColor:'#ff0044',backgroundColor:'#1b1b1d'},
   root: { flex: 1, backgroundColor: "#000" },
   page: {
@@ -929,6 +945,11 @@ const s = StyleSheet.create({
     gap: 16,
   },
   stack: { gap: 12 },
+  formField: { gap: 6 },
+  formLabel: { fontSize: 12, fontWeight: '600', color: '#ffffffb3' },
+  formControl: { borderRadius: 8, borderColor: '#ffffff1a', backgroundColor: '#00000033', paddingHorizontal: 14 },
+  formMultiline: { minHeight: 90, paddingVertical: 10 },
+  secondaryAction: { borderColor: '#ff00444d', backgroundColor: '#ff00440f' },
   row: { flexDirection: "row", alignItems: "center", gap: 12 },
   between: {
     flexDirection: "row",
@@ -949,12 +970,12 @@ const s = StyleSheet.create({
   card: {
     padding: 20,
     gap: 14,
-    borderRadius: 24,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#ffffff16",
-    backgroundColor: "#0d0d0e",
+    borderColor: "#ffffff1a",
+    backgroundColor: "#ffffff06",
   },
-  active: { borderColor: "#ff00443d", backgroundColor: "#160c11" },
+  active: { borderColor: "#ff004480", backgroundColor: "#ff004414" },
   number: {
     fontSize: 48,
     fontWeight: "800",
