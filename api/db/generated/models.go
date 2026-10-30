@@ -1003,3 +1003,58 @@ type Users struct {
 	PreferredLanguage      string             `json:"preferred_language"`
 	ShowAttendancePublicly bool               `json:"show_attendance_publicly"`
 }
+
+type WardrobeAudit struct {
+	ID        int64              `json:"id"`
+	EventID   pgtype.UUID        `json:"event_id"`
+	DepositID pgtype.UUID        `json:"deposit_id"`
+	ActorID   pgtype.UUID        `json:"actor_id"`
+	Action    string             `json:"action"`
+	Details   []byte             `json:"details"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type WardrobeDeposits struct {
+	ID               pgtype.UUID        `json:"id"`
+	EventID          pgtype.UUID        `json:"event_id"`
+	UserID           pgtype.UUID        `json:"user_id"`
+	ZoneID           pgtype.UUID        `json:"zone_id"`
+	SlotID           pgtype.UUID        `json:"slot_id"`
+	RequestID        pgtype.UUID        `json:"request_id"`
+	RequestHash      string             `json:"request_hash"`
+	Status           string             `json:"status"`
+	Items            []byte             `json:"items"`
+	Remaining        []byte             `json:"remaining"`
+	Revision         int32              `json:"revision"`
+	ReservedUntil    pgtype.Timestamptz `json:"reserved_until"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	StoredAt         pgtype.Timestamptz `json:"stored_at"`
+	ReturnedAt       pgtype.Timestamptz `json:"returned_at"`
+	PickupID         pgtype.UUID        `json:"pickup_id"`
+	PickupItems      []byte             `json:"pickup_items"`
+	PickupExpiresAt  pgtype.Timestamptz `json:"pickup_expires_at"`
+	PickupApprovedAt pgtype.Timestamptz `json:"pickup_approved_at"`
+}
+
+type WardrobeSlots struct {
+	ID     pgtype.UUID `json:"id"`
+	ZoneID pgtype.UUID `json:"zone_id"`
+	Number int32       `json:"number"`
+}
+
+type WardrobeStaff struct {
+	EventID pgtype.UUID `json:"event_id"`
+	UserID  pgtype.UUID `json:"user_id"`
+	Role    string      `json:"role"`
+}
+
+type WardrobeZones struct {
+	ID       pgtype.UUID `json:"id"`
+	EventID  pgtype.UUID `json:"event_id"`
+	Name     string      `json:"name"`
+	Prefix   string      `json:"prefix"`
+	Kind     string      `json:"kind"`
+	Capacity int32       `json:"capacity"`
+	Enabled  bool        `json:"enabled"`
+	Revision int32       `json:"revision"`
+}

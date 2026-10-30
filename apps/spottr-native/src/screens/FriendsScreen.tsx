@@ -16,9 +16,11 @@ import { Text } from '../ui/Text';
 import { Feedback, Loading } from '../ui/common';
 import { colors } from '../ui/theme';
 import { RefreshScrollView } from '../ui/RefreshScrollView';
+import { useNavbarScroll } from '../navigation/useNavbarScroll';
 
 type Navigation = CompositeNavigationProp<NativeStackNavigationProp<FeedParamList>, NativeStackNavigationProp<RootParamList>>;
 export function FriendsScreen() {
+  const navbarScroll = useNavbarScroll();
   const { copy } = usePreferences(), { user, ready } = useAuth(), safe = useSafeAreaInsets(), social = useSocial();
   const navigation = useNavigation<Navigation>(), [open, setOpen] = useState(false), [visible, setVisible] = useState(8);
   const organizer = user?.role === 'organizer';
@@ -34,7 +36,7 @@ export function FriendsScreen() {
   const groups = useMemo(() => groupFeedItems((social.feed.data ?? []).filter(item => !organizer || item.activityType === 'organizer_event' || item.activityType === 'organizer_update')), [social.feed.data, organizer]);
   const openProfile = (id: string) => navigation.navigate('PublicProfile', { id });
   return <View style={{ flex: 1, backgroundColor: colors.bg }}>
-    <RefreshScrollView testID="feed-list" refreshing={refreshing} onRefresh={user ? refresh : undefined} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: Math.max(24, safe.top), paddingBottom: 128 }}>
+    <RefreshScrollView {...navbarScroll} testID="feed-list" refreshing={refreshing} onRefresh={user ? refresh : undefined} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: Math.max(24, safe.top), paddingBottom: 128 }}>
       {!ready ? <Loading /> : !user ? <>
         <Text style={{ color: 'white', fontSize: 20, fontWeight: '700' }}>{copy('feed.socialTitle')}</Text>
         <Text style={[s.muted, { marginTop: 8 }]}>{copy('feed.signInHint')}</Text>
@@ -59,12 +61,13 @@ export function FriendsScreen() {
   </View>;
 }
 export function FriendsManageScreen() {
+  const navbarScroll = useNavbarScroll();
   const { copy } = usePreferences(), { user, ready } = useAuth(), safe = useSafeAreaInsets(), social = useSocial();
   const navigation = useNavigation<Navigation>(), [query, setQuery] = useState('');
   useEffect(() => setQuery(''), [user?.id]);
   const friends = social.friends.data ?? [], matches = friends.filter(friend => friend.username.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   const back = () => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('FeedHome');
-  return <ScrollView testID="friends-page" style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: Math.max(32, safe.top), paddingBottom: 128 }}>
+  return <ScrollView {...navbarScroll} testID="friends-page" style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: Math.max(32, safe.top), paddingBottom: 128 }}>
     <Pressable testID="friends-back" accessibilityRole="button" onPress={back} style={{ minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' }}><ActionIcon name="back" size={16} color={colors.muted} /><Text style={[s.muted, { fontWeight: '600' }]}>{copy('friends.backToFeed')}</Text></Pressable>
     {!ready ? <Loading /> : !user ? <Pressable accessibilityRole="button" onPress={() => navigation.navigate('Auth', { returnTab: 'Feed' })} style={s.signin}><Text style={{ color: 'white' }}>{copy('social.signIn')}</Text></Pressable> : user.role === 'organizer' ? <View style={s.empty}><Text style={s.title}>{copy('friends.organizerProfile')}</Text><Text style={s.muted}>{copy('friends.organizerHint')}</Text></View> : <>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 }}><View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#ff004426', alignItems: 'center', justifyContent: 'center' }}><UsersRound size={20} color={colors.accent} /></View><View><Text style={s.title}>{copy('friends.title')}</Text><Text style={{ color: colors.muted, fontSize: 14 }}>{social.friends.isPending ? copy('common.loading') : social.friends.isError && !social.friends.data ? '' : copy('friends.count', { count: friends.length })}</Text></View></View>

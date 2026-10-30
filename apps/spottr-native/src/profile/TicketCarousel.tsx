@@ -1,3 +1,4 @@
+import type { FlatListInstance } from 'react-native';
 import React, { useEffect, useRef, useState } from "react";
 import {
   FlatList,
@@ -27,7 +28,7 @@ import type { ProfileTicketTab, TicketGroup } from "./ticketGroups";
 const GAP = 16;
 const TicketGap = () => <View style={{ width: GAP }} />;
 
-export function TicketCarousel({
+export const TicketCarousel = React.memo(function TicketCarousel({
   groups,
   tab,
   now,
@@ -40,7 +41,7 @@ export function TicketCarousel({
 }) {
   const { copy } = usePreferences();
   const { width: viewportWidth } = useWindowDimensions();
-  const list = useRef<FlatList<TicketGroup>>(null),
+  const list = useRef<FlatListInstance>(null),
     offset = useRef(0);
   const [width, setWidth] = useState(0),
     [edges, setEdges] = useState({ start: true, end: false });
@@ -147,7 +148,7 @@ export function TicketCarousel({
       )}
     </View>
   );
-}
+});
 
 function TicketCard({
   group,

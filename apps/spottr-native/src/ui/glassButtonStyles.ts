@@ -1,7 +1,12 @@
 import type { ViewStyle } from 'react-native';
 
-const paddingKeys = ['padding', 'paddingVertical', 'paddingHorizontal', 'paddingTop',
-  'paddingBottom', 'paddingLeft', 'paddingRight', 'paddingStart', 'paddingEnd'] as const;
+// Keep the merge threshold below the 8pt resting gap. The glass surfaces can
+// connect when UIKit expands the pressed circle toward its neighbor.
+export const glassButtonGroupSpacing = 6;
+export const glassButtonGroupStyle: ViewStyle = {
+  flexDirection: 'row', alignItems: 'center', gap: 8,
+  overflow: 'visible',
+};
 
 /** Icon chrome only. Give UIKit one bounded circle, independent of parent flex. */
 export function glassButtonStyles(style: ViewStyle, disabled: boolean) {
@@ -17,6 +22,8 @@ export function glassButtonStyles(style: ViewStyle, disabled: boolean) {
     backgroundColor: 'transparent', borderColor: 'transparent', borderWidth: 0,
     borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0,
     boxShadow: 'none', shadowOpacity: 0, elevation: 0, overflow: 'visible', opacity: 1,
+    padding: 0, paddingVertical: 0, paddingHorizontal: 0, paddingTop: 0,
+    paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingStart: 0, paddingEnd: 0,
   };
   const control: ViewStyle = {
     position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
@@ -24,8 +31,5 @@ export function glassButtonStyles(style: ViewStyle, disabled: boolean) {
     borderRadius: surface.borderRadius,
     opacity: disabled ? 0.4 : style.opacity ?? 1,
   };
-  for (const key of paddingKeys) {
-    surface[key] = 0;
-  }
   return { surface, control };
 }

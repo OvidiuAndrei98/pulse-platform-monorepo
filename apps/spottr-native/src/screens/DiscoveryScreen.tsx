@@ -1,4 +1,7 @@
+import type { FlatListInstance } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
+import { GlassButtonGroup } from '../ui/GlassButtonGroup';
+import { GlassSurface } from '../ui/GlassSurface';
 import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -35,6 +38,7 @@ import { useQuery } from '@tanstack/react-query';
 import { eventsApi } from '../data/api';
 import { mixFeedPromotions } from '../../../pulse-app/src/features/events/promotions';
 import { VisiblePromotion, trackPromotion } from '../ui/VisiblePromotion';
+import { useNavbarScroll } from '../navigation/useNavbarScroll';
 import type { RootParamList, TabsParamList } from "../navigation/types";
 import { getEventDateRange } from "../../../pulse-app/src/features/events/dateFilters";
 import {
@@ -63,7 +67,8 @@ export function DiscoveryScreen() {
     [open, setOpen] = useState(false),
     [cityOpen, setCityOpen] = useState(false);
   const [view, setView] = useState<'list' | 'map'>('list');
-  const list = useRef<FlatList<Event>>(null);
+  const navbarScroll = useNavbarScroll(view === 'list');
+  const list = useRef<FlatListInstance>(null);
   useScrollToTop(list);
   useEffect(() => {
     if (route.params?.date)
@@ -104,21 +109,21 @@ export function DiscoveryScreen() {
         paddingTop: view === 'map' ? 0 : Math.max(24, insets.top),
       }}
     >
-      <View
-        pointerEvents="box-none"
+      <GlassButtonGroup
+        testID="discovery-header-actions"
         style={{
-          flexDirection: "row",
-          gap: 8,
           paddingHorizontal: 20,
           paddingBottom: 20,
           ...(view === 'map' ? { position: 'absolute', left: 0, right: 64, top: Math.max(24, insets.top), zIndex: 10 } as const : {}),
         }}
       >
-        <View style={s.toggle}>
+        <GlassSurface testID="events-view-switch" style={s.toggle}>
           <Pressable
             testID="events-list-toggle"
             accessibilityRole="button"
             accessibilityLabel={copy("eventMap.list")}
+            accessibilityState={{ selected: view === 'list' }}
+            hitSlop={{ top: 4, bottom: 4 }}
             style={[s.mode, view === 'list' && { backgroundColor: colors.accent }]}
             onPress={() => setView('list')}
           >
@@ -128,13 +133,15 @@ export function DiscoveryScreen() {
             testID="events-map-toggle"
             accessibilityRole="button"
             accessibilityLabel={copy("eventMap.map")}
+            accessibilityState={{ selected: view === 'map' }}
+            hitSlop={{ top: 4, bottom: 4 }}
             style={[s.mode, view === 'map' && { backgroundColor: colors.accent }]}
             onPress={() => setView('map')}
           >
             <MapIcon size={16} color={view === 'map' ? 'black' : '#ffffffb3'} />
           </Pressable>
-        </View>
-        <Pressable
+        </GlassSurface>
+        <GlassPressable fallback={Pressable}
           testID="event-filters"
           accessibilityRole="button"
           accessibilityLabel={copy("common.filters")}
@@ -145,10 +152,11 @@ export function DiscoveryScreen() {
           style={s.filter}
         >
           <SlidersHorizontal size={16} color="#ffffffb3" />
-        </Pressable>
-      </View>
+        </GlassPressable>
+      </GlassButtonGroup>
       {view === 'map' ? <EventsMapPanel events={events.items} distance={filters.distance} cityCenter={cityCenters[filters.city] ? { latitude: cityCenters[filters.city]![0], longitude: cityCenters[filters.city]![1] } : null} onOpen={event => { seedEvent(event); navigation.navigate('Event', { id: event.id }); }} loading={events.isFetching} error={events.isError} retry={() => void (events.isFetchNextPageError ? events.fetchNextPage() : events.refetch())} /> : <FlatList
         ref={list}
+        {...navbarScroll}
         style={{ flex: 1 }}
         testID="events-list"
         data={displayed}
@@ -223,7 +231,7 @@ export function DiscoveryScreen() {
                   : events.refetch())
               }
             />
-          ) : null
+          ) : undefined
         }
       />}
       <Modal

@@ -1,3 +1,4 @@
+import type { TextInputInstance } from 'react-native';
 import React, { forwardRef, useContext, useState } from 'react';
 import { Platform, StyleSheet, TextInput, useWindowDimensions, type TextInputProps } from 'react-native';
 import { AppSheetTextInput } from './AppSheetTextInput';
@@ -14,7 +15,7 @@ export const formStyles = StyleSheet.create({
   error: { color: '#f87171', fontSize: 12, lineHeight: 18 },
 });
 type Props = TextInputProps & { variant?: 'event' | 'profile' | 'billing' | 'bare'; invalid?: boolean; inSheet?: boolean; 'aria-invalid'?: boolean };
-export const FormInput = forwardRef<TextInput, Props>(function FormInput({ variant = 'event', invalid, inSheet, style, onFocus, onBlur, editable = true, ...props }, ref) {
+export const FormInput = forwardRef<TextInputInstance, Props>(function FormInput({ variant = 'event', invalid, inSheet, style, onFocus, onBlur, editable = true, ...props }, ref) {
   const [focused, setFocused] = useState(false);
   const wide = useWindowDimensions().width >= 640;
   const Input = inSheet ? AppSheetTextInput : TextInput;

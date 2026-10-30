@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useIsFocused } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { accountApi, useAuth } from '../auth/AuthProvider';
 import { manualRefreshOptions, queryClient } from '../data/queries';
 import { parseFeed, parseFriends, type Friend } from './data';
 
 export function useSocial() {
   const { user, controller } = useAuth();
-  const focused = useIsFocused();
   const id = user?.id, eligible = !!user && user.role !== 'organizer';
   const friends = useQuery({ queryKey: ['friends', id], enabled: eligible, staleTime: 60_000,
     queryFn: async ({ signal }) => parseFriends(await accountApi('/friends', { signal })) });
@@ -15,15 +14,15 @@ export function useSocial() {
     queryFn: async ({ signal }) => parseFriends(await accountApi('/friends/requests', { signal })) });
   const feed = useQuery({ ...manualRefreshOptions, queryKey: ['social-feed', id], enabled: !!id,
     queryFn: async ({ signal }) => parseFeed(await accountApi('/feed', { signal })) });
-  useEffect(() => {
-    if (!focused || !id) return;
+  useFocusEffect(useCallback(() => {
+    if (!id) return;
     // Friendship controls stay current. Feed rows refresh only on a user pull
     // or after an explicit friendship mutation, preserving their reading position.
     if (eligible) {
       void friends.refetch({ cancelRefetch: false });
       void requests.refetch({ cancelRefetch: false });
     }
-  }, [focused, id, eligible, friends.refetch, requests.refetch]);
+  }, [id, eligible, friends.refetch, requests.refetch]));
   const [pendingId, setPendingId] = useState<string | null>(null), [error, setError] = useState(false);
   const busy = useRef(false), revision = useRef(0);
   useEffect(() => { revision.current++; busy.current = false; setPendingId(null); setError(false); return () => { revision.current++; }; }, [id]);

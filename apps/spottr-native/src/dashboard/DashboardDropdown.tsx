@@ -1,3 +1,4 @@
+import type { ViewInstance, ScrollViewInstance } from 'react-native';
 import React, { useEffect, useRef, useState } from "react";
 import {
   Modal,
@@ -46,8 +47,8 @@ export function DashboardDropdown({
   variant = 'default',
 }: DashboardDropdownProps) {
   const { copy } = usePreferences();
-  const trigger = useRef<View>(null),
-    menu = useRef<ScrollView>(null),
+  const trigger = useRef<ViewInstance>(null),
+    menu = useRef<ScrollViewInstance>(null),
     viewport = useWindowDimensions();
   const [anchor, setAnchor] = useState<DropdownAnchor | null>(null),
     [active, setActive] = useState(0);

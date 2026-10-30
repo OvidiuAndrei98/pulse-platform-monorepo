@@ -120,6 +120,7 @@ withBrowser(async ({ base, call, evaluate, until, delay, capture, errors }) => {
   await open('/?role=organizer');
   await evaluate(`window.__navbarQA.home=document.querySelector('[data-testid="home-list"]'); true`);
   await transition('cold-organizer-profile', 'Profile', 'organizer-dashboard');
+  await evaluate(`window.__navbarQA.workspace=document.querySelector('[data-testid="organizer-dashboard"]'); true`);
   check(!(await evaluate(`window.__navbarQA.visible('profile-list')`)), 'Cold organizer Profile must not show ordinary account page');
   await transition('dashboard-restores-home', 'Home', 'home-list');
   check(await evaluate(`window.__navbarQA.home===document.querySelector('[data-testid="home-list"]')`), 'Dashboard round trip preserves the original Home component');
@@ -144,8 +145,10 @@ withBrowser(async ({ base, call, evaluate, until, delay, capture, errors }) => {
   await open('/dashboard?role=organizer'); await until(`window.__navbarQA.visible('organizer-dashboard')`);
   await transition('dashboard-to-home', 'Home', 'home-list');
   await transition('home-back-to-dashboard', 'Profile', 'organizer-dashboard');
+  await evaluate(`window.__navbarQA.workspace=document.querySelector('[data-testid="organizer-dashboard"]'); true`);
   await transition('dashboard-to-feed', 'Feed', 'feed-list');
   await transition('feed-back-to-dashboard', 'Profile', 'organizer-dashboard');
+  check(await evaluate(`window.__navbarQA.workspace===document.querySelector('[data-testid="organizer-dashboard"]')`), 'Organizer Profile round trip reuses the same mounted dashboard');
 
   // Interrupt the running animation in both directions; last contact wins.
   await transition('dashboard-before-interruption', 'Home', 'home-list');
@@ -174,6 +177,7 @@ withBrowser(async ({ base, call, evaluate, until, delay, capture, errors }) => {
   check(!await evaluate(`window.__navbarQA.visible('organizer-dashboard')`), 'Ordinary user still opens the consumer profile');
   await transition('ordinary-user-home', 'Home', 'home-list');
   await transition('ordinary-user-profile-again', 'Profile', 'profile-list');
+  await evaluate(`window.__navbarQA.consumer=document.querySelector('[data-testid="profile-list"]'); true`);
 
   // Changing the system preference while mounted must also stop navbar motion.
   await call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
@@ -190,6 +194,17 @@ withBrowser(async ({ base, call, evaluate, until, delay, capture, errors }) => {
   await call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
   await delay(150);
   await transition('motion-restored-profile', 'Profile', 'profile-list');
+  check(await evaluate(`window.__navbarQA.consumer===document.querySelector('[data-testid="profile-list"]')`), 'User Profile remains mounted across visits');
+
+  await open('/?role=admin');
+  await transition('administrator-profile', 'Profile', 'admin-profile');
+  await evaluate(`window.__navbarQA.admin=document.querySelector('[data-testid="admin-profile"]'); true`);
+  await transition('administrator-home', 'Home', 'home-list');
+  await transition('administrator-profile-again', 'Profile', 'admin-profile');
+  check(await evaluate(`window.__navbarQA.admin===document.querySelector('[data-testid="admin-profile"]')`), 'Admin Profile round trip reuses the same mounted screen');
+  await evaluate(`document.querySelector('[data-testid="admin-organizer-account"]').click()`);
+  await until(`window.__navbarQA.visible('organizer-dashboard')`);
+  check(await evaluate(`window.__navbarQA.bar()?.querySelector('[aria-selected="true"]')?.dataset.testid==='tab-Profile'`), 'Admin also retains access to the organizer workspace');
 
   check((await evaluate('window.__navbarQA.unexpected')).length === 0, 'Ordinary account fixtures cover all API requests');
   check((await evaluate('window.__navbarQA.writes')).length === 0, 'Ordinary navigation has no mutation side effects');

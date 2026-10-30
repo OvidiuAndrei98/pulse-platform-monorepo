@@ -1,4 +1,5 @@
 import { GlassPressable } from '../ui/GlassPressable';
+import { GlassButtonGroup } from '../ui/GlassButtonGroup';
 import { ActionIcon } from '../ui/ActionIcon';
 import { haptic } from "../ui/haptics";
 import { ToastHost } from '../ui/ToastHost';
@@ -137,34 +138,36 @@ export function EventScreen({
   const nativeSheet = isSheet && Platform.OS !== "web";
   const footer = event && !missing ? (
     <View testID="event-actions" style={s.footer}>
-      <GlassPressable fallback={Pressable}
-        testID="event-sheet-bookmark"
-        disabled={!ready}
-        accessibilityState={{ selected: saved.some(e => e.id === event.id), disabled: !ready }}
-        accessibilityRole="button"
-        accessibilityLabel={copy(
-          saved.some((e) => e.id === event.id)
-            ? "eventSheet.removeFavorite"
-            : "eventSheet.addFavorite",
-        )}
-        onPress={() => user ? toggleSaved(event) : signIn()}
-        style={s.icon}
-      >
-        <AnimatedBookmark
-          size={16}
-          color="white"
-          selected={saved.some(e => e.id === event.id)}
-        />
-      </GlassPressable>
-      <GlassPressable fallback={Pressable}
-        testID="event-share"
-        accessibilityRole="button"
-        accessibilityLabel={copy("eventSheet.share")}
-        onPress={() => void share()}
-        style={s.icon}
-      >
-        <ActionIcon name="share" size={16} color="white" />
-      </GlassPressable>
+      <GlassButtonGroup testID="event-secondary-actions">
+        <GlassPressable fallback={Pressable}
+          testID="event-sheet-bookmark"
+          disabled={!ready}
+          accessibilityState={{ selected: saved.some(e => e.id === event.id), disabled: !ready }}
+          accessibilityRole="button"
+          accessibilityLabel={copy(
+            saved.some((e) => e.id === event.id)
+              ? "eventSheet.removeFavorite"
+              : "eventSheet.addFavorite",
+          )}
+          onPress={() => user ? toggleSaved(event) : signIn()}
+          style={s.icon}
+        >
+          <AnimatedBookmark
+            size={16}
+            color="white"
+            selected={saved.some(e => e.id === event.id)}
+          />
+        </GlassPressable>
+        <GlassPressable fallback={Pressable}
+          testID="event-share"
+          accessibilityRole="button"
+          accessibilityLabel={copy("eventSheet.share")}
+          onPress={() => void share()}
+          style={s.icon}
+        >
+          <ActionIcon name="share" size={16} color="white" />
+        </GlassPressable>
+      </GlassButtonGroup>
       <Pressable
         testID="event-continue"
         accessibilityRole="button"

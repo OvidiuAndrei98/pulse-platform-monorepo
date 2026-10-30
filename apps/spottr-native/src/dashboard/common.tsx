@@ -13,7 +13,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useIsFocused } from "@react-navigation/native";
+import { useDashboardPolling } from './useDashboardPolling';
 import {
   AlertTriangle,
   Check,
@@ -36,14 +36,14 @@ export function useDashboardQuery<T>(
   enabled = true,
   interval?: number,
 ) {
-  const { user } = useAuth(),
-    focused = useIsFocused();
-  return useQuery({
+  const { user } = useAuth();
+  const query = useQuery({
     queryKey: ["dashboard", user?.id, path],
     enabled: !!user && enabled,
     queryFn: ({ signal }) => accountApi<T>(path, { signal }),
-    refetchInterval: focused ? interval : false,
   });
+  useDashboardPolling(query.refetch, !!user && enabled, interval);
+  return query;
 }
 /** A synchronous lock prevents duplicate taps; no completion updates a later session. */
 export function useAction() {

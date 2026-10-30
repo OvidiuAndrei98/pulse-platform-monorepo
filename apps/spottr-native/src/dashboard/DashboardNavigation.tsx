@@ -1,3 +1,4 @@
+import type { ScrollViewInstance } from 'react-native';
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -265,7 +266,7 @@ export function DashboardHeader({ section, onNavigate, validator }: NavProps) {
           ? "legalDocuments.agreement.title"
           : "stripeConnect.title",
     });
-  const scroll = useRef<ScrollView>(null),
+  const scroll = useRef<ScrollViewInstance>(null),
     frames = useRef<Record<string, { x: number; width: number }>>({});
   const [layoutVersion, setLayoutVersion] = useState(0),
     [visible, setVisible] = useState(false);

@@ -1,7 +1,7 @@
-const { expo } = require('./app.json');
+const { expo: baseExpo } = require('./app.json');
 const { appLinkPaths, linkHosts } = require('./scripts/native-config.cjs');
 
-module.exports = () => {
+module.exports = ({ config: expo = baseExpo } = {}) => {
   const hosts = linkHosts(process.env.EXPO_PUBLIC_LINK_HOSTS);
   const merchantIdentifier = process.env.SPOTTR_NATIVE_APPLE_MERCHANT_ID?.trim();
   if (merchantIdentifier && !/^merchant\.[a-zA-Z0-9.-]+$/.test(merchantIdentifier)) throw new Error('Invalid SPOTTR_NATIVE_APPLE_MERCHANT_ID');

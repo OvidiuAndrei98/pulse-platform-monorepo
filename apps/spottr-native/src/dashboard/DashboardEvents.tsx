@@ -1,3 +1,4 @@
+import type { ScrollViewInstance } from 'react-native';
 import { FormInput as TextInput } from "../ui/FormInput";
 import React, { useRef, useState } from "react";
 import {
@@ -57,7 +58,7 @@ export function DashboardEvents({
     small = width < 640,
     large = width >= 1024;
   const [q, setQ] = useState("");
-  const filterStrip = useRef<ScrollView>(null);
+  const filterStrip = useRef<ScrollViewInstance>(null);
   const now = useEventClock(selectDashboardEvent(events, Date.now()));
   const filtered = filterDashboardEvents(events, filter, q, now);
   return (

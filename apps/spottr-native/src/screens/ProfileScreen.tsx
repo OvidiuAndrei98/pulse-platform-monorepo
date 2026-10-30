@@ -1,7 +1,7 @@
 import { FormInput as TextInput, formStyles } from '../ui/FormInput';
 import { uploadProfileAvatar } from "../profile/avatar";
 import { DeleteAccountSheet } from "../profile/DeleteAccountSheet";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
@@ -70,6 +70,7 @@ import { TicketAvailability } from "../profile/TicketAvailability";
 import { TicketCarousel } from "../profile/TicketCarousel";
 import { profileTicketGroups } from "../profile/ticketGroups";
 import { useEventClock } from "../data/useEventClock";
+import { useNavbarScroll } from '../navigation/useNavbarScroll';
 
 type ProfileAction = "avatar" | "details" | "password" | "language" | "privacy";
 type ProfileNotice = { kind: "error" | "success"; key: string };
@@ -81,10 +82,21 @@ const actionMessages: Record<ProfileAction, { success?: string; error: string }>
   privacy: { error: "profile.privacyUpdateFailed" },
 };
 
+/** Focus changes update fetching and auth without rebuilding the account UI. */
+function ProfileActivity({ watchAdmission }: { watchAdmission: boolean }) {
+  const focused = useIsFocused(), auth = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
+  useTickets(focused, watchAdmission);
+  useEffect(() => {
+    if (focused && auth.ready && !auth.user) navigation.navigate('Auth', { returnTab: 'Profile' });
+  }, [focused, auth.ready, auth.user, navigation]);
+  return null;
+}
+
 export function ProfileScreen() {
+  const navbarScroll = useNavbarScroll();
   const auth = useAuth(),
-    { copy, saved, savedLoading, savedError, retrySaved, language, setLanguage, actionError } = usePreferences(),
-    focused = useIsFocused();
+    { copy, saved, savedLoading, savedError, retrySaved, language, setLanguage, actionError } = usePreferences();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>(),
     safe = useSafeAreaInsets(),
     link = useOpenLink();
@@ -99,16 +111,12 @@ export function ProfileScreen() {
   const busy = activeAction !== null;
   const [username, setUsername] = useState(""),
     [bio, setBio] = useState("");
-  const tickets = useTickets(focused, !!ticket),
+  const tickets = useTickets(false),
     hidden = useHiddenCategories(),
     pending = useRef(false);
   const now = useEventClock();
   const validationEvents = useQuery({ queryKey: ['validation-access', auth.user?.id], enabled: !!auth.user, queryFn: async ({ signal }) => { const result = await accountApi<unknown>('/dashboard/ticket-validation/events', { signal }); if (result === null) return []; if (!Array.isArray(result)) throw new Error('Invalid validation events'); return result; } });
   const activeSafety = tickets.data?.find(ticket => ticket.isValidated && Date.parse(ticket.endTime) + 86400000 >= Date.now());
-  useEffect(() => {
-    if (focused && auth.ready && !auth.user)
-      navigation.navigate("Auth", { returnTab: "Profile" });
-  }, [focused, auth.ready, auth.user, navigation]);
   useEffect(() => {
     setUsername(auth.user?.username ?? "");
     setBio(auth.user?.bio ?? "");
@@ -120,12 +128,12 @@ export function ProfileScreen() {
     setNotices({});
     setTab("active");
   }, [auth.user?.id]);
-  if (!auth.ready || !auth.user) return <Loading />;
+  const groups = useMemo(() => profileTicketGroups(tickets.data ?? [], tab, now), [tickets.data, tab, now]);
+  if (!auth.ready || !auth.user) return <><ProfileActivity watchAdmission={false} /><Loading /></>;
   const user = auth.user,
     activeTickets = (tickets.data ?? []).filter(
       (item) => ticketStatus(item, now) === "active",
     );
-  const groups = profileTicketGroups(tickets.data ?? [], tab, now);
   const explore = () => navigation.navigate('Tabs', { screen: 'Explore' });
   const clearNotice = (action: ProfileAction) =>
     setNotices(old => ({ ...old, [action]: undefined }));
@@ -174,7 +182,9 @@ export function ProfileScreen() {
   };
   return (
     <>
+      <ProfileActivity watchAdmission={!!ticket} />
       <ScrollView
+        {...navbarScroll}
         testID="profile-list"
         keyboardShouldPersistTaps="handled"
         style={{ flex: 1, backgroundColor: "#000" }}

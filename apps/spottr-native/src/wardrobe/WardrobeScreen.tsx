@@ -1,3 +1,4 @@
+import type { ScrollViewInstance } from 'react-native';
 import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -165,7 +166,7 @@ export function WardrobeScreen({
     [kind, setKind] = useState("any"),
     [email, setEmail] = useState(""),
     [role, setRole] = useState("operator");
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const [pickupLookup,setPickupLookup]=useState<Deposit[]|null>(null),[eventFilter,setEventFilter]=useState('');
   useEffect(() => {
     setZone("");

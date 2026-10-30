@@ -12,6 +12,20 @@ packageExtensions:
   '@hookform/resolvers@5.9.2':
     peerDependencies:
       zod: '^3.25.0 || ^4.0.0'
+  # Reanimated's ref declarations must use the app's React types. The web and
+  # native apps use different React versions, so a hoisted @types/react is unsafe.
+  'react-native-reanimated@4.7.1':
+    peerDependencies:
+      '@types/react': '*'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+  'react-native-screens@4.30.1':
+    peerDependencies:
+      '@types/react': '*'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
   # The Worklets Babel plugin imports these without declaring dependencies.
   # Explicit links keep clean, isolated pnpm installs buildable on every host.
   'react-native-worklets@0.10.1':

@@ -1,12 +1,12 @@
 import { AppFontsReadyContext, Text } from "./ui/Text";
 import { captureAppError, diagnosticScreen } from './diagnostics/runtime';
-import React, { useEffect, useId, useState } from "react";
+import React, { useCallback, useEffect, useId, useState } from "react";
 import { AppState, Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import {
   DarkTheme,
-  useIsFocused,
+  useFocusEffect,
   NavigationContainer,
   useNavigationContainerRef,
   ThemeProvider,
@@ -30,7 +30,9 @@ import {
 } from "@expo-google-fonts/inter";
 import { PreferencesProvider, usePreferences } from "./PreferencesProvider";
 import { queryClient } from "./data/queries";
-import { MainTabBar, MainTabBarProvider, MainTabBarRegistration } from "./navigation/MainTabBar";
+import { SceneMainTabBar, MainTabBarProvider, MainTabBarRegistration } from "./navigation/MainTabBar";
+import { profileStackRouter } from './navigation/profileStackRouter';
+import { PersistentTabScenes } from './navigation/PersistentTabScenes';
 import type { FeedParamList, ProfileParamList, RootParamList, TabsParamList } from "./navigation/types";
 import { DiscoveryScreen } from "./screens/DiscoveryScreen";
 import { HomeScreen } from "./screens/HomeScreen";
@@ -152,13 +154,16 @@ function FeedNavigator() {
 function MainTabs() {
   const { t } = usePreferences();
   return (
+    <PersistentTabScenes>
     <Tabs.Navigator
+      detachInactiveScreens={Platform.OS !== 'ios'}
       tabBar={(props) => <MainTabBarRegistration {...props} />}
       screenOptions={{
         headerShown: false,
         animation: "none",
         sceneStyle: { backgroundColor: colors.bg },
         freezeOnBlur: false,
+        lazy: Platform.OS !== 'ios',
       }}
     >
       <Tabs.Screen
@@ -182,23 +187,27 @@ function MainTabs() {
         options={{ title: t("profile") }}
       />
     </Tabs.Navigator>
+    </PersistentTabScenes>
   );
 }
 function SafetyRoute({ route, navigation }: NativeStackScreenProps<RootParamList, 'SafetyGroup'>) {
   return <SafetyGroupScreen eventId={route.params.eventId} onBack={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs', { screen: 'Home' })} onLogin={() => navigation.navigate('Auth', { returnSafetyGroup: route.params.eventId })} bottomBar={<PublicProfileTabBar activeIndex={1}/>} />;
 }
 function DashboardRoute({ route, navigation }: NativeStackScreenProps<RootParamList, 'Dashboard'>) {
-  const { user, ready } = useAuth(), focused = useIsFocused();
+  const { user, ready } = useAuth();
   const publicDocument = route.params?.section==='agreement'||route.params?.section==='stripe-info';
-  useEffect(() => { if (focused && ready && !user && !publicDocument) navigation.navigate('Auth', { returnDashboard: true, returnDashboardParams: route.params }); }, [focused, ready, user, navigation, route.params, publicDocument]);
+  useFocusEffect(useCallback(() => { if (ready && !user && !publicDocument) navigation.navigate('Auth', { returnDashboard: true, returnDashboardParams: route.params }); }, [ready, user, navigation, route.params, publicDocument]));
   const section = ['overview','events','new','scanner','wardrobe','finance','invoicing','profile','purchases','promotions','edit','company','agreement','stripe-info'].includes(route.params?.section ?? '') ? route.params!.section as DashboardScreenProps['initialSection'] : undefined;
   if (!user && !publicDocument) return <View style={{ flex: 1, backgroundColor: colors.bg }}/>;
-  return <View style={{ flex: 1 }}><DashboardScreen onSignIn={() => navigation.navigate('Auth', {returnDashboard:true,returnDashboardParams:{section:'agreement'}})} key={[section, route.params?.eventId, route.params?.filter, route.params?.organizerReturn, route.params?.campaignId, route.params?.returnStatus].join(':')} initialSection={section} initialEventId={route.params?.eventId} initialEventFilter={route.params?.filter} organizerReturn={route.params?.organizerReturn} campaignId={route.params?.campaignId} returnStatus={route.params?.returnStatus} onClose={() => navigation.popTo('Tabs', { screen: 'Home' })} onScanner={() => navigation.navigate('Scanner')} onTickets={() => navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } })} onOrders={() => navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'Orders' } })} onProfileSettings={() => navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'ProfileHome' } })} onPublicProfile={() => { if(user) navigation.navigate('PublicProfile', { id: user.id }); }}/><MainTabBar/></View>;
+  return <View style={{ flex: 1 }}><DashboardScreen onSignIn={() => navigation.navigate('Auth', {returnDashboard:true,returnDashboardParams:{section:'agreement'}})} key={[section, route.params?.eventId, route.params?.filter, route.params?.organizerReturn, route.params?.campaignId, route.params?.returnStatus].join(':')} initialSection={section} initialEventId={route.params?.eventId} initialEventFilter={route.params?.filter} organizerReturn={route.params?.organizerReturn} campaignId={route.params?.campaignId} returnStatus={route.params?.returnStatus} onClose={() => navigation.popTo('Tabs', { screen: 'Home' })} onScanner={() => navigation.navigate('Scanner')} onTickets={() => navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } })} onOrders={() => navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'Orders' } })} onProfileSettings={() => navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'ProfileHome' } })} onPublicProfile={() => { if(user) navigation.navigate('PublicProfile', { id: user.id }); }}/><SceneMainTabBar/></View>;
 }
 function ScannerDashboardRoute({ route, navigation }: NativeStackScreenProps<RootParamList, 'Scanner'>) {
-  const { user, ready } = useAuth(), focused = useIsFocused();
-  useEffect(() => { if(focused && ready && !user) navigation.navigate('Auth', {returnScanner:true}); }, [focused,ready,user,navigation]);
-  return <View style={{ flex:1 }}><DashboardScreen initialSection="scanner" initialEventId={route.params?.eventId} onClose={() => navigation.popTo('Tabs', {screen:'Home'})} onScanner={() => {}} onTickets={() => navigation.navigate('Tabs', {screen:'Profile',params:{screen:'Tickets'}})} onOrders={() => navigation.navigate('Tabs', {screen:'Profile',params:{screen:'Orders'}})} onProfileSettings={() => navigation.navigate('Tabs', {screen:'Profile',params:{screen:'ProfileHome'}})} onPublicProfile={() => {if(user) navigation.navigate('PublicProfile',{id:user.id});}}/><MainTabBar/></View>;
+  const { user, ready } = useAuth();
+  useFocusEffect(useCallback(() => { if(ready && !user) navigation.navigate('Auth', {returnScanner:true}); }, [ready,user,navigation]));
+  return <View style={{ flex:1 }}><DashboardScreen initialSection="scanner" initialEventId={route.params?.eventId} onClose={() => navigation.popTo('Tabs', {screen:'Home'})} onScanner={() => {}} onTickets={() => navigation.navigate('Tabs', {screen:'Profile',params:{screen:'Tickets'}})} onOrders={() => navigation.navigate('Tabs', {screen:'Profile',params:{screen:'Orders'}})} onProfileSettings={() => navigation.navigate('Tabs', {screen:'Profile',params:{screen:'ProfileHome'}})} onPublicProfile={() => {if(user) navigation.navigate('PublicProfile',{id:user.id});}}/><SceneMainTabBar/></View>;
+}
+function AdminRoute() {
+  return <View testID="admin-profile" style={{ flex: 1 }}><View style={{ flex: 1, paddingBottom: 88 }}><AdminScreen /></View><SceneMainTabBar /></View>;
 }
 // UIKit cannot push a root card on top of a presented Event modal. Keep the
 // purchase stack inside that presentation so an interactive native back swipe
@@ -244,6 +253,7 @@ function Navigator() {
     <View style={{ flex:1, width:'100%', alignSelf:'center', maxWidth:Platform.OS==='web'&&!dashboardWorkspace?600:undefined }}><NavigationContainer ref={navigator} onReady={syncWorkspace} onStateChange={syncWorkspace} theme={theme} linking={linking}>
       <MainTabBarProvider navigation={navigator} state={rootState}>
       <Root.Navigator
+        UNSTABLE_router={profileStackRouter}
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.bg },
@@ -289,7 +299,7 @@ function Navigator() {
         <Root.Screen name="ScannerHistory" component={ScannerHistoryScreen} options={{ ...nativeBackOptions, presentation: "card" }}/>
         <Root.Screen name="Wardrobe" component={WardrobeScreen} options={{ ...nativeBackOptions, presentation: "card" }}/>
         <Root.Screen name="QuickScanner" component={QuickScannerScreen}/>
-        <Root.Screen name="Admin" component={AdminScreen}/>
+        <Root.Screen name="Admin" component={AdminRoute} options={{ animation: 'none' }}/>
         <Root.Screen name="CheckoutReturn" component={CheckoutReturnScreen} options={{ presentation: "transparentModal", animation: "fade", gestureEnabled: false }} />
       </Root.Navigator>
       <PaymentRecovery navigation={navigator} state={rootState} />

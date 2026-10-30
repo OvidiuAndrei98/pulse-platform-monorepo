@@ -1,3 +1,4 @@
+import type { ScrollViewInstance, KeyDownEvent } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import { FormInput as TextInput } from '../ui/FormInput';
@@ -26,7 +27,7 @@ function SafetyScreen({ eventId, onBack, onLogin, bottomBar }: SafetyGroupScreen
   const [selected, setSelected] = useState<string[]>([]), [inviteOpen, setInviteOpen] = useState(false), [message, setMessage] = useState('');
   const [layoutHeight, setLayoutHeight] = useState(0), viewport = useKeyboardViewport();
   const [feedback, setFeedback] = useState<string | null>(null), [feedbackError, setFeedbackError] = useState(false);
-  const messages = useRef<ScrollView>(null), login = useRef(onLogin); login.current = onLogin;
+  const messages = useRef<ScrollViewInstance>(null), login = useRef(onLogin); login.current = onLogin;
   const group = state.data?.group, chosen = state.data ? selectedSafetyFriends(state.data, selected) : [];
   const compact = viewport.open && ((viewport.height ?? layoutHeight) - safe.top < 360);
   useEffect(() => { if (state.ready && !state.user) login.current(); }, [state.ready, state.user]);
@@ -45,7 +46,7 @@ function SafetyScreen({ eventId, onBack, onLogin, bottomBar }: SafetyGroupScreen
   const invite = async () => { if (await state.controller.run({ kind: 'invite', friendIds: chosen })) { setSelected([]); setInviteOpen(false); } };
   const accepted = group?.members.filter(member => member.status === 'accepted') ?? [];
   const canInvite = !!group && group.ownerId === state.user?.id && group.members.length < 8 && !!state.data?.eligibleFriends.length;
-  const keyboardWeb = Platform.OS === 'web' ? { onKeyDown: (event: { key: string; shiftKey: boolean; preventDefault(): void }) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send(); } } } : {};
+  const keyboardWeb = Platform.OS === 'web' ? { onKeyDown: (event: KeyDownEvent) => { if (event.nativeEvent.key === 'Enter' && !event.nativeEvent.shiftKey) { event.preventDefault(); void send(); } } } : {};
 
   return <View testID="safety-group-page" style={[s.root, viewport.height !== null && { height: viewport.height, flex: 0 }]}>
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

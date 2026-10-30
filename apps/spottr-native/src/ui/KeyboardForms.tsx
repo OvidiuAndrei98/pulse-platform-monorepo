@@ -1,3 +1,4 @@
+import type { ScrollViewInstance } from 'react-native';
 import React, { forwardRef, useCallback } from 'react';
 import { ScrollView, type ScrollViewProps } from 'react-native';
 import { KeyboardAwareScrollView, KeyboardProvider, type KeyboardAwareScrollViewRef } from 'react-native-keyboard-controller';
@@ -9,7 +10,7 @@ export function FormKeyboardProvider({ children }: React.PropsWithChildren) {
 }
 
 export type FormScrollViewProps = ScrollViewProps & { bottomOffset?: number };
-export const FormScrollView = forwardRef<ScrollView, FormScrollViewProps>(function FormScrollView(props, ref) {
+export const FormScrollView = forwardRef<ScrollViewInstance, FormScrollViewProps>(function FormScrollView(props, ref) {
   const attach = useCallback((instance: KeyboardAwareScrollViewRef | null) => {
     if (typeof ref === 'function') ref(instance);
     else if (ref) ref.current = instance;

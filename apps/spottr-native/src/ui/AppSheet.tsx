@@ -1,3 +1,4 @@
+import type { ViewInstance } from 'react-native';
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import BottomSheet, { ANIMATION_CONFIGS, ANIMATION_SOURCE, ANIMATION_STATUS, KEYBOARD_STATUS, BottomSheetBackdrop, BottomSheetFooter, useBottomSheetGestureHandlers, useBottomSheetInternal, type BottomSheetBackdropProps, type BottomSheetFooterProps } from '@gorhom/bottom-sheet';
@@ -60,7 +61,7 @@ function SheetGestureBoundary({ children, viewportHeight }: React.PropsWithChild
   const { animatedAnimationState, animatedContentGestureState, animatedHandleGestureState, animatedLayoutState, animatedKeyboardState, stopAnimation, animateToPosition } = useBottomSheetInternal();
   const pausedTarget = useSharedValue<{ position: number; source: ANIMATION_SOURCE } | null>(null);
   const resumeFrame = useRef<number | null>(null);
-  const surface = useRef<View>(null);
+  const surface = useRef<ViewInstance>(null);
   useSheetScrollSurface(surface);
   const nativeViewportStyle = useAnimatedStyle(() => {
     if (Platform.OS === 'web') return {};
@@ -164,10 +165,12 @@ function SheetGestureBoundary({ children, viewportHeight }: React.PropsWithChild
     };
   }, [touch, release]);
   useEffect(() => () => { if (resumeFrame.current !== null) cancelAnimationFrame(resumeFrame.current); }, []);
-  const Viewport = Platform.OS === 'web' ? View : Animated.View;
-  return <Viewport ref={surface} testID="sheet-content-viewport" collapsable={false} style={[s.content, nativeViewportStyle]}>
+  if (Platform.OS === 'web') return <View ref={surface} testID="sheet-content-viewport" collapsable={false} style={s.content}>
     {children}
-  </Viewport>;
+  </View>;
+  return <Animated.View ref={surface} testID="sheet-content-viewport" collapsable={false} style={[s.content, nativeViewportStyle]}>
+    {children}
+  </Animated.View>;
 }
 function SheetHandleOverlay({ label, onClose }: { label: string; onClose: () => void }) {
   // Use the library's handle recognizer so the grabber remains draggable even

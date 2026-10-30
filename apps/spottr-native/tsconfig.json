@@ -1,5 +1,6 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": { "strict": true, "noUncheckedIndexedAccess": true, "types": ["react", "node"], "paths": { "@/*": ["../pulse-app/src/*"] } },
-  "include": ["**/*.ts", "**/*.tsx"]
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", "android", "ios", "artifacts", "dist", "dist-native", "dist-final"]
 }

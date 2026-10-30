@@ -1,3 +1,4 @@
+import type { ScrollViewInstance } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import { FormInput as TextInput } from '../ui/FormInput';
@@ -55,7 +56,7 @@ function CheckoutContent({ route, navigation }: Props) {
   const [saved, setSaved] = useState<InvoiceDetails | null>(null), [source, setSource] = useState<'new' | 'saved'>('new'), [remember, setRemember] = useState(false);
   const [billingLoading, setBillingLoading] = useState(!!user), [attempted, setAttempted] = useState(false), [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null), [returned, setReturned] = useState<{ sessionId?: string; nativeOrderId?: string } | null>(null);
-  const scroll = useRef<ScrollView>(null), alive = useRef(true), pending = useRef(false), billingEdited = useRef(false);
+  const scroll = useRef<ScrollViewInstance>(null), alive = useRef(true), pending = useRef(false), billingEdited = useRef(false);
   const intent = useRef<{ payload: string; key: string } | null>(null);
   const nativePayment = useRef<PendingNativePayment | null>(null);
   const token = controller.getToken();

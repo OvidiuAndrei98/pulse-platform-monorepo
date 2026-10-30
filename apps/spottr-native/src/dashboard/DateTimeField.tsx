@@ -1,3 +1,4 @@
+import type { ViewInstance } from 'react-native';
 import { FormInput as TextInput } from '../ui/FormInput';
 ﻿import React, { useEffect, useRef, useState } from "react";
 import {
@@ -27,7 +28,7 @@ import { e } from "./EditorControls";
 
 function usePopover() {
   const [open, setOpen] = useState(false),
-    root = useRef<View>(null);
+    root = useRef<ViewInstance>(null);
   const [anchor, setAnchor] = useState({ x: 20, y: 100 });
   useEffect(() => {
     if (!open || Platform.OS !== "web") return;

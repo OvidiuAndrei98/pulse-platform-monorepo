@@ -1,3 +1,4 @@
+import type { ViewInstance } from 'react-native';
 import { ActionIcon } from '../ui/ActionIcon';
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -49,7 +50,7 @@ export function ScannerScreen({
 }) {
   const { width, height } = useWindowDimensions();
   const queryClient = useQueryClient();
-  const selector = useRef<View>(null);
+  const selector = useRef<ViewInstance>(null);
   const [anchor, setAnchor] = useState<DropdownAnchor>({
     x: 20,
     y: 100,

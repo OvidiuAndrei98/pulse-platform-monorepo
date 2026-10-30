@@ -1,3 +1,4 @@
+import type { ViewInstance } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useRef, useState } from 'react';
@@ -23,7 +24,7 @@ import { formatDate } from '../data/events';
 
 export function NotificationsPopover() {
   const { copy, language } = usePreferences(), query = useNotifications(), navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
-  const anchor = useRef<View>(null), [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const anchor = useRef<ViewInstance>(null), [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const viewport = useWindowDimensions(), insets = useSafeAreaInsets();
   const width = Math.min(380, viewport.width - 32);
   const webOpacity = useSharedValue(0);
