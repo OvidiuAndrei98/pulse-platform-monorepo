@@ -1,13 +1,13 @@
 "use client";
-import { useId, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { calendarCells, productToday, selectCalendarDay, shiftCalendarDay } from '../discoveryFilters';
 import s from './discoveryToolbar.module.css';
 
 export function DiscoveryCalendar({from='',to='',onChange}:{from?:string;to?:string;onChange:(from:string,to:string)=>void}) {
-  const {t,i18n}=useTranslation(),id=useId(),locale=i18n.language.startsWith('ro')?'ro-RO':'en-GB';
-  const [range,setRange]=useState(!!from&&from!==to),[month,setMonth]=useState((from||productToday()).slice(0,7)+'-01');
+  const {t,i18n}=useTranslation(),locale=i18n.language.startsWith('ro')?'ro-RO':'en-GB';
+  const [month,setMonth]=useState((from||productToday()).slice(0,7)+'-01');
   const [focused,setFocused]=useState(from||productToday()),buttons=useRef(new Map<string,HTMLButtonElement>());
   const today=productToday(),cells=calendarCells(month),date=(day:string)=>new Date(day+'T12:00:00Z');
   const moveMonth=(by:number)=>{const value=date(month);value.setUTCMonth(value.getUTCMonth()+by);setMonth(value.toISOString().slice(0,10));};
@@ -20,9 +20,7 @@ export function DiscoveryCalendar({from='',to='',onChange}:{from?:string;to?:str
     requestAnimationFrame(()=>buttons.current.get(target)?.focus());
   };
   return <div className={s.calendar} data-testid="discovery-calendar">
-    <fieldset className={s.modes}><legend className="sr-only">{t('filters.when')}</legend>
-      {[false,true].map(mode=><label key={String(mode)}><input type="radio" name={id} checked={range===mode} onChange={()=>{setRange(mode);onChange(from,mode?'':from);}}/>{t(mode?'filters.dateRange':'filters.singleDay')}</label>)}
-    </fieldset>
+    <p className={s.hint}>{t('filters.rangeHint')}</p>
     <div className={s.month}>
       <button type="button" aria-label={t('filters.previousMonth')} onClick={()=>moveMonth(-1)}><ChevronLeft aria-hidden size={16}/></button>
       <span aria-live="polite">{new Intl.DateTimeFormat(locale,{month:'long',year:'numeric',timeZone:'UTC'}).format(date(month))}</span>
@@ -35,9 +33,9 @@ export function DiscoveryCalendar({from='',to='',onChange}:{from?:string;to?:str
         aria-label={new Intl.DateTimeFormat(locale,{dateStyle:'full',timeZone:'UTC'}).format(date(day))}
         aria-pressed={!!from&&day>=from&&day<=(to||from)} data-selected={day===from||day===to} data-range={!!from&&!!to&&day>from&&day<to}
         data-muted={day.slice(0,7)!==month.slice(0,7)} aria-current={day===today?'date':undefined}
-        onFocus={()=>setFocused(day)} onKeyDown={event=>keyboard(event,day)} onClick={()=>{const value=selectCalendarDay(from,to,day,range);onChange(value.dateFrom,value.dateTo);}}>{Number(day.slice(-2))}</button>)}
+        onFocus={()=>setFocused(day)} onKeyDown={event=>keyboard(event,day)} onClick={()=>{const value=selectCalendarDay(from,to,day,true);onChange(value.dateFrom,value.dateTo);}}>{Number(day.slice(-2))}</button>)}
     </div>
-    <p className={s.hint}>{range&&from&&!to?t('filters.chooseRangeEnd'):t('filters.calendarHint')}</p>
+    <p className={s.hint} role="status">{from&&!to?t('filters.chooseRangeEnd'):to?t('filters.rangeSelected'):t('filters.calendarHint')}</p>
     <button type="button" className={s.clearDate} onClick={()=>onChange('','')}>{t('filters.clearDates')}</button>
   </div>;
 }

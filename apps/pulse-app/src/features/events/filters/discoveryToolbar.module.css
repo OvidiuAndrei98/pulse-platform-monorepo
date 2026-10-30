@@ -6,9 +6,7 @@
 .search:focus-within { outline:2px solid var(--foreground); outline-offset:2px; }
 .search button { display:grid; place-items:center; flex-shrink:0; min-width:36px; min-height:36px; border-radius:50%; }
 .searchToggle,.compactModes { display:none; }
-.city { display:flex; align-items:center; gap:8px; padding-inline:14px; min-width:150px; max-width:200px; }
-.city select { appearance:none; width:100%; min-width:0; background:transparent; color:var(--foreground); font-size:14px; padding-block:10px; }
-.city option { background:#191919; }
+.city { min-width:150px; max-width:200px; }
 .dateButton { display:flex; align-items:center; justify-content:center; gap:8px; padding:10px 16px; max-width:300px; font-size:14px; }
 .dateButton span { overflow-wrap:anywhere; }
 .dialog { position:fixed; margin:0; inset:88px auto auto 50%; transform:translateX(-50%); width:min(340px,calc(100% - 24px)); max-height:calc(100dvh - 110px); overflow-y:auto; overscroll-behavior:contain; padding:16px; border:1px solid #ffffff26; border-radius:16px; background:#171719; color:var(--foreground); box-shadow:0 20px 46px #0008; }
@@ -16,9 +14,6 @@
 .dialogHeader { display:flex; align-items:center; justify-content:space-between; gap:12px; font-weight:600; margin-bottom:12px; }
 .dialogHeader button { min-width:44px; min-height:44px; display:grid; place-items:center; border-radius:50%; }
 .calendar { min-width:0; }
-.modes { display:flex; flex-wrap:wrap; gap:12px; font-size:14px; padding-block:8px 16px; }
-.modes label { display:flex; align-items:center; gap:6px; min-height:32px; }
-.modes input { accent-color:var(--primary); }
 .month { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:14px; font-weight:600; }
 .month button { min-height:36px; min-width:36px; display:grid; place-items:center; border-radius:50%; border:1px solid #ffffff26; }
 .days { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:2px; margin-top:12px; }

@@ -59,6 +59,29 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
   })()`);
   assert.ok(focusContrast>=3,'Keyboard focus outline contrasts at least 3:1 with the card');
   await capture((next?'next-':'')+'map-mobile-carousel');
+  // Tapping the visible neighbor selects and brings it into view, never opens it.
+  const neighbor=await evaluate(`(()=>{const r=document.querySelector('[data-testid="${second}"]').getBoundingClientRect();return{x:r.left+Math.min(20,(innerWidth-r.left)/2),y:r.top+r.height/2};})()`);
+  await call('Input.dispatchMouseEvent',{type:'mousePressed',...neighbor,button:'left',clickCount:1});await call('Input.dispatchMouseEvent',{type:'mouseReleased',...neighbor,button:'left',clickCount:1});
+  await until(`(()=>{const r=document.querySelector('[data-testid="${second}"]').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth;})()`);
+  assert.equal(await evaluate(`!!document.querySelector('[data-testid="event-sheet"]')||!!document.querySelector('dialog[open],[aria-modal="true"]')`),false,'Neighbor tap selects without opening details');
+  await evaluate(`document.querySelector('[data-testid="${first}"]').click()`);await delay(600);
+  await click('map-carousel-toggle');await delay(150);
+  assert.equal(await evaluate(`document.querySelector('[data-testid="map-carousel-toggle"]').getAttribute('aria-expanded')`),'false');
+  assert.equal(await evaluate(`(()=>{const r=document.querySelector('[data-testid="map-events-carousel"]')?.getBoundingClientRect();return !!r&&r.height>0;})()`),false,'Cards can be hidden');
+  assert.ok(await evaluate(`document.querySelector('.maplibregl-ctrl-attrib').getBoundingClientRect().bottom<=document.querySelector('[data-testid="map-carousel-toggle"]').getBoundingClientRect().top-4`),'Attribution stays visible above the collapsed tray');
+  await capture((next?'next-':'')+'map-collapsed-tray');
+  await click('map-carousel-toggle');await delay(350);
+  // A downward gesture starts near the card bottom and ends outside the tray.
+  await call('Emulation.setTouchEmulationEnabled',{enabled:true});
+  const drag=await evaluate(`(()=>{const r=document.querySelector('[data-testid="${first}"]').getBoundingClientRect();return{x:r.left+70,y:r.bottom-14};})()`);
+  await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...drag,id:1}]});
+  for(let step=1;step<=8;step++){await call('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:drag.x,y:drag.y+step*8,id:1}]});await delay(16);}
+  await call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await until(`document.querySelector('[data-testid="map-carousel-toggle"]')?.getAttribute('aria-expanded')==='false'`);
+  assert.equal(await evaluate(`!!document.querySelector('[data-testid="event-sheet"]')||!!document.querySelector('dialog[open],[aria-modal="true"]')`),false,'Drag-to-hide does not activate a card');
+  await delay(300);await evaluate(`document.querySelector('[data-testid="map-pin-00000000-0000-4000-8000-000000000001"]').click()`);
+  await until(`document.querySelector('[data-testid="map-carousel-toggle"]')?.getAttribute('aria-expanded')==='true'`);
+  await delay(400);
   await call('Emulation.setTouchEmulationEnabled',{enabled:true});
   const touch=await evaluate(`{const r=document.querySelector('[data-testid="${first}"]').getBoundingClientRect();({x:r.left+r.width*.75,y:r.top+r.height*.5})}`);
   await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...touch,id:1}]});

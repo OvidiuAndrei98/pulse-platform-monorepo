@@ -1,97 +1,76 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, type LucideIcon } from "lucide-react";
+import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { Check, ChevronDown, type LucideIcon } from 'lucide-react';
+import { useBackLayer } from '@/lib/navigation/useBackLayer';
+import s from './themedSelect.module.css';
 
-export type ThemedSelectOption = {
-  value: string;
-  label: string;
-};
+export type ThemedSelectOption = { value:string; label:string };
 
-export function ThemedSelect({
-  value,
-  onChange,
-  options,
-  placeholder,
-  icon: Icon,
-  id, invalid, describedBy,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: ThemedSelectOption[];
-  placeholder: string;
-  icon?: LucideIcon;
-  id?: string;
-  invalid?: boolean;
-  describedBy?: string;
+// Shared select surface. Popover escapes scrolling dialogs without moving the
+// menu outside their focus scope. Older browsers use the same menu in flow.
+export function ThemedSelect({value,onChange,options,placeholder,icon:Icon,id,invalid,describedBy,disabled=false,label,name,testId,variant='field'}:{
+  value:string;onChange:(value:string)=>void;options:ThemedSelectOption[];placeholder:string;icon?:LucideIcon;
+  id?:string;invalid?:boolean;describedBy?:string;disabled?:boolean;label?:string;name?:string;testId?:string;variant?:'field'|'toolbar';
 }) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const selected = options.find((option) => option.value === value);
-
-  useEffect(() => {
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+  const uid=useId(),listId=uid+'-options',button=useRef<HTMLButtonElement>(null),root=useRef<HTMLDivElement>(null),menu=useRef<HTMLDivElement>(null);
+  const [open,setOpen]=useState(false),[active,setActive]=useState(0),[position,setPosition]=useState<React.CSSProperties>({});
+  const typeahead=useRef({text:'',at:0}),selected=options.find(option=>option.value===value);
+  const close=(restore=true)=>{setOpen(false);if(restore)button.current?.focus();};
+  useBackLayer(open,()=>close());
+  const show=()=>{if(disabled||!options.length)return;setActive(Math.max(0,options.findIndex(option=>option.value===value)));setOpen(true);};
+  const select=(index:number)=>{const option=options[index];if(option&&!disabled)onChange(option.value);close();};
+  useLayoutEffect(()=>{
+    if(!open)return;
+    const node=menu.current,trigger=button.current;if(!node||!trigger)return;
+    const floating=typeof node.showPopover==='function';
+    const place=()=>{
+      if(!floating){setPosition({position:'relative',width:'100%',marginTop:8});return;}
+      const r=trigger.getBoundingClientRect(),v=window.visualViewport;
+      const left=v?.offsetLeft??0,top=v?.offsetTop??0,width=v?.width??innerWidth,height=v?.height??innerHeight;
+      const below=top+height-r.bottom-20,above=r.top-top-20,down=below>=Math.min(240,options.length*40+14)||below>=above;
+      const maxHeight=Math.max(24,Math.min(240,down?below:above)),menuWidth=Math.min(width-24,Math.max(r.width,180));
+      const actualHeight=Math.min(maxHeight,node.scrollHeight||options.length*40+14);
+      setPosition({position:'fixed',width:menuWidth,maxHeight,left:Math.max(left+12,Math.min(r.left,left+width-menuWidth-12)),top:down?r.bottom+8:Math.max(top+12,r.top-8-actualHeight)});
     };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-
-    document.addEventListener("mousedown", closeOnOutsideClick);
-    window.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", closeOnOutsideClick);
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, []);
-
-  return (
-    <div ref={rootRef} className="relative">
-      <button
-        id={id}
-        aria-invalid={invalid}
-        aria-describedby={describedBy}
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-        className={`flex w-full items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 text-left text-sm outline-none transition focus:border-primary/30 focus:bg-white/[0.04] ${
-          selected ? "text-foreground" : "text-muted-foreground/40"
-        }`}
-      >
-        {Icon && <Icon className="h-4 w-4 shrink-0 text-primary" />}
-        <span className="min-w-0 flex-1 truncate">{selected?.label || placeholder}</span>
-        <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-
-      {open && (
-        <div
-          role="listbox"
-          aria-label={placeholder}
-          className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 max-h-60 overflow-y-auto rounded-2xl border border-white/15 bg-[#171717]/[0.98] p-1.5 shadow-[0_18px_38px_rgba(0,0,0,0.45)]"
-        >
-          {options.map((option) => {
-            const isSelected = option.value === value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                onClick={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                }}
-                className={`flex h-10 w-full items-center gap-2 rounded-xl px-3 text-left text-sm transition ${isSelected ? "bg-primary/15 text-primary" : "text-foreground hover:bg-white/[0.06]"}`}
-              >
-                {Icon && <Icon className="h-3.5 w-3.5" />}
-                <span className="flex-1">{option.label}</span>
-                {isSelected && <Check className="h-4 w-4" strokeWidth={2.5} />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+    if(!floating)node.removeAttribute('popover');
+    place();if(floating)node.showPopover();
+    const outside=(event:PointerEvent)=>{if(!root.current?.contains(event.target as Node))close(false);};
+    const dismiss=()=>close(false);
+    document.addEventListener('pointerdown',outside,true);window.addEventListener('resize',dismiss);window.addEventListener('scroll',place,true);
+    window.visualViewport?.addEventListener('resize',dismiss);
+    const observer=new ResizeObserver(place);observer.observe(node);
+    return()=>{document.removeEventListener('pointerdown',outside,true);window.removeEventListener('resize',dismiss);window.removeEventListener('scroll',place,true);window.visualViewport?.removeEventListener('resize',dismiss);observer.disconnect();if(floating&&node.matches(':popover-open'))node.hidePopover();};
+  },[open,options.length]);
+  useLayoutEffect(()=>{if(disabled||!options.length)setOpen(false);else setActive(index=>Math.min(index,options.length-1));},[disabled,options.length]);
+  useLayoutEffect(()=>{if(open)menu.current?.querySelector('[data-index="'+active+'"]')?.scrollIntoView({block:'nearest'});},[active,open]);
+  const keyboard=(event:React.KeyboardEvent<HTMLButtonElement>)=>{
+    if(disabled)return;
+    if(event.key==='Escape'&&open){event.preventDefault();event.stopPropagation();close();return;}
+    if(event.key==='Tab'){close(false);return;}
+    if(['ArrowDown','ArrowUp','Home','End','Enter',' '].includes(event.key)){
+      event.preventDefault();if(!open){show();return;}
+      if(event.key==='Enter'||event.key===' '){select(active);return;}
+      setActive(index=>event.key==='Home'?0:event.key==='End'?options.length-1:Math.max(0,Math.min(options.length-1,index+(event.key==='ArrowDown'?1:-1))));return;
+    }
+    if(event.key.length===1&&!event.ctrlKey&&!event.metaKey&&!event.altKey){
+      const now=Date.now(),text=(now-typeahead.current.at<650?typeahead.current.text:'')+event.key.toLocaleLowerCase();typeahead.current={text,at:now};
+      const index=options.findIndex(option=>option.label.toLocaleLowerCase().startsWith(text));
+      if(index>=0){event.preventDefault();if(!open)show();setActive(index);}
+    }
+  };
+  return <div ref={root} className={s.root} data-variant={variant}>
+    {name&&<input type="hidden" name={name} value={value} disabled={disabled||!options.length}/>}
+    <button ref={button} id={id} type="button" role="combobox" data-testid={testId} className={s.trigger}
+      aria-label={label??placeholder} aria-invalid={invalid} aria-describedby={describedBy} disabled={disabled||!options.length}
+      aria-haspopup="listbox" aria-expanded={open} aria-controls={open?listId:undefined} aria-activedescendant={open?uid+'-'+active:undefined}
+      onKeyDown={keyboard} onClick={()=>open?close():show()}>
+      {Icon&&<Icon aria-hidden className={s.icon}/>}<span className={s.value}>{selected?.label||placeholder}</span><ChevronDown aria-hidden className={s.chevron} data-open={open}/>
+    </button>
+    {open&&<div ref={menu} id={listId} popover="manual" role="listbox" aria-label={label??placeholder} className={s.menu} style={position} data-testid={testId?testId+'-options':undefined}>
+      {options.map((option,index)=><div id={uid+'-'+index} key={option.value} role="option" aria-selected={value===option.value} data-index={index} data-active={active===index}
+        className={s.option} onPointerMove={()=>setActive(index)} onClick={event=>{event.preventDefault();select(index);}}>
+        <span>{option.label}</span>{value===option.value&&<Check aria-hidden size={16}/>}</div>)}
+    </div>}
+  </div>;
 }

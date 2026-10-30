@@ -257,7 +257,7 @@ export function DashboardDropdown({
                     style={{
                       flex: 1,
                       fontSize: 14,
-                      color: option.value === value ? "#ff0044" : "#f7faf2",
+                      color: "#f7faf2",
                     }}
                   >
                     {option.label}

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
+import { ThemedSelect } from '@/features/events/form/ThemedSelect';
 import { Building2, ArrowRight, ArrowLeft, Search } from 'lucide-react';
 import { ApiClient } from '@packages/api-client/src/Client';
 import { useDataProvider } from '@/core/DataProviderContext';
@@ -34,7 +35,7 @@ function Directory() {
   return <div className="space-y-6"><header className="space-y-3"><p className="text-xs font-semibold uppercase tracking-widest text-primary">SPOTTR Admin</p><h1 tabIndex={-1} className="text-3xl font-bold tracking-tight">{ro ? 'Organizatori' : 'Organizers'}</h1><p className="text-sm leading-relaxed text-muted-foreground">{ro ? 'Firme, verificări, conturi Stripe și setări comerciale.' : 'Companies, verification, Stripe accounts and commercial settings.'}</p></header>
     <form onSubmit={event => { event.preventDefault(); setSearch(draft.trim()); setCursors(['']); }} className={card + ' grid gap-4 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-end'}>
       <label className="grid min-w-0 gap-2 text-sm font-medium">{ro ? 'Caută organizator' : 'Search organizers'}<input className={input} name="organizer-search" maxLength={100} value={draft} onChange={event => setDraft(event.target.value)} placeholder={ro ? 'Firmă, CUI sau email' : 'Company, tax ID or email'} /></label>
-      <label className="grid gap-2 text-sm font-medium">{ro ? 'Verificare' : 'Verification'}<select className={input} value={status} onChange={event => { setStatus(event.target.value); setCursors(['']); }}>{['all','pending','approved','rejected'].map(value => <option key={value} value={value}>{statusLabel(value,ro)}</option>)}</select></label>
+      <label className="grid gap-2 text-sm font-medium">{ro ? 'Verificare' : 'Verification'}<ThemedSelect label={ro?'Verificare':'Verification'} value={status} onChange={value=>{setStatus(value);setCursors(['']);}} placeholder={ro?'Toate':'All'} options={['all','pending','approved','rejected'].map(value=>({value,label:statusLabel(value,ro)}))}/></label>
       <button className={button}><Search aria-hidden="true" className="size-4" />{ro ? 'Caută' : 'Search'}</button>
     </form>
     {query.busy ? <p role="status">{ro ? 'Se încarcă organizatorii…' : 'Loading organizers…'}</p> : query.failed ? <Failure ro={ro} retry={query.reload} /> : query.data && <>

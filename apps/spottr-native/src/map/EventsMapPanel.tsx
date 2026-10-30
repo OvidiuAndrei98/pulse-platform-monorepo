@@ -1,51 +1,39 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Linking, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import * as Location from 'expo-location';
 import { Clock, LocateFixed, Minus, Plus, X } from 'lucide-react-native';
 import { EventMap } from './EventMap';
 import { DEFAULT_CENTER, validCoordinate, zoomForDistance, type Coordinate, type Point } from './geometry';
-import { formatDate, isLive, type Event } from '../data/events';
+import { isLive, type Event } from '../data/events';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
 import { EventImage, Feedback } from '../ui/common';
 import { usePreferences } from '../PreferencesProvider';
 import { formatEventTime } from '../../../pulse-app/src/features/events/dateFormat';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MapEventsCarousel } from './MapEventsCarousel';
 
 export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, error, retry,toolbarHeight=44,onLocationChange }: { events: Event[]; cityCenter?: Coordinate | null; distance: number; onOpen: (event: Event) => void; loading: boolean; error: boolean; retry: () => void;toolbarHeight?:number;onLocationChange?:(coordinate:readonly[number,number])=>void }) {
-  const { copy, language } = usePreferences(), [location, setLocation] = useState<Coordinate | null>(null);
+  const { copy } = usePreferences(), [location, setLocation] = useState<Coordinate | null>(null);
   const [camera, setCamera] = useState({ center: cityCenter ?? DEFAULT_CENTER, zoom: 12 });
   const [selected, setSelected] = useState<string | null>(null), [point, setPoint] = useState<Point | null>(null), [previewHeight, setPreviewHeight] = useState(150);
   const [locating, setLocating] = useState(false), [locationError, setLocationError] = useState('');
   const viewport = useRef(camera), generation = useRef(0), pending = useRef(false);
   const dimensions = useWindowDimensions(), [width, setWidth] = useState(dimensions.width);
-  const rail = useRef<FlatList<Event>>(null);
-  const [railHeight,setRailHeight]=useState(140);
-  const [focusedCard,setFocusedCard]=useState<string|null>(null);
+  const [railHeight,setRailHeight]=useState(148),[collapsed,setCollapsed]=useState(false);
   const [focus,setFocus]=useState<{id:string;revision:number}|null>(null);
-  const scrollTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const mapEvents = useMemo(() => events.filter(event => validCoordinate(event as Coordinate)), [events]);
   const carousel = Platform.OS !== 'web' || dimensions.width < 768;
   const activeId = mapEvents.some(event => event.id === selected) ? selected : mapEvents[0]?.id ?? null;
-  const cardWidth = Math.min(360, Math.max(240, width - 72));
   const inset = useSafeAreaInsets(), controlTop = Math.max(24, inset.top)+toolbarHeight+12;
   const bottom = (Platform.OS === 'ios' ? 108 : 104) + inset.bottom;
   const choose = (id: string, focusMap = false) => {
     setSelected(id);
     if(focusMap)setFocus(current=>({id,revision:(current?.revision??0)+1}));
   };
-  const settle = (offset: number) => {
-    const index=Math.max(0,Math.min(mapEvents.length-1,Math.round(offset/(cardWidth+12))));
-    const event=mapEvents[index];if(event&&event.id!==activeId)choose(event.id,true);
-  };
-  useEffect(()=>{if(scrollTimer.current)clearTimeout(scrollTimer.current);return()=>{if(scrollTimer.current)clearTimeout(scrollTimer.current);};},[activeId]);
   useEffect(() => {
     if (selected && !mapEvents.some(event => event.id === selected)) setSelected(null);
   }, [mapEvents, selected]);
-  useEffect(() => {
-    const index = mapEvents.findIndex(event => event.id === activeId);
-    if (carousel && index >= 0) rail.current?.scrollToIndex({index, animated:false});
-  }, [activeId, cardWidth, carousel, mapEvents]);
   useEffect(() => () => { generation.current++; pending.current = false; }, []);
   useEffect(() => { setCamera({ center: cityCenter ?? location ?? DEFAULT_CENTER, zoom: zoomForDistance(distance) }); }, [cityCenter?.latitude, cityCenter?.longitude, distance]);
   const locate = async () => {
@@ -76,7 +64,7 @@ export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, 
   const event = events.find(row => row.id === selected), previewWidth = Math.min(width - 32, width >= 768 ? 320 : 304);
   return <View testID="events-map-panel" onLayout={e => setWidth(e.nativeEvent.layout.width)} style={{ flex: 1, overflow: 'hidden', backgroundColor: '#030604' }}>
     <EventMap events={mapEvents} center={camera.center} zoom={camera.zoom} location={location} selected={carousel ? activeId : selected}
-      onSelect={id => { setSelected(id); setPoint(null); }}
+      onSelect={id => { setSelected(id); setPoint(null);setCollapsed(false); }}
       onViewport={(center, zoom) => { viewport.current = { center, zoom }; }}
       onSelectedPoint={carousel ? () => {} : setPoint}
       attributionBottom={carousel?bottom+(mapEvents.length?railHeight:0)+8:0} focus={focus} />
@@ -103,28 +91,7 @@ export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, 
       <Pressable accessibilityRole="button" testID="map-open-event" onPress={() => onOpen(event)} style={s.open}><Text style={{ color: 'white', fontSize: 12, fontWeight: '600' }}>{copy('events.viewEvent')}</Text></Pressable>
       <View pointerEvents="none" style={s.tip}/>
     </View>}
-    {carousel && mapEvents.length > 0 && <View testID="map-events-carousel" pointerEvents="box-none" onLayout={event=>setRailHeight(event.nativeEvent.layout.height)} style={{position:'absolute',left:0,right:0,bottom}}>
-      <FlatList ref={rail} horizontal data={mapEvents} keyExtractor={event => event.id}
-        showsHorizontalScrollIndicator={false} contentContainerStyle={{paddingLeft:Math.max(16,inset.left),paddingRight:Math.max(16,inset.right),gap:12}}
-        snapToInterval={cardWidth+12} decelerationRate="fast" keyboardShouldPersistTaps="handled"
-        getItemLayout={(_,index)=>({length:cardWidth+12,offset:(cardWidth+12)*index,index})}
-        scrollEventThrottle={32}
-        onScroll={event=>{const offset=event.nativeEvent.contentOffset.x;if(scrollTimer.current)clearTimeout(scrollTimer.current);scrollTimer.current=setTimeout(()=>{scrollTimer.current=null;settle(offset);},140);}}
-        onMomentumScrollEnd={event=>{if(scrollTimer.current)clearTimeout(scrollTimer.current);scrollTimer.current=null;settle(event.nativeEvent.contentOffset.x);}}
-        renderItem={({item})=><Pressable testID={'map-event-card-'+item.id} accessibilityRole="button"
-          accessibilityLabel={`${copy('events.viewEvent')}: ${item.title}. ${formatDate(item.startTime,language,true)}. ${item.locationName||item.city||''}`}
-          accessibilityState={{selected:item.id===activeId}} onPress={()=>{choose(item.id,true);onOpen(item);}}
-          onFocus={Platform.OS==='web'?()=>setFocusedCard(item.id):undefined} onBlur={()=>setFocusedCard(null)}
-          style={[s.carouselCard,{width:cardWidth,borderColor:item.id===activeId?colors.accent:colors.line},Platform.OS==='web'&&focusedCard===item.id&&s.cardFocus]}>
-          <View style={{flex:1,minWidth:0,gap:4}}>
-            <Text numberOfLines={2} style={{color:colors.text,fontSize:18,lineHeight:22,fontWeight:'700'}}>{item.title}</Text>
-            <Text numberOfLines={1} style={{color:colors.text,fontSize:12,lineHeight:18}}>{formatDate(item.startTime,language,true)}</Text>
-            <Text numberOfLines={1} style={{color:colors.muted,fontSize:12,lineHeight:18}}>{item.locationName||item.city}</Text>
-            <Text style={{color:colors.accent,fontSize:12,lineHeight:18,fontWeight:'600'}}>{copy('events.viewEvent')} →</Text>
-          </View>
-          <EventImage uri={item.bannerUrl} style={{width:72,height:104,borderRadius:12}} />
-        </Pressable>} />
-    </View>}
+    {carousel && mapEvents.length > 0 && <MapEventsCarousel events={mapEvents} activeId={activeId} width={width} bottom={bottom} insetLeft={inset.left} insetRight={inset.right} collapsed={collapsed} onCollapsed={setCollapsed} onSelect={choose} onOpen={onOpen} onHeight={setRailHeight}/>}
     {Platform.OS !== 'web' && <View style={{position:'absolute',right:4,left:36,bottom:carousel&&mapEvents.length?bottom+railHeight+8:bottom+8,flexDirection:'row',justifyContent:'flex-end',flexWrap:'wrap',backgroundColor:'#101012ed'}}>
       {[
         ['OpenFreeMap','https://openfreemap.org/'],
@@ -137,8 +104,6 @@ export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, 
 }
 const s = StyleSheet.create({
   control: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#121418ed', borderWidth: 1, borderColor: '#ffffff26', alignItems: 'center', justifyContent: 'center' },
-  carouselCard:{minHeight:140,padding:12,borderRadius:16,borderWidth:1,backgroundColor:'#19191cf5',flexDirection:'row',alignItems:'center',gap:12},
-  cardFocus:{outlineColor:'#fff',outlineWidth:2,outlineOffset:-4,outlineStyle:'solid'},
   preview: { position: 'absolute', padding: 12, borderRadius: 12, backgroundColor: '#121418f2', borderWidth: 1, borderColor: '#ffffff1a', boxShadow: '0 8px 32px rgba(0,0,0,.5)' },
   close: { position: 'absolute', top: 12, right: 12, zIndex: 2, width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: '#ffffff1a', backgroundColor: '#ffffff26', alignItems: 'center', justifyContent: 'center' },
   badge: { color: '#e4e4e7', fontSize: 10, fontWeight: '600', paddingHorizontal: 10, paddingVertical: 5, height: 24, borderRadius: 12, borderWidth: 1, borderColor: '#ffffff1a', backgroundColor: '#ffffff26' },

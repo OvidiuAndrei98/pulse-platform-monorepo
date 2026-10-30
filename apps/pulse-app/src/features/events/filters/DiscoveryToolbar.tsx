@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, ChevronDown, List, Map as MapIcon, MapPin, Search, X } from 'lucide-react';
+import { CalendarDays, List, Map as MapIcon, MapPin, Search, X } from 'lucide-react';
+import { ThemedSelect } from '../form/ThemedSelect';
 import { useTranslation } from 'react-i18next';
 import { EventViewToggle } from '../components/EventViewToggle';
 import { FiltersSheet } from '@/components/FiltersSheet';
@@ -30,7 +31,7 @@ export function DiscoveryToolbar({filters,onChange,view,onViewChange,distanceRea
       <button type="button" aria-label={t('filters.closeSearch')} onClick={closeSearch}><X size={16}/></button>
     </div>
     <button ref={dateTrigger} type="button" data-testid="discovery-calendar-toggle" className={`${s.pill} ${s.dateButton}`} aria-haspopup="dialog" onClick={()=>{setDraft(filters);setError('');setCalendarOpen(true);}}><CalendarDays size={16} className="shrink-0 text-primary"/><span>{label}</span></button>
-    <label className={`${s.pill} ${s.city}`}><MapPin size={16} aria-hidden className="shrink-0 text-primary"/><span className="sr-only">{t('filters.city')}</span><select data-testid="discovery-city" value={filters.city} onChange={event=>onChange({...filters,city:event.target.value})}><option value="">{t('filters.allCities')}</option>{eventCities.map(city=><option key={city}>{city}</option>)}</select><ChevronDown aria-hidden size={14} className="shrink-0"/></label>
+    <div className={s.city}><ThemedSelect label={t('filters.city')} testId="discovery-city" variant="toolbar" icon={MapPin} placeholder={t('filters.allCities')} value={filters.city} onChange={city=>onChange({...filters,city})} options={[{value:'',label:t('filters.allCities')},...eventCities.map(city=>({value:city,label:city}))]}/></div>
     <FiltersSheet value={filters} onChange={onChange} desktopCompact distanceReady={distanceReady}/>
     <dialog ref={dialog} className={s.dialog} onCancel={event=>{event.preventDefault();setCalendarOpen(false);}} onClick={event=>{const r=event.currentTarget.getBoundingClientRect();if(event.target===event.currentTarget&&(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom))setCalendarOpen(false);}} aria-label={t('filters.calendar')}>
       {calendarOpen&&<><div className={s.dialogHeader}><h2>{t('filters.calendar')}</h2><button type="button" aria-label={t('common.close')} onClick={()=>setCalendarOpen(false)}><X size={18}/></button></div>

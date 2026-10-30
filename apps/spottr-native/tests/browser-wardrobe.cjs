@@ -409,7 +409,7 @@ withBrowser(
     assert.equal(await evaluate(`window.__wardrobeQA.writes.filter(w=>w.body.action==='reserve').length`),0,'Scanning alone never reserves belongings');
     await evaluate(`document.querySelector('[aria-label="+ Coats"]').click();document.querySelector('[aria-label="+ Bags"]').click();window.__wardrobeQA.qr=''`);
     await textClick("Continue");
-    if(next){await until(`document.querySelector('select')`);await evaluate(`{const el=document.querySelector('select');el.value='00000000-0000-4000-8000-000000000002';el.dispatchEvent(new Event('change',{bubbles:true}));}`);}
+    if(next){await until(`document.querySelector('[role="combobox"][aria-label="Desk zone"]')`);await evaluate(`document.querySelector('[role="combobox"][aria-label="Desk zone"]').click()`);await until(`document.querySelector('[role="option"]')`);await evaluate(`Array.from(document.querySelectorAll('[role="option"]')).find(el=>el.textContent.startsWith('Desk A ·')).click()`);}
     else{await until(`document.querySelector('[aria-label="Desk zone"]')`);await evaluate(`document.querySelector('[aria-label="Desk zone"]').click()`);await until(`Array.from(document.querySelectorAll('[role="button"]')).find(e=>e.textContent.startsWith('Desk A ·')&&e.getBoundingClientRect().width>0)`);await evaluate(`Array.from(document.querySelectorAll('[role="button"]')).find(e=>e.textContent.startsWith('Desk A ·')&&e.getBoundingClientRect().width>0).click()`);}
     await textClick("Reserve storage");await until(`document.querySelector('[data-testid="wardrobe-selected"]')`);
     await evaluate(`document.querySelector('[data-testid="wardrobe-back-events"]').click()`);
@@ -510,7 +510,7 @@ withBrowser(
       `Array.from(document.querySelectorAll('[data-testid="wardrobe-record"]')).find(e=>e.innerText.includes('A001')).click()`,
     );
     await textClick("Other operations");
-    if(next)assert.equal(await evaluate(`document.querySelector('[data-testid="wardrobe-selected"] select').value`),'','An advanced operation must not visually select the first zone before the operator chooses');
+    if(next)assert.equal(await evaluate(`document.querySelector('[data-testid="wardrobe-selected"] [name="wardrobe-move-zone"]').value`),'','An advanced operation must not visually select the first zone before the operator chooses');
     await textClick("Assisted recovery");
     await fill(
       "How did you verify the right to collect?",

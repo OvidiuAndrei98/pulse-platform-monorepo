@@ -44,6 +44,7 @@ import { useDebouncedDiscoverySearch } from '../../../pulse-app/src/features/eve
 import { activeDiscoveryStart, eventMatchesSearch, eventWithinDistance } from '../../../pulse-app/src/features/events/discoveryFilters';
 import { DiscoveryToolbar } from './DiscoveryToolbar';
 import { DiscoveryCalendar } from './DiscoveryCalendar';
+import { DashboardDropdown } from '../dashboard/DashboardDropdown';
 import {
   defaultEventFilters,
   cityCenters,
@@ -67,14 +68,13 @@ export function DiscoveryScreen() {
     useRoute<BottomTabScreenProps<TabsParamList, "Explore">["route"]>();
   const [filters, setFilters] = useState(defaultEventFilters),
     [draft, setDraft] = useState(defaultEventFilters),
-    [open, setOpen] = useState(false),
-    [cityOpen, setCityOpen] = useState(false);
+    [open, setOpen] = useState(false);
   const [view, setView] = useState<'list' | 'map'>('list');
   const wide=useWindowDimensions().width>=1024&&Platform.OS==='web';
-  const [panel,setPanel]=useState<'all'|'more'|'date'|'city'>('all'),[filterError,setFilterError]=useState(''),[toolbarHeight,setToolbarHeight]=useState(44);
+  const [panel,setPanel]=useState<'all'|'more'|'date'>('all'),[filterError,setFilterError]=useState(''),[toolbarHeight,setToolbarHeight]=useState(44);
   const [userLocation,setUserLocation]=useState<readonly[number,number]|null>(null);
   const search=useDebouncedDiscoverySearch(filters.q);
-  const openPanel=(kind:typeof panel)=>{Keyboard.dismiss();setDraft(filters);setPanel(kind);setCityOpen(kind==='city');setFilterError('');setOpen(true);};
+  const openPanel=(kind:typeof panel)=>{Keyboard.dismiss();setDraft(filters);setPanel(kind);setFilterError('');setOpen(true);};
   const list = useRef<FlatList<Event>>(null);
   useScrollToTop(list);
   useEffect(() => {
@@ -127,7 +127,7 @@ export function DiscoveryScreen() {
           ...(view === 'map' ? { position: 'absolute', left: 0, right: 0, top: Math.max(24, insets.top), zIndex: 10 } as const : {}),
         }}
       >
-        <DiscoveryToolbar filters={filters} onChange={setFilters} view={view} onViewChange={setView} onFilters={()=>openPanel(wide?'more':'all')} onCalendar={()=>openPanel('date')} onCity={()=>openPanel('city')} onHeight={setToolbarHeight}/>
+        <DiscoveryToolbar filters={filters} onChange={setFilters} view={view} onViewChange={setView} onFilters={()=>openPanel(wide?'more':'all')} onCalendar={()=>openPanel('date')} onHeight={setToolbarHeight}/>
       </View>
       {view === 'map' ? <EventsMapPanel events={mapEvents} toolbarHeight={toolbarHeight} onLocationChange={setUserLocation} distance={filters.distance} cityCenter={cityCenters[filters.city] ? { latitude: cityCenters[filters.city]![0], longitude: cityCenters[filters.city]![1] } : null} onOpen={event => { seedEvent(event); navigation.navigate('Event', { id: event.id }); }} loading={events.isFetching} error={events.isError} retry={() => void (events.isFetchNextPageError ? events.fetchNextPage() : events.refetch())} /> : <FlatList
         ref={list}
@@ -236,7 +236,7 @@ export function DiscoveryScreen() {
                     fontWeight: "600",
                   }}
                 >
-                  {copy(panel==='date'?'filters.calendar':panel==='city'?'filters.city':'filters.title')}
+                  {copy(panel==='date'?'filters.calendar':'filters.title')}
                 </Text>
               </View>
               <GlassPressable fallback={Pressable}
@@ -264,32 +264,7 @@ export function DiscoveryScreen() {
                 </View>
                 <View style={{marginTop:16}}><DiscoveryCalendar from={draft.dateFrom} to={draft.dateTo} onChange={(dateFrom,dateTo)=>{setDraft({...draft,date:dateFrom?'Custom':'See all',dateFrom,dateTo});setFilterError('');}}/></View>
               </Section>}
-              {(panel==='all'||panel==='city')&&<Section title={copy("filters.city")}>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => setCityOpen(!cityOpen)}
-                  style={s.city}
-                >
-                  <Text style={{ fontSize: 14, color: colors.text }}>
-                    {draft.city || copy("filters.allCities")} ▾
-                  </Text>
-                </Pressable>
-                {cityOpen && (
-                  <View style={{ gap: 8, paddingTop: 8 }}>
-                    {["", ...eventCities].map((city) => (
-                      <Chip
-                        key={city}
-                        label={city || copy("filters.allCities")}
-                        active={draft.city === city}
-                        onPress={() => {
-                          setDraft({ ...draft, city });
-                          setCityOpen(false);
-                        }}
-                      />
-                    ))}
-                  </View>
-                )}
-              </Section>}
+              {panel==='all'&&<DashboardDropdown label={copy('filters.city')} value={draft.city} onChange={city=>setDraft({...draft,city})} placeholder={copy('filters.allCities')} options={[{value:'',label:copy('filters.allCities')},...eventCities.map(city=>({value:city,label:city}))]}/>}
               {(panel==='all'||panel==='more')&&<><Section title={copy("filters.categories")}>
                 <View style={s.wrap}>
                   {categories.map((value) => (
@@ -349,7 +324,7 @@ export function DiscoveryScreen() {
               <Pressable
                 accessibilityRole="button"
                 style={s.reset}
-                onPress={() => {setFilterError('');setDraft(panel==='more'?{...draft,categories:[],vibes:[],distance:15}:panel==='date'?{...draft,date:'See all',dateFrom:'',dateTo:''}:panel==='city'?{...draft,city:''}:defaultEventFilters);}}
+                onPress={() => {setFilterError('');setDraft(panel==='more'?{...draft,categories:[],vibes:[],distance:15}:panel==='date'?{...draft,date:'See all',dateFrom:'',dateTo:''}:defaultEventFilters);}}
               >
                 <Text style={{ fontSize: 14, color: colors.text }}>
                   {copy("common.reset")}

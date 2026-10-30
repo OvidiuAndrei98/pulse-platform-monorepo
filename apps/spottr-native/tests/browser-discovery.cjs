@@ -35,12 +35,31 @@ withBrowser(async({base,call,evaluate,until,click,input,delay,capture,errors})=>
   assert.equal(await evaluate(`(()=>{const el=document.querySelector('[data-testid="discovery-search"]');return el?.value==='House'&&el.getBoundingClientRect().width>60;})()`),true,'Desktop-to-mobile keeps an active query visible');
   await clearSearch();assert.equal(await evaluate(`document.activeElement?.getAttribute('data-testid')`),'discovery-search-toggle','Mobile X restores the round trigger');
   await call('Emulation.setDeviceMetricsOverride',{width:1152,height:900,deviceScaleFactor:1,mobile:false});await delay(300);
-  if(next)await evaluate(`(()=>{const select=document.querySelector('[data-testid="discovery-city"]');select.value='Bucuresti';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
-  else{await click('discovery-city');await pressText('Bucuresti');await pressText('Apply filters');await delay(350);}
+  await click('discovery-city');
+  await until(next?`document.querySelector('[data-testid="discovery-city-options"]')`:`document.querySelector('[data-testid="discovery-city-options"]')`);
+  if(next)await evaluate(`(()=>{const option=[...document.querySelectorAll('[role="option"]')].find(el=>el.textContent.trim()==='Bucuresti');option.click();})()`);
+  else await pressText('Bucuresti');
+  await delay(350);
   await until(`window.__discovery.requests.some(q=>q.city==='Bucuresti')`);
+  const key=async(key,code=key,number=key.length===1?key.toUpperCase().charCodeAt(0):({Enter:13,ArrowDown:40,ArrowUp:38,Home:36,End:35,Escape:27,Tab:9}[key]||0))=>{await call('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode:number});await call('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:number});};
+  if(next){
+    await evaluate(`document.querySelector('[data-testid="discovery-city"]').focus()`);await key('ArrowDown');
+    await until(`document.querySelector('[role="listbox"]')`);await key('End');
+    assert.equal(await evaluate(`(()=>{const e=document.querySelector('[data-testid="discovery-city"]');return document.getElementById(e.getAttribute('aria-activedescendant')).textContent.trim();})()`),'Sibiu');
+    await key('Home');await key('ArrowDown');await key('Enter');
+    assert.equal(await evaluate(`document.activeElement?.getAttribute('data-testid')`),'discovery-city');
+    await key('Enter');for(const character of 'Cluj')await key(character);await key('Enter');
+    await until(`document.querySelector('[data-testid="discovery-city"]').textContent.includes('Cluj-Napoca')`);
+    await key('Enter');await key('Home');await key('ArrowDown');await key('Enter');
+    await key('Enter');await key('Escape');assert.equal(await evaluate(`document.querySelector('[data-testid="discovery-city"]').getAttribute('aria-expanded')`),'false');
+    await key('Enter');await key('Tab');assert.equal(await evaluate(`!!document.querySelector('[role="listbox"]')`),false,'Tab dismisses the custom menu');
+    await click('discovery-city');await click('discovery-search');assert.equal(await evaluate(`!!document.querySelector('[role="listbox"]')`),false,'Outside pointer dismisses the custom menu');
+  }
   await click('discovery-calendar-toggle');await until(`document.querySelector('[data-testid="discovery-calendar"]')`);
   const days=await evaluate(`[...document.querySelectorAll('[data-testid^="discovery-day-"]')].filter(el=>el.getAttribute('aria-disabled')!=='true'&&!el.disabled).map(el=>el.dataset.testid.slice(14)).slice(-5)`);
   const day=days[0];assert.match(day,/^\d{4}-\d{2}-\d{2}$/);
+  await click('discovery-day-'+day);
+  assert.equal(await evaluate(`document.querySelector('[data-testid="discovery-calendar"]')?.querySelectorAll('[role="radio"],input[type="radio"]').length`),0,'Calendar has no single/range mode selector');
   await click('discovery-day-'+day);
   if(next){const selected=await evaluate(`(()=>{const s=getComputedStyle(document.querySelector('[data-testid="discovery-day-${day}"]'));return{size:parseFloat(s.fontSize),weight:Number(s.fontWeight),color:s.color,background:s.backgroundColor};})()`);assert.ok(selected.size>=18.67&&selected.weight>=700);assert.equal(selected.color,'rgb(255, 255, 255)');}
   await pressText('Apply filters');await until(`window.__discovery.requests.some(q=>q.startsBefore&&q.startsAfter)`);
@@ -61,8 +80,14 @@ withBrowser(async({base,call,evaluate,until,click,input,delay,capture,errors})=>
   assert.equal(await evaluate(`document.activeElement?.getAttribute('data-testid')`),'discovery-search-toggle');
   if(next){for(let i=0;i<4;i++){await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});assert.equal(await evaluate(`!!document.activeElement?.closest('[inert]')`),false);}}
   await click('event-filters');await until(`(document.querySelector('dialog[open]')||document.querySelector('[aria-modal="true"]'))?.querySelector('[data-testid="discovery-calendar"]')`);
-  if(next)await evaluate(`document.querySelector('dialog[open] input[type="radio"]:not(:checked)').click()`);else await pressText('Date range');
   await pressText('Clear dates');
+  if(next){
+    const field=`document.querySelector('dialog[open] [role="combobox"][aria-label="City"]')`;
+    await evaluate(`${field}.focus()`);await key('Enter');await until(`document.querySelector('[role="listbox"]')`);
+    assert.equal(await evaluate(`(()=>{const r=document.querySelector('[role="listbox"]').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight;})()`),true,'Themed menu escapes dialog clipping and fits 320px');
+    await capture('next-discovery-mobile-dropdown');await key('Escape');
+    assert.equal(await evaluate(`!!document.querySelector('dialog[open]')`),true,'Escape closes only the nested select');
+  }
   await click('discovery-day-'+day);
   await pressText('Apply filters');await until(`document.querySelector('[role="alert"]')?.textContent.includes('last day')`);
   await delay(350);

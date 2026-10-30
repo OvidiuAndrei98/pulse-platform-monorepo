@@ -9,6 +9,7 @@ import {
 import { eventCategories } from "@/core/mappers";
 import { EventFilters } from "@/features/events/types";
 import { DiscoveryCalendar } from './DiscoveryCalendar';
+import { ThemedSelect } from '../form/ThemedSelect';
 
 const dateLabelKeys: Record<string, string> = {
   "See all": "filters.seeAll",
@@ -77,7 +78,7 @@ export function EventFiltersPanel({
           <DiscoveryCalendar from={filters.dateFrom} to={filters.dateTo} onChange={(dateFrom,dateTo)=>onChange({...filters,date:dateFrom?'Custom':'See all',dateFrom,dateTo})}/>
         </FilterSection>}
         {!compact && <FilterSection title={t("filters.city")}>
-          <label className="flex min-h-11 items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4"><MapPin aria-hidden className="h-4 w-4 shrink-0"/><span className="sr-only">{t('filters.city')}</span><select value={filters.city} onChange={event=>onChange({...filters,city:event.target.value})} className="min-w-0 flex-1 bg-transparent py-2 text-base text-white"><option className="bg-[#191919]" value="">{t('filters.allCities')}</option>{eventCities.map(city=><option className="bg-[#191919]" key={city}>{city}</option>)}</select></label>
+          <ThemedSelect label={t('filters.city')} value={filters.city} onChange={city=>onChange({...filters,city})} placeholder={t('filters.allCities')} icon={MapPin} options={[{value:'',label:t('filters.allCities')},...eventCities.map(city=>({value:city,label:city}))]}/>
         </FilterSection>}
         <FilterSection title={t("filters.categories")}>
           <div className="flex flex-wrap gap-2">

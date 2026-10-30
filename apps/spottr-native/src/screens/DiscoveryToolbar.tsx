@@ -1,22 +1,24 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, BackHandler, Easing, Keyboard, Platform, Pressable, TextInput, View, useWindowDimensions } from 'react-native';
+import { Animated, BackHandler, Easing, Keyboard, Platform, Pressable, TextInput, View, useWindowDimensions } from 'react-native';
+import { useReducedMotionPreference } from '../ui/useReducedMotionPreference';
 import { useIsFocused } from '@react-navigation/native';
 import { CalendarDays, List, Map as MapIcon, MapPin, Search, SlidersHorizontal, X } from 'lucide-react-native';
 import { usePreferences } from '../PreferencesProvider';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
+import { DashboardDropdown } from '../dashboard/DashboardDropdown';
 import type { EventFilters } from '../../../pulse-app/src/features/events/types';
+import { eventCities } from '../../../pulse-app/src/features/events/constants';
 
-export function DiscoveryToolbar({filters,onChange,view,onViewChange,onFilters,onCalendar,onCity,onHeight}:{
+export function DiscoveryToolbar({filters,onChange,view,onViewChange,onFilters,onCalendar,onHeight}:{
   filters:EventFilters;onChange:(value:EventFilters)=>void;view:'list'|'map';onViewChange:(view:'list'|'map')=>void;
-  onFilters:()=>void;onCalendar:()=>void;onCity:()=>void;onHeight:(height:number)=>void;
+  onFilters:()=>void;onCalendar:()=>void;onHeight:(height:number)=>void;
 }) {
   const {copy}=usePreferences(),{width}=useWindowDimensions(),wide=width>=1024&&Platform.OS==='web';
   const focused=useIsFocused();
-  const [open,setOpen]=useState(!!filters.q),[rowWidth,setRowWidth]=useState(width-40),[reduced,setReduced]=useState(true);
+  const [open,setOpen]=useState(!!filters.q),[rowWidth,setRowWidth]=useState(width-40),reduced=useReducedMotionPreference();
   const [inputFocused,setInputFocused]=useState(false);
   const progress=useRef(new Animated.Value(filters.q?1:0)).current,input=useRef<TextInput>(null),trigger=useRef<View>(null);
-  useEffect(()=>{let alive=true;void AccessibilityInfo.isReduceMotionEnabled().then(value=>{if(alive)setReduced(value);}).catch(()=>{});const listener=AccessibilityInfo.addEventListener('reduceMotionChanged',setReduced);return()=>{alive=false;listener.remove();};},[]);
   useEffect(()=>{const animation=Animated.timing(progress,{toValue:open?1:0,duration:reduced?0:200,easing:Easing.bezier(.2,0,0,1),useNativeDriver:false});animation.start();if(open){const frame=requestAnimationFrame(()=>input.current?.focus());return()=>{cancelAnimationFrame(frame);animation.stop();};}return()=>animation.stop();},[open,reduced,progress]);
   useEffect(()=>{if(filters.q)setOpen(true);},[filters.q]);
   const glass={minHeight:44,borderRadius:24,borderWidth:1,borderColor:'#ffffff1a',backgroundColor:'#121418ed'};
@@ -38,7 +40,7 @@ export function DiscoveryToolbar({filters,onChange,view,onViewChange,onFilters,o
     </Animated.View>
     {wide&&<>
       <Pressable testID="discovery-calendar-toggle" accessibilityRole="button" accessibilityLabel={copy('filters.calendar')} onPress={onCalendar} style={{...glass,maxWidth:210,flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12,paddingVertical:10}}><CalendarDays size={16} color={colors.accent}/><Text style={{color:colors.text,fontSize:14,flexShrink:1}}>{filters.date==='Custom'&&filters.dateFrom?filters.dateFrom+(filters.dateTo!==filters.dateFrom?' – '+filters.dateTo:''):copy('filters.calendar')}</Text></Pressable>
-      <Pressable testID="discovery-city" accessibilityRole="button" accessibilityLabel={copy('filters.city')} onPress={onCity} style={{...glass,maxWidth:180,flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12}}><MapPin size={16} color={colors.accent}/><Text style={{color:colors.text,fontSize:14,flexShrink:1}}>{filters.city||copy('filters.allCities')}</Text></Pressable>
+      <View style={{width:180,maxWidth:180}}><DashboardDropdown label={copy('filters.city')} testID="discovery-city" hideLabel icon={MapPin} value={filters.city} onChange={city=>onChange({...filters,city})} placeholder={copy('filters.allCities')} triggerStyle={{borderRadius:24,backgroundColor:'#121418ed'}} options={[{value:'',label:copy('filters.allCities')},...eventCities.map(city=>({value:city,label:city}))]}/></View>
     </>}
     <Pressable testID="event-filters" accessibilityRole="button" accessibilityLabel={copy('common.filters')} onPress={onFilters} style={circle}><SlidersHorizontal size={16} color="white"/></Pressable>
   </View>;

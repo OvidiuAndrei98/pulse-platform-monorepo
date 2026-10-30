@@ -14,6 +14,9 @@ import { readNavigationState, writeNavigationState } from "@/lib/navigation/stat
 import { formatEventDateShort, formatEventTime } from "@/features/events/dateFormat";
 import { zoomForDistance } from "../../../spottr-native/src/map/geometry";
 import carouselStyle from "@/features/events/map/eventMapCarousel.module.css";
+import { ChevronDown, ChevronUp, Layers } from 'lucide-react';
+import { useReducedMotion } from 'framer-motion';
+import { carouselCardAction, dismissCarouselDrag, verticalCarouselDrag } from '@/features/events/map/carouselGestures';
 
 export function EventsMapView({events,selectedId:selectedIdProp,onSelect,fullScreenOnMobile=false,desktopFillViewport=false,isFullView=false,onToggleFullView,userLocation:userLocationProp,onUserLocationChange,onBoundsEventsChange,focusRequest,distanceKm=15,cityCenter}: {
   events:Event[];selectedId?:string|null;onSelect?:(id:string|null)=>void;fullScreenOnMobile?:boolean;desktopFillViewport?:boolean;
@@ -23,6 +26,9 @@ export function EventsMapView({events,selectedId:selectedIdProp,onSelect,fullScr
   const {t}=useTranslation(),{open}=useEventDetails();
   const rail=useRef<HTMLDivElement>(null),cards=useRef(new Map<string,HTMLButtonElement>()),railSelection=useRef<string|null>(null);
   const scrollTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const tray=useRef<HTMLDivElement>(null),toggle=useRef<HTMLButtonElement>(null),gesture=useRef<{x:number;y:number;vertical:boolean}|null>(null),suppressClick=useRef(false),clearClick=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const [collapsed,setCollapsed]=useState(false),reduced=useReducedMotion();
+  const collapse=()=>{setCollapsed(true);requestAnimationFrame(()=>toggle.current?.focus({preventScroll:true}));};
   const [mobile,setMobile]=useState(false),[carouselHeight,setCarouselHeight]=useState(148),[internalId,setInternalId]=useState<string|null>(null);
   const [location,setLocation]=useState<Coordinates|null>(userLocationProp??null),[map,setMap]=useState<LibreMap|null>(null);
   const [focus,setFocus]=useState<MapFocus|null>(null),[point,setPoint]=useState<{x:number;y:number}|null>(null);
@@ -47,16 +53,16 @@ export function EventsMapView({events,selectedId:selectedIdProp,onSelect,fullScr
   useEffect(()=>{if(focusRequest)setFocus({id:focusRequest.eventId,revision:focusRequest.requestId});},[focusRequest]);
   useEffect(()=>{if(selectedId&&!selectedEvent)setSelectedId(null);},[selectedId,selectedEvent,setSelectedId]);
   useEffect(()=>{
-    const node=rail.current;if(!node||!mobile)return;
+    const node=tray.current;if(!node||!mobile)return;
     const update=()=>setCarouselHeight(node.offsetHeight);update();const observer=new ResizeObserver(update);observer.observe(node);return()=>observer.disconnect();
-  },[mobile,mapEvents.length>0]);
+  },[mobile,mapEvents.length>0,collapsed]);
   useEffect(()=>{
     const fromRail=railSelection.current===activeId;railSelection.current=null;
-    if(fromRail||!mobile||!activeId)return;
+    if(fromRail||!mobile||!activeId||collapsed)return;
     const node=rail.current,card=cards.current.get(activeId);
-    if(node&&card)node.scrollTo({left:card.offsetLeft-16,behavior:'instant'});
-  },[activeId,mobile]);
-  useEffect(()=>()=>{if(scrollTimer.current)clearTimeout(scrollTimer.current);},[]);
+    if(node&&card)node.scrollTo({left:card.offsetLeft-16,behavior:reduced?'instant':'smooth'});
+  },[activeId,mobile,collapsed,reduced]);
+  useEffect(()=>()=>{if(scrollTimer.current)clearTimeout(scrollTimer.current);if(clearClick.current)clearTimeout(clearClick.current);},[]);
   useEffect(()=>{
     if(locateRevision&&map&&location)map.flyTo({center:[location[1],location[0]],zoom:Math.max(14,map.getZoom()),duration:400});
   },[locateRevision,map,location]);
@@ -66,12 +72,23 @@ export function EventsMapView({events,selectedId:selectedIdProp,onSelect,fullScr
   return <div className={`relative w-full overflow-hidden bg-black ${mapSize} ${carouselStyle.host}`} style={{'--map-carousel-height':`${mapEvents.length?carouselHeight:0}px`,'--map-attribution-bottom':`${attributionBottom}px`} as React.CSSProperties}>
     <VectorEventMap events={mapEvents} center={initial.center} zoom={initial.zoom} selected={mobile?activeId??null:selectedId}
       location={vectorLocation} focus={focus} attributionBottom={attributionBottom}
-      onReady={setMap} onSelect={id=>choose(id)} onSelectedPoint={mobile?()=>{}:setPoint} onBounds={onBoundsEventsChange}
+      onReady={setMap} onSelect={id=>{choose(id);if(id)setCollapsed(false);}} onSelectedPoint={mobile?()=>{}:setPoint} onBounds={onBoundsEventsChange}
       onViewport={(center,zoom)=>writeNavigationState(navKey,{center:[center.latitude,center.longitude],zoom})}
       clusterLabel={count=>t('eventMap.cluster',{count})} label={t('eventMap.map')} errorLabel={t('feedback.loadFailed')} retryLabel={t('common.retry')}/>
     <MapControls onLocate={value=>{handleLocation(value);setLocateRevision(value=>value+1);}} onZoomIn={()=>map?.zoomIn()} onZoomOut={()=>map?.zoomOut()} isFullView={isFullView} onToggleFullView={onToggleFullView}/>
     {!mobile&&selectedEvent&&point&&<SelectedEventPopup event={selectedEvent} position={point} onClose={()=>choose(null)} onOpen={()=>open(selectedEvent)}/>}
-      {mapEvents.length > 0 && <div ref={rail} data-testid="map-events-carousel" className={carouselStyle.rail}
+      {mapEvents.length > 0 && <div ref={tray} data-testid="map-events-tray" className={carouselStyle.tray} data-collapsed={collapsed}
+        onPointerDownCapture={event=>{suppressClick.current=false;gesture.current={x:event.clientX,y:event.clientY,vertical:false};}}
+        onPointerMoveCapture={event=>{const g=gesture.current;if(g&&!g.vertical&&verticalCarouselDrag(event.clientX-g.x,event.clientY-g.y)){g.vertical=true;event.currentTarget.setPointerCapture(event.pointerId);}}}
+        onLostPointerCapture={event=>{if(event.target===event.currentTarget)gesture.current=null;}}
+        onPointerCancel={()=>{gesture.current=null;}}
+        onPointerUpCapture={event=>{const g=gesture.current;gesture.current=null;if(g?.vertical){suppressClick.current=true;if(clearClick.current)clearTimeout(clearClick.current);clearClick.current=setTimeout(()=>{suppressClick.current=false;},250);if(dismissCarouselDrag(event.clientX-g.x,event.clientY-g.y))collapse();}}}
+        onClickCapture={event=>{if(suppressClick.current&&event.detail>0){event.preventDefault();event.stopPropagation();suppressClick.current=false;}}}>
+        <button ref={toggle} type="button" data-testid="map-carousel-toggle" className={carouselStyle.handle} aria-controls="map-carousel-content" aria-expanded={!collapsed}
+          aria-label={t(collapsed?'eventMap.showEvents':'eventMap.hideEvents')} onClick={()=>collapsed?setCollapsed(false):collapse()}>
+          {collapsed?<><Layers aria-hidden size={16}/><span>{t('eventMap.showEvents')}</span><span className={carouselStyle.count}>{mapEvents.length}</span><ChevronUp aria-hidden size={16}/></>:<><span className={carouselStyle.grip}/><ChevronDown aria-hidden size={14}/></>}
+        </button>
+        <div ref={rail} id="map-carousel-content" data-testid="map-events-carousel" className={carouselStyle.rail} hidden={collapsed} inert={collapsed?true:undefined}
         role="group" aria-label={t('eventMap.map')}
         onScroll={() => {
           if(!mobile)return;
@@ -89,17 +106,17 @@ export function EventsMapView({events,selectedId:selectedIdProp,onSelect,fullScr
         {mapEvents.map(event=><button key={event.id} type="button" data-testid={'map-event-card-'+event.id}
           ref={node=>{if(node)cards.current.set(event.id,node);else cards.current.delete(event.id);}}
           className={carouselStyle.card} aria-current={event.id===activeId?'true':undefined}
-          aria-label={`${t('events.viewEvent')}: ${event.title}. ${formatEventDateShort(event.startTime)} · ${formatEventTime(event.startTime)}. ${event.locationName||event.city||''}`}
-          onClick={()=>{choose(event.id,true);open(event);}}>
+          aria-label={`${t(event.id===activeId?'events.viewEvent':'eventMap.selectEvent')}: ${event.title}. ${formatEventDateShort(event.startTime)} · ${formatEventTime(event.startTime)}. ${event.locationName||event.city||''}`}
+          onClick={()=>{if(carouselCardAction(event.id,activeId)==='open')open(event);else choose(event.id,true);}}>
+          <Image src={event.bannerUrl||'/party-event.webp'} alt="" width={72} height={88} sizes="72px" className={carouselStyle.image}/>
           <span className={carouselStyle.copy}>
             <strong className={`${carouselStyle.title} line-clamp-2`}>{event.title}</strong>
             <span className={carouselStyle.meta}>{formatEventDateShort(event.startTime)} · {formatEventTime(event.startTime)}</span>
             <span className={`${carouselStyle.meta} ${carouselStyle.location}`}>{event.locationName||event.city}</span>
-            <span className={carouselStyle.action}>{t('events.viewEvent')} →</span>
+            <span className={carouselStyle.action}>{t(event.id===activeId?'events.viewEvent':'eventMap.selectEvent')} →</span>
           </span>
-          <Image src={event.bannerUrl||'/party-event.webp'} alt="" width={72} height={104} sizes="72px" className={carouselStyle.image}/>
         </button>)}
-      </div>}
+      </div></div>}
     {!mapEvents.length&&<div className="pointer-events-none absolute inset-0 z-[1] grid place-items-center"><p className="rounded-xl border border-white/10 bg-black/80 p-4 text-sm text-muted-foreground">{t('common.noEvents')}</p></div>}
   </div>;
 }

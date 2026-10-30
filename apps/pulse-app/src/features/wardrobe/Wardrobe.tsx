@@ -9,6 +9,7 @@ import { Shirt, ArrowLeft, CalendarDays, ChevronDown, ChevronRight, RefreshCw } 
 import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
 import { TicketQrCode } from "@/components/tickets/TicketQrCode";
 import { WardrobeTabs } from "./WardrobeTabs";
+import { ThemedSelect } from '@/features/events/form/ThemedSelect';
 import { useWardrobe } from "./useWardrobe";
 import {
   actionLabel,
@@ -427,19 +428,10 @@ export function WardrobePage({
                         />
                       </label>
                     </div>
-                    <label className={s.field}>
-                      {c.kind}
-                      <select
-                        value={kind}
-                        onChange={(e) => setKind(e.target.value)}
-                      >
-                        {(["any", "coat", "bag"] as const).map((k) => (
-                          <option key={k} value={k}>
-                            {c[k]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <div className={s.field}>
+                      <span>{c.kind}</span>
+                      <ThemedSelect label={c.kind} testId="wardrobe-kind" name="wardrobe-kind" value={kind} onChange={setKind} placeholder={c.select} disabled={busy} options={(['any','coat','bag'] as const).map(value=>({value,label:c[value]}))}/>
+                    </div>
                     {button(
                       c.createZone,
                       () =>
@@ -486,16 +478,10 @@ export function WardrobePage({
                         onChange={(e) => setEmail(e.target.value)}
                       />
                     </label>
-                    <label className={s.field}>
-                      {c.team}
-                      <select
-                        value={role}
-                        onChange={(e) => setRole(e.target.value)}
-                      >
-                        <option value="operator">{c.operator}</option>
-                        <option value="supervisor">{c.supervisor}</option>
-                      </select>
-                    </label>
+                    <div className={s.field}>
+                      <span>{c.team}</span>
+                      <ThemedSelect label={c.team} name="wardrobe-role" value={role} onChange={setRole} placeholder={c.select} disabled={busy} options={[{value:'operator',label:c.operator},{value:'supervisor',label:c.supervisor}]}/>
+                    </div>
                     {button(
                       c.addStaff,
                       () =>
@@ -512,7 +498,7 @@ export function WardrobePage({
                     {!o.accepting && <p>{c.closed}</p>}
                     {intakeStep===0&&<><p>{flow.scanHint}</p>{button(c.scan,()=>{cameraGate.current=false;setCamera(true);},false,!o.accepting)}</>}
                     {intakeStep===1&&<><p>{flow.scanned}</p><Counters value={items} onChange={setItems} disabled={busy} ro={ro}/>{button(flow.next,()=>{setZone('');setIntakeStep(2);},false,!totalItems(items))}{button(flow.back,()=>setIntakeStep(0),true)}</>}
-                    {intakeStep===2&&<><p>{itemsText(items,ro)}</p><label className={s.field}>{c.zone}<select value={zone} disabled={busy} onChange={event=>setZone(event.target.value)}><option value="">{c.select}</option>{availableZones(items,o.zones).map(z=><option value={z.id} key={z.id}>{z.name} · {z.capacity-z.occupied} {c.free}</option>)}</select></label>{!availableZones(items,o.zones).length&&<p>{flow.noZones}</p>}{button(flow.reserve,()=>void reserve(clientCode),false,!clientCode||!canReserveBelongings(items,zone,o.zones,o.accepting))}{button(flow.back,()=>setIntakeStep(1),true)}</>}
+                    {intakeStep===2&&<><p>{itemsText(items,ro)}</p><div className={s.field}><span>{c.zone}</span><ThemedSelect label={c.zone} name="wardrobe-zone" value={zone} disabled={busy} onChange={setZone} placeholder={c.select} options={availableZones(items,o.zones).map(z=>({value:z.id,label:`${z.name} · ${z.capacity-z.occupied} ${c.free}`}))}/></div>{!availableZones(items,o.zones).length&&<p>{flow.noZones}</p>}{button(flow.reserve,()=>void reserve(clientCode),false,!clientCode||!canReserveBelongings(items,zone,o.zones,o.accepting))}{button(flow.back,()=>setIntakeStep(1),true)}</>}
                   </section>}
                   {d && (
                     <div
@@ -606,21 +592,10 @@ export function WardrobePage({
                       {advanced && (d.status === "reserved" || d.status === "stored") && (
                         <>
                           <p>{c.moveHint}</p>
-                          <label className={s.field}>
-                            {c.zone}
-                            <select
-                              value={moveZone}
-                              disabled={busy}
-                              onChange={(e) => setMoveZone(e.target.value)}
-                            >
-                              <option value="" disabled>{c.select}</option>
-                              {availableZones(d.remaining,o.zones).filter(z=>z.id!==d.zoneId).map((z) => (
-                                <option key={z.id} value={z.id}>
-                                  {z.name} · {z.capacity - z.occupied} {c.free}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
+                          <div className={s.field}>
+                            <span>{c.zone}</span>
+                            <ThemedSelect label={c.zone} name="wardrobe-move-zone" value={moveZone} disabled={busy} onChange={setMoveZone} placeholder={c.select} options={availableZones(d.remaining,o.zones).filter(z=>z.id!==d.zoneId).map(z=>({value:z.id,label:`${z.name} · ${z.capacity-z.occupied} ${c.free}`}))}/>
+                          </div>
                           {button(
                             c.move,
                             () => act("move", { zoneId: moveZone }),
@@ -637,22 +612,10 @@ export function WardrobePage({
                           {adding && d.userId && (
                             <div className={s.stack}>
                               <p>{c.addHint}</p>
-                              <label className={s.field}>
-                                {c.zone}
-                                <select
-                                  value={zone}
-                                  disabled={busy}
-                                  onChange={(e) => setZone(e.target.value)}
-                                >
-                                  <option value="" disabled>{c.select}</option>
-                                  {availableZones(items,o.zones).map((z) => (
-                                    <option key={z.id} value={z.id}>
-                                      {z.name} · {z.capacity - z.occupied}{" "}
-                                      {c.free}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
+                              <div className={s.field}>
+                                <span>{c.zone}</span>
+                                <ThemedSelect label={c.zone} name="wardrobe-add-zone" value={zone} disabled={busy} onChange={setZone} placeholder={c.select} options={availableZones(items,o.zones).map(z=>({value:z.id,label:`${z.name} · ${z.capacity-z.occupied} ${c.free}`}))}/>
+                              </div>
                               <Counters
                                 value={items}
                                 onChange={setItems}
