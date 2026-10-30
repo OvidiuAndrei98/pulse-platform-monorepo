@@ -12,7 +12,7 @@ import { usePreferences } from '../PreferencesProvider';
 import { formatEventTime } from '../../../pulse-app/src/features/events/dateFormat';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, error, retry }: { events: Event[]; cityCenter?: Coordinate | null; distance: number; onOpen: (event: Event) => void; loading: boolean; error: boolean; retry: () => void }) {
+export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, error, retry,toolbarHeight=44,onLocationChange }: { events: Event[]; cityCenter?: Coordinate | null; distance: number; onOpen: (event: Event) => void; loading: boolean; error: boolean; retry: () => void;toolbarHeight?:number;onLocationChange?:(coordinate:readonly[number,number])=>void }) {
   const { copy, language } = usePreferences(), [location, setLocation] = useState<Coordinate | null>(null);
   const [camera, setCamera] = useState({ center: cityCenter ?? DEFAULT_CENTER, zoom: 12 });
   const [selected, setSelected] = useState<string | null>(null), [point, setPoint] = useState<Point | null>(null), [previewHeight, setPreviewHeight] = useState(150);
@@ -22,12 +22,23 @@ export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, 
   const rail = useRef<FlatList<Event>>(null);
   const [railHeight,setRailHeight]=useState(140);
   const [focusedCard,setFocusedCard]=useState<string|null>(null);
+  const [focus,setFocus]=useState<{id:string;revision:number}|null>(null);
+  const scrollTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const mapEvents = useMemo(() => events.filter(event => validCoordinate(event as Coordinate)), [events]);
   const carousel = Platform.OS !== 'web' || dimensions.width < 768;
   const activeId = mapEvents.some(event => event.id === selected) ? selected : mapEvents[0]?.id ?? null;
   const cardWidth = Math.min(360, Math.max(240, width - 72));
-  const inset = useSafeAreaInsets(), controlTop = Math.max(24, inset.top);
+  const inset = useSafeAreaInsets(), controlTop = Math.max(24, inset.top)+toolbarHeight+12;
   const bottom = (Platform.OS === 'ios' ? 108 : 104) + inset.bottom;
+  const choose = (id: string, focusMap = false) => {
+    setSelected(id);
+    if(focusMap)setFocus(current=>({id,revision:(current?.revision??0)+1}));
+  };
+  const settle = (offset: number) => {
+    const index=Math.max(0,Math.min(mapEvents.length-1,Math.round(offset/(cardWidth+12))));
+    const event=mapEvents[index];if(event&&event.id!==activeId)choose(event.id,true);
+  };
+  useEffect(()=>{if(scrollTimer.current)clearTimeout(scrollTimer.current);return()=>{if(scrollTimer.current)clearTimeout(scrollTimer.current);};},[activeId]);
   useEffect(() => {
     if (selected && !mapEvents.some(event => event.id === selected)) setSelected(null);
   }, [mapEvents, selected]);
@@ -52,7 +63,7 @@ export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, 
         new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('feedback.locationTimeout')), 15_000); }),
       ]);
       if (!validCoordinate(result.coords)) throw new Error('feedback.locationUnavailable');
-      if (version === generation.current) { setLocation(result.coords); setCamera({ center: result.coords, zoom: viewport.current.zoom }); }
+      if (version === generation.current) { setLocation(result.coords);onLocationChange?.([result.coords.latitude,result.coords.longitude]); setCamera({ center: result.coords, zoom: viewport.current.zoom }); }
     } catch (cause) {
       if (version === generation.current) setLocationError(cause instanceof Error && ['feedback.locationDenied', 'feedback.locationTimeout'].includes(cause.message) ? cause.message : 'feedback.locationUnavailable');
     } finally {
@@ -68,7 +79,7 @@ export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, 
       onSelect={id => { setSelected(id); setPoint(null); }}
       onViewport={(center, zoom) => { viewport.current = { center, zoom }; }}
       onSelectedPoint={carousel ? () => {} : setPoint}
-      attributionBottom={carousel&&mapEvents.length?bottom+railHeight+8:0} />
+      attributionBottom={carousel?bottom+(mapEvents.length?railHeight:0)+8:0} focus={focus} />
     <View style={{ position: 'absolute', right: 16, top: controlTop, gap: 8 }}>{[
       { icon: Plus, label: copy('mapControls.zoomIn'), id: 'map-zoom-in', action: () => changeZoom(1) },
       { icon: Minus, label: copy('mapControls.zoomOut'), id: 'map-zoom-out', action: () => changeZoom(-1) },
@@ -97,14 +108,12 @@ export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, 
         showsHorizontalScrollIndicator={false} contentContainerStyle={{paddingLeft:Math.max(16,inset.left),paddingRight:Math.max(16,inset.right),gap:12}}
         snapToInterval={cardWidth+12} decelerationRate="fast" keyboardShouldPersistTaps="handled"
         getItemLayout={(_,index)=>({length:cardWidth+12,offset:(cardWidth+12)*index,index})}
-        onMomentumScrollEnd={event=>{
-          const index=Math.max(0,Math.min(mapEvents.length-1,Math.round(event.nativeEvent.contentOffset.x/(cardWidth+12))));
-          const current=mapEvents[index];
-          if(current&&current.id!==activeId)setSelected(current.id);
-        }}
+        scrollEventThrottle={32}
+        onScroll={event=>{const offset=event.nativeEvent.contentOffset.x;if(scrollTimer.current)clearTimeout(scrollTimer.current);scrollTimer.current=setTimeout(()=>{scrollTimer.current=null;settle(offset);},140);}}
+        onMomentumScrollEnd={event=>{if(scrollTimer.current)clearTimeout(scrollTimer.current);scrollTimer.current=null;settle(event.nativeEvent.contentOffset.x);}}
         renderItem={({item})=><Pressable testID={'map-event-card-'+item.id} accessibilityRole="button"
           accessibilityLabel={`${copy('events.viewEvent')}: ${item.title}. ${formatDate(item.startTime,language,true)}. ${item.locationName||item.city||''}`}
-          accessibilityState={{selected:item.id===activeId}} onPress={()=>{setSelected(item.id);onOpen(item);}}
+          accessibilityState={{selected:item.id===activeId}} onPress={()=>{choose(item.id,true);onOpen(item);}}
           onFocus={Platform.OS==='web'?()=>setFocusedCard(item.id):undefined} onBlur={()=>setFocusedCard(null)}
           style={[s.carouselCard,{width:cardWidth,borderColor:item.id===activeId?colors.accent:colors.line},Platform.OS==='web'&&focusedCard===item.id&&s.cardFocus]}>
           <View style={{flex:1,minWidth:0,gap:4}}>
@@ -116,7 +125,14 @@ export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, 
           <EventImage uri={item.bannerUrl} style={{width:72,height:104,borderRadius:12}} />
         </Pressable>} />
     </View>}
-    {Platform.OS !== 'web' && <Pressable accessibilityRole="link" accessibilityLabel="OpenStreetMap and CARTO attribution" onPress={() => { void Linking.openURL('https://carto.com/attributions').catch(() => {}); }} style={{ position: 'absolute', right: 4, bottom: carousel && mapEvents.length ? bottom + railHeight + 8 : 92 }}><Text style={{ fontSize: 9, color: '#ffffff8c', backgroundColor: '#030604cc' }}>© OpenStreetMap © CARTO</Text></Pressable>}
+    {Platform.OS !== 'web' && <View style={{position:'absolute',right:4,left:36,bottom:carousel&&mapEvents.length?bottom+railHeight+8:bottom+8,flexDirection:'row',justifyContent:'flex-end',flexWrap:'wrap',backgroundColor:'#101012ed'}}>
+      {[
+        ['OpenFreeMap','https://openfreemap.org/'],
+        ['© OpenMapTiles','https://openmaptiles.org/'],
+        ['© OpenStreetMap','https://www.openstreetmap.org/copyright'],
+        ['Style','https://github.com/hyperknot/openfreemap-styles/blob/main/styles/dark/LICENSE.md'],
+      ].map(([label,url])=><Pressable key={url} accessibilityRole="link" onPress={()=>{void Linking.openURL(url!).catch(()=>{});}} style={{paddingHorizontal:3}}><Text style={{fontSize:9,color:'#ccc'}}>{label}</Text></Pressable>)}
+    </View>}
   </View>;
 }
 const s = StyleSheet.create({

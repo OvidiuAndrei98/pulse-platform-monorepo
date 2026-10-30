@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { LocateFixed, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
-import { useMap } from "react-leaflet";
 import { Coordinates } from "@/features/events/types";
 import { requestCurrentLocation } from "@/lib/native/location";
 
@@ -12,13 +11,16 @@ export function MapControls({
   onLocate,
   isFullView,
   onToggleFullView,
+  onZoomIn,
+  onZoomOut,
 }: {
   onLocate: (location: Coordinates) => void;
   isFullView?: boolean;
   onToggleFullView?: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
 }) {
   const { t } = useTranslation();
-  const map = useMap();
   const [locating, setLocating] = useState(false);
   const locatingRef = useRef(false);
   const handleRecenter = async () => {
@@ -57,7 +59,7 @@ export function MapControls({
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            map.zoomIn();
+            onZoomIn();
           }}
           aria-label={t("mapControls.zoomIn")}
           data-testid="map-zoom-in"
@@ -70,7 +72,7 @@ export function MapControls({
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            map.zoomOut();
+            onZoomOut();
           }}
           aria-label={t("mapControls.zoomOut")}
           data-testid="map-zoom-out"

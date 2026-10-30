@@ -9,14 +9,15 @@ import dynamic from "next/dynamic";
 import { useDiscoveryState } from "@/features/events/useDiscoveryState";
 import { RequestError, RequestProgress } from "@/components/ui/RequestFeedback";
 import { useTranslation } from "react-i18next";
-import { FiltersSheet } from "@/components/FiltersSheet";
+import { DiscoveryToolbar } from '@/features/events/filters/DiscoveryToolbar';
+import { useDebouncedDiscoverySearch } from '@/features/events/useDebouncedDiscoverySearch';
+import { activeDiscoveryStart, productToday, eventMatchesSearch, eventWithinDistance } from '@/features/events/discoveryFilters';
 import { Event, PromotedEvent, PublicEventsService } from "@/core/DataProvider";
 import {
   cityCenters,
   defaultEventFilters,
 } from "@/features/events/constants";
 import { EventBrowseCard } from "@/features/events/components/EventBrowseCard";
-import { EventViewToggle } from "@/features/events/components/EventViewToggle";
 import { getEventDateRange } from "@/features/events/dateFilters";
 import { Coordinates } from "@/features/events/types";
 import { EventCardSkeleton, PageLoadingState } from "@/components/ui/loading";
@@ -74,6 +75,7 @@ export default function EventsPage() {
 function EventsPageContent() {
   const { t } = useTranslation();
   const { filters, setFilters, view, setView, ready } = useDiscoveryState();
+  const search=useDebouncedDiscoverySearch(filters.q);
   const { user, loading: authLoading } = useDataProvider();
   const listRef = useRef<HTMLDivElement>(null);
   const [promotionSeed] = useState(
@@ -85,22 +87,23 @@ function EventsPageContent() {
     : null;
 
   const eventQuery = useMemo(() => {
-    const dateRange = getEventDateRange(filters.date);
+    const dateRange = getEventDateRange(filters.date,filters);
 
     return {
       category: filters.categories.join(",") || undefined,
+      q: search || undefined,
       city: filters.city || undefined,
       vibe: filters.vibes.join(",") || undefined,
       ...dateRange,
       // Discovery should never surface events that have already ended.
-      startsAfter: dateRange.startsAfter ?? new Date().toISOString(),
+      startsAfter: activeDiscoveryStart(dateRange.startsAfter),
     };
-  }, [filters.categories, filters.city, filters.date, filters.vibes]);
+  }, [filters.categories, filters.city, filters.date, filters.dateFrom, filters.dateTo, filters.vibes,search]);
 
   // Use the filter values, not the generated current-time ISO string, as the key.
   // Filters still reset on tab re-entry; only matching results are reused.
   const discoveryKey = JSON.stringify(["discovery", user?.properties.id ?? "guest", filters.date,
-    filters.city, [...filters.categories].sort(), [...filters.vibes].sort(), new Date().toDateString()]);
+    filters.city, filters.dateFrom, filters.dateTo, search, [...filters.categories].sort(), [...filters.vibes].sort(), productToday()]);
   const mapDiscovery = useCachedClientQuery(
     view === "map" && ready && !authLoading ? discoveryKey : null,
     () => PublicEventsService.getPublicEvents(eventQuery), [] as Event[],
@@ -144,13 +147,14 @@ function EventsPageContent() {
           if (categories.length && !categories.includes(event.category)) return false;
           if (vibes.length && !vibes.includes(event.vibe)) return false;
           if (eventQuery.city && event.city !== eventQuery.city) return false;
+          if (!eventMatchesSearch(event,search)) return false;
           if (eventQuery.startsAfter && new Date(event.endTime) <= new Date(eventQuery.startsAfter)) return false;
           if (eventQuery.startsBefore && new Date(event.startTime) >= new Date(eventQuery.startsBefore)) return false;
           return true;
         },
         3,
-      ),
-    [eventQuery, events, feedPromotions, promotionSeed],
+      ).filter(event=>eventWithinDistance(event,selectedCityCenter??userLocation,filters.distance)),
+    [eventQuery, events, feedPromotions, promotionSeed, search, selectedCityCenter, userLocation,filters.distance],
   );
 
   return (
@@ -158,9 +162,8 @@ function EventsPageContent() {
       <div className="relative flex h-full flex-col">
         {/* Keep the toolbar in the same page flow, including native safe-area spacing. */}
         <div className="app-page-gutter pointer-events-none relative z-30 mx-auto flex w-full max-w-7xl shrink-0 flex-wrap items-start justify-between gap-3 pt-[max(1.5rem,var(--native-safe-top))] sm:items-center md:pt-8">
-          <div className="pointer-events-auto flex items-center gap-2 sm:w-auto">
-            <EventViewToggle view={view} onChange={setView} />
-            <FiltersSheet value={filters} onChange={setFilters} />
+          <div className="pointer-events-auto w-full min-w-0">
+            <DiscoveryToolbar filters={filters} onChange={setFilters} view={view} onViewChange={setView} distanceReady={!!userLocation}/>
           </div>
         </div>
 

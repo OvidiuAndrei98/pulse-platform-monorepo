@@ -1116,6 +1116,7 @@ export class PublicEventsService {
    * Preluare evenimente publice pentru Homepage / Discovery (Fără autentificare)
    */
   static async getPublicEvents(filters?: {
+    q?: string;
     category?: string;
     city?: string;
     vibe?: string;

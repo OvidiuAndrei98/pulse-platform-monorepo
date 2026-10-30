@@ -4,7 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   CheckCircle2,
-  ChevronDown,
+  ArrowLeft,
+  CalendarDays,
+  ChevronRight,
+  MapPin,
   ClipboardCheck,
   Copy,
   Loader2,
@@ -24,7 +27,8 @@ import {
   XCircle,
   X,
 } from "lucide-react";
-import { ApiClient, ReadableSchema } from "@packages/api-client/src/Client";
+import { ApiClient, ApiError, ReadableSchema } from "@packages/api-client/src/Client";
+import { sortValidationEvents } from "@packages/api-client/src/validationEventSelection";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { WardrobeTabs as SectionTabs } from "@/features/wardrobe/WardrobeTabs";
 import { apiRoot } from "@/core/apiRoot";
@@ -87,6 +91,20 @@ function isValidationEventActive(event: ValidationEvent) {
 
 export default function TicketValidationPage() {
   const { user } = useDataProvider();
+  return <TicketValidationAccount key={user?.properties.id} />;
+}
+
+function TicketValidationAccount() {
+  const [selectedEventId, setSelectedEventId] = useState("");
+  return <TicketValidationWorkspace key={selectedEventId}
+    selectedEventId={selectedEventId} setSelectedEventId={setSelectedEventId} />;
+}
+
+function TicketValidationWorkspace({ selectedEventId, setSelectedEventId }: {
+  selectedEventId: string;
+  setSelectedEventId: React.Dispatch<React.SetStateAction<string>>;
+}) {
+  const { user } = useDataProvider();
   const { t, i18n } = useTranslation();
   const isOrganizer =
     user?.properties.role === "organizer" || user?.properties.role === "admin";
@@ -98,8 +116,8 @@ export default function TicketValidationPage() {
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [events, setEvents] = useState<ValidationEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
-  const [selectedEventId, setSelectedEventId] = useState("");
-  const [eventMenuOpen, setEventMenuOpen] = useState(false);
+  const [reload, setReload] = useState(0);
+  const eventHeading = useRef<HTMLHeadingElement>(null);
   const [activeTab, setActiveTab] = useState<"scan" | "team" | "links">("scan");
   const [validationHash, setValidationHash] = useState("");
   const [validating, setValidating] = useState(false);
@@ -141,6 +159,10 @@ export default function TicketValidationPage() {
     [events, selectedEventId],
   );
   const validationTab = selectedEvent?.canManage ? activeTab : "scan";
+  const admissionsClosed = !!selectedEvent && Date.parse(selectedEvent.endTime) <= Date.now();
+  useEffect(() => {
+    eventHeading.current?.focus({ preventScroll: true });
+  }, [selectedEvent?.id, eventsLoading, profileLoading]);
   useEffect(() => {
     if (!selectedEvent?.canManage) setActiveTab("scan");
   }, [selectedEvent?.canManage]);
@@ -343,25 +365,35 @@ export default function TicketValidationPage() {
         if (cancelled) return;
         const offlineEvents = await getOfflineValidationEvents(currentUser.properties.id).catch(() => []);
         if (cancelled) return;
-        const activeEvents = [...new Map([...response.filter(isValidationEventActive), ...offlineEvents].map((event) => [event.id, event])).values()];
+        const activeEvents = sortValidationEvents([...new Map([
+          ...offlineEvents.map(event => ({ ...event, canManage: false })),
+          ...response.filter(isValidationEventActive),
+        ].map(event => [event.id, event])).values()]);
         setEvents(activeEvents);
         setSelectedEventId((current) =>
           activeEvents.some((event) => event.id === current)
             ? current
-            : activeEvents[0]?.id || "",
+            : "",
         );
-      } catch {
+      } catch (loadError) {
+        if (cancelled) return;
+        if (loadError instanceof ApiError && (loadError.status === 401 || loadError.status === 403)) {
+          setEvents([]);
+          setSelectedEventId("");
+          setError(t("validation.eventsLoadFailed"));
+          return;
+        }
         const offlineEvents = await getOfflineValidationEvents(
           currentUser.properties.id,
         );
         if (cancelled) return;
-        const activeOfflineEvents = offlineEvents;
+        const activeOfflineEvents = sortValidationEvents(offlineEvents.map(event => ({ ...event, canManage: false })));
         if (activeOfflineEvents.length) {
           setEvents(activeOfflineEvents);
           setSelectedEventId((current) =>
             activeOfflineEvents.some((event) => event.id === current)
               ? current
-              : activeOfflineEvents[0].id,
+              : "",
           );
         } else {
           setError(t("validation.eventsLoadFailed"));
@@ -375,7 +407,7 @@ export default function TicketValidationPage() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, reload]);
 
   useEffect(() => {
     if (!user || !isOrganizer) {
@@ -510,7 +542,7 @@ export default function TicketValidationPage() {
   };
 
   const submitValidationHash = async (hash: string) => {
-    if (!selectedEventId || !hash.trim()) return;
+    if (!selectedEvent || Date.parse(selectedEvent.endTime) <= Date.now() || !hash.trim()) return;
     setValidating(true);
     setError("");
     setNotice("");
@@ -749,6 +781,43 @@ export default function TicketValidationPage() {
     );
   }
 
+  if (!selectedEvent) return (
+    <main className="text-foreground pb-[110px]">
+      <div className="app-page-spacing mx-auto max-w-5xl space-y-6" data-testid="validation-event-list">
+        <header className="space-y-2">
+          <h1 ref={eventHeading} tabIndex={-1} className="text-2xl font-bold outline-none sm:text-3xl">{t("validation.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("validation.eventListHint")}</p>
+        </header>
+        {eventsLoading || profileLoading ? (
+          <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 aria-hidden="true" className="size-4 animate-spin" />{t("validation.loadingEvents")}</p>
+        ) : <>
+          {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-semibold">{t("validation.chooseEvent")}</h2>
+            <button type="button" aria-label={t("validation.refreshEvents")} onClick={() => { setError(""); setReload(value => value + 1); }}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-primary text-white hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2"><RefreshCw aria-hidden="true" className="size-4" /></button>
+          </div>
+          {!events.length && !error && <p className="rounded-xl border border-white/10 p-5 text-sm text-muted-foreground">{t("validation.noAssignedEvents")}</p>}
+          <ul className="space-y-3">
+            {events.map(event => <li key={event.id}>
+              <button type="button" data-testid={`validation-event-${event.id}`} onClick={() => setSelectedEventId(event.id)}
+                className="flex min-h-24 w-full items-center gap-4 rounded-xl border border-white/10 bg-white/[0.025] p-4 text-start transition hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:p-5">
+                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><Ticket aria-hidden="true" className="size-5" /></span>
+                <span className="min-w-0 flex-1 space-y-2">
+                  <span className="block break-words font-semibold">{event.title}</span>
+                  <span className="flex items-start gap-2 text-sm text-muted-foreground"><CalendarDays aria-hidden="true" className="mt-0.5 size-4 shrink-0" /><span>{formatEventDateTime(event.startTime)}</span></span>
+                  {event.locationName && <span className="flex items-start gap-2 text-sm text-muted-foreground"><MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0" /><span className="min-w-0 break-words">{event.locationName}</span></span>}
+                  <span className="block text-xs text-primary">{Date.parse(event.endTime) <= Date.now() ? t("validation.offlineJournal") : event.canManage ? t("validation.organizer") : t("validation.scanAccess")}</span>
+                </span>
+                <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-primary" />
+              </button>
+            </li>)}
+          </ul>
+        </>}
+      </div>
+    </main>
+  );
+
   return (
     <main className="text-foreground pb-[110px]">
       <div className="app-page-spacing mx-auto max-w-5xl space-y-6">
@@ -773,64 +842,15 @@ export default function TicketValidationPage() {
           </span>
         </header>
 
-        <section className="rounded-xl border border-primary/25 bg-primary/[0.04] p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-            {t("validation.configureEvent")}
-          </p>
-          <div className="relative mt-3">
-            <button
-              type="button"
-              onClick={() => setEventMenuOpen((open) => !open)}
-              disabled={eventsLoading}
-              className="flex h-11 w-full items-center justify-between rounded-lg border border-white/15 bg-background/60 px-3 text-left text-sm transition hover:bg-white/[0.08] disabled:opacity-50"
-            >
-              <span
-                className={selectedEvent ? "truncate" : "text-muted-foreground"}
-              >
-                {selectedEvent?.title ||
-                  (eventsLoading
-                    ? t("validation.loadingEvents")
-                    : t("validation.chooseEvent"))}
-              </span>
-              <ChevronDown
-                className={`h-4 w-4 shrink-0 transition ${eventMenuOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-            {eventMenuOpen && (
-              <div className="absolute z-20 mt-2 max-h-56 w-full overflow-y-auto rounded-lg border border-white/15 bg-background p-1 shadow-xl">
-                {events.map((event) => (
-                  <button
-                    key={event.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedEventId(event.id);
-                      setEventMenuOpen(false);
-                      setResult(undefined);
-                    }}
-                    className={`flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm transition hover:bg-white/5 ${event.id === selectedEventId ? "bg-primary/10 text-primary" : ""}`}
-                  >
-                    <Ticket className="h-4 w-4 shrink-0" />
-                    <span className="min-w-0 flex-1 truncate">
-                      {event.title}
-                    </span>
-                    {event.canManage && (
-                      <span className="text-[10px] font-semibold uppercase text-muted-foreground">
-                        {t("validation.organizer")}
-                      </span>
-                    )}
-                  </button>
-                ))}
-                {!events.length && !eventsLoading && (
-                  <p className="px-3 py-3 text-sm text-muted-foreground">
-                    {t("validation.noAssignedEvents")}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            {t("validation.scopeHint")}
-          </p>
+        <section className="space-y-3" data-testid="validation-selected-event">
+          <button type="button" data-testid="validation-change-event" onClick={() => setSelectedEventId("")}
+            disabled={validating || preparingOffline || syncingOffline || savingStaff || creatingScannerAccess}
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-white/15 px-3 text-sm font-medium text-foreground transition hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">
+            <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+            {t("validation.changeEvent")}
+          </button>
+          <h2 tabIndex={-1} ref={eventHeading} className="break-words text-xl font-semibold outline-none">{selectedEvent?.title}</h2>
+          <p className="break-words text-sm text-muted-foreground">{selectedEvent && formatEventDateTime(selectedEvent.startTime)} · {selectedEvent?.locationName}</p>
         </section>
 
         <SectionTabs id="validation-tabs" panelId="validation-panel"
@@ -960,7 +980,7 @@ export default function TicketValidationPage() {
 
             <div className="mt-5 rounded-lg border border-primary/25 bg-primary/[0.04] p-4 sm:p-5">
               <QrCameraScanner
-                disabled={!selectedEventId || validating}
+                disabled={!selectedEventId || validating || admissionsClosed}
                 onScan={submitValidationHash}
                 fullScreen
                 continuous
@@ -985,6 +1005,7 @@ export default function TicketValidationPage() {
                 className="space-y-3 border-t border-white/10 p-4"
               >
                 <textarea
+                  disabled={admissionsClosed}
                   value={validationHash}
                   onChange={(event) => setValidationHash(event.target.value)}
                   rows={3}
@@ -994,7 +1015,7 @@ export default function TicketValidationPage() {
                 <button
                   type="submit"
                   disabled={
-                    !selectedEventId || !validationHash.trim() || validating
+                    !selectedEventId || !validationHash.trim() || validating || admissionsClosed
                   }
                   className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-primary/35 bg-primary/10 px-4 text-sm font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50 sm:w-auto"
                 >

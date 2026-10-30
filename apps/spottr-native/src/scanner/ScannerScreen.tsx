@@ -2,8 +2,6 @@ import { ActionIcon } from '../ui/ActionIcon';
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   AppState,
-  Modal,
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,7 +11,7 @@ import {
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronDown, History, RefreshCw, Ticket, Wifi, WifiOff } from "lucide-react-native";
+import { History, RefreshCw, Wifi, WifiOff } from "lucide-react-native";
 import { accountApi, useAuth } from "../auth/AuthProvider";
 import { usePreferences } from "../PreferencesProvider";
 import { ApiError } from "../data/http";
@@ -24,10 +22,6 @@ import { Company } from "../dashboard/DashboardCompany";
 import { OrganizerAgreement } from "../dashboard/OrganizerDocuments";
 import type { OrganizerProfile } from "../dashboard/data";
 import { formatDate } from "../data/events";
-import {
-  dropdownPlacement,
-  type DropdownAnchor,
-} from "../dashboard/dropdownPlacement";
 import { AdmissionGate, admitTicket, type Admission, type ScanSource } from "./admission";
 import { getScannerConnection, watchScannerConnection } from './connection';
 import { isConnectivityError, mergeValidationEvents, uuid, type ValidationEvent } from "./data";
@@ -35,6 +29,7 @@ import { scannerApi, offlineScanner } from "./runtime";
 import type { OfflineState } from "./offline";
 import { ScannerPanel, s } from "./ScannerPanel";
 import { ScannerManagement } from "./ScannerManagement";
+import { ScannerEventList } from "./ScannerEventList";
 import { WardrobeTabs as SectionTabs } from "../wardrobe/WardrobeTabs";
 import { prepareScanner, PreparationError, type PrepareScanner } from './preparation';
 import { OfflinePackageStatus } from './OfflinePackageStatus';
@@ -48,15 +43,8 @@ export function ScannerScreen({
   eventId?: string;
   embedded?: boolean;
 }) {
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const queryClient = useQueryClient();
-  const selector = useRef<View>(null);
-  const [anchor, setAnchor] = useState<DropdownAnchor>({
-    x: 20,
-    y: 100,
-    width: 1,
-    height: 44,
-  });
   const { user, controller } = useAuth(),
     { copy, language } = usePreferences(),
     navigation = useNavigation<any>(),
@@ -66,7 +54,6 @@ export function ScannerScreen({
       AppState.currentState === "active",
     ),
     [selected, setSelected] = useState(eventId ?? route?.params?.eventId ?? ""),
-    [menu, setMenu] = useState(false),
     [tab, setTab] = useState<"scan" | "team" | "links">("scan");
   const [offlineState, setOfflineState] = useState<OfflineState>(),
     [offlineError, setOfflineError] = useState(""),
@@ -78,20 +65,12 @@ export function ScannerScreen({
   const gate = useRef(new AdmissionGate()),
     revision = useRef(0),
     workLock = useRef(false);
-  useEffect(() => {
-    setMenu(false);
-  }, [width, height, busy, work]);
-  useEffect(() => {
-    if (!menu || Platform.OS !== "web") return;
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenu(false);
-    };
-    document.addEventListener("keydown", close);
-    return () => document.removeEventListener("keydown", close);
-  }, [menu]);
   const ro = language === "ro",
     token = controller.getToken(),
     userId = user?.id;
+  useEffect(() => {
+    setSelected(eventId ?? route?.params?.eventId ?? "");
+  }, [userId, eventId, route?.params?.eventId]);
   const organizer = user?.role === "organizer" || user?.role === "admin";
   const [agreementOpen, setAgreementOpen] = useState(false);
   const [connected, setConnected] = useState<boolean | null>(null);
@@ -129,7 +108,7 @@ export function ScannerScreen({
         // Keep the selected camera alive even if its package was not prepared.
         // Cached event metadata never authorizes entry: store.scan requires a
         // valid, durable snapshot and otherwise returns "unprepared".
-        return { events: mergeValidationEvents(cached?.events ?? [], prepared), offline: true };
+        return { events: mergeValidationEvents((cached?.events ?? []).map(event => ({ ...event, canManage: false })), prepared), offline: true };
       };
       if (await getScannerConnection() === false) {
         return localEvents();
@@ -156,7 +135,7 @@ export function ScannerScreen({
   useEffect(() => {
     if (!events.data) return;
     if (!events.data.events.some((event) => event.id === selected))
-      setSelected(events.data.events[0]?.id ?? "");
+      setSelected("");
   }, [events.data, selected]);
   const event = events.data?.events.find((event) => event.id === selected),
     offline = connected === false || events.data?.offline === true;
@@ -524,189 +503,19 @@ export function ScannerScreen({
                 }}
               />
             ) : null}
-            <View
-              style={[
-                s.panel,
-                {
-                  backgroundColor: "#ff00440a",
-                  borderColor: "#ff004440",
-                  zIndex: 5,
-                },
-              ]}
-            >
-              <Text style={s.eyebrow}>{copy("validation.configureEvent")}</Text>
-              <View style={{ marginTop: 12, zIndex: 5 }}>
-                <Pressable
-                  ref={selector}
-                  testID="scanner-event-selector"
-                  accessibilityRole="button"
-                  accessibilityLabel={copy("validation.chooseEvent")}
-                  accessibilityState={{
-                    expanded: menu,
-                    disabled: events.isPending || busy || work,
-                  }}
-                  disabled={events.isPending || busy || work}
-                  onPress={() =>
-                    selector.current?.measureInWindow((x, y, width, height) => {
-                      if (width > 0) {
-                        setAnchor({ x, y, width, height });
-                        setMenu(true);
-                      }
-                    })
-                  }
-                  style={[
-                    s.row,
-                    {
-                      height: 44,
-                      borderRadius: 8,
-                      borderWidth: 1,
-                      borderColor: "#ffffff26",
-                      paddingHorizontal: 12,
-                      backgroundColor: "#00000099",
-                      gap: 8,
-                    },
-                  ]}
-                >
-                  <Text
-                    numberOfLines={1}
-                    style={{
-                      flex: 1,
-                      color: event ? colors.text : colors.muted,
-                      fontSize: 14,
-                    }}
-                  >
-                    {event?.title ||
-                      copy(
-                        events.isPending
-                          ? "validation.loadingEvents"
-                          : "validation.chooseEvent",
-                      )}
-                  </Text>
-                  <ChevronDown
-                    size={16}
-                    color={colors.text}
-                    style={{
-                      transform: [{ rotate: menu ? "180deg" : "0deg" }],
-                    }}
-                  />
-                </Pressable>
-                {menu && (
-                  <Modal
-                    transparent
-                    animationType="none"
-                    statusBarTranslucent
-                    onRequestClose={() => setMenu(false)}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Pressable
-                        accessibilityLabel={copy("common.close")}
-                        onPress={() => setMenu(false)}
-                        style={{ position: "absolute", inset: 0 }}
-                      />
-                      <ScrollView
-                        testID="scanner-event-menu"
-                        nestedScrollEnabled
-                        style={{
-                          position: "absolute",
-                          ...dropdownPlacement(
-                            anchor,
-                            { width, height },
-                            Math.min(
-                              224,
-                              Math.max(
-                                52,
-                                (events.data?.events.length ?? 0) * 40 + 8,
-                              ),
-                            ),
-                          ),
-                          borderRadius: 8,
-                          borderWidth: 1,
-                          borderColor: "#ffffff26",
-                          backgroundColor: "#000",
-                          zIndex: 10,
-                          boxShadow: "0px 20px 25px rgba(0,0,0,0.3)",
-                        }}
-                        contentContainerStyle={{ padding: 4 }}
-                      >
-                        {events.data?.events.map((item) => (
-                          <Pressable
-                            accessibilityRole="button"
-                            key={item.id}
-                            disabled={busy || work}
-                            onPress={() => {
-                              setSelected(item.id);
-                              setMenu(false);
-                              setTab("scan");
-                            }}
-                            style={[
-                              s.row,
-                              {
-                                paddingHorizontal: 12,
-                                paddingVertical: 10,
-                                gap: 8,
-                                borderRadius: 6,
-                                backgroundColor:
-                                  item.id === selected
-                                    ? "#ff00441a"
-                                    : "transparent",
-                              },
-                            ]}
-                          >
-                            <Ticket
-                              size={16}
-                              color={
-                                item.id === selected
-                                  ? colors.accent
-                                  : colors.text
-                              }
-                            />
-                            <Text
-                              numberOfLines={1}
-                              style={{
-                                flex: 1,
-                                fontSize: 14,
-                                color:
-                                  item.id === selected
-                                    ? colors.accent
-                                    : colors.text,
-                              }}
-                            >
-                              {item.title}
-                            </Text>
-                            {item.canManage && (
-                              <Text
-                                style={{
-                                  fontSize: 10,
-                                  fontWeight: "600",
-                                  textTransform: "uppercase",
-                                  color: colors.muted,
-                                }}
-                              >
-                                {copy("validation.organizer")}
-                              </Text>
-                            )}
-                          </Pressable>
-                        ))}
-                        {!events.data?.events.length && (
-                          <Text style={[s.muted, { padding: 12 }]}>
-                            {copy("validation.noAssignedEvents")}
-                          </Text>
-                        )}
-                      </ScrollView>
-                    </View>
-                  </Modal>
-                )}
-              </View>
-              <Text style={[s.tiny, { marginTop: 12 }]}>
-                {copy("validation.scopeHint")}
-              </Text>
+            {!event ? <ScannerEventList events={events.data?.events ?? []} loading={events.isPending} failed={events.isError} offline={offline}
+              onRefresh={() => { void events.refetch(); }} onSelect={id => { setTab("scan"); setSelected(id); }} /> : <>
+            <View style={{ gap: 12 }}>
+              <Action secondary title={copy("validation.changeEvent")} disabled={busy || work}
+                onPress={() => { setTab("scan"); setSelected(""); }}
+                style={{ alignSelf: "flex-start", minHeight: 44, backgroundColor: "transparent", borderWidth: 1, borderColor: colors.line }}
+                textStyle={{ color: colors.text, fontSize: 14 }} />
+              <Text accessibilityRole="header" style={[s.heading, { fontSize: 20 }]}>{event.title}</Text>
+              <Text style={s.muted}>{formatDate(event.startTime, language, true)} · {event.locationName}</Text>
             </View>
-            {!events.isPending && !event && !events.isError ? (
-              <Feedback title={copy(offline ? "validation.offlineUnprepared" : "validation.noAssignedEvents")} />
-            ) : null}
             <View testID="scanner-tabs">
               <SectionTabs id="scanner-tab" panelId="scanner-panel" label={copy("validation.title")} ro={ro}
-                value={visibleTab} onChange={value => { setMenu(false); setTab(value); }}
+                value={visibleTab} onChange={setTab}
                 options={[
                   { value: "scan", label: copy("validation.scanTab") },
                   ...(canManage ? [
@@ -951,6 +760,7 @@ export function ScannerScreen({
                 {notice}
               </Text>
             )}
+            </>}
           </View>
         )}
       </ScrollView>

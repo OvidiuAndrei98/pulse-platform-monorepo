@@ -6,4 +6,7 @@ export type EventFilters = {
   date: string;
   distance: number;
   city: string;
+  q?: string;
+  dateFrom?: string;
+  dateTo?: string;
 };

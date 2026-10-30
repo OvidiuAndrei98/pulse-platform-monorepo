@@ -6,4 +6,5 @@ export type EventMapProps = {
   onViewport: (center: Coordinate, zoom: number) => void;
   onSelectedPoint: (point: Point | null) => void;
   attributionBottom?: number;
+  focus?: { id: string; revision: number } | null;
 };

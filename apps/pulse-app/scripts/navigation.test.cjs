@@ -340,31 +340,17 @@ test("unmount cancels a pending history notification", async () => {
   assert.equal(notifications, 0);
 });
 
-test("map viewport saves movement without reading a destroyed Leaflet map on unmount", () => {
-  let destroyed = false;
-  let center = { lat: 44, lng: 26 };
-  const listeners = new Map();
-  const map = {
-    setView() {}, fitBounds() {},
-    getCenter() { assert.equal(destroyed, false, "MapContainer already removed the panes"); return center; },
-    getZoom: () => 12,
-    on: (name, handler) => listeners.set(name, handler),
-    off: (name) => listeners.delete(name),
-  };
-  const b = browser("/events", {
-    leaflet: { default: { latLng: () => ({ toBounds: () => [] }) } },
-    "react-leaflet": { useMap: () => map },
-  });
-  const { MapViewportController } = b.load("features/events/map/MapBehavior.tsx");
-  const cleanup = b.mount(() => MapViewportController({ distanceKm: 15 }));
-  center = { lat: 45, lng: 27 };
-  listeners.get("moveend")();
-  destroyed = true;
-  cleanup();
-  assert.equal(listeners.size, 0);
-  const saved = b.load("lib/navigation/state.ts").readNavigationState("map:nearby:15", null);
+test("map viewport restoration is scoped to the discovery city and distance", () => {
+  const b = browser("/events");
+  const {readNavigationState,writeNavigationState}=b.load("lib/navigation/state.ts");
+  writeNavigationState("map:nearby:15",{center:[45,27],zoom:18});
+  writeNavigationState("map:46,24:20",{center:[46,24],zoom:12});
+  const saved = readNavigationState("map:nearby:15", null);
   assert.equal(saved.center[0], 45);
   assert.equal(saved.center[1], 27);
+  assert.equal(saved.zoom,18);
+  assert.deepEqual(readNavigationState("map:46,24:20",null).center,[46,24]);
+  assert.equal(readNavigationState("map:nearby:50",null),null);
 });
 
 test("discovery defaults ignore old saved filters and explicit links still work", () => {

@@ -5,12 +5,15 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Keyboard,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
+  useWindowDimensions,
 } from "react-native";
-import { List, Map as MapIcon, SlidersHorizontal } from "lucide-react-native";
+import { SlidersHorizontal } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   useNavigation,
@@ -37,6 +40,10 @@ import { mixFeedPromotions } from '../../../pulse-app/src/features/events/promot
 import { VisiblePromotion, trackPromotion } from '../ui/VisiblePromotion';
 import type { RootParamList, TabsParamList } from "../navigation/types";
 import { getEventDateRange } from "../../../pulse-app/src/features/events/dateFilters";
+import { useDebouncedDiscoverySearch } from '../../../pulse-app/src/features/events/useDebouncedDiscoverySearch';
+import { activeDiscoveryStart, eventMatchesSearch, eventWithinDistance } from '../../../pulse-app/src/features/events/discoveryFilters';
+import { DiscoveryToolbar } from './DiscoveryToolbar';
+import { DiscoveryCalendar } from './DiscoveryCalendar';
 import {
   defaultEventFilters,
   cityCenters,
@@ -63,28 +70,36 @@ export function DiscoveryScreen() {
     [open, setOpen] = useState(false),
     [cityOpen, setCityOpen] = useState(false);
   const [view, setView] = useState<'list' | 'map'>('list');
+  const wide=useWindowDimensions().width>=1024&&Platform.OS==='web';
+  const [panel,setPanel]=useState<'all'|'more'|'date'|'city'>('all'),[filterError,setFilterError]=useState(''),[toolbarHeight,setToolbarHeight]=useState(44);
+  const [userLocation,setUserLocation]=useState<readonly[number,number]|null>(null);
+  const search=useDebouncedDiscoverySearch(filters.q);
+  const openPanel=(kind:typeof panel)=>{Keyboard.dismiss();setDraft(filters);setPanel(kind);setCityOpen(kind==='city');setFilterError('');setOpen(true);};
   const list = useRef<FlatList<Event>>(null);
   useScrollToTop(list);
   useEffect(() => {
     if (route.params?.date)
-      setFilters((current) => ({ ...current, date: route.params!.date! }));
+      setFilters((current) => ({ ...current, date: route.params!.date!,dateFrom:'',dateTo:'' }));
   }, [route.params]);
   const query = useMemo<EventFilters>(() => {
-    const range = getEventDateRange(filters.date);
+    const range = getEventDateRange(filters.date,filters);
     return {
       category: filters.categories.join(","),
       vibe: filters.vibes.join(","),
       city: filters.city,
+      q: search,
       ...range,
-      startsAfter: range.startsAfter ?? new Date().toISOString(),
+      startsAfter: activeDiscoveryStart(range.startsAfter),
     };
-  }, [filters]);
+  }, [filters.categories,filters.vibes,filters.city,filters.date,filters.dateFrom,filters.dateTo,search]);
   const events = useEvents(query);
   const promotions = useQuery({ queryKey: ['promotions'], queryFn: ({ signal }) => eventsApi.promotions(signal) });
   const [promotionSeed] = useState(() => String(Date.now()));
   const feedPromotions = (promotions.data ?? []).filter(p => p.placement === 'feed');
   const campaigns = new Map(feedPromotions.map(p => [p.event.id, p.campaignId]));
-  const displayed = mixFeedPromotions(events.items, feedPromotions, promotionSeed, event => (!filters.categories.length || filters.categories.includes(event.category)) && (!filters.vibes.length || filters.vibes.includes(event.vibe)) && (!filters.city || filters.city === event.city) && (!query.startsAfter || Date.parse(event.endTime) > Date.parse(query.startsAfter)) && (!query.startsBefore || Date.parse(event.startTime) < Date.parse(query.startsBefore)), 3);
+  const center=cityCenters[filters.city]??userLocation;
+  const displayed = mixFeedPromotions(events.items, feedPromotions, promotionSeed, event => eventMatchesSearch(event,search) && (!filters.categories.length || filters.categories.includes(event.category)) && (!filters.vibes.length || filters.vibes.includes(event.vibe)) && (!filters.city || filters.city === event.city) && (!query.startsAfter || Date.parse(event.endTime) > Date.parse(query.startsAfter)) && (!query.startsBefore || Date.parse(event.startTime) < Date.parse(query.startsBefore)), 3).filter(event=>eventWithinDistance(event,center,filters.distance));
+  const mapEvents=events.items.filter(event=>eventWithinDistance(event,center,filters.distance));
   useEffect(() => { if (view === 'map') events.loadMore(); }, [view, events.data, events.isFetching, events.hasNextPage]);
   useEffect(() => {
     list.current?.scrollToOffset({ offset: 0, animated: false });
@@ -107,47 +122,14 @@ export function DiscoveryScreen() {
       <View
         pointerEvents="box-none"
         style={{
-          flexDirection: "row",
-          gap: 8,
           paddingHorizontal: 20,
           paddingBottom: 20,
-          ...(view === 'map' ? { position: 'absolute', left: 0, right: 64, top: Math.max(24, insets.top), zIndex: 10 } as const : {}),
+          ...(view === 'map' ? { position: 'absolute', left: 0, right: 0, top: Math.max(24, insets.top), zIndex: 10 } as const : {}),
         }}
       >
-        <View style={s.toggle}>
-          <Pressable
-            testID="events-list-toggle"
-            accessibilityRole="button"
-            accessibilityLabel={copy("eventMap.list")}
-            style={[s.mode, view === 'list' && { backgroundColor: colors.accent }]}
-            onPress={() => setView('list')}
-          >
-            <List size={16} color={view === 'list' ? 'black' : '#ffffffb3'} />
-          </Pressable>
-          <Pressable
-            testID="events-map-toggle"
-            accessibilityRole="button"
-            accessibilityLabel={copy("eventMap.map")}
-            style={[s.mode, view === 'map' && { backgroundColor: colors.accent }]}
-            onPress={() => setView('map')}
-          >
-            <MapIcon size={16} color={view === 'map' ? 'black' : '#ffffffb3'} />
-          </Pressable>
-        </View>
-        <Pressable
-          testID="event-filters"
-          accessibilityRole="button"
-          accessibilityLabel={copy("common.filters")}
-          onPress={() => {
-            setDraft(filters);
-            setOpen(true);
-          }}
-          style={s.filter}
-        >
-          <SlidersHorizontal size={16} color="#ffffffb3" />
-        </Pressable>
+        <DiscoveryToolbar filters={filters} onChange={setFilters} view={view} onViewChange={setView} onFilters={()=>openPanel(wide?'more':'all')} onCalendar={()=>openPanel('date')} onCity={()=>openPanel('city')} onHeight={setToolbarHeight}/>
       </View>
-      {view === 'map' ? <EventsMapPanel events={events.items} distance={filters.distance} cityCenter={cityCenters[filters.city] ? { latitude: cityCenters[filters.city]![0], longitude: cityCenters[filters.city]![1] } : null} onOpen={event => { seedEvent(event); navigation.navigate('Event', { id: event.id }); }} loading={events.isFetching} error={events.isError} retry={() => void (events.isFetchNextPageError ? events.fetchNextPage() : events.refetch())} /> : <FlatList
+      {view === 'map' ? <EventsMapPanel events={mapEvents} toolbarHeight={toolbarHeight} onLocationChange={setUserLocation} distance={filters.distance} cityCenter={cityCenters[filters.city] ? { latitude: cityCenters[filters.city]![0], longitude: cityCenters[filters.city]![1] } : null} onOpen={event => { seedEvent(event); navigation.navigate('Event', { id: event.id }); }} loading={events.isFetching} error={events.isError} retry={() => void (events.isFetchNextPageError ? events.fetchNextPage() : events.refetch())} /> : <FlatList
         ref={list}
         style={{ flex: 1 }}
         testID="events-list"
@@ -254,7 +236,7 @@ export function DiscoveryScreen() {
                     fontWeight: "600",
                   }}
                 >
-                  {copy("filters.title")}
+                  {copy(panel==='date'?'filters.calendar':panel==='city'?'filters.city':'filters.title')}
                 </Text>
               </View>
               <GlassPressable fallback={Pressable}
@@ -269,19 +251,20 @@ export function DiscoveryScreen() {
             <ScrollView
               contentContainerStyle={{ padding: 24, paddingTop: 20, gap: 24 }}
             >
-              <Section title={copy("filters.when")}>
+              {(panel==='all'||panel==='date')&&<Section title={copy("filters.when")}>
                 <View style={s.wrap}>
                   {eventDateFilters.map((date, index) => (
                     <Chip
                       key={date}
                       label={copy(dateKeys[index]!)}
                       active={draft.date === date}
-                      onPress={() => setDraft({ ...draft, date })}
+                      onPress={() => {setDraft({ ...draft, date,dateFrom:'',dateTo:'' });setFilterError('');}}
                     />
                   ))}
                 </View>
-              </Section>
-              <Section title={copy("filters.city")}>
+                <View style={{marginTop:16}}><DiscoveryCalendar from={draft.dateFrom} to={draft.dateTo} onChange={(dateFrom,dateTo)=>{setDraft({...draft,date:dateFrom?'Custom':'See all',dateFrom,dateTo});setFilterError('');}}/></View>
+              </Section>}
+              {(panel==='all'||panel==='city')&&<Section title={copy("filters.city")}>
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => setCityOpen(!cityOpen)}
@@ -306,8 +289,8 @@ export function DiscoveryScreen() {
                     ))}
                   </View>
                 )}
-              </Section>
-              <Section title={copy("filters.categories")}>
+              </Section>}
+              {(panel==='all'||panel==='more')&&<><Section title={copy("filters.categories")}>
                 <View style={s.wrap}>
                   {categories.map((value) => (
                     <Chip
@@ -339,6 +322,8 @@ export function DiscoveryScreen() {
                 }
               >
                 <DistanceSlider
+                  label={copy('filters.distance')}
+                  disabled={!draft.city&&!userLocation}
                   value={draft.distance}
                   onChange={(distance) => setDraft({ ...draft, distance })}
                 />
@@ -355,27 +340,33 @@ export function DiscoveryScreen() {
                     {copy("filters.distanceValue", { distance: 50 })}
                   </Text>
                 </View>
+                {!draft.city&&!userLocation&&<Text style={s.small}>{copy('filters.distanceHint')}</Text>}
               </Section>
+              </>}
             </ScrollView>
+            {!!filterError&&<Text accessibilityRole="alert" style={{color:colors.danger,paddingHorizontal:24,paddingBottom:8}}>{filterError}</Text>}
             <View style={s.actions}>
               <Pressable
+                accessibilityRole="button"
                 style={s.reset}
-                onPress={() => setDraft(defaultEventFilters)}
+                onPress={() => {setFilterError('');setDraft(panel==='more'?{...draft,categories:[],vibes:[],distance:15}:panel==='date'?{...draft,date:'See all',dateFrom:'',dateTo:''}:panel==='city'?{...draft,city:''}:defaultEventFilters);}}
               >
                 <Text style={{ fontSize: 14, color: colors.text }}>
                   {copy("common.reset")}
                 </Text>
               </Pressable>
               <Pressable
+                accessibilityRole="button"
                 testID="apply-filters"
                 style={s.apply}
                 onPress={() => {
+                  if(draft.dateFrom&&!draft.dateTo){setFilterError(copy('filters.chooseRangeEnd'));return;}
                   setFilters(draft);
                   setOpen(false);
                 }}
               >
                 <Text
-                  style={{ fontSize: 14, fontWeight: "600", color: "white" }}
+                  style={{ fontSize: 20, fontWeight: "700", color: "white" }}
                 >
                   {copy("common.applyFilters")}
                 </Text>
@@ -429,9 +420,9 @@ function Chip({
       ]}
     >
       <Text
-        style={{ fontSize: 14, color: active ? colors.accent : "#ffffffd9" }}
+        style={{ fontSize: 14, color: "#ffffffd9" }}
       >
-        {label}
+        {active?'✓ ':''}{label}
       </Text>
     </Pressable>
   );
@@ -439,18 +430,24 @@ function Chip({
 function DistanceSlider({
   value,
   onChange,
+  label,
+  disabled=false,
 }: {
   value: number;
   onChange: (value: number) => void;
+  label:string;
+  disabled?:boolean;
 }) {
   const [width, setWidth] = useState(1);
   const position = (value - 1) / 49;
   return (
     <View
       accessibilityRole="adjustable"
+      accessibilityLabel={label}
+      accessibilityState={{disabled}}
       accessibilityValue={{ min: 1, max: 50, now: value }}
       accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
-      onAccessibilityAction={(event) =>
+      onAccessibilityAction={(event) => !disabled&&
         onChange(
           Math.min(
             50,
@@ -462,8 +459,8 @@ function DistanceSlider({
         )
       }
       onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-      onStartShouldSetResponder={() => true}
-      onMoveShouldSetResponder={() => true}
+      onStartShouldSetResponder={() => !disabled}
+      onMoveShouldSetResponder={() => !disabled}
       onResponderGrant={(event) =>
         onChange(
           Math.max(

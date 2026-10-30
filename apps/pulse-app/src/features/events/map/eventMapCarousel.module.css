@@ -37,6 +37,4 @@
 .action { color: var(--primary); font-size: 12px; line-height: 18px; font-weight: 600; }
 .image { width: 72px; height: 104px; flex: 0 0 72px; border-radius: 12px; object-fit: cover; }
 @media (min-width: 1024px) { .rail { display: none; } }
-@media (max-width: 1023px) {
-  .host :global(.leaflet-bottom) { bottom: calc(112px + var(--map-carousel-height, 0px) + max(env(safe-area-inset-bottom, 0px), var(--native-safe-bottom, 0px))); }
-}
+.host :global(.maplibregl-ctrl-bottom-right) { bottom: calc(var(--map-attribution-bottom, 0px) + max(env(safe-area-inset-bottom, 0px), var(--native-safe-bottom, 0px))) !important; }

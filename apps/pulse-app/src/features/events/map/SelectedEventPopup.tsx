@@ -1,8 +1,5 @@
-import { useEffect, useRef } from "react";
 import Image from "next/image";
-import L from "leaflet";
 import { Clock, X } from "lucide-react";
-import { Popup, useMap } from "react-leaflet";
 import { useTranslation } from "react-i18next";
 import { Event } from "@/core/DataProvider";
 import { EventStatusBadge } from "@/features/events/components/EventStatusBadge";
@@ -10,7 +7,7 @@ import { formatEventTime } from "@/features/events/dateFormat";
 
 interface SelectedEventPopupProps {
   event: Event;
-  position?: { latitude: number; longitude: number };
+  position: { x: number; y: number };
   onClose: () => void;
   onOpen: () => void;
 }
@@ -22,27 +19,8 @@ export function SelectedEventPopup({
   onOpen,
 }: SelectedEventPopupProps) {
   const { t } = useTranslation();
-  const map = useMap();
-  const popupRef = useRef<L.Popup | null>(null);
-
-  useEffect(() => {
-    popupRef.current?.openOn(map);
-  }, [event.id, map]);
-
   return (
-    <Popup
-      ref={popupRef}
-      position={[
-        position?.latitude ?? event.latitude,
-        position?.longitude ?? event.longitude,
-      ]}
-      offset={[0, -27]}
-      closeButton={false}
-      closeOnClick={false}
-      autoPan={false}
-      keepInView={false}
-      className="event-preview-popup"
-    >
+    <div className="event-preview-popup absolute z-[2] -translate-x-1/2" style={{left:`clamp(172px, ${position.x}px, calc(100% - 172px))`,top:Math.max(12,position.y-200)}}>
       {/* Container Glassmorphic Optimizat cu transform-gpu */}
       <div className="relative w-[min(19rem,calc(100vw-2rem))] rounded-xl border border-white/10 bg-[#121418]/95 p-3 text-left antialiased shadow-[0_8px_32px_rgba(0,0,0,0.5)] transform-gpu md:w-[20rem] md:bg-white/[0.06] md:backdrop-blur-md">
         {/* Buton Închidere - Fără blur redundant pe mobil */}
@@ -50,7 +28,7 @@ export function SelectedEventPopup({
           type="button"
           onClick={onClose}
           aria-label={t("common.close")}
-          className="absolute right-3 top-3 z-20 grid h-6 w-6 place-items-center rounded-full border border-white/10 bg-white/15 text-zinc-300 transition duration-200 hover:bg-white/25 hover:text-white md:backdrop-blur-md"
+          className="absolute right-1 top-1 z-20 grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/15 text-zinc-300 transition duration-200 hover:bg-white/25 hover:text-white md:backdrop-blur-md"
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -108,6 +86,6 @@ export function SelectedEventPopup({
           {t("events.viewEvent")}
         </button>
       </div>
-    </Popup>
+    </div>
   );
 }

@@ -50,7 +50,14 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
       qa.unexpected.push({ route, method }); return reply({}, 404);
     };
   }.toString()})();` });
-  const open = path => call('Page.navigate', { url: base + path });
+  const open = async path => {
+    await call('Page.navigate', { url: base + path });
+    if (path.startsWith('/ticket-validation')) {
+      const row = '[data-testid="validation-event-'+id(1)+'"]';
+      await until(`document.querySelector(${JSON.stringify(row)})||document.body.innerText.includes('Prepare this event for offline validation first')`);
+      if (await evaluate(`!!document.querySelector(${JSON.stringify(row)})`)) await evaluate(`document.querySelector(${JSON.stringify(row)}).click()`);
+    }
+  };
   const pressText = async label => {
     const expression = `Array.from(document.querySelectorAll('[role="button"],button')).find(el=>el.textContent.trim()===${JSON.stringify(label)})`;
     await until(expression); await evaluate(`${expression}.click()`);

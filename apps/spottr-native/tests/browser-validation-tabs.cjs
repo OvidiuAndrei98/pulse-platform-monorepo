@@ -31,7 +31,13 @@ withBrowser(async ({ base, call, evaluate, until, delay, capture, errors }) => {
       qa.requests.push({ route, method });
       const reply = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
       if (route === '/users/me' || route === '/auth/me') return reply(user);
-      if (['/events', '/dashboard/events', '/dashboard/ticket-validation/events'].includes(route)) return reply([event, assigned]);
+      if (['/events', '/dashboard/events', '/dashboard/ticket-validation/events'].includes(route)) {
+        if(params.has('load-error'))return reply({error:'UNAVAILABLE'},500);
+        if(params.has('empty'))return reply([]);
+        const long=params.has('long');
+        const first=long?{...event,title:'VeryLongEventNameWithoutSpaces'.repeat(8),locationName:'Long venue and address '.repeat(8)}:event;
+        return reply(params.has('single')?[first]:[first,assigned]);
+      }
       if (route.includes('/organizer/profile/') || route === '/dashboard/stripe/status') return reply({ userId: user.id, companyName: 'Validation QA Company', cui: '12345678', isVerified: true, verificationStatus: 'approved', agreementVersion: '2026-10-18', agreementAcceptedAt: '2026-10-18T12:00:00Z' });
       if (route.endsWith('/my-scans')) return reply({ totalScans: 0, scans: [] });
       if (/\/(staff|quick-access)(\/[^/]+)?$/.test(route)) {
@@ -67,7 +73,23 @@ withBrowser(async ({ base, call, evaluate, until, delay, capture, errors }) => {
     const expression = `Array.from(document.querySelectorAll('button,[role="button"]')).find(e=>e.textContent.trim()===${JSON.stringify(label)}&&e.getBoundingClientRect().width>0)`;
     await until(expression); await evaluate(`${expression}.click()`);
   };
-  const open = async suffix => { await call('Page.navigate', { url: origin + '/ticket-validation' + suffix }); await until(`${tab('scan')}&&document.body.innerText.includes('Validation QA Night')`); await delay(100); };
+  const choose = async (n=1) => {
+    const selector = '[data-testid="validation-event-00000000-0000-4000-8000-'+String(n).padStart(12,'0')+'"]';
+    await until(`document.querySelector(${JSON.stringify(selector)})`);
+    await evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
+    await until(tab('scan'));
+  };
+  const openList = async suffix => {
+    await call('Page.navigate', { url: origin + '/ticket-validation' + suffix });
+    await until(`document.querySelector('[data-testid="validation-event-00000000-0000-4000-8000-000000000001"]')`);
+    assert.equal(await evaluate(`!!${tab('scan')}`),false,'No event is chosen automatically');
+    assert.equal(await evaluate(`window.__validationQA.requests.some(r=>['/staff','/quick-access','/my-scans'].some(suffix=>r.route.endsWith(suffix)))`),false,'An event must be chosen before loading its workspace');
+    await capture((next?'next':'native')+'-validation-event-list');
+  };
+  const open = async suffix => {
+    await openList(suffix);
+    await choose(); await delay(100);
+  };
   await open('');
   await until(tab('links'));
   assert.equal(await evaluate(`document.getElementById('${panel}').getAttribute('aria-labelledby')`), tabId('scan'));
@@ -106,8 +128,10 @@ withBrowser(async ({ base, call, evaluate, until, delay, capture, errors }) => {
   }
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   // Switching from a managed event to an assigned one immediately removes management.
-  const chooser = `Array.from(document.querySelectorAll('button,[role="button"]')).find(e=>e.textContent.trim()==='Validation QA Night')`;
-  await until(chooser); await evaluate(`${chooser}.click()`); await press('Assigned QA event');
+  await press('Change event');
+  await until(`document.querySelector('[data-testid="validation-event-list"]')`);
+  assert.equal(await evaluate(`!!${tab('scan')}`),false,'Returning to the list unmounts the scanner and management');
+  await choose(5);
   await until(`!${tab('team')}&&!${tab('links')}&&${tab('scan')}.getAttribute('aria-selected')==='true'`);
   assert.equal(await evaluate(`window.__validationQA.requests.some(r=>r.route.includes('000000000005')&&(r.route.includes('/staff')||r.route.includes('/quick-access')))`), false);
   await open('?staff=1');
@@ -116,6 +140,19 @@ withBrowser(async ({ base, call, evaluate, until, delay, capture, errors }) => {
   await open('?lang=ro'); await until(tab('links'));
   await activate('links'); await capture((next ? 'next' : 'native') + '-validation-tabs-ro');
   assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth+1'), false);
+  await openList('?single=1');
+  assert.equal(await evaluate(`document.querySelectorAll('[data-testid^="validation-event-0000"]').length`),1,'A single event still requires an explicit choice');
+  await openList('?long=1');
+  await call('Emulation.setDeviceMetricsOverride',{width:320,height:740,deviceScaleFactor:1,mobile:true});await delay(100);
+  assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth+1'),false,'Long event names and venues fit a 320px list');
+  if(next){await evaluate('document.documentElement.style.zoom="2"');await delay(100);assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth+1'),false);await evaluate('document.documentElement.style.zoom=""');}
+  await capture((next?'next':'native')+'-validation-event-list-narrow');
+  await call('Page.navigate',{url:origin+'/ticket-validation?empty=1'});
+  await until(`document.body.innerText.includes('You have no events assigned for validation.')`);
+  assert.equal(await evaluate(`!!${tab('scan')}`),false,'An empty list never opens an empty scanner');
+  await call('Page.navigate',{url:origin+'/ticket-validation?load-error=1'});
+  await until(`document.body.innerText.includes('Validation events could not be loaded.')`);
+  assert.equal(await evaluate(`!!${tab('scan')}`),false,'A failed event list cannot open a workspace');
   assert.deepEqual(errors, []);
   console.log('PASS ' + (next ? 'Next' : 'Native web') + ' validation tabs: keyboard, scoped management, draft retention, staff/link commands, assigned event fallback, RO, 320px and desktop');
 }, { fakeCamera: true }).catch(error => { console.error(error); process.exitCode = 1; });
