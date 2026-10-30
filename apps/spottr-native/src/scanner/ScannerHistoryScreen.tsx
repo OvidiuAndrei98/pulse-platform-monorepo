@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Check, History, RefreshCw, UserRound, Users, WifiOff } from 'lucide-react-native';
 import { useAuth } from '../auth/AuthProvider';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import type { RootParamList } from '../navigation/types';
 import { formatDate } from '../data/events';
 import { ApiError } from '../data/http';

@@ -1,4 +1,4 @@
-import type { View as ViewInstance } from 'react-native';
+import type { ViewInstance } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useRef, useState } from 'react';
@@ -9,7 +9,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { Feedback, Loading } from '../ui/common';
 import { SocialPhoto } from '../social/components';

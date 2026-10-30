@@ -1,8 +1,9 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import React, { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { Platform, Pressable, View, type ViewInstance } from 'react-native';
 import { CalendarDays, ChevronRight, MapPin, RefreshCw, Ticket } from 'lucide-react-native';
 import { sortValidationEvents } from '@packages/api-client/src/validationEventSelection';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { Loading } from '../ui/common';
 import { dColors as colors } from '../dashboard/common';
@@ -17,16 +18,16 @@ export function ScannerEventList({ events, loading, failed, offline, onSelect, o
 }) {
   const { copy, language } = usePreferences();
   const [focused, setFocused] = useState('');
-  const heading = useRef<View>(null);
+  const heading = useRef<ViewInstance>(null);
   useEffect(() => { if (Platform.OS === 'web') heading.current?.focus(); }, [loading]);
   return <View testID="validation-event-list" style={{ gap: 16 }}>
     <Text style={s.muted}>{copy('validation.eventListHint')}</Text>
     <View style={[s.row, { justifyContent: 'space-between', gap: 12 }]}>
       <View ref={heading} tabIndex={-1} accessibilityRole="header" style={{ flex: 1, outlineWidth: 0 }}><Text style={s.heading}>{copy('validation.chooseEvent')}</Text></View>
-      <Pressable accessibilityRole="button" accessibilityLabel={copy('validation.refreshEvents')} disabled={loading} onPress={onRefresh}
+      <AccentPressable fallback={Pressable} accessibilityRole="button" accessibilityLabel={copy('validation.refreshEvents')} disabled={loading} onPress={onRefresh}
         style={{ minWidth: 44, minHeight: 44, borderRadius: 22, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', opacity: loading ? .5 : 1 }}>
         <RefreshCw size={16} color="white" />
-      </Pressable>
+      </AccentPressable>
     </View>
     {loading ? <Loading /> : failed ? null : !events.length ? <Text style={s.muted}>{copy(offline ? 'validation.offlineUnprepared' : 'validation.noAssignedEvents')}</Text> :
       sortValidationEvents(events).map(event => <Pressable key={event.id} testID={'validation-event-'+event.id} accessibilityRole="button"

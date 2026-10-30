@@ -1,10 +1,10 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { Music2, Search } from "lucide-react-native";
 import { useQuery } from "@tanstack/react-query";
 import type { components } from "@packages/api-client/src/schema";
 import { accountApi } from "../auth/AuthProvider";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { EventImage, Feedback, Loading } from "../ui/common";
 import { Field, s, dColors } from "./common";

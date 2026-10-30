@@ -37,3 +37,7 @@ allowBuilds:
   core-js: true
   esbuild: true
   sharp: true
+# Reanimated 4.7 infers native worklet dependencies. Keep Bottom Sheet's
+# explicit dependency arrays only for its web implementation.
+patchedDependencies:
+  '@gorhom/bottom-sheet@5.2.14': patches/@gorhom__bottom-sheet@5.2.14.patch

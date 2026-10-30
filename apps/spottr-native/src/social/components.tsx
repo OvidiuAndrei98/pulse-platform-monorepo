@@ -1,10 +1,11 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { ArrowUpRight, Calendar, Check, ImageIcon, Ticket, X } from 'lucide-react-native';
 import { FormInput } from '../ui/FormInput';
 import { Search } from 'lucide-react-native';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { useSocial } from './useSocial';
 import type { FeedGroup, Friend } from './data';
 import { Text } from '../ui/Text';
@@ -44,8 +45,8 @@ export function FriendsListSheet({ social, close, openProfile, manage }: { socia
         <Text style={[s.muted, { marginBottom: 8 }]}>{copy('feed.friendRequests')}</Text>
         {requests.map(request => <View key={request.id} style={s.request}>
           <FriendIdentity friend={request} open={() => { close(); openProfile(request.id); }} />
-          <Pressable testID={'friend-accept-' + request.id} accessibilityRole="button" accessibilityLabel={copy('feed.acceptRequest', { name: request.username })} disabled={!!social.pendingId} onPress={() => void social.respond(request.id, 'accepted')} style={[s.action, { backgroundColor: colors.accent, opacity: social.pendingId ? 0.4 : 1 }]}>
-            {social.pendingId === request.id ? <ActivityIndicator size="small" color="white" /> : <Check size={16} color="white" />}</Pressable>
+          <AccentPressable fallback={Pressable} testID={'friend-accept-' + request.id} accessibilityRole="button" accessibilityLabel={copy('feed.acceptRequest', { name: request.username })} disabled={!!social.pendingId} onPress={() => void social.respond(request.id, 'accepted')} style={[s.action, { backgroundColor: colors.accent, opacity: social.pendingId ? 0.4 : 1 }]}>
+            {social.pendingId === request.id ? <ActivityIndicator size="small" color="white" /> : <Check size={16} color="white" />}</AccentPressable>
           <Pressable testID={'friend-decline-' + request.id} accessibilityRole="button" accessibilityLabel={copy('feed.declineRequest', { name: request.username })} disabled={!!social.pendingId} onPress={() => void social.respond(request.id, 'declined')} style={[s.action, { opacity: social.pendingId ? 0.4 : 1 }]}><X size={16} color="white" /></Pressable>
         </View>)}
       </View>}

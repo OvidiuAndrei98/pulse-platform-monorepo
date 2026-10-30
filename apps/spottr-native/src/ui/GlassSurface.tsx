@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, type ViewProps } from 'react-native';
+import React, { forwardRef } from 'react';
+import { View, type ViewInstance } from 'react-native';
+import type { GlassSurfaceProps } from './glassSurfaceTypes';
 
-export function GlassSurface(props: ViewProps) {
-  return <View {...props} />;
-}
+export const GlassSurface = forwardRef<ViewInstance, GlassSurfaceProps>(function GlassSurface({ tintColor: _tintColor, interactive: _interactive, ...props }, ref) {
+  return <View {...props} ref={ref} />;
+});

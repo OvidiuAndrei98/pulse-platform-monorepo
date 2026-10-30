@@ -1,4 +1,4 @@
-import type { ScrollView as ScrollViewInstance } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -12,7 +12,7 @@ import { StackActions } from '@react-navigation/native';
 import type { RootParamList } from '../navigation/types';
 import { PublicProfileTabBar } from '../navigation/PublicProfileTabBar';
 import { useAuth } from '../auth/AuthProvider';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { eventsApi, ApiError } from '../data/api';
 import { seedEvent } from '../data/queries';
 import type { Event } from '../data/events';

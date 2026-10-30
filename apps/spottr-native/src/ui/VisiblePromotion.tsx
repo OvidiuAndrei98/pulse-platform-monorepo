@@ -1,4 +1,4 @@
-import type { View as ViewInstance } from 'react-native';
+import type { ViewInstance } from 'react-native';
 import React, { useEffect, useRef } from 'react';
 import { AppState, Platform, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';

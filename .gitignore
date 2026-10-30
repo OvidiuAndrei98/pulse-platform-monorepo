@@ -3,6 +3,7 @@ apps/pulse-app/public/maplibre-worker.mjs
 apps/spottr-native/public/maplibre-worker.mjs
 apps/pulse-app/public/map-style-license.txt
 apps/spottr-native/public/map-style-license.txt
+apps/spottr-native/src/map/webview/event-map.html
 .env
 .env.*
 !.env.sample

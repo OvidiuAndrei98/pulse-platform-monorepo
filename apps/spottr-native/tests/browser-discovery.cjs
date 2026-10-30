@@ -33,7 +33,9 @@ withBrowser(async({base,call,evaluate,until,click,input,delay,capture,errors})=>
   await input('discovery-search','House');
   await call('Emulation.setDeviceMetricsOverride',{width:320,height:700,deviceScaleFactor:1,mobile:true});await delay(300);
   assert.equal(await evaluate(`(()=>{const el=document.querySelector('[data-testid="discovery-search"]');return el?.value==='House'&&el.getBoundingClientRect().width>60;})()`),true,'Desktop-to-mobile keeps an active query visible');
-  await clearSearch();assert.equal(await evaluate(`document.activeElement?.getAttribute('data-testid')`),'discovery-search-toggle','Mobile X restores the round trigger');
+  await clearSearch();
+  if(!next){assert.equal(await evaluate(`document.activeElement?.getAttribute('data-testid')`),'discovery-search','Clear keeps the field focused');await click('discovery-search-back');await delay(150);}
+  assert.equal(await evaluate(`document.activeElement?.getAttribute('data-testid')`),'discovery-search-toggle','Dismissal restores the round trigger');
   await call('Emulation.setDeviceMetricsOverride',{width:1152,height:900,deviceScaleFactor:1,mobile:false});await delay(300);
   if(next)await evaluate(`(()=>{const select=document.querySelector('[data-testid="discovery-city"]');select.value='Bucuresti';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
   else{await click('discovery-city');await pressText('Bucuresti');await pressText('Apply filters');await delay(350);}

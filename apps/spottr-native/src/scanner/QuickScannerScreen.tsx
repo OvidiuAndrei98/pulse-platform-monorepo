@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { ApiError } from '../data/http';
 import { Feedback, IconButton, Loading } from '../ui/common';
 import { Text } from '../ui/Text';

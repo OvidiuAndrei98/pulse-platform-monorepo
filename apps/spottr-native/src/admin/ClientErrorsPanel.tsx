@@ -1,8 +1,9 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import React, { useState } from "react";
 import { Pressable, View } from "react-native";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useAuth, accountApi } from "../auth/AuthProvider";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { Button, Feedback, Loading } from "../ui/common";
 import { parseErrorPage } from "../../../pulse-app/src/features/diagnostics/report";
@@ -74,7 +75,7 @@ export function ClientErrorsPanel({ initiallyOpen = false }: { initiallyOpen?: b
           </Text>}
           <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
             {["", "ios", "android", "web"].map((value) => (
-              <Pressable
+              <AccentPressable fallback={Pressable}
                 key={value}
                 accessibilityRole="button"
                 onPress={() => {
@@ -90,7 +91,7 @@ export function ClientErrorsPanel({ initiallyOpen = false }: { initiallyOpen?: b
                 <Text style={{ color: "white", fontSize: 12 }}>
                   {value || (ro ? "Toate" : "All")}
                 </Text>
-              </Pressable>
+              </AccentPressable>
             ))}
           </View>
           <Button

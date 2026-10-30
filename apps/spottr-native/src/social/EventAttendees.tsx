@@ -6,7 +6,7 @@ import { BadgeCheck, Ticket, UsersRound } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { BlurView } from 'expo-blur';
 import { accountApi, useAuth } from '../auth/AuthProvider';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { isEventId } from '../data/events';
 import { createProfilesApi } from '../profiles/data';
 import { publicProfileKey } from '../profiles/usePublicProfile';

@@ -28,7 +28,8 @@ import {
   Inter_800ExtraBold,
   Inter_900Black,
 } from "@expo-google-fonts/inter";
-import { PreferencesProvider, usePreferences } from "./PreferencesProvider";
+import { PreferencesProvider } from "./PreferencesProvider";
+import { usePreferences } from './usePreferences';
 import { queryClient } from "./data/queries";
 import { SceneMainTabBar, MainTabBarProvider, MainTabBarRegistration } from "./navigation/MainTabBar";
 import { profileStackRouter } from './navigation/profileStackRouter';

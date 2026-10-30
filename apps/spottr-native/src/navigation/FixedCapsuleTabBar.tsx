@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useLayoutEffect, useMemo, useRef, useSt
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { cancelAnimation, runOnJS, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { ToastHost } from '../ui/ToastHost';
 import type { NativeTabBarProps } from './NativeTabBar';
 import { TabBarIcon } from './TabBarIcon';

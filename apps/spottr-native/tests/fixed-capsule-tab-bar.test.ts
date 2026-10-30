@@ -92,7 +92,7 @@ function mount({ prevented = false, roleRouting = false, activeIndex = 0, indica
       withSequence: (...values: any[]) => values[0],
       cancelAnimation: (value: any) => { pending.delete(value); }, runOnJS: (fn: any) => fn,
     },
-    '../PreferencesProvider': { usePreferences: () => ({ copy: (key: string) => key }) },
+    '../usePreferences': { usePreferences: () => ({ copy: (key: string) => key }) },
     '../ui/ToastHost': { ToastHost: 'ToastHost' }, './TabBarIcon': { TabBarIcon: 'Icon' }, './TabBarSurface': { TabBarSurface: 'Surface' },
     './useNavbarScroll': { NavbarScrollContext: {}, navbarCompactScale: 0.83 },
     './tabCapsuleSpring': { tabCapsuleImpactTiming: {}, tabCapsuleSpring: { kind: 'selection' }, tabCapsulePickupSpring: { kind: 'pickup' }, tabCapsulePressSpring: { kind: 'press' }, tabCapsuleReleaseSpring: { kind: 'release' } },

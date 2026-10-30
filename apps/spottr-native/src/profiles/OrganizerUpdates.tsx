@@ -8,7 +8,7 @@ import { profilesApi } from './usePublicProfile';
 import { Text } from '../ui/Text';
 import { EventImage, Feedback } from '../ui/common';
 import { colors } from '../ui/theme';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 
 export function OrganizerUpdates({ id, kind, openEvent }: { id: string; kind: 'events' | 'organizers'; openEvent: (id: string) => void }) {
   const { user } = useAuth(), { copy, language } = usePreferences();

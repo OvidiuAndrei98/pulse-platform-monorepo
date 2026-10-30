@@ -1,4 +1,4 @@
-import type { ScrollView as ScrollViewInstance } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -23,7 +23,7 @@ import {
   WalletCards,
   type LucideIcon,
 } from "lucide-react-native";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { Logo } from "../ui/Logo";
 import { dColors as colors } from "./common";

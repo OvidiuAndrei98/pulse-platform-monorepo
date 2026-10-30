@@ -1,3 +1,4 @@
+import { AccentPressable } from './AccentPressable';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ticket, UsersRound } from 'lucide-react-native';
@@ -5,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { accountApi, useAuth } from '../auth/AuthProvider';
 import { eventsApi, parseEventSocial } from '../data/api';
 import { queryClient } from '../data/queries';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Text } from './Text';
 import { Feedback } from './common';
 import { colors } from './theme';
@@ -40,7 +41,7 @@ export function EventSocial({ eventId, signIn }: { eventId: string; signIn: () =
       {query.data.currentUserStatus === 'has_ticket' ? <View style={s.row}>
         <View style={[s.pill, { backgroundColor: '#ff004426', borderColor: '#ff004466', flexDirection: 'row', gap: 6, alignItems: 'center' }]}><Ticket size={14} color={colors.accent} /><Text style={[s.small, { color: colors.accent }]}>{copy('social.ticketHolder')}</Text></View>
         <Pressable accessibilityRole="button" onPress={() => navigation.navigate('SafetyGroup', { eventId })} style={[s.pill, { borderColor: '#34d39959', backgroundColor: '#34d3991a' }]}><Text style={[s.small, { color: '#6ee7b7' }]}>{copy('safetyGroup.openOrCreate')}</Text></Pressable>
-      </View> : user ? <View style={s.switch}>{(['interested', 'going'] as const).map(status => <Pressable testID={'event-rsvp-' + status} key={status} accessibilityRole="button" accessibilityState={{ selected: query.data.currentUserStatus === status, disabled: busy }} disabled={busy} onPress={() => void update(status)} style={[s.option, query.data.currentUserStatus === status && { backgroundColor: colors.accent }, busy && { opacity: .5 }]}><Text style={[s.small, query.data.currentUserStatus === status && { color: 'white' }]}>{copy('social.' + status)}</Text></Pressable>)}</View> : <Pressable testID="event-sign-in" accessibilityRole="button" onPress={signIn} style={s.pill}><Text style={s.small}>{copy('social.signInToRsvp')}</Text></Pressable>}
+      </View> : user ? <View style={s.switch}>{(['interested', 'going'] as const).map(status => <AccentPressable fallback={Pressable} testID={'event-rsvp-' + status} key={status} accessibilityRole="button" accessibilityState={{ selected: query.data.currentUserStatus === status, disabled: busy }} disabled={busy} onPress={() => void update(status)} style={[s.option, query.data.currentUserStatus === status && { backgroundColor: colors.accent }, busy && { opacity: .5 }]}><Text style={[s.small, query.data.currentUserStatus === status && { color: 'white' }]}>{copy('social.' + status)}</Text></AccentPressable>)}</View> : <Pressable testID="event-sign-in" accessibilityRole="button" onPress={signIn} style={s.pill}><Text style={s.small}>{copy('social.signInToRsvp')}</Text></Pressable>}
     </View> : <Feedback compact title={copy(query.isError ? 'feedback.loadFailed' : 'common.loading')} retry={query.isError ? () => void query.refetch() : undefined} />}
     {error && <Feedback compact title={copy('feedback.actionFailed')} />}
   </View>;

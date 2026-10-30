@@ -15,8 +15,9 @@ function actionFixture(client: QueryClient) {
     '@react-navigation/native': {},
     'lucide-react-native': {},
     '../auth/AuthProvider': { accountApi() {}, useAuth: () => ({ user: { id: 'organizer-a' }, controller: { getToken: () => token } }) },
-    '../PreferencesProvider': { usePreferences: () => ({ copy: (key: string) => key }) },
+    '../usePreferences': { usePreferences: () => ({ copy: (key: string) => key }) },
     '../ui/Text': {}, '../ui/FormInput': { formStyles: {} }, '../ui/theme': { colors: {} },
+    '../ui/AccentPressable': { AccentPressable: 'Pressable' },
     './DashboardDropdown': {}, './data': { createDashboardApi: () => ({}) },
   }).load('../../spottr-native/src/dashboard/common.tsx');
   return { run: (...args: unknown[]) => hook.render(useAction).run(...args),

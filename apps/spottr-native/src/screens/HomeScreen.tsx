@@ -1,4 +1,4 @@
-import type { ScrollView as ScrollViewInstance } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
 import { GlassButtonGroup } from '../ui/GlassButtonGroup';
 import { ActionIcon } from '../ui/ActionIcon';
@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import * as Location from "expo-location";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { eventsApi } from "../data/api";
 import { useAuth } from "../auth/AuthProvider";
 import { NotificationsPopover } from "../notifications/NotificationsPopover";

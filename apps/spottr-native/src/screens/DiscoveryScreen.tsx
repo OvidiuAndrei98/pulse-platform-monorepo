@@ -1,3 +1,4 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -24,7 +25,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { categories, type Event, type EventFilters } from "../data/events";
 import { useEvents, seedEvent } from "../data/queries";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { EventBrowseCard } from "../ui/EventBrowseCard";
 import {
   Feedback,
@@ -38,11 +39,13 @@ import { useQuery } from '@tanstack/react-query';
 import { eventsApi } from '../data/api';
 import { mixFeedPromotions } from '../../../pulse-app/src/features/events/promotions';
 import { VisiblePromotion, trackPromotion } from '../ui/VisiblePromotion';
+import { useNavbarScroll } from '../navigation/useNavbarScroll';
 import type { RootParamList, TabsParamList } from "../navigation/types";
 import { getEventDateRange } from "../../../pulse-app/src/features/events/dateFilters";
 import { useDebouncedDiscoverySearch } from '../../../pulse-app/src/features/events/useDebouncedDiscoverySearch';
 import { activeDiscoveryStart, eventMatchesSearch, eventWithinDistance } from '../../../pulse-app/src/features/events/discoveryFilters';
 import { DiscoveryToolbar } from './DiscoveryToolbar';
+import { DiscoveryKeyboardArea } from './DiscoveryKeyboardArea';
 import { DiscoveryCalendar } from './DiscoveryCalendar';
 import {
   defaultEventFilters,
@@ -70,6 +73,8 @@ export function DiscoveryScreen() {
     [open, setOpen] = useState(false),
     [cityOpen, setCityOpen] = useState(false);
   const [view, setView] = useState<'list' | 'map'>('list');
+  const [searchActive, setSearchActive] = useState(false);
+  const navbarScroll = useNavbarScroll(view === 'list');
   const wide=useWindowDimensions().width>=1024&&Platform.OS==='web';
   const [panel,setPanel]=useState<'all'|'more'|'date'|'city'>('all'),[filterError,setFilterError]=useState(''),[toolbarHeight,setToolbarHeight]=useState(44);
   const [userLocation,setUserLocation]=useState<readonly[number,number]|null>(null);
@@ -112,7 +117,7 @@ export function DiscoveryScreen() {
         : [...current[key], value],
     }));
   return (
-    <View
+    <DiscoveryKeyboardArea
       style={{
         flex: 1,
         backgroundColor: colors.bg,
@@ -124,15 +129,21 @@ export function DiscoveryScreen() {
         style={{
           paddingHorizontal: 20,
           paddingBottom: 20,
-          ...(view === 'map' ? { position: 'absolute', left: 0, right: 0, top: Math.max(24, insets.top), zIndex: 10 } as const : {}),
+          zIndex: 10,
+          ...(view === 'map' ? { position: 'absolute', left: 0, right: 0, top: Math.max(24, insets.top) } as const : {}),
         }}
       >
-        <DiscoveryToolbar filters={filters} onChange={setFilters} view={view} onViewChange={setView} onFilters={()=>openPanel(wide?'more':'all')} onCalendar={()=>openPanel('date')} onCity={()=>openPanel('city')} onHeight={setToolbarHeight}/>
+        <DiscoveryToolbar filters={filters} onChange={setFilters} view={view} onViewChange={setView} onFilters={()=>openPanel(wide?'more':'all')} onCalendar={()=>openPanel('date')} onCity={()=>openPanel('city')} onHeight={setToolbarHeight} onSearchActivityChange={setSearchActive}/>
       </View>
       {view === 'map' ? <EventsMapPanel events={mapEvents} toolbarHeight={toolbarHeight} onLocationChange={setUserLocation} distance={filters.distance} cityCenter={cityCenters[filters.city] ? { latitude: cityCenters[filters.city]![0], longitude: cityCenters[filters.city]![1] } : null} onOpen={event => { seedEvent(event); navigation.navigate('Event', { id: event.id }); }} loading={events.isFetching} error={events.isError} retry={() => void (events.isFetchNextPageError ? events.fetchNextPage() : events.refetch())} /> : <FlatList
         ref={list}
+        {...navbarScroll}
         style={{ flex: 1 }}
         testID="events-list"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        keyboardShouldPersistTaps="never"
+        alwaysBounceVertical
+        scrollEnabled={Platform.OS === 'web' || !searchActive}
         data={displayed}
         numColumns={2}
         columnWrapperStyle={{ gap: 12 }}
@@ -205,9 +216,20 @@ export function DiscoveryScreen() {
                   : events.refetch())
               }
             />
-          ) : null
+          ) : undefined
         }
       />}
+      {searchActive && Platform.OS !== 'web' && <ScrollView
+        testID="discovery-keyboard-gesture" style={[StyleSheet.absoluteFill, { zIndex: 5 }]}
+        contentContainerStyle={{ flexGrow: 1 }} alwaysBounceVertical
+        keyboardDismissMode="interactive" keyboardShouldPersistTaps="never"
+        showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never"
+        scrollsToTop={false}
+        accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        {/* Only this empty native scroll view moves during keyboard dismissal.
+            Results and the map stay mounted at their existing scroll/camera position. */}
+        <View style={{ flex: 1 }} />
+      </ScrollView>}
       <Modal
         transparent
         visible={open}
@@ -355,7 +377,7 @@ export function DiscoveryScreen() {
                   {copy("common.reset")}
                 </Text>
               </Pressable>
-              <Pressable
+              <AccentPressable fallback={Pressable}
                 accessibilityRole="button"
                 testID="apply-filters"
                 style={s.apply}
@@ -370,12 +392,12 @@ export function DiscoveryScreen() {
                 >
                   {copy("common.applyFilters")}
                 </Text>
-              </Pressable>
+              </AccentPressable>
             </View>
           </View>
         </View>
       </Modal>
-    </View>
+    </DiscoveryKeyboardArea>
   );
 }
 function Section({

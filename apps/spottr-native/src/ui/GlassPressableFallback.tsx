@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import type { Pressable, PressableProps, StyleProp, View as ViewInstance, ViewStyle } from 'react-native';
+import type { Pressable, PressableProps, StyleProp, ViewInstance, ViewStyle } from 'react-native';
 import { MotionPressable } from './MotionPressable';
 
 export type GlassPressableProps = Omit<PressableProps, 'style'> & {

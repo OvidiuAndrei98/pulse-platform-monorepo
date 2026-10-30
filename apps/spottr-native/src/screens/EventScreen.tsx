@@ -1,3 +1,4 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import { GlassPressable } from '../ui/GlassPressable';
 import { GlassButtonGroup } from '../ui/GlassButtonGroup';
 import { ActionIcon } from '../ui/ActionIcon';
@@ -22,7 +23,7 @@ import { queryClient, useEvent } from "../data/queries";
 import { availableTickets, eventUrl, formatDate, isLive } from "../data/events";
 import { ApiError, eventsApi } from "../data/api";
 import { useEventClock } from "../data/useEventClock";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { WEB_URL } from "../config";
 import { EventImage, Feedback, Loading, useOpenLink } from "../ui/common";
 import { Text } from "../ui/Text";
@@ -137,38 +138,36 @@ export function EventScreen({
   };
   const nativeSheet = isSheet && Platform.OS !== "web";
   const footer = event && !missing ? (
-    <View testID="event-actions" style={s.footer}>
-      <GlassButtonGroup testID="event-secondary-actions">
-        <GlassPressable fallback={Pressable}
-          testID="event-sheet-bookmark"
-          disabled={!ready}
-          accessibilityState={{ selected: saved.some(e => e.id === event.id), disabled: !ready }}
-          accessibilityRole="button"
-          accessibilityLabel={copy(
-            saved.some((e) => e.id === event.id)
-              ? "eventSheet.removeFavorite"
-              : "eventSheet.addFavorite",
-          )}
-          onPress={() => user ? toggleSaved(event) : signIn()}
-          style={s.icon}
-        >
-          <AnimatedBookmark
-            size={16}
-            color="white"
-            selected={saved.some(e => e.id === event.id)}
-          />
-        </GlassPressable>
-        <GlassPressable fallback={Pressable}
-          testID="event-share"
-          accessibilityRole="button"
-          accessibilityLabel={copy("eventSheet.share")}
-          onPress={() => void share()}
-          style={s.icon}
-        >
-          <ActionIcon name="share" size={16} color="white" />
-        </GlassPressable>
-      </GlassButtonGroup>
-      <Pressable
+    <GlassButtonGroup testID="event-actions" style={s.footer}>
+      <GlassPressable fallback={Pressable}
+        testID="event-sheet-bookmark"
+        disabled={!ready}
+        accessibilityState={{ selected: saved.some(e => e.id === event.id), disabled: !ready }}
+        accessibilityRole="button"
+        accessibilityLabel={copy(
+          saved.some((e) => e.id === event.id)
+            ? "eventSheet.removeFavorite"
+            : "eventSheet.addFavorite",
+        )}
+        onPress={() => user ? toggleSaved(event) : signIn()}
+        style={s.icon}
+      >
+        <AnimatedBookmark
+          size={16}
+          color="white"
+          selected={saved.some(e => e.id === event.id)}
+        />
+      </GlassPressable>
+      <GlassPressable fallback={Pressable}
+        testID="event-share"
+        accessibilityRole="button"
+        accessibilityLabel={copy("eventSheet.share")}
+        onPress={() => void share()}
+        style={s.icon}
+      >
+        <ActionIcon name="share" size={16} color="white" />
+      </GlassPressable>
+      <AccentPressable fallback={Pressable}
         testID="event-continue"
         accessibilityRole="button"
         disabled={!canBuy || query.isError || buying}
@@ -191,8 +190,8 @@ export function EventScreen({
                   })
                 : copy("eventSheet.selectTickets")}
         </Text>
-      </Pressable>
-    </View>
+      </AccentPressable>
+    </GlassButtonGroup>
   ) : null;
   const content = (
     <View
@@ -597,7 +596,7 @@ const s = StyleSheet.create({
   footer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 28,

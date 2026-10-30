@@ -1,3 +1,4 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
@@ -5,7 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertCircle, Ticket } from 'lucide-react-native';
 import { useAuth, accountApi } from '../auth/AuthProvider';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { useTickets } from '../data/useTickets';
 import type { UserTicket } from '../data/tickets';
 import type { RootParamList } from '../navigation/types';
@@ -88,10 +89,10 @@ function PurchaseSuccessSheet({ receipt }: { receipt: PurchaseCompletion }) {
         <Text accessibilityLiveRegion="polite" style={s.hint}>{copy(unavailable ? 'checkoutResult.ticketUnavailableHint' : user ? 'checkoutResult.sheetSuccessHint' : 'checkoutResult.guestDelivery')}</Text>
         <View style={s.check}>{unavailable ? <AlertCircle size={64} color={colors.accent} /> : <PaymentSuccessCheck green size={96} />}</View>
         {failed && <Text accessibilityRole="alert" style={s.error}>{copy('checkoutResult.ticketLoadFailed')}</Text>}
-        <Pressable testID="checkout-view-tickets" accessibilityRole="button" accessibilityState={{ busy: loading, disabled: loading || closing }} disabled={loading || closing} onPress={() => unavailable ? leave('all') : void openTicket()} style={s.primary}>
+        <AccentPressable fallback={Pressable} testID="checkout-view-tickets" accessibilityRole="button" accessibilityState={{ busy: loading, disabled: loading || closing }} disabled={loading || closing} onPress={() => unavailable ? leave('all') : void openTicket()} style={s.primary}>
           {loading ? <ActivityIndicator size="small" color="white" /> : <Ticket size={18} color="white" />}
           <Text style={s.primaryText}>{copy(unavailable ? 'checkoutResult.checkTickets' : loading ? 'common.loading' : !user ? 'auth.createAccount' : failed ? 'feedback.retry' : 'checkoutResult.viewPurchasedTicket')}</Text>
-        </Pressable>
+        </AccentPressable>
         {failed && <Pressable testID="checkout-all-tickets" accessibilityRole="button" onPress={() => leave('all')} style={s.secondary}><Text style={s.secondaryText}>{copy('checkoutResult.checkTickets')}</Text></Pressable>}
         <Pressable testID="checkout-success-dismiss" accessibilityRole="button" onPress={() => leave('dismiss')} style={s.secondary}><Text style={s.secondaryText}>{copy('checkoutResult.backToEvent')}</Text></Pressable>
       </AppSheetScrollView>

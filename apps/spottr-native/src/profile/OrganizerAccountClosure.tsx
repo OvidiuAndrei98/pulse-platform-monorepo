@@ -1,8 +1,9 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import React, { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import { ChevronRight, Mail, Trash2 } from 'lucide-react-native';
 import { useAuth } from '../auth/AuthProvider';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { AppSheet } from '../ui/AppSheet';
 import { AppSheetScrollView } from '../ui/AppSheetScrollView';
 import { MotionPressable as Pressable } from '../ui/MotionPressable';
@@ -46,9 +47,9 @@ export function OrganizerAccountClosureSheet({ onClose }: { onClose(): void }) {
       </View>)}
       <Text style={s.body}>{copy('userProfile.closeManagedNoAutomatic')}</Text>
       {error && <Text accessibilityRole="alert" style={[s.body, { color: '#f87171' }]}>{copy('userProfile.closeManagedEmailFailed', { supportEmail })}</Text>}
-      <Pressable testID="organizer-account-closure-email" accessibilityRole="button" onPress={() => void write()} style={s.button}>
+      <AccentPressable fallback={Pressable} testID="organizer-account-closure-email" accessibilityRole="button" onPress={() => void write()} style={s.button}>
         <Mail size={17} color="#fff" /><Text style={s.buttonText}>{copy('userProfile.closeManagedEmail')}</Text>
-      </Pressable>
+      </AccentPressable>
       <Text selectable style={[s.body, { textAlign: 'center' }]}>{supportEmail}</Text>
     </AppSheetScrollView>
   </AppSheet>;

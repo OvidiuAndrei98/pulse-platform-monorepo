@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { useIsFocused } from '@react-navigation/native';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 
 export function HomeLoading({ hero = false }: { hero?: boolean }) {
   const { copy } = usePreferences(), reduced = useReducedMotion(), focused = useIsFocused();

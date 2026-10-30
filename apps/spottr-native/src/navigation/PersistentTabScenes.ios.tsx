@@ -1,5 +1,5 @@
 import React, { createContext, forwardRef, useContext, type PropsWithChildren } from 'react';
-import { View, type View as ViewInstance } from 'react-native';
+import { View, type ViewInstance } from 'react-native';
 import { InnerScreen, ScreenContext, type ScreenProps } from 'react-native-screens';
 
 const NativeSceneScreenContext = createContext(InnerScreen);

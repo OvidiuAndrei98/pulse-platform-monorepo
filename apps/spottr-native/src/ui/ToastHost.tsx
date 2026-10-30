@@ -5,7 +5,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeOut, useReducedMotion } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { useToast } from './ToastProvider';
 import { Text } from './Text';
 import { colors } from './theme';

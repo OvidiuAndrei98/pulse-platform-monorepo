@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import { WifiOff } from 'lucide-react-native';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 
 export function TicketAvailability({ offline, savedAt, storageError = false, refreshing = false, onRefresh }: {

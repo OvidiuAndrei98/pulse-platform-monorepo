@@ -8,9 +8,12 @@ import { formatDate, isLive, type Event } from '../data/events';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
 import { EventImage, Feedback } from '../ui/common';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { formatEventTime } from '../../../pulse-app/src/features/events/dateFormat';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GlassButtonGroup } from '../ui/GlassButtonGroup';
+import { GlassPressable } from '../ui/GlassPressable';
+import { GlassSurface } from '../ui/GlassSurface';
 
 export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, error, retry,toolbarHeight=44,onLocationChange }: { events: Event[]; cityCenter?: Coordinate | null; distance: number; onOpen: (event: Event) => void; loading: boolean; error: boolean; retry: () => void;toolbarHeight?:number;onLocationChange?:(coordinate:readonly[number,number])=>void }) {
   const { copy, language } = usePreferences(), [location, setLocation] = useState<Coordinate | null>(null);
@@ -80,11 +83,19 @@ export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, 
       onViewport={(center, zoom) => { viewport.current = { center, zoom }; }}
       onSelectedPoint={carousel ? () => {} : setPoint}
       attributionBottom={carousel?bottom+(mapEvents.length?railHeight:0)+8:0} focus={focus} />
-    <View style={{ position: 'absolute', right: 16, top: controlTop, gap: 8 }}>{[
-      { icon: Plus, label: copy('mapControls.zoomIn'), id: 'map-zoom-in', action: () => changeZoom(1) },
-      { icon: Minus, label: copy('mapControls.zoomOut'), id: 'map-zoom-out', action: () => changeZoom(-1) },
-      { icon: LocateFixed, label: copy('mapControls.findMyLocation'), id: 'map-locate', action: () => void locate() },
-    ].map(({ icon: Icon, label, id, action }) => <Pressable testID={id} key={id} accessibilityRole="button" accessibilityLabel={label} onPress={action} style={s.control}><Icon size={18} color="white" /></Pressable>)}</View>
+    <GlassButtonGroup testID="map-controls" style={{ position: 'absolute', right: 16, top: controlTop, flexDirection: 'column' }}>
+      <GlassSurface testID="map-zoom-capsule" style={s.zoomCapsule}>
+        <Pressable testID="map-zoom-in" accessibilityRole="button" accessibilityLabel={copy('mapControls.zoomIn')}
+          onPress={() => changeZoom(1)} style={s.zoomControl}><Plus size={18} color="white" /></Pressable>
+        <View pointerEvents="none" style={s.zoomDivider} />
+        <Pressable testID="map-zoom-out" accessibilityRole="button" accessibilityLabel={copy('mapControls.zoomOut')}
+          onPress={() => changeZoom(-1)} style={s.zoomControl}><Minus size={18} color="white" /></Pressable>
+      </GlassSurface>
+      <GlassPressable fallback={Pressable} testID="map-locate" accessibilityRole="button" accessibilityLabel={copy('mapControls.findMyLocation')}
+        accessibilityState={{ busy: locating }} onPress={() => void locate()} style={s.control}>
+        <LocateFixed size={18} color="white" />
+      </GlassPressable>
+    </GlassButtonGroup>
     {(loading || locating) && <ActivityIndicator color={colors.accent} style={{ position: 'absolute', top: controlTop + 56, left: 20 }} />}
     {(error || locationError) && <View style={{ position: 'absolute', left: 16, right: 72, top: controlTop + 80, backgroundColor: '#121418f2', borderRadius: 12 }}><Feedback compact title={copy(error ? 'feedback.loadFailed' : locationError)} retry={error ? retry : () => void locate()} /></View>}
     {!carousel && event && point && <View testID="map-event-preview" onLayout={e => setPreviewHeight(e.nativeEvent.layout.height)} style={[s.preview, { width: previewWidth, left: point.x - previewWidth / 2, top: point.y - previewHeight - 45 }]}>
@@ -136,7 +147,10 @@ export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, 
   </View>;
 }
 const s = StyleSheet.create({
-  control: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#121418ed', borderWidth: 1, borderColor: '#ffffff26', alignItems: 'center', justifyContent: 'center' },
+  control: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#121418ed', borderWidth: 1, borderColor: '#ffffff26', alignItems: 'center', justifyContent: 'center' },
+  zoomCapsule: { width: 44, height: 88, borderRadius: 22, backgroundColor: '#121418ed', borderWidth: 1, borderColor: '#ffffff26', alignItems: 'center', justifyContent: 'center' },
+  zoomControl: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  zoomDivider: { position: 'absolute', top: '50%', left: 10, right: 10, height: StyleSheet.hairlineWidth, backgroundColor: '#ffffff1a' },
   carouselCard:{minHeight:140,padding:12,borderRadius:16,borderWidth:1,backgroundColor:'#19191cf5',flexDirection:'row',alignItems:'center',gap:12},
   cardFocus:{outlineColor:'#fff',outlineWidth:2,outlineOffset:-4,outlineStyle:'solid'},
   preview: { position: 'absolute', padding: 12, borderRadius: 12, backgroundColor: '#121418f2', borderWidth: 1, borderColor: '#ffffff1a', boxShadow: '0 8px 32px rgba(0,0,0,.5)' },

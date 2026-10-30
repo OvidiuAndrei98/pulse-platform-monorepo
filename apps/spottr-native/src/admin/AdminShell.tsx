@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
 import { adminSections, adminLabel, type AdminSection } from '../../../pulse-app/src/features/admin/navigation';

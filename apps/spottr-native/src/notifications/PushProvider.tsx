@@ -1,9 +1,10 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
 import type { NavigationContainerRefWithCurrent, NavigationState } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { accountApi, useAuth } from '../auth/AuthProvider';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { queryClient } from '../data/queries';
 import type { RootParamList } from '../navigation/types';
 import { notificationDestination, parseNotifications } from './data';
@@ -78,9 +79,9 @@ export function PushPreference() {
       <Icon size={18} color={colors.accent} /><Text style={{ flex: 1, fontSize: 13, fontWeight: '600' }}>{copy('notifications.pushTitle')}</Text>
     </View>
     <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>{copy('notifications.push.' + (!pushSupported ? 'unavailable' : status))}</Text>
-    {pushSupported && status !== 'unavailable' && <MotionPressable testID="push-enable" accessibilityRole="button" disabled={status === 'busy'} onPress={() => void enable()} style={{ backgroundColor: status === 'on' ? '#ffffff0a' : '#ff0044', borderRadius: 20, paddingVertical: 10, paddingHorizontal: 14, flexDirection: 'row', justifyContent: 'center', gap: 8, alignItems: 'center', opacity: status === 'busy' ? 0.6 : 1 }}>
+    {pushSupported && status !== 'unavailable' && <AccentPressable fallback={MotionPressable} testID="push-enable" accessibilityRole="button" disabled={status === 'busy'} onPress={() => void enable()} style={{ backgroundColor: status === 'on' ? '#ffffff0a' : '#ff0044', borderRadius: 20, paddingVertical: 10, paddingHorizontal: 14, flexDirection: 'row', justifyContent: 'center', gap: 8, alignItems: 'center', opacity: status === 'busy' ? 0.6 : 1 }}>
       <Text style={{ fontSize: 12, fontWeight: '600' }}>{copy(status === 'on' || status === 'denied' ? 'notifications.pushSettings' : 'notifications.pushEnable')}</Text><ChevronRight size={14} color="white" />
-    </MotionPressable>}
+    </AccentPressable>}
   </View>;
 }
 

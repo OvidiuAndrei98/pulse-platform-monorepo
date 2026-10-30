@@ -6,7 +6,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { publicLegalDocuments } from '../../../pulse-app/src/features/legal/publicLegalDocuments';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import type { RootParamList } from '../navigation/types';
 export function LegalScreen({ route, navigation }: NativeStackScreenProps<RootParamList, 'Legal'>) {
   const { language, copy } = usePreferences(), inset = useSafeAreaInsets(), document = publicLegalDocuments[language][route.params.document === 'privacy' ? 'privacy' : 'terms'];

@@ -1,4 +1,5 @@
-import type { ScrollView as ScrollViewInstance } from 'react-native';
+import { AccentPressable } from '../ui/AccentPressable';
+import type { KeyDownEvent, ScrollViewInstance } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import { FormInput as TextInput } from '../ui/FormInput';
@@ -8,7 +9,7 @@ import { Check, Clock3, MapPin, MessageCircle, Send, UserPlus, UsersRound, X } f
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthProvider';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
 import { formatDate } from '../data/events';
@@ -46,7 +47,7 @@ function SafetyScreen({ eventId, onBack, onLogin, bottomBar }: SafetyGroupScreen
   const invite = async () => { if (await state.controller.run({ kind: 'invite', friendIds: chosen })) { setSelected([]); setInviteOpen(false); } };
   const accepted = group?.members.filter(member => member.status === 'accepted') ?? [];
   const canInvite = !!group && group.ownerId === state.user?.id && group.members.length < 8 && !!state.data?.eligibleFriends.length;
-  const keyboardWeb = Platform.OS === 'web' ? { onKeyDown: (event: React.KeyboardEvent) => { if (event.nativeEvent.key === 'Enter' && !event.nativeEvent.shiftKey) { event.preventDefault(); void send(); } } } : {};
+  const keyboardWeb = Platform.OS === 'web' ? { onKeyDown: (event: KeyDownEvent) => { if (event.nativeEvent.key === 'Enter' && !event.nativeEvent.shiftKey) { event.preventDefault(); void send(); } } } : {};
 
   return <View testID="safety-group-page" style={[s.root, viewport.height !== null && { height: viewport.height, flex: 0 }]}>
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -74,7 +75,7 @@ function SafetyScreen({ eventId, onBack, onLogin, bottomBar }: SafetyGroupScreen
             {state.connectionLost && !compact && <Text testID="safety-connection-lost" accessibilityLiveRegion="polite" style={s.connection}>{copy('safetyGroup.connectionLost')}</Text>}
             <View style={[s.event, compact && { minHeight: 28, paddingBottom: 4 }]}>
               <View style={{ flex: 1 }}><Text numberOfLines={1} style={[s.body, { fontSize: compact ? 14 : 16, fontWeight: '600' }]}>{group.eventTitle}</Text>{!compact && <View style={{ marginTop: 4, flexDirection: 'row', alignItems: 'center', gap: 5 }}><MapPin color={colors.accent} size={14} /><Text numberOfLines={1} style={[s.small, { flexShrink: 1 }]}>{group.eventLocation}</Text><Text style={s.small}>·</Text><Clock3 color={colors.accent} size={14} /><Text style={s.small}>{formatDate(group.startTime, language, true)}</Text></View>}</View>
-              {!compact && <View style={{ flexDirection: 'row', alignItems: 'center' }}>{accepted.slice(0, 3).map((member, index) => <View key={member.userId} style={{ marginLeft: index ? -8 : 0, borderWidth: 2, borderColor: '#000', borderRadius: 99 }}><Avatar person={member} size={28} /></View>)}{accepted.length > 3 && <Text style={s.memberOverflow}>+{accepted.length - 3}</Text>}{canInvite && <Pressable testID="safety-invite-open" accessibilityRole="button" accessibilityLabel={copy('safetyGroup.inviteMore')} accessibilityState={{ expanded: inviteOpen }} onPress={() => { setSelected([]); setInviteOpen(v => !v); }} style={s.inviteIcon}><UserPlus color="white" size={16} /></Pressable>}</View>}
+              {!compact && <View style={{ flexDirection: 'row', alignItems: 'center' }}>{accepted.slice(0, 3).map((member, index) => <View key={member.userId} style={{ marginLeft: index ? -8 : 0, borderWidth: 2, borderColor: '#000', borderRadius: 99 }}><Avatar person={member} size={28} /></View>)}{accepted.length > 3 && <Text style={s.memberOverflow}>+{accepted.length - 3}</Text>}{canInvite && <AccentPressable fallback={Pressable} testID="safety-invite-open" accessibilityRole="button" accessibilityLabel={copy('safetyGroup.inviteMore')} accessibilityState={{ expanded: inviteOpen }} onPress={() => { setSelected([]); setInviteOpen(v => !v); }} style={s.inviteIcon}><UserPlus color="white" size={16} /></AccentPressable>}</View>}
             </View>
             <View style={{ paddingVertical: compact ? 4 : 12 }}>
               {group.currentUserNeedsHelp ? <Action testID="safety-resolve-help" title={copy('safetyGroup.iAmSafe')} icon={<Check size={16} color="#6ee7b7" />} disabled={state.working || !state.active} onPress={() => void state.controller.run({ kind: 'help-resolved', content: copy('safetyGroup.safeMessage') })} style={[s.safeButton, compact && { minHeight: 36, paddingVertical: 4 }]} labelStyle={{ color: '#6ee7b7', fontSize: 14 }} />
@@ -88,7 +89,7 @@ function SafetyScreen({ eventId, onBack, onLogin, bottomBar }: SafetyGroupScreen
                 {group.messages.map(item => <View key={item.id} testID={'safety-message-' + item.id} style={[s.bubble, item.senderId === state.user?.id && { alignSelf: 'flex-end', backgroundColor: colors.accent }, item.kind === 'help' && s.alertBubble, item.kind === 'help_resolved' && s.resolvedBubble]}><Text style={{ color: 'white', opacity: 0.7, fontSize: 11, fontWeight: '600' }}>{item.senderUsername}</Text><Text style={[s.body, { marginTop: 2, lineHeight: 20 }]}>{item.content}</Text></View>)}
               </ScrollView>
               <View style={s.composer}><TextInput variant="bare" {...keyboardWeb} testID="safety-message-input" accessibilityLabel={copy('safetyGroup.messagePlaceholder')} value={message} onChangeText={setMessage} onFocus={() => setInviteOpen(false)} maxLength={500} multiline placeholder={copy('safetyGroup.messagePlaceholder')} placeholderTextColor={colors.muted} style={s.input} />
-                <Pressable testID="safety-send" accessibilityRole="button" accessibilityLabel={copy('safetyGroup.send')} disabled={!message.trim() || state.working} onPress={() => void send()} style={[s.send, (!message.trim() || state.working) && { opacity: 0.4 }]}><Send size={20} color="white" /></Pressable>
+                <AccentPressable fallback={Pressable} testID="safety-send" accessibilityRole="button" accessibilityLabel={copy('safetyGroup.send')} disabled={!message.trim() || state.working} onPress={() => void send()} style={[s.send, (!message.trim() || state.working) && { opacity: 0.4 }]}><Send size={20} color="white" /></AccentPressable>
               </View>
             </View>
             {inviteOpen && canInvite && <View testID="safety-invite-panel" style={[s.invitePanel, { maxHeight: (viewport.height ?? layoutHeight) * 0.55 }]}><View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}><Text style={[s.label, { flex: 1 }]}>{copy('safetyGroup.inviteMore')}</Text><Pressable accessibilityRole="button" accessibilityLabel={copy('common.close')} onPress={() => setInviteOpen(false)} style={s.close}><X color="white" size={16} /></Pressable></View><ScrollView contentContainerStyle={{ gap: 8, paddingRight: 4 }} style={{ marginTop: 8, flexShrink: 1 }} keyboardShouldPersistTaps="handled">{state.data.eligibleFriends.map(friend => <FriendChoice key={friend.userId} friend={friend} selected={chosen.includes(friend.userId)} onToggle={() => choose(friend.userId)} />)}</ScrollView><Action testID="safety-invite-send" icon={<UserPlus size={16} color="white" />} title={copy(state.working ? 'safetyGroup.inviting' : 'safetyGroup.sendInvites')} disabled={!chosen.length || state.working} onPress={() => void invite()} style={{ marginTop: 12, minHeight: 40 }} /></View>}
@@ -110,7 +111,7 @@ function FriendChoice({ friend, selected, onToggle }: { friend: SafetyFriend; se
 }
 function Retention({ compact }: { compact?: boolean }) { const { copy } = usePreferences(); return <Text style={[s.small, { textAlign: 'center', lineHeight: compact ? 16 : 20 }, compact && { fontSize: 10, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: '#ffffff09', marginBottom: 2 }]}>{copy('safetyGroup.retention')}</Text>; }
 function Action({ title, onPress, disabled, secondary, icon, style, labelStyle, testID }: { title: string; onPress: () => void; disabled?: boolean; secondary?: boolean; icon?: React.ReactNode; style?: React.ComponentProps<typeof View>['style']; labelStyle?: React.ComponentProps<typeof Text>['style']; testID?: string }) {
-  return <Pressable testID={testID} accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress} style={[s.action, secondary && { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#ffffff26' }, style, disabled && { opacity: 0.4 }]}>{icon}<Text style={[s.body, { fontSize: 16, fontWeight: '600', textAlign: 'center' }, labelStyle]}>{title}</Text></Pressable>;
+  return <AccentPressable fallback={Pressable} testID={testID} accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress} style={[s.action, secondary && { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#ffffff26' }, style, disabled && { opacity: 0.4 }]}>{icon}<Text style={[s.body, { fontSize: 16, fontWeight: '600', textAlign: 'center' }, labelStyle]}>{title}</Text></AccentPressable>;
 }
 function useKeyboardViewport() {
   const dimensions = useWindowDimensions(), [open, setOpen] = useState(false), [height, setHeight] = useState<number | null>(null);

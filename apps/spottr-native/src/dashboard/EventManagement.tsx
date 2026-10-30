@@ -20,7 +20,7 @@ import {
 } from "lucide-react-native";
 import type { components } from "@packages/api-client/src/schema";
 import { accountApi, useAuth } from "../auth/AuthProvider";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { AppSheet } from "../ui/AppSheet";
 import { AppSheetScrollView } from "../ui/AppSheetScrollView";
 import { Text } from "../ui/Text";

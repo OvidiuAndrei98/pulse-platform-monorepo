@@ -1,3 +1,4 @@
+import { AccentPressable } from '../ui/AccentPressable';
 ﻿import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -21,7 +22,7 @@ import {
   type LucideIcon,
 } from "lucide-react-native";
 import { accountApi, useAuth } from "../auth/AuthProvider";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { FormInput, formStyles } from '../ui/FormInput';
 import { colors as appColors } from "../ui/theme";
@@ -165,7 +166,7 @@ export function Action({
   testID?: string;
 }) {
   return (
-    <Pressable
+    <AccentPressable fallback={Pressable}
       testID={testID}
       accessibilityRole="button"
       accessibilityState={{ disabled }}
@@ -209,7 +210,7 @@ export function Action({
       >
         {title}
       </Text>
-    </Pressable>
+    </AccentPressable>
   );
 }
 export function Field({

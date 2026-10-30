@@ -1,3 +1,4 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import { FormInput as TextInput } from '../ui/FormInput';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -7,7 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ban, Building2, Check, CreditCard, LogOut, RefreshCw, ShieldCheck, Ticket } from 'lucide-react-native';
 import { useAuth, accountApi } from '../auth/AuthProvider';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Feedback, IconButton, Loading, useOpenLink } from '../ui/common';
 import { Text } from '../ui/Text';
 import { CommissionsPanel } from './CommissionsPanel';
@@ -89,7 +90,7 @@ function AdminOperationsScreen({ section }: { section: AdminSection }) {
     </Section>}
     {section === 'verifications' && <Section title={copy('admin.organizersTitle')} hint={copy('admin.subtitle')}>
       <Stats items={(['active', 'onboarding', 'attention', 'notConnected'] as const).map(status => [copy('admin.stripe.status.' + status), String(stripe[status])])} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>{(['pending', 'approved', 'rejected', 'all'] as const).map(status => <Pressable key={status} accessibilityRole="tab" accessibilityState={{ selected: status === filter }} onPress={() => setFilter(status)} style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 99, borderWidth: 1, borderColor: status === filter ? colors.accent : '#ffffff18', backgroundColor: status === filter ? colors.accent : '#ffffff08' }}><Text style={styles.actionText}>{copy('admin.filters.' + status)}  {counts[status]}</Text></Pressable>)}</ScrollView>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>{(['pending', 'approved', 'rejected', 'all'] as const).map(status => <AccentPressable fallback={Pressable} key={status} accessibilityRole="tab" accessibilityState={{ selected: status === filter }} onPress={() => setFilter(status)} style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 99, borderWidth: 1, borderColor: status === filter ? colors.accent : '#ffffff18', backgroundColor: status === filter ? colors.accent : '#ffffff08' }}><Text style={styles.actionText}>{copy('admin.filters.' + status)}  {counts[status]}</Text></AccentPressable>)}</ScrollView>
       {organizers.isPending ? <Loading /> : organizers.isError ? <Feedback compact title={copy('admin.loadFailed')} retry={() => { void organizers.refetch(); }} /> : !visible.length ? <Empty title={copy('admin.empty')} /> : <View style={[styles.grid, !grid && { flexDirection: 'column' }]}>{visible.map(request => <View key={request.userId} style={[styles.card, { width: grid ? '49%' : '100%' }]}>
         <View style={styles.row}><View style={styles.brandIcon}><Building2 size={20} color={colors.accent} /></View><View style={{ flex: 1, gap: 4 }}><Text style={styles.heading}>{request.companyName}</Text><Text style={styles.body}>{request.email}</Text></View><Badge text={copy('admin.filters.' + request.verificationStatus)} warning={request.verificationStatus === 'pending'} accent={request.verificationStatus === 'approved'} danger={request.verificationStatus === 'rejected'} /></View>
         <Stats items={[[copy('admin.cui'), request.cui], [copy('admin.account'), '@' + request.username], [copy('admin.submittedAt'), date(request.submittedAt)]]} />
@@ -106,7 +107,7 @@ function AdminOperationsScreen({ section }: { section: AdminSection }) {
   </ScrollView></View></View></Modal></View>;
 }
 function Action({ title, onPress, primary, danger, warning, disabled, children }: React.PropsWithChildren<{ title: string; onPress: () => void; primary?: boolean; danger?: boolean; warning?: boolean; disabled?: boolean }>) {
-  return <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => [{ minHeight: 44, borderRadius: 10, borderWidth: 1, borderColor: primary ? colors.accent : danger ? '#ef44444d' : warning ? '#fcd34d33' : '#ffffff26', backgroundColor: primary ? colors.accent : warning ? '#fcd34d1a' : 'transparent', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', gap: 8, opacity: disabled ? .45 : pressed ? .7 : 1 }]}>{children}<Text style={[styles.actionText, { color: primary ? '#000' : danger ? '#fca5a5' : warning ? '#fde68a' : colors.text }]}>{title}</Text></Pressable>;
+  return <AccentPressable fallback={Pressable} accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress} style={({ pressed }) => [{ minHeight: 44, borderRadius: 10, borderWidth: 1, borderColor: primary ? colors.accent : danger ? '#ef44444d' : warning ? '#fcd34d33' : '#ffffff26', backgroundColor: primary ? colors.accent : warning ? '#fcd34d1a' : 'transparent', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', gap: 8, opacity: disabled ? .45 : pressed ? .7 : 1 }]}>{children}<Text style={[styles.actionText, { color: primary ? '#000' : danger ? '#fca5a5' : warning ? '#fde68a' : colors.text }]}>{title}</Text></AccentPressable>;
 }
 function Section({ title, hint, children }: React.PropsWithChildren<{ title: string; hint: string }>) { return <View style={{ gap: 14 }}><View style={{ gap: 5 }}><Text style={[styles.heading, { fontSize: 18 }]}>{title}</Text><Text style={styles.body}>{hint}</Text></View>{children}</View>; }
 function Empty({ title }: { title: string }) { return <View style={{ borderWidth: 1, borderStyle: 'dashed', borderColor: '#ffffff26', borderRadius: 16, padding: 24 }}><Text style={[styles.body, { textAlign: 'center' }]}>{title}</Text></View>; }

@@ -1,4 +1,4 @@
-import type { FlatList as FlatListInstance, ScrollView as ScrollViewInstance } from 'react-native';
+import type { FlatListInstance, ScrollViewInstance } from 'react-native';
 import { ActionIcon } from '../ui/ActionIcon';
 import { GlassSurface } from '../ui/GlassSurface';
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -12,7 +12,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { profilesApi } from '../profiles/usePublicProfile';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { seedEvent, useEvents, useHomeEvents } from "../data/queries";
 import { formatDate } from "../data/events";
 import {

@@ -1,4 +1,4 @@
-import type { ScrollView as ScrollViewInstance } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { FormScrollView } from "../ui/KeyboardForms";
 import React, { useRef, useState } from "react";
 import { ScrollView, View, useWindowDimensions } from "react-native";
@@ -8,7 +8,7 @@ import { useDashboardPolling } from './useDashboardPolling';
 import { useNavbarScroll } from '../navigation/useNavbarScroll';
 import { accountApi, useAuth } from "../auth/AuthProvider";
 import { ApiError } from "../data/http";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Feedback, Loading } from "../ui/common";
 import { dashboardApi, dColors as colors, useDashboardQuery } from "./common";
 import type { DashboardEvent, OrganizerProfile } from "./data";

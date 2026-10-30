@@ -1,4 +1,5 @@
-import type { FlatList as FlatListInstance } from 'react-native';
+import type { FlatListInstance } from 'react-native';
+import { GlassSurface } from '../ui/GlassSurface';
 import React, { useEffect, useRef, useState } from "react";
 import {
   FlatList,
@@ -16,7 +17,7 @@ import {
   Ticket,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { formatDate } from "../data/events";
 import type { UserTicket } from "../data/tickets";
 import { Logo } from "../ui/Logo";
@@ -263,12 +264,12 @@ function TicketCard({
             {count}
           </Text>
         </View>
-        <View style={[s.action, active && { backgroundColor: colors.accent }]}>
+        <GlassSurface tintColor={active ? colors.accent : undefined} style={[s.action, active && { backgroundColor: colors.accent }]}>
           <QrCode size={16} color={colors.text} />
           <Text style={s.actionText}>
             {copy(active ? "tickets.showQr" : "tickets.viewTicket")}
           </Text>
-        </View>
+        </GlassSurface>
       </View>
     </Pressable>
   );

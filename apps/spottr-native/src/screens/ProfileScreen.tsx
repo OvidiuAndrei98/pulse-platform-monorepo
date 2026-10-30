@@ -1,3 +1,5 @@
+import { AccentPressable } from '../ui/AccentPressable';
+import { GlassPressable } from '../ui/GlassPressable';
 import { FormInput as TextInput, formStyles } from '../ui/FormInput';
 import { uploadProfileAvatar } from "../profile/avatar";
 import { DeleteAccountSheet } from "../profile/DeleteAccountSheet";
@@ -43,7 +45,7 @@ import {
   type LucideIcon,
 } from "lucide-react-native";
 import { accountApi, useAuth } from "../auth/AuthProvider";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import {
   useHiddenCategories,
   PreferencesSheet,
@@ -207,7 +209,7 @@ export function ProfileScreen() {
                 <UserRound color={colors.muted} size={40} />
               )}
             </View>
-            <Pressable
+            <AccentPressable fallback={Pressable}
               accessibilityRole="button"
               accessibilityLabel={copy("profile.changeAvatar")}
               disabled={busy}
@@ -215,7 +217,7 @@ export function ProfileScreen() {
               style={s.camera}
             >
               {activeAction === "avatar" ? <ActivityIndicator size="small" color="white" /> : <Camera size={17} color="white" />}
-            </Pressable>
+            </AccentPressable>
           </View>
           <View style={{ flex: 1, minWidth: 0, gap: 7 }}>
             <Text numberOfLines={1} style={{ color: "white", fontWeight: "600", fontSize: 24 }}>
@@ -241,7 +243,7 @@ export function ProfileScreen() {
               </Text>
             </View>
           </View>
-          <Pressable
+          <GlassPressable fallback={Pressable}
             testID="profile-quick-connect"
             accessibilityRole="button"
             accessibilityLabel={copy("qr.quickConnect")}
@@ -250,7 +252,7 @@ export function ProfileScreen() {
             style={s.quickConnect}
           >
             <QrCode size={20} color={colors.accent} />
-          </Pressable>
+          </GlassPressable>
         </View>
         <ProfileFeedback action="avatar" notice={notices.avatar} />
         {auth.storageError && <AuthMessage text={copy("feedback.actionFailed")} />}
@@ -268,7 +270,7 @@ export function ProfileScreen() {
           <Text style={s.section}>{copy("userProfile.ticketsOrders")}</Text>
           <View style={s.tabs}>
             {(["active", "history"] as const).map((value) => (
-              <Pressable
+              <AccentPressable fallback={Pressable}
                 key={value}
                 testID={'profile-tickets-tab-' + value}
                 accessibilityRole="tab"
@@ -289,7 +291,7 @@ export function ProfileScreen() {
                   {copy("userProfile." + value)}
                   {value === "active" ? ` (${activeTickets.length})` : ""}
                 </Text>
-              </Pressable>
+              </AccentPressable>
             ))}
           </View>
           <TicketAvailability offline={tickets.offline} savedAt={tickets.savedAt} storageError={tickets.storageError} refreshing={tickets.isFetching} onRefresh={() => void tickets.refetch()} />
@@ -743,6 +745,7 @@ const s = StyleSheet.create({
     width: 44,
     height: 44,
     flexShrink: 0,
+    alignSelf: 'center',
     borderRadius: 22,
     backgroundColor: "#ffffff0d",
     borderWidth: 1,

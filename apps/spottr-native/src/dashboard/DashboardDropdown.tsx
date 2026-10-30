@@ -1,4 +1,4 @@
-import type { View as ViewInstance, ScrollView as ScrollViewInstance } from 'react-native';
+import type { ViewInstance, ScrollViewInstance } from 'react-native';
 import React, { useEffect, useRef, useState } from "react";
 import {
   Modal,
@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Check, ChevronDown, type LucideIcon } from "lucide-react-native";
 import { Text } from "../ui/Text";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { dropdownPlacement, type DropdownAnchor } from "./dropdownPlacement";
 
 export type DashboardDropdownProps = {

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Pressable, View, useWindowDimensions } from "react-native";
 import { Building2, CreditCard, RefreshCw, Unplug } from "lucide-react-native";
 import { accountApi } from "../auth/AuthProvider";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { Feedback, Loading } from "../ui/common";
 import { Action, Confirm, dColors as colors, useAction } from "./common";

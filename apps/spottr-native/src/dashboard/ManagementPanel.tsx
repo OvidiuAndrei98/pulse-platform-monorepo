@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { dColors as colors } from "./common";
 import { p } from "./managementUi";

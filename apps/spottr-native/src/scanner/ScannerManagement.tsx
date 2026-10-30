@@ -12,7 +12,7 @@ import {
 } from "lucide-react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../auth/AuthProvider";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Feedback, Loading } from "../ui/common";
 import { Text } from "../ui/Text";
 import { Action, dColors as colors } from "../dashboard/common";

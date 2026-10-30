@@ -4,7 +4,7 @@ import { ArrowUpRight, type LucideIcon } from 'lucide-react-native';
 import { MotionPressable } from '../ui/MotionPressable';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 
 export function ProfileEmptyState({ icon: Icon, title, onExplore, testID }: {
   icon: LucideIcon; title: string; onExplore: () => void; testID: string;

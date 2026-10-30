@@ -16,7 +16,7 @@ import {
 } from "lucide-react-native";
 import type { components } from "@packages/api-client/src/schema";
 import { accountApi } from "../auth/AuthProvider";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { Feedback, Loading, useOpenLink } from "../ui/common";
 import { formatDate } from "../data/events";

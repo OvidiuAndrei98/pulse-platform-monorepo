@@ -3,7 +3,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { accountApi,useAuth } from '../auth/AuthProvider';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { FormInput } from '../ui/FormInput';
 import { colors } from '../ui/theme';

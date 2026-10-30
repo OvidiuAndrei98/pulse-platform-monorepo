@@ -1,4 +1,4 @@
-import type { View as ViewInstance } from 'react-native';
+import type { ViewInstance } from 'react-native';
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import BottomSheet, { ANIMATION_CONFIGS, ANIMATION_SOURCE, ANIMATION_STATUS, KEYBOARD_STATUS, BottomSheetBackdrop, BottomSheetFooter, useBottomSheetGestureHandlers, useBottomSheetInternal, type BottomSheetBackdropProps, type BottomSheetFooterProps } from '@gorhom/bottom-sheet';
@@ -82,7 +82,7 @@ function SheetGestureBoundary({ children, viewportHeight }: React.PropsWithChild
         ? withTiming(height, ANIMATION_CONFIGS as WithTimingConfig)
         : withSpring(height, ANIMATION_CONFIGS as WithSpringConfig),
     };
-  }, [viewportHeight, animatedLayoutState, animatedKeyboardState]);
+  }, Platform.OS === 'web' ? [viewportHeight, animatedLayoutState, animatedKeyboardState] : undefined);
   // The library normally cancels its spring only after Pan activates. On web
   // that requires 15px of movement, so an opening or returning sheet can escape
   // a held finger. Preserve the animation source when a stationary grab resumes.
@@ -98,7 +98,7 @@ function SheetGestureBoundary({ children, viewportHeight }: React.PropsWithChild
     return content === State.BEGAN || content === State.ACTIVE || handle === State.BEGAN || handle === State.ACTIVE;
   }, claimed => {
     if (claimed) pausedTarget.set(null);
-  }, [animatedContentGestureState, animatedHandleGestureState, pausedTarget]);
+  }, Platform.OS === 'web' ? [animatedContentGestureState, animatedHandleGestureState, pausedTarget] : undefined);
   const resume = useCallback(() => {
     'worklet';
     const target = pausedTarget.get();

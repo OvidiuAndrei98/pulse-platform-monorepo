@@ -8,7 +8,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { colors } from "../ui/theme";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { useTabIndicator } from "./useTabIndicator";
 import { ToastHost } from "../ui/ToastHost";
 import { TabIndicator } from "./TabIndicator";

@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Trash2 } from 'lucide-react-native';
 import { accountApi, useAuth } from '../auth/AuthProvider';
 import { ApiError } from '../data/http';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { AppSheet } from '../ui/AppSheet';
 import { AppSheetScrollView } from '../ui/AppSheetScrollView';
 import { FormInput, formStyles } from '../ui/FormInput';

@@ -694,6 +694,9 @@ export const resources = {
         cameraFailed:
           "The camera could not be started. Allow camera access and try again.",
         startingCamera: "Starting camera...",
+        allowCamera: "Allow camera access",
+        openCameraSettings: "Open camera settings",
+        scanAgain: "Scan again",
         nativeScannerUnavailable:
           "The native scanner is not included in this iOS build yet. Rebuild the iOS app and try again.",
         stopCamera: "Stop camera",
@@ -2447,6 +2450,9 @@ export const resources = {
         cameraFailed:
           "Camera nu a putut fi pornita. Permite accesul la camera si incearca din nou.",
         startingCamera: "Se porneste camera...",
+        allowCamera: "Permite accesul la cameră",
+        openCameraSettings: "Deschide setările camerei",
+        scanAgain: "Scanează din nou",
         nativeScannerUnavailable:
           "Scannerul nativ nu este inclus inca in acest build iOS. Reconstruieste aplicatia iOS si incearca din nou.",
         stopCamera: "Opreste camera",

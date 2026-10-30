@@ -16,7 +16,7 @@ import {
   Star,
   Trash2,
 } from "lucide-react-native";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { EventImage } from "../ui/common";
 import { colors } from "../ui/theme";

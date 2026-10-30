@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SelectionPressable } from '../ui/StateMotion';
 import { ReceiptText } from 'lucide-react-native';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
 import { FormInput, formStyles } from '../ui/FormInput';

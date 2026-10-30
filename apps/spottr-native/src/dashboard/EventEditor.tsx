@@ -1,3 +1,4 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 ﻿import React, { useState } from "react";
 import {
@@ -7,7 +8,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { ArrowRight, Check, ChevronDown, Copy, MapPin, Music2, Tags, Trash2 } from "lucide-react-native";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { colors } from "../ui/theme";
 import { categories } from "../data/events";
@@ -666,7 +667,7 @@ export function EventEditor({
                 {copy(dirty ? "eventEditor.unsaved" : "eventEditor.editHint")}
               </Text>
             )}
-            <Pressable
+            <AccentPressable fallback={Pressable}
               testID={!event && step < 2 ? "editor-next" : "editor-submit"}
               accessibilityRole="button"
               accessibilityState={{ disabled: busy || nextBlocked }}
@@ -712,7 +713,7 @@ export function EventEditor({
                 )}
               </Text>
               {!event && step < 2 && <ArrowRight size={16} color="white" />}
-            </Pressable>
+            </AccentPressable>
           </View>
         </View>
       )}
