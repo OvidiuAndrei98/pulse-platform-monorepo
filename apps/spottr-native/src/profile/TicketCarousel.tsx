@@ -1,4 +1,4 @@
-import type { FlatListInstance } from 'react-native';
+import type { FlatList as FlatListInstance } from 'react-native';
 import React, { useEffect, useRef, useState } from "react";
 import {
   FlatList,

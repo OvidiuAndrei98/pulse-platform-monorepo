@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ViewInstance } from 'react-native';
+import type { View as ViewInstance } from 'react-native';
 import type { GestureEventsHandlersHookType } from '@gorhom/bottom-sheet';
 
 // Native scroll views already cooperate with Gorhom's UI-thread pan gesture.

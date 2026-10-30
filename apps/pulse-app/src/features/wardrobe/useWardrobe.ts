@@ -26,14 +26,14 @@ export function useWardrobe(staff = false, interval = 5000) {
           ? AbortSignal.any([options.signal, timeout])
           : timeout,
       });
-      const result = await response.json();
-      if (!response.ok)
-        throw new Error(
-          typeof result.error === "string"
-            ? result.error
-            : "WARDROBE_UNAVAILABLE",
-        );
-      return result;
+      if (!response.ok) {
+        const result = await response.json().catch(() => null);
+        // Keep HTTP auth status even for localized/non-JSON error responses.
+        throw Object.assign(new Error(
+          typeof result?.error === "string" ? result.error : "WARDROBE_UNAVAILABLE",
+        ), { status: response.status });
+      }
+      return response.json();
     };
     return new WardrobeStore(request,{personal:!operatorAccount(user?.properties.role),autoSelectFirst:false});
   }, [id, getToken, user?.properties.role]);
@@ -52,7 +52,9 @@ export function useWardrobe(staff = false, interval = 5000) {
       if (document.visibilityState !== "hidden") void store.refresh(staff);
     };
     refresh();
-    const timer = setInterval(refresh, interval);
+    const timer = setInterval(() => {
+      if (document.visibilityState !== "hidden") void store.refresh(staff, { background: true });
+    }, interval);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {

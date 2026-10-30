@@ -1,4 +1,4 @@
-import type { FlatListInstance, ScrollViewInstance } from 'react-native';
+import type { FlatList as FlatListInstance, ScrollView as ScrollViewInstance } from 'react-native';
 import { ActionIcon } from '../ui/ActionIcon';
 import { GlassSurface } from '../ui/GlassSurface';
 import React, { useEffect, useMemo, useRef, useState } from "react";

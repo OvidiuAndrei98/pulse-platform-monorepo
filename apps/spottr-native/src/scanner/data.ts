@@ -32,7 +32,7 @@ export function parseEvent(value: unknown): ValidationEvent {
  * list is not evidence of revoked scanner permission.
  */
 export function mergeValidationEvents(remote: readonly ValidationEvent[], prepared: readonly ValidationEvent[]): ValidationEvent[] {
-  const events = new Map(prepared.map(event => [event.id, event]));
+  const events = new Map(prepared.map(event => [event.id, { ...event, canManage: false }]));
   for (const event of remote) events.set(event.id, event);
   return [...events.values()].sort((a, b) => b.startTime.localeCompare(a.startTime));
 }

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   WardrobeStore,
+  wardrobeError,
+  wardrobeText,
   readProfileQR,
   pickupActive,
   fitsZone,
@@ -75,6 +77,68 @@ const deferred = <T>() => {
   });
   return { promise, resolve };
 };
+
+test('background reads update shared custody without loading flashes or changing filters',async()=>{
+  let hold:ReturnType<typeof deferred<Overview>>|undefined;
+  const stored={...receipt,status:'stored' as const,pickupApproved:true};
+  const store=new WardrobeStore((async(path)=>path.includes('/deposits/')?{deposit:stored}:path.includes('?')?(hold?await hold.promise:{...overview(),deposits:[stored]}):fallback(path)) as Request);
+  await store.change({eventId:id(1),search:'Guest',history:true});store.select({...stored,pickupApproved:false});
+  const flags:boolean[]=[];store.subscribe(()=>flags.push(store.snapshot().loading));hold=deferred<Overview>();
+  const read=store.refresh(true,{background:true});await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(store.snapshot().loading,false);hold.resolve({...overview(),deposits:[stored],zones:[{...zone,occupied:1}]});await read;
+  assert.equal(flags.some(Boolean),false);assert.equal(store.snapshot().search,'Guest');assert.equal(store.snapshot().history,true);
+  assert.equal(store.snapshot().selected?.pickupApproved,true);assert.equal(store.snapshot().overview?.zones[0]?.occupied,1);store.dispose();
+});
+
+test('manual refresh joins and promotes the background request instead of racing it',async()=>{
+  let hold:ReturnType<typeof deferred<Overview>>|undefined,overviewReads=0;
+  const store=new WardrobeStore((async(path)=>{if(path.includes('?')){overviewReads++;return hold?await hold.promise:overview();}return fallback(path);}) as Request);
+  await store.change({eventId:id(1)});hold=deferred<Overview>();overviewReads=0;
+  const background=store.refresh(true,{background:true});await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(store.snapshot().loading,false);const manual=store.refresh(true);assert.equal(manual,background);assert.equal(store.snapshot().loading,true);
+  hold.resolve(overview());await manual;assert.equal(overviewReads,1);assert.equal(store.snapshot().loading,false);store.dispose();
+});
+
+test('switching to staff during a personal read coalesces one awaited scope upgrade',async()=>{
+  const mine=deferred<{deposits:Deposit[];staffAccess:boolean}>(),events=deferred<{id:string;title:string;canManage:boolean}[]>();
+  const paths:string[]=[];let active=0,maximum=0;
+  const store=new WardrobeStore((async(path)=>{paths.push(path);active++;maximum=Math.max(maximum,active);try{
+    if(path==='/wardrobe/mine'&&paths.length===1)return await mine.promise;
+    if(path==='/wardrobe/events')return await events.promise;
+    return fallback(path);
+  }finally{active--;}}) as Request,{autoSelectFirst:false});
+  const personal=store.refresh(false,{background:true});await new Promise(resolve=>setImmediate(resolve));
+  const staff=store.refresh(true),second=store.refresh(true,{background:true});assert.equal(staff,second);
+  let finished=false;void staff.then(()=>{finished=true;});mine.resolve({deposits:[],staffAccess:true});await personal;await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(finished,false);assert.equal(paths.filter(path=>path==='/wardrobe/events').length,1);
+  events.resolve([{id:id(1),title:'Night',canManage:true}]);await staff;
+  assert.equal(maximum,1);assert.equal(store.snapshot().events[0]?.id,id(1));assert.equal(store.snapshot().loading,false);store.dispose();
+});
+
+test('background failure preserves action error and data; successful live reads do not dismiss the action error',async()=>{
+  let fail=false;const store=new WardrobeStore((async(path)=>{if(fail)throw Error('offline');return fallback(path);}) as Request);
+  await store.change({eventId:id(1)});await store.reserve('invalid',zone.id,{coat:1,bag:0,backpack:0},false,()=>id(9));const actionError=store.snapshot().error;
+  assert.ok(actionError);await store.refresh(true,{background:true});assert.equal(store.snapshot().error,actionError);
+  const previous=store.snapshot().overview;fail=true;await store.refresh(true,{background:true});assert.equal(store.snapshot().overview,previous);assert.equal(store.snapshot().error,actionError);assert.ok(store.snapshot().syncError);assert.equal(store.snapshot().loading,false);
+  fail=false;await store.refresh(true,{background:true});assert.equal(store.snapshot().syncError,null);assert.equal(store.snapshot().error,actionError);
+  await store.refresh(true);assert.equal(store.snapshot().error,null);store.dispose();
+});
+
+test('localized HTTP auth failures in background clear all private data and search context',async()=>{
+  for(const authError of [Object.assign(Error('Sesiunea a expirat'),{status:401}),Object.assign(Error('Acces interzis'),{status:403}),Object.assign(Error('Request failed'),{code:'WARDROBE_ACCESS_DENIED'})]){
+    let fail=false;const store=new WardrobeStore((async(path)=>{if(fail)throw authError;return fallback(path);}) as Request);
+    await store.change({eventId:id(1),search:'Private guest',cursor:id(9),history:true});store.select(receipt);assert.ok(store.snapshot().mine);fail=true;
+    await store.refresh(true,{background:true});const state=store.snapshot();
+    assert.equal(state.mine,undefined);assert.equal(state.overview,undefined);assert.equal(state.selected,undefined);assert.deepEqual(state.events,[]);assert.equal(state.eventId,'');assert.equal(state.search,'');assert.equal(state.cursor,'');assert.equal(state.error,authError);assert.equal(state.syncError,null);store.dispose();
+  }
+});
+
+test('own custody mutations reconcile silently while still publishing confirmed results',async()=>{
+  const stored={...receipt,status:'stored' as const};
+  const store=new WardrobeStore((async(path,options)=>options?.method==='POST'?{deposit:stored}:path.includes('/deposits/')?{deposit:stored}:fallback(path)) as Request);
+  await store.change({eventId:id(1)});store.select(receipt);const flags:boolean[]=[];store.subscribe(()=>flags.push(store.snapshot().loading));
+  await store.command({action:'store',depositId:receipt.id,revision:receipt.revision});assert.equal(store.snapshot().selected?.status,'stored');assert.equal(flags.some(Boolean),false);store.dispose();
+});
 test("elapsed storage time uses check-in time and handles boundaries", () => {
   const now = Date.parse("2026-10-19T12:00:00Z");
   assert.equal(
@@ -105,6 +169,30 @@ test("elapsed storage time uses check-in time and handles boundaries", () => {
     depositedSince({ storedAt: null, createdAt: "invalid" }, true, now),
     "",
   );
+});
+
+test("recovered initial reads clear their error without waiting for manual refresh", async () => {
+  const failure = new Error("offline");
+  let offline = true;
+  const store = new WardrobeStore((async path => {
+    if (offline) throw failure;
+    return fallback(path);
+  }) as Request);
+  await store.refresh(true);
+  assert.equal(store.snapshot().error, failure);
+  offline = false;
+  await store.refresh(true, { background: true });
+  assert.equal(store.snapshot().error, null);
+  assert.equal(store.snapshot().syncError, null);
+  assert.ok(store.snapshot().overview);
+});
+
+test("localized authorization failures display an access message rather than an operation failure", () => {
+  for (const status of [401, 403]) {
+    const failure = Object.assign(new Error("Sesiunea a expirat"), { status });
+    for (const ro of [false, true])
+      assert.equal(wardrobeError(failure, ro), wardrobeText(ro).access);
+  }
 });
 
 test("unclaimed filter survives search, pagination and refresh and can be cleared", async () => {
@@ -264,11 +352,18 @@ test("account teardown aborts requests and prevents late publication", async () 
     return pending.promise;
   }) as Request);
   const reading = store.refresh();
+  await new Promise(resolve=>setImmediate(resolve));
   store.dispose();
   assert.equal(signal?.aborted, true);
   pending.resolve({ deposits: [receipt], staffAccess: false });
   await reading;
   assert.equal(store.snapshot().mine, undefined);
+});
+
+test('teardown before a queued live read prevents even starting its transport',async()=>{
+  let calls=0;const store=new WardrobeStore((async(path)=>{calls++;return fallback(path);}) as Request);
+  const read=store.refresh(true,{background:true});store.dispose();await read;
+  assert.equal(calls,0);assert.equal(store.snapshot().mine,undefined);assert.deepEqual(store.snapshot().events,[]);
 });
 test("revoked staff access clears previously displayed customer data", async () => {
   let revoked = false;

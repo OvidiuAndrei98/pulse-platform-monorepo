@@ -3159,6 +3159,8 @@ export interface components {
             title: string;
             canManage: boolean;
             startTime?: string;
+            endTime?: string;
+            status?: string;
             location?: string;
         };
         WardrobeItems: {

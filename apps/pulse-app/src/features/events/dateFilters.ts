@@ -1,42 +1,22 @@
-import { EventFilters } from "@/features/events/types";
-
-type DateRange = {
-  startsAfter?: string;
-  startsBefore?: string;
-};
-
-function startOfDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-export function getEventDateRange(dateFilter: EventFilters["date"]): DateRange {
-  const now = new Date();
-  const today = startOfDay(now);
-
-  switch (dateFilter) {
-    case "Tonight":
-      return { startsAfter: now.toISOString(), startsBefore: addDays(today, 1).toISOString() };
-    case "Tomorrow": {
-      const tomorrow = addDays(today, 1);
-      return { startsAfter: tomorrow.toISOString(), startsBefore: addDays(tomorrow, 1).toISOString() };
+import type { EventFilters } from './types';
+import { productToday,productMidnight,shiftCalendarDay,validCalendarDay } from './discoveryFilters';
+type DateRange={startsAfter?:string;startsBefore?:string};
+export function getEventDateRange(dateFilter?:EventFilters['date'],custom?:Pick<EventFilters,'dateFrom'|'dateTo'>):DateRange {
+  const now=new Date(),today=productToday(now);
+  const range=(from:string,to:string)=>({startsAfter:productMidnight(from),startsBefore:productMidnight(to)});
+  if(dateFilter==='Custom'&&validCalendarDay(custom?.dateFrom)&&validCalendarDay(custom?.dateTo)&&custom.dateFrom<=custom.dateTo)
+    return range(custom.dateFrom,shiftCalendarDay(custom.dateTo,1));
+  switch(dateFilter){
+    case 'Tonight':return {startsAfter:now.toISOString(),startsBefore:productMidnight(shiftCalendarDay(today,1))};
+    case 'Tomorrow':return range(shiftCalendarDay(today,1),shiftCalendarDay(today,2));
+    case 'This weekend':{
+      const weekday=new Date(today+'T12:00:00Z').getUTCDay(),start=shiftCalendarDay(today,weekday===0?-1:(6-weekday+7)%7);
+      return range(start,shiftCalendarDay(start,2));
     }
-    case "This weekend": {
-      const daysUntilSaturday = today.getDay() === 0 ? -1 : (6 - today.getDay() + 7) % 7;
-      const saturday = addDays(today, daysUntilSaturday);
-      return { startsAfter: saturday.toISOString(), startsBefore: addDays(saturday, 2).toISOString() };
+    case 'Next week':{
+      const weekday=new Date(today+'T12:00:00Z').getUTCDay(),start=shiftCalendarDay(today,((8-weekday)%7)||7);
+      return range(start,shiftCalendarDay(start,7));
     }
-    case "Next week": {
-      const daysUntilNextMonday = ((8 - today.getDay()) % 7) || 7;
-      const nextMonday = addDays(today, daysUntilNextMonday);
-      return { startsAfter: nextMonday.toISOString(), startsBefore: addDays(nextMonday, 7).toISOString() };
-    }
-    default:
-      return {};
+    default:return {};
   }
 }

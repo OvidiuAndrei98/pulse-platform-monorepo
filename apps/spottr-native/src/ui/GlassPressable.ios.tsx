@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { Pressable, StyleSheet, type ViewInstance } from 'react-native';
+import { Pressable, StyleSheet, type View as ViewInstance } from 'react-native';
 import { requireOptionalNativeModule } from 'expo';
 import { GlassPressableFallback, type GlassPressableProps } from './GlassPressableFallback';
 import { glassButtonStyles } from './glassButtonStyles';

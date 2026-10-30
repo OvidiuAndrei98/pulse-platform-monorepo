@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useDataProvider } from '@/core/DataProviderContext';
-import { operatorAccount, changeItemCount, taskDeposits,wardrobeFlow,wardrobeTasks,availableZones,canReserveBelongings,wardrobeEventDescription,type WardrobeTask } from './flow';
-import { Shirt, ArrowLeft, ChevronRight } from "lucide-react";
+import { operatorAccount, wardrobeEventPhase, wardrobeEventPhaseLabel, wardrobeTabLabel, changeItemCount, taskDeposits,wardrobeFlow,wardrobeTasks,availableZones,canReserveBelongings,wardrobeEventDescription,type WardrobeTask } from './flow';
+import { Shirt, ArrowLeft, CalendarDays, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
 import { TicketQrCode } from "@/components/tickets/TicketQrCode";
+import { WardrobeTabs } from "./WardrobeTabs";
 import { useWardrobe } from "./useWardrobe";
 import {
   actionLabel,
@@ -23,6 +24,7 @@ import {
   type Items,
   type Command,
   type Deposit,
+  type WardrobeEvent,
 } from "./model";
 import s from "./wardrobe.module.css";
 
@@ -106,10 +108,11 @@ export function WardrobePage({
   const { store, state, user } = useWardrobe(staff),
     { i18n } = useTranslation(),
     router = useRouter();
-  const [task,setTask]=useState<WardrobeTask|null>(null),[intakeStep,setIntakeStep]=useState(0),[clientCode,setClientCode]=useState(''),[flowError,setFlowError]=useState(''),[advanced,setAdvanced]=useState(false),[setupTab,setSetupTab]=useState('zones');
+  const [task,setTask]=useState<WardrobeTask>('receive'),[intakeStep,setIntakeStep]=useState(0),[clientCode,setClientCode]=useState(''),[flowError,setFlowError]=useState(''),[advanced,setAdvanced]=useState(false),[setupTab,setSetupTab]=useState('zones');
   const ro = i18n.language.startsWith("ro"), flow=wardrobeFlow(ro),
     c = wardrobeText(ro),
-    overview=state.overview, o = task ? overview : undefined,
+    overview=state.overview, o = overview,
+    canManage=overview?.canManage ?? state.events.find(event=>event.id===state.eventId)?.canManage ?? false,
     d = state.selected;
   const [tab, setTab] = useState<
       "operations" | "setup" | "history" | "unclaimed"
@@ -135,12 +138,12 @@ export function WardrobePage({
     [email, setEmail] = useState(""),
     [role, setRole] = useState("operator");
   const busy = state.busy;
-  const [pickupLookup,setPickupLookup]=useState<Deposit[]|null>(null),[eventFilter,setEventFilter]=useState('');
+  const [pickupLookup,setPickupLookup]=useState<Deposit[]|null>(null);
   useEffect(() => {
     setZone("");
-    setTask(null);setIntakeStep(0);setClientCode('');setFlowError('');setAdvanced(false);
+    setTask('receive');setIntakeStep(0);setClientCode('');setFlowError('');setAdvanced(false);
     setPickupLookup(null);
-    setTab((current) => (current === "unclaimed" ? "unclaimed" : "operations"));
+    setTab('operations');
     setSearch("");
   }, [state.eventId]);
   useEffect(() => {
@@ -193,8 +196,26 @@ export function WardrobePage({
     if(task==='pickup') {const result=await store.command({action:'lookup',code:'glow://friend/'+customer});if(result){const rows=(result.deposits??[]).filter(row=>row.status==='stored');setPickupLookup(rows);const current=store.snapshot().selected;store.select(rows.length===1?(current?.id===rows[0]!.id?current:rows[0]):undefined);}}
     else {setClientCode('glow://friend/'+customer);setIntakeStep(1);}
   };
-  const beginTask=(value:WardrobeTask)=>{if(busy||d?.status==='reserved')return;setTask(value);setTab(value==='receive'||value==='pickup'?'operations':value);setClientCode('');setIntakeStep(0);setFlowError('');setAdvanced(false);setItems({coat:0,bag:0,backpack:0});setZone('');setSearch('');void store.change({history:value==='history',unclaimed:value==='unclaimed',search:''});};
+  const beginTask=(value:WardrobeTask)=>{if(busy||d?.status==='reserved')return;setTask(value);setPickupLookup(null);setTab(value==='receive'||value==='pickup'?'operations':value);setClientCode('');setIntakeStep(0);setFlowError('');setAdvanced(false);setItems({coat:0,bag:0,backpack:0});setZone('');setSearch('');void store.change({history:value==='history',unclaimed:value==='unclaimed',search:''});};
+  useEffect(()=>{if(task==='setup'&&!canManage){setTask('receive');setTab('operations');}},[task,canManage]);
   const nextClient=()=>{store.select();setClientCode('');setIntakeStep(0);setItems({coat:0,bag:0,backpack:0});setZone('');setAdvanced(false);};
+  const [showOther,setShowOther]=useState(false);
+  const activeEvents=state.events.filter(event=>wardrobeEventPhase(event)!=='other'),otherEvents=state.events.filter(event=>wardrobeEventPhase(event)==='other');
+  const otherVisible=showOther;
+  const enterEvent=(eventId:string)=>void store.change({eventId,history:false,unclaimed:false,search:''});
+  const leaveEvent=()=>{if(!busy&&d?.status!=='reserved')void store.change({eventId:'',history:false,unclaimed:false,search:''});};
+  useEffect(()=>{
+    if(!staff||!user)return;
+    const heading=document.getElementById(state.eventId?'wardrobe-event-heading':'wardrobe-events-heading');heading?.setAttribute('tabindex','-1');if(heading)heading.style.outline='none';heading?.focus({preventScroll:true});
+  },[state.eventId,staff,user?.properties.id]);
+  const eventRow=(event:WardrobeEvent)=><button type="button" key={event.id} data-testid={'wardrobe-event-'+event.id} className={s.eventRow} disabled={busy} onClick={()=>enterEvent(event.id)}><span className={s.eventIcon}><CalendarDays aria-hidden="true" size={22}/></span><span className={s.eventRowCopy}><strong>{event.title}</strong><span>{wardrobeEventDescription(event,ro)}</span>{wardrobeEventPhase(event)!=='other'&&<span>{wardrobeEventPhaseLabel(event,ro)}</span>}</span><ChevronRight aria-hidden="true" size={19}/></button>;
+
+  const refreshControl = (
+    <button type="button" className={s.refresh} aria-label={c.refresh}
+      disabled={state.loading || busy} onClick={() => void store.refresh(staff)}>
+      <span className={s.refreshGlyph} aria-hidden="true"><RefreshCw size={16} /></span>
+    </button>
+  );
   const button = (
     label: string,
     onClick: () => void,
@@ -240,7 +261,7 @@ export function WardrobePage({
         <Shirt color="#ff0044" />
         <h1>{c.title}</h1>
       </div>
-      <p>{staff?flow.eventHint:c.hint}</p>
+      {!staff&&<p>{c.hint}</p>}
       {!operatorOnly && (state.mine?.staffAccess || initialStaff) && (
         <div className={s.tabs}>
           {button(c.mine, () => setStaff(false), staff)}
@@ -252,12 +273,8 @@ export function WardrobePage({
           {wardrobeError(state.error, ro)}
         </p>
       )}
-      {button(
-        state.loading ? c.loading : c.refresh,
-        () => void store.refresh(staff),
-        true,
-        state.loading,
-      )}
+      <p role="status" className={state.syncError&&!state.error?s.small:s.syncStatusEmpty}>{state.syncError&&!state.error?c.syncPaused:''}</p>
+      {!staff&&<div className={s.refreshRow}>{refreshControl}</div>}
       {!staff ? (
         <>
           {state.mine?.deposits.length === 0 && (
@@ -309,17 +326,30 @@ export function WardrobePage({
         </>
       ) : (
         <>
-          {!state.eventId ? <section className={s.stack}><h2>{flow.chooseEvent}</h2><label className={s.field}>{flow.eventSearch}<input value={eventFilter} maxLength={100} onChange={event=>setEventFilter(event.target.value)}/></label>{state.events.filter(event=>event.title.toLowerCase().includes(eventFilter.toLowerCase())).map(event=><button type="button" className={s.eventChoice} data-testid={"wardrobe-event-"+event.id} key={event.id} disabled={busy} onClick={()=>void store.change({eventId:event.id,history:false,unclaimed:false,search:''})}><strong>{event.title}</strong><span>{wardrobeEventDescription(event,ro)}</span><span>{ro?'Deschide garderoba':'Open wardrobe'} →</span></button>)}</section> : <div className={s.card}><h2>{overview?.title || state.events.find(event=>event.id===state.eventId)?.title}</h2>{button(flow.changeEvent,()=>void store.change({eventId:'',history:false,unclaimed:false,search:''}),true,d?.status==='reserved')}</div>}
-          {overview && !task && <div className={s.taskGrid}>{wardrobeTasks(overview.canManage).map(key=><button type="button" className={s.eventChoice} data-testid={"wardrobe-task-"+key} key={key} disabled={busy} onClick={()=>{setPickupLookup(null);beginTask(key);}}><strong>{flow[key]}</strong><span>{flow[(key+'Hint') as 'receiveHint']}</span></button>)}</div>}
-          {!state.loading && !state.events.length && <p>{c.noEvents}</p>}
-          {o && (
-            <>
-              {button(flow.backTasks,()=>{store.select();setTask(null);},true,d?.status==='reserved')}
-              <h2>{task && flow[task]}</h2>
-              {task==='setup'&&<div className={s.row}>{button(flow.zones,()=>setSetupTab('zones'),setupTab!=='zones')}{button(flow.team,()=>setSetupTab('team'),setupTab!=='team')}</div>}
+          {!state.eventId?<>
+            <div className={s.between}><h2 id="wardrobe-events-heading">{ro?'Evenimente active':'Active events'}</h2>{refreshControl}</div>
+            <p>{ro?'Alege evenimentul pentru primire, predare și gestionarea garderobei.':'Choose an event to receive, return and manage belongings.'}</p>
+            {state.loading&&!state.events.length&&<p role="status">{c.loading}</p>}
+            <div>{activeEvents.map(eventRow)}</div>
+            {!state.loading&&!activeEvents.length&&<p>{!state.events.length?c.noEvents:ro?'Nu ai evenimente active. Evenimentele încheiate și ciornele sunt disponibile mai jos.':'No active events. Past events and drafts are available below.'}</p>}
+            {!!otherEvents.length&&<><button type="button" className={s.otherEvents} aria-expanded={otherVisible} aria-controls={otherVisible?"wardrobe-other-events":undefined} onClick={()=>setShowOther(!otherVisible)}>{ro?'Alte evenimente':'Other events'} ({otherEvents.length}){otherVisible?<ChevronDown aria-hidden="true" size={18}/>:<ChevronRight aria-hidden="true" size={18}/>}</button>{otherVisible&&<div id="wardrobe-other-events">{otherEvents.map(eventRow)}</div>}</>}
+          </>:<>
+            <div className={s.between}><button type="button" data-testid="wardrobe-back-events" className={s.backEvents} disabled={busy||d?.status==='reserved'} onClick={leaveEvent}><ArrowLeft aria-hidden="true" size={18}/>{ro?'Înapoi la evenimente':'Back to events'}</button>{refreshControl}</div>
+            <h2 id="wardrobe-event-heading" className={s.eventTitle}>{overview?.title||state.events.find(event=>event.id===state.eventId)?.title}</h2>
+            <p className={s.eventMeta}>{wardrobeEventDescription(state.events.find(event=>event.id===state.eventId)??{id:state.eventId,title:'',canManage},ro)}</p>
+            <WardrobeTabs id="wardrobe-operations" label={flow.operations} value={task} options={wardrobeTasks(canManage).map(value=>({value,label:wardrobeTabLabel(value,ro)}))} onChange={beginTask} disabled={busy} locked={d?.status==='reserved'} panelId="wardrobe-panel" ro={ro}/>
+            {d?.status==='reserved'&&<p role="status" className={s.reservationHint}>{flow.reservationHint}</p>}
+          </>}
+          {state.eventId && (
+            <section role="tabpanel" id="wardrobe-panel" aria-labelledby={'wardrobe-operations-'+task} className={s.panel}>
+              {!o&&<p role="status">{c.loading}</p>}
+              {o&&<>
+
+
+              {task==='setup'&&<WardrobeTabs id="wardrobe-settings" label={flow.settings} value={setupTab} options={[{value:'zones',label:ro?'Zone și obiecte':'Zones and items'},{value:'team',label:flow.team}]} onChange={setSetupTab} disabled={busy} panelId="wardrobe-settings-panel" ro={ro}/>}
               {task==='pickup'&&<div className={s.card}><p>{flow.pickupHint}</p>{button(c.scan,()=>{cameraGate.current=false;setCamera(true);})}{pickupLookup!==null&&button(ro?'Caută alt client':'Find another customer',()=>{setPickupLookup(null);store.select();},true)}</div>}
               {!!flowError&&<p role="alert" className={s.error}>{flowError}</p>}
-              <p className={s.small}>{c.online}</p>
+
               {tab === "history" && (
                 <p className={s.small}>{c.retentionHint}</p>
               )}
@@ -335,7 +365,7 @@ export function WardrobePage({
                 </div>
               )}
               {tab === "setup" && o.canManage ? (
-                <>
+                <section id="wardrobe-settings-panel" role="tabpanel" aria-labelledby={'wardrobe-settings-'+setupTab} className={s.stack}>
                   <div className={s.card} style={setupTab!=='zones'?{display:'none'}:undefined}>
                     <h2>{c.zone}</h2>
                     <p>{c.zonesHint}</p>
@@ -474,7 +504,7 @@ export function WardrobePage({
                       !email.includes("@"),
                     )}
                   </div>
-                </>
+                </section>
               ) : (
                 <>
                   {task === 'receive' && !d && <section className={s.card} data-testid="wardrobe-intake">
@@ -645,7 +675,7 @@ export function WardrobePage({
                       )}
                     </div>
                   )}
-                  <div className={s.row} style={task==='receive'?{display:'none'}:undefined}>
+                  <div className={`${s.row} ${s.searchRow}`} style={task==='receive'?{display:'none'}:undefined}>
                     <label className={s.field}>
                       {c.search}
                       <input
@@ -743,7 +773,9 @@ export function WardrobePage({
                   )}
                 </>
               )}
-            </>
+              {(task==='receive'||task==='pickup'||task==='unclaimed')&&<p className={s.small}>{c.online}</p>}
+              </>}
+            </section>
           )}
         </>
       )}

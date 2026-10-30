@@ -9424,6 +9424,12 @@
           "startTime": {
             "type": "string"
           },
+          "endTime": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
           "location": {
             "type": "string"
           }

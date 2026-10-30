@@ -27,9 +27,11 @@ import { formatToDatetimeLocal } from "../../../pulse-app/src/features/events/fo
 export function ScannerManagement({
   event,
   token,
+  section,
 }: {
   event: ValidationEvent;
   token: string;
+  section: "team" | "links";
 }) {
   const { copy, language } = usePreferences(),
     { controller, user } = useAuth(),
@@ -101,7 +103,7 @@ export function ScannerManagement({
           {notice}
         </Text>
       ) : null}
-      <View style={[s.panel, { padding: width >= 640 ? 24 : 20 }]}>
+      <View testID="scanner-team-section" style={[s.panel, { padding: width >= 640 ? 24 : 20 }, section !== "team" && {display:"none"}]}>
         <View style={[s.row, { alignItems: "flex-start", gap: 12 }]}>
           <UsersRound
             size={20}
@@ -227,7 +229,7 @@ export function ScannerManagement({
           )}
         </View>
       </View>
-      <View style={[s.panel, { padding: width >= 640 ? 24 : 20 }]}>
+      <View testID="scanner-links-section" style={[s.panel, { padding: width >= 640 ? 24 : 20 }, section !== "links" && {display:"none"}]}>
         <View style={[s.row, { alignItems: "flex-start", gap: 12 }]}>
           <Link2 size={20} color={colors.accent} style={{ marginTop: 2 }} />
           <View style={{ flex: 1, gap: 4 }}>

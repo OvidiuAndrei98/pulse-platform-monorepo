@@ -1,4 +1,4 @@
-import type { TextInputInstance } from 'react-native';
+import type { TextInput as TextInputInstance } from 'react-native';
 import React, { forwardRef, useContext, useState } from 'react';
 import { Platform, StyleSheet, TextInput, useWindowDimensions, type TextInputProps } from 'react-native';
 import { AppSheetTextInput } from './AppSheetTextInput';

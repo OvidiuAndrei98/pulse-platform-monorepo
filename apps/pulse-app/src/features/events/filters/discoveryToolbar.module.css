@@ -1,0 +1,47 @@
+.toolbar { display:flex; align-items:center; gap:8px; width:100%; min-width:0; }
+.pill { min-height:44px; border:1px solid #ffffff1a; border-radius:24px; background:#121418ed; color:var(--foreground); box-shadow:0 1px 0 #ffffff18 inset,0 6px 20px #0004; }
+.round { width:44px; min-width:44px; min-height:44px; display:grid; place-items:center; border-radius:50%; }
+.search { display:flex; align-items:center; flex:1; gap:8px; padding-inline:14px 4px; min-width:180px; max-width:440px; }
+.search input { width:100%; min-width:0; background:transparent; border:0; font-size:16px; outline:none; color:var(--foreground); }
+.search:focus-within { outline:2px solid var(--foreground); outline-offset:2px; }
+.search button { display:grid; place-items:center; flex-shrink:0; min-width:36px; min-height:36px; border-radius:50%; }
+.searchToggle,.compactModes { display:none; }
+.city { display:flex; align-items:center; gap:8px; padding-inline:14px; min-width:150px; max-width:200px; }
+.city select { appearance:none; width:100%; min-width:0; background:transparent; color:var(--foreground); font-size:14px; padding-block:10px; }
+.city option { background:#191919; }
+.dateButton { display:flex; align-items:center; justify-content:center; gap:8px; padding:10px 16px; max-width:300px; font-size:14px; }
+.dateButton span { overflow-wrap:anywhere; }
+.dialog { position:fixed; margin:0; inset:88px auto auto 50%; transform:translateX(-50%); width:min(340px,calc(100% - 24px)); max-height:calc(100dvh - 110px); overflow-y:auto; overscroll-behavior:contain; padding:16px; border:1px solid #ffffff26; border-radius:16px; background:#171719; color:var(--foreground); box-shadow:0 20px 46px #0008; }
+.dialog::backdrop { background:#0006; }
+.dialogHeader { display:flex; align-items:center; justify-content:space-between; gap:12px; font-weight:600; margin-bottom:12px; }
+.dialogHeader button { min-width:44px; min-height:44px; display:grid; place-items:center; border-radius:50%; }
+.calendar { min-width:0; }
+.modes { display:flex; flex-wrap:wrap; gap:12px; font-size:14px; padding-block:8px 16px; }
+.modes label { display:flex; align-items:center; gap:6px; min-height:32px; }
+.modes input { accent-color:var(--primary); }
+.month { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:14px; font-weight:600; }
+.month button { min-height:36px; min-width:36px; display:grid; place-items:center; border-radius:50%; border:1px solid #ffffff26; }
+.days { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:2px; margin-top:12px; }
+.days button { min-height:34px; min-width:0; border-radius:8px; font-size:14px; }
+.weekday { font-size:12px; color:var(--muted-foreground); text-align:center; padding-block:6px; }
+.days button[data-muted="true"] { color:var(--muted-foreground); }
+.days button[data-range="true"] { background:#ff004422; font-weight:700; text-decoration:underline; text-underline-offset:3px; }
+.days button[data-selected="true"] { background:var(--primary); color:white; font-size:20px; font-weight:700; }
+.days button[aria-current="date"] { box-shadow:inset 0 0 0 1px var(--primary); }
+.days button:disabled { opacity:.3; }
+.hint { color:var(--muted-foreground); font-size:12px; margin-top:12px; }
+.clearDate { min-height:40px; font-size:12px; text-decoration:underline; color:var(--muted-foreground); }
+.apply { width:100%; min-height:44px; border-radius:24px; background:var(--primary); color:white; font-weight:700; font-size:20px; margin-top:8px; }
+.toolbar button:focus-visible,.calendar button:focus-visible { outline:2px solid var(--foreground); outline-offset:2px; }
+@media(max-width:1023px) {
+  .city,.dateButton { display:none; }
+  .search { display:flex; flex:0 0 0; max-width:0; min-width:0; padding-inline:0; border-width:0; opacity:0; pointer-events:none; overflow:hidden; }
+  .searchToggle { display:grid; }
+  .toolbar[data-search-open="true"] .search { flex:1 1 0; max-width:440px; padding-inline:14px 4px; border-width:1px; opacity:1; pointer-events:auto; }
+  .toolbar[data-search-open="true"] .searchToggle,.toolbar[data-search-open="true"] .fullModes { display:none; }
+  .toolbar[data-search-open="true"] .compactModes { display:grid; }
+}
+@media(prefers-reduced-motion:no-preference) {
+  .search { transition:flex-grow 200ms cubic-bezier(.2,0,0,1),max-width 200ms cubic-bezier(.2,0,0,1),opacity 150ms ease-out; }
+  .pill:not(:disabled):active { scale:.96; transition:scale 150ms ease-out; }
+}

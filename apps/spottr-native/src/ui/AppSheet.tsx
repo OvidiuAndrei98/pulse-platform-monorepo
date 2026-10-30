@@ -1,4 +1,4 @@
-import type { ViewInstance } from 'react-native';
+import type { View as ViewInstance } from 'react-native';
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import BottomSheet, { ANIMATION_CONFIGS, ANIMATION_SOURCE, ANIMATION_STATUS, KEYBOARD_STATUS, BottomSheetBackdrop, BottomSheetFooter, useBottomSheetGestureHandlers, useBottomSheetInternal, type BottomSheetBackdropProps, type BottomSheetFooterProps } from '@gorhom/bottom-sheet';

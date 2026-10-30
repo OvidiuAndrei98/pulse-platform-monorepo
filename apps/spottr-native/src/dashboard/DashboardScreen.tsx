@@ -1,4 +1,4 @@
-import type { ScrollViewInstance } from 'react-native';
+import type { ScrollView as ScrollViewInstance } from 'react-native';
 import { FormScrollView } from "../ui/KeyboardForms";
 import React, { useRef, useState } from "react";
 import { ScrollView, View, useWindowDimensions } from "react-native";

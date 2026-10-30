@@ -1,4 +1,4 @@
-import type { ScrollViewInstance } from 'react-native';
+import type { ScrollView as ScrollViewInstance } from 'react-native';
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View, type ScrollViewProps, type ViewStyle } from 'react-native';
 import { RefreshSpotlight } from './RefreshSpotlight';

@@ -1,4 +1,4 @@
-import type { ViewInstance, ScrollViewInstance } from 'react-native';
+import type { View as ViewInstance, ScrollView as ScrollViewInstance } from 'react-native';
 import React, { useEffect, useRef, useState } from "react";
 import {
   Modal,

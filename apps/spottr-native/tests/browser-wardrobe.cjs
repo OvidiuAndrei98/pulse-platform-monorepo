@@ -21,7 +21,7 @@ withBrowser(
           username: customer ? "Guest" : "Wardrobe Staff",
           email: "wardrobe@example.invalid",
           role: customer || operator ? "user" : "organizer",
-          preferredLanguage: "en",
+          preferredLanguage: new URLSearchParams(location.search).get("lang")==="ro"?"ro":"en",
           showAttendancePublicly: true,
           hasPassword: true,
           createdAt: "2026-10-01T00:00:00Z",
@@ -31,7 +31,7 @@ withBrowser(
           JSON.stringify({ token: "wardrobe-test-only", user }),
         );
         localStorage.setItem("pulse_token", "wardrobe-test-only");
-        localStorage.setItem("i18nextLng", "en");
+        localStorage.setItem("i18nextLng", user.preferredLanguage);
         const deposit = () => ({
           id: id(3),
           eventId: id(1),
@@ -122,6 +122,7 @@ withBrowser(
               }),
             );
           state.reads.push(route);
+          if(state.authStatus&&route.startsWith("/wardrobe/"))return reply({error:"Sesiunea a expirat. Conectează-te din nou."},state.authStatus);
           if (route === "/users/me" || route === "/auth/me") return reply(user);
           if (route === "/wardrobe/mine")
             return reply({
@@ -132,9 +133,9 @@ withBrowser(
             });
           if (route === "/wardrobe/events")
             return reply(
-              customer
+              customer || state.emptyEvents
                 ? []
-                : [{ id: id(1), title: "Night QA", canManage: !operator }],
+                : [{ id: id(1), title: "Night QA", canManage: !operator,status:"published",startTime:new Date(Date.now()-3600000).toISOString(),endTime:new Date(Date.now()+(state.ended?-3600000:86400000)).toISOString(),location:"Venue QA" },{id:id(20),title:"Past QA",canManage:!operator,status:"completed",startTime:"2020-01-01T12:00:00Z",endTime:"2020-01-01T20:00:00Z"},{id:id(21),title:"Draft QA",canManage:!operator,status:"draft"}],
             );
           if (route.endsWith("/confirm")) {
             state.writes.push({ route, body });
@@ -307,7 +308,7 @@ withBrowser(
       });
     }
     const textClick = async (text, container = "document") => {
-      const exp = `Array.from(${container}.querySelectorAll('button,[role="button"],[role="tab"]')).find(e=>e.textContent.trim()===${JSON.stringify(text)}&&e.getBoundingClientRect().width>0&&!e.disabled&&e.getAttribute('aria-disabled')!=='true')`;
+      const exp = `Array.from(${container}.querySelectorAll('button,[role="button"],[role="tab"]')).find(e=>(e.textContent.trim()===${JSON.stringify(text)}||e.getAttribute('aria-label')===${JSON.stringify(text)})&&e.getBoundingClientRect().width>0&&!e.disabled&&e.getAttribute('aria-disabled')!=='true')`;
       await until(exp);
       await evaluate(`${exp}.click()`);
     };
@@ -321,20 +322,57 @@ withBrowser(
     };
     const open = async (suffix) => {
       await call("Page.navigate", { url: origin + "/wardrobe?qa=" + suffix });
-      await until(`document.body?.innerText.includes('${suffix==="staff"?"Choose the event":"Account QR"}')`);
+      await until(`document.body?.innerText.includes('${suffix.includes('lang=ro')?'Evenimente active':suffix==="staff"?"Active events":"Account QR"}')`);
     };
     const chooseEvent=async()=>{await until(`document.querySelector('[data-testid="wardrobe-event-00000000-0000-4000-8000-000000000001"]')`);await evaluate(`document.querySelector('[data-testid="wardrobe-event-00000000-0000-4000-8000-000000000001"]').click()`);};
     const taskClick=async key=>{await until(`document.querySelector('[data-testid="wardrobe-task-${key}"]')`);await evaluate(`document.querySelector('[data-testid="wardrobe-task-${key}"]').click()`);};
     await open("staff");
+    const refreshSize=await evaluate(`{const button=Array.from(document.querySelectorAll('button,[role="button"]')).find(e=>e.getAttribute('aria-label')==='Refresh');const r=button.getBoundingClientRect(),glyph=button.firstElementChild,g=glyph.getBoundingClientRect(),style=getComputedStyle(glyph),icon=button.querySelector('svg');({width:r.width,height:r.height,frame:g.width,frameHeight:g.height,radius:parseFloat(style.borderRadius),background:style.backgroundColor,icon:icon.getBoundingClientRect().width,stroke:getComputedStyle(icon).stroke})}`);
+    assert.ok(refreshSize.width>=44&&refreshSize.height>=44,'A compact refresh icon keeps a real 44px touch target');
+    assert.equal(refreshSize.frame,32,'The primary circle is 32px, never compressed by a flex child rule');
+    assert.equal(refreshSize.frameHeight,32);
+    assert.equal(refreshSize.radius,16);
+    assert.equal(refreshSize.background,'rgb(255, 0, 68)','Refresh uses the application primary color');
+    assert.equal(refreshSize.icon,16);
+    assert.equal(refreshSize.stroke,'rgb(255, 255, 255)','The refresh icon is white on primary');
     assert.equal(await evaluate(`document.body.innerText.includes('Account QR')`),false,'Organizers have no personal belongings surface');
     assert.equal(await evaluate(`window.__wardrobeQA.reads.includes('/wardrobe/mine')`),false,'Organizers never fetch personal belongings');
     assert.equal(await evaluate(`window.__wardrobeQA.reads.some(p=>p.startsWith('/wardrobe/events/'))`),false,'No silent event selection');
+
+    await until(`document.querySelector('[data-testid="wardrobe-event-00000000-0000-4000-8000-000000000001"]')`);
+    assert.equal(await evaluate(`document.body.innerText.includes('Past QA')||document.body.innerText.includes('Draft QA')`),false,'Initial list contains active events only');
+    await textClick('Other events (2)');await until(`document.body.innerText.includes('Past QA')&&document.body.innerText.includes('Draft QA')`);await textClick('Other events (2)');
+    if(!next)assert.equal(await evaluate(`document.querySelector('[data-testid="wardrobe-event-00000000-0000-4000-8000-000000000001"]').getAttribute('aria-label').includes('Venue QA')`),true,'Screen reader name includes event metadata');
     await capture('wardrobe-'+(next?'next':'native')+'-events');
-    await chooseEvent();await until(`document.querySelector('[data-testid="wardrobe-task-receive"]')`);await capture('wardrobe-'+(next?'next':'native')+'-tasks');await taskClick('setup');
+    await chooseEvent();await until(`document.querySelector('[data-testid="wardrobe-task-receive"][aria-selected="true"]')&&document.body.innerText.includes('Scan account')`);
+    assert.equal(await evaluate(`!!document.querySelector('[data-testid="wardrobe-event-select"]')`),false,'No event selector inside the cloakroom');
+    await delay(250);await capture('wardrobe-'+(next?'next':'native')+'-receive-tabs');
+    assert.equal(await evaluate(`document.body.innerText.includes('Back to operations')`),false,'No intermediate card menu');
+    await evaluate(`document.querySelector('[data-testid="wardrobe-task-receive"]').focus()`);
+    await call('Input.dispatchKeyEvent',{type:'keyDown',key:'End',code:'End',windowsVirtualKeyCode:35});await call('Input.dispatchKeyEvent',{type:'keyUp',key:'End',code:'End',windowsVirtualKeyCode:35});
+    await until(`document.activeElement?.getAttribute('data-testid')==='wardrobe-task-setup'`);
+    assert.equal(await evaluate(`document.querySelector('[data-testid="wardrobe-task-receive"]').getAttribute('aria-selected')`),'true','Arrow/Home/End focus alone must not load a different task');
+    if(next)await evaluate(`{window.__wardrobeQA.keys=[];for(const type of ['keydown','keyup','click'])window.addEventListener(type,e=>window.__wardrobeQA.keys.push({type,key:e.key,target:e.target?.getAttribute('data-testid'),prevented:e.defaultPrevented}),false);}`);
+    await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
+    try{await until(`document.querySelector('[data-testid="wardrobe-task-setup"][aria-selected="true"]')`);}catch(error){if(next)console.error(await evaluate(`({keys:window.__wardrobeQA.keys,focus:document.activeElement?.outerHTML?.slice(0,600)})`));throw error;}
+    await capture('wardrobe-'+(next?'next':'native')+'-tasks');
     await until(`document.body.innerText.includes('Create zone')`);
+    const formStyle=await evaluate(`{const input=Array.from(document.querySelectorAll('input')).find(e=>e.getAttribute('aria-label')==='Zone name'||e.closest('label')?.firstChild?.textContent==='Zone name');const wrapper=input.closest('label')||input.parentElement,card=wrapper.parentElement,button=Array.from(document.querySelectorAll('button,[role="button"]')).find(e=>e.textContent==='Create zone'),text=Array.from(button.querySelectorAll('*')).find(e=>!e.childElementCount&&e.textContent==='Create zone')||button;({inputHeight:input.getBoundingClientRect().height,inputRadius:parseFloat(getComputedStyle(input).borderRadius),inputBackground:getComputedStyle(input).backgroundColor,buttonRadius:parseFloat(getComputedStyle(button).borderRadius),primaryText:getComputedStyle(text).color,cardRadius:parseFloat(getComputedStyle(card).borderRadius)})}`);
+    assert.deepEqual(formStyle,{inputHeight:44,inputRadius:8,inputBackground:'rgba(0, 0, 0, 0.2)',buttonRadius:8,primaryText:'rgb(255, 255, 255)',cardRadius:10},'Cloakroom form surfaces and white primary text match the existing invoice form');
+    await capture('wardrobe-'+(next?'next':'native')+'-form-mobile');
+    await call('Emulation.setDeviceMetricsOverride',{width:1152,height:900,deviceScaleFactor:1,mobile:false});await delay(100);await capture('wardrobe-'+(next?'next':'native')+'-form-desktop');
+    await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
     await fill("Zone name", "Desk B");
     await fill("Prefix (A, B...)", "B");
     await fill("Number of places", "25");
+    assert.equal(await evaluate(`{const button=Array.from(document.querySelectorAll('button,[role="button"]')).find(e=>e.textContent==='Create zone'),text=Array.from(button.querySelectorAll('*')).find(e=>!e.childElementCount&&e.textContent==='Create zone')||button;getComputedStyle(text).color}`),'rgb(255, 255, 255)','Enabled primary buttons also retain white text');
+    await evaluate(`{const button=Array.from(document.querySelectorAll('button,[role="button"]')).find(e=>e.getAttribute('aria-label')==='Refresh');window.__wardrobeQA.loadingFlashes=0;window.__wardrobeQA.watch=new MutationObserver(()=>{if(button.disabled||button.getAttribute('aria-disabled')==='true')window.__wardrobeQA.loadingFlashes++;});window.__wardrobeQA.watch.observe(button,{attributes:true,attributeFilter:['disabled','aria-disabled']});window.__wardrobeQA.beforePoll=window.__wardrobeQA.reads.length;window.__wardrobeQA.draftFocus=document.activeElement;window.__wardrobeQA.zones[0].occupied=1;}`);
+    await until(`window.__wardrobeQA.reads.length>window.__wardrobeQA.beforePoll`,8000);await delay(200);
+    assert.equal(await evaluate('window.__wardrobeQA.loadingFlashes'),0,'Background synchronization never toggles the visible refresh/loading state');
+    assert.equal(await evaluate('document.activeElement===window.__wardrobeQA.draftFocus'),true,'Background sync preserves keyboard focus in the draft');
+    assert.equal(await evaluate(`Array.from(document.querySelectorAll('input')).find(e=>e.getAttribute('aria-label')==='Zone name'||e.closest('label')?.firstChild?.textContent==='Zone name').value`),'Desk B','The draft survives remote changes');
+    await evaluate(`{window.__wardrobeQA.zones[0].occupied=0;window.__wardrobeQA.beforeFocus=window.__wardrobeQA.reads.length;window.dispatchEvent(new Event('focus'));}`);await until(`window.__wardrobeQA.reads.length>window.__wardrobeQA.beforeFocus`,2000);await delay(50);await evaluate('window.__wardrobeQA.watch.disconnect()');
+
     await textClick("Create zone");
     await until(`window.__wardrobeQA.zones.length===2`);
     assert.equal(await evaluate("window.__wardrobeQA.zones[1].capacity"), 25);
@@ -347,7 +385,7 @@ withBrowser(
       "operator",
     );
     await capture("wardrobe-" + (next ? "next" : "native") + "-setup");
-    await textClick("Back to operations");await taskClick('receive');
+    await taskClick('receive');
     await until(`document.body.innerText.includes('Scan account')`);
     await textClick("Scan account");
     if (!next) {
@@ -374,6 +412,11 @@ withBrowser(
     if(next){await until(`document.querySelector('select')`);await evaluate(`{const el=document.querySelector('select');el.value='00000000-0000-4000-8000-000000000002';el.dispatchEvent(new Event('change',{bubbles:true}));}`);}
     else{await until(`document.querySelector('[aria-label="Desk zone"]')`);await evaluate(`document.querySelector('[aria-label="Desk zone"]').click()`);await until(`Array.from(document.querySelectorAll('[role="button"]')).find(e=>e.textContent.startsWith('Desk A ·')&&e.getBoundingClientRect().width>0)`);await evaluate(`Array.from(document.querySelectorAll('[role="button"]')).find(e=>e.textContent.startsWith('Desk A ·')&&e.getBoundingClientRect().width>0).click()`);}
     await textClick("Reserve storage");await until(`document.querySelector('[data-testid="wardrobe-selected"]')`);
+    await evaluate(`document.querySelector('[data-testid="wardrobe-back-events"]').click()`);
+    await taskClick('pickup');
+    assert.equal(await evaluate(`document.querySelector('[data-testid="wardrobe-task-receive"]').getAttribute('aria-selected')`),'true','A reserved place locks the active operation');
+    assert.equal(await evaluate(`document.querySelector('[data-testid="wardrobe-task-pickup"]').disabled||document.querySelector('[data-testid="wardrobe-task-pickup"]').getAttribute('aria-disabled')==='true'`),true);
+
     assert.equal(
       await evaluate(
         `window.__wardrobeQA.writes.filter(w=>w.body.action==='reserve').length`,
@@ -388,8 +431,15 @@ withBrowser(
     );
     await textClick("Checked in");
     await until(`document.body.innerText.includes('Receive the next customer')`);
-    await textClick("Back to operations");await taskClick('pickup');
-    await until(`document.querySelector('[data-testid="wardrobe-record"]')`);await evaluate(`document.querySelector('[data-testid="wardrobe-record"]').click()`);
+    await taskClick('pickup');
+    await until(`document.querySelector('[data-testid="wardrobe-record"]')`);
+    if(next){
+      await call('Emulation.setDeviceMetricsOverride',{width:1152,height:900,deviceScaleFactor:1,mobile:false});
+      assert.ok(await evaluate(`{const input=Array.from(document.querySelectorAll('input')).find(e=>e.closest('label')?.firstChild?.textContent==='Search name or number'),button=input.parentElement.parentElement.querySelector('button');Math.abs(input.getBoundingClientRect().bottom-button.getBoundingClientRect().bottom)<1}`),'Search input and button align at their bottom edge');
+      await capture('wardrobe-next-pickup-desktop');
+      await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+    }
+    await evaluate(`document.querySelector('[data-testid="wardrobe-record"]').click()`);
     await until(`document.body.innerText.includes('Request collection approval')`);
     await evaluate(
       `document.querySelector('[data-testid="wardrobe-selected"] [aria-label="− Coats"]').click()`,
@@ -411,9 +461,7 @@ withBrowser(
     await evaluate(
       `window.__wardrobeQA.deposits[0].pickupApproved=true;window.__wardrobeQA.deposits[0].revision++`,
     );
-    await delay(50);
-    await textClick("Refresh");
-    await until(`document.body.innerText.includes('Items handed over')`);
+    await until(`document.body.innerText.includes('Items handed over')`,8000); // Another account's approval arrives through silent polling, without Refresh.
     await textClick("Items handed over");
     await until(`window.__wardrobeQA.deposits[0].remaining.bag===0`);
     assert.equal(
@@ -421,7 +469,7 @@ withBrowser(
       "stored",
     );
     await capture("wardrobe-" + (next ? "next" : "native") + "-staff");
-    await textClick("Back to operations");await taskClick("unclaimed");
+    await taskClick("unclaimed");
     await until(
       `document.body.innerText.includes('Unclaimed belongings will appear here after the event ends.')`,
     );
@@ -476,6 +524,18 @@ withBrowser(
       await evaluate("document.documentElement.scrollWidth<=innerWidth+1"),
       "mobile overflow",
     );
+    await textClick('Back to events');await until(`document.body.innerText.includes('Active events')`);assert.equal(await evaluate(`!!document.querySelector('[data-testid="wardrobe-task-receive"]')`),false,'Back returns to the event list, not a context selector');
+    await evaluate('window.__wardrobeQA.ended=false');await textClick('Refresh');await chooseEvent();
+    await call('Emulation.setDeviceMetricsOverride',{width:320,height:760,deviceScaleFactor:1,mobile:true});await delay(200);
+    assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true,'No horizontal page overflow at 320px');
+    await evaluate(`document.querySelector('[data-testid="wardrobe-task-receive"]').focus()`);await call('Input.dispatchKeyEvent',{type:'keyDown',key:'End',code:'End',windowsVirtualKeyCode:35});await call('Input.dispatchKeyEvent',{type:'keyUp',key:'End',code:'End',windowsVirtualKeyCode:35});await delay(100);
+    assert.equal(await evaluate(`{const r=document.activeElement.getBoundingClientRect();r.left>=0&&r.right<=innerWidth+1&&r.top>=0&&r.bottom<=innerHeight}`),true,'Keyboard focus is visible after scrolling the tab rail');
+    await capture('wardrobe-'+(next?'next':'native')+'-tabs-320');
+    if(next){await call('Emulation.setDeviceMetricsOverride',{width:640,height:1000,deviceScaleFactor:1,mobile:false});await evaluate("document.body.style.zoom='2'");await delay(200);assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true,'Reflows at 200% zoom');await capture('wardrobe-next-200-percent');await evaluate("document.body.style.zoom=''");}
+    await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+    await open('staff&lang=ro');await chooseEvent();await until(`document.querySelector('[data-testid="wardrobe-task-receive"]').textContent==='Primire'`);await delay(400);await capture('wardrobe-'+(next?'next':'native')+'-tabs-ro');
+
+    await evaluate(`{window.__wardrobeQA.authStatus=401;window.dispatchEvent(new Event('focus'));}`);await until(`!document.body.innerText.includes('Night QA')&&!document.querySelector('[data-testid="wardrobe-selected"]')`);
     await open("operator");
     await textClick("Cloakroom staff");await chooseEvent();
     await until(`document.querySelector('[data-testid="wardrobe-task-receive"]')`);

@@ -1,4 +1,4 @@
-import type { ViewInstance } from 'react-native';
+import type { View as ViewInstance } from 'react-native';
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import type { TabIndicatorProps } from "./TabIndicator";

@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@11.28.5",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "native:start": "pnpm --filter @apps/spottr-native start",

@@ -1,4 +1,4 @@
-import type { ScrollViewInstance } from 'react-native';
+import type { ScrollView as ScrollViewInstance } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
 import { GlassButtonGroup } from '../ui/GlassButtonGroup';
 import { ActionIcon } from '../ui/ActionIcon';

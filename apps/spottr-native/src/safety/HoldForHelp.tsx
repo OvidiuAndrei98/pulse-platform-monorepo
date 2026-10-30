@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, type GestureResponderEvent, type KeyDownEvent, type KeyUpEvent, View } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, type GestureResponderEvent, View } from 'react-native';
 import { ShieldAlert } from 'lucide-react-native';
 import { Text } from '../ui/Text';
 import { usePreferences } from '../PreferencesProvider';
@@ -32,11 +32,11 @@ export function HoldForHelp({ disabled, compact, onComplete }: { disabled: boole
   };
   const webKeys = Platform.OS === 'web' ? {
     delayPressIn: 0,
-    onKeyDown: (event: KeyDownEvent) => {
+    onKeyDown: (event: React.KeyboardEvent) => {
       if (!['Enter', ' '].includes(event.nativeEvent.key)) return;
       event.preventDefault(); keyHeld.current = true; if (!event.nativeEvent.repeat) start();
     },
-    onKeyUp: (event: KeyUpEvent) => {
+    onKeyUp: (event: React.KeyboardEvent) => {
       if (!['Enter', ' '].includes(event.nativeEvent.key)) return;
       event.preventDefault(); stop(); keyHeld.current = false;
     },

@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef } from 'react';
-import type { ViewInstance } from 'react-native';
+import type { View as ViewInstance } from 'react-native';
 import { State } from 'react-native-gesture-handler';
 import { GESTURE_SOURCE, useBottomSheetInternal, useGestureEventsHandlersDefault, type GestureEventHandlerCallbackType, type GestureEventsHandlersHookType } from '@gorhom/bottom-sheet';
 import { splitSheetDrag } from './sheetScrollMath';

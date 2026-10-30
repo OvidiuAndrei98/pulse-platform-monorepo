@@ -1,4 +1,4 @@
-import type { ScrollViewInstance, KeyDownEvent } from 'react-native';
+import type { ScrollView as ScrollViewInstance } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import { FormInput as TextInput } from '../ui/FormInput';
@@ -46,7 +46,7 @@ function SafetyScreen({ eventId, onBack, onLogin, bottomBar }: SafetyGroupScreen
   const invite = async () => { if (await state.controller.run({ kind: 'invite', friendIds: chosen })) { setSelected([]); setInviteOpen(false); } };
   const accepted = group?.members.filter(member => member.status === 'accepted') ?? [];
   const canInvite = !!group && group.ownerId === state.user?.id && group.members.length < 8 && !!state.data?.eligibleFriends.length;
-  const keyboardWeb = Platform.OS === 'web' ? { onKeyDown: (event: KeyDownEvent) => { if (event.nativeEvent.key === 'Enter' && !event.nativeEvent.shiftKey) { event.preventDefault(); void send(); } } } : {};
+  const keyboardWeb = Platform.OS === 'web' ? { onKeyDown: (event: React.KeyboardEvent) => { if (event.nativeEvent.key === 'Enter' && !event.nativeEvent.shiftKey) { event.preventDefault(); void send(); } } } : {};
 
   return <View testID="safety-group-page" style={[s.root, viewport.height !== null && { height: viewport.height, flex: 0 }]}>
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

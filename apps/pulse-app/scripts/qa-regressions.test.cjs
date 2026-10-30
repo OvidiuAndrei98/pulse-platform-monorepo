@@ -44,9 +44,10 @@ test('public events service forwards filters on every page, including organizer 
         return Array.from({ length: options.params.query.page === 1 ? size : 1 }, (_, i) => ({ id: `${options.params.query.page}-${i}` }));
       } } } }, '@/lib/clientQueryCache': {}, '@/lib/useCachedClientQuery': {},
     }).load('core/DataProvider');
-    assert.equal((await PublicEventsService.getPublicEvents({ city: 'Cluj', organizerId })).length, size + 1);
+    const filters={city:'Cluj',organizerId,q:'House % party',startsAfter:'2026-11-01T22:00:00.000Z',startsBefore:'2026-11-03T22:00:00.000Z'};
+    assert.equal((await PublicEventsService.getPublicEvents(filters)).length, size + 1);
     assert.equal(requests.length, 2);
-    requests.forEach((query, i) => { assert.equal(query.city, 'Cluj'); assert.equal(query.organizerId, organizerId); assert.equal(query.page, i + 1); });
+    requests.forEach((query, i) => { for(const [key,value] of Object.entries(filters))assert.equal(query[key],value);assert.equal(query.page,i+1); });
   }
 });
 
@@ -55,8 +56,9 @@ test('Sunday weekend includes the current Sunday, Saturday and Monday retain cor
     class Clock extends Date { constructor(...args) { super(...(args.length ? args : [today + 'T12:00:00'])); } }
     const { getEventDateRange } = modules({}, { Date: Clock }).load('features/events/dateFilters');
     const range = getEventDateRange('This weekend');
-    assert.equal(new Date(range.startsAfter).getDate(), start);
-    assert.equal(new Date(range.startsBefore).getDate(), end);
+    const day=value=>Number(new Intl.DateTimeFormat('en-GB',{day:'numeric',timeZone:'Europe/Bucharest'}).format(new Date(value)));
+    assert.equal(day(range.startsAfter), start);
+    assert.equal(day(range.startsBefore), end);
     assert.equal(Object.keys(getEventDateRange(undefined)).length, 0);
   }
 });

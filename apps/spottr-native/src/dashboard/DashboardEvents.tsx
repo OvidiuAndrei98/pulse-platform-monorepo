@@ -1,4 +1,4 @@
-import type { ScrollViewInstance } from 'react-native';
+import type { ScrollView as ScrollViewInstance } from 'react-native';
 import { FormInput as TextInput } from "../ui/FormInput";
 import React, { useRef, useState } from "react";
 import {

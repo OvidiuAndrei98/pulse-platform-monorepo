@@ -1,4 +1,4 @@
-import type { ViewInstance } from 'react-native';
+import type { View as ViewInstance } from 'react-native';
 import { FormInput as TextInput } from '../ui/FormInput';
 ﻿import React, { useEffect, useRef, useState } from "react";
 import {

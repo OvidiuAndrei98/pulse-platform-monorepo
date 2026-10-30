@@ -1,0 +1,12 @@
+.spottr-vector-map { position:absolute; inset:0; z-index:0; background:#101012; }
+.spottr-map-pin, .spottr-map-cluster { display:grid; place-items:center; width:44px; height:44px; border:2px solid #ff0044; border-radius:50%; background:#19191c; color:#ff0044; cursor:pointer; box-shadow:0 4px 16px #0008; }
+.spottr-map-pin svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; }
+.spottr-map-pin[data-selected="true"] { width:48px; height:48px; background:#ff0044; color:#fff; border:3px solid #fff; box-shadow:0 0 0 5px #ff004433,0 4px 16px #0008; }
+.spottr-map-pin[data-live="true"]::after { content:""; position:absolute; top:0; right:0; width:8px; height:8px; background:#ff0044; border:2px solid #fff; border-radius:50%; }
+.spottr-map-cluster { color:#fff; font:700 14px/1 sans-serif; }
+.spottr-map-pin:focus-visible, .spottr-map-cluster:focus-visible { outline:2px solid #fff; outline-offset:4px; }
+.spottr-map-location { width:14px; height:14px; border:2px solid #fff; border-radius:50%; background:#ff0044; box-shadow:0 0 0 6px #ff004433; }
+.spottr-vector-map .maplibregl-ctrl-attrib { background:#101012ed; border-radius:6px; color:#aaa; font:9px/16px sans-serif; padding:0 4px; max-width:calc(100vw - 16px); }
+.spottr-vector-map .maplibregl-ctrl-attrib a { color:#ccc; }
+.spottr-map-error { position:absolute; top:90px; inset-inline-start:16px; z-index:3; max-width:calc(100% - 90px); display:flex; flex-wrap:wrap; gap:8px; padding:8px 12px; border:1px solid #ffffff30; border-radius:8px; background:#19191cf5; color:#fff; font-size:12px; }
+.spottr-map-error button { text-decoration:underline; color:#fff; min-height:24px; }

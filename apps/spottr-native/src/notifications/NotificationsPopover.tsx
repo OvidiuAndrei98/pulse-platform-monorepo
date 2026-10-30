@@ -1,4 +1,4 @@
-import type { ViewInstance } from 'react-native';
+import type { View as ViewInstance } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useRef, useState } from 'react';

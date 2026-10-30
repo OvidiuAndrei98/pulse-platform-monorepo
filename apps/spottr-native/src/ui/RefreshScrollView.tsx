@@ -1,4 +1,4 @@
-import type { ScrollViewInstance } from 'react-native';
+import type { ScrollView as ScrollViewInstance } from 'react-native';
 import React, { forwardRef, useEffect, useRef, useState } from "react";
 import {
   Animated,

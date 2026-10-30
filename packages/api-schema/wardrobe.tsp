@@ -3,7 +3,7 @@ using TypeSpec.Http;
 namespace Pulse;
 
 model WardrobeItems { coat: int32; bag: int32; backpack: int32; }
-model WardrobeEvent { id: string; title: string; canManage: boolean; startTime?:string; location?:string; }
+model WardrobeEvent { id: string; title: string; canManage: boolean; startTime?:string; endTime?:string; status?:string; location?:string; }
 model WardrobeZone { id: string; name: string; @pattern("^[A-Z]{1,8}$") prefix: string; kind: "any" | "coat" | "bag"; capacity: int32; enabled: boolean; revision: int32; occupied: int32; }
 model WardrobeDeposit {
  id: string; eventId: string; eventTitle: string; userId: string | null; customerName: string;
