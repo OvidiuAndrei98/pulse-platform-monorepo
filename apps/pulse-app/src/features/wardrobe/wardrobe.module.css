@@ -84,10 +84,30 @@
 }
 .button:not(.secondary) { color: #000; }
 .button:focus-visible, .eventChoice:focus-visible { outline: 2px solid #ff0044; outline-offset: 4px; }
-.taskGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(240px,100%),1fr)); gap: 16px; }
-.eventChoice { display: flex; min-width: 0; min-height: 112px; flex-direction: column; gap: 12px; border: 1px solid #ffffff26; border-radius: 20px; padding: 20px; text-align: start; background: #0d0d0e; }
-.eventChoice strong { color: #f7faf2; font-size: 16px; line-height: 1.4; overflow-wrap: anywhere; }
-.eventChoice span { color: #9ca89e; font-size: 14px; line-height: 1.5; }
+.eventRow { display: flex; width: 100%; min-width: 0; min-height: 92px; align-items: center; gap: 16px; padding-block: 18px; text-align: start; border-block-end: 1px solid #28282c; }
+.eventIcon { display: grid; place-items: center; flex: 0 0 44px; min-height: 44px; border-radius: 12px; background: #19191c; color: #9ca89e; }
+.eventRowCopy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 6px; }
+.eventRowCopy strong { font-size: 1rem; line-height: 1.5; color: #f7faf2; overflow-wrap: anywhere; }
+.eventRowCopy span { font-size: .8125rem; line-height: 1.5; color: #9ca89e; overflow-wrap: anywhere; }
+.backEvents, .otherEvents { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: .875rem; font-weight: 600; color: #f7faf2; }
+.backEvents:disabled { opacity: .4; }
+.otherEvents { justify-content: space-between; width: 100%; }
+.page .eventTitle { font-size: 1.5rem; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.eventRow:focus-visible, .backEvents:focus-visible, .otherEvents:focus-visible { outline: 2px solid #f7faf2; outline-offset: 2px; }
+.refresh { display: grid; place-items: center; min-width: 44px; min-height: 44px; border: 1px solid #626866; border-radius: 12px; color: #f7faf2; }
+.refresh:disabled { opacity: .4; }
+.page .eventMeta { margin-block: -8px 0; overflow-wrap: anywhere; }
+.panel { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.reservationHint { padding: 12px 14px; border-inline-start: 3px solid #ff0044; background: #1b1b1d; }
+.tabBar { display: flex; min-width: 0; align-items: center; border-block-end: 1px solid #28282c; }
+.tabRail { display: flex; flex: 1; min-width: 0; gap: 4px; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: none; }
+.tabRail::-webkit-scrollbar { display: none; }
+.tabButton { flex: 0 0 auto; min-height: 48px; padding: 12px 14px; white-space: nowrap; border-block-end: 3px solid transparent; color: #9b9ba4; font-size: .875rem; line-height: 1.5; font-weight: 500; }
+.tabButton[aria-selected="true"] { color: #f7faf2; font-weight: 700; border-block-end-color: #ff0044; background: #19191c; }
+.tabButton:disabled { opacity: .45; }
+.tabArrow { display: grid; place-items: center; flex: 0 0 40px; min-height: 48px; color: #f7faf2; }
+.tabArrow:disabled { opacity: .3; }
+.tabButton:focus-visible, .tabArrow:focus-visible, .refresh:focus-visible { outline: 2px solid #f7faf2; outline-offset: -3px; }
 .tabs {
   display: flex;
   gap: 5px;

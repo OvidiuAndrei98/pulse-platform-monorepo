@@ -151,6 +151,34 @@ func TestItemsAndProfileQR(t *testing.T) {
 	}
 }
 
+func TestEventListMetadataKeepsOwnershipAndStaffScope(t *testing.T) {
+	f := seed(t)
+	for _, actor := range []string{f.owner, f.staff} {
+		w := f.request(actor, "GET", "/events", nil)
+		if w.Code != 200 {
+			t.Fatal(w.Body.String())
+		}
+		var rows []struct {
+			ID, Title, StartTime, EndTime, Status string
+			CanManage                             bool
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &rows); err != nil {
+			t.Fatal(err)
+		}
+		if len(rows) != 1 || rows[0].ID != f.event || rows[0].StartTime == "" || rows[0].EndTime == "" || rows[0].Status == "" || rows[0].CanManage != (actor == f.owner) {
+			t.Fatalf("unexpected scoped event metadata: %+v", rows)
+		}
+	}
+	w := f.request(f.customer, "GET", "/events", nil)
+	if w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	var rows []map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &rows); err != nil || len(rows) != 0 {
+		t.Fatalf("customer received staff event metadata: %s", w.Body.String())
+	}
+}
+
 func TestZonePrefixesKeepPhysicalNumbersUnambiguous(t *testing.T) {
 	f := seed(t)
 	for _, prefix := range []string{"A1", "A0B", "1", "A-B", "", "ABCDEFGHI"} {

@@ -35,7 +35,7 @@ export type Deposit = {
   pickupExpiresAt: string | null;
   pickupApproved: boolean | null;
 };
-export type WardrobeEvent = { id: string; title: string; canManage: boolean; startTime?:string; location?:string };
+export type WardrobeEvent = { id: string; title: string; canManage: boolean; startTime?:string; endTime?:string; status?:string; location?:string };
 export type Mine = { deposits: Deposit[]; staffAccess: boolean };
 export type Overview = {
   eventId: string;

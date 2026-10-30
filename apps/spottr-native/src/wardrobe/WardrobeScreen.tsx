@@ -2,6 +2,8 @@ import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useRef, useState } from "react";
 import {
   Modal,
+  AccessibilityInfo,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,7 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import QRCode from "react-native-qrcode-svg";
 import { randomUUID } from "expo-crypto";
-import { ChevronRight, Shirt } from "lucide-react-native";
+import { ArrowLeft, CalendarDays, ChevronDown, ChevronRight, RefreshCw, Shirt } from "lucide-react-native";
 import { Text } from "../ui/Text";
 import { FormInput } from "../ui/FormInput";
 import { FormScrollView } from "../ui/KeyboardForms";
@@ -21,7 +23,8 @@ import { IconButton } from "../ui/common";
 import { DashboardDropdown } from "../dashboard/DashboardDropdown";
 import { usePreferences } from "../PreferencesProvider";
 import { useAuth } from '../auth/AuthProvider';
-import { operatorAccount, changeItemCount, taskDeposits,wardrobeFlow,wardrobeTasks,availableZones,canReserveBelongings,wardrobeEventDescription,type WardrobeTask } from '../../../pulse-app/src/features/wardrobe/flow';
+import { operatorAccount, wardrobeEventPhase, wardrobeEventPhaseLabel, wardrobeTabLabel, changeItemCount, taskDeposits,wardrobeFlow,wardrobeTasks,availableZones,canReserveBelongings,wardrobeEventDescription,type WardrobeTask } from '../../../pulse-app/src/features/wardrobe/flow';
+import { WardrobeTabs } from "./WardrobeTabs";
 import { useWardrobe } from "./useWardrobe";
 import {
   actionLabel,
@@ -37,6 +40,7 @@ import {
   type Items,
   type Command,
   type Deposit,
+  type WardrobeEvent,
 } from "../../../pulse-app/src/features/wardrobe/model";
 
 export function WardrobeCard() {
@@ -134,10 +138,11 @@ export function WardrobeScreen({
     navigation = useNavigation<any>(),
     safe = useSafeAreaInsets(),
     { width, height } = useWindowDimensions();
-  const [task,setTask]=useState<WardrobeTask|null>(null),[intakeStep,setIntakeStep]=useState(0),[clientCode,setClientCode]=useState(''),[flowError,setFlowError]=useState(''),[advanced,setAdvanced]=useState(false),[setupTab,setSetupTab]=useState('zones');
+  const [task,setTask]=useState<WardrobeTask>('receive'),[intakeStep,setIntakeStep]=useState(0),[clientCode,setClientCode]=useState(''),[flowError,setFlowError]=useState(''),[advanced,setAdvanced]=useState(false),[setupTab,setSetupTab]=useState('zones');
   const ro = language === "ro",flow=wardrobeFlow(ro),
     c = wardrobeText(ro),
-    overview=state.overview, o = task ? overview : undefined,
+    overview=state.overview, o = overview,
+    canManage=overview?.canManage ?? state.events.find(event=>event.id===state.eventId)?.canManage ?? false,
     d = state.selected,
     busy = state.busy;
   const [tab, setTab] = useState<
@@ -166,12 +171,12 @@ export function WardrobeScreen({
     [email, setEmail] = useState(""),
     [role, setRole] = useState("operator");
   const scroll = useRef<ScrollView>(null);
-  const [pickupLookup,setPickupLookup]=useState<Deposit[]|null>(null),[eventFilter,setEventFilter]=useState('');
+  const [pickupLookup,setPickupLookup]=useState<Deposit[]|null>(null);
   useEffect(() => {
     setZone("");
-    setTask(null);setIntakeStep(0);setClientCode('');setFlowError('');setAdvanced(false);
+    setTask('receive');setIntakeStep(0);setClientCode('');setFlowError('');setAdvanced(false);
     setPickupLookup(null);
-    setTab((current) => (current === "unclaimed" ? "unclaimed" : "operations"));
+    setTab('operations');
     setSearch("");
   }, [state.eventId]);
   useEffect(() => {
@@ -217,8 +222,21 @@ export function WardrobeScreen({
     else {setClientCode('glow://friend/'+customer);setIntakeStep(1);}
     scroll.current?.scrollTo({ y: 0, animated: true });
   };
-  const beginTask=(value:WardrobeTask)=>{if(busy||d?.status==='reserved')return;setTask(value);setTab(value==='receive'||value==='pickup'?'operations':value);setClientCode('');setIntakeStep(0);setFlowError('');setAdvanced(false);setItems({coat:0,bag:0,backpack:0});setZone('');setSearch('');void store.change({history:value==='history',unclaimed:value==='unclaimed',search:''});};
+  const beginTask=(value:WardrobeTask)=>{if(busy||d?.status==='reserved')return;setTask(value);setPickupLookup(null);setTab(value==='receive'||value==='pickup'?'operations':value);setClientCode('');setIntakeStep(0);setFlowError('');setAdvanced(false);setItems({coat:0,bag:0,backpack:0});setZone('');setSearch('');void store.change({history:value==='history',unclaimed:value==='unclaimed',search:''});};
+  useEffect(()=>{if(task==='setup'&&!canManage){setTask('receive');setTab('operations');}},[task,canManage]);
   const nextClient=()=>{store.select();setClientCode('');setIntakeStep(0);setItems({coat:0,bag:0,backpack:0});setZone('');setAdvanced(false);};
+  const [showOther,setShowOther]=useState(false);
+  const activeEvents=state.events.filter(event=>wardrobeEventPhase(event)!=='other'),otherEvents=state.events.filter(event=>wardrobeEventPhase(event)==='other');
+  const otherVisible=showOther;
+  const enterEvent=(eventId:string)=>void store.change({eventId,history:false,unclaimed:false,search:''});
+  const leaveEvent=()=>{if(!busy&&d?.status!=='reserved')void store.change({eventId:'',history:false,unclaimed:false,search:''});};
+  useEffect(()=>{
+    if(!staff||!user)return;
+    if(Platform.OS==='web'){const heading=document.getElementById(state.eventId?'wardrobe-event-heading':'wardrobe-events-heading');heading?.setAttribute('tabindex','-1');if(heading)heading.style.outline='none';heading?.focus({preventScroll:true});}
+    else AccessibilityInfo.announceForAccessibility(state.eventId?(state.events.find(event=>event.id===state.eventId)?.title??c.title):(ro?'Evenimente active':'Active events'));
+  },[state.eventId,staff,user?.id]);
+  const eventRow=(event:WardrobeEvent)=><Pressable key={event.id} accessibilityRole="button" accessibilityLabel={(ro?'Deschide garderoba: ':'Open cloakroom: ')+[event.title,wardrobeEventPhaseLabel(event,ro),wardrobeEventDescription(event,ro)].filter(Boolean).join(' · ')} testID={'wardrobe-event-'+event.id} disabled={busy} onPress={()=>enterEvent(event.id)} style={s.eventRow}><View style={s.eventIcon}><CalendarDays color="#9ca89e" size={22}/></View><View style={{flex:1,minWidth:0,gap:6}}><Text style={s.eventRowTitle}>{event.title}</Text><Text style={s.small}>{wardrobeEventDescription(event,ro)}</Text>{wardrobeEventPhase(event)!=='other'&&<Text style={s.small}>{wardrobeEventPhaseLabel(event,ro)}</Text>}</View><ChevronRight size={19} color="#f7faf2"/></Pressable>;
+
   const button = (
     label: string,
     onPress: () => void,
@@ -310,7 +328,7 @@ export function WardrobeScreen({
         contentContainerStyle={{ paddingBottom: safe.bottom + 110 }}
       >
         <View style={s.page}>
-          <Text style={s.small}>{staff?flow.eventHint:c.hint}</Text>
+          {!staff&&<Text style={s.small}>{c.hint}</Text>}
           {!operatorOnly && (state.mine?.staffAccess || embedded) && (
             <View style={s.tabs}>
               <View style={{ flex: 1 }}>
@@ -326,7 +344,7 @@ export function WardrobeScreen({
               {wardrobeError(state.error, ro)}
             </Text>
           )}
-          {button(
+          {!staff&&button(
             state.loading ? c.loading : c.refresh,
             () => void store.refresh(staff),
             true,
@@ -395,19 +413,30 @@ export function WardrobeScreen({
             </>
           ) : (
             <>
-              {!state.eventId ? <View style={s.stack}><Text style={s.heading}>{flow.chooseEvent}</Text>{field(flow.eventSearch,eventFilter,setEventFilter,{max:100})}{state.events.filter(event=>event.title.toLowerCase().includes(eventFilter.toLowerCase())).map(event=><Pressable accessibilityRole="button" testID={"wardrobe-event-"+event.id} key={event.id} disabled={busy} style={s.card} onPress={()=>void store.change({eventId:event.id,history:false,unclaimed:false,search:''})}><Text style={s.heading}>{event.title}</Text><Text style={s.small}>{wardrobeEventDescription(event,ro)}</Text><Text style={s.bold}>{ro?'Deschide garderoba':'Open wardrobe'} →</Text></Pressable>)}</View> : <View style={s.card}><Text style={s.heading}>{overview?.title || state.events.find(event=>event.id===state.eventId)?.title}</Text>{button(flow.changeEvent,()=>void store.change({eventId:'',history:false,unclaimed:false,search:''}),true,d?.status==='reserved')}</View>}
-              {overview && !task && <View style={s.stack}>{wardrobeTasks(overview.canManage).map(key=><Pressable accessibilityRole="button" testID={"wardrobe-task-"+key} key={key} disabled={busy} style={s.card} onPress={()=>{setPickupLookup(null);beginTask(key);}}><Text style={s.heading}>{flow[key]}</Text><Text style={s.small}>{flow[(key+'Hint') as 'receiveHint']}</Text></Pressable>)}</View>}
-              {!state.loading && !state.events.length && (
-                <Text style={s.small}>{c.noEvents}</Text>
-              )}
-              {o && (
-                <>
-                  {button(flow.backTasks,()=>{store.select();setTask(null);},true,d?.status==='reserved')}
-                  <Text style={s.heading}>{task && flow[task]}</Text>
-                  {task==='setup'&&<View style={s.row}>{button(flow.zones,()=>setSetupTab('zones'),setupTab!=='zones')}{button(flow.team,()=>setSetupTab('team'),setupTab!=='team')}</View>}
+              {!state.eventId?<>
+                <View style={s.between}><Text nativeID="wardrobe-events-heading" accessibilityRole="header" style={s.heading}>{ro?'Evenimente active':'Active events'}</Text><Pressable accessibilityRole="button" accessibilityLabel={c.refresh} accessibilityState={{disabled:state.loading||busy}} disabled={state.loading||busy} onPress={()=>void store.refresh(true)} style={[s.refresh,{opacity:state.loading||busy?.4:1}]}><RefreshCw size={19} color="#f7faf2"/></Pressable></View>
+                <Text style={s.small}>{ro?'Alege evenimentul pentru primire, predare și gestionarea garderobei.':'Choose an event to receive, return and manage belongings.'}</Text>
+                {state.loading&&!state.events.length&&<Text accessibilityLiveRegion="polite" style={s.small}>{c.loading}</Text>}
+                <View>{activeEvents.map(eventRow)}</View>
+                {!state.loading&&!activeEvents.length&&<Text style={s.small}>{!state.events.length?c.noEvents:ro?'Nu ai evenimente active. Evenimentele încheiate și ciornele sunt disponibile mai jos.':'No active events. Past events and drafts are available below.'}</Text>}
+                {!!otherEvents.length&&<><Pressable accessibilityRole="button" accessibilityState={{expanded:otherVisible}} aria-controls={otherVisible?"wardrobe-other-events":undefined} onPress={()=>setShowOther(!otherVisible)} style={s.otherEvents}><Text style={s.bold}>{ro?'Alte evenimente':'Other events'} ({otherEvents.length})</Text>{otherVisible?<ChevronDown color="#f7faf2" size={18}/>:<ChevronRight color="#f7faf2" size={18}/>}</Pressable>{otherVisible&&<View nativeID="wardrobe-other-events">{otherEvents.map(eventRow)}</View>}</>}
+              </>:<>
+                <View style={s.between}><Pressable accessibilityRole="button" accessibilityLabel={ro?'Înapoi la evenimente':'Back to events'} disabled={busy||d?.status==='reserved'} accessibilityState={{disabled:busy||d?.status==='reserved'}} testID="wardrobe-back-events" onPress={leaveEvent} style={[s.backEvents,{opacity:busy||d?.status==='reserved'?.4:1}]}><ArrowLeft color="#f7faf2" size={18}/><Text style={s.bold}>{ro?'Înapoi la evenimente':'Back to events'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={c.refresh} accessibilityState={{disabled:state.loading||busy}} disabled={state.loading||busy} onPress={()=>void store.refresh(true)} style={[s.refresh,{opacity:state.loading||busy?.4:1}]}><RefreshCw size={19} color="#f7faf2"/></Pressable></View>
+                <Text nativeID="wardrobe-event-heading" accessibilityRole="header" style={s.eventTitle}>{overview?.title||state.events.find(event=>event.id===state.eventId)?.title}</Text>
+                <Text style={s.small}>{wardrobeEventDescription(state.events.find(event=>event.id===state.eventId)??{id:state.eventId,title:'',canManage},ro)}</Text>
+                <WardrobeTabs id="wardrobe-operations" label={flow.operations} value={task} options={wardrobeTasks(canManage).map(value=>({value,label:wardrobeTabLabel(value,ro)}))} onChange={beginTask} disabled={busy} locked={d?.status==='reserved'} panelId="wardrobe-panel" ro={ro}/>
+                {d?.status==='reserved'&&<Text accessibilityLiveRegion="polite" style={s.reservationHint}>{flow.reservationHint}</Text>}
+              </>}
+              {state.eventId && (
+                <View nativeID="wardrobe-panel" role="tabpanel" aria-labelledby={'wardrobe-operations-'+task} style={s.stack}>
+                  {!o&&<Text accessibilityLiveRegion="polite" style={s.small}>{c.loading}</Text>}
+                  {o&&<>
+
+
+                  {task==='setup'&&<WardrobeTabs id="wardrobe-settings" label={flow.settings} value={setupTab} options={[{value:'zones',label:ro?'Zone și obiecte':'Zones and items'},{value:'team',label:flow.team}]} onChange={setSetupTab} disabled={busy} panelId="wardrobe-settings-panel" ro={ro}/>}
                   {task==='pickup'&&<View style={s.card}><Text style={s.small}>{flow.pickupHint}</Text>{button(c.scan,()=>{cameraGate.current=false;setCameraError(false);setCamera(true);})}{pickupLookup!==null&&button(ro?'Caută alt client':'Find another customer',()=>{setPickupLookup(null);store.select();},true)}</View>}
                   {!!flowError&&<Text accessibilityLiveRegion="assertive" style={s.error}>{flowError}</Text>}
-                  <Text style={s.small}>{c.online}</Text>
+
                   {tab === "history" && (
                     <Text style={s.small}>{c.retentionHint}</Text>
                   )}
@@ -425,7 +454,7 @@ export function WardrobeScreen({
                     </View>
                   )}
                   {tab === "setup" && o.canManage ? (
-                    <>
+                    <View nativeID="wardrobe-settings-panel" role="tabpanel" aria-labelledby={'wardrobe-settings-'+setupTab} style={s.stack}>
                       <View style={[s.card,setupTab!=='zones'&&{display:'none'}]}>
                         <Text style={s.heading}>{c.zone}</Text>
                         <Text style={s.small}>{c.zonesHint}</Text>
@@ -528,7 +557,7 @@ export function WardrobeScreen({
                           !email.includes("@"),
                         )}
                       </View>
-                    </>
+                    </View>
                   ) : (
                     <>
                       {d && (
@@ -809,7 +838,9 @@ export function WardrobeScreen({
                       )}
                     </>
                   )}
-                </>
+                  {(task==='receive'||task==='pickup'||task==='unclaimed')&&<Text style={s.small}>{c.online}</Text>}
+                  </>}
+                </View>
               )}
             </>
           )}
@@ -835,7 +866,7 @@ export function WardrobeScreen({
             <Text style={s.heading}>{c.scan}</Text>
             {button(c.close, () => setCamera(false), true)}
           </View>
-          <Text style={s.small}>{c.scanHint}</Text>
+          <Text style={s.small}>{task==='pickup'?flow.pickupHint:flow.scanHint}</Text>
           {!permission?.granted ? (
             button(c.permission, () => void requestPermission())
           ) : cameraError ? (
@@ -881,6 +912,14 @@ export function WardrobeScreen({
   );
 }
 const s = StyleSheet.create({
+  eventRow:{flexDirection:'row',alignItems:'center',gap:16,minHeight:92,paddingVertical:18,borderBottomWidth:1,borderColor:'#28282c'},
+  eventIcon:{width:44,height:44,alignItems:'center',justifyContent:'center',borderRadius:12,backgroundColor:'#19191c'},
+  eventRowTitle:{fontSize:17,lineHeight:25,fontWeight:'600',color:'#f7faf2'},
+  eventTitle:{fontSize:24,lineHeight:31,fontWeight:'700',color:'#f7faf2'},
+  backEvents:{flexDirection:'row',alignItems:'center',gap:10,minHeight:44},
+  otherEvents:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12,minHeight:44},
+  refresh:{width:44,minHeight:44,borderWidth:1,borderColor:'#626866',borderRadius:12,alignItems:'center',justifyContent:'center'},
+  reservationHint:{fontSize:13,lineHeight:20,color:'#f7faf2',padding:12,borderStartWidth:3,borderColor:'#ff0044',backgroundColor:'#1b1b1d'},
   root: { flex: 1, backgroundColor: "#000" },
   page: {
     width: "100%",
