@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/drawer";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { SocialAvatar } from "./SocialAvatar";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {Input as UIInput} from '@/components/ui/Field';
 
 export function FriendsSheet({
   open,
@@ -87,11 +89,11 @@ export function FriendsSheet({
             </DrawerDescription>
           </div>
         </header>
-        <label data-vaul-no-drag className="mx-5 mb-4 flex shrink-0 items-center gap-3 rounded-2xl bg-[#161616] px-4 focus-within:ring-1 focus-within:ring-primary/60">
+        <label data-vaul-no-drag className="ui-input-shell mx-5 mb-4 flex shrink-0 items-center gap-3 rounded-2xl bg-[#161616] px-4">
           <Search className="h-4 w-4 shrink-0 text-white/40" aria-hidden="true" />
-          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)}
+          <UIInput type="search" value={query} onChange={(event) => setQuery(event.target.value)}
             placeholder={t("friends.searchPlaceholder")} aria-label={t("friends.searchPlaceholder")}
-            className="h-12 min-w-0 flex-1 bg-transparent text-base outline-none" />
+            className="h-12 min-w-0 flex-1 bg-transparent text-base" bare />
         </label>
         <div
           data-drawer-keyboard-scroll
@@ -111,7 +113,7 @@ export function FriendsSheet({
                     className="mb-2 flex items-center gap-2 rounded-2xl bg-[#141113] p-3"
                   >
                     {profile(request)}
-                    <button
+                    <UIActionButton
                       type="button"
                       disabled={Boolean(respondingId)}
                       aria-busy={respondingId === request.id}
@@ -119,10 +121,10 @@ export function FriendsSheet({
                       aria-label={t("feed.acceptRequest", {
                         name: request.username,
                       })}
-                      className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary disabled:opacity-40"
+                      className="grid h-10 w-10 shrink-0 place-items-center disabled:opacity-40"
                     >
                       {respondingId === request.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    </button>
+                    </UIActionButton>
                     <button
                       type="button"
                       disabled={Boolean(respondingId)}

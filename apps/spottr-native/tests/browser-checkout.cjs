@@ -100,7 +100,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await until(`document.querySelector('[data-testid="event-rsvp-going"]')`);
   await evaluate(`document.querySelector('[data-testid="event-rsvp-going"]').click();document.querySelector('[data-testid="event-rsvp-going"]').click()`);
   await until('window.__qa.rsvp.length===1'); await delay(200);
-  await until(`getComputedStyle(document.querySelector('[data-testid="event-rsvp-going"]')).backgroundColor==='rgb(255, 0, 68)'`);
+  await until(`getComputedStyle(document.querySelector('[data-testid="event-rsvp-going"]')).backgroundColor==='rgb(217, 0, 58)'`);
   await click('event-rsvp-going'); await until('window.__qa.rsvp.length===2'); assert.equal(await evaluate('window.__qa.rsvp[1].method'), 'DELETE');
   await click('event-continue'); await until(`document.querySelector('[data-testid="checkout-screen"]')`); await delay(250);
   await click('checkout-next'); await input('billing-address', 'Strada 1'); await input('billing-city', 'Cluj'); await input('billing-county', 'Cluj');

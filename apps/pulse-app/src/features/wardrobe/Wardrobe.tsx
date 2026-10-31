@@ -28,6 +28,8 @@ import {
   type WardrobeEvent,
 } from "./model";
 import s from "./wardrobe.module.css";
+import {Input as UIInput,TextArea as UITextArea} from '@/components/ui/Field';
+import {ActionButton,ActionLink} from '@/components/ui/ActionButton';
 
 export function WardrobeCard() {
   const { state, user } = useWardrobe(false, 20000),
@@ -223,14 +225,14 @@ export function WardrobePage({
     secondary = false,
     disabled = false,
   ) => (
-    <button
-      type="button"
-      className={`${s.button} ${secondary ? s.secondary : ""}`}
+    <ActionButton
+      tone={secondary?"secondary":"primary"}
+      className={s.button}
       onClick={onClick}
       disabled={busy || disabled}
     >
       {label}
-    </button>
+    </ActionButton>
   );
   const date = (value: string) =>
     new Date(value).toLocaleString(ro ? "ro-RO" : "en-GB", {
@@ -242,9 +244,9 @@ export function WardrobePage({
   if (!user)
     return (
       <main className={s.page}>
-        <Link href="/login" className={s.button}>
+        <ActionLink href="/login" className={s.button}>
           {ro ? "Conectează-te" : "Sign in"}
-        </Link>
+        </ActionLink>
       </main>
     );
   return (
@@ -400,7 +402,7 @@ export function WardrobePage({
                     ))}
                     <label className={s.field}>
                       {c.zoneName}
-                      <input
+                      <UIInput
                         value={name}
                         maxLength={60}
                         onChange={(e) => setName(e.target.value)}
@@ -409,7 +411,7 @@ export function WardrobePage({
                     <div className={s.row}>
                       <label className={s.field}>
                         {c.prefix}
-                        <input
+                        <UIInput
                           value={prefix}
                           maxLength={8}
                           onChange={(e) =>
@@ -419,7 +421,7 @@ export function WardrobePage({
                       </label>
                       <label className={s.field}>
                         {c.capacity}
-                        <input
+                        <UIInput
                           type="number"
                           min={1}
                           max={2000}
@@ -472,7 +474,7 @@ export function WardrobePage({
                     ))}
                     <label className={s.field}>
                       {c.email}
-                      <input
+                      <UIInput
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -566,7 +568,7 @@ export function WardrobePage({
                               <p>{c.recoveryHint}</p>
                               <label className={s.field}>
                                 {c.reason}
-                                <textarea
+                                <UITextArea
                                   value={reason}
                                   maxLength={300}
                                   onChange={(e) => setReason(e.target.value)}
@@ -641,7 +643,7 @@ export function WardrobePage({
                   <div className={`${s.row} ${s.searchRow}`} style={task==='receive'?{display:'none'}:undefined}>
                     <label className={s.field}>
                       {c.search}
-                      <input
+                      <UIInput
                         value={search}
                         maxLength={100}
                         onChange={(e) => setSearch(e.target.value)}

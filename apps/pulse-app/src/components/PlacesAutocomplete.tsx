@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import {Input as UIInput} from '@/components/ui/Field';
 
 export interface PlaceResult {
   placeId: string;
@@ -77,7 +78,7 @@ export function PlacesAutocomplete({
   }, [ready]);
 
   return (
-    <input
+    <UIInput
       ref={inputRef}
       type="text"
       value={value}

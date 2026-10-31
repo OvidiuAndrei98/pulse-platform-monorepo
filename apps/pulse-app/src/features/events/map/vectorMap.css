@@ -4,7 +4,8 @@
 .spottr-map-pin[data-selected="true"] { width:48px; height:48px; background:#ff0044; color:#fff; border:3px solid #fff; box-shadow:0 0 0 5px #ff004433,0 4px 16px #0008; }
 .spottr-map-pin[data-live="true"]::after { content:""; position:absolute; top:0; right:0; width:8px; height:8px; background:#ff0044; border:2px solid #fff; border-radius:50%; }
 .spottr-map-cluster { color:#fff; font:700 14px/1 sans-serif; }
-.spottr-map-pin:focus-visible, .spottr-map-cluster:focus-visible { outline:2px solid #fff; outline-offset:4px; }
+.spottr-map-pin:focus-visible, .spottr-map-cluster:focus-visible { outline:2px solid var(--ui-focus,#ff0044); outline-offset:4px; box-shadow:0 0 0 8px var(--ui-focus-halo,#000); }
+@media(forced-colors:active) { .spottr-map-pin:focus-visible,.spottr-map-cluster:focus-visible { outline-color:Highlight; } }
 .spottr-map-location { width:14px; height:14px; border:2px solid #fff; border-radius:50%; background:#ff0044; box-shadow:0 0 0 6px #ff004433; }
 .spottr-vector-map .maplibregl-ctrl-attrib { background:#101012ed; border-radius:6px; color:#aaa; font:9px/16px sans-serif; padding:0 4px; max-width:calc(100vw - 16px); }
 .spottr-vector-map .maplibregl-ctrl-attrib a { color:#ccc; }

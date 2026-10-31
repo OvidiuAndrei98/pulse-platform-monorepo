@@ -20,6 +20,7 @@ import { PaymentSuccessCheck } from './CheckoutSuccess';
 import { acknowledgeNativePayment, getNativePayment } from './nativePayment';
 import { purchaseCompletion, ticketsForPurchase, type PurchaseCompletion } from './purchaseCompletion';
 import { verifyTicketDelivery } from './ticketDelivery';
+import {ActionButton as UIActionButton} from '../ui/ActionButton';
 
 /** Render inside the original event, after checkout leaves the native stack. */
 export function PurchaseSuccessHost({ eventId }: { eventId: string }) {
@@ -89,10 +90,10 @@ function PurchaseSuccessSheet({ receipt }: { receipt: PurchaseCompletion }) {
         <Text accessibilityLiveRegion="polite" style={s.hint}>{copy(unavailable ? 'checkoutResult.ticketUnavailableHint' : user ? 'checkoutResult.sheetSuccessHint' : 'checkoutResult.guestDelivery')}</Text>
         <View style={s.check}>{unavailable ? <AlertCircle size={64} color={colors.accent} /> : <PaymentSuccessCheck green size={96} />}</View>
         {failed && <Text accessibilityRole="alert" style={s.error}>{copy('checkoutResult.ticketLoadFailed')}</Text>}
-        <AccentPressable fallback={Pressable} testID="checkout-view-tickets" accessibilityRole="button" accessibilityState={{ busy: loading, disabled: loading || closing }} disabled={loading || closing} onPress={() => unavailable ? leave('all') : void openTicket()} style={s.primary}>
+        <UIActionButton testID="checkout-view-tickets" accessibilityRole="button" accessibilityState={{ busy: loading, disabled: loading || closing }} disabled={loading || closing} onPress={() => unavailable ? leave('all') : void openTicket()} style={s.primary}>
           {loading ? <ActivityIndicator size="small" color="white" /> : <Ticket size={18} color="white" />}
           <Text style={s.primaryText}>{copy(unavailable ? 'checkoutResult.checkTickets' : loading ? 'common.loading' : !user ? 'auth.createAccount' : failed ? 'feedback.retry' : 'checkoutResult.viewPurchasedTicket')}</Text>
-        </AccentPressable>
+        </UIActionButton>
         {failed && <Pressable testID="checkout-all-tickets" accessibilityRole="button" onPress={() => leave('all')} style={s.secondary}><Text style={s.secondaryText}>{copy('checkoutResult.checkTickets')}</Text></Pressable>}
         <Pressable testID="checkout-success-dismiss" accessibilityRole="button" onPress={() => leave('dismiss')} style={s.secondary}><Text style={s.secondaryText}>{copy('checkoutResult.backToEvent')}</Text></Pressable>
       </AppSheetScrollView>

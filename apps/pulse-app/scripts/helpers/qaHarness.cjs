@@ -31,6 +31,10 @@ function hooks() {
     createContext: value => ({ Provider: 'provider', value }),
     useContext: context => context.value,
     useId: () => 'test-id',
+    forwardRef: render => Object.assign(props => render(props,null),{__forwardRef:true}),
+    isValidElement: value => !!value && typeof value==='object' && 'type' in value,
+    cloneElement: (element,props,children=element.props?.children) => ({...element,props:{...element.props,...props,children}}),
+    Children: {toArray: children => [children].flat(Infinity).filter(value=>value!=null&&value!==false),map: (children,fn)=>[children].flat(Infinity).map(fn)},
   };
   return {
     react,
@@ -68,6 +72,7 @@ const settle = () => new Promise(resolve => setImmediate(resolve));
 function find(node, predicate) {
   if (!node || typeof node !== 'object') return undefined;
   if (predicate(node)) return node;
+  if(node.type?.__forwardRef)return find(node.type(node.props),predicate);
   for (const child of [node.props?.children].flat(Infinity)) { const match = find(child, predicate); if (match) return match; }
 }
 module.exports = { hooks, modules, deferred, settle, find };

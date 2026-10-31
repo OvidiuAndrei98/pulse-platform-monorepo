@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { RefreshSpotlight } from "./RefreshSpotlight";
+import {useReducedMotionPreference} from "./useReducedMotionPreference";
 import { useRefreshFeedback } from "./useRefreshFeedback";
 import {
   REFRESH_LOADING_OFFSET,
@@ -31,6 +32,7 @@ export const RefreshScrollView = forwardRef<ScrollViewInstance, RefreshScrollVie
   ) {
     const feedback = useRefreshFeedback(refreshing, onRefresh);
     const insets = useSafeAreaInsets();
+    const reduced=useReducedMotionPreference();
     const scrollY = useRef(0);
     const touch = useRef<{ x: number; y: number } | null>(null);
     const [progress, setProgress] = useState(0);
@@ -46,14 +48,14 @@ export const RefreshScrollView = forwardRef<ScrollViewInstance, RefreshScrollVie
       }
       const animation = Animated.timing(androidOffset, {
         toValue,
-        duration: 240,
+        duration: reduced?0:240,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
         isInteraction: false,
       });
       animation.start();
       return () => animation.stop();
-    }, [feedback.holding, progress, androidOffset]);
+    }, [feedback.holding, progress, androidOffset,reduced]);
     // The OS still owns scrolling, pull recognition and settling. Touch/scroll
     // observations only reveal our light; they never capture or block a gesture.
     return (

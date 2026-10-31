@@ -97,6 +97,7 @@ async function fixture() {
     '../ui/Text': { Text: 'Text' }, '../ui/theme': { colors: {} }, '../ui/haptics': { haptic(kind: string) { haptics.push(kind); } },
     '../ui/MotionPressable': { MotionPressable: 'Pressable' },
     '../ui/AccentPressable': { AccentPressable: 'Pressable' },
+    '../ui/ActionButton': { ActionButton: 'Pressable' },
     '../ui/GlassPressable': { GlassPressable: 'Pressable' },
     '../ui/ActionIcon': { ActionIcon: 'Pressable' },
     '../checkout/CheckoutSuccess': { CheckoutSuccessTicket: 'TicketSummary', PaymentSuccessCheck: 'SuccessCheck' },

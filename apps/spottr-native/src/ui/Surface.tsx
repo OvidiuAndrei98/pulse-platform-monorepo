@@ -1,0 +1,8 @@
+import React from 'react';
+import {View,type ViewProps,StyleSheet} from 'react-native';
+import {Text} from './Text';
+import {colors,tokens} from './theme';
+export function Surface({style,raised=false,...props}:ViewProps&{raised?:boolean}){return <View {...props} style={[s.surface,raised&&{backgroundColor:colors.raised},style]}/>;}
+export function PageHeader({title,description,leading,actions}:{title:string;description?:string;leading?:React.ReactNode;actions?:React.ReactNode}){return <View style={s.header}>{leading}<View style={{flex:1,minWidth:0}}><Text accessibilityRole="header" style={s.title}>{title}</Text>{description&&<Text style={s.description}>{description}</Text>}</View>{actions}</View>;}
+export function Badge({children,tone='neutral'}:{children:React.ReactNode;tone?:'neutral'|'success'|'warning'|'danger'}){return <View style={s.badge}><Text style={{fontSize:tokens.type.caption.size,lineHeight:18,color:tone==='neutral'?colors.text:colors[tone]}}>{children}</Text></View>;}
+const s=StyleSheet.create({surface:{minWidth:0,padding:tokens.spacing.lg,borderWidth:1,borderColor:colors.line,borderRadius:tokens.radius.surface,backgroundColor:colors.surface},header:{flexDirection:'row',alignItems:'flex-start',gap:16,flexWrap:'wrap'},title:{fontSize:tokens.type.title.size,lineHeight:tokens.type.title.size*tokens.type.title.lineHeight,color:colors.text,fontWeight:'700',letterSpacing:-.56},description:{fontSize:14,lineHeight:21,marginTop:6,color:colors.muted},badge:{alignSelf:'flex-start',borderWidth:1,borderColor:colors.line,borderRadius:999,paddingHorizontal:8,paddingVertical:4}});

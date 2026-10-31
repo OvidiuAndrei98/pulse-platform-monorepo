@@ -109,7 +109,7 @@ export function EventSocialProof({
                   onClick={() => void updateRsvp(status)}
                   className={`h-full rounded-full px-3 text-xs font-semibold transition disabled:opacity-50 ${
                     active
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-[var(--ui-action)] text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >

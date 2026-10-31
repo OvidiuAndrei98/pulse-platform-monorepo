@@ -5,6 +5,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { User, UserData } from "@/core/DataProvider";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {Input as UIInput,TextArea as UITextArea,Field as UIField} from '@/components/ui/Field';
 
 export function PersonalDetailsForm({
   user,
@@ -56,42 +58,36 @@ export function PersonalDetailsForm({
 
   return (
     <form onSubmit={save} className="space-y-4">
-      <div className="space-y-1.5">
-        <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {t("profile.displayName")}
-        </label>
-        <input
+      <UIField label={t("profile.displayName")}>
+        <UIInput
           value={username}
           onChange={(event) => setUsername(event.target.value)}
           minLength={3}
           maxLength={50}
           required
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-white/[0.08]"
+          className="w-full transition placeholder:text-muted-foreground/50"
         />
-      </div>
-      <div className="space-y-1.5">
-        <label className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {t("profile.bio")}
-        </label>
-        <textarea
+      </UIField>
+      <UIField label={t("profile.bio")}>
+        <UITextArea
           value={bio}
           onChange={(event) => setBio(event.target.value)}
           rows={3}
           maxLength={500}
           placeholder={t("profile.bioPlaceholder")}
-          className="w-full resize-none rounded-xl border border-white/10 bg-white/5 p-3.5 text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-white/[0.08]"
+          className="w-full resize-none transition placeholder:text-muted-foreground/50"
         />
-      </div>
-      {error && <p className="text-xs text-red-400">{error}</p>}
-      <button
+      </UIField>
+      {error && <p role="alert" className="text-xs text-red-400">{error}</p>}
+      <UIActionButton
         type="submit"
         disabled={state === "saving"}
-        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-xs font-bold text-primary-foreground transition hover:opacity-90 active:scale-[0.98] disabled:opacity-60 sm:w-auto"
+        className="inline-flex h-10 w-full items-center justify-center gap-2 px-6 text-xs font-bold transition hover:opacity-90  disabled:opacity-60 sm:w-auto"
       >
         {state === "saving" && <Loader2 className="h-4 w-4 animate-spin" />}
         {state === "saved" && <Check className="h-4 w-4" />}
         {state === "saving" ? t("profile.saving") : state === "saved" ? t("profile.saved") : t("profile.saveChanges")}
-      </button>
+      </UIActionButton>
     </form>
   );
 }

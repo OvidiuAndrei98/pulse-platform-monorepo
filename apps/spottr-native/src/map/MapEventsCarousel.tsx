@@ -70,6 +70,6 @@ const s=StyleSheet.create({
   handle:{alignSelf:'center',flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,minHeight:44,minWidth:104,paddingHorizontal:12,paddingVertical:4,marginBottom:6,borderWidth:1,borderColor:'#ffffff26',borderRadius:24,backgroundColor:'#171717'},
   grip:{width:32,height:4,borderRadius:2,backgroundColor:colors.muted},
   card:{minHeight:112,padding:11,borderRadius:20,borderWidth:1,backgroundColor:'#171717',flexDirection:'row',alignItems:'center',gap:12},
-  focus:{outlineColor:'#fff',outlineWidth:2,outlineOffset:-4,outlineStyle:'solid'},
+  focus:{outlineColor:colors.focus,outlineWidth:2,outlineOffset:-4,outlineStyle:'solid'},
   meta:{color:colors.text,fontSize:12,lineHeight:18},
 });

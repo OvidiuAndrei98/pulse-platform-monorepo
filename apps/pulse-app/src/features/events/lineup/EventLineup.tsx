@@ -53,7 +53,7 @@ export function EventLineup({ artists }: { artists?: readonly Artist[] }) {
                 rel="noreferrer"
                 aria-label={t("lineup.openSpotify", { name: artist.name })}
                 title={t("lineup.spotify")}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-primary transition hover:bg-primary/10 focus-visible: focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <Music2 className="h-4 w-4" />
               </a>

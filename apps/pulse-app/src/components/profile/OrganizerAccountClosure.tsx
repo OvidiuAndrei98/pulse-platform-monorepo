@@ -2,6 +2,7 @@
 
 import { ChevronDown, Mail, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import {ActionLink as UIActionLink} from '@/components/ui/ActionButton';
 
 const supportEmail = "contact@code-lab.ro";
 
@@ -27,9 +28,9 @@ export function OrganizerAccountClosure({ email }: { email: string }) {
         </li>)}
       </ol>
       <p className="text-[13px] leading-5 text-muted-foreground">{t("userProfile.closeManagedNoAutomatic")}</p>
-      <a href={href} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 sm:w-auto">
+      <UIActionLink href={href} className="inline-flex min-h-12 w-full items-center justify-center gap-2  bg-[var(--ui-action)] px-5 py-3 text-sm font-semibold  transition hover:opacity-90 sm:w-auto">
         <Mail className="h-4 w-4" />{t("userProfile.closeManagedEmail")}
-      </a>
+      </UIActionLink>
       <p className="select-text text-xs text-muted-foreground">{supportEmail}</p>
     </div>
   </details>;

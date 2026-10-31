@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
+import {ActionButton} from '../ui/ActionButton';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { accountApi,useAuth } from '../auth/AuthProvider';
@@ -56,4 +57,4 @@ function OrganizerDetail({id}:{id:string}) {
     </>}
   </ScrollView>;
 }
-function Action({title,onPress,disabled,selected}:{title:string;onPress:()=>void;disabled?:boolean;selected?:boolean}) {return <Pressable accessibilityRole="button" accessibilityState={{disabled:!!disabled,selected:!!selected}} disabled={disabled} onPress={onPress} style={{minHeight:44,borderRadius:12,borderWidth:1,borderColor:selected?colors.accent:colors.line,paddingHorizontal:16,paddingVertical:12,justifyContent:'center',opacity:disabled?.45:1}}><Text style={{fontSize:14,fontWeight:'600',color:selected?colors.accent:colors.text}}>{title}</Text></Pressable>;}
+function Action({title,onPress,disabled,selected}:{title:string;onPress:()=>void;disabled?:boolean;selected?:boolean}) {return <ActionButton title={title} tone={selected?'primary':'secondary'} accessibilityState={{selected:!!selected}} disabled={disabled} onPress={onPress}/>;}

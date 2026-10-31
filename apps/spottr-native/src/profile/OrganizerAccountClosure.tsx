@@ -9,6 +9,7 @@ import { AppSheetScrollView } from '../ui/AppSheetScrollView';
 import { MotionPressable as Pressable } from '../ui/MotionPressable';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
+import {ActionButton as UIActionButton} from '../ui/ActionButton';
 
 const supportEmail = 'contact@code-lab.ro';
 
@@ -47,9 +48,9 @@ export function OrganizerAccountClosureSheet({ onClose }: { onClose(): void }) {
       </View>)}
       <Text style={s.body}>{copy('userProfile.closeManagedNoAutomatic')}</Text>
       {error && <Text accessibilityRole="alert" style={[s.body, { color: '#f87171' }]}>{copy('userProfile.closeManagedEmailFailed', { supportEmail })}</Text>}
-      <AccentPressable fallback={Pressable} testID="organizer-account-closure-email" accessibilityRole="button" onPress={() => void write()} style={s.button}>
+      <UIActionButton testID="organizer-account-closure-email" accessibilityRole="button" onPress={() => void write()} style={s.button}>
         <Mail size={17} color="#fff" /><Text style={s.buttonText}>{copy('userProfile.closeManagedEmail')}</Text>
-      </AccentPressable>
+      </UIActionButton>
       <Text selectable style={[s.body, { textAlign: 'center' }]}>{supportEmail}</Text>
     </AppSheetScrollView>
   </AppSheet>;

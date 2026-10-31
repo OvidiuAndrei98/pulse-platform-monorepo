@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { ThemedSelect } from "@/features/events/form/ThemedSelect";
 
 import { invoiceFieldLimits, isBucharestAddress, type InvoiceDetails, type InvoiceFieldErrors } from "./invoiceDetails";
+import {Input as UIInput} from '@/components/ui/Field';
 export { emptyInvoiceDetails, getInvoiceFieldErrors, isBucharestAddress, validateInvoiceDetails } from "./invoiceDetails";
 export type { InvoiceDetails, InvoiceFieldErrors } from "./invoiceDetails";
 
@@ -23,7 +24,7 @@ export function InvoiceDetailsFields({
   const update = (field: keyof InvoiceDetails, fieldValue: string) =>
     onChange({ ...value, [field]: fieldValue });
   const inputClass =
-    "h-11 w-full rounded-xl border border-white/10 bg-white/[0.035] px-3.5 text-base text-white outline-none transition placeholder:text-white/35 focus:border-primary/60 aria-[invalid=true]:border-red-400/70 sm:text-sm";
+    "h-11 w-full transition placeholder:text-white/35 sm:text-sm";
   const errorProps = (field: keyof InvoiceDetails, suffix: string) => ({
     "aria-invalid": Boolean(errors[field]),
     "aria-describedby": errors[field] ? `${idPrefix}-billing-${suffix}-error` : undefined,
@@ -55,7 +56,7 @@ export function InvoiceDetailsFields({
                 onClick={() => onChange({ ...value, type })}
                 className={`h-9 rounded-lg text-xs font-semibold transition ${
                   value.type === type
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-[var(--ui-action)] text-primary-foreground"
                     : "text-white/55 hover:bg-white/5 hover:text-white"
                 }`}
               >
@@ -65,7 +66,7 @@ export function InvoiceDetailsFields({
           </div>
 
           <Field label={t(value.type === "company" ? "checkout.companyName" : "checkout.fullName")} htmlFor={`${idPrefix}-billing-name`} error={errors.name}>
-            <input
+            <UIInput
               id={`${idPrefix}-billing-name`} {...errorProps("name", "name")}
               value={value.name} maxLength={invoiceFieldLimits.name}
               onChange={(event) => update("name", event.target.value)}
@@ -77,7 +78,7 @@ export function InvoiceDetailsFields({
           {value.type === "company" && (
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label={t("checkout.taxId")} htmlFor={`${idPrefix}-billing-tax-id`} error={errors.taxId}>
-                <input
+                <UIInput
                   id={`${idPrefix}-billing-tax-id`} {...errorProps("taxId", "tax-id")}
                   value={value.taxId} maxLength={invoiceFieldLimits.taxId}
                   onChange={(event) => update("taxId", event.target.value)}
@@ -86,7 +87,7 @@ export function InvoiceDetailsFields({
                 />
               </Field>
               <Field label={t("checkout.registrationNumber")} htmlFor={`${idPrefix}-billing-reg`} error={errors.registrationNumber} optional>
-                <input
+                <UIInput
                   id={`${idPrefix}-billing-reg`} {...errorProps("registrationNumber", "reg")}
                   value={value.registrationNumber} maxLength={invoiceFieldLimits.registrationNumber}
                   onChange={(event) => update("registrationNumber", event.target.value)}
@@ -97,7 +98,7 @@ export function InvoiceDetailsFields({
           )}
 
           <Field label={t("checkout.billingAddress")} htmlFor={`${idPrefix}-billing-address`} error={errors.address}>
-            <input
+            <UIInput
               id={`${idPrefix}-billing-address`} {...errorProps("address", "address")}
               value={value.address} maxLength={invoiceFieldLimits.address}
               onChange={(event) => update("address", event.target.value)}
@@ -108,7 +109,7 @@ export function InvoiceDetailsFields({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={t("checkout.billingCity")} htmlFor={`${idPrefix}-billing-city`} error={errors.city}>
-              <input
+              <UIInput
                 id={`${idPrefix}-billing-city`} {...errorProps("city", "city")}
                 value={value.city} maxLength={invoiceFieldLimits.city}
                 onChange={(event) => update("city", event.target.value)}
@@ -132,7 +133,7 @@ export function InvoiceDetailsFields({
               </div>
             ) : (
               <Field label={t("checkout.billingCounty")} htmlFor={`${idPrefix}-billing-county`} error={errors.county}>
-                <input
+                <UIInput
                   id={`${idPrefix}-billing-county`} {...errorProps("county", "county")}
                   value={value.county} maxLength={invoiceFieldLimits.county}
                   onChange={(event) => update("county", event.target.value)}
@@ -146,7 +147,7 @@ export function InvoiceDetailsFields({
           {bucharest && <p className="text-xs leading-5 text-white/45">{t("checkout.bucharestAddressHint")}</p>}
 
           <Field label={t("checkout.billingCountry")} htmlFor={`${idPrefix}-billing-country`} error={errors.country}>
-            <input
+            <UIInput
               id={`${idPrefix}-billing-country`} {...errorProps("country", "country")}
               value={value.country} maxLength={invoiceFieldLimits.country}
               onChange={(event) => update("country", event.target.value)}

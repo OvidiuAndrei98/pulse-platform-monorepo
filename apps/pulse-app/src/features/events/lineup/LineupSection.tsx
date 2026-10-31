@@ -6,6 +6,7 @@ import type { UseFormReturn } from "react-hook-form";
 import type { EventFormValues } from "@/app/dashboard/components/EventsForm";
 import { AddArtistForm, type LineupArtistInput } from "./AddArtistForm";
 import { TimePicker } from "@/features/events/form/DateTimePicker";
+import {Input as UIInput} from '@/components/ui/Field';
 
 export function LineupSection({
   form,
@@ -87,13 +88,13 @@ export function LineupSection({
                   </p>
                 )}
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <input
+                  <UIInput
                     value={artist.stage}
                     onChange={(event) =>
                       update(index, { stage: event.target.value })
                     }
                     placeholder={t("lineup.stage")}
-                    className="h-8 min-w-0 max-w-28 rounded-md border border-white/[0.1] bg-black/15 px-2 text-xs outline-none focus:border-primary/60"
+                    className="h-8 min-w-0 max-w-28"
                   />
                   <div className="w-28">
                     <TimePicker

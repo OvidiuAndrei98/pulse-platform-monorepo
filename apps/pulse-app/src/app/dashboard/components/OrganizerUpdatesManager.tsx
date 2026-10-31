@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {TextArea as UITextArea,Field as UIField} from '@/components/ui/Field';
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -108,18 +110,18 @@ export function OrganizerUpdatesManager({
           <input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" onChange={selectFile} disabled={!canPublish || submitting} />
         </label>
         <div className="flex flex-col gap-2 sm:w-52">
-          <textarea
+          <UIField label={t("organizerUpdates.captionPlaceholder")}><UITextArea
             value={caption}
             maxLength={160}
             onChange={(event) => setCaption(event.target.value)}
             placeholder={t("organizerUpdates.captionPlaceholder")}
-            className="min-h-24 w-full resize-none border border-white/10 bg-black/20 px-3 py-2 text-xs outline-none placeholder:text-muted-foreground focus:border-primary/50"
+            className="min-h-24 w-full resize-none placeholder:text-muted-foreground"
             disabled={!canPublish || submitting}
-          />
-          <button type="button" onClick={publish} disabled={!canPublish || !file || submitting || activeCount >= 3} className="inline-flex h-10 items-center justify-center gap-2 bg-primary px-4 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-45">
+          /></UIField>
+          <UIActionButton type="button" onClick={publish} disabled={!canPublish || !file || submitting || activeCount >= 3} className="inline-flex h-10 items-center justify-center gap-2 px-4 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-45">
             {submitting && <LoaderCircle className="h-4 w-4 animate-spin" />}
             {t("organizerUpdates.publish")}
-          </button>
+          </UIActionButton>
         </div>
       </div>
 

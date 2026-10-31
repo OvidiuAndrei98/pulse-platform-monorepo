@@ -1,6 +1,7 @@
 import React, { forwardRef, useEffect, useState } from 'react';
 import { Pressable, type PressableProps, type ViewInstance } from 'react-native';
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import {useReducedMotionPreference} from './useReducedMotionPreference';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 type MotionPressableProps = PressableProps & {
@@ -10,16 +11,17 @@ type MotionPressableProps = PressableProps & {
 };
 
 export function usePressMotion(disabled = false) {
+  const reduced=useReducedMotionPreference();
   const scale = useSharedValue(1);
   const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   useEffect(() => {
-    if (disabled) scale.value = withTiming(1, { duration: 160 });
+    if(disabled||reduced)scale.value=1;
     return () => cancelAnimation(scale);
-  }, [disabled, scale]);
+  }, [disabled, reduced, scale]);
   return {
     style,
-    pressIn: () => { if (!disabled) scale.value = withTiming(0.98, { duration: 85, easing: Easing.out(Easing.cubic) }); },
-    pressOut: () => { scale.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.cubic) }); },
+    pressIn: () => { if (!disabled&&!reduced) scale.value = withTiming(0.98, { duration: 85, easing: Easing.out(Easing.cubic) }); },
+    pressOut: () => { if(reduced)scale.value=1;else scale.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.cubic) }); },
   };
 }
 

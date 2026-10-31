@@ -10,6 +10,7 @@ import type { EventFilters } from '../types';
 import { DiscoveryCalendar } from './DiscoveryCalendar';
 import { useBackLayer } from '@/lib/navigation/useBackLayer';
 import s from './discoveryToolbar.module.css';
+import {Input as UIInput} from '@/components/ui/Field';
 
 export function DiscoveryToolbar({filters,onChange,view,onViewChange,distanceReady}:{filters:EventFilters;onChange:(value:EventFilters)=>void;view:'list'|'map';onViewChange:(view:'list'|'map')=>void;distanceReady:boolean}) {
   const {t}=useTranslation(),[searchOpen,setSearchOpen]=useState(!!filters.q),[calendarOpen,setCalendarOpen]=useState(false),[draft,setDraft]=useState(filters),[error,setError]=useState(''),[wide,setWide]=useState(false);
@@ -25,9 +26,9 @@ export function DiscoveryToolbar({filters,onChange,view,onViewChange,distanceRea
     <div className={s.fullModes} inert={!wide&&searchOpen?true:undefined}><EventViewToggle view={view} onChange={onViewChange}/></div>
     <button type="button" className={`${s.pill} ${s.round} ${s.compactModes}`} data-testid={'events-'+(view==='map'?'list':'map')+'-compact-toggle'} aria-label={t(view==='map'?'eventMap.list':'eventMap.map')} onClick={()=>onViewChange(view==='map'?'list':'map')}>{view==='map'?<List size={16}/>:<MapIcon size={16}/>}</button>
     <button ref={trigger} type="button" data-testid="discovery-search-toggle" className={`${s.pill} ${s.round} ${s.searchToggle}`} aria-label={t('filters.searchEvents')} aria-expanded={searchOpen} onClick={()=>setSearchOpen(true)}><Search size={16}/></button>
-    <div className={`${s.pill} ${s.search}`} role="search" inert={!wide&&!searchOpen?true:undefined}>
+    <div className={`ui-input-shell ${s.pill} ${s.search}`} role="search" inert={!wide&&!searchOpen?true:undefined}>
       <Search size={16} aria-hidden className="shrink-0 text-white/70"/>
-      <input ref={input} data-testid="discovery-search" type="search" name="event-search" autoComplete="off" aria-label={t('filters.searchEvents')} placeholder={t('filters.searchEvents')} value={filters.q??''} onKeyDown={event=>{if(event.key==='Escape'){event.preventDefault();closeSearch();}}} onChange={event=>onChange({...filters,q:Array.from(event.target.value).slice(0,120).join('')})}/>
+      <UIInput bare ref={input} data-testid="discovery-search" type="search" name="event-search" autoComplete="off" aria-label={t('filters.searchEvents')} placeholder={t('filters.searchEvents')} value={filters.q??''} onKeyDown={event=>{if(event.key==='Escape'){event.preventDefault();closeSearch();}}} onChange={event=>onChange({...filters,q:Array.from(event.target.value).slice(0,120).join('')})}/>
       <button type="button" aria-label={t('filters.closeSearch')} onClick={closeSearch}><X size={16}/></button>
     </div>
     <button ref={dateTrigger} type="button" data-testid="discovery-calendar-toggle" className={`${s.pill} ${s.dateButton}`} aria-haspopup="dialog" onClick={()=>{setDraft(filters);setError('');setCalendarOpen(true);}}><CalendarDays size={16} className="shrink-0 text-primary"/><span>{label}</span></button>

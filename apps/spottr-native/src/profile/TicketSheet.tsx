@@ -29,6 +29,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { TicketAvailability } from './TicketAvailability';
 import { initialGroupTicket } from './ticketGroups';
 import { useEventClock } from '../data/useEventClock';
+import {ActionButton as UIActionButton} from '../ui/ActionButton';
 export { ticketStatus, type UserTicket } from "../data/tickets";
 
 export function TicketSheet({
@@ -280,7 +281,7 @@ export function TicketSheet({
             {copy("feedback.actionFailed")}
           </Text>
         )}
-        <AccentPressable fallback={Pressable}
+        <UIActionButton
           testID="ticket-download"
           accessibilityRole="button"
           disabled={busy}
@@ -291,7 +292,7 @@ export function TicketSheet({
           <Text style={{ color: "white", fontSize: 14, fontWeight: "600" }}>
             {copy("ticketPdf.downloadPdf")}
           </Text>
-        </AccentPressable>
+        </UIActionButton>
       </BottomSheetView>
     </AppSheet>
   );

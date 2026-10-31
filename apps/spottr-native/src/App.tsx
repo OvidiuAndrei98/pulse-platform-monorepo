@@ -30,6 +30,7 @@ import {
 } from "@expo-google-fonts/inter";
 import { PreferencesProvider } from "./PreferencesProvider";
 import { usePreferences } from './usePreferences';
+import {InterfaceProvider} from "./ui/InterfaceProvider";
 import { queryClient } from "./data/queries";
 import { SceneMainTabBar, MainTabBarProvider, MainTabBarRegistration } from "./navigation/MainTabBar";
 import { profileStackRouter } from './navigation/profileStackRouter';
@@ -356,7 +357,7 @@ export default function App() {
   });
   return (
     <AppFontsReadyContext.Provider value={fontsReady}>
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+    <InterfaceProvider><GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <View
         style={{
           flex: 1,
@@ -383,7 +384,7 @@ export default function App() {
           </FormKeyboardProvider>
         </SafeAreaProvider>
       </View>
-    </GestureHandlerRootView>
+    </GestureHandlerRootView></InterfaceProvider>
     </AppFontsReadyContext.Provider>
   );
 }

@@ -4,6 +4,8 @@ import { Check, Loader2, X } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { AppliedEventPromoCode, EventPromoCodeError } from "./useEventPromoCode";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {Input as UIInput} from '@/components/ui/Field';
 
 interface PromoCodeFieldProps {
   code: string;
@@ -33,7 +35,7 @@ export function PromoCodeField({
         {t("auth.promoCode")}
       </label>
       <div className="mt-2 flex gap-2">
-        <input
+        <UIInput
           id={inputId}
           value={code}
           onChange={(event) => onChange(event.target.value)}
@@ -49,7 +51,7 @@ export function PromoCodeField({
           autoCorrect="off"
           spellCheck={false}
           placeholder={t("auth.promoPlaceholder")}
-          className="h-10 min-w-0 flex-1 rounded-lg border border-white/10 bg-white/5 px-3 text-sm font-semibold uppercase tracking-wide outline-none transition placeholder:text-muted-foreground focus:border-primary/60 disabled:opacity-75"
+          className="h-10 min-w-0 flex-1 font-semibold uppercase tracking-wide transition placeholder:text-muted-foreground disabled:opacity-75"
         />
         {applied ? (
           <button
@@ -61,14 +63,14 @@ export function PromoCodeField({
             <X className="h-4 w-4" />
           </button>
         ) : (
-          <button
+          <UIActionButton
             type="button"
             onClick={onApply}
             disabled={code.length < 3 || isValidating}
-            className="h-10 shrink-0 rounded-lg bg-primary px-3.5 text-xs font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
+            className="h-10 shrink-0 px-3.5 text-xs font-semibold transition hover:brightness-110 disabled:opacity-40"
           >
             {isValidating ? <Loader2 className="h-4 w-4 animate-spin" /> : t("checkout.applyPromo")}
-          </button>
+          </UIActionButton>
         )}
       </div>
       {applied && (

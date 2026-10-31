@@ -18,6 +18,9 @@ import {
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {Input as UIInput} from '@/components/ui/Field';
+import {ActionLink as UIActionLink} from '@/components/ui/ActionButton';
 
 type RegistrationState = "idle" | "loading" | "success" | "error";
 
@@ -85,12 +88,12 @@ export default function RegisterPage() {
             {t("auth.organizerPendingAfterActivation")}
           </p>
         )}
-        <Link
+        <UIActionLink
           href="/login"
-          className="mt-7 inline-flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:bg-primary/90"
+          className="mt-7 inline-flex h-14 w-full items-center justify-center gap-2  bg-[var(--ui-action)] px-4 text-sm font-semibold  shadow-lg shadow-primary/25 transition hover:bg-primary/90"
         >
           {t("auth.goToLogin")} <ArrowRight className="h-4 w-4" />
-        </Link>
+        </UIActionLink>
       </AuthScene>
     );
   }
@@ -137,7 +140,7 @@ export default function RegisterPage() {
         {isOrganizer && (
           <div className="mt-4 space-y-4 rounded-2xl bg-black/25 p-4 ring-1 ring-white/10">
             <Field label={t("auth.companyName")} icon={Building2}>
-              <input
+              <UIInput
                 id="company-name"
                 type="text"
                 autoComplete="organization"
@@ -145,12 +148,12 @@ export default function RegisterPage() {
                 maxLength={255}
                 value={companyName}
                 onChange={(inputEvent) => setCompanyName(inputEvent.target.value)}
-                className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/45"
-                placeholder={t("auth.companyNamePlaceholder")}
+                className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white  placeholder:text-white/45"
+                placeholder={t("auth.companyNamePlaceholder")} bare
               />
             </Field>
             <Field label={t("auth.cui")} icon={BadgeCheck}>
-              <input
+              <UIInput
                 id="company-cui"
                 type="text"
                 inputMode="numeric"
@@ -159,8 +162,8 @@ export default function RegisterPage() {
                 maxLength={12}
                 value={cui}
                 onChange={(inputEvent) => setCui(inputEvent.target.value)}
-                className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/45"
-                placeholder={t("auth.cuiPlaceholder")}
+                className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white  placeholder:text-white/45"
+                placeholder={t("auth.cuiPlaceholder")} bare
               />
             </Field>
             <p className="text-xs leading-5 text-white/55">
@@ -189,7 +192,7 @@ export default function RegisterPage() {
       <form onSubmit={handleSubmit} className="mt-6">
         <div className="space-y-5">
           <Field label={t("auth.username")} icon={UserRound}>
-            <input
+            <UIInput
               id="username"
               type="text"
               autoComplete="username"
@@ -198,13 +201,13 @@ export default function RegisterPage() {
               maxLength={50}
               value={username}
               onChange={(inputEvent) => setUsername(inputEvent.target.value)}
-              className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/45"
-              placeholder={t("auth.usernamePlaceholder")}
+              className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white  placeholder:text-white/45"
+              placeholder={t("auth.usernamePlaceholder")} bare
             />
           </Field>
 
           <Field label={t("auth.email")} icon={Mail}>
-            <input
+            <UIInput
               id="email"
               type="email"
               autoComplete="email"
@@ -212,13 +215,13 @@ export default function RegisterPage() {
               maxLength={100}
               value={email}
               onChange={(inputEvent) => setEmail(inputEvent.target.value)}
-              className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/45"
-              placeholder={t("auth.emailPlaceholder")}
+              className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white  placeholder:text-white/45"
+              placeholder={t("auth.emailPlaceholder")} bare
             />
           </Field>
 
           <Field label={t("auth.password")} icon={LockKeyhole}>
-            <input
+            <UIInput
               id="password"
               type="password"
               autoComplete="new-password"
@@ -227,13 +230,13 @@ export default function RegisterPage() {
               maxLength={72}
               value={password}
               onChange={(inputEvent) => setPassword(inputEvent.target.value)}
-              className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/45"
-              placeholder={t("auth.minCharacters")}
+              className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white  placeholder:text-white/45"
+              placeholder={t("auth.minCharacters")} bare
             />
           </Field>
 
           <Field label={t("auth.confirmPassword")} icon={LockKeyhole}>
-            <input
+            <UIInput
               id="password-confirmation"
               type="password"
               autoComplete="new-password"
@@ -242,8 +245,8 @@ export default function RegisterPage() {
               maxLength={72}
               value={passwordConfirmation}
               onChange={(inputEvent) => setPasswordConfirmation(inputEvent.target.value)}
-              className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/45"
-              placeholder={t("auth.confirmPassword")}
+              className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white  placeholder:text-white/45"
+              placeholder={t("auth.confirmPassword")} bare
             />
           </Field>
 
@@ -255,14 +258,14 @@ export default function RegisterPage() {
           </p>
         )}
 
-        <button
+        <UIActionButton
           type="submit"
           disabled={state === "loading" || loading}
-          className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-6 flex h-14 w-full items-center justify-center gap-2 px-4 text-sm font-semibold shadow-lg shadow-primary/25 transition disabled:cursor-not-allowed disabled:opacity-50"
         >
           {state === "loading" ? t("auth.creatingAccount") : t("auth.createAccount")}
           {state !== "loading" && <ArrowRight className="h-4 w-4" />}
-        </button>
+        </UIActionButton>
         <p className="mt-4 text-center text-[11px] leading-5 text-white/60">{t("auth.termsPrefix")} <Link href="/legal/terms" className="text-primary hover:underline">{t("auth.terms")}</Link> {t("auth.and")} <Link href="/legal/privacy" className="text-primary hover:underline">{t("auth.privacy")}</Link>.</p>
       </form>
 
@@ -288,7 +291,7 @@ function Field({
   return (
     <label className="block">
       <span className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-white/65">{label}</span>
-      <span className="flex h-16 items-center gap-3 rounded-2xl bg-black/40 px-5 text-white/70 ring-1 ring-white/20 backdrop-blur-md transition focus-within:bg-primary/10 focus-within:text-primary focus-within:ring-2 focus-within:ring-primary focus-within:shadow-lg focus-within:shadow-primary/25">
+      <span className="ui-input-shell ui-input-shell--brand flex h-16 items-center gap-3 rounded-2xl bg-black/40 px-5 text-white/70 ring-1 ring-white/20 backdrop-blur-md transition focus-within:bg-primary/10 focus-within:text-primary focus-within:shadow-lg focus-within:shadow-primary/25">
         <Icon className="h-4 w-4 shrink-0" />
         {children}
       </span>

@@ -12,6 +12,7 @@ import { NativeNavigationGestures } from "@/components/NativeNavigationGestures"
 import { resources } from "@/i18n/resources";
 import { ClientNavigation } from "@/components/ClientNavigation";
 import { TabPageTransition } from "@/components/TabPageTransition";
+import { InterfaceProvider } from '@/components/ui/InterfaceProvider';
 
 const inter = Inter({
   variable: "--font-inter-sans",
@@ -39,9 +40,7 @@ export const viewport: Viewport = {
   themeColor: "#000000",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover",
-  userScalable: false,
 };
 
 export default function RootLayout({
@@ -57,7 +56,7 @@ export default function RootLayout({
       <body className="relative min-h-screen overflow-x-hidden bg-[#000000] text-white">
 
         <div className="relative z-10">
-          <I18nProvider>
+          <InterfaceProvider><I18nProvider>
             <DataProvider>
               <ClientNavigation />
               <EventDetailsProvider><TabPageTransition>{children}</TabPageTransition></EventDetailsProvider>
@@ -66,7 +65,7 @@ export default function RootLayout({
               <NativeAppBridge />
               <NativeNavigationGestures />
             </DataProvider>
-          </I18nProvider>
+          </I18nProvider></InterfaceProvider>
         </div>
         <ToastProvider />
       </body>

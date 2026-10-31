@@ -18,6 +18,7 @@ import { Feedback, Loading } from '../ui/common';
 import { colors } from '../ui/theme';
 import { RefreshScrollView } from '../ui/RefreshScrollView';
 import { useNavbarScroll } from '../navigation/useNavbarScroll';
+import {ActionButton as UIActionButton} from '../ui/ActionButton';
 
 type Navigation = CompositeNavigationProp<NativeStackNavigationProp<FeedParamList>, NativeStackNavigationProp<RootParamList>>;
 export function FriendsScreen() {
@@ -41,11 +42,11 @@ export function FriendsScreen() {
       {!ready ? <Loading /> : !user ? <>
         <Text style={{ color: 'white', fontSize: 20, fontWeight: '700' }}>{copy('feed.socialTitle')}</Text>
         <Text style={[s.muted, { marginTop: 8 }]}>{copy('feed.signInHint')}</Text>
-        <AccentPressable fallback={Pressable} accessibilityRole="button" onPress={() => navigation.navigate('Auth', { returnTab: 'Feed' })} style={s.signin}><Text style={{ color: 'white', fontSize: 12, fontWeight: '500' }}>{copy('social.signIn')}</Text></AccentPressable>
+        <UIActionButton accessibilityRole="button" onPress={() => navigation.navigate('Auth', { returnTab: 'Feed' })} style={s.signin}><Text style={{ color: 'white', fontSize: 12, fontWeight: '500' }}>{copy('social.signIn')}</Text></UIActionButton>
       </> : <>
         <View style={s.header}><Text style={{ color: 'white', fontSize: 30, fontWeight: '600', letterSpacing: -1.2 }}>{copy('feed.socialTitle')}</Text>
           {!organizer && <Pressable testID="feed-friends" accessibilityRole="button" onPress={() => { void social.requests.refetch({ cancelRefetch: false }); void social.friends.refetch({ cancelRefetch: false }); setOpen(true); }} style={{ flexDirection: 'row', minHeight: 44, alignItems: 'center', gap: 8 }}><UsersRound color="#ffffffbf" size={20} /><Text style={{ color: '#ffffffbf', fontSize: 14, fontWeight: '500' }}>{copy('friends.title')}</Text>
-            {!!social.requests.data?.length && <View style={{ minHeight: 20, minWidth: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderRadius: 99, backgroundColor: colors.accent }}><Text style={{ color: 'white', fontSize: 11, fontWeight: '600' }}>{social.requests.data.length}</Text></View>}</Pressable>}
+            {!!social.requests.data?.length && <View style={{ minHeight: 20, minWidth: 20, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderRadius: 99, backgroundColor: colors.action }}><Text style={{ color: 'white', fontSize: 11, fontWeight: '600' }}>{social.requests.data.length}</Text></View>}</Pressable>}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}><Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700', letterSpacing: 0.6 }}>{copy('feed.recent').toUpperCase()}</Text>{groups.length > 0 && <Text style={{ color: colors.muted, fontSize: 11 }}>{copy('feed.of', { visible: Math.min(visible, groups.length), total: groups.length })}</Text>}</View>
         {social.feed.isError && !!social.feed.data && <Feedback compact title={copy('feedback.actionFailed')} retry={() => void social.feed.refetch()} />}
@@ -70,7 +71,7 @@ export function FriendsManageScreen() {
   const back = () => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('FeedHome');
   return <ScrollView {...navbarScroll} testID="friends-page" style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: Math.max(32, safe.top), paddingBottom: 128 }}>
     <Pressable testID="friends-back" accessibilityRole="button" onPress={back} style={{ minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' }}><ActionIcon name="back" size={16} color={colors.muted} /><Text style={[s.muted, { fontWeight: '600' }]}>{copy('friends.backToFeed')}</Text></Pressable>
-    {!ready ? <Loading /> : !user ? <AccentPressable fallback={Pressable} accessibilityRole="button" onPress={() => navigation.navigate('Auth', { returnTab: 'Feed' })} style={s.signin}><Text style={{ color: 'white' }}>{copy('social.signIn')}</Text></AccentPressable> : user.role === 'organizer' ? <View style={s.empty}><Text style={s.title}>{copy('friends.organizerProfile')}</Text><Text style={s.muted}>{copy('friends.organizerHint')}</Text></View> : <>
+    {!ready ? <Loading /> : !user ? <UIActionButton accessibilityRole="button" onPress={() => navigation.navigate('Auth', { returnTab: 'Feed' })} style={s.signin}><Text style={{ color: 'white' }}>{copy('social.signIn')}</Text></UIActionButton> : user.role === 'organizer' ? <View style={s.empty}><Text style={s.title}>{copy('friends.organizerProfile')}</Text><Text style={s.muted}>{copy('friends.organizerHint')}</Text></View> : <>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 }}><View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#ff004426', alignItems: 'center', justifyContent: 'center' }}><UsersRound size={20} color={colors.accent} /></View><View><Text style={s.title}>{copy('friends.title')}</Text><Text style={{ color: colors.muted, fontSize: 14 }}>{social.friends.isPending ? copy('common.loading') : social.friends.isError && !social.friends.data ? '' : copy('friends.count', { count: friends.length })}</Text></View></View>
       <View style={s.search}><Search size={16} color="#ffffff66" /><TextInput variant="bare" testID="friends-page-search" value={query} onChangeText={setQuery} placeholder={copy('friends.searchPlaceholder')} accessibilityLabel={copy('friends.searchPlaceholder')} placeholderTextColor="#ffffff59" style={{ height: 48, minWidth: 0, flex: 1, fontSize: 14, color: 'white' }} /></View>
       {social.friends.isError && !!social.friends.data && <Feedback compact title={copy('feedback.actionFailed')} retry={() => void social.friends.refetch()} />}

@@ -124,7 +124,7 @@ export function PromotedEventsHeroCarousel({
               suppressClickRef.current = true;
               goTo(activeIndex + (startX > endX ? 1 : -1));
             }}
-            className="relative block aspect-[4/3] w-full overflow-hidden text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary sm:aspect-[16/8] lg:aspect-[21/8]"
+            className="relative block aspect-[4/3] w-full overflow-hidden text-left  focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary sm:aspect-[16/8] lg:aspect-[21/8]"
           >
             <AnimatePresence initial={false} mode="wait">
               <motion.div

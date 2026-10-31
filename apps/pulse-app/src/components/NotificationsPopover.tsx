@@ -176,9 +176,8 @@ export function NotificationsPopover() {
                       hidden: { opacity: 0, y: 8 },
                       show: { opacity: 1, y: 0 },
                     }}
-                    onClick={() => openNotification(notification)}
-                    className={`flex cursor-pointer gap-3 rounded-2xl px-3 py-3 transition-colors duration-150 transform-gpu hover:bg-white/5 ${notification.isRead ? "" : "bg-primary/[0.05]"}`}
                   >
+                    <button type="button" onClick={() => openNotification(notification)} className={`flex w-full gap-3 rounded-2xl px-3 py-3 text-left transition-colors duration-150 hover:bg-white/5 ${notification.isRead ? "" : "bg-primary/[0.05]"}`}>
                     <NotificationIcon notification={notification} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
@@ -196,6 +195,7 @@ export function NotificationsPopover() {
                     {!notification.isRead && (
                       <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                     )}
+                    </button>
                   </motion.li>
                 ))
               )}

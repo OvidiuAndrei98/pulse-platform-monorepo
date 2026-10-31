@@ -22,6 +22,8 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { lockPage } from "@/components/ui/useDrawerViewport";
 import { startVisiblePolling } from "@/lib/visiblePolling";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {TextArea as UITextArea} from '@/components/ui/Field';
 
 type SafetyEnvelope = ReadableSchema<"EventSafetyGroupEnvelopeResponse">;
 type SafetyFriend = ReadableSchema<"EligibleSafetyFriendResponse">;
@@ -213,9 +215,9 @@ export default function EventSafetyGroupPageClient() {
       <GroupShell onBack={() => router.back()}>
         <div className="mt-10 rounded-[28px] border border-primary/30 bg-primary/10 p-6 text-center">
           <p>{error || t("safetyGroup.loadFailed")}</p>
-          <button className="mt-5 rounded-full bg-primary px-5 py-2.5 font-semibold text-primary-foreground" onClick={() => void load()}>
+          <UIActionButton className="mt-5 px-5 py-2.5 font-semibold" onClick={() => void load()} type="submit">
             {t("common.retry")}
-          </button>
+          </UIActionButton>
         </div>
       </GroupShell>
     );
@@ -253,14 +255,14 @@ export default function EventSafetyGroupPageClient() {
             <p className="mt-6 rounded-2xl bg-white/5 p-4 text-sm text-muted-foreground">{t("safetyGroup.noEligibleFriends")}</p>
           )}
 
-          <button
+          <UIActionButton
             type="button"
             disabled={!data.canCreate || selectedFriends.length === 0 || working}
             onClick={createGroup}
-            className="mt-6 flex w-full shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-5 py-4 font-semibold text-primary-foreground disabled:opacity-40"
+            className="mt-6 flex w-full shrink-0 items-center justify-center gap-2 px-5 py-4 font-semibold disabled:opacity-40"
           >
             <UserPlus className="h-5 w-5" /> {working ? t("safetyGroup.creating") : t("safetyGroup.create")}
-          </button>
+          </UIActionButton>
           {!data.canCreate && <p className="mt-3 text-center text-xs text-muted-foreground">{t("safetyGroup.ticketRequired")}</p>}
         </section>
       </GroupShell>
@@ -277,7 +279,7 @@ export default function EventSafetyGroupPageClient() {
           <p className="mt-2 text-sm text-muted-foreground">{t("safetyGroup.invitationBody", { event: group.eventTitle })}</p>
           <div className="mt-6 grid grid-cols-2 gap-3">
             <button disabled={working} onClick={() => void respond("declined")} className="rounded-full border border-white/15 px-4 py-3 font-semibold"><X className="mr-1 inline h-4 w-4" />{t("common.decline")}</button>
-            <button disabled={working} onClick={() => void respond("accepted")} className="rounded-full bg-primary px-4 py-3 font-semibold text-primary-foreground"><Check className="mr-1 inline h-4 w-4" />{t("common.accept")}</button>
+            <UIActionButton disabled={working} onClick={() => void respond("accepted")} className="px-4 py-3 font-semibold" type="submit"><Check className="mr-1 inline h-4 w-4" />{t("common.accept")}</UIActionButton>
           </div>
         </section>
         <RetentionNote />
@@ -317,7 +319,7 @@ export default function EventSafetyGroupPageClient() {
             ))}
             {hiddenMemberCount > 0 && <span className="grid h-8 w-8 place-items-center rounded-full border-2 border-black bg-white/10 text-[10px] font-semibold">+{hiddenMemberCount}</span>}
             {group.ownerId === user?.properties.id && remainingInviteSlots > 0 && data.eligibleFriends.length > 0 && (
-              <button
+              <UIActionButton
                 type="button"
                 aria-label={t("safetyGroup.inviteMore")}
                 aria-expanded={showInviteFriends}
@@ -325,10 +327,10 @@ export default function EventSafetyGroupPageClient() {
                   setSelectedFriends([]);
                   setShowInviteFriends((current) => !current);
                 }}
-                className="relative grid h-8 w-8 place-items-center rounded-full border-2 border-black bg-primary text-primary-foreground"
+                className="relative grid h-8 w-8 place-items-center border-2 border-black"
               >
                 <UserPlus className="h-4 w-4" />
-              </button>
+              </UIActionButton>
             )}
           </div>
         </section>
@@ -351,14 +353,14 @@ export default function EventSafetyGroupPageClient() {
                 />
               ))}
             </div>
-            <button
+            <UIActionButton
               type="button"
               disabled={selectedFriends.length === 0 || working}
               onClick={() => void inviteFriends()}
-              className="mt-3 flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+              className="mt-3 flex min-h-10 w-full items-center justify-center gap-2 px-4 py-2 text-sm font-semibold disabled:opacity-40"
             >
               <UserPlus className="h-4 w-4" /> {working ? t("safetyGroup.inviting") : t("safetyGroup.sendInvites")}
-            </button>
+            </UIActionButton>
           </section>
         )}
 
@@ -383,15 +385,15 @@ export default function EventSafetyGroupPageClient() {
               const alert = item.kind === "help";
               const resolved = item.kind === "help_resolved";
               return (
-                <div key={item.id} className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 ${mine ? "ml-auto bg-primary text-primary-foreground" : "bg-white/[0.08]"} ${alert ? "border border-red-400 bg-red-500/15 text-white" : ""} ${resolved ? "border border-emerald-400/30 bg-emerald-400/10 text-white" : ""}`}>
-                  <p className="text-[11px] font-semibold opacity-70">{item.senderUsername}</p>
+                <div key={item.id} className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 ${mine ? "ml-auto bg-[var(--ui-action)] text-white" : "bg-white/[0.08]"} ${alert ? "border border-red-400 bg-red-500/15 text-white" : ""} ${resolved ? "border border-emerald-400/30 bg-emerald-400/10 text-white" : ""}`}>
+                  <p className="text-xs font-semibold">{item.senderUsername}</p>
                   <p className="mt-0.5 whitespace-pre-wrap break-words text-sm leading-5">{item.content}</p>
                 </div>
               );
             })}
           </div>
           <div className="flex shrink-0 items-end gap-2 border-t border-white/10 bg-black/20 py-2.5">
-            <textarea
+            <UITextArea
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               onFocus={() => setShowInviteFriends(false)}
@@ -401,9 +403,9 @@ export default function EventSafetyGroupPageClient() {
               maxLength={500}
               rows={1}
               placeholder={t("safetyGroup.messagePlaceholder")}
-              className="min-h-11 max-h-24 flex-1 resize-none overflow-y-auto rounded-2xl border border-white/10 bg-black/30 px-4 py-2.5 text-sm outline-none focus:border-primary/60"
+              className="min-h-11 max-h-24 flex-1 resize-none overflow-y-auto"
             />
-            <button disabled={!message.trim() || working} onClick={sendMessage} aria-label={t("safetyGroup.send")} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"><Send className="h-5 w-5" /></button>
+            <UIActionButton disabled={!message.trim() || working} onClick={sendMessage} aria-label={t("safetyGroup.send")} className="grid h-11 w-11 shrink-0 place-items-center disabled:opacity-40" type="submit"><Send className="h-5 w-5" /></UIActionButton>
           </div>
         </section>
       </div>

@@ -56,7 +56,7 @@ export function revealDrawerField(panel: HTMLElement) {
 
 /** One keyboard policy for Vaul sheets and custom side panels. The panel's
  * resting top stays stable; only its scrollable interior gets smaller. */
-export function useDrawerViewport(enabled = true, mode: "sheet" | "panel" = "sheet", lockDocument = true, preservePageScroll = false) {
+export function useDrawerViewport(enabled = true, mode: "sheet" | "panel" | "dialog" = "sheet", lockDocument = true, preservePageScroll = false) {
   const [panel, setPanel] = useState<HTMLElement | null>(null);
   useEffect(() => {
     if (!enabled || !panel) return;
@@ -86,7 +86,7 @@ export function useDrawerViewport(enabled = true, mode: "sheet" | "panel" = "she
       baseWidth = window.innerWidth;
       baseHeight = panel.offsetHeight;
       baseBottom = Math.max(0, parseFloat(style.bottom) || 0);
-      baseTop = mode === "panel" ? 0 : Math.max(0, baseViewport - baseHeight - baseBottom);
+      baseTop = mode === "panel" ? 0 : mode === "dialog" ? Math.max(0,panel.getBoundingClientRect().top) : Math.max(0, baseViewport - baseHeight - baseBottom);
     };
     const update = () => {
       cancelAnimationFrame(frame);

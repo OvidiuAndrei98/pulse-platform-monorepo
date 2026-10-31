@@ -4,6 +4,7 @@ import { Check, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { User } from "@/core/DataProvider";
 import { useTranslation } from "react-i18next";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
 
 export function PasswordResetRequest({ email }: { email?: string }) {
   const { t } = useTranslation();
@@ -31,16 +32,16 @@ export function PasswordResetRequest({ email }: { email?: string }) {
         </p>
         {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
       </div>
-      <button
+      <UIActionButton
         type="button"
         onClick={() => void send()}
         disabled={!email || state === "loading" || state === "sent"}
-        className="inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-xs font-bold text-primary-foreground transition hover:opacity-90 disabled:opacity-60 sm:w-auto"
+        className="inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 px-6 text-xs font-bold transition hover:opacity-90 disabled:opacity-60 sm:w-auto"
       >
         {state === "loading" && <Loader2 className="h-4 w-4 animate-spin" />}
         {state === "sent" && <Check className="h-4 w-4" />}
         {state === "loading" ? t("profile.sending") : state === "sent" ? t("profile.linkSent") : t("profile.resetPassword")}
-      </button>
+      </UIActionButton>
     </div>
   );
 }

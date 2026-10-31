@@ -865,7 +865,7 @@ function TabBtn({
   return (
     <button
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${active ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:text-white"}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${active ? "bg-[var(--ui-action)] text-primary-foreground font-semibold" : "text-muted-foreground hover:text-white"}`}
     >
       {children}
     </button>

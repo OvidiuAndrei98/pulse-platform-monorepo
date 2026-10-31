@@ -34,7 +34,7 @@ export function ScannerEventList({ events, loading, failed, offline, onSelect, o
         accessibilityLabel={`${event.title}. ${formatDate(event.startTime, language, true)}. ${event.locationName}`}
         onPress={() => onSelect(event.id)} onFocus={() => setFocused(event.id)} onBlur={() => setFocused('')}
         style={[s.row, { minHeight: 96, padding: 16, gap: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.line, backgroundColor: '#ffffff06' },
-          Platform.OS === 'web' && focused === event.id && { outlineStyle: 'solid', outlineWidth: 2, outlineColor: '#fff', outlineOffset: 2 }]}>
+          Platform.OS === 'web' && focused === event.id && { outlineStyle: 'solid', outlineWidth: 2, outlineColor: colors.focus, outlineOffset: 2 }]}>
         <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#ff00441a', alignItems: 'center', justifyContent: 'center' }}><Ticket size={20} color={colors.accent} /></View>
         <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
           <Text style={[s.heading, { fontSize: 16 }]}>{event.title}</Text>

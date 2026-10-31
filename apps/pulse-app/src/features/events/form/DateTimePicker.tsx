@@ -1,115 +1,54 @@
 "use client";
-
-import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, Minus, Plus } from "lucide-react";
-import { useTranslation } from "react-i18next";
-
-const toLocalDateTime = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-const parseValue = (value: string) => { const date = value ? new Date(value) : new Date(); return Number.isNaN(date.getTime()) ? new Date() : date; };
-
-export function DateTimePicker({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder?: string }) {
-  const { t, i18n } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const selectedDate = useMemo(() => parseValue(value), [value]);
-  const [visibleMonth, setVisibleMonth] = useState(() => new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
-  const locale = i18n.language === "ro" ? "ro-RO" : "en-GB";
-  const weekdayLabels = useMemo(() => Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat(locale, { weekday: "short" }).format(new Date(2024, 0, index + 1))), [locale]);
-  const displayPlaceholder = placeholder ?? t("datePicker.placeholder");
-  useEffect(() => { if (open) setVisibleMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)); }, [open, selectedDate]);
-  useEffect(() => { const outside = (event: MouseEvent) => { if (!rootRef.current?.contains(event.target as Node)) setOpen(false); }; const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); }; document.addEventListener("mousedown", outside); window.addEventListener("keydown", escape); return () => { document.removeEventListener("mousedown", outside); window.removeEventListener("keydown", escape); }; }, []);
-  const calendarDays = useMemo(() => { const monthStart = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1); const startOffset = (monthStart.getDay() + 6) % 7; const firstCell = new Date(monthStart); firstCell.setDate(firstCell.getDate() - startOffset); const daysInMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate(); const cellCount = Math.ceil((startOffset + daysInMonth) / 7) * 7; return Array.from({ length: cellCount }, (_, index) => { const date = new Date(firstCell); date.setDate(firstCell.getDate() + index); return date; }); }, [visibleMonth]);
-  const updateDate = (nextDate: Date) => { const next = new Date(nextDate); next.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0); onChange(toLocalDateTime(next)); };
-  const updateTime = (hours: string, minutes: string) => { const next = new Date(selectedDate); next.setHours(Number(hours), Number(minutes), 0, 0); onChange(toLocalDateTime(next)); };
-  const adjustTime = (part: "hours" | "minutes", delta: number) => { const limit = part === "hours" ? 24 : 60; const current = part === "hours" ? selectedDate.getHours() : selectedDate.getMinutes(); const next = (current + delta + limit) % limit; updateTime(String(part === "hours" ? next : selectedDate.getHours()).padStart(2, "0"), String(part === "minutes" ? next : selectedDate.getMinutes()).padStart(2, "0")); };
-  const buttonLabel = value ? new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(selectedDate) : displayPlaceholder;
-
-  return <div ref={rootRef} className="relative">
-    <button type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className={`flex w-full items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 text-left text-sm outline-none transition focus:border-primary/30 focus:bg-white/[0.04] ${value ? "text-foreground" : "text-muted-foreground/40"}`}>
-      <CalendarDays className="h-4 w-4 shrink-0 text-primary" />
-      <span className="min-w-0 flex-1 truncate">{buttonLabel}</span>
-      <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
-    </button>
-    {open && <div role="dialog" aria-label={displayPlaceholder} className="fixed inset-x-5 bottom-[calc(var(--native-safe-bottom)+6.5rem)] z-[120] max-h-[calc(100dvh-var(--native-safe-top)-8rem)] w-auto overflow-y-auto overscroll-contain rounded-2xl border border-white/15 bg-[#171717]/[0.98] p-3 shadow-[0_20px_46px_rgba(0,0,0,0.5)] md:absolute md:inset-x-auto md:bottom-auto md:left-0 md:top-[calc(100%+0.5rem)] md:z-40 md:max-h-[calc(100dvh-2rem)] md:w-[min(18.5rem,calc(100vw-2.5rem))]">
-      <div className="mb-2 flex items-center justify-between">
-        <button type="button" onClick={() => setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground" aria-label={t("datePicker.previousMonth")}>
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <p className="text-sm font-semibold capitalize">{new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(visibleMonth)}</p>
-        <button type="button" onClick={() => setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground" aria-label={t("datePicker.nextMonth")}>
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-      <div className="grid grid-cols-7 gap-1 text-center">
-        {weekdayLabels.map((day, index) => <span key={`${day}-${index}`} className="pb-0.5 text-[9px] font-semibold uppercase text-muted-foreground">{day}</span>)}
-        {calendarDays.map((day) => {
-          const sameMonth = day.getMonth() === visibleMonth.getMonth();
-          const selected = day.toDateString() === selectedDate.toDateString();
-          const today = day.toDateString() === new Date().toDateString();
-          return <button key={day.toISOString()} type="button" onClick={() => updateDate(day)} className={`grid h-8 place-items-center rounded-xl text-xs transition ${selected ? "bg-primary font-semibold text-primary-foreground" : sameMonth ? "text-foreground hover:bg-white/[0.06]" : "text-muted-foreground/35 hover:bg-white/[0.04]"} ${today && !selected ? "ring-1 ring-primary/50" : ""}`}>{day.getDate()}</button>;
-        })}
-      </div>
-      <div className="mt-3 border-t border-white/10 pt-3">
-        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("datePicker.time")}</p>
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-          <TimeStepper value={selectedDate.getHours()} max={23} onDecrease={() => adjustTime("hours", -1)} onIncrease={() => adjustTime("hours", 1)} onValueChange={(hours) => updateTime(String(hours).padStart(2, "0"), String(selectedDate.getMinutes()).padStart(2, "0"))} />
-          <span className="text-sm font-semibold text-muted-foreground">:</span>
-          <TimeStepper value={selectedDate.getMinutes()} max={59} onDecrease={() => adjustTime("minutes", -1)} onIncrease={() => adjustTime("minutes", 1)} onValueChange={(minutes) => updateTime(String(selectedDate.getHours()).padStart(2, "0"), String(minutes).padStart(2, "0"))} />
-        </div>
-      </div>
-      <div className="mt-3 flex justify-end gap-2">
-        <button type="button" onClick={() => onChange(toLocalDateTime(new Date()))} className="rounded-full px-3 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/10">{t("datePicker.now")}</button>
-        <button type="button" onClick={() => setOpen(false)} className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">{t("datePicker.done")}</button>
-      </div>
-    </div>}
-  </div>;
+import {useEffect,useMemo,useRef,useState,type KeyboardEvent} from 'react';
+import {CalendarDays,ChevronLeft,ChevronRight,Clock,Minus,Plus} from 'lucide-react';
+import {useTranslation} from 'react-i18next';
+import {Input,useFieldState} from '@/components/ui/Field';
+import {ActionButton,IconButton} from '@/components/ui/ActionButton';
+import {ModalFrame,ModalHeader} from '@/components/ui/ModalFrame';
+const toLocal=(date:Date)=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}T${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+const dayKey=(date:Date)=>toLocal(date).split('T')[0];
+const parse=(value:string)=>{const date=value?new Date(value):new Date();return Number.isNaN(date.getTime())?new Date():date;};
+type PickerProps={value:string;onChange:(value:string)=>void;placeholder?:string;id?:string;label?:string;invalid?:boolean;describedBy?:string};
+export function DateTimePicker({value,onChange,placeholder,id,label,invalid,describedBy}:PickerProps){
+ const field=useFieldState(),{t,i18n}=useTranslation(),[open,setOpen]=useState(false);
+ const selected=useMemo(()=>parse(value),[value]),[month,setMonth]=useState(()=>new Date(selected.getFullYear(),selected.getMonth(),1)),[focused,setFocused]=useState(()=>dayKey(selected)),calendar=useRef<HTMLDivElement>(null),moveFocus=useRef(false);
+ const locale=i18n.language==='ro'?'ro-RO':'en-GB',title=label??field?.label??placeholder??t('datePicker.placeholder');
+ const days=useMemo(()=>{const first=new Date(month),offset=(first.getDay()+6)%7;first.setDate(1-offset);const count=Math.ceil((offset+new Date(month.getFullYear(),month.getMonth()+1,0).getDate())/7)*7;return Array.from({length:count},(_,index)=>{const date=new Date(first);date.setDate(first.getDate()+index);return date;});},[month]);
+ useEffect(()=>{if(moveFocus.current){calendar.current?.querySelector<HTMLButtonElement>(`[data-day="${focused}"]`)?.focus();moveFocus.current=false;}},[focused,month]);
+ const moveMonth=(delta:number)=>{const next=new Date(month.getFullYear(),month.getMonth()+delta,1);setMonth(next);setFocused(dayKey(next));};
+ const emitDate=(date:Date)=>{const next=new Date(date);next.setHours(selected.getHours(),selected.getMinutes(),0,0);onChange(toLocal(next));setFocused(dayKey(next));setMonth(new Date(next.getFullYear(),next.getMonth(),1));};
+ const emitTime=(hours:number,minutes:number)=>{const next=new Date(selected);next.setHours(hours,minutes,0,0);onChange(toLocal(next));};
+ const keyboard=(event:KeyboardEvent<HTMLButtonElement>,day:Date)=>{
+  const next=new Date(day);let handled=true;
+  if(event.key==='ArrowLeft')next.setDate(next.getDate()-1);else if(event.key==='ArrowRight')next.setDate(next.getDate()+1);else if(event.key==='ArrowUp')next.setDate(next.getDate()-7);else if(event.key==='ArrowDown')next.setDate(next.getDate()+7);
+  else if(event.key==='Home')next.setDate(next.getDate()-(next.getDay()+6)%7);else if(event.key==='End')next.setDate(next.getDate()+6-(next.getDay()+6)%7);
+  else if(event.key==='PageUp'||event.key==='PageDown'){const oldDay=next.getDate();next.setDate(1);next.setMonth(next.getMonth()+(event.key==='PageUp'?-1:1));next.setDate(Math.min(oldDay,new Date(next.getFullYear(),next.getMonth()+1,0).getDate()));}else handled=false;
+  if(handled){event.preventDefault();moveFocus.current=true;setFocused(dayKey(next));setMonth(new Date(next.getFullYear(),next.getMonth(),1));}
+ };
+ return <div className="relative">
+  <button id={id??field?.id} aria-label={title} aria-describedby={describedBy??field?.errorId} aria-invalid={invalid??field?.invalid} aria-haspopup="dialog" aria-expanded={open} type="button" className="ui-input flex items-center gap-2 text-left" onClick={()=>{setMonth(new Date(selected.getFullYear(),selected.getMonth(),1));setFocused(dayKey(selected));setOpen(true);}}><CalendarDays aria-hidden size={16} className="shrink-0 text-primary"/><span className="min-w-0 flex-1">{value?new Intl.DateTimeFormat(locale,{dateStyle:'medium',timeStyle:'short'}).format(selected):placeholder??t('datePicker.placeholder')}</span><Clock aria-hidden size={16} className="shrink-0 text-muted-foreground"/></button>
+  <ModalFrame open={open} onClose={()=>setOpen(false)} label={title} className="max-w-sm">
+   <ModalHeader title={title} onClose={()=>setOpen(false)}/>
+   <div className="p-3 sm:p-5" data-drawer-keyboard-scroll>
+    <div className="mb-2 flex items-center justify-between gap-2"><IconButton label={t('datePicker.previousMonth')} onClick={()=>moveMonth(-1)}><ChevronLeft aria-hidden size={16}/></IconButton><p aria-live="polite" className="text-sm font-semibold">{new Intl.DateTimeFormat(locale,{month:'long',year:'numeric'}).format(month)}</p><IconButton label={t('datePicker.nextMonth')} onClick={()=>moveMonth(1)}><ChevronRight aria-hidden size={16}/></IconButton></div>
+    <div ref={calendar} className="grid grid-cols-7 gap-1 text-center">
+     {Array.from({length:7},(_,i)=><span aria-hidden key={i} className="text-xs text-muted-foreground">{new Intl.DateTimeFormat(locale,{weekday:'short'}).format(new Date(2024,0,i+1))}</span>)}
+     {days.map(day=><button key={dayKey(day)} data-day={dayKey(day)} type="button" tabIndex={dayKey(day)===focused?0:-1} aria-label={new Intl.DateTimeFormat(locale,{dateStyle:'full'}).format(day)} aria-pressed={dayKey(day)===dayKey(selected)} aria-current={dayKey(day)===dayKey(new Date())?'date':undefined} onKeyDown={event=>keyboard(event,day)} onFocus={()=>setFocused(dayKey(day))} onClick={()=>emitDate(day)} className={`min-h-10 min-w-0 rounded-xl text-sm ${dayKey(day)===dayKey(selected)?'bg-[var(--ui-action)] font-semibold text-white':day.getMonth()===month.getMonth()?'text-foreground hover:bg-white/10':'text-muted-foreground hover:bg-white/10'}`}>{day.getDate()}</button>)}
+    </div>
+    <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-1 border-t border-border pt-4"><TimeStepper label={t('datePicker.hoursLabel')} value={selected.getHours()} max={23} onChange={hours=>emitTime(hours,selected.getMinutes())}/><span aria-hidden>:</span><TimeStepper label={t('datePicker.minutesLabel')} value={selected.getMinutes()} max={59} onChange={minutes=>emitTime(selected.getHours(),minutes)}/></div>
+    <div className="mt-4 flex justify-end gap-2"><ActionButton tone="secondary" onClick={()=>{const now=new Date();onChange(toLocal(now));setMonth(new Date(now.getFullYear(),now.getMonth(),1));setFocused(dayKey(now));}}>{t('datePicker.now')}</ActionButton><ActionButton onClick={()=>setOpen(false)}>{t('datePicker.done')}</ActionButton></div>
+   </div>
+  </ModalFrame>
+ </div>;
 }
-
-export function TimePicker({ value, onChange, compact = false, className }: { value: string; onChange: (value: string) => void; compact?: boolean; className?: string }) {
-  const { t } = useTranslation();
-  const rootRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  const [hours, minutes] = /^\d{2}:\d{2}$/.test(value) ? value.split(":").map(Number) : [20, 0];
-  const emit = (nextHours: number, nextMinutes: number) => onChange(`${String(nextHours).padStart(2, "0")}:${String(nextMinutes).padStart(2, "0")}`);
-  const adjust = (part: "hours" | "minutes", delta: number) => {
-    if (part === "hours") emit((hours + delta + 24) % 24, minutes);
-    else emit(hours, (minutes + delta + 60) % 60);
-  };
-
-  useEffect(() => {
-    const closeOutside = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", closeOutside);
-    window.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", closeOutside);
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, []);
-
-  return <div ref={rootRef} className="relative">
-    <button type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)} className={`flex w-full items-center border border-white/10 text-left text-foreground outline-none transition focus:border-primary/60 ${className ?? (compact ? "h-8 gap-1.5 rounded-md bg-background px-2 text-xs" : "h-10 gap-2 rounded-md bg-background px-3 text-sm")}`}>
-      <Clock className={`${compact ? "h-3.5 w-3.5" : "h-4 w-4"} shrink-0 text-primary`} />
-      <span className={`flex-1 tabular-nums ${value ? "text-foreground" : "text-muted-foreground"}`}>{value || "--:--"}</span>
-    </button>
-    {open && <div role="dialog" aria-label={t("datePicker.time")} className="fixed inset-x-5 bottom-[calc(var(--native-safe-bottom)+6.5rem)] z-[120] rounded-2xl border border-white/15 bg-[#171717]/[0.98] p-4 shadow-[0_20px_46px_rgba(0,0,0,0.5)] md:absolute md:inset-x-auto md:bottom-auto md:left-0 md:top-[calc(100%+0.5rem)] md:z-50 md:w-64">
-      <p className="mb-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("datePicker.time")}</p>
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-        <TimeStepper value={hours} max={23} onDecrease={() => adjust("hours", -1)} onIncrease={() => adjust("hours", 1)} onValueChange={(next) => emit(next, minutes)} />
-        <span className="text-sm font-semibold text-muted-foreground">:</span>
-        <TimeStepper value={minutes} max={59} onDecrease={() => adjust("minutes", -5)} onIncrease={() => adjust("minutes", 5)} onValueChange={(next) => emit(hours, next)} />
-      </div>
-      <button type="button" onClick={() => setOpen(false)} className="mt-4 h-9 w-full rounded-full bg-primary text-xs font-semibold text-primary-foreground">{t("datePicker.done")}</button>
-    </div>}
-  </div>;
+export function TimePicker({value,onChange,className,label}:{value:string;onChange:(value:string)=>void;compact?:boolean;className?:string;label?:string}){
+ const {t}=useTranslation(),field=useFieldState(),[open,setOpen]=useState(false),[hours,minutes]=/^\d{2}:\d{2}$/.test(value)?value.split(':').map(Number):[20,0],title=label??field?.label??t('datePicker.time');
+ const emit=(h:number,m:number)=>onChange(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+ return <div className="relative"><button type="button" id={field?.id} aria-describedby={field?.errorId} aria-invalid={field?.invalid} aria-label={title} aria-haspopup="dialog" aria-expanded={open} onClick={()=>setOpen(true)} className={`ui-input flex items-center gap-2 text-left ${className??''}`}><Clock aria-hidden size={16}/>{value||'--:--'}</button><ModalFrame open={open} onClose={()=>setOpen(false)} label={title} className="max-w-sm"><ModalHeader title={title} onClose={()=>setOpen(false)}/><div className="p-4"><div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1"><TimeStepper label={t('datePicker.hoursLabel')} value={hours} max={23} onChange={h=>emit(h,minutes)}/><span aria-hidden>:</span><TimeStepper label={t('datePicker.minutesLabel')} value={minutes} max={59} step={5} onChange={m=>emit(hours,m)}/></div><ActionButton onClick={()=>setOpen(false)} className="mt-4 w-full">{t('datePicker.done')}</ActionButton></div></ModalFrame></div>;
 }
-
-function TimeStepper({ value, max, onDecrease, onIncrease, onValueChange }: { value: number; max: number; onDecrease: () => void; onIncrease: () => void; onValueChange: (value: number) => void }) {
-  const { t } = useTranslation();
-  const [draft, setDraft] = useState(String(value).padStart(2, "0"));
-  useEffect(() => { setDraft(String(value).padStart(2, "0")); }, [value]);
-  const commit = () => { if (!draft) { setDraft(String(value).padStart(2, "0")); return; } const nextValue = Math.min(max, Math.max(0, Number(draft))); onValueChange(nextValue); setDraft(String(nextValue).padStart(2, "0")); };
-  return <div className="flex h-9 items-center justify-between rounded-full border border-white/[0.08] bg-white/[0.03] p-1"><button type="button" onClick={onDecrease} aria-label={t("datePicker.decrease")} className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground transition hover:bg-white/[0.08] hover:text-foreground"><Minus className="h-3 w-3" /></button><input type="text" inputMode="numeric" value={draft} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setDraft(event.target.value.replace(/\D/g, "").slice(0, 2))} onBlur={commit} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} aria-label={t("datePicker.enterValue")} className="w-8 bg-transparent text-center text-sm font-semibold tabular-nums outline-none" /><button type="button" onClick={onIncrease} aria-label={t("datePicker.increase")} className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground transition hover:bg-white/[0.08] hover:text-foreground"><Plus className="h-3 w-3" /></button></div>;
+function TimeStepper({label,value,max,step=1,onChange}:{label:string;value:number;max:number;step?:number;onChange:(value:number)=>void}){
+ const {t}=useTranslation(),[draft,setDraft]=useState(String(value).padStart(2,'0'));
+ useEffect(()=>setDraft(String(value).padStart(2,'0')),[value]);
+ const commit=()=>{const next=draft?Math.min(max,Math.max(0,Number(draft))):value;onChange(next);setDraft(String(next).padStart(2,'0'));};
+ return <div role="group" aria-label={label} className="flex min-w-0 items-center rounded-xl border border-[var(--ui-input-border)]"><IconButton label={`${t('datePicker.decrease')} ${label}`} onClick={()=>onChange((value-step+max+1)%(max+1))} ><Minus aria-hidden size={14}/></IconButton><Input bare aria-label={label} inputMode="numeric" value={draft} onFocus={event=>event.currentTarget.select()} onChange={event=>setDraft(event.target.value.replace(/\D/g,'').slice(0,2))} onBlur={commit} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();event.currentTarget.blur();}}} className="min-w-0 w-full bg-transparent text-center tabular-nums"/><IconButton label={`${t('datePicker.increase')} ${label}`} onClick={()=>onChange((value+step)%(max+1))} ><Plus aria-hidden size={14}/></IconButton></div>;
 }

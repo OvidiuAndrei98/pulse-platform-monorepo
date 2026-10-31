@@ -10,6 +10,7 @@ import {
   StepperInput,
 } from "@/features/events/form/FormField";
 import { DateTimePicker } from "@/features/events/form/DateTimePicker";
+import {Input as UIInput} from '@/components/ui/Field';
 
 export function TicketTypesSection({
   form,
@@ -94,7 +95,7 @@ export function TicketTypesSection({
         {ticketingMethodSelector}
         <div className="mt-5 rounded-xl border border-white/10 p-4">
           <FormField label={t("ticketForm.externalUrl")} error={errors.externalTicketUrl?.message}>
-            <input
+            <UIInput
               {...form.register("externalTicketUrl")}
               type="url"
               inputMode="url"
@@ -251,7 +252,7 @@ export function TicketTypesSection({
               />
               <div className="flex items-center justify-between gap-2">
                 <div className="flex-1">
-                  <input
+                  <UIInput
                     {...form.register(`ticketTypes.${index}.name`)}
                     placeholder={t("ticketForm.ticketName")}
                     className={eventInputClass}
@@ -376,7 +377,7 @@ export function TicketTypesSection({
                 </FormField>
               </div>
               <div className="mt-3">
-                <input
+                <UIInput
                   {...form.register(`ticketTypes.${index}.description`)}
                   placeholder={t("ticketForm.description")}
                   className={eventInputClass}

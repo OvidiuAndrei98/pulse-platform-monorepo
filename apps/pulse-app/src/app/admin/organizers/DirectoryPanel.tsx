@@ -10,10 +10,11 @@ import { useDataProvider } from '@/core/DataProviderContext';
 import { getAccessTokenSync } from '@/lib/native/sessionStorage';
 import { parseDirectoryPage, parseDirectoryDetail, isOrganizerId, organizerIssues, type DirectoryDetail } from '@/features/admin/organizers';
 import { OrganizerCommissionSettings } from '../CommissionsPanel';
+import {Input as UIInput} from '@/components/ui/Field';
 
 const card = 'rounded-2xl border border-white/15 bg-white/[0.025] p-5';
 const button = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 px-4 py-2 text-sm font-medium outline-offset-4 hover:bg-white/5 disabled:opacity-50';
-const input = 'min-h-11 w-full rounded-xl border border-white/30 bg-background px-4 py-3 text-base outline-offset-4';
+const input = "min-h-11 w-full outline-offset-4";
 function useAdminLoad<T>(load: (signal: AbortSignal) => Promise<T>) {
   const [state,setState] = useState<{data?: T; busy: boolean; failed: boolean}>({busy:true,failed:false}), [version,setVersion] = useState(0);
   useEffect(() => { const abort = new AbortController(), token = getAccessTokenSync(); let active = true; setState({busy:true,failed:false});
@@ -34,7 +35,7 @@ function Directory() {
   const query = useAdminLoad(load);
   return <div className="space-y-6"><header className="space-y-3"><p className="text-xs font-semibold uppercase tracking-widest text-primary">SPOTTR Admin</p><h1 tabIndex={-1} className="text-3xl font-bold tracking-tight">{ro ? 'Organizatori' : 'Organizers'}</h1><p className="text-sm leading-relaxed text-muted-foreground">{ro ? 'Firme, verificări, conturi Stripe și setări comerciale.' : 'Companies, verification, Stripe accounts and commercial settings.'}</p></header>
     <form onSubmit={event => { event.preventDefault(); setSearch(draft.trim()); setCursors(['']); }} className={card + ' grid gap-4 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-end'}>
-      <label className="grid min-w-0 gap-2 text-sm font-medium">{ro ? 'Caută organizator' : 'Search organizers'}<input className={input} name="organizer-search" maxLength={100} value={draft} onChange={event => setDraft(event.target.value)} placeholder={ro ? 'Firmă, CUI sau email' : 'Company, tax ID or email'} /></label>
+      <label className="grid min-w-0 gap-2 text-sm font-medium">{ro ? 'Caută organizator' : 'Search organizers'}<UIInput className={input} name="organizer-search" maxLength={100} value={draft} onChange={event => setDraft(event.target.value)} placeholder={ro ? 'Firmă, CUI sau email' : 'Company, tax ID or email'} /></label>
       <label className="grid gap-2 text-sm font-medium">{ro ? 'Verificare' : 'Verification'}<ThemedSelect label={ro?'Verificare':'Verification'} value={status} onChange={value=>{setStatus(value);setCursors(['']);}} placeholder={ro?'Toate':'All'} options={['all','pending','approved','rejected'].map(value=>({value,label:statusLabel(value,ro)}))}/></label>
       <button className={button}><Search aria-hidden="true" className="size-4" />{ro ? 'Caută' : 'Search'}</button>
     </form>

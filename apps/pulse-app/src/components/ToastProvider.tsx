@@ -3,15 +3,26 @@
 import { useEffect, useState } from "react";
 import { CircleAlert, CircleCheck, Info, LoaderCircle, TriangleAlert } from "lucide-react";
 import { Toaster } from "sonner";
+import {createPortal} from "react-dom";
 
 export function ToastProvider() {
-  const [mounted, setMounted] = useState(false);
+  const [container,setContainer]=useState<HTMLElement|null>(null);
+  useEffect(()=>{
+    const host=document.createElement('div');host.dataset.interfaceFeedback='';
+    let stack:HTMLDialogElement[]=[];
+    const sync=(records:MutationRecord[]=[])=>{
+      stack=stack.filter(node=>node.isConnected&&node.open&&node.matches(':modal'));
+      for(const record of records)if(record.type==='attributes'&&record.target instanceof HTMLDialogElement&&record.target.open&&record.target.matches(':modal')){stack=stack.filter(node=>node!==record.target);stack.push(record.target);}
+      for(const node of document.querySelectorAll<HTMLDialogElement>('dialog[open]'))if(node.matches(':modal')&&!stack.includes(node))stack.push(node);
+      const parent=stack.at(-1)??document.body;if(host.parentElement!==parent)parent.append(host);
+    };
+    sync();setContainer(host);
+    const observer=new MutationObserver(sync);observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['open']});
+    return()=>{observer.disconnect();host.remove();};
+  },[]);
+  if(!container)return null;
 
-  useEffect(() => setMounted(true), []);
-
-  if (!mounted) return null;
-
-  return (
+  return createPortal(
     <Toaster
       className="spottr-toaster"
       position="top-right"
@@ -35,6 +46,6 @@ export function ToastProvider() {
       toastOptions={{
         className: "spottr-toast",
       }}
-    />
+    />,container
   );
 }

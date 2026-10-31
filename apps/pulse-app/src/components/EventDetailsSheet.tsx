@@ -51,6 +51,7 @@ import {
 import { TicketCheckoutDrawer } from "@/features/checkout/TicketCheckoutDrawer";
 import { bookFreeTicket } from "@/features/checkout/freeBooking";
 import { ApiError } from "@packages/api-client/src/Client";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
 
 interface EventDetailsContextType {
   open: (event: Event) => void;
@@ -653,7 +654,7 @@ export function EventDetailsSheet({
           type="button"
           onClick={handleShare}
           aria-label={shared ? t("checkout.copiedLink") : t("eventSheet.share")}
-          className="isolate grid h-11 w-11 shrink-0 transform-gpu appearance-none place-items-center overflow-hidden rounded-full border border-white/10 bg-white/5 transition-all [-webkit-tap-highlight-color:transparent] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-black active:scale-95 hover:bg-white/10"
+          className="isolate grid h-11 w-11 shrink-0 transform-gpu appearance-none place-items-center overflow-hidden rounded-full border border-white/10 bg-white/5 transition-all [-webkit-tap-highlight-color:transparent]  focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-black active:scale-95 hover:bg-white/10"
         >
           {shared ? (
             <Check className="h-4 w-4 text-primary" />
@@ -661,18 +662,18 @@ export function EventDetailsSheet({
             <Share2 className="h-4 w-4" />
           )}
         </button>
-        <button
+        <UIActionButton
           type="button"
           disabled={
             !isFinished &&
             ((!externalTicketURL && count === 0) || isOwnEvent || bookingFree || checkingAvailability)
           }
           onClick={isFinished ? viewOrganizerEvents : openCheckout}
-          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:opacity-90 disabled:opacity-40 disabled:shadow-none"
+          className="flex h-11 flex-1 items-center justify-center gap-2 text-sm font-semibold shadow-lg shadow-primary/20 transition-all  hover:opacity-90 disabled:opacity-40 disabled:shadow-none"
         >
           <TicketIcon className="h-4 w-4" />
           {checkoutLabel}
-        </button>
+        </UIActionButton>
       </div>
     </>
   );

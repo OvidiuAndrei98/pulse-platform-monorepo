@@ -29,6 +29,7 @@ import {
   getErrorDestination,
   type EditorSection,
 } from "@/features/events/form/editorSections";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
 
 export const ticketTypeSchema = z
   .object({
@@ -323,7 +324,7 @@ export default function EventForm({
                   className={`flex min-w-0 flex-1 flex-col gap-2 border-b-2 px-1 pb-4 text-left text-xs font-medium transition sm:flex-row sm:items-center sm:gap-3 sm:text-sm ${step === index ? "border-primary text-foreground" : "border-transparent text-muted-foreground disabled:opacity-50"}`}
                 >
                   <span
-                    className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs ${step === index ? "bg-primary text-primary-foreground" : "bg-white/5"}`}
+                    className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs ${step === index ? "bg-[var(--ui-action)] text-white" : "bg-white/5"}`}
                   >
                     {index < step ? (
                       <Check className="h-3.5 w-3.5" />
@@ -479,20 +480,20 @@ export default function EventForm({
               </span>
             )}
             {readOnly ? (
-              <button
+              <UIActionButton
                 type="button"
                 onClick={onUseAsTemplate}
-                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground"
+                className="inline-flex h-11 flex-1 items-center justify-center gap-2 px-5 text-sm font-semibold"
               >
                 <Copy className="h-4 w-4" />
                 {t("eventForm.useAsTemplate")}
-              </button>
+              </UIActionButton>
             ) : (
-              <button
+              <UIActionButton
                 type="submit"
                 form="event-editor-form"
                 disabled={isSubmitting}
-                className="ml-auto inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-60 sm:flex-none"
+                className="ml-auto inline-flex h-11 flex-1 items-center justify-center gap-2 px-6 text-sm font-semibold transition hover:brightness-110 disabled:opacity-60 sm:flex-none"
               >
                 {isSubmitting && (
                   <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -511,7 +512,7 @@ export default function EventForm({
                               : "eventEditor.saveDraft",
                         )}
                 {isCreate && step < 2 && <ArrowRight className="h-4 w-4" />}
-              </button>
+              </UIActionButton>
             )}
           </div>
         </div>

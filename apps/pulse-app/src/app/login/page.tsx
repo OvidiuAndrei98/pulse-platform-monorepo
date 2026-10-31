@@ -21,6 +21,8 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { useTranslation } from "react-i18next";
 import { ApiError } from "@packages/api-client/src/Client";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {Input as UIInput} from '@/components/ui/Field';
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -157,14 +159,14 @@ export default function LoginPage() {
                 returnTo={returnTo || "/users/me"}
                 variant="light"
               />
-              <button
+              <UIActionButton
                 type="button"
                 onClick={() => setShowEmailForm(true)}
-                className="mt-3 flex h-14 w-full items-center justify-center gap-3 rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:bg-primary/90"
+                className="mt-3 flex h-14 w-full items-center justify-center gap-3 px-4 text-sm font-semibold shadow-lg shadow-primary/25 transition"
               >
                 <Mail className="h-5 w-5" />
                 {t("auth.continueWithEmail")}
-              </button>
+              </UIActionButton>
             </>
           )}
           <div className={`space-y-5 ${showEmailForm ? "" : "hidden"}`}>
@@ -180,17 +182,17 @@ export default function LoginPage() {
               <span className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-white/65">
                 {t("auth.email")}
               </span>
-              <span className="flex h-16 items-center gap-3 rounded-2xl bg-black/40 px-5 text-white/70 ring-1 ring-white/20 backdrop-blur-md transition focus-within:bg-primary/10 focus-within:text-primary focus-within:ring-2 focus-within:ring-primary focus-within:shadow-lg focus-within:shadow-primary/25">
+              <span className="ui-input-shell ui-input-shell--brand flex h-16 items-center gap-3 rounded-2xl bg-black/40 px-5 text-white/70 ring-1 ring-white/20 backdrop-blur-md transition focus-within:bg-primary/10 focus-within:text-primary focus-within:shadow-lg focus-within:shadow-primary/25">
                 <Mail className="h-4 w-4 shrink-0" />
-                <input
+                <UIInput
                   id="email"
                   type="email"
                   autoComplete="email"
                   required
                   value={email}
                   onChange={(inputEvent) => setEmail(inputEvent.target.value)}
-                  className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/45"
-                  placeholder={t("auth.emailPlaceholder")}
+                  className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white  placeholder:text-white/45"
+                  placeholder={t("auth.emailPlaceholder")} bare
                 />
               </span>
             </label>
@@ -199,9 +201,9 @@ export default function LoginPage() {
               <span className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-white/65">
                 {t("auth.password")}
               </span>
-              <span className="flex h-16 items-center gap-3 rounded-2xl bg-black/40 px-5 text-white/70 ring-1 ring-white/20 backdrop-blur-md transition focus-within:bg-primary/10 focus-within:text-primary focus-within:ring-2 focus-within:ring-primary focus-within:shadow-lg focus-within:shadow-primary/25">
+              <span className="ui-input-shell ui-input-shell--brand flex h-16 items-center gap-3 rounded-2xl bg-black/40 px-5 text-white/70 ring-1 ring-white/20 backdrop-blur-md transition focus-within:bg-primary/10 focus-within:text-primary focus-within:shadow-lg focus-within:shadow-primary/25">
                 <LockKeyhole className="h-4 w-4 shrink-0" />
-                <input
+                <UIInput
                   id="password"
                   type="password"
                   autoComplete="current-password"
@@ -210,8 +212,8 @@ export default function LoginPage() {
                   onChange={(inputEvent) =>
                     setPassword(inputEvent.target.value)
                   }
-                  className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/45"
-                  placeholder={t("auth.passwordPlaceholder")}
+                  className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white  placeholder:text-white/45"
+                  placeholder={t("auth.passwordPlaceholder")} bare
                 />
               </span>
             </label>
@@ -235,14 +237,14 @@ export default function LoginPage() {
             </p>
           )}
 
-          <button
+          <UIActionButton
             type="submit"
             disabled={loading}
-            className={`mt-6 h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 ${showEmailForm ? "flex" : "hidden"}`}
+            className={`mt-6 h-14 w-full items-center justify-center gap-2  bg-[var(--ui-action)] px-4 text-sm font-semibold  shadow-lg shadow-primary/25 transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 ${showEmailForm ? "flex" : "hidden"}`}
           >
             {loading ? t("auth.signingIn") : t("auth.signIn")}
             {!loading && <ArrowRight className="h-4 w-4" />}
-          </button>
+          </UIActionButton>
         </form>
 
         <p className="mt-7 text-center text-sm text-white/70">

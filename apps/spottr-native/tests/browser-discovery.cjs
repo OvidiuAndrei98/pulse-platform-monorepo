@@ -18,6 +18,8 @@ withBrowser(async({base,call,evaluate,until,click,input,delay,capture,errors})=>
     };
   }.toString()})();`});
   await call('Page.navigate',{url:origin+'/events'});await delay(650);await until(`document.querySelector('[data-testid="discovery-search"]')`);
+  const centeredFilter=await evaluate(`(()=>{const button=document.querySelector('[data-testid="event-filters"]'),icon=button.querySelector('svg'),r=button.getBoundingClientRect(),s=icon.getBoundingClientRect();return Math.abs(r.x+r.width/2-s.x-s.width/2)<1&&Math.abs(r.y+r.height/2-s.y-s.height/2)<1;})()`);
+  assert.equal(centeredFilter,true,'Filter icon stays centered in the Glass fallback');
   await input('discovery-search','House');
   await until(`window.__discovery.requests.some(q=>q.q==='House')`);
   await until(`document.body.innerText.includes('House event 1')&&!document.body.innerText.includes('Rock event 2')`);
@@ -46,6 +48,17 @@ withBrowser(async({base,call,evaluate,until,click,input,delay,capture,errors})=>
   await delay(350);
   await until(`window.__discovery.requests.some(q=>q.city==='Bucuresti')`);
   const key=async(key,code=key,number=key.length===1?key.toUpperCase().charCodeAt(0):({Enter:13,ArrowDown:40,ArrowUp:38,Home:36,End:35,Escape:27,Tab:9}[key]||0))=>{await call('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode:number});await call('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:number});};
+  if(!next)await click('discovery-city');
+  const focusId=next?'discovery-city':'discovery-city-field';
+  await key('Tab');await evaluate(`document.querySelector('[data-testid="${focusId}"]').focus()`);await delay(50);
+  const focusSkin=await evaluate(`(()=>{const node=document.querySelector('[data-testid="${focusId}"]'),s=getComputedStyle(node);return {color:s.outlineColor,width:s.outlineWidth,radius:s.borderRadius};})()`);
+  assert.equal(focusSkin.color,'rgb(255, 0, 68)');assert.equal(focusSkin.width,'2px');assert.notEqual(focusSkin.radius,'0px');
+  if(!next){
+    await click('discovery-city-field');await until(`document.querySelector('[data-testid="discovery-city-field-options"]')`);
+    assert.equal(await evaluate(`!![...document.querySelectorAll('[data-testid="discovery-city-field-options"] [role=button]')].find(node=>getComputedStyle(node).borderTopColor==='rgb(255, 0, 68)')`),true);
+    await capture('native-dropdown-focus');await key('Escape');await until(`!document.querySelector('[data-testid="discovery-city-field-options"]')`);
+    await pressText('Apply filters');
+  }
   if(next){
     await evaluate(`document.querySelector('[data-testid="discovery-city"]').focus()`);await key('ArrowDown');
     await until(`document.querySelector('[role="listbox"]')`);await key('End');

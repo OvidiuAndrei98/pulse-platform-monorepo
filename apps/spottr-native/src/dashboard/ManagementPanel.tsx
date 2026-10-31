@@ -16,6 +16,7 @@ import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
+import {useReducedMotionPreference} from "../ui/useReducedMotionPreference";
 import { dColors as colors } from "./common";
 import { p } from "./managementUi";
 
@@ -35,10 +36,12 @@ export function ManagementPanel({
   const { width } = useWindowDimensions(),
     insets = useSafeAreaInsets(),
     { copy } = usePreferences();
+  const reduced=useReducedMotionPreference();
   const panelWidth = width < 640 ? width : Math.min(480, width * 0.92),
     x = useRef(new Animated.Value(1)).current,
     [mounted, setMounted] = useState(open);
   useEffect(() => {
+    if (reduced) { x.stopAnimation();x.setValue(open?0:1);setMounted(open);return; }
     if (open) setMounted(true);
     const animation = Animated.spring(x, {
       toValue: open ? 0 : 1,
@@ -51,7 +54,7 @@ export function ManagementPanel({
       if (finished && !open) setMounted(false);
     });
     return () => animation.stop();
-  }, [open, x]);
+  }, [open, x, reduced]);
   useEffect(() => {
     if (!open || Platform.OS !== "web") return;
     const listener = (event: KeyboardEvent) => {

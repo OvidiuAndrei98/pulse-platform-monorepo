@@ -45,6 +45,7 @@ import { validSelection, parseBooking } from "../checkout/data";
 import { OrganizerUpdates } from '../profiles/OrganizerUpdates';
 import { EventAttendees } from '../social/EventAttendees';
 import { PurchaseSuccessHost } from '../checkout/PurchaseSuccessSheet';
+import {ActionButton as UIActionButton} from '../ui/ActionButton';
 
 export function EventScreen({
   route,
@@ -167,7 +168,7 @@ export function EventScreen({
       >
         <ActionIcon name="share" size={16} color="white" />
       </GlassPressable>
-      <AccentPressable fallback={Pressable}
+      <UIActionButton
         testID="event-continue"
         accessibilityRole="button"
         disabled={!canBuy || query.isError || buying}
@@ -190,7 +191,7 @@ export function EventScreen({
                   })
                 : copy("eventSheet.selectTickets")}
         </Text>
-      </AccentPressable>
+      </UIActionButton>
     </GlassButtonGroup>
   ) : null;
   const content = (

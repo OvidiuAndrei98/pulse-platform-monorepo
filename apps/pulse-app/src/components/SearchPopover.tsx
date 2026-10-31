@@ -25,6 +25,7 @@ import {
   type ReadableSchema,
 } from "@packages/api-client/src/Client";
 import { useTranslation } from "react-i18next";
+import {Input as UIInput} from '@/components/ui/Field';
 
 interface SearchPopoverProps {
   events?: Event[];
@@ -196,16 +197,16 @@ export function SearchPopover({ events }: SearchPopoverProps) {
             </header>
 
             <div className="relative px-5 pt-3 md:px-8 ">
-              <div data-drawer-keyboard-control className="flex h-16 items-center gap-3 rounded-2xl px-5 text-white/70 ring-1 ring-white/20 backdrop-blur-md transition focus-within:bg-primary/10 focus-within:text-primary focus-within:ring-2 focus-within:ring-primary focus-within:shadow-lg focus-within:shadow-primary/25">
+              <div data-drawer-keyboard-control className="ui-input-shell ui-input-shell--brand flex h-16 items-center gap-3 rounded-2xl px-5 text-white/70 ring-1 ring-white/20 backdrop-blur-md transition focus-within:bg-primary/10 focus-within:text-primary focus-within:shadow-lg focus-within:shadow-primary/25">
                 <Search className="h-5 w-5 shrink-0 text-primary" />
-                <input
+                <UIInput
                   ref={inputRef}
                   type="search"
                   maxLength={120}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder={t("search.placeholder")}
-                  className="h-full min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden"
+                  aria-label={t("search.placeholder")} placeholder={t("search.placeholder")}
+                  className="h-full min-w-0 flex-1 bg-transparent text-white  placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden" bare
                 />
                 {query && (
                   <button

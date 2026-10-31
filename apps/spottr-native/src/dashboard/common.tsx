@@ -27,10 +27,14 @@ import { Text } from "../ui/Text";
 import { FormInput, formStyles } from '../ui/FormInput';
 import { colors as appColors } from "../ui/theme";
 import { DashboardDropdown } from "./DashboardDropdown";
+import {ActionButton} from '../ui/ActionButton';
+import {PageHeader,Surface} from '../ui/Surface';
+import {AppModal} from '../ui/AppModal';
+import {Field as SharedField} from '../ui/Field';
 import { createDashboardApi } from "./data";
 export const dashboardApi = createDashboardApi(accountApi);
 // sRGB equivalents of the original dashboard's --foreground and --muted-foreground.
-export const dColors = { ...appColors, text: "#f7faf2", muted: "#9ca89e" };
+export const dColors = appColors;
 const colors = dColors;
 export function useDashboardQuery<T>(
   path: string,
@@ -119,99 +123,10 @@ export function useAction() {
     ) : null,
   };
 }
-export function Heading({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle?: string;
-}) {
-  return (
-    <View style={{ gap: 5, marginBottom: 8 }}>
-      <Text style={s.title}>{title}</Text>
-      {subtitle ? <Text style={s.muted}>{subtitle}</Text> : null}
-    </View>
-  );
-}
-export function Card({
-  children,
-  style,
-  testID,
-}: React.PropsWithChildren<{ style?: StyleProp<ViewStyle>; testID?: string }>) {
-  return (
-    <View testID={testID} style={[s.card, style]}>
-      {children}
-    </View>
-  );
-}
-export function Action({
-  title,
-  onPress,
-  disabled = false,
-  secondary = false,
-  danger = false,
-  icon: Icon,
-  style,
-  textStyle,
-  testID,
-}: {
-  title: string;
-  onPress: () => void;
-  disabled?: boolean;
-  secondary?: boolean;
-  danger?: boolean;
-  icon?: LucideIcon;
-  style?: StyleProp<ViewStyle>;
-  textStyle?: StyleProp<TextStyle>;
-  testID?: string;
-}) {
-  return (
-    <AccentPressable fallback={Pressable}
-      testID={testID}
-      accessibilityRole="button"
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        s.action,
-        secondary && {
-          backgroundColor: "#ffffff08",
-          borderWidth: 1,
-          borderColor: "#ffffff1a",
-        },
-        danger && {
-          backgroundColor: "#ef444414",
-          borderWidth: 1,
-          borderColor: "#ef444455",
-        },
-        { opacity: disabled ? 0.4 : pressed ? 0.7 : 1 },
-        style,
-      ]}
-    >
-      {Icon && (
-        <Icon
-          size={16}
-          color={
-            (StyleSheet.flatten(textStyle)?.color as string) ||
-            (danger ? "#fca5a5" : colors.text)
-          }
-        />
-      )}
-      <Text
-        style={[
-          {
-            color: danger ? "#fca5a5" : colors.text,
-            fontWeight: "600",
-            fontSize: 14,
-            textAlign: "center",
-          },
-          textStyle,
-        ]}
-      >
-        {title}
-      </Text>
-    </AccentPressable>
-  );
+export function Heading({title,subtitle}:{title:string;subtitle?:string}) {return <PageHeader title={title} description={subtitle}/>;}
+export function Card({children,style,testID}:React.PropsWithChildren<{style?:StyleProp<ViewStyle>;testID?:string}>) {return <Surface testID={testID} style={[{gap:16},style]}>{children}</Surface>;}
+export function Action({title,onPress,disabled=false,secondary=false,danger=false,icon:Icon,style,textStyle,testID}:{title:string;onPress:()=>void;disabled?:boolean;secondary?:boolean;danger?:boolean;icon?:LucideIcon;style?:StyleProp<ViewStyle>;textStyle?:StyleProp<TextStyle>;testID?:string}) {
+  return <ActionButton testID={testID} tone={danger?'danger':secondary?'secondary':'primary'} icon={Icon?<Icon size={16}/>:undefined} disabled={disabled} onPress={onPress} style={style}><Text style={[{fontSize:14,fontWeight:'600'},textStyle]}>{title}</Text></ActionButton>;
 }
 export function Field({
   label,
@@ -245,12 +160,8 @@ export function Field({
   maxLength?: number;
 }) {
   return (
-    <View style={[{ gap: 6 }, style]}>
-      {(!hideLabel || !!error) && <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 4 }}>
-        {!hideLabel && <Text style={s.label}>{label}</Text>}
-        {!!error && <Text accessibilityRole="alert" style={formStyles.error}>{error}</Text>}
-      </View>}
-      <FormInput
+    <SharedField label={label} error={error} hideLabel={hideLabel} style={style}>{fieldProps=><FormInput {...fieldProps}
+
         invalid={!!error}
         testID={testID}
         accessibilityLabel={label}
@@ -278,7 +189,7 @@ export function Field({
           inputStyle,
         ]}
       />
-    </View>
+    }</SharedField>
   );
 }
 export function Toggle({
@@ -345,109 +256,9 @@ export function Select({
     />
   );
 }
-export function Confirm({
-  title,
-  detail,
-  onConfirm,
-  onClose,
-  busy = false,
-}: {
-  title: string;
-  detail: string;
-  onConfirm: () => void;
-  onClose: () => void;
-  busy?: boolean;
-}) {
-  const { copy } = usePreferences();
-  return (
-    <Modal
-      transparent
-      animationType="fade"
-      onRequestClose={() => {
-        if (!busy) onClose();
-      }}
-    >
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "#000000cc",
-          padding: 16,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <View
-          accessibilityViewIsModal
-          accessibilityLabel={title}
-          style={{
-            width: "100%",
-            maxWidth: 384,
-            borderRadius: 24,
-            borderWidth: 1,
-            borderColor: "#ffffff1a",
-            backgroundColor: "#171717",
-            padding: 24,
-            gap: 16,
-          }}
-        >
-          <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
-            <View
-              style={{
-                padding: 10,
-                borderRadius: 24,
-                backgroundColor: "#ef44441a",
-              }}
-            >
-              <AlertTriangle size={24} color="#f87171" />
-            </View>
-            <Text
-              style={{
-                flex: 1,
-                fontSize: 18,
-                fontWeight: "600",
-                color: "#f87171",
-              }}
-            >
-              {title}
-            </Text>
-          </View>
-          <Text style={{ fontSize: 12, lineHeight: 20, color: colors.muted }}>
-            {detail}
-          </Text>
-          <View style={{ flexDirection: "row", gap: 8, paddingTop: 8 }}>
-            <Action
-              title={copy("common.cancel")}
-              onPress={onClose}
-              disabled={busy}
-              secondary
-              style={{
-                flex: 1,
-                borderRadius: 24,
-                minHeight: 38,
-                paddingHorizontal: 8,
-                paddingVertical: 10,
-              }}
-              textStyle={{ fontSize: 12 }}
-            />
-            <Action
-              title={copy("common.confirm")}
-              onPress={onConfirm}
-              disabled={busy}
-              style={{
-                flex: 1,
-                borderRadius: 24,
-                minHeight: 38,
-                paddingHorizontal: 8,
-                paddingVertical: 10,
-                backgroundColor: "#dc2626",
-              }}
-              textStyle={{ fontSize: 12 }}
-            />
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
+export function Confirm({title,detail,onConfirm,onClose,busy=false}:{title:string;detail:string;onConfirm:()=>void;onClose:()=>void;busy?:boolean}) {
+ const {copy}=usePreferences();
+ return <AppModal open title={title} onClose={onClose} dismissible={!busy} footer={<><Action title={copy('common.cancel')} onPress={onClose} disabled={busy} secondary style={{flex:1}}/><Action title={copy('common.confirm')} onPress={onConfirm} disabled={busy} danger style={{flex:1}}/></>}><Text style={{fontSize:14,lineHeight:21,color:colors.muted}}>{detail}</Text></AppModal>;
 }
 export const s = StyleSheet.create({
   title: {

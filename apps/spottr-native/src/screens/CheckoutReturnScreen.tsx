@@ -22,6 +22,7 @@ import { MotionPressable as Pressable } from '../ui/MotionPressable';
 import { colors } from '../ui/theme';
 import type { RootParamList } from '../navigation/types';
 import { returnToEvent } from '../navigation/returnToEvent';
+import {ActionButton as UIActionButton} from '../ui/ActionButton';
 
 type ReturnStatus = 'checking' | 'invalid' | 'cancelled' | PaymentResult;
 
@@ -137,14 +138,14 @@ export function CheckoutReturnScreen({ route, navigation }: NativeStackScreenPro
       <Text accessibilityLiveRegion="polite" style={s.hint}>{copy(hint)}</Text>
       {status === 'pending' && Platform.OS === 'web' && !canResume && <Text style={s.providerHint}>{copy('checkoutResult.providerWindowHint')}</Text>}
 
-      {canResume && <AccentPressable fallback={Pressable} testID="checkout-resume-payment" accessibilityRole="button" onPress={() => {
+      {canResume && <UIActionButton testID="checkout-resume-payment" accessibilityRole="button" onPress={() => {
         setResumeError(false); lastResume.current = 0;
         try { if (!resumePaymentBrowser(eventId, sessionId, token)) setResumeError(true); } catch { setResumeError(true); }
-      }} style={s.primary}><Text style={s.buttonText}>{copy('checkoutResult.resumePayment')}</Text><ArrowRight size={16} color="white" /></AccentPressable>}
+      }} style={s.primary}><Text style={s.buttonText}>{copy('checkoutResult.resumePayment')}</Text><ArrowRight size={16} color="white" /></UIActionButton>}
       {resumeError && <Text accessibilityRole="alert" style={s.providerHint}>{copy('checkoutResult.resumeFailed')}</Text>}
-      {canRecheckPayment(status, manualUsed) && <AccentPressable fallback={Pressable} testID="checkout-recheck" accessibilityRole="button" onPress={recheck} style={canResume ? s.secondary : s.primary}><RotateCcw size={16} color="white" /><Text style={s.buttonText}>{copy('feedback.checkAgain')}</Text></AccentPressable>}
-      {unresolved && user && <AccentPressable fallback={Pressable} testID="checkout-check-tickets" accessibilityRole="button" onPress={() => navigation.popTo('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } })} style={!canResume && (manualUsed || status === 'missing' || status === 'invalid') ? s.primary : s.secondary}><Ticket size={16} color="white" /><Text style={s.buttonText}>{copy('checkoutResult.checkTickets')}</Text></AccentPressable>}
-      {canRestartCheckout(status) && isEventId(eventId) && <AccentPressable fallback={Pressable} testID="checkout-return-to-event" accessibilityRole="button" onPress={() => { acknowledge(); returnToEvent(navigation, eventId); }} style={s.primary}><Text style={s.buttonText}>{copy('checkoutResult.chooseTickets')}</Text><ArrowRight size={16} color="white" /></AccentPressable>}
+      {canRecheckPayment(status, manualUsed) && <Pressable testID="checkout-recheck" accessibilityRole="button" onPress={recheck} style={canResume ? s.secondary : s.primary}><RotateCcw size={16} color="white" /><Text style={s.buttonText}>{copy('feedback.checkAgain')}</Text></Pressable>}
+      {unresolved && user && <Pressable testID="checkout-check-tickets" accessibilityRole="button" onPress={() => navigation.popTo('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } })} style={!canResume && (manualUsed || status === 'missing' || status === 'invalid') ? s.primary : s.secondary}><Ticket size={16} color="white" /><Text style={s.buttonText}>{copy('checkoutResult.checkTickets')}</Text></Pressable>}
+      {canRestartCheckout(status) && isEventId(eventId) && <UIActionButton testID="checkout-return-to-event" accessibilityRole="button" onPress={() => { acknowledge(); returnToEvent(navigation, eventId); }} style={s.primary}><Text style={s.buttonText}>{copy('checkoutResult.chooseTickets')}</Text><ArrowRight size={16} color="white" /></UIActionButton>}
       {canCancel && <Pressable testID="checkout-cancel-attempt" accessibilityRole="button" onPress={cancelAttempt} style={s.secondary}><Text style={s.secondaryText}>{copy('checkout.cancelPaymentAttempt')}</Text></Pressable>}
       {!checking && !completed && <Pressable testID="checkout-contact-support" accessibilityRole="button" onPress={contact} style={s.secondary}><Mail size={16} color="#ffffffb3" /><Text style={s.secondaryText}>{copy('checkoutResult.contactSupport')}</Text></Pressable>}
       {supportError && <Text selectable accessibilityRole="alert" style={s.deliveryText}>{copy('checkoutResult.supportFallback')} contact@code-lab.ro</Text>}

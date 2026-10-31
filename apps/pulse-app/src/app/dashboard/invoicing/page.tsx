@@ -18,6 +18,8 @@ import {
 } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { ThemedSelect } from "@/features/events/form/ThemedSelect";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {Input as UIInput} from '@/components/ui/Field';
 
 const defaultSettings: InvoicingSettingsPayload = {
   provider: "oblio",
@@ -277,10 +279,10 @@ export default function InvoicingPage() {
                   {t("invoicing.disconnect")}
                 </button>
               )}
-              <button type="button" onClick={save} disabled={saving || !providerOptions} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50">
+              <UIActionButton type="button" onClick={save} disabled={saving || !providerOptions} className="inline-flex h-11 items-center justify-center gap-2 px-5 text-sm font-semibold transition hover:brightness-110 disabled:opacity-50">
                 {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                 {saving ? t("invoicing.verifying") : t("invoicing.saveAndVerify")}
-              </button>
+              </UIActionButton>
             </div>
           </section>
 
@@ -373,7 +375,7 @@ function Input({ label, value, onChange, type = "text", ...props }: { label: str
   return (
     <label className="block">
       <span className="mb-1.5 block text-xs font-semibold text-white/70">{label}</span>
-      <input {...props} type={type} value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-xl border border-white/10 bg-black/20 px-3.5 text-base outline-none transition focus:border-primary/60 sm:text-sm" />
+      <UIInput {...props} type={type} value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-full transition sm:text-sm" />
     </label>
   );
 }

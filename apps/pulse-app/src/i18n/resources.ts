@@ -1,6 +1,7 @@
 export const resources = {
   en: {
     translation: {
+      ui: {quantity:"Quantity",decrease:"Decrease {{field}}",increase:"Increase {{field}}"},
       feedback: {
         retry: "Try again", loadFailed: "We couldn't load this information. Please try again.",
         actionFailed: "The change couldn't be saved. Please try again.",
@@ -658,6 +659,7 @@ export const resources = {
       },
       datePicker: {
         placeholder: "Choose date and time",
+        hoursLabel: "Hours", minutesLabel: "Minutes",
         previousMonth: "Previous month",
         nextMonth: "Next month",
         time: "Time",
@@ -1148,6 +1150,7 @@ export const resources = {
         },
       },
       promoCodes: {
+        codeLabel: "Promotional code", discountLabel: "Discount (%)", limitLabel: "Maximum uses (optional)",
         title: "PR & promo codes",
         activeCount_one: "{{count}} active code",
         activeCount_other: "{{count}} active codes",
@@ -1753,6 +1756,7 @@ export const resources = {
   },
   ro: {
     translation: {
+      ui: {quantity:"Cantitate",decrease:"Scade {{field}}",increase:"Crește {{field}}"},
       feedback: {
         retry: "Reîncearcă", loadFailed: "Nu am putut încărca informațiile. Te rugăm să reîncerci.",
         actionFailed: "Modificarea nu a putut fi salvată. Te rugăm să reîncerci.",
@@ -2416,6 +2420,7 @@ export const resources = {
       },
       datePicker: {
         placeholder: "Alege data si ora",
+        hoursLabel: "Ore", minutesLabel: "Minute",
         previousMonth: "Luna anterioara",
         nextMonth: "Luna urmatoare",
         time: "Ora",
@@ -2915,6 +2920,7 @@ export const resources = {
       },
       promoCodes: {
         title: "PR si coduri promo",
+        codeLabel: "Cod promoțional", discountLabel: "Reducere (%)", limitLabel: "Număr maxim de utilizări (opțional)",
         activeCount_one: "{{count}} cod activ",
         activeCount_other: "{{count}} coduri active",
         subtitle: "Creeaza si urmareste codurile promotionale ale evenimentului.",

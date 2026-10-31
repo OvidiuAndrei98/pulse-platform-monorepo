@@ -28,6 +28,7 @@ import {
 import { dashboardEventGroups } from "@/features/events/dashboardEvents";
 import { useDashboardClock } from "@/features/events/useDashboardClock";
 import { startVisiblePolling } from "@/lib/visiblePolling";
+import {ActionLink as UIActionLink} from '@/components/ui/ActionButton';
 
 export default function OrganizerDashboard() {
   const router = useRouter();
@@ -146,13 +147,13 @@ export default function OrganizerDashboard() {
           </Link>
         ) : null}
         <div className="w-full flex gap-3 justify-between">
-          <Link
+          <UIActionLink
             href="/dashboard/events/new"
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+            className="inline-flex h-11 w-full items-center justify-center gap-2  bg-[var(--ui-action)] px-4 text-sm font-semibold  transition hover:opacity-90"
           >
             <Plus className="h-4 w-4" />
             {t("dashboardNav.newEvent")}
-          </Link>
+          </UIActionLink>
           <Link
             href="/dashboard/promotions"
             className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-primary transition hover:opacity-90"

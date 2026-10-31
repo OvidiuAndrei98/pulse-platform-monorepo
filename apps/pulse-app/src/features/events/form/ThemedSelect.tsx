@@ -4,6 +4,7 @@ import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, type LucideIcon } from 'lucide-react';
 import { useBackLayer } from '@/lib/navigation/useBackLayer';
 import s from './themedSelect.module.css';
+import {useFieldState} from '@/components/ui/Field';
 
 export type ThemedSelectOption = { value:string; label:string };
 
@@ -13,6 +14,7 @@ export function ThemedSelect({value,onChange,options,placeholder,icon:Icon,id,in
   value:string;onChange:(value:string)=>void;options:ThemedSelectOption[];placeholder:string;icon?:LucideIcon;
   id?:string;invalid?:boolean;describedBy?:string;disabled?:boolean;label?:string;name?:string;testId?:string;variant?:'field'|'toolbar';
 }) {
+  const field=useFieldState();id??=field?.id;label??=field?.label;invalid??=field?.invalid;describedBy??=field?.errorId;
   const uid=useId(),listId=uid+'-options',button=useRef<HTMLButtonElement>(null),root=useRef<HTMLDivElement>(null),menu=useRef<HTMLDivElement>(null);
   const [open,setOpen]=useState(false),[active,setActive]=useState(0),[position,setPosition]=useState<React.CSSProperties>({});
   const typeahead=useRef({text:'',at:0}),selected=options.find(option=>option.value===value);

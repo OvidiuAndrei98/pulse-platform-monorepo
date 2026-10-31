@@ -11,7 +11,10 @@ import {
 import { type OrganizerProfile } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
+import {ModalFrame} from "@/components/ui/ModalFrame";
 import { toast } from "sonner";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {ActionLink as UIActionLink} from '@/components/ui/ActionButton';
 
 export function StripeAccountPanel({
   onReadyChange,
@@ -149,12 +152,12 @@ export function StripeAccountPanel({
                 </p>
               </div>
             </div>
-            <Link
+            <UIActionLink
               href="/dashboard/ticket-validation"
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition hover:opacity-90"
+              className="inline-flex h-10 items-center justify-center  bg-[var(--ui-action)] px-3 text-xs font-semibold  transition hover:opacity-90"
             >
               {t("organizerProfile.configureCompany")}
-            </Link>
+            </UIActionLink>
           </div>
         </section>
       ) : (
@@ -214,17 +217,17 @@ export function StripeAccountPanel({
                     </button>
                   )}
                   {agreementCurrent && !stripeReady && (
-                    <button
+                    <UIActionButton
                       type="button"
                       onClick={startStripeOnboarding}
                       disabled={stripeLoading}
-                      className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+                      className="inline-flex h-10 items-center gap-2 px-3 text-xs font-semibold transition hover:opacity-90 disabled:opacity-50"
                     >
                       <CreditCard className="h-4 w-4" />
                       {profile?.stripeAccountId
                         ? t("dashboard.continueStripe")
                         : t("dashboard.connectStripe")}
-                    </button>
+                    </UIActionButton>
                   )}
                   {profile?.stripeAccountId && (
                     <button
@@ -245,18 +248,8 @@ export function StripeAccountPanel({
 
       {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
       {disconnectOpen && (
-        <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="disconnect-stripe-title"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !disconnectLoading) {
-              setDisconnectOpen(false);
-            }
-          }}
-        >
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl sm:p-6">
+        <ModalFrame open onClose={()=>setDisconnectOpen(false)} dismissible={!disconnectLoading} label={t("dashboard.disconnectStripeTitle")}>
+          <div className="p-5 sm:p-6">
             <div className="flex items-start gap-3">
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-red-500/10 text-red-300">
                 <AlertTriangle className="h-5 w-5" />
@@ -276,6 +269,7 @@ export function StripeAccountPanel({
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 type="button"
+                data-dialog-initial-focus
                 onClick={() => setDisconnectOpen(false)}
                 disabled={disconnectLoading}
                 className="h-10 rounded-lg border border-white/15 px-4 text-sm font-semibold transition hover:bg-white/5 disabled:opacity-50"
@@ -297,7 +291,7 @@ export function StripeAccountPanel({
               </button>
             </div>
           </div>
-        </div>
+        </ModalFrame>
       )}
     </section>
   );

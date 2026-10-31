@@ -55,6 +55,7 @@ import {
   eventDateFilters,
   eventVibes,
 } from "../../../pulse-app/src/features/events/constants";
+import {ActionButton as UIActionButton} from '../ui/ActionButton';
 
 const dateKeys = [
   "filters.seeAll",
@@ -352,7 +353,7 @@ export function DiscoveryScreen() {
                   {copy("common.reset")}
                 </Text>
               </Pressable>
-              <AccentPressable fallback={Pressable}
+              <UIActionButton
                 accessibilityRole="button"
                 testID="apply-filters"
                 style={s.apply}
@@ -367,7 +368,7 @@ export function DiscoveryScreen() {
                 >
                   {copy("common.applyFilters")}
                 </Text>
-              </AccentPressable>
+              </UIActionButton>
             </View>
           </View>
         </View>

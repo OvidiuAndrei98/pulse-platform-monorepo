@@ -6,6 +6,8 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { User } from "@/core/DataProvider";
 import { useTranslation } from "react-i18next";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {Input as UIInput} from '@/components/ui/Field';
 
 export default function ResetPasswordPage() {
   return (
@@ -67,19 +69,19 @@ function ResetPasswordContent() {
         <div className="space-y-4">
           <label className="block">
             <span className="mb-2 block text-sm font-semibold">{t("auth.newPassword")}</span>
-            <input type="password" autoComplete="new-password" minLength={8} maxLength={72} value={password} onChange={(event) => setPassword(event.target.value)} required className="h-12 w-full rounded-lg border border-white/15 bg-white/[0.035] px-3 text-sm outline-none transition focus:border-primary/60" />
+            <UIInput type="password" autoComplete="new-password" minLength={8} maxLength={72} value={password} onChange={(event) => setPassword(event.target.value)} required className="h-12 w-full transition" />
           </label>
           <label className="block">
             <span className="mb-2 block text-sm font-semibold">{t("auth.confirmPassword")}</span>
-            <input type="password" autoComplete="new-password" minLength={8} maxLength={72} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required className="h-12 w-full rounded-lg border border-white/15 bg-white/[0.035] px-3 text-sm outline-none transition focus:border-primary/60" />
+            <UIInput type="password" autoComplete="new-password" minLength={8} maxLength={72} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required className="h-12 w-full transition" />
           </label>
         </div>
         {error && <p className="mt-4 border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300">{error}</p>}
-        <button type="submit" disabled={state !== "idle"} className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:opacity-50">
+        <UIActionButton type="submit" disabled={state !== "idle"} className="mt-5 flex h-12 w-full items-center justify-center gap-2 px-4 text-sm font-semibold transition hover:brightness-110 disabled:opacity-50">
           {state === "saving" && <Loader2 className="h-4 w-4 animate-spin" />}
           {state === "saved" && <Check className="h-4 w-4" />}
           {state === "saving" ? t("auth.saving") : state === "saved" ? t("auth.passwordUpdated") : t("auth.updatePassword")}
-        </button>
+        </UIActionButton>
       </form>
       <Link href="/login" className="mt-5 text-center text-sm font-semibold text-primary">{t("auth.backToLogin")}</Link>
     </main>

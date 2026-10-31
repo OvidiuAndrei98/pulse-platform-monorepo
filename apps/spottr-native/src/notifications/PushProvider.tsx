@@ -11,6 +11,7 @@ import { notificationDestination, parseNotifications } from './data';
 import { pushNotificationID } from './pushRegistry';
 import { clearPresentedPush, getPushDevice, listenPush, onPushForeground, openPushSettings, pushProjectID, pushRegistry, pushSupported, type PushStatus } from './pushPlatform';
 import { Feedback } from '../ui/common';
+import {ActionButton} from '../ui/ActionButton';
 import { Text } from '../ui/Text';
 import { MotionPressable } from '../ui/MotionPressable';
 import { Bell, BellRing, ChevronRight } from 'lucide-react-native';
@@ -79,9 +80,9 @@ export function PushPreference() {
       <Icon size={18} color={colors.accent} /><Text style={{ flex: 1, fontSize: 13, fontWeight: '600' }}>{copy('notifications.pushTitle')}</Text>
     </View>
     <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>{copy('notifications.push.' + (!pushSupported ? 'unavailable' : status))}</Text>
-    {pushSupported && status !== 'unavailable' && <AccentPressable fallback={MotionPressable} testID="push-enable" accessibilityRole="button" disabled={status === 'busy'} onPress={() => void enable()} style={{ backgroundColor: status === 'on' ? '#ffffff0a' : '#ff0044', borderRadius: 20, paddingVertical: 10, paddingHorizontal: 14, flexDirection: 'row', justifyContent: 'center', gap: 8, alignItems: 'center', opacity: status === 'busy' ? 0.6 : 1 }}>
+    {pushSupported && status !== 'unavailable' && <ActionButton tone={status==="on"?"secondary":"primary"} testID="push-enable" accessibilityRole="button" disabled={status === 'busy'} onPress={() => void enable()} style={{ backgroundColor: status === 'on' ? '#ffffff0a' : '#ff0044', borderRadius: 20, paddingVertical: 10, paddingHorizontal: 14, flexDirection: 'row', justifyContent: 'center', gap: 8, alignItems: 'center', opacity: status === 'busy' ? 0.6 : 1 }}>
       <Text style={{ fontSize: 12, fontWeight: '600' }}>{copy(status === 'on' || status === 'denied' ? 'notifications.pushSettings' : 'notifications.pushEnable')}</Text><ChevronRight size={14} color="white" />
-    </AccentPressable>}
+    </ActionButton>}
   </View>;
 }
 

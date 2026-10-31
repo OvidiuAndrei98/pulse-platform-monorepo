@@ -6,14 +6,15 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import type { Event, EventCancellationRequest } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
-import { useDrawerViewport } from "@/components/ui/useDrawerViewport";
+import {ModalFrame} from "@/components/ui/ModalFrame";
+import {ActionButton} from "@/components/ui/ActionButton";
+import {Input as UIInput,TextArea as UITextArea} from '@/components/ui/Field';
 
 export function EventCancellationManager({ event, onRequested }: { event: Event; onRequested?: () => void }) {
   const { t } = useTranslation();
   const { user } = useDataProvider();
   const [request, setRequest] = useState<EventCancellationRequest>();
   const [open, setOpen] = useState(false);
-  const viewportRef = useDrawerViewport(open, "panel");
   const [reason, setReason] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -72,29 +73,29 @@ export function EventCancellationManager({ event, onRequested }: { event: Event;
       </section>
 
       {open && (
-        <div ref={viewportRef} data-drawer-viewport className="fixed inset-0 z-[120] flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true">
-          <div className="max-h-[92%] w-full overflow-y-auto overscroll-contain rounded-t-3xl border border-white/10 bg-neutral-950 p-5 pb-[max(1.25rem,var(--native-safe-bottom))] sm:max-w-lg sm:rounded-2xl">
+        <ModalFrame open onClose={()=>setOpen(false)} dismissible={!submitting} label={t("eventCancellation.modalTitle")}>
+          <div className="p-5">
             <div data-drawer-keyboard-header className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold">{t("eventCancellation.modalTitle")}</h2>
-              <button type="button" onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-full border border-white/10" aria-label={t("common.close")}><X className="h-4 w-4" /></button>
+              <button type="button" disabled={submitting} onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-full border border-white/10" aria-label={t("common.close")}><X className="h-4 w-4" /></button>
             </div>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">{t("eventCancellation.modalDescription")}</p>
             <label className="mt-5 block text-xs font-semibold">
               {t("eventCancellation.reason")}
-              <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={5} maxLength={4000} className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-white/[0.035] p-3 text-base outline-none focus:border-primary/50" />
+              <UITextArea value={reason} onChange={(event) => setReason(event.target.value)} rows={5} maxLength={4000} className="mt-2 w-full resize-none" />
             </label>
             <label className="mt-4 block text-xs font-semibold">
               {t("eventCancellation.evidenceUrl")}
-              <input type="url" inputMode="url" value={evidenceUrl} onChange={(event) => setEvidenceUrl(event.target.value)} placeholder="https://" className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-white/[0.035] px-3 text-base outline-none focus:border-primary/50" />
+              <UIInput type="url" inputMode="url" value={evidenceUrl} onChange={(event) => setEvidenceUrl(event.target.value)} placeholder="https://" className="mt-2 h-12 w-full" />
             </label>
             <div className="mt-6 flex gap-2">
-              <button type="button" onClick={() => setOpen(false)} disabled={submitting} className="h-11 flex-1 rounded-full border border-white/10 text-sm font-semibold">{t("common.cancel")}</button>
-              <button type="button" onClick={() => void submit()} disabled={submitting || reason.trim().length < 10} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-red-600 text-sm font-semibold text-white disabled:opacity-50">
+              <ActionButton data-dialog-initial-focus tone="secondary" onClick={() => setOpen(false)} disabled={submitting} className="flex-1">{t("common.cancel")}</ActionButton>
+              <ActionButton tone="danger" onClick={() => void submit()} disabled={submitting || reason.trim().length < 10} className="flex-1">
                 {submitting && <Loader2 className="h-4 w-4 animate-spin" />}{t("eventCancellation.submit")}
-              </button>
+              </ActionButton>
             </div>
           </div>
-        </div>
+        </ModalFrame>
       )}
     </>
   );

@@ -12,6 +12,7 @@ import { DateTimePicker } from "@/features/events/form/DateTimePicker";
 import { eventInputClass, FormField } from "@/features/events/form/FormField";
 import { EventBannerUpload } from "@/features/events/form/EventBannerUpload";
 import { useTranslation } from "react-i18next";
+import {Input as UIInput,TextArea as UITextArea} from '@/components/ui/Field';
 
 export function EventDetailsSection({
   form,
@@ -44,7 +45,7 @@ export function EventDetailsSection({
       {section === "basics" && (
         <>
           <FormField label={t("eventForm.title")} error={errors.title?.message}>
-            <input
+            <UIInput
               {...register("title")}
               placeholder={t("eventForm.titlePlaceholder")}
               className={eventInputClass}
@@ -110,7 +111,7 @@ export function EventDetailsSection({
             label={t("eventForm.description")}
             error={errors.description?.message}
           >
-            <textarea
+            <UITextArea
               {...register("description")}
               placeholder={t("eventForm.descriptionPlaceholder")}
               rows={5}

@@ -40,6 +40,7 @@ import {
 } from "@/features/checkout/TicketTypeSelector";
 import { TicketCheckoutDrawer } from "@/features/checkout/TicketCheckoutDrawer";
 import { bookFreeTicket } from "@/features/checkout/freeBooking";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
 
 export default function EventStandalonePage() {
   const { user } = useDataProvider();
@@ -407,11 +408,11 @@ export default function EventStandalonePage() {
 
                 {(externalTicketURL || ticketTypes.length > 0) && !isFinished && (
                   <div className="mt-4 border-t border-white/10 pt-4">
-                    <button
+                    <UIActionButton
                       type="button"
                       onClick={openCheckout}
                       disabled={(!externalTicketURL && ticketCount === 0) || isOwnEvent || bookingFree || checkingAvailability}
-                      className="mt-4 flex h-12 w-full items-center justify-between rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="mt-4 flex h-12 w-full items-center justify-between px-5 text-sm font-semibold transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <span className="inline-flex items-center gap-2">
                         <Ticket className="h-4 w-4" />
@@ -427,19 +428,19 @@ export default function EventStandalonePage() {
                                 : t("eventSheet.continue", { count: ticketCount, total: formatRon(total) })
                               : t("checkout.selectTickets")}
                       </span>
-                    </button>
+                    </UIActionButton>
                   </div>
                 )}
 
                 {isFinished && (
-                  <button
+                  <UIActionButton
                     type="button"
                     onClick={() => router.push(routeForPlatform(`/users/${event.organizerId}`))}
-                    className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:brightness-110"
+                    className="mt-2 flex h-11 w-full items-center justify-center gap-2 px-5 text-sm font-semibold transition hover:brightness-110"
                   >
                     {t("eventPage.viewOrganizerEvents")}
                     <ArrowUpRight className="h-4 w-4" />
-                  </button>
+                  </UIActionButton>
                 )}
               </div>
             </section>

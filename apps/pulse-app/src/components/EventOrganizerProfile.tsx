@@ -44,7 +44,7 @@ export function EventOrganizerProfile({
     <button
       type="button"
       onClick={openProfile}
-      className="group flex items-center gap-2.5 text-left transition-opacity hover:opacity-85 focus:outline-none"
+      className="group flex items-center gap-2.5 text-left transition-opacity hover:opacity-85"
     >
       {/* Avatar mic si curat */}
       <div className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white/10 text-[11px] font-bold text-white shadow-sm">

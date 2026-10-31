@@ -5,7 +5,7 @@
   z-index: 1000;
 }
 .handle { display:flex; align-items:center; justify-content:center; gap:8px; min-height:44px; min-width:104px; margin:0 auto 6px; padding:4px 12px; border:1px solid #ffffff26; border-radius:24px; background:var(--popover,#171717); color:var(--foreground); font-size:.875rem; touch-action:none; }
-.handle:focus-visible { outline:2px solid var(--foreground); outline-offset:2px; }
+.handle:focus-visible { outline:2px solid var(--ui-focus); outline-offset:2px; }
 .tray[data-collapsed="true"] .handle { min-height:44px; margin-bottom:0; }
 .grip { width:32px; height:4px; border-radius:2px; background:var(--muted-foreground); }
 .count { font-variant-numeric:tabular-nums; color:var(--muted-foreground); }
@@ -38,7 +38,8 @@
   scroll-snap-align: start;
 }
 .card[aria-current="true"] { border-color: var(--primary); }
-.card:focus-visible { outline: 2px solid var(--foreground); outline-offset: -4px; }
+.card:focus-visible { outline: 2px solid var(--ui-focus); outline-offset: -4px; }
+@media(forced-colors:active) { .handle:focus-visible,.card:focus-visible { outline-color:Highlight; } }
 .copy { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; }
 .title { font-size: 16px; line-height: 1.4; font-weight: 700; }
 .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 18px; }

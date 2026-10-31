@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Loader2, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import {Input as UIInput} from '@/components/ui/Field';
 
 type DeleteAccountDialogProps = {
   open: boolean;
@@ -149,7 +150,7 @@ export function DeleteAccountDialog({
         <p className="mt-1 text-xs text-muted-foreground">
           {t("userProfile.deleteConfirmationHint", { email })}
         </p>
-        <input
+        <UIInput
           id="delete-account-confirmation"
           type="email"
           inputMode="email"
@@ -159,7 +160,7 @@ export function DeleteAccountDialog({
           value={confirmation}
           onChange={(event) => setConfirmation(event.target.value)}
           disabled={busy}
-          className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm text-white outline-none transition placeholder:text-muted-foreground/50 focus:border-red-500/60 focus:ring-2 focus:ring-red-500/15 disabled:opacity-50"
+          className="mt-3 h-12 w-full transition placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-red-500/15 disabled:opacity-50"
           placeholder={email}
         />
 
@@ -168,14 +169,14 @@ export function DeleteAccountDialog({
             <label className="mt-4 block text-sm font-medium text-white" htmlFor="delete-account-password">
               {t("userProfile.deletePasswordLabel")}
             </label>
-            <input
+            <UIInput
               id="delete-account-password"
               type="password"
               autoComplete="current-password"
               value={currentPassword}
               onChange={(event) => setCurrentPassword(event.target.value)}
               disabled={busy}
-              className="mt-3 h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm text-white outline-none transition focus:border-red-500/60 focus:ring-2 focus:ring-red-500/15 disabled:opacity-50"
+              className="mt-3 h-12 w-full transition focus:ring-2 focus:ring-red-500/15 disabled:opacity-50"
             />
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{t("userProfile.deletePasswordHint")}</p>
           </>

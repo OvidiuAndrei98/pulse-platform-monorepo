@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { PublicEventsService, type SpotifyArtist } from "@/core/DataProvider";
 import { TimePicker } from "@/features/events/form/DateTimePicker";
 import { eventInputClass } from "@/features/events/form/FormField";
+import {Input as UIInput} from '@/components/ui/Field';
 
 export type LineupArtistInput = {
   id?: string;
@@ -165,7 +166,7 @@ export function AddArtistForm({
       {mode === "spotify" && !artist.name && (
         <div className="relative">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
+          <UIInput
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             aria-label={t("lineup.searchArtist")}
@@ -239,7 +240,7 @@ export function AddArtistForm({
                 aria-label={t(
                   artist.imageUrl ? "media.replaceImage" : "lineup.uploadImage",
                 )}
-                className="group relative grid h-20 w-20 place-items-center rounded-2xl border border-dashed border-white/20 bg-white/[0.025] text-muted-foreground transition hover:border-primary/60 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 sm:h-24 sm:w-24"
+                className="group relative grid h-20 w-20 place-items-center rounded-2xl border border-dashed border-white/20 bg-white/[0.025] text-muted-foreground transition hover:border-primary/60 hover:text-primary focus-visible: focus-visible:ring-2 focus-visible:ring-primary/60 sm:h-24 sm:w-24"
               >
                 {artist.imageUrl && !imageFailed ? (
                   <img
@@ -430,7 +431,7 @@ function Field({
           </span>
         )}
       </span>
-      <input
+      <UIInput
         value={value}
         aria-required={required}
         maxLength={maxLength}

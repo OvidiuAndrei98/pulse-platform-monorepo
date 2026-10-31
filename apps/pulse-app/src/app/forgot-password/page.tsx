@@ -6,6 +6,8 @@ import { ArrowLeft, Check, Loader2, Mail } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { User } from "@/core/DataProvider";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {Input as UIInput} from '@/components/ui/Field';
 
 export default function ForgotPasswordPage() {
   const { t } = useTranslation();
@@ -50,24 +52,24 @@ export default function ForgotPasswordPage() {
             <form onSubmit={submit} className="mt-8">
               <label className="block">
                 <span className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-white/65">{t("auth.email")}</span>
-                <span className="flex h-16 items-center gap-3 rounded-2xl bg-black/40 px-5 text-white/70 ring-1 ring-white/20 transition focus-within:bg-primary/10 focus-within:text-primary focus-within:ring-2 focus-within:ring-primary">
+                <span className="ui-input-shell ui-input-shell--brand flex h-16 items-center gap-3 rounded-2xl bg-black/40 px-5 text-white/70 ring-1 ring-white/20 transition focus-within:bg-primary/10 focus-within:text-primary">
                   <Mail className="h-4 w-4 shrink-0" />
-                  <input
+                  <UIInput
                     type="email"
                     autoComplete="email"
                     required
                     value={email}
                     onChange={(inputEvent) => setEmail(inputEvent.target.value)}
                     placeholder={t("auth.emailPlaceholder")}
-                    className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none placeholder:text-white/45"
+                    className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white  placeholder:text-white/45" bare
                   />
                 </span>
               </label>
               {error && <p role="alert" className="mt-4 rounded-xl bg-red-500/15 px-4 py-3 text-sm text-red-100">{error}</p>}
-              <button type="submit" disabled={state === "sending"} className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:bg-primary/90 disabled:opacity-50">
+              <UIActionButton type="submit" disabled={state === "sending"} className="mt-6 flex h-14 w-full items-center justify-center gap-2 px-4 text-sm font-semibold shadow-lg shadow-primary/25 transition disabled:opacity-50">
                 {state === "sending" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                 {state === "sending" ? t("auth.sendingResetLink") : t("auth.sendResetLink")}
-              </button>
+              </UIActionButton>
             </form>
           )}
         </section>

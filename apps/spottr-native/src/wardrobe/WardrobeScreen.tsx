@@ -972,7 +972,7 @@ const s = StyleSheet.create({
   card: {
     padding: 20,
     gap: 14,
-    borderRadius: 10,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "#ffffff1a",
     backgroundColor: "#ffffff06",

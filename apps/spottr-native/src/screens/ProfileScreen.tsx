@@ -73,6 +73,7 @@ import { TicketCarousel } from "../profile/TicketCarousel";
 import { profileTicketGroups } from "../profile/ticketGroups";
 import { useEventClock } from "../data/useEventClock";
 import { useNavbarScroll } from '../navigation/useNavbarScroll';
+import {ActionButton as UIActionButton} from '../ui/ActionButton';
 
 type ProfileAction = "avatar" | "details" | "password" | "language" | "privacy";
 type ProfileNotice = { kind: "error" | "success"; key: string };
@@ -209,7 +210,7 @@ export function ProfileScreen() {
                 <UserRound color={colors.muted} size={40} />
               )}
             </View>
-            <AccentPressable fallback={Pressable}
+            <UIActionButton
               accessibilityRole="button"
               accessibilityLabel={copy("profile.changeAvatar")}
               disabled={busy}
@@ -217,7 +218,7 @@ export function ProfileScreen() {
               style={s.camera}
             >
               {activeAction === "avatar" ? <ActivityIndicator size="small" color="white" /> : <Camera size={17} color="white" />}
-            </AccentPressable>
+            </UIActionButton>
           </View>
           <View style={{ flex: 1, minWidth: 0, gap: 7 }}>
             <Text numberOfLines={1} style={{ color: "white", fontWeight: "600", fontSize: 24 }}>

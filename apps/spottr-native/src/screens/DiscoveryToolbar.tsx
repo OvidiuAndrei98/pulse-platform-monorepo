@@ -142,7 +142,7 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
           aria-hidden={!active} accessibilityElementsHidden={!active} importantForAccessibility={active ? 'auto' : 'no-hide-descendants'}>
           <Animated.View style={[s.field, textMotion]}>
             <AnimatedFormInput ref={input} animatedProps={Platform.OS === 'web' ? undefined : caretMotion}
-              variant="bare" nativeID="discovery-search" testID="discovery-search" accessibilityLabel={copy('filters.searchEvents')}
+              variant="bare" focusOwner="container" nativeID="discovery-search" testID="discovery-search" accessibilityLabel={copy('filters.searchEvents')}
               placeholder={copy('filters.searchEvents')} placeholderTextColor={colors.muted} value={filters.q ?? ''}
               editable={wide || searchActive} tabIndex={active ? 0 : -1}
               onChangeText={q => onChange({ ...filters, q: Array.from(q).slice(0, 120).join('') })}
@@ -249,7 +249,7 @@ const s = StyleSheet.create({
   sourceSwitch: { flexShrink: 1, minWidth: 112 },
   switchSlot: { width: 152, height: 44, minWidth: 112, flexShrink: 1 },
   backLayer: { position: 'absolute', left: 0, top: 0, width: 44, height: 44, zIndex: 2 },
-  circle: { width: 44, height: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ffffff1a', backgroundColor: '#121418ed' },
+  circle: { width: 44, height: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ffffff1a', backgroundColor: '#121418ed',alignItems:'center',justifyContent:'center' },
   searchSurface: { left: 0, top: 0, height: 44, borderRadius: 22, flexShrink: 0, zIndex: 3 },
   morphMaterial: { ...StyleSheet.absoluteFill, borderRadius: 22, backgroundColor: '#121418ed' },
   searchMask: { ...StyleSheet.absoluteFill, overflow: 'hidden' },
@@ -265,7 +265,7 @@ const s = StyleSheet.create({
   fill: { ...StyleSheet.absoluteFill },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
   border: { ...StyleSheet.absoluteFill, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ffffff1a' },
-  focusedBorder: { borderColor: '#ffffff38' },
+  focusedBorder: { borderColor: Platform.OS==='web'?colors.focus:'#ffffff38',...(Platform.OS==='web'?{borderWidth:2}:{}) },
   desktopControl: { minHeight: 44, borderRadius: 24, borderWidth: 1, borderColor: '#ffffff1a', backgroundColor: '#121418ed', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 },
   desktopText: { color: colors.text, fontSize: 14, flexShrink: 1 },
 });

@@ -123,7 +123,7 @@ function CategoryPreferences({ user, open, onOpenChange, onHiddenCountChange, re
                   <button
                     type="button" key={category} disabled={pending} aria-pressed={selected}
                     onClick={() => void toggle(category)}
-                    className={`inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2 disabled:opacity-50 ${selected ? "bg-primary text-white" : "bg-[#161616] text-muted-foreground hover:bg-white/10 hover:text-white"}`}
+                    className={`inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2 disabled:opacity-50 ${selected ? "bg-[var(--ui-action)] text-white" : "bg-[#161616] text-muted-foreground hover:bg-white/10 hover:text-white"}`}
                   >
                     <span className="grid h-4 w-4 place-items-center" aria-hidden="true">
                       {selected ? <Check className="h-4 w-4" /> : <span className="h-3 w-3 rounded-full border border-white/25" />}

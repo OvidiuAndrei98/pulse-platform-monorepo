@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ThemedSelect } from "@/features/events/form/ThemedSelect";
 
 import { isPromotionBucharestAddress, type PromotionBillingDetails, type PromotionBillingFieldErrors } from './promotionBilling';
+import {Input as UIInput} from '@/components/ui/Field';
 export { emptyPromotionBillingDetails, getPromotionBillingFieldErrors, validatePromotionBillingDetails, type PromotionBillingDetails, type PromotionBillingFieldErrors } from './promotionBilling';
 
 export function PromotionBillingDetailsFields({
@@ -21,7 +22,7 @@ export function PromotionBillingDetailsFields({
   const update = (field: keyof PromotionBillingDetails, fieldValue: string) =>
     onChange({ ...value, [field]: fieldValue });
   const inputClass =
-    "h-11 w-full rounded-xl border border-white/10 bg-white/[0.035] px-3.5 text-base text-white outline-none transition placeholder:text-white/35 focus:border-primary/60 aria-[invalid=true]:border-red-400/70 sm:text-sm";
+    "h-11 w-full transition placeholder:text-white/35 sm:text-sm";
   const errorProps = (field: keyof PromotionBillingDetails, suffix: string) => ({
     "aria-invalid": Boolean(errors[field]),
     "aria-describedby": errors[field]
@@ -41,7 +42,7 @@ export function PromotionBillingDetailsFields({
         htmlFor={`${idPrefix}-billing-reg`}
         optional
       >
-        <input
+        <UIInput
           id={`${idPrefix}-billing-reg`}
           value={value.registrationNumber}
           onChange={(event) => update("registrationNumber", event.target.value)}
@@ -54,7 +55,7 @@ export function PromotionBillingDetailsFields({
         htmlFor={`${idPrefix}-billing-address`}
         error={errors.address}
       >
-        <input
+        <UIInput
           id={`${idPrefix}-billing-address`}
           {...errorProps("address", "address")}
           value={value.address}
@@ -70,7 +71,7 @@ export function PromotionBillingDetailsFields({
           htmlFor={`${idPrefix}-billing-city`}
           error={errors.city}
         >
-          <input
+          <UIInput
             id={`${idPrefix}-billing-city`}
             {...errorProps("city", "city")}
             value={value.city}
@@ -105,7 +106,7 @@ export function PromotionBillingDetailsFields({
             htmlFor={`${idPrefix}-billing-county`}
             error={errors.county}
           >
-            <input
+            <UIInput
               id={`${idPrefix}-billing-county`}
               {...errorProps("county", "county")}
               value={value.county}
@@ -128,7 +129,7 @@ export function PromotionBillingDetailsFields({
         htmlFor={`${idPrefix}-billing-country`}
         error={errors.country}
       >
-        <input
+        <UIInput
           id={`${idPrefix}-billing-country`}
           {...errorProps("country", "country")}
           value={value.country}

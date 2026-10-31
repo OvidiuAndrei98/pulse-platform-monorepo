@@ -103,7 +103,7 @@ export function ProfileAvatarUpload({
         </span>
       </button>
       {showBadge && (
-        <span className="absolute -bottom-1 -right-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+        <span className="absolute -bottom-1 -right-1 rounded-full bg-[var(--ui-action)] px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
           PRO
         </span>
       )}

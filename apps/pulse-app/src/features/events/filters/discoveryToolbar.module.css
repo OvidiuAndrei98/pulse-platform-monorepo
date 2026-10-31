@@ -3,7 +3,7 @@
 .round { width:44px; min-width:44px; min-height:44px; display:grid; place-items:center; border-radius:50%; }
 .search { display:flex; align-items:center; flex:1; gap:8px; padding-inline:14px 4px; min-width:180px; max-width:440px; }
 .search input { width:100%; min-width:0; background:transparent; border:0; font-size:16px; outline:none; color:var(--foreground); }
-.search:focus-within { outline:2px solid var(--foreground); outline-offset:2px; }
+.search input::-webkit-search-cancel-button { -webkit-appearance:none;appearance:none; }
 .search button { display:grid; place-items:center; flex-shrink:0; min-width:36px; min-height:36px; border-radius:50%; }
 .searchToggle,.compactModes { display:none; }
 .city { min-width:150px; max-width:200px; }
@@ -27,7 +27,10 @@
 .hint { color:var(--muted-foreground); font-size:12px; margin-top:12px; }
 .clearDate { min-height:40px; font-size:12px; text-decoration:underline; color:var(--muted-foreground); }
 .apply { width:100%; min-height:44px; border-radius:24px; background:var(--primary); color:white; font-weight:700; font-size:20px; margin-top:8px; }
-.toolbar button:focus-visible,.calendar button:focus-visible { outline:2px solid var(--foreground); outline-offset:2px; }
+.toolbar button:focus-visible,.calendar button:focus-visible { outline:2px solid var(--ui-focus); outline-offset:2px; }
+/* Selected calendar days share the accent: separate their focus ring with a dark halo. */
+.days button[data-selected="true"]:focus-visible,.apply:focus-visible { box-shadow:0 0 0 5px var(--ui-focus-halo); }
+@media(forced-colors:active) { .toolbar button:focus-visible,.calendar button:focus-visible { outline-color:Highlight; } }
 @media(max-width:1023px) {
   .city,.dateButton { display:none; }
   .search { display:flex; flex:0 0 0; max-width:0; min-width:0; padding-inline:0; border-width:0; opacity:0; pointer-events:none; overflow:hidden; }

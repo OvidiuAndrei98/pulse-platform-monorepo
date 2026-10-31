@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {ActionLink as UIActionLink} from '@/components/ui/ActionButton';
 
 const AGREEMENT_VERSION = "2026-10-18";
 
@@ -64,7 +66,7 @@ export function AgreementAcceptance() {
   if (loading || (user && profileLoading)) return <div className="mt-8 h-24 animate-pulse border border-white/10 bg-white/[0.03]" />;
 
   if (!user) {
-    return <section className="mt-8 border border-primary/25 bg-primary/[0.04] p-5"><p className="text-sm text-muted-foreground">{t("agreement.signIn")}</p><Link href="/login" className="mt-4 inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground">{t("social.signIn")}</Link></section>;
+    return <section className="mt-8 border border-primary/25 bg-primary/[0.04] p-5"><p className="text-sm text-muted-foreground">{t("agreement.signIn")}</p><UIActionLink href="/login" className="mt-4 inline-flex h-10 items-center  bg-[var(--ui-action)] px-4 text-sm font-semibold">{t("social.signIn")}</UIActionLink></section>;
   }
 
   if (!hasCompanyProfile) {
@@ -73,7 +75,7 @@ export function AgreementAcceptance() {
         <CheckCircle2 className="mt-0.5 h-5 w-5 text-primary" />
         <div><h2 className="text-base font-semibold">{t("agreement.title")}</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">{t("agreement.companyDetailsFirst")}</p></div>
       </div>
-      <Link href="/dashboard/ticket-validation" className="mt-5 inline-flex h-11 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground">{t("agreement.goToVerification")}</Link>
+      <UIActionLink href="/dashboard/ticket-validation" className="mt-5 inline-flex h-11 items-center justify-center  bg-[var(--ui-action)] px-4 text-sm font-semibold">{t("agreement.goToVerification")}</UIActionLink>
     </section>;
   }
 
@@ -88,9 +90,9 @@ export function AgreementAcceptance() {
     </label>
     {message && <p className="mt-3 text-sm text-amber-200">{message}</p>}
     <div className="mt-4 flex flex-wrap gap-3">
-      <button type="button" disabled={!accepted || submitting} onClick={accept} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+      <UIActionButton type="button" disabled={!accepted || submitting} onClick={accept} className="inline-flex h-11 items-center justify-center gap-2 px-4 text-sm font-semibold disabled:opacity-50">
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />} {t("agreement.accept")}
-      </button>
+      </UIActionButton>
       <Link href="/dashboard/ticket-validation" className="inline-flex h-11 items-center justify-center rounded-lg border border-white/15 px-4 text-sm font-semibold transition hover:bg-white/5">{t("agreement.goToVerification")}</Link>
     </div>
   </section>;

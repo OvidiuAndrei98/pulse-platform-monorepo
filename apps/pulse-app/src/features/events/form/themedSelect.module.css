@@ -1,10 +1,10 @@
 .root { min-width:0; width:100%; }
-.trigger { display:flex; align-items:center; gap:8px; width:100%; min-width:0; min-height:44px; padding:10px 14px; border:1px solid #ffffff26; border-radius:12px; background:#ffffff06; color:var(--foreground); font-size:1rem; line-height:1.4; text-align:start; }
+.trigger { display:flex; align-items:center; gap:8px; width:100%; min-width:0; min-height:44px; padding:10px 14px; border:1px solid var(--ui-input-border); border-radius:var(--ui-radius-field); background:var(--ui-surface); color:var(--foreground); font-size:1rem; line-height:1.4; text-align:start; }
 .root[data-variant="toolbar"] .trigger { border-radius:24px; background:#121418ed; }
 .trigger[aria-expanded="true"] { border-color:var(--primary); }
 .trigger[aria-invalid="true"] { border-color:#f87171; }
 .trigger:disabled { opacity:.45; }
-.trigger:focus-visible { outline:2px solid var(--foreground); outline-offset:2px; }
+.trigger:focus-visible { outline:2px solid var(--ui-focus); outline-offset:2px; }
 .value { flex:1; min-width:0; overflow-wrap:anywhere; }
 .icon,.chevron { width:16px; height:16px; flex-shrink:0; }
 .icon { color:var(--primary); }
@@ -14,6 +14,7 @@
 .option { display:flex; align-items:center; gap:8px; min-height:40px; padding:8px 12px; border:1px solid transparent; border-radius:12px; font-size:.875rem; line-height:1.4; cursor:pointer; }
 .option span { flex:1; min-width:0; overflow-wrap:anywhere; }
 .option[aria-selected="true"] { background:color-mix(in srgb,var(--primary) 15%,transparent); color:var(--foreground); }
-.option[data-active="true"] { outline:1px solid var(--foreground); outline-offset:-2px; }
+.option[data-active="true"] { border-color:var(--ui-focus); }
+.option[data-active="true"]:not([aria-selected="true"]) { background:var(--ui-raised); }
 @media(min-width:640px) { .trigger { font-size:.875rem; } }
-@media(forced-colors:active) { .option[data-active="true"],.trigger:focus-visible { outline-color:Highlight; } }
+@media(forced-colors:active) { .option[data-active="true"] { border-color:Highlight; }.trigger:focus-visible { outline-color:Highlight; } }

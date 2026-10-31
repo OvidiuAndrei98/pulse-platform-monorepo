@@ -47,6 +47,8 @@ import {
   saveOfflineSnapshot,
   type OfflineTicketScan,
 } from "@/features/tickets/offlineValidationStore";
+import {ActionButton as UIActionButton,IconButton} from '@/components/ui/ActionButton';
+import {Input as UIInput,TextArea as UITextArea} from '@/components/ui/Field';
 
 const ORGANIZER_AGREEMENT_VERSION = "2026-10-18";
 const apiHealthUrl = apiRoot.replace(/\/api\/v1\/?$/, "/health");
@@ -720,30 +722,30 @@ function TicketValidationWorkspace({ selectedEventId, setSelectedEventId }: {
             ) : (
               <form onSubmit={submitCompany} className="mt-6 space-y-3">
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">
-                  <input
+                  <UIInput
                     value={cui}
                     onChange={(event) => setCui(event.target.value)}
                     placeholder={t("validation.cui")}
                     required
-                    className="h-11 rounded-lg border border-white/15 bg-black/20 px-3 text-sm outline-none focus:border-primary/60"
+                    className="h-11"
                   />
-                  <input
+                  <UIInput
                     value={companyName}
                     onChange={(event) => setCompanyName(event.target.value)}
                     placeholder={t("validation.companyName")}
                     required
-                    className="h-11 rounded-lg border border-white/15 bg-black/20 px-3 text-sm outline-none focus:border-primary/60"
+                    className="h-11"
                   />
-                  <button
+                  <UIActionButton
                     type="submit"
                     disabled={submittingProfile || !agreementAccepted}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white disabled:opacity-50"
+                    className="inline-flex h-11 items-center justify-center gap-2 px-4 text-sm font-semibold disabled:opacity-50"
                   >
                     {submittingProfile && (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     )}
                     {t("validation.verify")}
-                  </button>
+                  </UIActionButton>
                 </div>
                 <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-black/10 p-3 text-xs leading-5 text-muted-foreground">
                   <input
@@ -794,8 +796,8 @@ function TicketValidationWorkspace({ selectedEventId, setSelectedEventId }: {
           {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-semibold">{t("validation.chooseEvent")}</h2>
-            <button type="button" aria-label={t("validation.refreshEvents")} onClick={() => { setError(""); setReload(value => value + 1); }}
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-primary text-white hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2"><RefreshCw aria-hidden="true" className="size-4" /></button>
+            <UIActionButton type="button" aria-label={t("validation.refreshEvents")} onClick={() => { setError(""); setReload(value => value + 1); }}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-2"><RefreshCw aria-hidden="true" className="size-4" /></UIActionButton>
           </div>
           {!events.length && !error && <p className="rounded-xl border border-white/10 p-5 text-sm text-muted-foreground">{t("validation.noAssignedEvents")}</p>}
           <ul className="space-y-3">
@@ -849,7 +851,7 @@ function TicketValidationWorkspace({ selectedEventId, setSelectedEventId }: {
             <ArrowLeft aria-hidden="true" className="h-4 w-4" />
             {t("validation.changeEvent")}
           </button>
-          <h2 tabIndex={-1} ref={eventHeading} className="break-words text-xl font-semibold outline-none">{selectedEvent?.title}</h2>
+          <h2 tabIndex={-1} ref={eventHeading} className="break-words text-xl font-semibold">{selectedEvent?.title}</h2>
           <p className="break-words text-sm text-muted-foreground">{selectedEvent && formatEventDateTime(selectedEvent.startTime)} · {selectedEvent?.locationName}</p>
         </section>
 
@@ -898,30 +900,30 @@ function TicketValidationWorkspace({ selectedEventId, setSelectedEventId }: {
               ) : (
                 <form onSubmit={submitCompany} className="mt-5 space-y-3">
                   <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">
-                    <input
+                    <UIInput
                       value={cui}
                       onChange={(event) => setCui(event.target.value)}
                       placeholder={t("validation.cui")}
                       required
-                      className="h-11 rounded-lg border border-white/15 bg-black/20 px-3 text-sm outline-none focus:border-primary/60"
+                      className="h-11"
                     />
-                    <input
+                    <UIInput
                       value={companyName}
                       onChange={(event) => setCompanyName(event.target.value)}
                       placeholder={t("validation.companyName")}
                       required
-                      className="h-11 rounded-lg border border-white/15 bg-black/20 px-3 text-sm outline-none focus:border-primary/60"
+                      className="h-11"
                     />
-                    <button
+                    <UIActionButton
                       type="submit"
                       disabled={submittingProfile || !agreementAccepted}
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                      className="inline-flex h-11 items-center justify-center gap-2 px-4 text-sm font-semibold disabled:opacity-50"
                     >
                       {submittingProfile && (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       )}
                       {t("validation.verify")}
-                    </button>
+                    </UIActionButton>
                   </div>
                   <label className="flex cursor-pointer items-start gap-3 border border-white/10 bg-black/10 p-3 text-xs leading-5 text-muted-foreground">
                     <input
@@ -989,7 +991,7 @@ function TicketValidationWorkspace({ selectedEventId, setSelectedEventId }: {
                 scanFeedback={
                   result ? <ScannerResultFeedback result={result} /> : undefined
                 }
-                className="h-12 w-full rounded-lg border-0 bg-primary px-4 text-sm text-primary-foreground hover:bg-primary/90"
+                className="h-12 w-full rounded-lg border-0 bg-[var(--ui-action)] px-4 text-sm text-white hover:bg-primary/90"
               />
               <p className="mt-3 text-center text-xs text-muted-foreground">
                 {t("validation.cameraHint")}
@@ -1004,13 +1006,13 @@ function TicketValidationWorkspace({ selectedEventId, setSelectedEventId }: {
                 onSubmit={validateTicket}
                 className="space-y-3 border-t border-white/10 p-4"
               >
-                <textarea
+                <UITextArea
                   disabled={admissionsClosed}
                   value={validationHash}
                   onChange={(event) => setValidationHash(event.target.value)}
                   rows={3}
                   placeholder={t("validation.pasteQr")}
-                  className="w-full resize-none rounded-lg border border-white/15 bg-white/5 p-3 font-mono text-xs outline-none transition placeholder:font-sans placeholder:text-sm focus:border-primary/60"
+                  className="w-full resize-none font-mono transition placeholder:font-sans placeholder:text-sm"
                 />
                 <button
                   type="submit"
@@ -1113,14 +1115,7 @@ function TicketValidationWorkspace({ selectedEventId, setSelectedEventId }: {
                     {t("validation.scansForEvent")}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setScanHistoryOpen(true)}
-                  aria-label={t("validation.openScanHistory")}
-                  className="grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary transition hover:bg-primary hover:text-primary-foreground active:scale-95"
-                >
-                  <History className="h-5 w-5" />
-                </button>
+                <IconButton label={t("validation.openScanHistory")} tone="primary" onClick={()=>setScanHistoryOpen(true)}><History aria-hidden className="h-5 w-5"/></IconButton>
               </div>
               <p className="mt-4 text-xs text-muted-foreground">
                 {t("validation.scanHistoryHint")}
@@ -1147,13 +1142,13 @@ function TicketValidationWorkspace({ selectedEventId, setSelectedEventId }: {
               onSubmit={addStaff}
               className="mt-5 flex flex-col gap-2 sm:flex-row"
             >
-              <input
+              <UIInput
                 type="email"
                 value={staffEmail}
                 onChange={(event) => setStaffEmail(event.target.value)}
                 placeholder={t("validation.staffEmailPlaceholder")}
                 required
-                className="h-11 min-w-0 flex-1 rounded-lg border border-white/15 bg-white/5 px-3 text-sm outline-none focus:border-primary/60"
+                className="h-11 min-w-0 flex-1"
               />
               <button
                 type="submit"
@@ -1232,33 +1227,33 @@ function TicketValidationWorkspace({ selectedEventId, setSelectedEventId }: {
               onSubmit={createScannerAccess}
               className="mt-5 grid gap-3 md:grid-cols-2"
             >
-              <input
+              <UIInput
                 value={scannerLabel}
                 onChange={(event) => setScannerLabel(event.target.value)}
                 maxLength={80}
                 placeholder={t("validation.scannerLabelPlaceholder")}
                 required
-                className="h-11 rounded-lg border border-white/15 bg-white/5 px-3 text-sm outline-none focus:border-primary/60"
+                className="h-11"
               />
               <div className="hidden md:block" />
               <label className="space-y-1.5 text-xs font-semibold text-muted-foreground">
                 <span>{t("validation.activeFrom")}</span>
-                <input
+                <UIInput
                   type="datetime-local"
                   value={scannerStartsAt}
                   onChange={(event) => setScannerStartsAt(event.target.value)}
                   required
-                  className="h-11 w-full rounded-lg border border-white/15 bg-white/5 px-3 text-sm text-foreground outline-none focus:border-primary/60"
+                  className="h-11 w-full text-foreground"
                 />
               </label>
               <label className="space-y-1.5 text-xs font-semibold text-muted-foreground">
                 <span>{t("validation.activeUntil")}</span>
-                <input
+                <UIInput
                   type="datetime-local"
                   value={scannerEndsAt}
                   onChange={(event) => setScannerEndsAt(event.target.value)}
                   required
-                  className="h-11 w-full rounded-lg border border-white/15 bg-white/5 px-3 text-sm text-foreground outline-none focus:border-primary/60"
+                  className="h-11 w-full text-foreground"
                 />
               </label>
               <button
@@ -1286,16 +1281,16 @@ function TicketValidationWorkspace({ selectedEventId, setSelectedEventId }: {
                   <p className="text-sm font-semibold">
                     {latestScannerAccess.label}
                   </p>
-                  <button
+                  <UIActionButton
                     type="button"
                     onClick={() =>
                       void copyScannerAccess(latestScannerAccess.url)
                     }
-                    className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground"
+                    className="inline-flex h-9 shrink-0 items-center gap-2 px-3 text-xs font-semibold"
                   >
                     <Copy className="h-3.5 w-3.5" />
                     {t("validation.copy")}
-                  </button>
+                  </UIActionButton>
                 </div>
                 <p className="mt-2 break-all font-mono text-[11px] text-muted-foreground">
                   {latestScannerAccess.url}

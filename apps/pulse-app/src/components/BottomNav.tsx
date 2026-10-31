@@ -129,7 +129,7 @@ function BottomNav() {
                   // path for keyboard, assistive technology and programmatic use.
                   if (event.detail === 0) handleTabClick(idx, item.url);
                 }}
-                className="relative flex h-full flex-1 touch-manipulation flex-col items-center justify-center gap-[2px] outline-none"
+                className="relative flex h-full flex-1 touch-manipulation flex-col items-center justify-center gap-[2px]"
               >
                 {/* Capsula roz magenta care îmbracă ICONIȚA + TEXTUL */}
 

@@ -18,6 +18,7 @@ function actionFixture(client: QueryClient) {
     '../usePreferences': { usePreferences: () => ({ copy: (key: string) => key }) },
     '../ui/Text': {}, '../ui/FormInput': { formStyles: {} }, '../ui/theme': { colors: {} },
     '../ui/AccentPressable': { AccentPressable: 'Pressable' },
+    '../ui/ActionButton': {}, '../ui/Surface': {}, '../ui/AppModal': {}, '../ui/Field': {},
     './DashboardDropdown': {}, './data': { createDashboardApi: () => ({}) },
   }).load('../../spottr-native/src/dashboard/common.tsx');
   return { run: (...args: unknown[]) => hook.render(useAction).run(...args),

@@ -9,6 +9,8 @@ import type { Event, InvitationTicket } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { ThemedSelect } from "@/features/events/form/ThemedSelect";
 import { ManagementDrawer } from "./ManagementDrawer";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {Field as UIField,Input as UIInput} from '@/components/ui/Field';
 
 type InvitationBatch = {
   id: string;
@@ -183,17 +185,17 @@ export function InvitationManager({ event, readOnly = false }: { event: Event; r
     </button>
     <ManagementDrawer open={open} onClose={() => setOpen(false)} title={t("invitations.title")} subtitle={t(readOnly ? "invitations.readOnlySubtitle" : "invitations.subtitle")}>
       {!readOnly && <div className="grid gap-3">
-        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("invitations.labelPlaceholder")} maxLength={120} className="h-11 rounded-xl border border-white/10 bg-black/20 px-3 text-sm outline-none focus:border-primary/50" />
-        <ThemedSelect value={validTicketType ? ticketTypeId : ""} onChange={setTicketTypeId} placeholder={t("invitations.typePlaceholder")} icon={Gift} options={event.ticketTypes.map((type) => ({ value: type.id, label: type.name }))} />
+        <UIField label={t("invitations.labelPlaceholder")}><UIInput value={label} onChange={(e) => setLabel(e.target.value)} maxLength={120} className="h-11" /></UIField>
+        <UIField label={t("invitations.typePlaceholder")}><ThemedSelect value={validTicketType ? ticketTypeId : ""} onChange={setTicketTypeId} placeholder={t("invitations.typePlaceholder")} icon={Gift} options={event.ticketTypes.map((type) => ({ value: type.id, label: type.name }))} /></UIField>
         {!event.ticketTypes.length && <p className="text-xs text-muted-foreground">{t("invitations.noTicketTypes")}</p>}
         <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
           {t("invitations.quantity")}
-          <input type="number" inputMode="numeric" min={1} max={100} value={quantityInput} onChange={(e) => setQuantityInput(e.target.value)} onBlur={() => setQuantityInput(String(quantity))} className="h-11 rounded-xl border border-white/10 bg-black/20 px-3 text-sm text-foreground outline-none focus:border-primary/50" />
+          <UIInput type="number" inputMode="numeric" min={1} max={100} value={quantityInput} onChange={(e) => setQuantityInput(e.target.value)} onBlur={() => setQuantityInput(String(quantity))} className="h-11 text-foreground" />
           <span className="font-normal">{t("invitations.quantityHint")}</span>
         </label>
-        <button type="button" disabled={busy || !label.trim() || !validTicketType} onClick={() => void create()} className="h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-40">
+        <UIActionButton type="button" disabled={busy || !label.trim() || !validTicketType} onClick={() => void create()} className="h-11 px-4 text-sm font-semibold disabled:opacity-40">
           {busy ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : t("invitations.generate", { count: quantity })}
-        </button>
+        </UIActionButton>
       </div>}
 
       <div className={readOnly ? "grid gap-3" : "mt-5 grid gap-3"}>

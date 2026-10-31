@@ -3,39 +3,41 @@ import React, { forwardRef, useContext, useState } from 'react';
 import { Platform, StyleSheet, TextInput, useWindowDimensions, type TextInputProps } from 'react-native';
 import { AppSheetTextInput } from './AppSheetTextInput';
 import { AppFontsReadyContext } from './Text';
+import {colors,tokens} from './theme';
 
 // Values from Next: events/form/FormField, profile/PersonalDetailsForm,
 // checkout/InvoiceDetailsFields. Auth and search have their own icon containers.
 export const formStyles = StyleSheet.create({
-  event: { minHeight: 46, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: '#ffffff1a', backgroundColor: '#ffffff06', fontSize: 14, color: '#f7faf2', fontFamily: 'Inter_400Regular' },
-  profile: { minHeight: 42, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: '#ffffff1a', backgroundColor: '#ffffff0d', fontSize: 14, color: '#f7faf2', fontFamily: 'Inter_400Regular' },
-  billing: { height: 44, paddingHorizontal: 14, paddingVertical: 0, borderRadius: 12, borderWidth: 1, borderColor: '#ffffff1a', backgroundColor: '#ffffff09', fontSize: 16, color: '#ffffff', fontFamily: 'Inter_400Regular' },
-  label: { fontSize: 14, fontWeight: '500', color: '#f7faf2d9' },
-  profileLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1.1, color: '#9ca89e' },
-  error: { color: '#f87171', fontSize: 12, lineHeight: 18 },
+  event: { minHeight:44,paddingHorizontal:tokens.control.fieldPaddingInline,paddingVertical:tokens.control.fieldPaddingBlock,borderRadius:tokens.radius.field,borderWidth:1,borderColor:colors.inputBorder,backgroundColor:colors.surface,fontSize:tokens.type.body.size,lineHeight:tokens.type.body.size*tokens.type.body.lineHeight,color:colors.text,fontFamily:'Inter_400Regular' },
+  profile: { minHeight:44,paddingHorizontal:tokens.control.fieldPaddingInline,paddingVertical:tokens.control.fieldPaddingBlock,borderRadius:tokens.radius.field,borderWidth:1,borderColor:colors.inputBorder,backgroundColor:colors.surface,fontSize:tokens.type.body.size,lineHeight:tokens.type.body.size*tokens.type.body.lineHeight,color:colors.text,fontFamily:'Inter_400Regular' },
+  billing: { minHeight:44,paddingHorizontal:tokens.control.fieldPaddingInline,paddingVertical:tokens.control.fieldPaddingBlock,borderRadius:tokens.radius.field,borderWidth:1,borderColor:colors.inputBorder,backgroundColor:colors.surface,fontSize:tokens.type.body.size,lineHeight:tokens.type.body.size*tokens.type.body.lineHeight,color:colors.text,fontFamily:'Inter_400Regular' },
+  label: {fontSize:14,lineHeight:21,fontWeight:'600',color:colors.text},
+  profileLabel: {fontSize:14,lineHeight:21,fontWeight:'600',color:colors.text},
+  error: {color:colors.danger,fontSize:12,lineHeight:18},
 });
-type Props = TextInputProps & { variant?: 'event' | 'profile' | 'billing' | 'bare'; invalid?: boolean; inSheet?: boolean; 'aria-invalid'?: boolean };
-export const FormInput = forwardRef<TextInputInstance, Props>(function FormInput({ variant = 'event', invalid, inSheet, style, onFocus, onBlur, editable = true, ...props }, ref) {
+type Props = TextInputProps & { variant?: 'event' | 'profile' | 'billing' | 'bare'; invalid?: boolean; inSheet?: boolean; 'aria-invalid'?: boolean; focusOwner?: 'self' | 'container' };
+export const FormInput = forwardRef<TextInputInstance, Props>(function FormInput({ variant = 'event', invalid, inSheet, style, onFocus, onBlur, editable = true, focusOwner = 'self', ...props }, ref) {
   const [focused, setFocused] = useState(false);
-  const wide = useWindowDimensions().width >= 640;
   const Input = inSheet ? AppSheetTextInput : TextInput;
   const bad = invalid ?? props['aria-invalid'];
   const shape = StyleSheet.flatten(style);
   const fontsReady = useContext(AppFontsReadyContext);
   const fontFamily = shape?.fontFamily ?? (variant === 'bare' ? undefined : formStyles[variant].fontFamily);
   return <Input {...props} ref={ref as never} editable={editable} aria-invalid={!!bad} selectionColor="#ff0044" cursorColor="#ff0044"
-    underlineColorAndroid="transparent" placeholderTextColor={props.placeholderTextColor ?? (variant === 'billing' ? '#ffffff59' : '#9ca89e99')}
+    underlineColorAndroid="transparent" placeholderTextColor={colors.muted}
     onFocus={event => { setFocused(true); onFocus?.(event); }} onBlur={event => { setFocused(false); onBlur?.(event); }}
     style={[
       variant !== 'bare' && formStyles[variant],
-      variant === 'billing' && wide && { fontSize: 14 },
+
       props.multiline && { height: undefined, minHeight: variant === 'profile' ? 88 : 104, textAlignVertical: 'top', paddingVertical: 14 },
       style,
+      {fontSize:Math.max(16,shape?.fontSize??16)},
+      variant!=='bare'&&{height:undefined,minHeight:Math.max(props.multiline?104:tokens.control.regular,typeof shape?.minHeight==='number'?shape.minHeight:0,typeof shape?.height==='number'?shape.height:0),paddingHorizontal:tokens.control.fieldPaddingInline,paddingVertical:props.multiline?14:tokens.control.fieldPaddingBlock,lineHeight:tokens.type.body.size*tokens.type.body.lineHeight,borderRadius:tokens.radius.field,borderWidth:1,borderColor:colors.inputBorder,backgroundColor:colors.surface},
       !fontsReady && fontFamily?.startsWith('Inter_') && { fontFamily: undefined },
-      typeof shape?.height === 'number' && shape.minHeight === undefined && { minHeight: shape.height },
-      Platform.OS === 'web' && ({ outlineStyle: 'none', transition: 'border-color 160ms, background-color 160ms' } as never),
-      focused && variant !== 'bare' && { borderColor: variant === 'profile' ? '#ff004480' : '#ff004499', ...(variant === 'event' ? { backgroundColor: '#ffffff0a' } : variant === 'profile' ? { backgroundColor: '#ffffff14' } : {}) },
-      bad && { borderColor: '#f87171b3' },
+      variant==='bare'&&typeof shape?.height === 'number' && shape.minHeight === undefined && { minHeight: shape.height },
+      Platform.OS === 'web' && ({outlineStyle:'solid',outlineWidth:focused&&focusOwner==='self'?2:0,outlineColor:colors.focus,outlineOffset:3} as never),
+      focused&&variant!=='bare'&&{borderColor:colors.focus},
+      bad&&{borderColor:colors.danger},
       !editable && variant !== 'bare' && { opacity: 0.5 },
     ]} />;
 });

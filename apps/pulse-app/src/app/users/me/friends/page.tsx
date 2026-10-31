@@ -17,6 +17,7 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { SocialAvatar } from "@/components/social/SocialAvatar";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { useTranslation } from "react-i18next";
+import {Input as UIInput} from '@/components/ui/Field';
 
 export default function FriendsPage() {
   const { user, isOrganizer, loading } = useDataProvider();
@@ -99,15 +100,15 @@ export default function FriendsPage() {
         </div>
       </header>
 
-      <label className="mt-6 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-4">
+      <label className="ui-input-shell mt-6 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-4">
         <Search className="h-4 w-4 text-white/40" />
-        <input
+        <UIInput
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t("friends.searchPlaceholder")}
           aria-label={t("friends.searchPlaceholder")}
-          className="h-12 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/35"
+          className="h-12 min-w-0 flex-1 bg-transparent text-sm  placeholder:text-white/35" bare
         />
       </label>
       {loading || friendsLoading ? (

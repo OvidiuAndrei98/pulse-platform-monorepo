@@ -14,6 +14,8 @@ import { RequestError } from "@/components/ui/RequestFeedback";
 import { Skeleton } from "@/components/ui/loading";
 import { TicketPreview } from "@/components/tickets/TicketPreview";
 import { formatEventDateTime } from "@/features/events/dateFormat";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {ActionLink as UIActionLink} from '@/components/ui/ActionButton';
 
 type UserTicket = ReadableSchema<"UserTicketResponse">;
 type TicketTab = "active" | "history" | "used" | "expired";
@@ -86,7 +88,7 @@ export default function TicketsPage() {
           const count = item === "active" ? activeTickets.length : historyTickets.length;
           return (
             <button key={item} type="button" aria-pressed={selected} onClick={() => setTab(item)}
-              className={`flex min-h-11 items-center justify-center gap-2 rounded-full px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-primary ${selected ? "bg-primary text-white" : "text-muted-foreground hover:text-white"}`}>
+              className={`flex min-h-11 items-center justify-center gap-2 rounded-full px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-primary ${selected ? "bg-[var(--ui-action)] text-white" : "text-muted-foreground hover:text-white"}`}>
               {t(item === "active" ? "tickets.upcoming" : "tickets.history")}
               {!isLoading && !error && <span className={`rounded-full px-2 py-0.5 text-[11px] tabular-nums ${selected ? "bg-black/20" : "bg-white/5"}`}>{count}</span>}
             </button>
@@ -117,7 +119,7 @@ export default function TicketsPage() {
           <Ticket className="mx-auto h-7 w-7 text-primary" />
           <p className="mt-4 text-sm font-semibold">{t(tab === "active" ? "tickets.noUpcoming" : "tickets.noHistory")}</p>
           <p className="mt-2 text-xs leading-5 text-muted-foreground">{t(tab === "active" ? "tickets.noUpcomingHint" : "tickets.emptyHint")}</p>
-          {tab === "active" && <Link href="/events" className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-white">{t("tickets.exploreEvents")}<ChevronRight className="h-4 w-4" /></Link>}
+          {tab === "active" && <UIActionLink href="/events" className="mt-5 inline-flex min-h-11 items-center gap-2  bg-[var(--ui-action)] px-5 text-sm font-semibold">{t("tickets.exploreEvents")}<ChevronRight className="h-4 w-4" /></UIActionLink>}
         </div>
       ) : (
         <div className="mt-6 space-y-6">
@@ -149,9 +151,9 @@ function TicketEventGroup({ tickets, now, featured, onOpen }: {
           <p className="flex items-start gap-2"><Calendar className="h-4 w-4 shrink-0" />{formatEventDateTime(event.startTime)}</p>
           <p className="flex items-start gap-2"><MapPin className="h-4 w-4 shrink-0 text-primary" />{event.locationName}</p>
         </div>
-        {featured && <button type="button" onClick={() => onOpen(event)} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
+        {featured && <UIActionButton type="button" onClick={() => onOpen(event)} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 px-5 text-sm font-semibold transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
           <QrCode className="h-4 w-4" />{t("tickets.showQr")}{tickets.length > 1 && <span className="rounded-full bg-black/20 px-2 py-0.5 text-xs tabular-nums">{tickets.length}</span>}
-        </button>}
+        </UIActionButton>}
       </div>
       <div className="divide-y divide-white/10 border-t border-dashed border-white/15">
         {tickets.map((ticket, index) => {

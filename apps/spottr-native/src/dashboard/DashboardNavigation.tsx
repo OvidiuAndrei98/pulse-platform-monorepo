@@ -25,6 +25,7 @@ import {
 } from "lucide-react-native";
 import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
+import {useReducedMotionPreference} from "../ui/useReducedMotionPreference";
 import { Logo } from "../ui/Logo";
 import { dColors as colors } from "./common";
 
@@ -241,6 +242,7 @@ export function DashboardSidebar({ section, onNavigate, validator }: NavProps) {
 }
 
 export function DashboardHeader({ section, onNavigate, validator }: NavProps) {
+  const reduced=useReducedMotionPreference();
   const { copy } = usePreferences(),
     { width } = useWindowDimensions();
   const tabs = validator
@@ -277,7 +279,7 @@ export function DashboardHeader({ section, onNavigate, validator }: NavProps) {
     const frame = frames.current[active];
     if (!frame || width >= 768) return;
     setVisible(true);
-    if (first.current) {
+    if (first.current||reduced) {
       x.setValue(frame.x);
       w.setValue(frame.width);
       first.current = false;
@@ -300,9 +302,9 @@ export function DashboardHeader({ section, onNavigate, validator }: NavProps) {
       ]).start();
     scroll.current?.scrollTo({
       x: Math.max(0, frame.x - (width - frame.width) / 2),
-      animated: true,
+      animated: !reduced,
     });
-  }, [active, layoutVersion, width, x, w]);
+  }, [active, layoutVersion, width, x, w, reduced]);
   const pointer = useRef<{
     x: number;
     scroll: number;

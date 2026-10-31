@@ -3,9 +3,11 @@ import { Animated, Platform, Pressable, StyleSheet, type GestureResponderEvent, 
 import { ShieldAlert } from 'lucide-react-native';
 import { Text } from '../ui/Text';
 import { usePreferences } from '../usePreferences';
+import {useReducedMotionPreference} from '../ui/useReducedMotionPreference';
 
 /** A physical contact must last 1.4s; release, leaving, blur and disable cancel. */
 export function HoldForHelp({ disabled, compact, onComplete }: { disabled: boolean; compact?: boolean; onComplete: () => void }) {
+  const reduced=useReducedMotionPreference();
   const { copy } = usePreferences(), [holding, setHolding] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null), fill = useRef(new Animated.Value(0)).current;
   const completed = useRef(false), keyHeld = useRef(false), callback = useRef(onComplete);
@@ -17,7 +19,7 @@ export function HoldForHelp({ disabled, compact, onComplete }: { disabled: boole
   const start = () => {
     if (disabled || timer.current) return;
     completed.current = false; setHolding(true);
-    Animated.timing(fill, { toValue: 1, duration: 1400, useNativeDriver: false }).start();
+    if(!reduced)Animated.timing(fill, { toValue: 1, duration: 1400, useNativeDriver: false }).start();
     timer.current = setTimeout(() => { timer.current = null; completed.current = true; stop(); callback.current(); }, 1400);
   };
   useEffect(() => { if (disabled) stop(); }, [disabled, stop]);

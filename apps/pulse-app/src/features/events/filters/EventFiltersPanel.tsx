@@ -10,6 +10,7 @@ import { eventCategories } from "@/core/mappers";
 import { EventFilters } from "@/features/events/types";
 import { DiscoveryCalendar } from './DiscoveryCalendar';
 import { ThemedSelect } from '../form/ThemedSelect';
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
 
 const dateLabelKeys: Record<string, string> = {
   "See all": "filters.seeAll",
@@ -109,7 +110,7 @@ export function EventFiltersPanel({
       {error&&<p role="alert" className="shrink-0 px-6 pb-3 text-sm text-red-400">{error}</p>}
       <div className="relative flex shrink-0 items-center gap-3 border-t border-white/10 px-6 py-4">
         <button type="button" onClick={onReset} className="flex-1 rounded-full border border-white/15 bg-white/5 py-3 text-sm font-medium">{t("common.reset")}</button>
-        <button type="button" onClick={onApply} className="flex-[1.6] rounded-full bg-primary py-3 text-xl font-bold text-white">{t("common.applyFilters")}</button>
+        <UIActionButton type="button" onClick={onApply} className="flex-[1.6] py-3 text-xl font-bold">{t("common.applyFilters")}</UIActionButton>
       </div>
     </div>
   );

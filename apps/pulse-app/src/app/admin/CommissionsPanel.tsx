@@ -5,10 +5,12 @@ import { ApiClient } from '@packages/api-client/src/Client';
 import { useDataProvider } from '@/core/DataProviderContext';
 import { commissionFormula, commissionText, parseCommissionInputs, parseCommissionSettings, type CommissionSettings, type OrganizerCommission } from '@/features/admin/commissions';
 import type { DirectoryDetail } from '@/features/admin/organizers';
+import {Input as UIInput} from '@/components/ui/Field';
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
 
 const card = 'space-y-3 rounded-2xl border border-white/10 bg-white/[0.025] p-4';
 const button = 'min-h-11 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold disabled:opacity-50';
-const input = 'w-full rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3 text-sm outline-none focus:border-primary';
+const input = "w-full";
 export function CommissionsPanel({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
   const { user, isAdmin } = useDataProvider();
   return isAdmin && user ? <Panel key={user.properties.id} initiallyOpen={initiallyOpen} /> : null;
@@ -32,7 +34,7 @@ function Panel({ initiallyOpen }: { initiallyOpen: boolean }) {
     {open && <><p className="text-sm text-muted-foreground">{t.hint}</p>
       {busy ? <p>{t.loading}</p> : failed ? <><p role="alert">{t.loadFailed}</p><button className={button} onClick={() => void load()}>{t.retry}</button></> : data && <>
         <div className={card}><h3 className="font-semibold">{t.standard}</h3><p className="text-lg font-semibold">{commissionFormula(data.standard, ro)}</p><p className="text-sm text-muted-foreground">{t.future}</p>{editing === 'standard' ? editor('standard') : <button disabled={!!editing} className={button} onClick={() => setEditing('standard')}>{t.edit}</button>}</div>
-        <input aria-label={t.search} placeholder={t.search} className={input} value={search} onChange={e => setSearch(e.target.value)} disabled={!!editing} />
+        <UIInput aria-label={t.search} placeholder={t.search} className={input} value={search} onChange={e => setSearch(e.target.value)} disabled={!!editing} />
         {rows.map(o => <div className={card} key={o.organizerId}><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">{o.companyName}</h3><span className="text-xs font-semibold text-primary">{o.override ? t.negotiated : t.inherited}</span></div><p className="break-all text-sm text-muted-foreground">{o.email}</p><p className="font-semibold">{commissionFormula(o.override ?? data.standard, ro)}</p>{typeof editing === 'object' && editing?.organizerId === o.organizerId ? editor(editing) : <button disabled={!!editing} className={button} onClick={() => setEditing(o)}>{t.edit}</button>}</div>)}
         {!rows.length && <p className="text-sm text-muted-foreground">{t.empty}</p>}
       </>}
@@ -64,8 +66,8 @@ function Editor({ target, data, close, saved }: { target: 'standard' | Organizer
   };
   return <form className="space-y-4 rounded-xl border border-primary/40 p-4" onSubmit={e => { e.preventDefault(); void save(); }}>
     {!standard && <div className="flex flex-wrap gap-2">{[true, false].map(value => <button key={String(value)} type="button" disabled={busy} aria-pressed={inherit === value} className={button + (inherit === value ? ' border-primary bg-primary/15 text-primary' : '')} onClick={() => setInherit(value)}>{value ? t.reset : t.custom}</button>)}</div>}
-    {inherit ? <p>{commissionFormula(data.standard, ro)}</p> : <div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2 text-sm"><span>{t.percent}</span><input className={input} inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} disabled={busy} /></label><label className="space-y-2 text-sm"><span>{t.fixed}</span><input className={input} inputMode="decimal" value={fixed} onChange={e => setFixed(e.target.value)} disabled={busy} /></label></div>}
+    {inherit ? <p>{commissionFormula(data.standard, ro)}</p> : <div className="grid gap-4 sm:grid-cols-2"><label className="space-y-2 text-sm"><span>{t.percent}</span><UIInput className={input} inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} disabled={busy} /></label><label className="space-y-2 text-sm"><span>{t.fixed}</span><UIInput className={input} inputMode="decimal" value={fixed} onChange={e => setFixed(e.target.value)} disabled={busy} /></label></div>}
     <p className="text-sm text-muted-foreground">{t.future}</p>{error && <p role="alert" className="text-sm text-red-300">{error}</p>}
-    <div className="flex flex-wrap gap-2"><button disabled={busy} type="submit" className={button + ' border-primary bg-primary text-white'}>{t.save}</button><button disabled={busy} type="button" className={button} onClick={close}>{t.cancel}</button></div>
+    <div className="flex flex-wrap gap-2"><UIActionButton disabled={busy} type="submit" className={button + ' border-primary bg-[var(--ui-action)]'}>{t.save}</UIActionButton><button disabled={busy} type="button" className={button} onClick={close}>{t.cancel}</button></div>
   </form>;
 }

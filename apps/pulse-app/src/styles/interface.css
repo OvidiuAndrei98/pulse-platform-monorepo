@@ -1,0 +1,90 @@
+@layer components {
+.ui-button { display:inline-flex; align-items:center; justify-content:center; gap:var(--ui-space-sm); min-width:0; min-height:var(--ui-control-regular); padding:10px 20px; border:1px solid transparent; border-radius:var(--ui-radius-pill); font-size:var(--ui-text-label); line-height:1.5; font-weight:var(--ui-weight-label); text-align:center; overflow-wrap:anywhere; touch-action:manipulation; }
+.ui-button[data-variant="primary"] { background-color:var(--ui-action); color:var(--ui-on-action); }
+.ui-button[data-variant="secondary"] { background-color:var(--ui-raised); border-color:var(--ui-input-border); color:var(--ui-text); }
+.ui-button[data-variant="ghost"] { background-color:transparent; color:var(--ui-text); }
+.ui-button[data-variant="danger"] { background-color:var(--ui-danger-surface); border-color:var(--ui-danger); color:var(--ui-danger); }
+.ui-button--large { min-height:var(--ui-control-large); padding:12px 24px; }
+.ui-button--compact { min-height:var(--ui-control-compact); padding:8px 14px; }
+.ui-button:disabled,.ui-button[aria-disabled="true"] { opacity:.45; cursor:default; }
+.ui-icon-button { width:44px; min-width:44px; min-height:var(--ui-control-regular); padding:10px; flex-shrink:0; }
+.ui-button svg { flex-shrink:0; }
+.ui-button:focus-visible,.ui-input:focus-visible,.ui-input-bare:focus-visible { outline:2px solid var(--ui-focus); outline-offset:3px; }
+.ui-input { width:100%; min-width:0; min-height:var(--ui-control-regular); border:1px solid var(--ui-input-border); border-radius:var(--ui-radius-field); padding:10px 14px; background:var(--ui-surface); color:var(--ui-text); font-size:1rem; line-height:1.5; font-weight:400; color-scheme:dark; }
+.ui-input::placeholder { color:var(--ui-muted); opacity:1; }
+.ui-input:disabled { opacity:.45; }
+.ui-input[aria-invalid="true"] { border-color:var(--ui-danger); }
+.ui-input-bare { min-width:0; background:transparent; color:inherit; font-size:1rem; }
+.ui-textarea { min-height:104px; resize:vertical; }
+.ui-field { display:flex; min-width:0; flex-direction:column; gap:6px; }
+.ui-field-label { color:var(--ui-text); font-size:var(--ui-text-label); line-height:1.5; font-weight:var(--ui-weight-label); }
+.ui-field-error,.ui-field-hint { font-size:var(--ui-text-caption); line-height:1.5; overflow-wrap:anywhere; }
+.ui-field-error { color:var(--ui-danger); }
+.ui-field-hint { color:var(--ui-muted); }
+.ui-surface { min-width:0; padding:16px; border:1px solid var(--ui-border); border-radius:var(--ui-radius-surface); background:var(--ui-surface); color:var(--ui-text); }
+.ui-surface--raised { background:var(--ui-raised); }
+.ui-page-header { display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+.ui-page-heading { flex:1; min-width:0; }
+.ui-page-title { margin:0; color:var(--ui-text); font-size:var(--ui-text-title); font-weight:700; line-height:1.25; letter-spacing:-.02em; overflow-wrap:anywhere; }
+.ui-page-description { margin-top:6px; color:var(--ui-muted); font-size:var(--ui-text-label); line-height:1.5; }
+.ui-page-actions { display:flex; gap:var(--ui-space-sm); flex-wrap:wrap; }
+.ui-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border:1px solid var(--ui-border); border-radius:999px; color:var(--ui-text); font-size:var(--ui-text-caption); line-height:1.5; }
+.ui-badge--success { color:var(--ui-success); }.ui-badge--warning { color:var(--ui-warning); }.ui-badge--danger { color:var(--ui-danger); }
+.ui-status { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--ui-space-md); padding:24px 16px; text-align:center; }
+.ui-status-title { color:var(--ui-text); font-size:var(--ui-text-section); line-height:1.4; font-weight:var(--ui-weight-label); }
+.ui-status-detail { color:var(--ui-muted); max-width:60ch; font-size:var(--ui-text-label); line-height:1.5; }
+.ui-status--error>svg { color:var(--ui-danger); }
+.ui-spinner { width:18px; height:18px; }
+@media(min-width:640px) { .ui-input,.ui-input-bare { font-size:var(--ui-text-label); }.ui-surface { padding:24px; } }
+@media(hover:hover) { .ui-button[data-variant="primary"]:not(:disabled):not([aria-disabled="true"]):hover { background-color:var(--ui-action-hover); }.ui-button[data-variant="secondary"]:not(:disabled):hover { border-color:var(--ui-muted); } }
+@media(prefers-reduced-motion:no-preference) { .ui-button { transition:background-color var(--ui-motion-feedback) ease-out,scale var(--ui-motion-feedback) ease-out; }.ui-button:not(:disabled):not([aria-disabled="true"]):active { scale:.96; }.ui-spinner { animation:ui-spin 1s linear infinite; } }
+@keyframes ui-spin { to { rotate:360deg; } }
+@media(forced-colors:active) { .ui-button:focus-visible,.ui-input:focus-visible,.ui-input-bare:focus-visible { outline-color:Highlight; }.ui-button { border-color:ButtonText; } }
+.ui-modal { position:fixed; inset:0; margin:auto; width:min(520px,calc(100% - 32px)); max-width:none; max-height:calc(100dvh - 32px); padding:0; overflow:auto; overscroll-behavior:contain; border:1px solid var(--ui-border); border-radius:var(--ui-radius-overlay); background:var(--ui-overlay); color:var(--ui-text); }
+.ui-modal::backdrop { background:#000b; }
+.ui-modal--side { inset:0 0 0 auto; margin:0; width:min(480px,100%); height:100dvh; max-height:100dvh; border-radius:0; }
+.ui-modal--side[open] { display:flex; flex-direction:column; }
+.ui-modal-header { display:flex; align-items:flex-start; gap:var(--ui-space-md); padding:20px; border-bottom:1px solid var(--ui-border); flex-shrink:0; }
+.ui-modal-header h2 { font-size:var(--ui-text-section); line-height:1.4; font-weight:700; }
+.ui-modal-header p { color:var(--ui-muted); font-size:var(--ui-text-label); margin-top:4px; }
+}
+/* Deliberately outside layers: legacy utility focus resets must not erase focus. */
+:where(button,a[href],input,textarea,select,[tabindex]:not([tabindex="-1"])):focus-visible { outline:2px solid var(--ui-focus); outline-offset:3px; }
+@media(forced-colors:active) { :where(button,a[href],input,textarea,select,[tabindex]:not([tabindex="-1"])):focus-visible { outline-color:Highlight; } }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
+@media(any-pointer:coarse) { .ui-input,.ui-input-bare { font-size:1rem; } }
+/* Tone is a semantic contract; utility overrides remain available for layout. */
+.ui-button[data-variant="primary"] { background-color:var(--ui-action);color:var(--ui-on-action); }
+.ui-button svg { color:inherit; }
+@media(hover:hover) { .ui-button[data-variant="primary"]:not(:disabled):not([aria-disabled="true"]):hover { background-color:var(--ui-action-hover); } }
+.ui-modal--center { max-height:calc(100dvh - max(16px,var(--native-safe-top,0px)) - max(16px,var(--native-safe-bottom,0px))); }
+.ui-modal--side .ui-modal-header { padding-top:max(20px,var(--native-safe-top,0px)); }
+.ui-status--compact { align-items:flex-start;gap:var(--ui-space-sm);padding:var(--ui-space-lg);text-align:start; }
+.ui-status--compact .ui-status-title { font-size:var(--ui-text-label); }
+.ui-button { font-size:var(--ui-text-label);font-weight:var(--ui-weight-label);border-radius:var(--ui-radius-pill); }
+.ui-button--large { font-size:var(--ui-text-body); }
+.ui-modal { --ui-safe-top:max(env(safe-area-inset-top,0px),var(--native-safe-top,0px));--ui-safe-bottom:max(env(safe-area-inset-bottom,0px),var(--native-safe-bottom,0px));--ui-safe-left:max(env(safe-area-inset-left,0px),var(--native-safe-left,0px));--ui-safe-right:max(env(safe-area-inset-right,0px),var(--native-safe-right,0px)); }
+.ui-modal--center { inset:max(16px,var(--ui-safe-top)) max(16px,var(--ui-safe-right)) max(16px,var(--ui-safe-bottom)) max(16px,var(--ui-safe-left));height:fit-content;width:min(520px,calc(100% - max(16px,var(--ui-safe-left)) - max(16px,var(--ui-safe-right)))); }
+.ui-modal--side .ui-modal-header,.ui-modal--side [data-drawer-keyboard-scroll] { padding-left:max(20px,var(--ui-safe-left));padding-right:max(20px,var(--ui-safe-right)); }
+.ui-modal--side [data-drawer-keyboard-scroll] { padding-bottom:max(32px,var(--ui-safe-bottom)); }
+.ui-button { height:auto; }
+.ui-button[data-variant="secondary"] { background-color:var(--ui-raised);color:var(--ui-text);border-color:var(--ui-input-border); }
+.ui-button[data-variant="ghost"] { background-color:transparent;color:var(--ui-text); }
+.ui-button[data-variant="danger"] { background-color:var(--ui-danger-surface);color:var(--ui-danger);border-color:var(--ui-danger); }
+.ui-input[class] { min-height:var(--ui-control-regular);height:auto;border:1px solid var(--ui-input-border);border-radius:var(--ui-radius-field);background:var(--ui-surface);color:var(--ui-text);padding:var(--ui-control-field-padding-block) var(--ui-control-field-padding-inline);font-size:var(--ui-text-body);line-height:var(--ui-leading-body); }
+.ui-textarea[class] { min-height:104px;padding-block:14px; }
+.ui-input[class]:focus-visible { border-color:var(--ui-focus); }
+.ui-input[class][aria-invalid="true"] { border-color:var(--ui-danger); }
+.ui-button[class]:focus-visible,.ui-input[class]:focus-visible,.ui-input-bare[class]:focus-visible { outline:2px solid var(--ui-focus);outline-offset:3px; }
+.ui-button[class][data-variant="primary"]:focus-visible { box-shadow:0 0 0 6px var(--ui-focus-halo); }
+.ui-button[aria-busy="true"] { opacity:1; }
+@media(min-width:640px) and (hover:hover) and (pointer:fine) { .ui-input[class] { font-size:var(--ui-text-label);line-height:var(--ui-leading-label); } }
+@media(forced-colors:active) { .ui-button[class]:focus-visible,.ui-input[class]:focus-visible,.ui-input-bare[class]:focus-visible { outline-color:Highlight; } }
+.ui-field { align-content:start; }
+.ui-input[class]::placeholder,.ui-input-bare[class]::placeholder { color:var(--ui-muted);opacity:1; }
+/* Compound fields own the focus perimeter, including their icon and padding.
+   Keep the bare input's fallback unless a shell can provide its replacement. */
+.ui-input-shell:has(> .ui-input-bare:focus-visible) { outline:2px solid var(--ui-focus);outline-offset:0; }
+.ui-input-shell--brand:has(> .ui-input-bare:focus-visible) { outline-color:var(--ui-brand); }
+.ui-input-shell:has(> .ui-input-bare:focus-visible) > .ui-input-bare[class]:focus-visible { outline:none; }
+@media(forced-colors:active) { .ui-input-shell:has(> .ui-input-bare:focus-visible) { outline-color:Highlight; } }

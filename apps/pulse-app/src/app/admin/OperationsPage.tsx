@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {ModalFrame} from "@/components/ui/ModalFrame";
+import {Field} from "@/components/ui/Field";
 import {
   Building2,
   Ban,
@@ -30,6 +32,8 @@ import { RefundAttentionList } from "@/app/dashboard/components/RefundAttentionL
 import { CommissionsPanel } from './CommissionsPanel';
 import { ClientErrorsPanel } from './ClientErrorsPanel';
 import { adminLabel, type AdminSection } from '@/features/admin/navigation';
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {TextArea as UITextArea} from '@/components/ui/Field';
 
 type VerificationStatus = "pending" | "approved" | "rejected";
 type StatusFilter = "all" | VerificationStatus;
@@ -305,7 +309,7 @@ export function AdminOperationsPage({ section }: { section: AdminSection }) {
                 <div className="mt-5 grid gap-2 sm:grid-cols-3">
                   <button type="button" onClick={() => setCancellationTarget({ request, action: "reject" })} className="h-10 rounded-lg border border-white/10 text-xs font-semibold">{t("adminCancellations.reject")}</button>
                   <button type="button" onClick={() => setCancellationTarget({ request, action: "refund" })} className="h-10 rounded-lg border border-amber-300/20 bg-amber-300/10 text-xs font-semibold text-amber-200">{t("adminCancellations.approveRefundFee")}</button>
-                  <button type="button" onClick={() => setCancellationTarget({ request, action: "retain" })} className="h-10 rounded-lg bg-primary text-xs font-semibold text-primary-foreground">{t("adminCancellations.approveRetainFee")}</button>
+                  <UIActionButton type="button" onClick={() => setCancellationTarget({ request, action: "retain" })} className="h-10 text-xs font-semibold">{t("adminCancellations.approveRetainFee")}</UIActionButton>
                 </div>
               )}
             </article>
@@ -377,7 +381,7 @@ export function AdminOperationsPage({ section }: { section: AdminSection }) {
                 onClick={() => setFilter(status)}
                 className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-xs font-semibold transition ${
                   filter === status
-                    ? "border-primary bg-primary text-primary-foreground"
+                    ? "border-primary bg-[var(--ui-action)] text-primary-foreground"
                     : "border-white/10 bg-white/[0.03] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
                 }`}
               >
@@ -447,13 +451,13 @@ export function AdminOperationsPage({ section }: { section: AdminSection }) {
                     </button>
                   )}
                   {request.verificationStatus !== "approved" && (
-                    <button
+                    <UIActionButton
                       type="button"
                       onClick={() => setReviewTarget({ request, status: "approved" })}
-                      className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-primary text-xs font-semibold text-primary-foreground transition hover:opacity-90"
+                      className="inline-flex h-10 flex-1 items-center justify-center gap-2 text-xs font-semibold transition hover:opacity-90"
                     >
                       <Check className="h-4 w-4" /> {t("admin.approve")}
-                    </button>
+                    </UIActionButton>
                   )}
                 </div>
               </article>
@@ -469,8 +473,8 @@ export function AdminOperationsPage({ section }: { section: AdminSection }) {
       </div>
 
       {reviewTarget && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
-          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl">
+        <ModalFrame open onClose={()=>setReviewTarget(undefined)} dismissible={!reviewing} label={reviewTarget.status==='approved'?t('admin.approveTitle'):t('admin.rejectTitle')}>
+          <div className="p-5">
             <div className={`grid h-11 w-11 place-items-center rounded-full ${reviewTarget.status === "approved" ? "bg-primary/15 text-primary" : "bg-red-500/10 text-red-300"}`}>
               {reviewTarget.status === "approved" ? <CircleCheck className="h-5 w-5" /> : <CircleX className="h-5 w-5" />}
             </div>
@@ -483,6 +487,7 @@ export function AdminOperationsPage({ section }: { section: AdminSection }) {
             <div className="mt-6 flex gap-2">
               <button
                 type="button"
+                data-dialog-initial-focus
                 onClick={() => setReviewTarget(undefined)}
                 disabled={reviewing}
                 className="h-10 flex-1 rounded-lg border border-white/15 text-sm font-semibold transition hover:bg-white/5 disabled:opacity-50"
@@ -493,28 +498,28 @@ export function AdminOperationsPage({ section }: { section: AdminSection }) {
                 type="button"
                 onClick={() => void confirmReview()}
                 disabled={reviewing}
-                className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50 ${reviewTarget.status === "approved" ? "bg-primary" : "bg-red-600 hover:bg-red-500"}`}
+                className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50 ${reviewTarget.status === "approved" ? "bg-[var(--ui-action)]" : "bg-red-600 hover:bg-red-500"}`}
               >
                 {reviewing && <Loader2 className="h-4 w-4 animate-spin" />}
                 {reviewTarget.status === "approved" ? t("admin.approve") : t("admin.reject")}
               </button>
             </div>
           </div>
-        </div>
+        </ModalFrame>
       )}
 
       {cancellationTarget && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-neutral-950 p-5 shadow-2xl">
+        <ModalFrame open onClose={()=>setCancellationTarget(undefined)} dismissible={!reviewing} label={t(`adminCancellations.confirm.${cancellationTarget.action}`)}>
+          <div className="p-5">
             <div className="flex items-center gap-3"><Ticket className="h-5 w-5 text-primary" /><h2 className="text-lg font-semibold">{t(`adminCancellations.confirm.${cancellationTarget.action}`)}</h2></div>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">{t(`adminCancellations.confirmHint.${cancellationTarget.action}`)}</p>
-            <textarea value={adminNote} onChange={(event) => setAdminNote(event.target.value)} placeholder={t("adminCancellations.note")} rows={3} className="mt-4 w-full resize-none rounded-xl border border-white/10 bg-white/[0.035] p-3 text-base outline-none focus:border-primary/50" />
+            <Field label={t("adminCancellations.note")} className="mt-4"><UITextArea value={adminNote} onChange={(event) => setAdminNote(event.target.value)} placeholder={t("adminCancellations.note")} rows={3} className="w-full resize-none" /></Field>
             <div className="mt-5 flex gap-2">
-              <button type="button" onClick={() => setCancellationTarget(undefined)} disabled={reviewing} className="h-10 flex-1 rounded-lg border border-white/10 text-sm font-semibold">{t("common.cancel")}</button>
-              <button type="button" onClick={() => void confirmCancellation()} disabled={reviewing} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-primary-foreground disabled:opacity-50">{reviewing && <Loader2 className="h-4 w-4 animate-spin" />}{t("common.confirm")}</button>
+              <button data-dialog-initial-focus type="button" onClick={() => setCancellationTarget(undefined)} disabled={reviewing} className="h-10 flex-1 rounded-lg border border-white/10 text-sm font-semibold">{t("common.cancel")}</button>
+              <UIActionButton type="button" onClick={() => void confirmCancellation()} disabled={reviewing} className="inline-flex h-10 flex-1 items-center justify-center gap-2 text-sm font-semibold disabled:opacity-50">{reviewing && <Loader2 className="h-4 w-4 animate-spin" />}{t("common.confirm")}</UIActionButton>
             </div>
           </div>
-        </div>
+        </ModalFrame>
       )}
     </div>
   );

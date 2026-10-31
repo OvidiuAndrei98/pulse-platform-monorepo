@@ -6,6 +6,8 @@ import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
 import { useTranslation } from "react-i18next";
 import { PageLoadingState } from "@/components/ui/loading";
 import { apiRoot } from "@/core/apiRoot";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {TextArea as UITextArea} from '@/components/ui/Field';
 
 type ScannerSession = {
   sessionToken: string;
@@ -140,12 +142,12 @@ export default function ScanPage() {
         <section className="rounded-xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
           <div className="flex items-start gap-3"><Ticket className="mt-0.5 h-5 w-5 text-primary" /><div><h2 className="text-base font-semibold">{t("scanner.validateTicket")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("scanner.validationHint")}</p></div></div>
           <form onSubmit={validateTicket} className="mt-5 space-y-3">
-            <textarea value={validationHash} onChange={(event) => setValidationHash(event.target.value)} rows={4} placeholder={t("scanner.qrCode")} className="w-full resize-none rounded-lg border border-white/15 bg-white/5 p-3 font-mono text-xs outline-none placeholder:font-sans placeholder:text-sm focus:border-primary/60" autoFocus />
+            <UITextArea aria-label={t("scanner.qrCode")} value={validationHash} onChange={(event) => setValidationHash(event.target.value)} rows={4} placeholder={t("scanner.qrCode")} className="w-full resize-none font-mono placeholder:font-sans placeholder:text-sm" autoFocus />
             <QrCameraScanner disabled={validating} onScan={(value) => void submitValidationHash(value)} />
-            <button type="submit" disabled={!validationHash.trim() || validating} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+            <UIActionButton type="submit" disabled={!validationHash.trim() || validating} className="inline-flex h-11 w-full items-center justify-center gap-2 px-4 text-sm font-semibold disabled:opacity-50">
               {validating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
               {validating ? t("scanner.validating") : t("scanner.validate")}
-            </button>
+            </UIActionButton>
           </form>
 
           {result && <div className={`mt-5 flex gap-3 rounded-lg border p-4 ${result.status === "valid" ? "border-primary/30 bg-primary/10" : "border-amber-400/30 bg-amber-400/10"}`}>{result.status === "valid" ? <CheckCircle2 className="mt-0.5 h-5 w-5 text-primary" /> : <XCircle className="mt-0.5 h-5 w-5 text-amber-300" />}<div><p className="text-sm font-semibold">{result.status === "valid" ? t("scanner.validTicket") : t("scanner.usedTicket")}</p><p className="mt-1 text-xs text-muted-foreground">{result.ticketType} - {result.eventTitle}</p></div></div>}

@@ -36,6 +36,7 @@ import {
   validatePromotionBillingDetails,
 } from "@/features/promotions/PromotionBillingDetailsFields";
 import { normalizedCUI, promotionBillingFromSaved, savedCompanyBilling } from "@/features/promotions/promotionBilling";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
 
 const toDateKey = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -503,7 +504,7 @@ export default function PromotionsPage() {
                   })}
                 </p>
               </div>
-              <button
+              <UIActionButton
                 type="button"
                 onClick={() => void checkout()}
                 disabled={
@@ -512,7 +513,7 @@ export default function PromotionsPage() {
                   || checkingAvailability
                   || (placement === "home_banner" && availability?.availableSlots === 0)
                 }
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex h-12 items-center justify-center gap-2 px-6 text-sm font-semibold transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {checkingOut ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -522,7 +523,7 @@ export default function PromotionsPage() {
                 {checkingOut
                   ? t("promotions.redirecting")
                   : t("promotions.payAndPromote")}
-              </button>
+              </UIActionButton>
             </div>
           </div>
         )}

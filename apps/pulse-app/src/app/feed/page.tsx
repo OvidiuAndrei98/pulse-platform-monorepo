@@ -18,6 +18,7 @@ import {
 } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
+import {ActionLink as UIActionLink} from '@/components/ui/ActionButton';
 
 const INITIAL_VISIBLE_ITEMS = 8;
 export default function FeedPage() {
@@ -77,12 +78,12 @@ export default function FeedPage() {
         <p className="mt-2 text-xs text-muted-foreground">
           {t("feed.signInHint")}
         </p>
-        <Link
+        <UIActionLink
           href="/login"
-          className="mt-4 inline-flex rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
+          className="mt-4 inline-flex  bg-[var(--ui-action)] px-4 py-2 text-xs font-medium  shadow-sm transition hover:opacity-90"
         >
           {t("social.signIn")}
-        </Link>
+        </UIActionLink>
       </main>
     );
   }
@@ -102,7 +103,7 @@ export default function FeedPage() {
             <UsersRound className="h-5 w-5" />
             {t("friends.title")}
             {requests.length > 0 && (
-              <span className="grid min-h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[11px] font-semibold text-white">
+              <span className="grid min-h-5 min-w-5 place-items-center rounded-full bg-[var(--ui-action)] px-1 text-[11px] font-semibold text-white">
                 {requests.length}
               </span>
             )}

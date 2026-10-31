@@ -13,6 +13,7 @@ import {
 import { Check, ChevronDown, type LucideIcon } from "lucide-react-native";
 import { Text } from "../ui/Text";
 import { usePreferences } from "../usePreferences";
+import {colors} from "../ui/theme";
 import { dropdownPlacement, type DropdownAnchor } from "./dropdownPlacement";
 
 export type DashboardDropdownProps = {
@@ -52,6 +53,7 @@ export function DashboardDropdown({
     viewport = useWindowDimensions();
   const [anchor, setAnchor] = useState<DropdownAnchor | null>(null),
     [active, setActive] = useState(0);
+  const [focusVisible, setFocusVisible] = useState(false);
   const close = () => {
     setAnchor(null);
     if (Platform.OS === "web")
@@ -147,13 +149,15 @@ export function DashboardDropdown({
         aria-invalid={!!error}
         disabled={disabled}
         onPress={open}
+        onFocus={event => setFocusVisible(Platform.OS === 'web' && !!(event.currentTarget as unknown as HTMLElement).matches?.(':focus-visible'))}
+        onBlur={() => setFocusVisible(false)}
         style={[
           {
             minHeight: 44,
             borderWidth: 1,
-            borderColor: error ? "#ef4444" : "#ffffff1a",
+            borderColor: error ? colors.danger : colors.inputBorder,
             borderRadius: 12,
-            backgroundColor: "#ffffff06",
+            backgroundColor: colors.surface,
             paddingHorizontal: 13,
             paddingVertical: 10,
             flexDirection: "row",
@@ -162,6 +166,7 @@ export function DashboardDropdown({
             opacity: disabled ? 0.5 : 1,
           },
           triggerStyle,
+          Platform.OS === 'web' && {outlineStyle:'solid',outlineWidth:focusVisible?2:0,outlineColor:colors.focus,outlineOffset:2},
           !!anchor && { borderColor: '#ff004499' },
           !!error && { borderColor: '#f87171b3' },
         ]}
@@ -232,11 +237,16 @@ export function DashboardDropdown({
                   accessibilityState={{ selected: option.value === value }}
                   aria-selected={option.value === value}
                   onPress={() => select(index)}
+                  onFocus={() => setActive(index)}
+                  onHoverIn={() => setActive(index)}
                   style={{
                     minHeight: 40,
                     paddingHorizontal: 12,
                     paddingVertical: 8,
                     borderRadius: 12,
+                    borderWidth:1,
+                    borderColor:index === active ? colors.focus : 'transparent',
+                    ...(Platform.OS === 'web' ? {outlineStyle:'solid' as const,outlineWidth:0} : {}),
                     flexDirection: "row",
                     alignItems: "center",
                     gap: 8,

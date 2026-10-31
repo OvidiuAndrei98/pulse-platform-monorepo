@@ -1,0 +1,3726 @@
+{
+  "scope": "Source scan, not a runtime/accessibility certification",
+  "sourceCount": 514,
+  "entries": [
+    {
+      "entry": "apps/pulse-app/src/app/admin/cancellations/page.tsx",
+      "platform": "web",
+      "route": "/admin/cancellations",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/admin/OperationsPage.tsx",
+        "apps/pulse-app/src/components/ui/ModalFrame.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/app/dashboard/components/RefundAttentionList.tsx",
+        "apps/pulse-app/src/app/admin/CommissionsPanel.tsx",
+        "apps/pulse-app/src/app/admin/ClientErrorsPanel.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ui": {
+        "buttons": 45,
+        "fields": 18,
+        "dialogs": 5,
+        "headings": 25,
+        "shared": 35
+      },
+      "candidateCount": 6
+    },
+    {
+      "entry": "apps/pulse-app/src/app/admin/commissions/page.tsx",
+      "platform": "web",
+      "route": "/admin/commissions",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/admin/OperationsPage.tsx",
+        "apps/pulse-app/src/components/ui/ModalFrame.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/app/dashboard/components/RefundAttentionList.tsx",
+        "apps/pulse-app/src/app/admin/CommissionsPanel.tsx",
+        "apps/pulse-app/src/app/admin/ClientErrorsPanel.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ui": {
+        "buttons": 45,
+        "fields": 18,
+        "dialogs": 5,
+        "headings": 25,
+        "shared": 35
+      },
+      "candidateCount": 6
+    },
+    {
+      "entry": "apps/pulse-app/src/app/admin/errors/page.tsx",
+      "platform": "web",
+      "route": "/admin/errors",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/admin/OperationsPage.tsx",
+        "apps/pulse-app/src/components/ui/ModalFrame.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/app/dashboard/components/RefundAttentionList.tsx",
+        "apps/pulse-app/src/app/admin/CommissionsPanel.tsx",
+        "apps/pulse-app/src/app/admin/ClientErrorsPanel.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ui": {
+        "buttons": 45,
+        "fields": 18,
+        "dialogs": 5,
+        "headings": 25,
+        "shared": 35
+      },
+      "candidateCount": 6
+    },
+    {
+      "entry": "apps/pulse-app/src/app/admin/invoices/page.tsx",
+      "platform": "web",
+      "route": "/admin/invoices",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/admin/OperationsPage.tsx",
+        "apps/pulse-app/src/components/ui/ModalFrame.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/app/dashboard/components/RefundAttentionList.tsx",
+        "apps/pulse-app/src/app/admin/CommissionsPanel.tsx",
+        "apps/pulse-app/src/app/admin/ClientErrorsPanel.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ui": {
+        "buttons": 45,
+        "fields": 18,
+        "dialogs": 5,
+        "headings": 25,
+        "shared": 35
+      },
+      "candidateCount": 6
+    },
+    {
+      "entry": "apps/pulse-app/src/app/admin/organizers/page.tsx",
+      "platform": "web",
+      "route": "/admin/organizers",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/admin/organizers/DirectoryPanel.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/app/admin/CommissionsPanel.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ui": {
+        "buttons": 35,
+        "fields": 18,
+        "dialogs": 2,
+        "headings": 21,
+        "shared": 29
+      },
+      "candidateCount": 6
+    },
+    {
+      "entry": "apps/pulse-app/src/app/admin/organizers/view/page.tsx",
+      "platform": "web",
+      "route": "/admin/organizers/view",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/admin/organizers/DirectoryPanel.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/app/admin/CommissionsPanel.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ui": {
+        "buttons": 35,
+        "fields": 18,
+        "dialogs": 2,
+        "headings": 21,
+        "shared": 29
+      },
+      "candidateCount": 6
+    },
+    {
+      "entry": "apps/pulse-app/src/app/admin/page.tsx",
+      "platform": "web",
+      "route": "/admin",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/admin/page.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ui": {
+        "buttons": 22,
+        "fields": 14,
+        "dialogs": 2,
+        "headings": 11,
+        "shared": 23
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/admin/refunds/page.tsx",
+      "platform": "web",
+      "route": "/admin/refunds",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/admin/OperationsPage.tsx",
+        "apps/pulse-app/src/components/ui/ModalFrame.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/app/dashboard/components/RefundAttentionList.tsx",
+        "apps/pulse-app/src/app/admin/CommissionsPanel.tsx",
+        "apps/pulse-app/src/app/admin/ClientErrorsPanel.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ui": {
+        "buttons": 45,
+        "fields": 18,
+        "dialogs": 5,
+        "headings": 25,
+        "shared": 35
+      },
+      "candidateCount": 6
+    },
+    {
+      "entry": "apps/pulse-app/src/app/admin/style-guide/page.tsx",
+      "platform": "web",
+      "route": "/admin/style-guide",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/admin/style-guide/page.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/components/ui/Surface.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ModalFrame.tsx",
+        "apps/pulse-app/src/features/events/form/DateTimePicker.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ui": {
+        "buttons": 25,
+        "fields": 17,
+        "dialogs": 6,
+        "headings": 15,
+        "shared": 60
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/admin/verifications/page.tsx",
+      "platform": "web",
+      "route": "/admin/verifications",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/admin/OperationsPage.tsx",
+        "apps/pulse-app/src/components/ui/ModalFrame.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/app/dashboard/components/RefundAttentionList.tsx",
+        "apps/pulse-app/src/app/admin/CommissionsPanel.tsx",
+        "apps/pulse-app/src/app/admin/ClientErrorsPanel.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/admin/layout.tsx"
+      ],
+      "ui": {
+        "buttons": 45,
+        "fields": 18,
+        "dialogs": 5,
+        "headings": 25,
+        "shared": 35
+      },
+      "candidateCount": 6
+    },
+    {
+      "entry": "apps/pulse-app/src/app/auth/google/callback/page.tsx",
+      "platform": "web",
+      "route": "/auth/google/callback",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 22,
+        "fields": 14,
+        "dialogs": 2,
+        "headings": 9,
+        "shared": 23
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/checkout/native-return/page.tsx",
+      "platform": "web",
+      "route": "/checkout/native-return",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/checkout/native-return/page.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 22,
+        "fields": 14,
+        "dialogs": 2,
+        "headings": 10,
+        "shared": 23
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/checkout/success/page.tsx",
+      "platform": "web",
+      "route": "/checkout/success",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/checkout/success/page.tsx",
+        "apps/pulse-app/src/features/checkout/CheckoutSuccessTicket.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 23,
+        "fields": 14,
+        "dialogs": 2,
+        "headings": 11,
+        "shared": 23
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/dashboard/events/edit/page.tsx",
+      "platform": "web",
+      "route": "/dashboard/events/edit",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/dashboard/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/dashboard/events/[eventId]/DashboardEventPageClient.tsx",
+        "apps/pulse-app/src/app/dashboard/components/EventsForm.tsx",
+        "apps/pulse-app/src/features/events/form/DeleteEventDialog.tsx",
+        "apps/pulse-app/src/features/events/form/EventDetailsSection.tsx",
+        "apps/pulse-app/src/components/PlacesAutocomplete.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/features/events/form/DateTimePicker.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/ModalFrame.tsx",
+        "apps/pulse-app/src/features/events/form/FormField.tsx",
+        "apps/pulse-app/src/features/events/form/EventBannerUpload.tsx",
+        "apps/pulse-app/src/features/events/form/TicketTypesSection.tsx",
+        "apps/pulse-app/src/features/events/lineup/LineupSection.tsx",
+        "apps/pulse-app/src/features/events/lineup/AddArtistForm.tsx",
+        "apps/pulse-app/src/features/events/form/EventPublicationSection.tsx",
+        "apps/pulse-app/src/app/dashboard/components/OrganizerUpdatesManager.tsx",
+        "apps/pulse-app/src/app/dashboard/components/InvitationManager.tsx",
+        "apps/pulse-app/src/app/dashboard/components/ManagementDrawer.tsx",
+        "apps/pulse-app/src/app/dashboard/components/PromoCodeManager.tsx",
+        "apps/pulse-app/src/app/dashboard/components/EventCancellationManager.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/dashboard/components/DashboardSidebar.tsx"
+      ],
+      "ui": {
+        "buttons": 62,
+        "fields": 57,
+        "dialogs": 7,
+        "headings": 23,
+        "shared": 73
+      },
+      "candidateCount": 42
+    },
+    {
+      "entry": "apps/pulse-app/src/app/dashboard/events/new/page.tsx",
+      "platform": "web",
+      "route": "/dashboard/events/new",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/dashboard/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/dashboard/events/new/page.tsx",
+        "apps/pulse-app/src/app/dashboard/components/EventsForm.tsx",
+        "apps/pulse-app/src/features/events/form/DeleteEventDialog.tsx",
+        "apps/pulse-app/src/features/events/form/EventDetailsSection.tsx",
+        "apps/pulse-app/src/components/PlacesAutocomplete.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/features/events/form/DateTimePicker.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/ModalFrame.tsx",
+        "apps/pulse-app/src/features/events/form/FormField.tsx",
+        "apps/pulse-app/src/features/events/form/EventBannerUpload.tsx",
+        "apps/pulse-app/src/features/events/form/TicketTypesSection.tsx",
+        "apps/pulse-app/src/features/events/lineup/LineupSection.tsx",
+        "apps/pulse-app/src/features/events/lineup/AddArtistForm.tsx",
+        "apps/pulse-app/src/features/events/form/EventPublicationSection.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/dashboard/components/DashboardSidebar.tsx"
+      ],
+      "ui": {
+        "buttons": 49,
+        "fields": 48,
+        "dialogs": 5,
+        "headings": 20,
+        "shared": 56
+      },
+      "candidateCount": 33
+    },
+    {
+      "entry": "apps/pulse-app/src/app/dashboard/events/page.tsx",
+      "platform": "web",
+      "route": "/dashboard/events",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/dashboard/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/dashboard/events/page.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/dashboard/components/DashboardSidebar.tsx"
+      ],
+      "ui": {
+        "buttons": 26,
+        "fields": 15,
+        "dialogs": 2,
+        "headings": 12,
+        "shared": 25
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/dashboard/events/[eventId]/page.tsx",
+      "platform": "web",
+      "route": "/dashboard/events/[eventId]",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/dashboard/layout.tsx",
+        "apps/pulse-app/src/app/dashboard/events/[eventId]/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/dashboard/events/[eventId]/DashboardEventPageClient.tsx",
+        "apps/pulse-app/src/app/dashboard/components/EventsForm.tsx",
+        "apps/pulse-app/src/features/events/form/DeleteEventDialog.tsx",
+        "apps/pulse-app/src/features/events/form/EventDetailsSection.tsx",
+        "apps/pulse-app/src/components/PlacesAutocomplete.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/features/events/form/DateTimePicker.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/ModalFrame.tsx",
+        "apps/pulse-app/src/features/events/form/FormField.tsx",
+        "apps/pulse-app/src/features/events/form/EventBannerUpload.tsx",
+        "apps/pulse-app/src/features/events/form/TicketTypesSection.tsx",
+        "apps/pulse-app/src/features/events/lineup/LineupSection.tsx",
+        "apps/pulse-app/src/features/events/lineup/AddArtistForm.tsx",
+        "apps/pulse-app/src/features/events/form/EventPublicationSection.tsx",
+        "apps/pulse-app/src/app/dashboard/components/OrganizerUpdatesManager.tsx",
+        "apps/pulse-app/src/app/dashboard/components/InvitationManager.tsx",
+        "apps/pulse-app/src/app/dashboard/components/ManagementDrawer.tsx",
+        "apps/pulse-app/src/app/dashboard/components/PromoCodeManager.tsx",
+        "apps/pulse-app/src/app/dashboard/components/EventCancellationManager.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/dashboard/components/DashboardSidebar.tsx"
+      ],
+      "ui": {
+        "buttons": 62,
+        "fields": 57,
+        "dialogs": 7,
+        "headings": 23,
+        "shared": 73
+      },
+      "candidateCount": 42
+    },
+    {
+      "entry": "apps/pulse-app/src/app/dashboard/finance/page.tsx",
+      "platform": "web",
+      "route": "/dashboard/finance",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/dashboard/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/dashboard/finance/page.tsx",
+        "apps/pulse-app/src/app/dashboard/components/StripeAccountPanel.tsx",
+        "apps/pulse-app/src/components/ui/ModalFrame.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/app/dashboard/components/RefundAttentionList.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/dashboard/components/DashboardSidebar.tsx"
+      ],
+      "ui": {
+        "buttons": 33,
+        "fields": 14,
+        "dialogs": 4,
+        "headings": 17,
+        "shared": 27
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/dashboard/invoicing/page.tsx",
+      "platform": "web",
+      "route": "/dashboard/invoicing",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/dashboard/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/dashboard/invoicing/page.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/dashboard/components/DashboardSidebar.tsx"
+      ],
+      "ui": {
+        "buttons": 30,
+        "fields": 19,
+        "dialogs": 2,
+        "headings": 13,
+        "shared": 29
+      },
+      "candidateCount": 5
+    },
+    {
+      "entry": "apps/pulse-app/src/app/dashboard/page.tsx",
+      "platform": "web",
+      "route": "/dashboard",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/dashboard/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/dashboard/page.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/dashboard/components/DashboardSidebar.tsx"
+      ],
+      "ui": {
+        "buttons": 25,
+        "fields": 14,
+        "dialogs": 2,
+        "headings": 14,
+        "shared": 24
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/dashboard/profile/page.tsx",
+      "platform": "web",
+      "route": "/dashboard/profile",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/dashboard/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/dashboard/profile/page.tsx",
+        "apps/pulse-app/src/components/profile/ProfileAvatarUpload.tsx",
+        "apps/pulse-app/src/components/profile/PersonalDetailsForm.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/components/profile/PasswordResetRequest.tsx",
+        "apps/pulse-app/src/components/profile/LanguagePreferenceRow.tsx",
+        "apps/pulse-app/src/components/profile/OrganizerAccountClosure.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/dashboard/components/DashboardSidebar.tsx"
+      ],
+      "ui": {
+        "buttons": 27,
+        "fields": 17,
+        "dialogs": 2,
+        "headings": 13,
+        "shared": 28
+      },
+      "candidateCount": 6
+    },
+    {
+      "entry": "apps/pulse-app/src/app/dashboard/promotions/page.tsx",
+      "platform": "web",
+      "route": "/dashboard/promotions",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/dashboard/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/dashboard/promotions/page.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/promotions/PromotionBillingDetailsFields.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/dashboard/components/DashboardSidebar.tsx"
+      ],
+      "ui": {
+        "buttons": 29,
+        "fields": 20,
+        "dialogs": 2,
+        "headings": 13,
+        "shared": 37
+      },
+      "candidateCount": 4
+    },
+    {
+      "entry": "apps/pulse-app/src/app/dashboard/purchases/page.tsx",
+      "platform": "web",
+      "route": "/dashboard/purchases",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/dashboard/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/dashboard/purchases/page.tsx",
+        "apps/pulse-app/src/components/tickets/TicketPreview.tsx",
+        "apps/pulse-app/src/components/tickets/TicketPass.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/tickets/TicketPdfButton.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/dashboard/components/DashboardSidebar.tsx"
+      ],
+      "ui": {
+        "buttons": 30,
+        "fields": 14,
+        "dialogs": 3,
+        "headings": 13,
+        "shared": 23
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/dashboard/ticket-validation/page.tsx",
+      "platform": "web",
+      "route": "/dashboard/ticket-validation",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/dashboard/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/dashboard/ticket-validation/page.tsx",
+        "apps/pulse-app/src/features/wardrobe/WardrobeTabs.tsx",
+        "apps/pulse-app/src/components/tickets/QrCameraScanner.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/dashboard/components/DashboardSidebar.tsx"
+      ],
+      "ui": {
+        "buttons": 43,
+        "fields": 25,
+        "dialogs": 3,
+        "headings": 21,
+        "shared": 37
+      },
+      "candidateCount": 14
+    },
+    {
+      "entry": "apps/pulse-app/src/app/dashboard/wardrobe/page.tsx",
+      "platform": "web",
+      "route": "/dashboard/wardrobe",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/dashboard/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/features/wardrobe/Wardrobe.tsx",
+        "apps/pulse-app/src/components/tickets/QrCameraScanner.tsx",
+        "apps/pulse-app/src/features/wardrobe/WardrobeTabs.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/app/dashboard/components/DashboardSidebar.tsx"
+      ],
+      "ui": {
+        "buttons": 39,
+        "fields": 20,
+        "dialogs": 3,
+        "headings": 22,
+        "shared": 36
+      },
+      "candidateCount": 9
+    },
+    {
+      "entry": "apps/pulse-app/src/app/dev/error-preview/page.tsx",
+      "platform": "web",
+      "route": "/dev/error-preview",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/components/GlobalErrorScreen.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 23,
+        "fields": 14,
+        "dialogs": 2,
+        "headings": 10,
+        "shared": 23
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/events/page.tsx",
+      "platform": "web",
+      "route": "/events",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/events/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/events/page.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/features/events/filters/DiscoveryToolbar.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/events/components/EventViewToggle.tsx",
+        "apps/pulse-app/src/components/FiltersSheet.tsx",
+        "apps/pulse-app/src/features/events/filters/EventFiltersPanel.tsx",
+        "apps/pulse-app/src/features/events/filters/DiscoveryCalendar.tsx",
+        "apps/pulse-app/src/features/events/components/EventBrowseCard.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 39,
+        "fields": 16,
+        "dialogs": 4,
+        "headings": 12,
+        "shared": 27
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/events/[id]/group/page.tsx",
+      "platform": "web",
+      "route": "/events/[id]/group",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/events/layout.tsx",
+        "apps/pulse-app/src/app/events/[id]/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/events/[id]/group/EventSafetyGroupPageClient.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 28,
+        "fields": 15,
+        "dialogs": 2,
+        "headings": 13,
+        "shared": 30
+      },
+      "candidateCount": 4
+    },
+    {
+      "entry": "apps/pulse-app/src/app/events/[id]/page.tsx",
+      "platform": "web",
+      "route": "/events/[id]",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/events/layout.tsx",
+        "apps/pulse-app/src/app/events/[id]/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/events/[id]/EventDetailsPageClient.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 24,
+        "fields": 14,
+        "dialogs": 2,
+        "headings": 12,
+        "shared": 25
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/feed/page.tsx",
+      "platform": "web",
+      "route": "/feed",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/feed/page.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/social/FriendsSheet.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/components/social/FeedActivityCard.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 26,
+        "fields": 15,
+        "dialogs": 2,
+        "headings": 13,
+        "shared": 26
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/forgot-password/page.tsx",
+      "platform": "web",
+      "route": "/forgot-password",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/forgot-password/page.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 22,
+        "fields": 15,
+        "dialogs": 2,
+        "headings": 10,
+        "shared": 25
+      },
+      "candidateCount": 4
+    },
+    {
+      "entry": "apps/pulse-app/src/app/legal/privacy/page.tsx",
+      "platform": "web",
+      "route": "/legal/privacy",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/features/legal/TranslatedLegalDocument.tsx",
+        "apps/pulse-app/src/features/legal/LegalDocument.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 22,
+        "fields": 14,
+        "dialogs": 2,
+        "headings": 12,
+        "shared": 23
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/legal/terms/page.tsx",
+      "platform": "web",
+      "route": "/legal/terms",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/features/legal/TranslatedLegalDocument.tsx",
+        "apps/pulse-app/src/features/legal/LegalDocument.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 22,
+        "fields": 14,
+        "dialogs": 2,
+        "headings": 12,
+        "shared": 23
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/login/page.tsx",
+      "platform": "web",
+      "route": "/login",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/login/page.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 23,
+        "fields": 16,
+        "dialogs": 2,
+        "headings": 10,
+        "shared": 27
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/organizers/agreement/page.tsx",
+      "platform": "web",
+      "route": "/organizers/agreement",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/components/organizer/AgreementAcceptance.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/features/legal/TranslatedLegalDocument.tsx",
+        "apps/pulse-app/src/features/legal/LegalDocument.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 22,
+        "fields": 15,
+        "dialogs": 2,
+        "headings": 14,
+        "shared": 26
+      },
+      "candidateCount": 4
+    },
+    {
+      "entry": "apps/pulse-app/src/app/organizers/native-return/page.tsx",
+      "platform": "web",
+      "route": "/organizers/native-return",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/organizers/native-return/page.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 23,
+        "fields": 14,
+        "dialogs": 2,
+        "headings": 10,
+        "shared": 23
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/organizers/stripe-connect/page.tsx",
+      "platform": "web",
+      "route": "/organizers/stripe-connect",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/organizers/stripe-connect/page.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 22,
+        "fields": 14,
+        "dialogs": 2,
+        "headings": 13,
+        "shared": 24
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/page.tsx",
+      "platform": "web",
+      "route": "/",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/features/wardrobe/Wardrobe.tsx",
+        "apps/pulse-app/src/components/tickets/QrCameraScanner.tsx",
+        "apps/pulse-app/src/features/wardrobe/WardrobeTabs.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/SearchPopover.tsx",
+        "apps/pulse-app/src/features/events/home/HomeEventCarousel.tsx",
+        "apps/pulse-app/src/components/EventCard.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/home/PromotedEventsHeroCarousel.tsx",
+        "apps/pulse-app/src/components/NotificationsPopover.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 47,
+        "fields": 21,
+        "dialogs": 4,
+        "headings": 25,
+        "shared": 37
+      },
+      "candidateCount": 9
+    },
+    {
+      "entry": "apps/pulse-app/src/app/profiles/page.tsx",
+      "platform": "web",
+      "route": "/profiles",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/users/[id]/UserProfilePageClient.tsx",
+        "apps/pulse-app/src/components/social/OrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/components/social/ProfileActions.tsx",
+        "apps/pulse-app/src/features/events/components/EventBrowseCard.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 28,
+        "fields": 14,
+        "dialogs": 2,
+        "headings": 15,
+        "shared": 23
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/register/page.tsx",
+      "platform": "web",
+      "route": "/register",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/register/page.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 22,
+        "fields": 21,
+        "dialogs": 2,
+        "headings": 11,
+        "shared": 37
+      },
+      "candidateCount": 4
+    },
+    {
+      "entry": "apps/pulse-app/src/app/reset-password/page.tsx",
+      "platform": "web",
+      "route": "/reset-password",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/reset-password/page.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 22,
+        "fields": 16,
+        "dialogs": 2,
+        "headings": 10,
+        "shared": 26
+      },
+      "candidateCount": 5
+    },
+    {
+      "entry": "apps/pulse-app/src/app/scan/page.tsx",
+      "platform": "web",
+      "route": "/scan",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/scan/page.tsx",
+        "apps/pulse-app/src/components/tickets/QrCameraScanner.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 25,
+        "fields": 15,
+        "dialogs": 2,
+        "headings": 12,
+        "shared": 25
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/ticket-validation/page.tsx",
+      "platform": "web",
+      "route": "/ticket-validation",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/dashboard/ticket-validation/page.tsx",
+        "apps/pulse-app/src/features/wardrobe/WardrobeTabs.tsx",
+        "apps/pulse-app/src/components/tickets/QrCameraScanner.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 40,
+        "fields": 25,
+        "dialogs": 3,
+        "headings": 20,
+        "shared": 37
+      },
+      "candidateCount": 14
+    },
+    {
+      "entry": "apps/pulse-app/src/app/users/me/friends/page.tsx",
+      "platform": "web",
+      "route": "/users/me/friends",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/users/me/friends/page.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 23,
+        "fields": 15,
+        "dialogs": 2,
+        "headings": 11,
+        "shared": 24
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/users/me/invoices/page.tsx",
+      "platform": "web",
+      "route": "/users/me/invoices",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/users/me/invoices/page.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 22,
+        "fields": 14,
+        "dialogs": 2,
+        "headings": 10,
+        "shared": 23
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/users/me/page.tsx",
+      "platform": "web",
+      "route": "/users/me",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/users/me/page.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/profile/SavedEventCard.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/components/tickets/TicketPreview.tsx",
+        "apps/pulse-app/src/components/tickets/TicketPass.tsx",
+        "apps/pulse-app/src/components/tickets/TicketPdfButton.tsx",
+        "apps/pulse-app/src/components/tickets/TicketStatusTabs.tsx",
+        "apps/pulse-app/src/components/social/ProfileConnectionQr.tsx",
+        "apps/pulse-app/src/components/tickets/QrCameraScanner.tsx",
+        "apps/pulse-app/src/features/wardrobe/Wardrobe.tsx",
+        "apps/pulse-app/src/features/wardrobe/WardrobeTabs.tsx",
+        "apps/pulse-app/src/components/profile/ProfileAvatarUpload.tsx",
+        "apps/pulse-app/src/components/profile/PersonalDetailsForm.tsx",
+        "apps/pulse-app/src/components/profile/PasswordResetRequest.tsx",
+        "apps/pulse-app/src/components/profile/LanguagePreferenceRow.tsx",
+        "apps/pulse-app/src/components/profile/AttendancePrivacyRow.tsx",
+        "apps/pulse-app/src/components/profile/HiddenEventCategories.tsx",
+        "apps/pulse-app/src/components/profile/DeleteAccountDialog.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 56,
+        "fields": 25,
+        "dialogs": 6,
+        "headings": 37,
+        "shared": 42
+      },
+      "candidateCount": 12
+    },
+    {
+      "entry": "apps/pulse-app/src/app/users/me/saved-events/page.tsx",
+      "platform": "web",
+      "route": "/users/me/saved-events",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/users/me/saved-events/page.tsx",
+        "apps/pulse-app/src/components/profile/SavedEventCard.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 23,
+        "fields": 14,
+        "dialogs": 2,
+        "headings": 10,
+        "shared": 23
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/users/me/tickets/page.tsx",
+      "platform": "web",
+      "route": "/users/me/tickets",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/users/me/tickets/page.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/tickets/TicketPreview.tsx",
+        "apps/pulse-app/src/components/tickets/TicketPass.tsx",
+        "apps/pulse-app/src/components/tickets/TicketPdfButton.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 28,
+        "fields": 14,
+        "dialogs": 3,
+        "headings": 13,
+        "shared": 25
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/users/[id]/page.tsx",
+      "platform": "web",
+      "route": "/users/[id]",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx",
+        "apps/pulse-app/src/app/users/[id]/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/app/users/[id]/UserProfilePageClient.tsx",
+        "apps/pulse-app/src/components/social/OrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/components/social/ProfileActions.tsx",
+        "apps/pulse-app/src/features/events/components/EventBrowseCard.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 28,
+        "fields": 14,
+        "dialogs": 2,
+        "headings": 15,
+        "shared": 23
+      },
+      "candidateCount": 3
+    },
+    {
+      "entry": "apps/pulse-app/src/app/wardrobe/page.tsx",
+      "platform": "web",
+      "route": "/wardrobe",
+      "shellEntries": [
+        "apps/pulse-app/src/app/layout.tsx"
+      ],
+      "ownedUISources": [
+        "apps/pulse-app/src/features/wardrobe/Wardrobe.tsx",
+        "apps/pulse-app/src/components/tickets/QrCameraScanner.tsx",
+        "apps/pulse-app/src/features/wardrobe/WardrobeTabs.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/pulse-app/src/components/BottomNav.tsx",
+        "apps/pulse-app/src/components/EventDetailsSheet.tsx",
+        "apps/pulse-app/src/components/ui/RequestFeedback.tsx",
+        "apps/pulse-app/src/components/ui/StatusNotice.tsx",
+        "apps/pulse-app/src/components/ui/ActionButton.tsx",
+        "apps/pulse-app/src/components/EventSocialProof.tsx",
+        "apps/pulse-app/src/components/social/EventAttendees.tsx",
+        "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+        "apps/pulse-app/src/components/EventOrganizerProfile.tsx",
+        "apps/pulse-app/src/components/EventOrganizerUpdates.tsx",
+        "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+        "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+        "apps/pulse-app/src/components/auth/GoogleSignInButton.tsx",
+        "apps/pulse-app/src/features/events/PromoCodeField.tsx",
+        "apps/pulse-app/src/components/ui/Field.tsx",
+        "apps/pulse-app/src/features/checkout/InvoiceDetailsFields.tsx",
+        "apps/pulse-app/src/features/events/form/ThemedSelect.tsx"
+      ],
+      "ui": {
+        "buttons": 36,
+        "fields": 20,
+        "dialogs": 3,
+        "headings": 21,
+        "shared": 36
+      },
+      "candidateCount": 9
+    },
+    {
+      "entry": "apps/spottr-native/src/admin/AdminScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/admin/AdminScreen.tsx",
+        "apps/spottr-native/src/ui/FormInput.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx",
+        "apps/spottr-native/src/admin/CommissionsPanel.tsx",
+        "apps/spottr-native/src/admin/ClientErrorsPanel.tsx",
+        "apps/spottr-native/src/admin/AdminShell.tsx",
+        "apps/spottr-native/src/admin/OrganizerDirectory.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 10,
+        "fields": 6,
+        "dialogs": 1,
+        "headings": 3,
+        "shared": 11
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/dashboard/DashboardScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx",
+        "apps/spottr-native/src/dashboard/common.tsx",
+        "apps/spottr-native/src/ui/FormInput.tsx",
+        "apps/spottr-native/src/dashboard/DashboardDropdown.tsx",
+        "apps/spottr-native/src/ui/Surface.tsx",
+        "apps/spottr-native/src/ui/AppModal.tsx",
+        "apps/spottr-native/src/dashboard/DashboardNavigation.tsx",
+        "apps/spottr-native/src/dashboard/DashboardOverview.tsx",
+        "apps/spottr-native/src/dashboard/managementUi.tsx",
+        "apps/spottr-native/src/dashboard/DashboardEvents.tsx",
+        "apps/spottr-native/src/dashboard/DashboardAccount.tsx",
+        "apps/spottr-native/src/profile/TicketAvailability.tsx",
+        "apps/spottr-native/src/profile/TicketSheet.tsx",
+        "apps/spottr-native/src/ui/AppSheet.tsx",
+        "apps/spottr-native/src/profile/OrganizerAccountClosure.tsx",
+        "apps/spottr-native/src/dashboard/DashboardCompany.tsx",
+        "apps/spottr-native/src/dashboard/EventEditor.tsx",
+        "apps/spottr-native/src/dashboard/EventManagement.tsx",
+        "apps/spottr-native/src/dashboard/ManagementPanel.tsx",
+        "apps/spottr-native/src/dashboard/DateTimeField.tsx",
+        "apps/spottr-native/src/dashboard/EditorControls.tsx",
+        "apps/spottr-native/src/dashboard/PlacesField.tsx",
+        "apps/spottr-native/src/dashboard/EditorLineup.tsx",
+        "apps/spottr-native/src/dashboard/ArtistSearch.tsx",
+        "apps/spottr-native/src/dashboard/EditorTickets.tsx",
+        "apps/spottr-native/src/dashboard/EditorBanner.tsx",
+        "apps/spottr-native/src/dashboard/Finance.tsx",
+        "apps/spottr-native/src/dashboard/Promotions.tsx",
+        "apps/spottr-native/src/dashboard/OrganizerDocuments.tsx",
+        "apps/spottr-native/src/scanner/ScannerScreen.tsx",
+        "apps/spottr-native/src/scanner/ScannerPanel.tsx",
+        "apps/spottr-native/src/scanner/GateToolbar.tsx",
+        "apps/spottr-native/src/scanner/ScannerManagement.tsx",
+        "apps/spottr-native/src/scanner/ScannerEventList.tsx",
+        "apps/spottr-native/src/wardrobe/WardrobeTabs.tsx",
+        "apps/spottr-native/src/wardrobe/WardrobeScreen.tsx",
+        "apps/spottr-native/src/dashboard/StripeAccountPanel.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 102,
+        "fields": 10,
+        "dialogs": 12,
+        "headings": 9,
+        "shared": 51
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/safety/SafetyGroupScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/safety/SafetyGroupScreen.tsx",
+        "apps/spottr-native/src/ui/FormInput.tsx",
+        "apps/spottr-native/src/safety/HoldForHelp.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 8,
+        "fields": 2,
+        "dialogs": 0,
+        "headings": 0,
+        "shared": 8
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/scanner/QuickScannerScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/scanner/QuickScannerScreen.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx",
+        "apps/spottr-native/src/scanner/ScannerPanel.tsx",
+        "apps/spottr-native/src/ui/FormInput.tsx",
+        "apps/spottr-native/src/dashboard/common.tsx",
+        "apps/spottr-native/src/dashboard/DashboardDropdown.tsx",
+        "apps/spottr-native/src/ui/Surface.tsx",
+        "apps/spottr-native/src/ui/AppModal.tsx",
+        "apps/spottr-native/src/scanner/GateToolbar.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 9,
+        "fields": 3,
+        "dialogs": 4,
+        "headings": 2,
+        "shared": 15
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/scanner/ScannerHistoryScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/scanner/ScannerHistoryScreen.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 4,
+        "fields": 0,
+        "dialogs": 0,
+        "headings": 1,
+        "shared": 6
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/scanner/ScannerScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/scanner/ScannerScreen.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx",
+        "apps/spottr-native/src/dashboard/common.tsx",
+        "apps/spottr-native/src/ui/FormInput.tsx",
+        "apps/spottr-native/src/dashboard/DashboardDropdown.tsx",
+        "apps/spottr-native/src/ui/Surface.tsx",
+        "apps/spottr-native/src/ui/AppModal.tsx",
+        "apps/spottr-native/src/dashboard/DashboardCompany.tsx",
+        "apps/spottr-native/src/dashboard/OrganizerDocuments.tsx",
+        "apps/spottr-native/src/scanner/ScannerPanel.tsx",
+        "apps/spottr-native/src/scanner/GateToolbar.tsx",
+        "apps/spottr-native/src/scanner/ScannerManagement.tsx",
+        "apps/spottr-native/src/dashboard/managementUi.tsx",
+        "apps/spottr-native/src/dashboard/DateTimeField.tsx",
+        "apps/spottr-native/src/dashboard/EditorControls.tsx",
+        "apps/spottr-native/src/scanner/ScannerEventList.tsx",
+        "apps/spottr-native/src/wardrobe/WardrobeTabs.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 38,
+        "fields": 7,
+        "dialogs": 5,
+        "headings": 5,
+        "shared": 19
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/screens/AccountListScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/screens/AccountListScreen.tsx",
+        "apps/spottr-native/src/profile/TicketAvailability.tsx",
+        "apps/spottr-native/src/profile/TicketSheet.tsx",
+        "apps/spottr-native/src/ui/AppSheet.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 18,
+        "fields": 0,
+        "dialogs": 2,
+        "headings": 0,
+        "shared": 6
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/screens/AuthScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/screens/AuthScreen.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx",
+        "apps/spottr-native/src/auth/GoogleButton.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 6,
+        "fields": 1,
+        "dialogs": 0,
+        "headings": 0,
+        "shared": 6
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/screens/CheckoutReturnScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/screens/CheckoutReturnScreen.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 8,
+        "fields": 0,
+        "dialogs": 0,
+        "headings": 1,
+        "shared": 7
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/screens/CheckoutScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/screens/CheckoutScreen.tsx",
+        "apps/spottr-native/src/ui/FormInput.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx",
+        "apps/spottr-native/src/checkout/BillingFields.tsx",
+        "apps/spottr-native/src/dashboard/DashboardDropdown.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 11,
+        "fields": 4,
+        "dialogs": 1,
+        "headings": 0,
+        "shared": 9
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/screens/DiscoveryScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/screens/DiscoveryScreen.tsx",
+        "apps/spottr-native/src/ui/EventBrowseCard.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx",
+        "apps/spottr-native/src/map/EventsMapPanel.tsx",
+        "apps/spottr-native/src/map/MapEventsCarousel.tsx",
+        "apps/spottr-native/src/screens/DiscoveryToolbar.tsx",
+        "apps/spottr-native/src/dashboard/DashboardDropdown.tsx",
+        "apps/spottr-native/src/screens/DiscoveryCalendar.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 26,
+        "fields": 1,
+        "dialogs": 2,
+        "headings": 0,
+        "shared": 8
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/screens/EventScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/screens/EventScreen.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/story/EventStory.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx",
+        "apps/spottr-native/src/ui/AppSheet.tsx",
+        "apps/spottr-native/src/ui/EventSocial.tsx",
+        "apps/spottr-native/src/profiles/OrganizerUpdates.tsx",
+        "apps/spottr-native/src/social/EventAttendees.tsx",
+        "apps/spottr-native/src/social/components.tsx",
+        "apps/spottr-native/src/ui/FormInput.tsx",
+        "apps/spottr-native/src/checkout/PurchaseSuccessSheet.tsx",
+        "apps/spottr-native/src/profile/TicketSheet.tsx",
+        "apps/spottr-native/src/profile/TicketAvailability.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 28,
+        "fields": 2,
+        "dialogs": 7,
+        "headings": 1,
+        "shared": 11
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/screens/FriendsScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/screens/FriendsScreen.tsx",
+        "apps/spottr-native/src/ui/FormInput.tsx",
+        "apps/spottr-native/src/social/components.tsx",
+        "apps/spottr-native/src/ui/AppSheet.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 15,
+        "fields": 3,
+        "dialogs": 2,
+        "headings": 0,
+        "shared": 8
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/screens/HomeScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/screens/HomeScreen.tsx",
+        "apps/spottr-native/src/notifications/NotificationsPopover.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx",
+        "apps/spottr-native/src/social/components.tsx",
+        "apps/spottr-native/src/ui/FormInput.tsx",
+        "apps/spottr-native/src/ui/AppSheet.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/wardrobe/WardrobeScreen.tsx",
+        "apps/spottr-native/src/dashboard/DashboardDropdown.tsx",
+        "apps/spottr-native/src/dashboard/common.tsx",
+        "apps/spottr-native/src/ui/Surface.tsx",
+        "apps/spottr-native/src/ui/AppModal.tsx",
+        "apps/spottr-native/src/wardrobe/WardrobeTabs.tsx",
+        "apps/spottr-native/src/ui/EventCard.tsx",
+        "apps/spottr-native/src/ui/PromotionHero.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 32,
+        "fields": 4,
+        "dialogs": 7,
+        "headings": 4,
+        "shared": 15
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/screens/LegalScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/screens/LegalScreen.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 5,
+        "fields": 0,
+        "dialogs": 0,
+        "headings": 0,
+        "shared": 5
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/screens/ProfileScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/screens/ProfileScreen.tsx",
+        "apps/spottr-native/src/ui/FormInput.tsx",
+        "apps/spottr-native/src/profile/DeleteAccountSheet.tsx",
+        "apps/spottr-native/src/ui/AppSheet.tsx",
+        "apps/spottr-native/src/profile/OrganizerAccountClosure.tsx",
+        "apps/spottr-native/src/profile/PreferencesSheet.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx",
+        "apps/spottr-native/src/profile/QuickConnectSheet.tsx",
+        "apps/spottr-native/src/wardrobe/WardrobeScreen.tsx",
+        "apps/spottr-native/src/dashboard/DashboardDropdown.tsx",
+        "apps/spottr-native/src/dashboard/common.tsx",
+        "apps/spottr-native/src/ui/Surface.tsx",
+        "apps/spottr-native/src/ui/AppModal.tsx",
+        "apps/spottr-native/src/wardrobe/WardrobeTabs.tsx",
+        "apps/spottr-native/src/profile/TicketSheet.tsx",
+        "apps/spottr-native/src/profile/TicketAvailability.tsx",
+        "apps/spottr-native/src/screens/AuthScreen.tsx",
+        "apps/spottr-native/src/auth/GoogleButton.tsx",
+        "apps/spottr-native/src/profile/TicketCarousel.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 40,
+        "fields": 8,
+        "dialogs": 10,
+        "headings": 6,
+        "shared": 19
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/screens/PublicProfileScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/screens/PublicProfileScreen.tsx",
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/profiles/OrganizerUpdates.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx",
+        "apps/spottr-native/src/social/components.tsx",
+        "apps/spottr-native/src/ui/FormInput.tsx",
+        "apps/spottr-native/src/ui/AppSheet.tsx",
+        "apps/spottr-native/src/ui/EventBrowseCard.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 17,
+        "fields": 2,
+        "dialogs": 3,
+        "headings": 0,
+        "shared": 6
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/screens/SearchScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/screens/SearchScreen.tsx",
+        "apps/spottr-native/src/ui/FormInput.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 10,
+        "fields": 2,
+        "dialogs": 0,
+        "headings": 0,
+        "shared": 7
+      },
+      "candidateCount": 0
+    },
+    {
+      "entry": "apps/spottr-native/src/wardrobe/WardrobeScreen.tsx",
+      "platform": "native",
+      "route": null,
+      "shellEntries": [
+        "apps/spottr-native/src/App.tsx"
+      ],
+      "ownedUISources": [
+        "apps/spottr-native/src/wardrobe/WardrobeScreen.tsx",
+        "apps/spottr-native/src/ui/FormInput.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx",
+        "apps/spottr-native/src/dashboard/DashboardDropdown.tsx",
+        "apps/spottr-native/src/dashboard/common.tsx",
+        "apps/spottr-native/src/ui/Surface.tsx",
+        "apps/spottr-native/src/ui/AppModal.tsx",
+        "apps/spottr-native/src/wardrobe/WardrobeTabs.tsx"
+      ],
+      "sharedShellUISources": [
+        "apps/spottr-native/src/navigation/TabBar.tsx",
+        "apps/spottr-native/src/ui/ToastHost.tsx",
+        "apps/spottr-native/src/notifications/PushProvider.tsx",
+        "apps/spottr-native/src/ui/common.tsx",
+        "apps/spottr-native/src/ui/StatusNotice.tsx"
+      ],
+      "ui": {
+        "buttons": 18,
+        "fields": 3,
+        "dialogs": 4,
+        "headings": 4,
+        "shared": 15
+      },
+      "candidateCount": 0
+    }
+  ],
+  "logicalViews": {
+    "nativeDashboard": [
+      "overview",
+      "events",
+      "new",
+      "edit",
+      "finance",
+      "invoicing",
+      "profile",
+      "purchases",
+      "promotions",
+      "company",
+      "agreement",
+      "stripe-info",
+      "wardrobe"
+    ],
+    "nativeAdmin": [
+      "overview",
+      "organizers",
+      "verifications",
+      "cancellations",
+      "refunds",
+      "invoices",
+      "commissions",
+      "errors"
+    ],
+    "nativeProfile": [
+      "home",
+      "details",
+      "password",
+      "language"
+    ],
+    "nativeFeed": [
+      "feed",
+      "friends"
+    ],
+    "validation": [
+      "event-list",
+      "scan",
+      "history",
+      "configuration",
+      "staff"
+    ],
+    "wardrobe": [
+      "event-list",
+      "receive",
+      "pickup",
+      "settings"
+    ]
+  },
+  "overlaySources": [
+    {
+      "file": "apps/pulse-app/src/app/admin/OperationsPage.tsx",
+      "dialogs": 2
+    },
+    {
+      "file": "apps/pulse-app/src/app/admin/style-guide/page.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/pulse-app/src/app/dashboard/components/EventCancellationManager.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/pulse-app/src/app/dashboard/components/ManagementDrawer.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/pulse-app/src/app/dashboard/components/StripeAccountPanel.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/pulse-app/src/app/dashboard/ticket-validation/page.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/pulse-app/src/components/FiltersSheet.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/pulse-app/src/components/profile/DeleteAccountDialog.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/pulse-app/src/components/SearchPopover.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/pulse-app/src/components/social/EventFriendProfilePopup.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/pulse-app/src/components/social/ProfileConnectionQr.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/pulse-app/src/components/tickets/TicketPreview.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/pulse-app/src/components/ui/ModalFrame.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/pulse-app/src/features/events/filters/DiscoveryToolbar.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/pulse-app/src/features/events/form/DateTimePicker.tsx",
+      "dialogs": 2
+    },
+    {
+      "file": "apps/pulse-app/src/features/wardrobe/Wardrobe.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/admin/AdminScreen.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/checkout/PurchaseSuccessSheet.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/dashboard/common.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/dashboard/DashboardDropdown.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/dashboard/DateTimeField.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/dashboard/EventManagement.tsx",
+      "dialogs": 2
+    },
+    {
+      "file": "apps/spottr-native/src/dashboard/ManagementPanel.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/notifications/NotificationsPopover.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/profile/DeleteAccountSheet.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/profile/OrganizerAccountClosure.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/profile/PreferencesSheet.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/profile/QuickConnectSheet.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/profile/TicketSheet.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/scanner/ScannerPanel.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/screens/DiscoveryScreen.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/screens/EventScreen.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/screens/PublicProfileScreen.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/social/components.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/social/EventAttendees.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/story/EventStory.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/ui/AppModal.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/ui/AppSheet.tsx",
+      "dialogs": 1
+    },
+    {
+      "file": "apps/spottr-native/src/wardrobe/WardrobeScreen.tsx",
+      "dialogs": 1
+    }
+  ],
+  "candidates": [
+    {
+      "file": "apps/pulse-app/src/app/admin/CommissionsPanel.tsx",
+      "flags": [
+        {
+          "line": 69,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 69,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/app/admin/OperationsPage.tsx",
+      "flags": [
+        {
+          "line": 516,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/app/admin/organizers/DirectoryPanel.tsx",
+      "flags": [
+        {
+          "line": 38,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/app/dashboard/components/EventCancellationManager.tsx",
+      "flags": [
+        {
+          "line": 85,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 89,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/app/dashboard/components/InvitationManager.tsx",
+      "flags": [
+        {
+          "line": 188,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 193,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/app/dashboard/components/OrganizerUpdatesManager.tsx",
+      "flags": [
+        {
+          "line": 110,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 113,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/app/dashboard/components/PromoCodeManager.tsx",
+      "flags": [
+        {
+          "line": 53,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 53,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 53,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/app/dashboard/invoicing/page.tsx",
+      "flags": [
+        {
+          "line": 378,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 387,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/app/dashboard/promotions/page.tsx",
+      "flags": [
+        {
+          "line": 480,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/app/dashboard/ticket-validation/page.tsx",
+      "flags": [
+        {
+          "line": 725,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 732,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 751,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 903,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 910,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 929,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 1009,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 1145,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 1230,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 1241,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 1251,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/app/events/[id]/group/EventSafetyGroupPageClient.tsx",
+      "flags": [
+        {
+          "line": 396,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/app/forgot-password/page.tsx",
+      "flags": [
+        {
+          "line": 57,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/app/register/page.tsx",
+      "flags": [
+        {
+          "line": 121,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/app/reset-password/page.tsx",
+      "flags": [
+        {
+          "line": 72,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 76,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/components/organizer/AgreementAcceptance.tsx",
+      "flags": [
+        {
+          "line": 88,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/components/PlacesAutocomplete.tsx",
+      "flags": [
+        {
+          "line": 81,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/components/profile/PersonalDetailsForm.tsx",
+      "flags": [
+        {
+          "line": 62,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 72,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/components/profile/ProfileAvatarUpload.tsx",
+      "flags": [
+        {
+          "line": 62,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/features/checkout/TicketCheckoutDrawer.tsx",
+      "flags": [
+        {
+          "line": 909,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/features/checkout/TicketTypeSelector.tsx",
+      "flags": [
+        {
+          "line": 100,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/features/events/form/EventBannerUpload.tsx",
+      "flags": [
+        {
+          "line": 48,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/features/events/form/EventDetailsSection.tsx",
+      "flags": [
+        {
+          "line": 48,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 67,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 89,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 107,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 114,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 140,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 156,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 190,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 191,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 192,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 193,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 211,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/features/events/form/EventPublicationSection.tsx",
+      "flags": [
+        {
+          "line": 62,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 89,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/features/events/form/ThemedSelect.tsx",
+      "flags": [
+        {
+          "line": 65,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/features/events/form/TicketTypesSection.tsx",
+      "flags": [
+        {
+          "line": 68,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 98,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 164,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 176,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 249,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 255,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 313,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 353,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 373,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 380,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/features/events/lineup/AddArtistForm.tsx",
+      "flags": [
+        {
+          "line": 225,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 434,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/features/events/lineup/LineupSection.tsx",
+      "flags": [
+        {
+          "line": 91,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 109,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    },
+    {
+      "file": "apps/pulse-app/src/features/wardrobe/Wardrobe.tsx",
+      "flags": [
+        {
+          "line": 405,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 414,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 424,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 477,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 571,
+          "kind": "field-label-context",
+          "status": "candidate"
+        },
+        {
+          "line": 646,
+          "kind": "field-label-context",
+          "status": "candidate"
+        }
+      ]
+    }
+  ]
+}

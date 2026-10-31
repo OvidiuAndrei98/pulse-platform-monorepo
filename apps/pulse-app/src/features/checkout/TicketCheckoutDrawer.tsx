@@ -73,6 +73,8 @@ import {
   removeSavedBillingDetails,
   saveBillingDetails,
 } from "./savedBillingDetails";
+import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
+import {Input as UIInput} from '@/components/ui/Field';
 
 export function TicketCheckoutDrawer({
   event,
@@ -598,7 +600,7 @@ export function TicketCheckoutDrawer({
                 ref={titleRef}
                 tabIndex={-1}
                 id={id + "-title"}
-                className="text-lg font-bold outline-none"
+                className="text-lg font-bold"
               >
                 {t("checkout.checkoutTitle")}
               </h2>
@@ -634,7 +636,7 @@ export function TicketCheckoutDrawer({
                 aria-current={index === stepIndex ? "step" : undefined}
                 className={
                   "h-1 flex-1 rounded-full " +
-                  (index <= stepIndex ? "bg-primary" : "bg-white/10")
+                  (index <= stepIndex ? "bg-[var(--ui-action)]" : "bg-white/10")
                 }
               >
                 <span className="sr-only">{label}</span>
@@ -795,7 +797,7 @@ export function TicketCheckoutDrawer({
             >
               {t("eventSheet.emailForTickets")}
             </label>
-            <input
+            <UIInput
               required
               id={id + "-email"}
               type="email"
@@ -806,7 +808,7 @@ export function TicketCheckoutDrawer({
               aria-describedby={emailError ? id + "-email-error" : undefined}
               onChange={(inputEvent) => setGuestEmail(inputEvent.target.value)}
               placeholder={t("checkout.emailPlaceholder")}
-              className="mt-2 h-11 w-full rounded-xl border border-white/10 bg-white/[0.035] px-3.5 text-base outline-none transition placeholder:text-muted-foreground focus:border-primary/60 aria-[invalid=true]:border-red-400/70 sm:text-sm"
+              className="mt-2 h-11 w-full transition placeholder:text-muted-foreground sm:text-sm"
             />
             {emailError && (
               <p
@@ -978,7 +980,7 @@ export function TicketCheckoutDrawer({
         data-drawer-keyboard-footer
         className="relative z-10 flex shrink-0 items-center gap-2.5 bg-linear-to-b from-black/10 via-black/70 to-black px-4 pt-3 pb-7"
       >
-        <button
+        <UIActionButton
           type="button"
           onClick={() =>
             step === "summary" ? void handleCheckout() : void continueStep()
@@ -992,7 +994,7 @@ export function TicketCheckoutDrawer({
             promo.isValidating ||
             Boolean(promo.code && !promo.applied)
           }
-          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-8 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition-all active:scale-[0.98] hover:opacity-90 disabled:opacity-40 disabled:shadow-none"
+          className="flex h-11 flex-1 items-center justify-center gap-2 px-8 text-sm font-semibold shadow-lg shadow-primary/20 transition-all  hover:opacity-90 disabled:opacity-40 disabled:shadow-none"
         >
           {busy ? (
             <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
@@ -1008,7 +1010,7 @@ export function TicketCheckoutDrawer({
               : step === "billing"
                 ? t("checkout.continueToSummary")
                 : t("common.next")}
-        </button>
+        </UIActionButton>
       </footer>
     </>
   );
@@ -1124,7 +1126,7 @@ function StepCard({
           className={
             "grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-bold " +
             (active
-              ? "bg-primary text-white"
+              ? "bg-[var(--ui-action)] text-white"
               : completed
                 ? "bg-emerald-500 text-white"
                 : "text-white/30")

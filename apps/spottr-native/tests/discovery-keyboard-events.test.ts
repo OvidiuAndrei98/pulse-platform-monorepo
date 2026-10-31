@@ -56,6 +56,7 @@ test('Search captures keyboard drags without scrolling or remounting native resu
     '../data/events': { categories: [] },
     '../data/queries': { useEvents: () => ({ items: [], loadMore: empty }), seedEvent: empty },
     '../ui/AccentPressable': { AccentPressable: 'AccentPressable' }, '../ui/GlassPressable': { GlassPressable: 'GlassPressable' },
+    '../ui/ActionButton': { ActionButton: 'ActionButton' },
     '../ui/ActionIcon': { ActionIcon: 'ActionIcon' }, '../ui/Text': { Text: 'Text' }, '../ui/theme': { colors: {} },
     '../ui/common': { Feedback: 'Feedback', Loading: 'Loading', webListScrollProps: () => ({}) },
     '../ui/EventBrowseCard': { EventBrowseCard: 'EventBrowseCard' }, '../ui/VisiblePromotion': { VisiblePromotion: 'VisiblePromotion' },

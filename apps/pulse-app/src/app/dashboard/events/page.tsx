@@ -32,6 +32,8 @@ import {
   type DashboardEventFilter,
 } from "@/features/events/dashboardEvents";
 import { useDashboardClock } from "@/features/events/useDashboardClock";
+import {Input as UIInput} from '@/components/ui/Field';
+import {ActionLink as UIActionLink} from '@/components/ui/ActionButton';
 
 function EventRowSkeleton() {
   return (
@@ -106,13 +108,13 @@ function EventsListContent() {
             </p>
           </div>
 
-          <Link
+          <UIActionLink
             href="/dashboard/events/new"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-xs font-bold text-primary-foreground transition hover:opacity-90 active:scale-[0.98] shrink-0 w-full sm:w-auto shadow-sm"
+            className="inline-flex h-11 items-center justify-center gap-2  bg-[var(--ui-action)] px-5 text-xs font-bold  transition hover:opacity-90  shrink-0 w-full sm:w-auto shadow-sm"
           >
             <Plus className="h-4 w-4" strokeWidth={2.5} />
             <span>{t("organizerEvents.newEvent")}</span>
-          </Link>
+          </UIActionLink>
         </div>
 
         {/* FILTERS & SEARCH BAR */}
@@ -120,11 +122,11 @@ function EventsListContent() {
           {/* Search Input */}
           <div className="relative flex-1 w-full">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
+            <UIInput
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder={t("organizerEvents.searchPlaceholder")}
-              className="h-11 w-full rounded-full border border-white/10 bg-white/5 pl-10 pr-4 text-xs sm:text-sm outline-none transition placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-white/[0.08]"
+              aria-label={t("organizerEvents.searchPlaceholder")} placeholder={t("organizerEvents.searchPlaceholder")}
+              className="h-11 w-full pl-10 pr-4 sm:text-sm transition placeholder:text-muted-foreground/50"
             />
           </div>
 

@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "node ../../tools/sync-map-assets.cjs && cross-env NODE_ENV=development next dev -p 3000",
-    "build": "node ../../tools/sync-map-assets.cjs && cross-env NODE_ENV=production next build",
-    "build:mobile": "node ../../tools/sync-map-assets.cjs && cross-env NODE_ENV=production CAPACITOR_BUILD=true next build",
+    "dev": "node ../../tools/sync-design-tokens.cjs --check && node ../../tools/sync-map-assets.cjs && cross-env NODE_ENV=development next dev -p 3000",
+    "build": "node ../../tools/sync-design-tokens.cjs --check && node ../../tools/sync-map-assets.cjs && cross-env NODE_ENV=production next build",
+    "build:mobile": "node ../../tools/sync-design-tokens.cjs --check && node ../../tools/sync-map-assets.cjs && cross-env NODE_ENV=production CAPACITOR_BUILD=true next build",
     "cap:sync": "cap sync",
     "cap:android": "cap open android",
     "cap:ios": "cap open ios",

@@ -28,6 +28,7 @@ import type { RootParamList } from "../navigation/types";
 import { isEventId } from "../data/events";
 import { returnToEvent } from "../navigation/returnToEvent";
 import { GoogleButton } from '../auth/GoogleButton';
+import {ActionButton as UIActionButton} from '../ui/ActionButton';
 
 export function AuthScreen({
   route,
@@ -529,7 +530,7 @@ export function AuthButton({
   testID?: string;
 }) {
   return (
-    <AccentPressable fallback={Pressable}
+    <UIActionButton
       testID={testID}
       accessibilityRole="button"
       accessibilityState={{ disabled: busy, busy }}
@@ -546,7 +547,7 @@ export function AuthButton({
         {title}
       </Text>
       {!busy && !icon && !compact && <ArrowRight size={16} color="white" />}
-    </AccentPressable>
+    </UIActionButton>
   );
 }
 export function AuthMessage({
