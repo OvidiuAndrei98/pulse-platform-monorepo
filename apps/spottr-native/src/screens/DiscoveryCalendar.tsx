@@ -24,7 +24,7 @@ export function DiscoveryCalendar({from='',to='',onChange}:{from?:string;to?:str
       {calendarCells(month).map(day=>{
         const endpoint=day===from||day===to,inside=!!from&&!!to&&day>from&&day<to;
         return <AccentPressable fallback={Pressable} key={day} testID={'discovery-day-'+day} accessibilityRole="button" accessibilityLabel={new Intl.DateTimeFormat(locale,{dateStyle:'full',timeZone:'UTC'}).format(date(day))}
-          accessibilityState={{selected:endpoint||inside,disabled:day<today}} disabled={day<today}
+          accessibilityState={{selected:endpoint||inside,disabled:day<today}} aria-pressed={endpoint||inside} disabled={day<today}
           onPress={()=>{const value=selectCalendarDay(from,to,day,true);onChange(value.dateFrom,value.dateTo);}}
           style={{width:'14.285714%',minHeight:36,alignItems:'center',justifyContent:'center',borderRadius:8,backgroundColor:endpoint?colors.accent:inside?'#ff004426':'transparent',opacity:day<today?.3:1}}>
           <Text style={{fontSize:endpoint?20:14,fontWeight:endpoint||inside?'700':'400',color:endpoint?'white':day.slice(0,7)===month.slice(0,7)?colors.text:colors.muted,textDecorationLine:inside?'underline':'none'}}>{Number(day.slice(-2))}</Text>

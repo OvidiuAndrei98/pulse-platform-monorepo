@@ -40,6 +40,16 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
   await until(`document.querySelectorAll('.spottr-map-pin').length>=1`);
   const first='map-event-card-00000000-0000-4000-8000-000000000001',second='map-event-card-00000000-0000-4000-8000-000000000002';
   await until(`document.querySelector('[data-testid="map-events-carousel"]')`);
+  const handle=await evaluate(`(()=>{const node=document.querySelector('[data-testid="map-carousel-toggle"]'),r=node.getBoundingClientRect(),s=getComputedStyle(node);return{width:r.width,height:r.height,border:s.borderTopWidth,fill:s.backgroundColor,icons:node.querySelectorAll('svg').length};})()`);
+  assert.equal(handle.width,52,'Expanded handle has a compact frame');assert.equal(handle.height,44,'The transparent button retains a full touch target');
+  assert.equal(handle.fill,'rgba(0, 0, 0, 0)');assert.equal(parseFloat(handle.border),0);assert.equal(handle.icons,0,'Only the grip is visible, no oversized pill or chevron');
+  assert.deepEqual(await evaluate(`(()=>{const node=document.querySelector('[data-testid="map-carousel-toggle"]'),grip=node.firstElementChild.getBoundingClientRect();return{width:grip.width,height:grip.height};})()`),{width:28,height:3},'The visible handle is only a discreet line');
+  const hit=await evaluate(`(()=>{const node=document.querySelector('[data-testid="map-carousel-toggle"]'),r=node.getBoundingClientRect(),y=r.top+5,x=r.left+r.width/2;return{x,y,hits:node.contains(document.elementFromPoint(x,y))};})()`);
+  assert.equal(hit.hits,true,'The transparent touch area extends well beyond the visible grip');
+  await call('Input.dispatchMouseEvent',{type:'mousePressed',x:hit.x,y:hit.y,button:'left',clickCount:1});await call('Input.dispatchMouseEvent',{type:'mouseReleased',x:hit.x,y:hit.y,button:'left',clickCount:1});
+  await until(`document.querySelector('[data-testid="map-carousel-toggle"]').getAttribute('aria-expanded')==='false'`);
+  assert.ok(await evaluate(`document.querySelector('[data-testid="map-carousel-toggle"]').getBoundingClientRect().height>=44`),'Collapsed control remains a labeled touch target');
+  await click('map-carousel-toggle');await delay(300);
   const geometry=await evaluate(`{const card=document.querySelector('[data-testid="${first}"]').getBoundingClientRect(),bar=document.querySelector('[data-bottom-nav] [data-bottom-nav-glass]')||document.querySelector('[data-testid="tab-bar"]'),nav=bar?.getBoundingClientRect();({left:card.left,right:card.right,top:card.top,bottom:card.bottom,navTop:nav?.top??innerHeight-86})}`);
   assert.ok(geometry.left>=0&&geometry.right<=390,'The first card fits the narrow viewport');
   assert.ok(geometry.bottom<=geometry.navTop-4,'Cards remain above bottom navigation');

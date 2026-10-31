@@ -1,7 +1,7 @@
 import { AccentPressable } from '../ui/AccentPressable';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -14,7 +14,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { SlidersHorizontal } from "lucide-react-native";
+import { CalendarDays, Check, ChevronDown, SlidersHorizontal } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   useNavigation,
@@ -75,12 +75,13 @@ export function DiscoveryScreen() {
     [open, setOpen] = useState(false);
   const [view, setView] = useState<'list' | 'map'>('list');
   const [searchActive, setSearchActive] = useState(false);
+  const [calendarOpen,setCalendarOpen]=useState(false),calendarId=useId();
   const navbarScroll = useNavbarScroll(view === 'list');
   const wide=useWindowDimensions().width>=1024&&Platform.OS==='web';
   const [panel,setPanel]=useState<'all'|'more'|'date'|'city'>('all'),[filterError,setFilterError]=useState(''),[toolbarHeight,setToolbarHeight]=useState(44);
   const [userLocation,setUserLocation]=useState<readonly[number,number]|null>(null);
   const search=useDebouncedDiscoverySearch(filters.q);
-  const openPanel=(kind:typeof panel)=>{Keyboard.dismiss();setDraft(filters);setPanel(kind);setFilterError('');setOpen(true);};
+  const openPanel=(kind:typeof panel)=>{Keyboard.dismiss();setDraft(filters);setPanel(kind);setCalendarOpen(kind==='date');setFilterError('');setOpen(true);};
   const list = useRef<FlatList<Event>>(null);
   useScrollToTop(list);
   useEffect(() => {
@@ -281,11 +282,18 @@ export function DiscoveryScreen() {
                       key={date}
                       label={copy(dateKeys[index]!)}
                       active={draft.date === date}
-                      onPress={() => {setDraft({ ...draft, date,dateFrom:'',dateTo:'' });setFilterError('');}}
+                      onPress={() => {setCalendarOpen(false);setDraft({ ...draft, date,dateFrom:'',dateTo:'' });setFilterError('');}}
                     />
                   ))}
+                  {panel==='all'&&<Pressable testID="filters-calendar-toggle" accessibilityRole="button" aria-controls={calendarId}
+                    accessibilityLabel={copy('filters.calendar')+(draft.date==='Custom'&&draft.dateFrom?`: ${draft.dateFrom}${draft.dateTo&&draft.dateTo!==draft.dateFrom?' – '+draft.dateTo:''}`:'')}
+                    accessibilityState={{expanded:calendarOpen}} aria-expanded={calendarOpen} onPress={()=>setCalendarOpen(value=>!value)}
+                    style={[s.chip,{flexDirection:'row',alignItems:'center',gap:6},(calendarOpen||draft.date==='Custom')&&{borderColor:'#ff004499',backgroundColor:'#ff004426'}]}>
+                    <CalendarDays size={14} color={colors.text}/><Text style={{fontSize:14,color:colors.text}}>{copy('filters.calendar')}</Text>
+                    {draft.date==='Custom'&&draft.dateFrom?<Check size={14} color={colors.text}/>:<ChevronDown size={14} color={colors.text} style={{transform:[{rotate:calendarOpen?'180deg':'0deg'}]}}/>}
+                  </Pressable>}
                 </View>
-                <View style={{marginTop:16}}><DiscoveryCalendar from={draft.dateFrom} to={draft.dateTo} onChange={(dateFrom,dateTo)=>{setDraft({...draft,date:dateFrom?'Custom':'See all',dateFrom,dateTo});setFilterError('');}}/></View>
+                <View nativeID={calendarId} style={{marginTop:16,display:panel==='date'||calendarOpen?'flex':'none'}}>{(panel==='date'||calendarOpen)&&<DiscoveryCalendar from={draft.dateFrom} to={draft.dateTo} onChange={(dateFrom,dateTo)=>{setDraft({...draft,date:dateFrom?'Custom':'See all',dateFrom,dateTo});setFilterError('');}}/>}</View>
               </Section>}
               {(panel==='all'||panel==='city')&&<DashboardDropdown label={copy('filters.city')} testID="discovery-city-field" value={draft.city} onChange={city=>setDraft({...draft,city})} placeholder={copy('filters.allCities')} options={[{value:'',label:copy('filters.allCities')},...eventCities.map(city=>({value:city,label:city}))]}/>}
               {(panel==='all'||panel==='more')&&<><Section title={copy("filters.categories")}>
@@ -347,7 +355,7 @@ export function DiscoveryScreen() {
               <Pressable
                 accessibilityRole="button"
                 style={s.reset}
-                onPress={() => {setFilterError('');setDraft(panel==='more'?{...draft,categories:[],vibes:[],distance:15}:panel==='date'?{...draft,date:'See all',dateFrom:'',dateTo:''}:panel==='city'?{...draft,city:''}:defaultEventFilters);}}
+                onPress={() => {setCalendarOpen(false);setFilterError('');setDraft(panel==='more'?{...draft,categories:[],vibes:[],distance:15}:panel==='date'?{...draft,date:'See all',dateFrom:'',dateTo:''}:panel==='city'?{...draft,city:''}:defaultEventFilters);}}
               >
                 <Text style={{ fontSize: 14, color: colors.text }}>
                   {copy("common.reset")}
@@ -358,7 +366,7 @@ export function DiscoveryScreen() {
                 testID="apply-filters"
                 style={s.apply}
                 onPress={() => {
-                  if(draft.dateFrom&&!draft.dateTo){setFilterError(copy('filters.chooseRangeEnd'));return;}
+                  if(draft.dateFrom&&!draft.dateTo){setCalendarOpen(true);setFilterError(copy('filters.chooseRangeEnd'));return;}
                   setFilters(draft);
                   setOpen(false);
                 }}

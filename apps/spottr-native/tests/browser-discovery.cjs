@@ -47,7 +47,7 @@ withBrowser(async({base,call,evaluate,until,click,input,delay,capture,errors})=>
   if(!next)await pressText('Apply filters');
   await delay(350);
   await until(`window.__discovery.requests.some(q=>q.city==='Bucuresti')`);
-  const key=async(key,code=key,number=key.length===1?key.toUpperCase().charCodeAt(0):({Enter:13,ArrowDown:40,ArrowUp:38,Home:36,End:35,Escape:27,Tab:9}[key]||0))=>{await call('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode:number});await call('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:number});};
+  const key=async(key,code=key,number=key.length===1?key.toUpperCase().charCodeAt(0):({Enter:13,ArrowDown:40,ArrowUp:38,Home:36,End:35,Escape:27,Tab:9}[key]||0))=>{await call('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode:number,...(key==='Enter'?{text:'\r',unmodifiedText:'\r'}:{})});await call('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:number});};
   if(!next)await click('discovery-city');
   const focusId=next?'discovery-city':'discovery-city-field';
   await key('Tab');await evaluate(`document.querySelector('[data-testid="${focusId}"]').focus()`);await delay(50);
@@ -96,7 +96,22 @@ withBrowser(async({base,call,evaluate,until,click,input,delay,capture,errors})=>
   await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await delay(250);
   assert.equal(await evaluate(`document.activeElement?.getAttribute('data-testid')`),'discovery-search-toggle');
   if(next){for(let i=0;i<4;i++){await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});assert.equal(await evaluate(`!!document.activeElement?.closest('[inert]')`),false);}}
-  await click('event-filters');await until(`(document.querySelector('dialog[open]')||document.querySelector('[aria-modal="true"]'))?.querySelector('[data-testid="discovery-calendar"]')`);
+  await click('event-filters');await until(`document.querySelector('[data-testid="filters-calendar-toggle"]')`);
+  const calendarToggle=`document.querySelector('[data-testid="filters-calendar-toggle"]')`;
+  assert.equal(await evaluate(`${calendarToggle}.getAttribute('aria-expanded')`),'false','Mobile calendar starts collapsed, even with a selected date');
+  assert.equal(await evaluate(`!!document.querySelector('[data-testid="discovery-calendar"]')`),false);
+  assert.ok(await evaluate(`!!document.getElementById(${calendarToggle}.getAttribute('aria-controls'))`),'Disclosure controls an existing container');
+  await delay(650);
+  await capture((next?'next-':'')+'discovery-mobile-calendar-collapsed');
+  await evaluate(`${calendarToggle}.focus()`);
+  assert.equal(await evaluate(`document.activeElement?.getAttribute('data-testid')`),'filters-calendar-toggle','Calendar disclosure is keyboard focusable');
+  await key('Enter');await until(`document.querySelector('[data-testid="discovery-calendar"]')`);
+  assert.ok(await evaluate(`(()=>{const s=getComputedStyle(${calendarToggle});return s.outlineStyle!=='none'&&parseFloat(s.outlineWidth)>0;})()`),'Calendar disclosure has a visible keyboard focus indicator');
+  assert.equal(await evaluate(`document.querySelector('[data-testid="discovery-day-${day}"]').getAttribute('aria-pressed')`),'true','Opening the calendar preserves the selected single day');
+  await key(' ','Space',32);
+  assert.equal(await evaluate(`!!document.querySelector('[data-testid="discovery-calendar"]')`),false,'Closing removes calendar controls from the focus order');
+  await click('filters-calendar-toggle');await until(`document.querySelector('[data-testid="discovery-calendar"]')`);
+  assert.equal(await evaluate(`document.querySelector('[data-testid="discovery-day-${day}"]').getAttribute('aria-pressed')`),'true','Closing and reopening keeps the date');
   await pressText('Clear dates');
   if(next){
     const field=`document.querySelector('dialog[open] [role="combobox"][aria-label="City"]')`;
@@ -106,12 +121,21 @@ withBrowser(async({base,call,evaluate,until,click,input,delay,capture,errors})=>
     assert.equal(await evaluate(`!!document.querySelector('dialog[open]')`),true,'Escape closes only the nested select');
   }
   await click('discovery-day-'+day);
+  await click('filters-calendar-toggle');
   await pressText('Apply filters');await until(`document.querySelector('[role="alert"]')?.textContent.includes('last day')`);
+  assert.equal(await evaluate(`${calendarToggle}.getAttribute('aria-expanded')`),'true','Validation reopens an incomplete range');
   await delay(350);
   assert.ok(await evaluate(`(()=>{const alert=document.querySelector('[role="alert"]'),a=alert.getBoundingClientRect(),dialog=alert.closest('dialog,[aria-modal="true"]')?.getBoundingClientRect();return a.top>=0&&a.bottom<=innerHeight&&a.width>0&&(!dialog||(a.top>=dialog.top&&a.bottom<=dialog.bottom));})()`),'Incomplete range error is visible inside the dialog');
   await capture((next?'next-':'')+'discovery-mobile-calendar');
   await click('discovery-day-'+days[3]);await pressText('Apply filters');
   await until(`!(document.querySelector('dialog[open]')||document.querySelector('[aria-modal="true"]'))`);
+  await click('event-filters');await until(`${calendarToggle}`);
+  assert.equal(await evaluate(`${calendarToggle}.getAttribute('aria-expanded')`),'false','Reopening filters starts compact');
+  await pressText('Reset');await click('filters-calendar-toggle');
+  assert.equal(await evaluate(`document.querySelector('[data-testid="discovery-calendar"]').querySelectorAll('[aria-pressed="true"],[aria-selected="true"]').length`),0,'Reset clears custom dates');
+  await pressText('Tonight');
+  assert.equal(await evaluate(`!!document.querySelector('[data-testid="discovery-calendar"]')`),false,'A quick period collapses the calendar');
+  await pressText('Apply filters');
   assert.equal(errors.length,0,errors.join('\n'));
   console.log((next?'Next':'Native web')+' discovery search, calendar, preserved desktop filters, mobile expansion and range validation: PASS');
 }).catch(error=>{console.error(error);process.exitCode=1;});

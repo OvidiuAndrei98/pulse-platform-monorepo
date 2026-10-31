@@ -1,4 +1,5 @@
-import { Check, MapPin, SlidersHorizontal, X } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, MapPin, SlidersHorizontal, X } from "lucide-react";
+import { useId, useState } from 'react';
 import { motion, useReducedMotion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import {
@@ -41,6 +42,8 @@ export function EventFiltersPanel({
 }) {
   const { t } = useTranslation();
   const reduced = useReducedMotion();
+  const [calendarOpen,setCalendarOpen]=useState(false),calendarId=useId();
+  const customDate=filters.date==='Custom'&&!!filters.dateFrom;
   const toggle = (key: "categories" | "vibes", value: string) => {
     const values = filters[key];
     onChange({
@@ -71,12 +74,18 @@ export function EventFiltersPanel({
         {!compact && <FilterSection title={t("filters.when")}>
           <div className="flex flex-wrap gap-2">
             {eventDateFilters.map((date) => (
-              <FilterChip key={date} active={filters.date === date} onClick={() => onChange({ ...filters, date, dateFrom:undefined,dateTo:undefined })}>
+              <FilterChip key={date} active={filters.date === date} onClick={() => {setCalendarOpen(false);onChange({ ...filters, date, dateFrom:undefined,dateTo:undefined });}}>
                 {t(dateLabelKeys[date])}
               </FilterChip>
             ))}
+            <FilterChip active={calendarOpen||customDate} expanded={calendarOpen} controls={calendarId} testId="filters-calendar-toggle"
+              label={customDate?`${t('filters.calendar')}: ${filters.dateFrom}${filters.dateTo&&filters.dateTo!==filters.dateFrom?' – '+filters.dateTo:''}`:undefined}
+              onClick={()=>setCalendarOpen(value=>!value)}>
+              <CalendarDays aria-hidden className="h-3.5 w-3.5"/>{t('filters.calendar')}
+              {customDate?<Check aria-hidden className="h-3.5 w-3.5"/>:<ChevronDown aria-hidden className={`h-3.5 w-3.5 ${calendarOpen?'rotate-180':''}`}/>}
+            </FilterChip>
           </div>
-          <DiscoveryCalendar from={filters.dateFrom} to={filters.dateTo} onChange={(dateFrom,dateTo)=>onChange({...filters,date:dateFrom?'Custom':'See all',dateFrom,dateTo})}/>
+          <div id={calendarId} hidden={!calendarOpen}>{calendarOpen&&<DiscoveryCalendar from={filters.dateFrom} to={filters.dateTo} onChange={(dateFrom,dateTo)=>onChange({...filters,date:dateFrom?'Custom':'See all',dateFrom,dateTo})}/>}</div>
         </FilterSection>}
         {!compact && <FilterSection title={t("filters.city")}>
           <ThemedSelect label={t('filters.city')} value={filters.city} onChange={city=>onChange({...filters,city})} placeholder={t('filters.allCities')} icon={MapPin} options={[{value:'',label:t('filters.allCities')},...eventCities.map(city=>({value:city,label:city}))]}/>
@@ -109,8 +118,8 @@ export function EventFiltersPanel({
       </motion.div>
       {error&&<p role="alert" className="shrink-0 px-6 pb-3 text-sm text-red-400">{error}</p>}
       <div className="relative flex shrink-0 items-center gap-3 border-t border-white/10 px-6 py-4">
-        <button type="button" onClick={onReset} className="flex-1 rounded-full border border-white/15 bg-white/5 py-3 text-sm font-medium">{t("common.reset")}</button>
-        <UIActionButton type="button" onClick={onApply} className="flex-[1.6] py-3 text-xl font-bold">{t("common.applyFilters")}</UIActionButton>
+        <button type="button" onClick={()=>{setCalendarOpen(false);onReset();}} className="flex-1 rounded-full border border-white/15 bg-white/5 py-3 text-sm font-medium">{t("common.reset")}</button>
+        <UIActionButton type="button" onClick={()=>{if(!compact&&filters.date==='Custom'&&filters.dateFrom&&!filters.dateTo)setCalendarOpen(true);onApply();}} className="flex-[1.6] py-3 text-xl font-bold">{t("common.applyFilters")}</UIActionButton>
       </div>
     </div>
   );
@@ -121,6 +130,6 @@ function FilterSection({ title, children }: { title: string; children: React.Rea
   return <motion.div variants={{ hidden: { opacity: 0, y: reduced?0:8 }, show: { opacity: 1, y: 0 } }}><p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>{children}</motion.div>;
 }
 
-function FilterChip({ children, active, onClick }: { children: React.ReactNode; active?: boolean; onClick: () => void }) {
-  return <button type="button" aria-pressed={!!active} onClick={onClick} className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm transition-colors ${active ? "border-primary/60 bg-primary/15 text-white" : "border-white/15 bg-white/5 text-foreground/85 hover:bg-white/10"}`}>{children}</button>;
+function FilterChip({ children, active, onClick,expanded,controls,testId,label }: { children: React.ReactNode; active?: boolean; onClick: () => void;expanded?:boolean;controls?:string;testId?:string;label?:string }) {
+  return <button type="button" aria-pressed={expanded===undefined?!!active:undefined} aria-expanded={expanded} aria-controls={controls} aria-label={label} data-testid={testId} onClick={onClick} className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm transition-colors ${active ? "border-primary/60 bg-primary/15 text-white" : "border-white/15 bg-white/5 text-foreground/85 hover:bg-white/10"}`}>{children}</button>;
 }

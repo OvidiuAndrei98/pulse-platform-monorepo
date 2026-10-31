@@ -4,10 +4,10 @@
   bottom: calc(104px + max(env(safe-area-inset-bottom, 0px), var(--native-safe-bottom, 0px)));
   z-index: 1000;
 }
-.handle { display:flex; align-items:center; justify-content:center; gap:8px; min-height:44px; min-width:104px; margin:0 auto 6px; padding:4px 12px; border:1px solid #ffffff26; border-radius:24px; background:var(--popover,#171717); color:var(--foreground); font-size:.875rem; touch-action:none; }
+.handle { display:flex; align-items:center; justify-content:center; gap:8px; height:44px; min-width:52px;width:52px; margin:0 auto 6px; padding:0; border:0; border-radius:16px; background:transparent; color:var(--foreground); font-size:.875rem; touch-action:none; }
 .handle:focus-visible { outline:2px solid var(--ui-focus); outline-offset:2px; }
-.tray[data-collapsed="true"] .handle { min-height:44px; margin-bottom:0; }
-.grip { width:32px; height:4px; border-radius:2px; background:var(--muted-foreground); }
+.tray[data-collapsed="true"] .handle { height:auto;min-height:44px;width:auto; margin-bottom:0;padding:4px 12px;border:1px solid var(--ui-border);background:var(--popover,#171717);border-radius:24px; }
+.grip { width:28px; height:3px; border-radius:2px; background:var(--muted-foreground);pointer-events:none; }
 .count { font-variant-numeric:tabular-nums; color:var(--muted-foreground); }
 .rail {
   display: flex;

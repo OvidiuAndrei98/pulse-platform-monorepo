@@ -14,7 +14,7 @@ import { readNavigationState, writeNavigationState } from "@/lib/navigation/stat
 import { formatEventDateShort, formatEventTime } from "@/features/events/dateFormat";
 import { zoomForDistance } from "../../../spottr-native/src/map/geometry";
 import carouselStyle from "@/features/events/map/eventMapCarousel.module.css";
-import { ChevronDown, ChevronUp, Layers } from 'lucide-react';
+import { ChevronUp, Layers } from 'lucide-react';
 import { useReducedMotion } from 'framer-motion';
 import { carouselCardAction, dismissCarouselDrag, verticalCarouselDrag } from '@/features/events/map/carouselGestures';
 
@@ -86,7 +86,7 @@ export function EventsMapView({events,selectedId:selectedIdProp,onSelect,fullScr
         onClickCapture={event=>{if(suppressClick.current&&event.detail>0){event.preventDefault();event.stopPropagation();suppressClick.current=false;}}}>
         <button ref={toggle} type="button" data-testid="map-carousel-toggle" className={carouselStyle.handle} aria-controls="map-carousel-content" aria-expanded={!collapsed}
           aria-label={t(collapsed?'eventMap.showEvents':'eventMap.hideEvents')} onClick={()=>collapsed?setCollapsed(false):collapse()}>
-          {collapsed?<><Layers aria-hidden size={16}/><span>{t('eventMap.showEvents')}</span><span className={carouselStyle.count}>{mapEvents.length}</span><ChevronUp aria-hidden size={16}/></>:<><span className={carouselStyle.grip}/><ChevronDown aria-hidden size={14}/></>}
+          {collapsed?<><Layers aria-hidden size={16}/><span>{t('eventMap.showEvents')}</span><span className={carouselStyle.count}>{mapEvents.length}</span><ChevronUp aria-hidden size={16}/></>:<span aria-hidden className={carouselStyle.grip}/>}
         </button>
         <div ref={rail} id="map-carousel-content" data-testid="map-events-carousel" className={carouselStyle.rail} hidden={collapsed} inert={collapsed?true:undefined}
         role="group" aria-label={t('eventMap.map')}

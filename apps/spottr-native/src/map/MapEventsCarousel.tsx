@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, PanResponder, Platform, Pressable, StyleSheet, View, type ViewInstance, type ViewStyle } from 'react-native';
-import { ChevronDown, ChevronUp, Layers } from 'lucide-react-native';
+import { ChevronUp, Layers } from 'lucide-react-native';
 import { carouselCardAction, dismissCarouselDrag, verticalCarouselDrag } from '../../../pulse-app/src/features/events/map/carouselGestures';
 import { formatDate, type Event } from '../data/events';
 import { usePreferences } from '../usePreferences';
@@ -39,8 +39,8 @@ export function MapEventsCarousel({events,activeId,width,bottom,insetLeft,insetR
   };
   return <View testID="map-events-tray" {...gestures.panHandlers} onLayout={event=>onHeight(event.nativeEvent.layout.height)} style={{position:'absolute',left:0,right:0,bottom,...(Platform.OS==='web'?{touchAction:'pan-x' as const}:{})}}>
     <Pressable ref={toggle} testID="map-carousel-toggle" accessibilityRole="button" accessibilityLabel={copy(collapsed?'eventMap.showEvents':'eventMap.hideEvents')} accessibilityState={{expanded:!collapsed}} aria-expanded={!collapsed}
-      onPress={()=>collapsed?onCollapsed(false):collapse()} onFocus={()=>setFocused('$toggle')} onBlur={()=>setFocused(null)} style={[s.handle,collapsed&&{marginBottom:0},Platform.OS==='web'&&({touchAction:'none'} as ViewStyle),Platform.OS==='web'&&focused==='$toggle'&&s.focus]}>
-      {collapsed?<><Layers color={colors.text} size={16}/><Text style={{color:colors.text,fontSize:14}}>{copy('eventMap.showEvents')}</Text><Text style={{color:colors.muted,fontSize:14,fontVariant:['tabular-nums']}}>{events.length}</Text><ChevronUp color={colors.text} size={16}/></>:<><View style={s.grip}/><ChevronDown size={14} color={colors.text}/></>}
+      onPress={()=>collapsed?onCollapsed(false):collapse()} onFocus={()=>setFocused('$toggle')} onBlur={()=>setFocused(null)} style={[s.handle,collapsed&&s.closedHandle,Platform.OS==='web'&&({touchAction:'none'} as ViewStyle),Platform.OS==='web'&&focused==='$toggle'&&s.focus]}>
+      {collapsed?<><Layers color={colors.text} size={16}/><Text style={{color:colors.text,fontSize:14}}>{copy('eventMap.showEvents')}</Text><Text style={{color:colors.muted,fontSize:14,fontVariant:['tabular-nums']}}>{events.length}</Text><ChevronUp color={colors.text} size={16}/></>:<View accessible={false} style={s.grip}/>}
     </Pressable>
     {!collapsed&&<View testID="map-events-carousel"><FlatList ref={rail} horizontal data={events} keyExtractor={event=>event.id}
       showsHorizontalScrollIndicator={false} contentContainerStyle={{paddingLeft:Math.max(16,insetLeft),paddingRight:Math.max(16,insetRight),gap:12,paddingVertical:4}}
@@ -67,8 +67,9 @@ export function MapEventsCarousel({events,activeId,width,bottom,insetLeft,insetR
   </View>;
 }
 const s=StyleSheet.create({
-  handle:{alignSelf:'center',flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,minHeight:44,minWidth:104,paddingHorizontal:12,paddingVertical:4,marginBottom:6,borderWidth:1,borderColor:'#ffffff26',borderRadius:24,backgroundColor:'#171717'},
-  grip:{width:32,height:4,borderRadius:2,backgroundColor:colors.muted},
+  handle:{alignSelf:'center',flexDirection:'row',alignItems:'center',justifyContent:'center',gap:8,height:44,width:52,padding:0,marginBottom:6,borderRadius:16,backgroundColor:'transparent'},
+  closedHandle:{height:undefined,minHeight:44,width:undefined,paddingHorizontal:12,paddingVertical:4,marginBottom:0,borderWidth:1,borderColor:colors.line,borderRadius:24,backgroundColor:'#171717'},
+  grip:{width:28,height:3,borderRadius:2,backgroundColor:colors.muted},
   card:{minHeight:112,padding:11,borderRadius:20,borderWidth:1,backgroundColor:'#171717',flexDirection:'row',alignItems:'center',gap:12},
   focus:{outlineColor:colors.focus,outlineWidth:2,outlineOffset:-4,outlineStyle:'solid'},
   meta:{color:colors.text,fontSize:12,lineHeight:18},
