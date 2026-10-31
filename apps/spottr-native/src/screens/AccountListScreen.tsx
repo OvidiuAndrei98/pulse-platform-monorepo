@@ -1,3 +1,4 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
@@ -8,7 +9,7 @@ import { useIsFocused, useNavigation, type CompositeNavigationProp } from '@reac
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthProvider';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { useTickets } from '../data/useTickets';
 import { useOrders } from '../data/useOrders';
 import { isConfirmedPurchase, isInvoiceOrder, invoiceStatusKey, orderStatusKey, orderTotalBani } from '../../../pulse-app/src/features/checkout/orderHistory';
@@ -49,7 +50,7 @@ export function TicketsScreen() {
   return <><AccountPage id="tickets-page" title={copy('tickets.title')} large subtitle={tickets.isPending ? copy('common.loading') : tickets.isError ? '' : copy('tickets.count', {count:all.length})}>
     <View style={{ flexDirection: 'row', padding: 4, marginTop:12, backgroundColor: '#ffffff0a', borderWidth:1,borderColor:'#ffffff1a',borderRadius: 99 }}>{(['active', 'history'] as const).map(value => {
       const active = value === 'active' ? tab === 'active' : tab !== 'active';
-      return <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={() => setTab(value)} style={{ flex: 1, padding: 12, alignItems: 'center', borderRadius: 99, backgroundColor: active ? colors.accent : 'transparent' }}><Text style={title}>{copy('tickets.' + value)} <Text style={{fontSize:12}}>({value === 'active' ? activeCount : all.length - activeCount})</Text></Text></Pressable>;
+      return <AccentPressable fallback={Pressable} key={value} accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={() => setTab(value)} style={{ flex: 1, padding: 12, alignItems: 'center', borderRadius: 99, backgroundColor: active ? colors.accent : 'transparent' }}><Text style={title}>{copy('tickets.' + value)} <Text style={{fontSize:12}}>({value === 'active' ? activeCount : all.length - activeCount})</Text></Text></AccentPressable>;
     })}</View>
     {tab !== 'active' && <View style={{ flexDirection: 'row', gap: 8 }}>{(['history', 'used', 'expired'] as const).map(value => <Pressable key={value} accessibilityRole="button" onPress={() => setTab(value)} style={{ paddingHorizontal:14,paddingVertical:10,borderWidth:1,borderColor:tab===value?'#ff00444d':'#ffffff1a',borderRadius:99,backgroundColor:tab===value?'#ff00441a':'transparent' }}><Text style={{ color: tab === value ? colors.accent : colors.muted, fontSize: 12 }}>{copy(value === 'history' ? 'tickets.allHistory' : 'tickets.' + value)}</Text></Pressable>)}</View>}
     <TicketAvailability offline={tickets.offline} savedAt={tickets.savedAt} storageError={tickets.storageError} refreshing={tickets.isFetching} onRefresh={() => void tickets.refetch()} />
@@ -63,7 +64,7 @@ export function TicketsScreen() {
           {Date.parse(event.endTime) + 86400000 >= now && <Pressable accessibilityRole="button" onPress={() => navigation.navigate('SafetyGroup', { eventId: event.eventId })} style={{ paddingVertical: 12 }}><Text style={{ color: '#6ee7b7', fontSize: 14 }}>{copy('safetyGroup.openOrCreate')}</Text></Pressable>}
           <View style={{flexDirection:'row',gap:8}}><Calendar size={16} color={colors.muted}/><Text style={muted}>{formatDate(event.startTime,language,true)}</Text></View>
           <View style={{flexDirection:'row',gap:8}}><MapPin size={16} color={colors.accent}/><Text style={[muted,{flex:1}]}>{event.locationName}</Text></View>
-          {featured && <Pressable accessibilityRole="button" onPress={()=>setSelected(event.id)} style={{minHeight:48,backgroundColor:colors.accent,borderRadius:99,flexDirection:'row',gap:8,alignItems:'center',justifyContent:'center',marginTop:8}}><QrCode size={16} color="white"/><Text style={title}>{copy('tickets.showQr')}{group.length>1 ? ` (${group.length})` : ''}</Text></Pressable>}
+          {featured && <AccentPressable fallback={Pressable} accessibilityRole="button" onPress={()=>setSelected(event.id)} style={{minHeight:48,backgroundColor:colors.accent,borderRadius:99,flexDirection:'row',gap:8,alignItems:'center',justifyContent:'center',marginTop:8}}><QrCode size={16} color="white"/><Text style={title}>{copy('tickets.showQr')}{group.length>1 ? ` (${group.length})` : ''}</Text></AccentPressable>}
         </View>
         {group.map((ticket,index)=>{const status=ticketStatus(ticket,now);return <Pressable key={ticket.id} accessibilityRole="button" onPress={()=>setSelected(ticket.id)} style={{minHeight:80,paddingHorizontal:20,paddingVertical:16,flexDirection:'row',gap:12,alignItems:'center',borderTopWidth:1,borderColor:'#ffffff1a'}}>
           <View style={{width:40,height:40,borderRadius:20,backgroundColor:status==='active'?'#ff00441a':'#ffffff0d',alignItems:'center',justifyContent:'center'}}><QrCode size={16} color={status==='active'?colors.accent:colors.muted}/></View>
@@ -72,7 +73,7 @@ export function TicketsScreen() {
         </Pressable>})}
       </View>;
     })}
-    {!tickets.isPending && !tickets.isError && !data.length && <View style={{paddingHorizontal:20,paddingVertical:48,borderRadius:26,borderWidth:1,borderStyle:'dashed',borderColor:'#ffffff26',alignItems:'center',gap:12}}><Ticket size={28} color={colors.accent}/><Text style={title}>{copy(tab==='active'?'tickets.noUpcoming':'tickets.noHistory')}</Text><Text style={[muted,{textAlign:'center'}]}>{copy(tab==='active'?'tickets.noUpcomingHint':'tickets.emptyHint')}</Text>{tab==='active' && <Pressable accessibilityRole="button" onPress={()=>navigation.navigate('Tabs',{screen:'Explore'})} style={{paddingHorizontal:20,minHeight:44,borderRadius:99,backgroundColor:colors.accent,justifyContent:'center',marginTop:8}}><Text style={title}>{copy('tickets.exploreEvents')}</Text></Pressable>}</View>}
+    {!tickets.isPending && !tickets.isError && !data.length && <View style={{paddingHorizontal:20,paddingVertical:48,borderRadius:26,borderWidth:1,borderStyle:'dashed',borderColor:'#ffffff26',alignItems:'center',gap:12}}><Ticket size={28} color={colors.accent}/><Text style={title}>{copy(tab==='active'?'tickets.noUpcoming':'tickets.noHistory')}</Text><Text style={[muted,{textAlign:'center'}]}>{copy(tab==='active'?'tickets.noUpcomingHint':'tickets.emptyHint')}</Text>{tab==='active' && <AccentPressable fallback={Pressable} accessibilityRole="button" onPress={()=>navigation.navigate('Tabs',{screen:'Explore'})} style={{paddingHorizontal:20,minHeight:44,borderRadius:99,backgroundColor:colors.accent,justifyContent:'center',marginTop:8}}><Text style={title}>{copy('tickets.exploreEvents')}</Text></AccentPressable>}</View>}
   </AccountPage>{chosen && user && <TicketSheet key={user.id} initialId={chosen.id} preferUnused={false} tickets={all.filter(item => item.eventId === chosen.eventId)} offline={tickets.offline} savedAt={tickets.savedAt} onClose={() => setSelected(null)} />}</>;
 }
 

@@ -1,7 +1,8 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
 import { calendarCells, productToday, selectCalendarDay, shiftCalendarDay } from '../../../pulse-app/src/features/events/discoveryFilters';
@@ -22,12 +23,12 @@ export function DiscoveryCalendar({from='',to='',onChange}:{from?:string;to?:str
       {Array.from({length:7},(_,i)=>shiftCalendarDay('2026-10-26',i)).map(day=><View key={day} style={{width:'14.285714%',alignItems:'center',paddingBottom:8}}><Text style={{color:colors.muted,fontSize:12}}>{new Intl.DateTimeFormat(locale,{weekday:'narrow',timeZone:'UTC'}).format(date(day))}</Text></View>)}
       {calendarCells(month).map(day=>{
         const endpoint=day===from||day===to,inside=!!from&&!!to&&day>from&&day<to;
-        return <Pressable key={day} testID={'discovery-day-'+day} accessibilityRole="button" accessibilityLabel={new Intl.DateTimeFormat(locale,{dateStyle:'full',timeZone:'UTC'}).format(date(day))}
+        return <AccentPressable fallback={Pressable} key={day} testID={'discovery-day-'+day} accessibilityRole="button" accessibilityLabel={new Intl.DateTimeFormat(locale,{dateStyle:'full',timeZone:'UTC'}).format(date(day))}
           accessibilityState={{selected:endpoint||inside,disabled:day<today}} disabled={day<today}
           onPress={()=>{const value=selectCalendarDay(from,to,day,true);onChange(value.dateFrom,value.dateTo);}}
           style={{width:'14.285714%',minHeight:36,alignItems:'center',justifyContent:'center',borderRadius:8,backgroundColor:endpoint?colors.accent:inside?'#ff004426':'transparent',opacity:day<today?.3:1}}>
           <Text style={{fontSize:endpoint?20:14,fontWeight:endpoint||inside?'700':'400',color:endpoint?'white':day.slice(0,7)===month.slice(0,7)?colors.text:colors.muted,textDecorationLine:inside?'underline':'none'}}>{Number(day.slice(-2))}</Text>
-        </Pressable>;
+        </AccentPressable>;
       })}
     </View>
     <Text accessibilityLiveRegion="polite" style={{color:colors.muted,fontSize:12}}>{from&&!to?copy('filters.chooseRangeEnd'):to?copy('filters.rangeSelected'):copy('filters.calendarHint')}</Text>

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Pressable, View, useWindowDimensions } from "react-native";
 import { ChevronDown, Plus, Trash2 } from "lucide-react-native";
 import { useAuth } from "../auth/AuthProvider";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { colors } from "../ui/theme";
 import { Field, dColors, useDashboardQuery } from "./common";

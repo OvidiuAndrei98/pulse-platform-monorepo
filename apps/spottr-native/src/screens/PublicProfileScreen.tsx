@@ -1,3 +1,4 @@
+import type { ScrollViewInstance } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -11,7 +12,7 @@ import { StackActions } from '@react-navigation/native';
 import type { RootParamList } from '../navigation/types';
 import { PublicProfileTabBar } from '../navigation/PublicProfileTabBar';
 import { useAuth } from '../auth/AuthProvider';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { eventsApi, ApiError } from '../data/api';
 import { seedEvent } from '../data/queries';
 import type { Event } from '../data/events';
@@ -28,8 +29,10 @@ import { colors } from '../ui/theme';
 import { useToast } from '../ui/ToastProvider';
 import { WEB_URL } from '../config';
 import { drawerDesign } from '../../../pulse-app/src/components/ui/drawerDesign';
+import { useNavbarScroll } from '../navigation/useNavbarScroll';
 
 export function PublicProfileScreen({ route, navigation }: NativeStackScreenProps<RootParamList, 'PublicProfile'>) {
+  const navbarScroll = useNavbarScroll();
   const toast = useToast();
   const id = route.params.id.toLowerCase(), { user } = useAuth(), { copy } = usePreferences(), safe = useSafeAreaInsets();
   const viewport = useWindowDimensions(), heroFontSize = Math.max(32, Math.min(48, viewport.width * .08));
@@ -68,7 +71,7 @@ export function PublicProfileScreen({ route, navigation }: NativeStackScreenProp
   const organizer = profile?.role === 'organizer', name = profile?.organizerName || profile?.username;
   const hero = [...upcomingEvents, ...pastEvents].find(event => event.bannerUrl)?.bannerUrl || profile?.avatarUrl;
   return <View testID="public-profile-screen" style={{ flex: 1, backgroundColor: organizer ? '#050505' : colors.bg }}>
-    <ScrollView testID="public-profile-scroll" contentContainerStyle={{ paddingBottom: 128 }}>
+    <ScrollView {...navbarScroll} testID="public-profile-scroll" contentContainerStyle={{ paddingBottom: 128 }}>
       {!profile ? <View style={{ paddingHorizontal: 20, paddingTop: Math.max(32, safe.top) }}>
         <Back onPress={back} />
         {query.isPending ? <Loading /> : <Feedback title={copy(query.error instanceof ApiError && query.error.status === 404 ? 'publicProfile.unavailable' : 'feedback.loadFailed')}
@@ -161,7 +164,7 @@ function OrganizerInfo({ profile, close }: { profile: PublicProfile; close: () =
   </AppSheet>;
 }
 function EventRail({ events, loading, error, retry, onOpen, kind }: { events: Event[]; loading: boolean; error: boolean; retry: () => void; onOpen: (event: Event) => void; kind: 'upcoming' | 'past' }) {
-  const { copy } = usePreferences(), viewport = useWindowDimensions(), rail = useRef<ScrollView>(null);
+  const { copy } = usePreferences(), viewport = useWindowDimensions(), rail = useRef<ScrollViewInstance>(null);
   const [width, setWidth] = useState(0), [offset, setOffset] = useState(0);
   const cardWidth = Math.max(1, (width - 4) * 0.46), gap = 12, total = events.length * (cardWidth + gap) - gap + 4;
   const title = copy(kind === 'upcoming' ? 'publicProfile.upcomingEvents' : 'publicProfile.pastEvents');

@@ -13,7 +13,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { History, RefreshCw, Wifi, WifiOff } from "lucide-react-native";
 import { accountApi, useAuth } from "../auth/AuthProvider";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { ApiError } from "../data/http";
 import { Button, Feedback, IconButton, Loading } from "../ui/common";
 import { Text } from "../ui/Text";

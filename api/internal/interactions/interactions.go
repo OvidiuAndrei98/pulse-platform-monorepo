@@ -406,7 +406,17 @@ func (h *Handler) profileState(ctx context.Context, viewerID, profileID pgtype.U
 	return relationship, followsOrganizer, followerCount, nil
 }
 
+// Public profiles describe the organizer identity of administrators who also
+// operate events. Their authenticated account role remains admin in /users/me.
+func publicProfileRole(role, organizerName string, organizerVerified bool) string {
+	if role == "admin" && (strings.TrimSpace(organizerName) != "" || organizerVerified) {
+		return "organizer"
+	}
+	return role
+}
+
 func (h *Handler) publicProfileResponse(ctx context.Context, viewerID, profileID pgtype.UUID, username string, avatarURL, bio pgtype.Text, role, organizerName string, organizerVerified bool) (PublicProfileResponse, error) {
+	role = publicProfileRole(role, organizerName, organizerVerified)
 	relationship, followsOrganizer, followerCount, err := h.profileState(ctx, viewerID, profileID, role)
 	if err != nil {
 		return PublicProfileResponse{}, err
@@ -464,7 +474,7 @@ func (h *Handler) HandleGetPublicProfile(w http.ResponseWriter, r *http.Request)
 		router.RespondWithError(w, http.StatusInternalServerError, "Profilul nu a putut fi incarcat")
 		return
 	}
-	if profile.Role.String == "organizer" {
+	if response.Role == "organizer" {
 		stats, err := h.Queries.GetOrganizerPublicStats(r.Context(), profile.ID)
 		if err != nil {
 			router.RespondWithError(w, http.StatusInternalServerError, "Statisticile organizatorului nu au putut fi incarcate")
@@ -743,7 +753,7 @@ func (h *Handler) HandleFollowOrganizer(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	profile, err := h.Queries.GetPublicProfile(r.Context(), targetID)
-	if err != nil || profile.Role.String != "organizer" {
+	if err != nil || publicProfileRole(profile.Role.String, profile.OrganizerName, profile.OrganizerVerified) != "organizer" {
 		router.RespondWithError(w, http.StatusNotFound, "Organizatorul nu a fost gasit")
 		return
 	}

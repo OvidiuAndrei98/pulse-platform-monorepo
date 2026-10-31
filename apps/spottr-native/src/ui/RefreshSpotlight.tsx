@@ -50,7 +50,7 @@ export function RefreshSpotlight({
           isInteraction: false,
         }),
       ]),
-      { resetBeforeIteration: false },
+      { iterations: -1, resetBeforeIteration: false },
     );
     animation.start();
     return () => animation.stop();

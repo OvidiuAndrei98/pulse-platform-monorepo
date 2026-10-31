@@ -1,3 +1,4 @@
+import type { ScrollViewInstance } from 'react-native';
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -22,7 +23,7 @@ import {
   WalletCards,
   type LucideIcon,
 } from "lucide-react-native";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { Logo } from "../ui/Logo";
 import { dColors as colors } from "./common";
@@ -265,7 +266,7 @@ export function DashboardHeader({ section, onNavigate, validator }: NavProps) {
           ? "legalDocuments.agreement.title"
           : "stripeConnect.title",
     });
-  const scroll = useRef<ScrollView>(null),
+  const scroll = useRef<ScrollViewInstance>(null),
     frames = useRef<Record<string, { x: number; width: number }>>({});
   const [layoutVersion, setLayoutVersion] = useState(0),
     [visible, setVisible] = useState(false);

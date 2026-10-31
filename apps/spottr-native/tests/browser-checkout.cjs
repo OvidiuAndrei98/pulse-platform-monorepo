@@ -40,6 +40,10 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await until(`document.querySelector('[data-testid="event-content"]')`);
   // Compare settled geometry, not a frame from the opening spring on a busy CPU.
   await until(`(()=>{const y=document.querySelector('[data-testid="sheet-handle"]').getBoundingClientRect().top;const old=window.__sheetSettling;window.__sheetSettling={y,count:old&&Math.abs(old.y-y)<.1?old.count+1:0};return window.__sheetSettling.count>=4;})()`);
+  const actionGeometry = await evaluate(`(()=>{const share=document.querySelector('[data-testid="event-share"]'),purchase=document.querySelector('[data-testid="event-continue"]'),a=share.getBoundingClientRect(),b=purchase.getBoundingClientRect();return{sameGroup:share.parentElement===purchase.parentElement,gap:b.left-a.right,alignment:Math.abs(a.top+a.height/2-b.top-b.height/2)};})()`);
+  assert.equal(actionGeometry.sameGroup, true, 'Share and purchase belong to the same glass group');
+  assert.ok(Math.abs(actionGeometry.gap - 8) < .5, 'Share and purchase keep the 8px merge gap');
+  assert.ok(actionGeometry.alignment < .5, 'Icon and capsule remain vertically centered');
   await evaluate(`window.__sheet=document.querySelector('[data-testid="event-sheet"]');window.__home=document.querySelector('[data-testid="home-list"]');window.__sheetTop=document.querySelector('[data-testid="sheet-handle"]').getBoundingClientRect().top;document.querySelector('[data-testid="event-content"]').scrollTop=220`);
   await click('event-continue'); await until(`document.querySelector('[data-testid="checkout-screen"]')`);
   await click('checkout-close'); await until(`!document.querySelector('[data-testid="checkout-screen"]')`);

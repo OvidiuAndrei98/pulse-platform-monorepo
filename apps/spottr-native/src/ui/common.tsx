@@ -1,3 +1,4 @@
+import { AccentPressable } from './AccentPressable';
 import { Text } from './Text';
 import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View, type ViewStyle, type StyleProp, type NativeScrollEvent, type NativeSyntheticEvent, Alert, Platform, Linking } from 'react-native';
@@ -6,7 +7,7 @@ import { MotionPressable as Pressable } from './MotionPressable';
 import { GlassPressable } from './GlassPressable';
 import { Image } from 'expo-image';
 import { openBrowserAsync } from 'expo-web-browser';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { colors } from './theme';
 import { httpUrl } from '../data/events';
 
@@ -36,10 +37,10 @@ export function EventImage({ uri, style, onLoad, fadeIn = true }: { uri?: string
 }
 
 export function Button({ title, onPress, secondary = false, disabled = false }: { title: string; onPress: () => void; secondary?: boolean; disabled?: boolean }) {
-  return <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
+  return <AccentPressable fallback={Pressable} accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
     style={[styles.button, secondary && styles.secondary, { opacity: disabled ? 0.4 : 1 }]}>
     <Text style={styles.buttonText}>{title}</Text>
-  </Pressable>;
+  </AccentPressable>;
 }
 export function IconButton({ label, onPress, children, disabled }: React.PropsWithChildren<{ label: string; onPress: () => void; disabled?: boolean }>) {
   return <GlassPressable accessibilityLabel={label} accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}

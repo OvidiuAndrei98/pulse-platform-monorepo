@@ -1,3 +1,4 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 ﻿import '../checkout/paymentRecoveryStorage';
 import { acknowledgeNativePayment, getNativePayment, resolveNativePayment, restoreNativePayments } from '../checkout/nativePayment';
@@ -15,7 +16,7 @@ import { validCheckoutSession } from '../../../pulse-app/src/features/checkout/n
 import { accountApi, useAuth } from '../auth/AuthProvider';
 import { queryClient } from '../data/queries';
 import { isEventId } from '../data/events';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { MotionPressable as Pressable } from '../ui/MotionPressable';
 import { colors } from '../ui/theme';
@@ -136,14 +137,14 @@ export function CheckoutReturnScreen({ route, navigation }: NativeStackScreenPro
       <Text accessibilityLiveRegion="polite" style={s.hint}>{copy(hint)}</Text>
       {status === 'pending' && Platform.OS === 'web' && !canResume && <Text style={s.providerHint}>{copy('checkoutResult.providerWindowHint')}</Text>}
 
-      {canResume && <Pressable testID="checkout-resume-payment" accessibilityRole="button" onPress={() => {
+      {canResume && <AccentPressable fallback={Pressable} testID="checkout-resume-payment" accessibilityRole="button" onPress={() => {
         setResumeError(false); lastResume.current = 0;
         try { if (!resumePaymentBrowser(eventId, sessionId, token)) setResumeError(true); } catch { setResumeError(true); }
-      }} style={s.primary}><Text style={s.buttonText}>{copy('checkoutResult.resumePayment')}</Text><ArrowRight size={16} color="white" /></Pressable>}
+      }} style={s.primary}><Text style={s.buttonText}>{copy('checkoutResult.resumePayment')}</Text><ArrowRight size={16} color="white" /></AccentPressable>}
       {resumeError && <Text accessibilityRole="alert" style={s.providerHint}>{copy('checkoutResult.resumeFailed')}</Text>}
-      {canRecheckPayment(status, manualUsed) && <Pressable testID="checkout-recheck" accessibilityRole="button" onPress={recheck} style={canResume ? s.secondary : s.primary}><RotateCcw size={16} color="white" /><Text style={s.buttonText}>{copy('feedback.checkAgain')}</Text></Pressable>}
-      {unresolved && user && <Pressable testID="checkout-check-tickets" accessibilityRole="button" onPress={() => navigation.popTo('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } })} style={!canResume && (manualUsed || status === 'missing' || status === 'invalid') ? s.primary : s.secondary}><Ticket size={16} color="white" /><Text style={s.buttonText}>{copy('checkoutResult.checkTickets')}</Text></Pressable>}
-      {canRestartCheckout(status) && isEventId(eventId) && <Pressable testID="checkout-return-to-event" accessibilityRole="button" onPress={() => { acknowledge(); returnToEvent(navigation, eventId); }} style={s.primary}><Text style={s.buttonText}>{copy('checkoutResult.chooseTickets')}</Text><ArrowRight size={16} color="white" /></Pressable>}
+      {canRecheckPayment(status, manualUsed) && <AccentPressable fallback={Pressable} testID="checkout-recheck" accessibilityRole="button" onPress={recheck} style={canResume ? s.secondary : s.primary}><RotateCcw size={16} color="white" /><Text style={s.buttonText}>{copy('feedback.checkAgain')}</Text></AccentPressable>}
+      {unresolved && user && <AccentPressable fallback={Pressable} testID="checkout-check-tickets" accessibilityRole="button" onPress={() => navigation.popTo('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } })} style={!canResume && (manualUsed || status === 'missing' || status === 'invalid') ? s.primary : s.secondary}><Ticket size={16} color="white" /><Text style={s.buttonText}>{copy('checkoutResult.checkTickets')}</Text></AccentPressable>}
+      {canRestartCheckout(status) && isEventId(eventId) && <AccentPressable fallback={Pressable} testID="checkout-return-to-event" accessibilityRole="button" onPress={() => { acknowledge(); returnToEvent(navigation, eventId); }} style={s.primary}><Text style={s.buttonText}>{copy('checkoutResult.chooseTickets')}</Text><ArrowRight size={16} color="white" /></AccentPressable>}
       {canCancel && <Pressable testID="checkout-cancel-attempt" accessibilityRole="button" onPress={cancelAttempt} style={s.secondary}><Text style={s.secondaryText}>{copy('checkout.cancelPaymentAttempt')}</Text></Pressable>}
       {!checking && !completed && <Pressable testID="checkout-contact-support" accessibilityRole="button" onPress={contact} style={s.secondary}><Mail size={16} color="#ffffffb3" /><Text style={s.secondaryText}>{copy('checkoutResult.contactSupport')}</Text></Pressable>}
       {supportError && <Text selectable accessibilityRole="alert" style={s.deliveryText}>{copy('checkoutResult.supportFallback')} contact@code-lab.ro</Text>}

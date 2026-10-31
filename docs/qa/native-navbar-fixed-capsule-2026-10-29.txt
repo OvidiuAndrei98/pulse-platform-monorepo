@@ -1,0 +1,46 @@
+SPOTTR native navbar: fixed capsule dragging - 29 October 2026
+
+Request and evidence
+- Compared toooop.mp4 (16.96s) with aaaaa navbar cum trebuie.mp4 (23.60s).
+- The current system selection swells and refracts the icons while dragging.
+  The requested interaction moves a capsule that retains its size and shape.
+
+Change
+- Replaced the embedded UITabBarController with native UIKit buttons, one
+  non-interactive regular glass surface and a fixed, neutral selection capsule.
+- A horizontal UIPanGestureRecognizer translates the capsule directly on the
+  native thread. It preserves the grip point, clamps at the ends, previews the
+  nearest icon and commits one selection when the finger lifts.
+- Cancelled gestures restore the current route. External navigation interrupts
+  the preview. Taps and settling use an interruptible 220ms translation; Reduce
+  Motion skips that animation. No scale, stretch, lens, fling or haptics.
+- The existing JS bridge still owns navigation, role-specific destinations,
+  prevented tabPress acknowledgement and repeated-tab behavior.
+- The view remains local to its scene; empty space passes touches through.
+  VoiceOver receives translated labels and the committed selected state.
+- Glass installation waits until a fading-in scene is visible. Detached views
+  stop their visibility link and restore their committed selection.
+- A native capability constant distinguishes this build from the previous one.
+  A JS refresh on the older native module warns that an Xcode rebuild is needed.
+
+Validation
+- TypeScript and the existing native source preflight were run locally.
+- Navigation/compatibility tests cover module availability, old native binaries,
+  controlled selection acknowledgements, role delegation and repeated tabs.
+- No Xcode/UIKit SDK is available on this Windows host. Swift compilation,
+  actual material rendering and finger tracking require an iPhone build.
+- Review slow drags, reversals, release beyond the ends, interrupted settling,
+  cancellation, role-specific Profile, return from sheets and safe-area placement.
+
+Build
+Sync the updated native module and rebuild the existing iOS workspace in Xcode.
+Metro refresh alone cannot update the installed Swift implementation.
+
+References
+https://developer.apple.com/documentation/uikit/uiglasseffect
+https://developer.apple.com/documentation/uikit/uipangesturerecognizer
+https://developer.apple.com/documentation/uikit/uiaccessibilitytraits/tabbar
+
+Local comparison frames (ignored)
+apps/spottr-native/artifacts/navbar-clip-current.png
+apps/spottr-native/artifacts/navbar-clip-reference.png

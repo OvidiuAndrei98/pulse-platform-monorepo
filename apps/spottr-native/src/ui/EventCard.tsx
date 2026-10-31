@@ -4,7 +4,7 @@ import { CheckCircle2, MapPin } from "lucide-react-native";
 import Animated from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import { Event, formatDate, isLive } from "../data/events";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { colors } from "./theme";
 import { EventImage } from "./common";
 import { PromotionArtwork } from "./PromotionArtwork";

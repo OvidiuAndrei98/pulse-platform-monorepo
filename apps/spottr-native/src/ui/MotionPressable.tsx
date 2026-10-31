@@ -1,10 +1,12 @@
 import React, { forwardRef, useEffect, useState } from 'react';
-import { Pressable, type PressableProps, type View } from 'react-native';
+import { Pressable, type PressableProps, type ViewInstance } from 'react-native';
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 type MotionPressableProps = PressableProps & {
   animatedStyle?: React.ComponentProps<typeof AnimatedPressable>['style'];
+  /** A native glass parent already owns the press deformation. */
+  static?: boolean;
 };
 
 export function usePressMotion(disabled = false) {
@@ -22,10 +24,10 @@ export function usePressMotion(disabled = false) {
 }
 
 /** Feedback only: Pressable still owns taps, cancellation and navigation timing. */
-export const MotionPressable = forwardRef<View, MotionPressableProps>(function MotionPressable(
-  { style, animatedStyle, disabled, onPressIn, onPressOut, ...props }, ref,
+export const MotionPressable = forwardRef<ViewInstance, MotionPressableProps>(function MotionPressable(
+  { style, animatedStyle, disabled, static: staticPress = false, onPressIn, onPressOut, ...props }, ref,
 ) {
-  const motion = usePressMotion(Boolean(disabled));
+  const motion = usePressMotion(Boolean(disabled) || staticPress);
   const [pressed, setPressed] = useState(false);
   useEffect(() => { if (disabled) setPressed(false); }, [disabled]);
   return <AnimatedPressable {...props} ref={ref} disabled={disabled}

@@ -1,3 +1,4 @@
+import { AccentPressable } from '../ui/AccentPressable';
 ﻿import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -13,7 +14,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useIsFocused } from "@react-navigation/native";
+import { useDashboardPolling } from './useDashboardPolling';
 import {
   AlertTriangle,
   Check,
@@ -21,7 +22,7 @@ import {
   type LucideIcon,
 } from "lucide-react-native";
 import { accountApi, useAuth } from "../auth/AuthProvider";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { FormInput, formStyles } from '../ui/FormInput';
 import { colors as appColors } from "../ui/theme";
@@ -36,14 +37,14 @@ export function useDashboardQuery<T>(
   enabled = true,
   interval?: number,
 ) {
-  const { user } = useAuth(),
-    focused = useIsFocused();
-  return useQuery({
+  const { user } = useAuth();
+  const query = useQuery({
     queryKey: ["dashboard", user?.id, path],
     enabled: !!user && enabled,
     queryFn: ({ signal }) => accountApi<T>(path, { signal }),
-    refetchInterval: focused ? interval : false,
   });
+  useDashboardPolling(query.refetch, !!user && enabled, interval);
+  return query;
 }
 /** A synchronous lock prevents duplicate taps; no completion updates a later session. */
 export function useAction() {
@@ -165,7 +166,7 @@ export function Action({
   testID?: string;
 }) {
   return (
-    <Pressable
+    <AccentPressable fallback={Pressable}
       testID={testID}
       accessibilityRole="button"
       accessibilityState={{ disabled }}
@@ -209,7 +210,7 @@ export function Action({
       >
         {title}
       </Text>
-    </Pressable>
+    </AccentPressable>
   );
 }
 export function Field({

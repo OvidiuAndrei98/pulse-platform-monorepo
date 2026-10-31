@@ -1,3 +1,4 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import React, { useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { MotionPressable as Pressable } from "../ui/MotionPressable";
@@ -19,7 +20,7 @@ import { Text } from "../ui/Text";
 import { Wordmark } from "../ui/Logo";
 import { useOpenLink } from "../ui/common";
 import { colors } from "../ui/theme";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { useTicketBrightness } from "./useTicketBrightness";
 import { exportTicket } from "./exportTicket";
 import { formatTicketDate } from "../../../pulse-app/src/components/tickets/ticketDesign";
@@ -279,7 +280,7 @@ export function TicketSheet({
             {copy("feedback.actionFailed")}
           </Text>
         )}
-        <Pressable
+        <AccentPressable fallback={Pressable}
           testID="ticket-download"
           accessibilityRole="button"
           disabled={busy}
@@ -290,7 +291,7 @@ export function TicketSheet({
           <Text style={{ color: "white", fontSize: 14, fontWeight: "600" }}>
             {copy("ticketPdf.downloadPdf")}
           </Text>
-        </Pressable>
+        </AccentPressable>
       </BottomSheetView>
     </AppSheet>
   );

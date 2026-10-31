@@ -11,6 +11,6 @@ export type TabIndicatorProps = {
 };
 
 export function TabIndicator({ position, style }: TabIndicatorProps) {
-  const motion = useAnimatedStyle(() => ({ transform: [{ translateX: position.value }] }), [position]);
+  const motion = useAnimatedStyle(() => ({ transform: [{ translateX: position.value }] }));
   return <Animated.View testID="tab-indicator" pointerEvents="none" style={[style, motion]} />;
 }

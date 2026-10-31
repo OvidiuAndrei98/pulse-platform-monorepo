@@ -6,7 +6,7 @@ import { CalendarDays, MapPin, Ticket } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { eventsApi } from '../data/api';
 import { formatDate, isEventId } from '../data/events';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Wordmark } from '../ui/Logo';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';

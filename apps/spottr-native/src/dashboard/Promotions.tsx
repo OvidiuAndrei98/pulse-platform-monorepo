@@ -13,7 +13,7 @@ import {
 } from "lucide-react-native";
 import { Grid, SmallButton, Status, CheckRow, p } from "./managementUi";
 import type { components } from "@packages/api-client/src/schema";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { accountApi, useAuth } from "../auth/AuthProvider";
 import { Text } from "../ui/Text";
 import { Feedback, Loading, useOpenLink } from "../ui/common";

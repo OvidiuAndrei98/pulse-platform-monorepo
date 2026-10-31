@@ -1,11 +1,13 @@
 {
   "name": "pulse-platform",
   "private": true,
+  "packageManager": "pnpm@11.28.5",
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
     "native:start": "pnpm --filter @apps/spottr-native start",
+    "native:go": "pnpm --filter @apps/spottr-native run start:go",
     "native:web": "pnpm --filter @apps/spottr-native web",
     "native:android": "pnpm --filter @apps/spottr-native android",
     "native:ios": "pnpm --filter @apps/spottr-native ios",

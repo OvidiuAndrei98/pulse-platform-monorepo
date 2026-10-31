@@ -1,8 +1,9 @@
 import React, { forwardRef } from 'react';
-import { Pressable, StyleSheet, type View } from 'react-native';
+import { Pressable, StyleSheet, type ViewInstance } from 'react-native';
 import { requireOptionalNativeModule } from 'expo';
 import { GlassPressableFallback, type GlassPressableProps } from './GlassPressableFallback';
 import { glassButtonStyles } from './glassButtonStyles';
+import { liquidGlassAppearance } from './liquidGlassAppearance';
 
 // Older installed development builds may receive this JS before Pods are rebuilt.
 const glass: typeof import('expo-glass-effect') | null =
@@ -10,13 +11,13 @@ const glass: typeof import('expo-glass-effect') | null =
 const NativeGlassView = glass?.isLiquidGlassAvailable() && glass.isGlassEffectAPIAvailable()
   ? glass.GlassView : null;
 
-export const GlassPressable = forwardRef<View, GlassPressableProps>(function GlassPressable(
+export const GlassPressable = forwardRef<ViewInstance, GlassPressableProps>(function GlassPressable(
   { style, glassStyle, disabled, accessibilityState, fallback, ...props }, ref,
 ) {
   if (!NativeGlassView) return <GlassPressableFallback {...props} ref={ref} style={style} fallback={fallback}
     disabled={disabled} accessibilityState={accessibilityState} />;
   const styles = glassButtonStyles(StyleSheet.flatten([style, glassStyle]) ?? {}, Boolean(disabled));
-  return <NativeGlassView style={styles.surface} glassEffectStyle="regular" colorScheme="dark"
+  return <NativeGlassView style={styles.surface} {...liquidGlassAppearance}
     isInteractive pointerEvents={disabled ? 'none' : 'auto'}>
     {/* UIKit owns the press effect. A second animated scale would fight it.
         Keep the material opaque; only dim its content for disabled controls. */}

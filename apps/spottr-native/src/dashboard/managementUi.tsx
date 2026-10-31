@@ -1,3 +1,4 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import React, { useState } from "react";
 import {
   Pressable,
@@ -82,7 +83,7 @@ export function SmallButton({
 }) {
   const color = danger ? "#fca5a5" : primary ? "#fff" : colors.text;
   return (
-    <Pressable
+    <AccentPressable fallback={Pressable}
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label || title}
@@ -114,7 +115,7 @@ export function SmallButton({
           {title}
         </Text>
       )}
-    </Pressable>
+    </AccentPressable>
   );
 }
 export function SectionTitle({

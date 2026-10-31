@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Check, History, RefreshCw, UserRound, Users, WifiOff } from 'lucide-react-native';
 import { useAuth } from '../auth/AuthProvider';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import type { RootParamList } from '../navigation/types';
 import { formatDate } from '../data/events';
 import { ApiError } from '../data/http';
@@ -124,7 +124,7 @@ export function ScannerHistoryScreen({ route, navigation }: NativeStackScreenPro
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
           {...webListScrollProps(loadMore)}
-          ListEmptyComponent={history.isPending && !offline ? <Loading /> : history.isError && !offline ? <Feedback title={copy(forbidden ? 'scanner.sessionUnavailable' : 'feedback.loadFailed')} retry={retry} /> : offline ? null : <View style={s.empty}>
+          ListEmptyComponent={history.isPending && !offline ? <Loading /> : history.isError && !offline ? <Feedback title={copy(forbidden ? 'scanner.sessionUnavailable' : 'feedback.loadFailed')} retry={retry} /> : offline ? undefined : <View style={s.empty}>
             <View style={s.emptyIcon}><History size={25} color={colors.accent} /></View>
             <Text style={s.emptyTitle}>{copy('validation.noScansYet')}</Text>
             <Text style={[s.muted, { textAlign: 'center' }]}>{copy(scope === 'all' ? 'validation.historyEmptyAll' : 'validation.historyEmptyMine')}</Text>
@@ -132,7 +132,7 @@ export function ScannerHistoryScreen({ route, navigation }: NativeStackScreenPro
           ListFooterComponent={history.isFetchingNextPage ? <Loading /> : scans.length ? <>
             {history.isError && !offline && <Feedback compact title={copy('feedback.loadFailed')} retry={() => { if (history.isFetchNextPageError) void history.fetchNextPage(); else retry(); }} />}
             <Text style={s.footnote}>{copy('validation.historySyncedOnly')}</Text>
-          </> : null}
+          </> : undefined}
         />
       </>}
     </View>

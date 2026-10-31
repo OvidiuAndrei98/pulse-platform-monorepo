@@ -1,17 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   AppState,
-  Linking,
-  Pressable,
   View,
   useWindowDimensions,
 } from "react-native";
 import { BottomSheetView } from "@gorhom/bottom-sheet";
-import { CameraView, useCameraPermissions } from "expo-camera";
 import QRCode from "react-native-qrcode-svg";
 import { QrCode, ScanLine } from "lucide-react-native";
 import { useAuth, accountApi } from "../auth/AuthProvider";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { queryClient } from "../data/queries";
 import { ApiError } from "../data/http";
 import { AppSheet } from "../ui/AppSheet";
@@ -19,6 +16,9 @@ import { Text } from "../ui/Text";
 import { Wordmark } from "../ui/Logo";
 import { Button } from "../ui/common";
 import { colors } from "../ui/theme";
+import { CapsuleSwitchTrack } from '../ui/CapsuleSwitchTrack';
+import { GlassSurface } from '../ui/GlassSurface';
+import { QuickConnectCamera } from './QuickConnectCamera';
 
 export function connectionId(value: string, own: string) {
   const match = value.match(
@@ -37,28 +37,35 @@ export function QuickConnectSheet({ onClose }: { onClose: () => void }) {
     [message, setMessage] = useState(""),
     [scanned, setScanned] = useState(false);
   const [active, setActive] = useState(AppState.currentState === "active");
-  const [permission, requestPermission] = useCameraPermissions();
+  const modeRef = useRef(mode), activeRef = useRef(active), mounted = useRef(true), scanLocked = useRef(false);
   const revision = useRef(0),
     pending = useRef(false);
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (state) =>
-      setActive(state === "active"),
-    );
+    mounted.current = true;
+    const subscription = AppState.addEventListener("change", (state) => {
+      activeRef.current = state === 'active';
+      setActive(activeRef.current);
+    });
     return () => {
       subscription.remove();
+      mounted.current = false;
       revision.current++;
     };
   }, []);
   const change = (next: "code" | "scan") => {
+    if (next === modeRef.current) return;
+    modeRef.current = next;
     revision.current++;
     setMessage("");
     setScanned(false);
     pending.current = false;
+    scanLocked.current = false;
     setMode(next);
   };
   const scan = async (value: string) => {
-    if (!user || pending.current || scanned) return;
+    if (!user || !mounted.current || modeRef.current !== 'scan' || !activeRef.current || pending.current || scanLocked.current) return;
     pending.current = true;
+    scanLocked.current = true;
     setScanned(true);
     setMessage("");
     const version = revision.current,
@@ -103,7 +110,7 @@ export function QuickConnectSheet({ onClose }: { onClose: () => void }) {
     <AppSheet
       open
       onClose={onClose}
-      height={mode === "scan" ? 0.9 : fraction}
+      height={fraction}
       label={copy("common.close")}
       testID="quick-connect-sheet"
     >
@@ -130,44 +137,15 @@ export function QuickConnectSheet({ onClose }: { onClose: () => void }) {
             {copy("qr.showOrScanOther")}
           </Text>
         </View>
-        <View
-          style={{
-            flexDirection: "row",
-            padding: 4,
-            borderRadius: 99,
-            backgroundColor: "#171717",
-          }}
-        >
-          {(["code", "scan"] as const).map((value) => (
-            <Pressable
-              key={value}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: mode === value }}
-              onPress={() => change(value)}
-              style={{
-                height: 40,
-                flex: 1,
-                flexDirection: "row",
-                gap: 8,
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 99,
-                backgroundColor: mode === value ? colors.accent : "transparent",
-              }}
-            >
-              {value === "code" ? (
-                <QrCode color="white" size={16} />
-              ) : (
-                <ScanLine color="white" size={16} />
-              )}
-              <Text style={{ color: "white", fontSize: 12, fontWeight: "600" }}>
-                {copy(value === "code" ? "qr.myCode" : "qr.scanQr")}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <GlassSurface testID="quick-connect-switch" style={{ height: 48, padding: 4, borderRadius: 24, backgroundColor: '#171717' }}>
+          <CapsuleSwitchTrack value={mode} onChange={change} height={40} role="tab" indicatorTestID="quick-connect-indicator"
+            options={[
+              { value: 'code', label: copy('qr.myCode'), testID: 'quick-connect-code', content: <><QrCode color="white" size={16}/><Text style={{ color: 'white', fontSize: 12, fontWeight: '600' }}>{copy('qr.myCode')}</Text></> },
+              { value: 'scan', label: copy('qr.scanQr'), testID: 'quick-connect-scan', content: <><ScanLine color="white" size={16}/><Text style={{ color: 'white', fontSize: 12, fontWeight: '600' }}>{copy('qr.scanQr')}</Text></> },
+            ]}/>
+        </GlassSurface>
         {mode === "code" ? (
-          <View
+          <View testID="quick-connect-code-panel"
             style={{
               flex: 1,
               alignItems: "center",
@@ -202,7 +180,7 @@ export function QuickConnectSheet({ onClose }: { onClose: () => void }) {
             </Text>
           </View>
         ) : (
-          <View
+          <View testID="quick-connect-scan-panel"
             style={{
               flex: 1,
               borderRadius: 24,
@@ -210,40 +188,7 @@ export function QuickConnectSheet({ onClose }: { onClose: () => void }) {
               backgroundColor: "#111",
             }}
           >
-            {permission?.granted && active ? (
-              <CameraView
-                style={{ flex: 1 }}
-                facing="back"
-                barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-                onBarcodeScanned={
-                  scanned ? undefined : (result) => void scan(result.data)
-                }
-                onMountError={() => setMessage(copy("qr.connectionOffline"))}
-              />
-            ) : (
-              <View
-                style={{
-                  flex: 1,
-                  padding: 20,
-                  justifyContent: "center",
-                  gap: 20,
-                }}
-              >
-                <Text style={{ color: colors.muted, textAlign: "center" }}>
-                  {copy("qr.profileCameraHint")}
-                </Text>
-                <Button
-                  title={copy("qr.scanQr")}
-                  onPress={() =>
-                    void (
-                      permission?.canAskAgain === false
-                        ? Linking.openSettings()
-                        : requestPermission()
-                    ).catch(() => setMessage(copy("feedback.actionFailed")))
-                  }
-                />
-              </View>
-            )}
+            <QuickConnectCamera active={active} stopped={scanned} onScan={value => void scan(value)}/>
           </View>
         )}
         {!!message && (
@@ -256,10 +201,11 @@ export function QuickConnectSheet({ onClose }: { onClose: () => void }) {
         )}
         {mode === "scan" && scanned && (
           <Button
-            title={copy("qr.scanQr")}
+            title={copy("qr.scanAgain")}
             onPress={() => {
               revision.current++;
               pending.current = false;
+              scanLocked.current = false;
               setScanned(false);
               setMessage("");
             }}

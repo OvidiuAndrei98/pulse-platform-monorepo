@@ -1,3 +1,4 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useRef, useState } from 'react';
@@ -8,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { Text } from '../ui/Text';
 import { DesktopWordmark } from '../ui/DesktopWordmark';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { eventUrl, type Event } from '../data/events';
 import { WEB_URL } from '../config';
 import { colors } from '../ui/theme';
@@ -85,8 +86,8 @@ export function EventStory({ event, onClose }: { event: Event; onClose: () => vo
         <Text style={s.hint}>{copy('eventStory.hint')}</Text>
         {!!image && !!error && <Text accessibilityRole="alert" style={[s.hint, { color: '#f87171' }]}>{copy(error)}</Text>}
         {!!notice && <Text accessibilityLiveRegion="polite" style={[s.hint, { color: colors.accent }]}>{copy(notice)}</Text>}
-        <Pressable testID="story-export" accessibilityRole="button" accessibilityState={{ disabled: !image || !loaded || busy, busy }} disabled={!image || !loaded || busy} onPress={() => void save()} style={[s.button, { opacity: !image || !loaded || busy ? 0.45 : 1 }]}>{busy ? <ActivityIndicator size="small" color="white" /> : Platform.OS === 'web' ? <Download size={17} color="white" /> : <Share2 size={17} color="white" />}<Text style={s.buttonText}>{copy(busy ? 'eventStory.preparing' : Platform.OS === 'web' ? 'eventStory.download' : 'eventStory.export')}</Text></Pressable>
-        <Pressable testID="story-copy-link" accessibilityRole="button" onPress={() => { void Clipboard.setStringAsync(eventUrl(WEB_URL, event.id)).then(ok => { if (alive.current) { if (!ok) setError('feedback.shareFailed'); else setNotice('eventStory.copied'); } }).catch(() => { if (alive.current) setError('feedback.shareFailed'); }); }} style={[s.button, { backgroundColor: '#ffffff0d' }]}><Copy size={16} color="white" /><Text style={s.buttonText}>{copy('eventStory.copyLink')}</Text></Pressable>
+        <AccentPressable fallback={Pressable} testID="story-export" accessibilityRole="button" accessibilityState={{ disabled: !image || !loaded || busy, busy }} disabled={!image || !loaded || busy} onPress={() => void save()} style={[s.button, { opacity: !image || !loaded || busy ? 0.45 : 1 }]}>{busy ? <ActivityIndicator size="small" color="white" /> : Platform.OS === 'web' ? <Download size={17} color="white" /> : <Share2 size={17} color="white" />}<Text style={s.buttonText}>{copy(busy ? 'eventStory.preparing' : Platform.OS === 'web' ? 'eventStory.download' : 'eventStory.export')}</Text></AccentPressable>
+        <AccentPressable fallback={Pressable} testID="story-copy-link" accessibilityRole="button" onPress={() => { void Clipboard.setStringAsync(eventUrl(WEB_URL, event.id)).then(ok => { if (alive.current) { if (!ok) setError('feedback.shareFailed'); else setNotice('eventStory.copied'); } }).catch(() => { if (alive.current) setError('feedback.shareFailed'); }); }} style={[s.button, { backgroundColor: '#ffffff0d' }]}><Copy size={16} color="white" /><Text style={s.buttonText}>{copy('eventStory.copyLink')}</Text></AccentPressable>
       </View>
     </View>
   </Modal>;

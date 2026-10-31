@@ -9,7 +9,7 @@ import {
   Ticket,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { EventImage, Feedback, Loading } from "../ui/common";
 import { formatDate } from "../data/events";

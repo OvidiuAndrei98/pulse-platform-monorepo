@@ -26,19 +26,23 @@ withBrowser(async({base,call,evaluate,until,click,input,delay,capture,errors})=>
   await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
   assert.equal(await evaluate(`document.activeElement?.getAttribute('data-testid')`),'discovery-search');
   await until(`document.querySelector('[data-testid="discovery-search"]').value===''&&document.body.innerText.includes('Rock event 2')`);
-  const pressText=async(text)=>{await evaluate(`(()=>{const root=document.querySelector('dialog[open]')||document.querySelector('[aria-modal="true"]')||document;const el=[...root.querySelectorAll('button,[role="button"],[role="radio"]')].find(el=>el.textContent.trim()===${JSON.stringify(text)});if(!el)throw Error('Missing button '+${JSON.stringify(text)}+' in '+root.innerText);el.click();})()`);};
+  const pressText=async(text)=>{await evaluate(`(()=>{const root=document.querySelector('dialog[open]')||[...document.querySelectorAll('[aria-modal="true"]')].at(-1)||document;const el=[...root.querySelectorAll('button,[role="button"],[role="radio"]')].find(el=>el.textContent.trim()===${JSON.stringify(text)});if(!el)throw Error('Missing button '+${JSON.stringify(text)}+' in '+root.innerText);el.click();})()`);};
   const clearSearch=async()=>{await evaluate(`document.querySelector('[data-testid="discovery-toolbar"] [aria-label="Clear search"]').click()`);await delay(250);};
   await input('discovery-search','Rock');await clearSearch();
   assert.equal(await evaluate(`document.activeElement?.getAttribute('data-testid')`),'discovery-search','Desktop X returns focus to the visible input');
   await input('discovery-search','House');
   await call('Emulation.setDeviceMetricsOverride',{width:320,height:700,deviceScaleFactor:1,mobile:true});await delay(300);
   assert.equal(await evaluate(`(()=>{const el=document.querySelector('[data-testid="discovery-search"]');return el?.value==='House'&&el.getBoundingClientRect().width>60;})()`),true,'Desktop-to-mobile keeps an active query visible');
-  await clearSearch();assert.equal(await evaluate(`document.activeElement?.getAttribute('data-testid')`),'discovery-search-toggle','Mobile X restores the round trigger');
+  await clearSearch();
+  if(!next){assert.equal(await evaluate(`document.activeElement?.getAttribute('data-testid')`),'discovery-search','Clear keeps the field focused');await click('discovery-search-back');await delay(150);}
+  assert.equal(await evaluate(`document.activeElement?.getAttribute('data-testid')`),'discovery-search-toggle','Dismissal restores the round trigger');
   await call('Emulation.setDeviceMetricsOverride',{width:1152,height:900,deviceScaleFactor:1,mobile:false});await delay(300);
   await click('discovery-city');
-  await until(next?`document.querySelector('[data-testid="discovery-city-options"]')`:`document.querySelector('[data-testid="discovery-city-options"]')`);
+  if(!next)await click('discovery-city-field');
+  await until(next?`document.querySelector('[data-testid="discovery-city-options"]')`:`document.querySelector('[data-testid="discovery-city-field-options"]')`);
   if(next)await evaluate(`(()=>{const option=[...document.querySelectorAll('[role="option"]')].find(el=>el.textContent.trim()==='Bucuresti');option.click();})()`);
   else await pressText('Bucuresti');
+  if(!next)await pressText('Apply filters');
   await delay(350);
   await until(`window.__discovery.requests.some(q=>q.city==='Bucuresti')`);
   const key=async(key,code=key,number=key.length===1?key.toUpperCase().charCodeAt(0):({Enter:13,ArrowDown:40,ArrowUp:38,Home:36,End:35,Escape:27,Tab:9}[key]||0))=>{await call('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode:number});await call('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:number});};

@@ -1,6 +1,8 @@
+import type { FlatListInstance, ScrollViewInstance } from 'react-native';
 import { ActionIcon } from '../ui/ActionIcon';
+import { GlassSurface } from '../ui/GlassSurface';
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Keyboard, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, Keyboard, Pressable as NativePressable, ScrollView, StyleSheet, View } from "react-native";
 import { FormInput as TextInput } from '../ui/FormInput';
 import { MotionPressable as Pressable } from "../ui/MotionPressable";
 import { ArrowUpRight, BadgeCheck, Clock3, Search, UserRound, X } from "lucide-react-native";
@@ -10,7 +12,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { profilesApi } from '../profiles/usePublicProfile';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { seedEvent, useEvents, useHomeEvents } from "../data/queries";
 import { formatDate } from "../data/events";
 import {
@@ -35,7 +37,9 @@ export function SearchScreen({
   const [focused, setFocused] = useState(false);
   const [value, setValue] = useState(""),
     [query, setQuery] = useState("");
-  const results = useRef<FlatList>(null);
+  const results = useRef<FlatListInstance>(null);
+  const scopeScroll = useRef<ScrollViewInstance>(null);
+  const scopeOffsets = useRef<Record<string, number>>({});
   useEffect(() => { results.current?.scrollToOffset({ offset: 0, animated: false }); }, [query, scope]);
   useEffect(() => {
     const timer = setTimeout(() => setQuery(value.trim()), 180);
@@ -114,9 +118,23 @@ export function SearchScreen({
             </Pressable>
           )}
         </View>
-        {!!value.trim() && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-          {(['all', 'events', 'people', 'organizers'] as const).map(kind => <Pressable key={kind} testID={'search-filter-' + kind} accessibilityRole="tab" accessibilityState={{ selected: scope === kind }} onPress={() => setScope(kind)} style={[s.filter, scope === kind && s.filterActive]}><Text style={{ color: scope === kind ? colors.accent : colors.muted, fontSize: 13, fontWeight: '600' }}>{copy('search.' + kind)}</Text></Pressable>)}
-        </ScrollView>}
+        {!!value.trim() && <GlassSurface testID="search-filter-bar" style={s.filterBar}>
+          <ScrollView ref={scopeScroll} horizontal showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled" contentContainerStyle={s.filterTrack}
+            onContentSizeChange={() => scopeScroll.current?.scrollTo({ x: scopeOffsets.current[scope] ?? 0, animated: false })}>
+            {(['all', 'events', 'people', 'organizers'] as const).map(kind => <NativePressable
+              key={kind} testID={'search-filter-' + kind} accessibilityRole="tab"
+              accessibilityLabel={copy('search.' + kind)} accessibilityState={{ selected: scope === kind }}
+              aria-selected={scope === kind}
+              onLayout={({ nativeEvent: { layout } }) => { scopeOffsets.current[kind] = Math.max(0, layout.x - 4); }}
+              onPress={() => {
+                setScope(kind);
+                scopeScroll.current?.scrollTo({ x: scopeOffsets.current[kind] ?? 0, animated: false });
+              }} style={[s.filter, scope === kind && s.filterActive]}>
+              <Text style={[s.filterLabel, scope === kind && s.filterLabelActive]}>{copy('search.' + kind)}</Text>
+            </NativePressable>)}
+          </ScrollView>
+        </GlassSurface>}
       </View>
       <FlatList
         ref={results}
@@ -145,7 +163,7 @@ export function SearchScreen({
           </>
         }
         ListEmptyComponent={
-          !showEvents ? null : pending ? (
+          !showEvents ? undefined : pending ? (
             <Loading />
           ) : (query ? events.isError : home.isError) ? (
             <Feedback
@@ -219,8 +237,12 @@ export function SearchScreen({
   );
 }
 const s = StyleSheet.create({
-  filter: { minHeight: 40, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 99, backgroundColor: '#ffffff08', borderWidth: 1, borderColor: '#ffffff12' },
-  filterActive: { backgroundColor: '#ff00441a', borderColor: '#ff00444d' },
+  filterBar: { height: 54, borderRadius: 27, borderWidth: 1, borderColor: '#ffffff1a', backgroundColor: '#121418d9' },
+  filterTrack: { minWidth: '100%', flexDirection: 'row', alignItems: 'center', padding: 4, gap: 2 },
+  filter: { minHeight: 44, flexGrow: 1, flexShrink: 0, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
+  filterActive: { backgroundColor: colors.accent },
+  filterLabel: { color: '#ffffffb3', fontSize: 13, fontWeight: '600' },
+  filterLabelActive: { color: '#080808' },
   field: {
     height: 64,
     flexDirection: "row",

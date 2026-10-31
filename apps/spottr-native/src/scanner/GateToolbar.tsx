@@ -1,7 +1,7 @@
 import React from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { Volume2, VolumeX, Vibrate, Wifi, WifiOff } from 'lucide-react-native';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { dColors as colors } from '../dashboard/common';
 import type { OfflineState } from './offline';

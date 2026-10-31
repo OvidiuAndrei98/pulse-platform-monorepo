@@ -2,7 +2,7 @@ import React from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 import { ImagePlus, Trash2 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { EventImage } from "../ui/common";
 import { colors } from "../ui/theme";

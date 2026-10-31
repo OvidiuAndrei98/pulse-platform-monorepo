@@ -1,12 +1,14 @@
+import type { ScrollViewInstance } from 'react-native';
 import { FormScrollView } from "../ui/KeyboardForms";
 import React, { useRef, useState } from "react";
 import { ScrollView, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
-import { useIsFocused } from "@react-navigation/native";
+import { useDashboardPolling } from './useDashboardPolling';
+import { useNavbarScroll } from '../navigation/useNavbarScroll';
 import { accountApi, useAuth } from "../auth/AuthProvider";
 import { ApiError } from "../data/http";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Feedback, Loading } from "../ui/common";
 import { dashboardApi, dColors as colors, useDashboardQuery } from "./common";
 import type { DashboardEvent, OrganizerProfile } from "./data";
@@ -50,7 +52,7 @@ export type DashboardScreenProps = {
   returnStatus?: "complete" | "refresh" | "cancelled";
 };
 export function DashboardScreen(props: DashboardScreenProps) {
-  const focused = useIsFocused();
+  const navbarScroll = useNavbarScroll();
   const auth = useAuth(),
     { copy } = usePreferences(),
     safe = useSafeAreaInsets(),
@@ -69,13 +71,13 @@ export function DashboardScreen(props: DashboardScreenProps) {
   const [eventFilter, setEventFilter] = useState<DashboardEventFilter>(() =>
     parseDashboardEventFilter(props.initialEventFilter),
   );
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const events = useQuery({
     queryKey: ["dashboard", auth.user?.id, "/dashboard/events"],
     enabled: organizer,
     queryFn: ({ signal }) => dashboardApi.events(signal),
-    refetchInterval: focused && section === "overview" ? 15_000 : false,
   });
+  useDashboardPolling(events.refetch, organizer && section === 'overview', 15_000);
   const profile = useQuery({
     queryKey: [
       "dashboard",
@@ -163,6 +165,7 @@ export function DashboardScreen(props: DashboardScreenProps) {
           <WardrobeScreen embedded />
         ) : (
           <FormScrollView
+            {...navbarScroll}
             ref={scroll}
             testID="dashboard-content"
             key={actualSection === "edit" ? `edit-${eventId}` : actualSection}

@@ -15,7 +15,7 @@ import {
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { CheckCircle2, ClipboardCheck, ScanLine, XCircle } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Button, IconButton } from "../ui/common";
 import { Text } from "../ui/Text";
 import { Action, dColors as colors } from "../dashboard/common";

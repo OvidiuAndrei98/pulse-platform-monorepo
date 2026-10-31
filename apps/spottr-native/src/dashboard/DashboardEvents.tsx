@@ -1,3 +1,5 @@
+import { AccentPressable } from '../ui/AccentPressable';
+import type { ScrollViewInstance } from 'react-native';
 import { FormInput as TextInput } from "../ui/FormInput";
 import React, { useRef, useState } from "react";
 import {
@@ -18,7 +20,7 @@ import {
   Ticket,
   UsersRound,
 } from "lucide-react-native";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { EventImage, Feedback, Loading } from "../ui/common";
 import { formatDate } from "../data/events";
@@ -57,7 +59,7 @@ export function DashboardEvents({
     small = width < 640,
     large = width >= 1024;
   const [q, setQ] = useState("");
-  const filterStrip = useRef<ScrollView>(null);
+  const filterStrip = useRef<ScrollViewInstance>(null);
   const now = useEventClock(selectDashboardEvent(events, Date.now()));
   const filtered = filterDashboardEvents(events, filter, q, now);
   return (
@@ -146,7 +148,7 @@ export function DashboardEvents({
           }}
         >
           {dashboardEventFilters.map((value) => (
-            <Pressable
+            <AccentPressable fallback={Pressable}
               key={value}
               testID={`dashboard-filter-${value}`}
               onLayout={(event) => {
@@ -178,7 +180,7 @@ export function DashboardEvents({
               >
                 {copy("organizerEvents." + value)}
               </Text>
-            </Pressable>
+            </AccentPressable>
           ))}
         </ScrollView>
       </View>

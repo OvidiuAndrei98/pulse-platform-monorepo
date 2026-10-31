@@ -25,6 +25,8 @@ export function useTickets(enabled = true, watchAdmission = false) {
   }, []);
   useEffect(() => {
     if (!enabled || !ready || !accountId || !token || !ticketCache.enabled) return;
+    const existing = client.getQueryState(['tickets', accountId]);
+    if (existing?.data !== undefined || existing?.error && !canUseSavedTickets(existing.error)) return;
     let alive = true;
     void ticketCache.load(accountId).then(snapshot => {
       if (!alive || !current() || !snapshot || snapshot.accountId !== accountId) return;

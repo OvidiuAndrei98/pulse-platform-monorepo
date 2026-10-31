@@ -1,8 +1,9 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import React, { useRef, useState } from 'react';
 import { Pressable, View, StyleSheet } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { accountApi, useAuth } from '../auth/AuthProvider';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { FormInput } from '../ui/FormInput';
 import { colors } from '../ui/theme';
@@ -69,6 +70,6 @@ function Editor({ target, data, close, saved }: { target: 'standard' | Organizer
   </View>;
 }
 function Button({ label, onPress, disabled, active, id }: { label: string; onPress: () => void; disabled?: boolean; active?: boolean; id?: string }) {
-  return <Pressable testID={id} accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [s.button, active && { backgroundColor: colors.accent, borderColor: colors.accent }, { opacity: disabled ? .5 : pressed ? .7 : 1 }]}><Text style={{ color: active ? '#000' : colors.text, fontWeight: '600', fontSize: 13 }}>{label}</Text></Pressable>;
+  return <AccentPressable fallback={Pressable} testID={id} accessibilityRole="button" disabled={disabled} onPress={onPress} style={({ pressed }) => [s.button, active && { backgroundColor: colors.accent, borderColor: colors.accent }, { opacity: disabled ? .5 : pressed ? .7 : 1 }]}><Text style={{ color: active ? '#000' : colors.text, fontWeight: '600', fontSize: 13 }}>{label}</Text></AccentPressable>;
 }
 const s = StyleSheet.create({ section: { gap: 14 }, card: { gap: 12, borderWidth: 1, borderColor: '#ffffff1a', borderRadius: 16, backgroundColor: '#ffffff06', padding: 16 }, row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }, title: { color: colors.text, fontSize: 16, fontWeight: '600' }, hint: { color: colors.muted, fontSize: 13, lineHeight: 20 }, formula: { color: colors.text, fontWeight: '600', fontSize: 17 }, badge: { color: colors.accent, fontSize: 11, fontWeight: '600' }, input: { color: colors.text, backgroundColor: '#ffffff08', borderWidth: 1, borderColor: '#ffffff1a', borderRadius: 12, minHeight: 44, padding: 12, fontSize: 15 }, button: { minHeight: 42, paddingHorizontal: 16, paddingVertical: 11, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#ffffff1a', backgroundColor: '#18181b' }, error: { color: '#fca5a5', fontSize: 13, lineHeight: 20 } });

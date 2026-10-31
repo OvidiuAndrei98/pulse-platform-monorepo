@@ -1,3 +1,5 @@
+import { AccentPressable } from '../ui/AccentPressable';
+import type { ViewInstance } from 'react-native';
 import { FormInput as TextInput } from '../ui/FormInput';
 ﻿import React, { useEffect, useRef, useState } from "react";
 import {
@@ -18,7 +20,7 @@ import {
   Plus,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { colors } from "../ui/theme";
 import { formatToDatetimeLocal } from "../../../pulse-app/src/features/events/form/dateTimeValues";
@@ -27,7 +29,7 @@ import { e } from "./EditorControls";
 
 function usePopover() {
   const [open, setOpen] = useState(false),
-    root = useRef<View>(null);
+    root = useRef<ViewInstance>(null);
   const [anchor, setAnchor] = useState({ x: 20, y: 100 });
   useEffect(() => {
     if (!open || Platform.OS !== "web") return;
@@ -440,7 +442,7 @@ export function DateTimeField({
               today = day.toDateString() === new Date().toDateString();
             return (
               <View key={i} style={{ width: "14.2857%", padding: 2 }}>
-                <Pressable
+                <AccentPressable fallback={Pressable}
                   accessibilityRole="button"
                   accessibilityLabel={String(day.getDate())}
                   accessibilityState={{ selected: active }}
@@ -476,7 +478,7 @@ export function DateTimeField({
                   >
                     {day.getDate()}
                   </Text>
-                </Pressable>
+                </AccentPressable>
               </View>
             );
           })}
@@ -538,7 +540,7 @@ export function DateTimeField({
               {copy("datePicker.now")}
             </Text>
           </Pressable>
-          <Pressable
+          <AccentPressable fallback={Pressable}
             testID="editor-date-done"
             accessibilityRole="button"
             onPress={close}
@@ -552,7 +554,7 @@ export function DateTimeField({
             <Text style={{ color: "white", fontSize: 12, fontWeight: "600" }}>
               {copy("datePicker.done")}
             </Text>
-          </Pressable>
+          </AccentPressable>
         </View>
       </Popover>
     </View>
@@ -640,7 +642,7 @@ export function EditorTimeField({
             onChange={(m) => emit(hour, m)}
           />
         </View>
-        <Pressable
+        <AccentPressable fallback={Pressable}
           accessibilityRole="button"
           onPress={() => pop.setOpen(false)}
           style={{
@@ -655,7 +657,7 @@ export function EditorTimeField({
           <Text style={{ color: "white", fontWeight: "600", fontSize: 12 }}>
             {copy("datePicker.done")}
           </Text>
-        </Pressable>
+        </AccentPressable>
       </Popover>
     </View>
   );

@@ -4,7 +4,7 @@ import { ActivityIndicator, Keyboard, Platform, Pressable, View, type TextStyle 
 import { MapPin } from "lucide-react-native";
 import { randomUUID } from "expo-crypto";
 import { accountApi, useAuth } from "../auth/AuthProvider";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { colors } from "../ui/theme";
 import { s, dColors } from "./common";

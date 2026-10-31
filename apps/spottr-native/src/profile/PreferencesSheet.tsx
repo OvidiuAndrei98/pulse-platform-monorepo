@@ -1,3 +1,4 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import React, { useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { AppSheetScrollView } from "../ui/AppSheetScrollView";
@@ -6,7 +7,7 @@ import { Check } from "lucide-react-native";
 import { AppSheet } from "../ui/AppSheet";
 import { Text } from "../ui/Text";
 import { Feedback, Loading } from "../ui/common";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { accountApi, useAuth } from "../auth/AuthProvider";
 import { eventCategories } from "../../../pulse-app/src/core/mappers";
 import { queryClient } from "../data/queries";
@@ -153,7 +154,7 @@ export function PreferencesSheet({ onClose }: { onClose: () => void }) {
               const selected =
                 selections[category] ?? query.data?.includes(category) ?? false;
               return (
-                <Pressable
+                <AccentPressable fallback={Pressable}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: selected }}
                   key={category}
@@ -179,7 +180,7 @@ export function PreferencesSheet({ onClose }: { onClose: () => void }) {
                   >
                     {category}
                   </Text>
-                </Pressable>
+                </AccentPressable>
               );
             })}
           </View>

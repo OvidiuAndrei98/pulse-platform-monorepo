@@ -1,8 +1,6 @@
 import { haptic } from "./ui/haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
-  createContext,
-  useContext,
   useEffect,
   useRef,
   useState,
@@ -16,28 +14,15 @@ import { Event, normalizeEvent } from "./data/events";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth, accountApi } from "./auth/AuthProvider";
 import { queryClient } from "./data/queries";
-import { translate, type CopyKey, type Language } from "./i18n";
+import { translate } from "./i18n";
 import { productCopy } from "./copy";
 import { useToast } from './ui/ToastProvider';
+import { PreferencesContext as Context } from './preferencesContext';
 
 const KEY = "spottr-native:preferences:v1";
 const writePreferences = serializedWriter((value) =>
   AsyncStorage.setItem(KEY, value),
 );
-type State = Preferences & {
-  ready: boolean;
-  storageError: boolean;
-  actionError: boolean;
-  savedLoading: boolean;
-  savedError: boolean;
-  retrySaved: () => void;
-  t: (key: CopyKey) => string;
-  copy: (key: string, values?: Record<string, string | number>) => string;
-  setLanguage: (language: Language) => void;
-  toggleSaved: (event: Event) => void;
-};
-const Context = createContext<State | null>(null);
-
 export function PreferencesProvider({ children }: React.PropsWithChildren) {
   const { user, controller } = useAuth();
   const { show, clear } = useToast();
@@ -173,9 +158,4 @@ export function PreferencesProvider({ children }: React.PropsWithChildren) {
       {children}
     </Context.Provider>
   );
-}
-export function usePreferences() {
-  const state = useContext(Context);
-  if (!state) throw new Error("Missing PreferencesProvider");
-  return state;
 }

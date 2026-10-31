@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Camera, Check, CheckCheck, Database, RefreshCw, ShieldCheck } from 'lucide-react-native';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { Action, dColors as colors } from '../dashboard/common';
 import { ApiError } from '../data/http';

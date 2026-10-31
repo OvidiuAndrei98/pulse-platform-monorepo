@@ -1,3 +1,4 @@
+import { AccentPressable } from '../ui/AccentPressable';
 ﻿import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -6,7 +7,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { Check, CheckCircle2, ShieldCheck } from "lucide-react-native";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { accountApi } from "../auth/AuthProvider";
 import { Text } from "../ui/Text";
 import { colors } from "../ui/theme";
@@ -244,7 +245,7 @@ export function Company({
                 paddingHorizontal: 12,
               }}
             />
-            <Pressable
+            <AccentPressable fallback={Pressable}
               testID="company-submit"
               accessibilityRole="button"
               accessibilityState={{
@@ -274,7 +275,7 @@ export function Company({
               <Text style={{ color: "white", fontSize: 14, fontWeight: "600" }}>
                 {copy("validation.verify")}
               </Text>
-            </Pressable>
+            </AccentPressable>
           </View>
           <Pressable
             testID="company-agreement"

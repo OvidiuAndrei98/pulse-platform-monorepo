@@ -7,19 +7,18 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { colors } from "../ui/theme";
-import { usePreferences } from "../PreferencesProvider";
-import { useTabIndicator, type TabIndicatorMotion } from "./useTabIndicator";
+import { usePreferences } from "../usePreferences";
+import { useTabIndicator } from "./useTabIndicator";
 import { ToastHost } from "../ui/ToastHost";
 import { TabIndicator } from "./TabIndicator";
 import type { TabIndicatorTimeline } from "./tabIndicatorTimeline";
 import { TabBarSurface, usesLiquidGlass } from "./TabBarSurface";
 import { TabBarIcon } from "./TabBarIcon";
-import { NativeTabBar } from "./NativeTabBar";
+import { NativeTabBar, type NativeTabBarProps } from "./NativeTabBar";
 
 const labels = ["nav.home", "nav.map", "nav.feed", "nav.profile"] as const;
-export function TabBar(props: BottomTabBarProps & { activeIndex?: number; onSelectTab?: (name: string) => void; indicatorMotion?: TabIndicatorMotion }) {
+export function TabBar(props: NativeTabBarProps) {
   if (NativeTabBar) return <NativeTabBar {...props} />;
   return <CustomTabBar {...props} />;
 }
@@ -51,7 +50,7 @@ function CustomTabBar({ state, navigation, insets, activeIndex = state.index, on
         testID="tab-bar"
         style={[s.bar, Platform.OS === "web" && webGlass]}
       >
-        <View style={s.items} onLayout={(event) => { const nextWidth = event.nativeEvent.layout.width; setWidth(nextWidth); indicatorMotion?.measure(nextWidth / state.routes.length); }}>
+        <View style={s.items} onLayout={(event) => { const nextWidth = event.nativeEvent.layout.width; if (!nextWidth) return; setWidth(nextWidth); indicatorMotion?.measure(nextWidth / state.routes.length); }}>
         {itemWidth > 0 && (
           <TabIndicator
             position={position}

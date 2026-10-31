@@ -12,7 +12,7 @@ async function withBrowser(run, { fakeCamera = false } = {}) {
     const file = path.resolve(dist, '.' + decodeURIComponent(new URL(req.url, 'http://localhost').pathname));
     if (!file.startsWith(dist + path.sep) && file !== dist) { res.writeHead(403); res.end(); return; }
     const target = fs.existsSync(file) && fs.statSync(file).isFile() ? file : path.join(dist, 'index.html');
-    res.setHeader('content-type', { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.woff': 'font/woff', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp' }[path.extname(target)] || 'application/octet-stream');
+    res.setHeader('content-type', { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.wasm': 'application/wasm', '.css': 'text/css', '.woff': 'font/woff', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp' }[path.extname(target)] || 'application/octet-stream');
     fs.createReadStream(target).pipe(res);
   });
   try {

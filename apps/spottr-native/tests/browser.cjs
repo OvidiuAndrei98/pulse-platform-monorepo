@@ -62,6 +62,8 @@ async function main() {
   const textButton = label => `Array.from(document.querySelectorAll('[role=button]')).find(el => el.textContent.trim() === ${JSON.stringify(label)})`;
   await call('Page.addScriptToEvaluateOnNewDocument', { source: `(${function mock() {
     const original = window.fetch.bind(window);
+    // The general smoke test must never request the host's physical camera.
+    if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = async () => { throw new DOMException('QA camera access denied', 'NotAllowedError'); };
     window.__qa = { requests: [], fail: true };
     const uuid = n => '12345678-abcd-abcd-abcd-' + String(n).padStart(12, '0');
     window.__qa.account = { id: uuid(999), username: 'Native QA', email: 'qa@example.test', role: 'user', hasPassword: true, preferredLanguage: 'en', showAttendancePublicly: false, createdAt: '2026-10-07T12:00:00Z' };
@@ -304,6 +306,10 @@ async function main() {
   await call('Emulation.setDeviceMetricsOverride', { width:390,height:844,deviceScaleFactor:1,mobile:true });
   await click('tab-Profile');
   await until(`document.querySelector('[data-testid="auth-screen"]')`);
+  const googleAppearance = await evaluate(`(()=>{const button=document.querySelector('[data-testid="google-login"]');return{background:getComputedStyle(button).backgroundColor,height:button.getBoundingClientRect().height,logo:[...button.querySelectorAll('svg path')].map(path=>path.getAttribute('fill')).sort()};})()`);
+  assert.equal(googleAppearance.background, 'rgb(255, 255, 255)', 'Google keeps its existing white fill');
+  assert.equal(googleAppearance.height, 56);
+  assert.deepEqual(googleAppearance.logo, ['#34A853', '#4285F4', '#EA4335', '#FBBC05'], 'The original multicolor Google logo is retained');
   await click('auth-back');
   await until(`!document.querySelector('[data-testid="auth-screen"]') && document.querySelector('[data-testid="tab-Home"]').getAttribute('aria-selected')==='true'`);
   await click('tab-Profile'); await click('auth-email-choice');
@@ -355,8 +361,9 @@ async function main() {
   await capture('quick-connect-mobile');
   const codeTop = await evaluate(`document.querySelector('[data-testid="sheet-handle"]').getBoundingClientRect().top`);
   await evaluate(`Array.from(document.querySelectorAll('[data-testid="quick-connect-sheet"] [role=tab]')).find(el=>el.textContent.trim()==='Scan QR').click()`);
-  await until(`document.querySelector('[data-testid="sheet-handle"]').getBoundingClientRect().top < ${codeTop - 80}`);
+  await until(`document.querySelector('[data-testid="quick-connect-scan-panel"]')`);
   await delay(500);
+  assert.ok(Math.abs(await evaluate(`document.querySelector('[data-testid="sheet-handle"]').getBoundingClientRect().top`) - codeTop) < 1, 'Camera and QR share a stable sheet height');
   await capture('quick-connect-scan-mobile');
   await dragProfileSurface('quick-connect-sheet', `document.querySelector('[data-testid="quick-connect-sheet"] [role=tab]')`);
   assert.equal(await evaluate(`Array.from(document.querySelectorAll('[data-testid="quick-connect-sheet"] svg')).some(el=>el.getBoundingClientRect().width>90)`),false,'Dragging the other tab must not replace the camera with the personal QR code');

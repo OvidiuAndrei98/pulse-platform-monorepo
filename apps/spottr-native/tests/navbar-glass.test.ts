@@ -5,6 +5,7 @@ import { runInNewContext } from 'node:vm';
 import test from 'node:test';
 import React from 'react';
 import ts from 'typescript';
+import { liquidGlassAppearance } from '../src/ui/liquidGlassAppearance';
 
 // Load the actual iOS adapter without requiring UIKit on the Windows test host.
 // Missing native modules are a real upgrade case: JS can refresh before a rebuild.
@@ -29,6 +30,7 @@ function loadSurface(modulePresent: boolean, compiled = true, runtime = true) {
         return { GlassView: 'NativeGlassView', isLiquidGlassAvailable: () => compiled, isGlassEffectAPIAvailable: () => runtime };
       }
       if (name === './TabBarSurfaceFallback') return { TabBarSurfaceFallback: 'LegacySurface' };
+      if (name === '../ui/liquidGlassAppearance') return { liquidGlassAppearance };
       throw new Error('Unexpected import: ' + name);
     },
   });
@@ -72,6 +74,7 @@ test('supported iOS keeps the actual tab controls inside the native glass conten
   assert.equal(view.props.isInteractive, true);
   assert.equal(view.props.colorScheme, 'dark');
   assert.equal(view.props.glassEffectStyle, 'regular');
+  assert.equal(view.props.tintColor, 'rgba(0,0,0,0.15)');
   const style = Object.assign({}, ...view.props.style);
   assert.equal(style.height, 66);
   assert.equal(style.padding, 8);

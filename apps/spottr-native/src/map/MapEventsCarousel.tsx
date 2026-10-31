@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, PanResponder, Platform, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import { FlatList, PanResponder, Platform, Pressable, StyleSheet, View, type ViewInstance, type ViewStyle } from 'react-native';
 import { ChevronDown, ChevronUp, Layers } from 'lucide-react-native';
 import { carouselCardAction, dismissCarouselDrag, verticalCarouselDrag } from '../../../pulse-app/src/features/events/map/carouselGestures';
 import { formatDate, type Event } from '../data/events';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { EventImage } from '../ui/common';
 import { colors } from '../ui/theme';
@@ -14,7 +14,7 @@ export function MapEventsCarousel({events,activeId,width,bottom,insetLeft,insetR
   onCollapsed:(value:boolean)=>void;onSelect:(id:string,focus:boolean)=>void;onOpen:(event:Event)=>void;onHeight:(height:number)=>void;
 }) {
   const {copy,language}=usePreferences(),reduced=useReducedMotionPreference();
-  const rail=useRef<FlatList<Event>>(null),toggle=useRef<View>(null),scrollTimer=useRef<ReturnType<typeof setTimeout>|null>(null),dragging=useRef(false),clearDrag=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const rail=useRef<FlatList<Event>>(null),toggle=useRef<ViewInstance>(null),scrollTimer=useRef<ReturnType<typeof setTimeout>|null>(null),dragging=useRef(false),clearDrag=useRef<ReturnType<typeof setTimeout>|null>(null);
   const [focused,setFocused]=useState<string|null>(null),cardWidth=Math.min(336,Math.max(240,width-72));
   const current=useRef({events,activeId,onSelect});current.current={events,activeId,onSelect};
   const order=events.map(event=>event.id).join(',');

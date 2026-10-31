@@ -1,10 +1,11 @@
+import type { ViewInstance } from 'react-native';
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import type { TabIndicatorProps } from "./TabIndicator";
 import { retargetTabIndicator, tabIndicatorEasing } from "./tabIndicatorTimeline";
 
 export function TabIndicator({ target, timeline, style }: TabIndicatorProps) {
-  const element = useRef<View>(null);
+  const element = useRef<ViewInstance>(null);
   const [reduceMotion, setReduceMotion] = useState(() =>
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );

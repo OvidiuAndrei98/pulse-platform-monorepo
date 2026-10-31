@@ -1,4 +1,6 @@
+import type { ScrollViewInstance } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
+import { GlassButtonGroup } from '../ui/GlassButtonGroup';
 import { ActionIcon } from '../ui/ActionIcon';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -14,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import * as Location from "expo-location";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { eventsApi } from "../data/api";
 import { useAuth } from "../auth/AuthProvider";
 import { NotificationsPopover } from "../notifications/NotificationsPopover";
@@ -34,6 +36,7 @@ import { colors } from "../ui/theme";
 import type { RootParamList } from "../navigation/types";
 import { mixFeedPromotions } from '../../../pulse-app/src/features/events/promotions';
 import { VisiblePromotion, trackPromotion } from '../ui/VisiblePromotion';
+import { useNavbarScroll } from '../navigation/useNavbarScroll';
 
 const guests = [
   "Party Crasher",
@@ -52,13 +55,14 @@ function distance(lat: number, lon: number, event: Event) {
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 export function HomeScreen() {
+  const navbarScroll = useNavbarScroll();
   const reduced = useReducedMotion();
   const { user, ready } = useAuth();
   const { copy } = usePreferences(),
     insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const events = useHomeEvents(),
-    scroll = useRef<ScrollView>(null);
+    scroll = useRef<ScrollViewInstance>(null);
   useScrollToTop(scroll);
   const promoted = useQuery({
     ...manualRefreshOptions,
@@ -154,6 +158,7 @@ export function HomeScreen() {
   return (
     <View style={{ flex: 1 }}>
     <RefreshScrollView
+      {...navbarScroll}
       ref={scroll}
       testID="home-list"
       style={{ flex: 1, backgroundColor: colors.bg }}
@@ -168,7 +173,7 @@ export function HomeScreen() {
       <View style={{ paddingHorizontal: 20 }}>
         <View style={s.header}>
           <Logo size={32} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <GlassButtonGroup testID="home-header-actions">
           {user && <NotificationsPopover key={user.id} />}
           <GlassPressable fallback={Pressable}
             testID="home-search"
@@ -179,7 +184,7 @@ export function HomeScreen() {
           >
             <ActionIcon name="search" size={16} color={colors.accent} />
           </GlassPressable>
-          </View>
+          </GlassButtonGroup>
         </View>
         <Text style={s.greeting}>
           {ready ? copy("home.hello", { name: user?.username || guests[today.getDate() % 4]! }) : copy('common.loading')}

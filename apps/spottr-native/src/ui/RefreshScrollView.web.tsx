@@ -1,3 +1,4 @@
+import type { ScrollViewInstance } from 'react-native';
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View, type ScrollViewProps, type ViewStyle } from 'react-native';
 import { RefreshSpotlight } from './RefreshSpotlight';
@@ -21,10 +22,10 @@ function canStartAt(target: EventTarget | null, scroller: HTMLElement): boolean 
 }
 
 /** RN Web's RefreshControl is a no-op. Claim only a downward pull that begins at the top. */
-export const RefreshScrollView = forwardRef<ScrollView, RefreshScrollViewProps>(function RefreshScrollView(
+export const RefreshScrollView = forwardRef<ScrollViewInstance, RefreshScrollViewProps>(function RefreshScrollView(
   { refreshing = false, onRefresh, contentContainerStyle, children, testID, ...props }, ref,
 ) {
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   useImperativeHandle(ref, () => scrollRef.current!, []);
   const current = useRef({ refreshing, onRefresh });
   current.current = { refreshing, onRefresh };

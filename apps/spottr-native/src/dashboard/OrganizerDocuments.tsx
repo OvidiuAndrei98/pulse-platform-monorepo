@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -16,7 +16,7 @@ import {
 } from "lucide-react-native";
 import { resources } from "../../../pulse-app/src/i18n/resources";
 import { accountApi } from "../auth/AuthProvider";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { colors } from "../ui/theme";
 import { Feedback, Loading } from "../ui/common";

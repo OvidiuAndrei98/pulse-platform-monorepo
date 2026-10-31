@@ -1,6 +1,6 @@
 import React from 'react';
 import { VectorEventMap } from '../../../pulse-app/src/features/events/map/VectorEventMap';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import type { EventMapProps } from './types';
 export function EventMap(props: EventMapProps) {
   const { copy } = usePreferences();

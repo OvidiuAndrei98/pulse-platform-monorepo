@@ -1,3 +1,4 @@
+import type { ScrollViewInstance } from 'react-native';
 import React, { forwardRef, useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -23,7 +24,7 @@ export type RefreshScrollViewProps = Omit<ScrollViewProps, "refreshControl"> & {
   onRefresh?: () => void | Promise<unknown>;
 };
 
-export const RefreshScrollView = forwardRef<ScrollView, RefreshScrollViewProps>(
+export const RefreshScrollView = forwardRef<ScrollViewInstance, RefreshScrollViewProps>(
   function RefreshScrollView(
     { refreshing = false, onRefresh, children, ...props },
     ref,

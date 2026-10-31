@@ -1,4 +1,5 @@
 import { ActionIcon } from '../ui/ActionIcon';
+import { GlassSurface } from '../ui/GlassSurface';
 import React, { useEffect, useRef, useState } from "react";
 import {
   Modal,
@@ -9,6 +10,7 @@ import {
   StyleSheet,
   View,
   useWindowDimensions,
+  type ScrollViewInstance,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,7 +25,7 @@ import { IconButton } from "../ui/common";
 import { colors } from "../ui/theme";
 import { DashboardDropdown } from "../dashboard/DashboardDropdown";
 import { Action } from "../dashboard/common";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { useAuth } from '../auth/AuthProvider';
 import { operatorAccount, wardrobeEventPhase, wardrobeEventPhaseLabel, wardrobeTabLabel, changeItemCount, taskDeposits,wardrobeFlow,wardrobeTasks,availableZones,canReserveBelongings,wardrobeEventDescription,type WardrobeTask } from '../../../pulse-app/src/features/wardrobe/flow';
 import { WardrobeTabs } from "./WardrobeTabs";
@@ -173,7 +175,7 @@ export function WardrobeScreen({
     [kind, setKind] = useState("any"),
     [email, setEmail] = useState(""),
     [role, setRole] = useState("operator");
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const [pickupLookup,setPickupLookup]=useState<Deposit[]|null>(null);
   useEffect(() => {
     setZone("");
@@ -244,7 +246,7 @@ export function WardrobeScreen({
     <Pressable accessibilityRole="button" accessibilityLabel={c.refresh}
       accessibilityState={{ disabled: state.loading || busy }} disabled={state.loading || busy}
       onPress={() => void store.refresh(staff)} style={[s.refresh, { opacity: state.loading || busy ? .4 : 1 }]}>
-      <View pointerEvents="none" accessible={false} style={s.refreshGlyph}><RefreshCw size={16} color="#ffffff" /></View>
+      <GlassSurface tintColor={colors.accent} pointerEvents="none" accessible={false} style={s.refreshGlyph}><RefreshCw size={16} color="#ffffff" /></GlassSurface>
     </Pressable>
   );
   const button = (

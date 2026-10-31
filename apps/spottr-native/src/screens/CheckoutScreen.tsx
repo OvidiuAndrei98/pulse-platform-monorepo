@@ -1,3 +1,5 @@
+import { AccentPressable } from '../ui/AccentPressable';
+import type { ScrollViewInstance } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import { FormInput as TextInput } from '../ui/FormInput';
@@ -19,7 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, accountApi } from '../auth/AuthProvider';
 import { queryClient, useEvent } from '../data/queries';
 import { useEventClock } from '../data/useEventClock';
-import { usePreferences } from '../PreferencesProvider';
+import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { Feedback, Loading } from '../ui/common';
 import { colors } from '../ui/theme';
@@ -55,7 +57,7 @@ function CheckoutContent({ route, navigation }: Props) {
   const [saved, setSaved] = useState<InvoiceDetails | null>(null), [source, setSource] = useState<'new' | 'saved'>('new'), [remember, setRemember] = useState(false);
   const [billingLoading, setBillingLoading] = useState(!!user), [attempted, setAttempted] = useState(false), [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null), [returned, setReturned] = useState<{ sessionId?: string; nativeOrderId?: string } | null>(null);
-  const scroll = useRef<ScrollView>(null), alive = useRef(true), pending = useRef(false), billingEdited = useRef(false);
+  const scroll = useRef<ScrollViewInstance>(null), alive = useRef(true), pending = useRef(false), billingEdited = useRef(false);
   const intent = useRef<{ payload: string; key: string } | null>(null);
   const nativePayment = useRef<PendingNativePayment | null>(null);
   const token = controller.getToken();
@@ -242,7 +244,7 @@ function CheckoutContent({ route, navigation }: Props) {
             </View></View></View>)}
           <View style={s.prices}><Text style={s.label}>{copy('auth.promoCode')}</Text><View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
             <TextInput variant="billing" testID="checkout-promo" accessibilityLabel={copy('auth.promoCode')} value={promo.code} onChangeText={promo.setCode} editable={!busy && !promo.applied} maxLength={40} autoCapitalize="characters" autoCorrect={false} placeholder={copy('auth.promoPlaceholder')} placeholderTextColor={colors.muted} onSubmitEditing={() => void promo.apply()} style={[billingStyles.input, { flex: 1, height: 40 }]} />
-            <Pressable testID="checkout-promo-apply" accessibilityRole="button" accessibilityLabel={copy(promo.applied ? 'checkout.removePromo' : 'checkout.applyPromo')} disabled={busy || promo.validating || (!promo.applied && promo.code.length < 3)} onPress={() => promo.applied ? promo.clear() : void promo.apply()} style={s.apply}>{promo.validating ? <ActivityIndicator color="white" size="small" /> : promo.applied ? <X color="white" size={16} /> : <Text style={s.label}>{copy('checkout.applyPromo')}</Text>}</Pressable>
+            <AccentPressable fallback={Pressable} testID="checkout-promo-apply" accessibilityRole="button" accessibilityLabel={copy(promo.applied ? 'checkout.removePromo' : 'checkout.applyPromo')} disabled={busy || promo.validating || (!promo.applied && promo.code.length < 3)} onPress={() => promo.applied ? promo.clear() : void promo.apply()} style={s.apply}>{promo.validating ? <ActivityIndicator color="white" size="small" /> : promo.applied ? <X color="white" size={16} /> : <Text style={s.label}>{copy('checkout.applyPromo')}</Text>}</AccentPressable>
           </View>{promo.applied && <Text style={s.category}>{copy('checkout.promoApplied', { percent: promo.applied.discountPercent })}</Text>}{promo.error && <Text style={billingStyles.error}>{copy(promo.error)}</Text>}</View>
           {prices}
         </Step>
@@ -266,7 +268,7 @@ function CheckoutContent({ route, navigation }: Props) {
     </FormScrollView>
     <KeyboardFooter><LinearGradient onLayout={event => setFooterHeight(event.nativeEvent.layout.height)} colors={['#0000001a', '#000000b3', '#000000']} style={[s.footer, { paddingBottom: Math.max(28, safe.bottom) }]}>
       {error && <Text testID="checkout-error" accessibilityRole="alert" accessibilityLiveRegion="polite" style={[billingStyles.error, { lineHeight: 18, marginBottom: 12 }]}>{copy(error)}</Text>}
-      <Pressable testID="checkout-next" accessibilityRole="button" disabled={blocked} onPress={() => void (step === 2 ? pay() : advance())} style={[s.cta, blocked && { opacity: 0.4 }]}>{busy ? <ActivityIndicator size="small" color="white" /> : step === 2 ? <Ticket size={16} color="white" /> : <ArrowRight size={16} color="white" />}<Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>{copy(busy ? 'checkout.preparingPayment' : step === 2 ? 'checkout.confirmAndPay' : step === 1 ? 'checkout.continueToSummary' : 'common.next', { total: formatRon(totals?.total ?? 0) })}</Text></Pressable>
+      <AccentPressable fallback={Pressable} testID="checkout-next" accessibilityRole="button" disabled={blocked} onPress={() => void (step === 2 ? pay() : advance())} style={[s.cta, blocked && { opacity: 0.4 }]}>{busy ? <ActivityIndicator size="small" color="white" /> : step === 2 ? <Ticket size={16} color="white" /> : <ArrowRight size={16} color="white" />}<Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>{copy(busy ? 'checkout.preparingPayment' : step === 2 ? 'checkout.confirmAndPay' : step === 1 ? 'checkout.continueToSummary' : 'common.next', { total: formatRon(totals?.total ?? 0) })}</Text></AccentPressable>
     </LinearGradient></KeyboardFooter>
   </View>;
 }

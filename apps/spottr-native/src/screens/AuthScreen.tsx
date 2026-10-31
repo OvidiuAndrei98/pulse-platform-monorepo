@@ -1,3 +1,4 @@
+import { AccentPressable } from '../ui/AccentPressable';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
 import { FormScrollView } from "../ui/KeyboardForms";
@@ -18,7 +19,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAuth, accountApi } from "../auth/AuthProvider";
 import { validPassword } from "../auth/session";
 import { ApiError } from "../data/http";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { Logo } from "../ui/Logo";
 import { EventImage } from "../ui/common";
@@ -452,14 +453,14 @@ export function AuthScreen({
               )}
             </>
           ) : (
-            <><GoogleButton disabled={busy || auth.busy} onError={setError} />
+            <View style={{ gap: 12 }}><GoogleButton disabled={busy || auth.busy} onError={setError} />
             {!!error && <AuthMessage text={error} />}
             <AuthButton
               testID="auth-email-choice"
               title={copy("auth.continueWithEmail")}
               icon={<Mail size={20} color="white" />}
               onPress={() => setEmailForm(true)}
-            /></>
+            /></View>
           )}
         </View>
         {!sent && (mode === "login" || mode === "register") && (
@@ -528,7 +529,7 @@ export function AuthButton({
   testID?: string;
 }) {
   return (
-    <Pressable
+    <AccentPressable fallback={Pressable}
       testID={testID}
       accessibilityRole="button"
       accessibilityState={{ disabled: busy, busy }}
@@ -545,7 +546,7 @@ export function AuthButton({
         {title}
       </Text>
       {!busy && !icon && !compact && <ArrowRight size={16} color="white" />}
-    </Pressable>
+    </AccentPressable>
   );
 }
 export function AuthMessage({

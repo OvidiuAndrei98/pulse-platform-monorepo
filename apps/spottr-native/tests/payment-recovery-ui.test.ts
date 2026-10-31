@@ -91,11 +91,12 @@ async function fixture() {
       if (server === 'malformed') return { status: 'completed' };
       return { orderId: options?.body?.orderId ?? orderId, status: server };
     } },
-    '../PreferencesProvider': { usePreferences: () => prefs },
+    '../usePreferences': { usePreferences: () => prefs },
     '../data/queries': { queryClient: { invalidateQueries({ queryKey }: { queryKey: string[] }) { invalidations.push(queryKey[0]!); } } },
     '../data/events': { isEventId },
     '../ui/Text': { Text: 'Text' }, '../ui/theme': { colors: {} }, '../ui/haptics': { haptic(kind: string) { haptics.push(kind); } },
     '../ui/MotionPressable': { MotionPressable: 'Pressable' },
+    '../ui/AccentPressable': { AccentPressable: 'Pressable' },
     '../ui/GlassPressable': { GlassPressable: 'Pressable' },
     '../ui/ActionIcon': { ActionIcon: 'Pressable' },
     '../checkout/CheckoutSuccess': { CheckoutSuccessTicket: 'TicketSummary', PaymentSuccessCheck: 'SuccessCheck' },

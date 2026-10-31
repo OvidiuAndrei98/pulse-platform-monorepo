@@ -1,3 +1,5 @@
+import { AccentPressable } from '../ui/AccentPressable';
+import { GlassSurface } from '../ui/GlassSurface';
 import React, { useEffect, useState } from "react";
 import { Pressable, View, useWindowDimensions } from "react-native";
 import {
@@ -17,7 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react-native";
 import { accountApi, useAuth } from "../auth/AuthProvider";
-import { usePreferences } from "../PreferencesProvider";
+import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { EventImage, Feedback, Loading } from "../ui/common";
 import { formatDate } from "../data/events";
@@ -172,7 +174,7 @@ export function DashboardProfile({
           ) : (
             <UserRound size={32} color={colors.muted} />
           )}
-          <View
+          <GlassSurface tintColor={colors.accent}
             style={{
               position: "absolute",
               bottom: -1,
@@ -188,7 +190,7 @@ export function DashboardProfile({
             }}
           >
             <Camera size={14} color="#fff" />
-          </View>
+          </GlassSurface>
         </Pressable>
         <View style={{ flex: compact ? undefined : 1, gap: 4 }}>
           <Text style={{ color: colors.text, fontSize: 16, fontWeight: "600" }}>
@@ -538,7 +540,7 @@ export function DashboardPurchases() {
         {(["tickets", "orders"] as const).map((value) => {
           const Icon = value === "tickets" ? Ticket : Receipt;
           return (
-            <Pressable
+            <AccentPressable fallback={Pressable}
               key={value}
               accessibilityRole="tab"
               accessibilityState={{ selected: tab === value }}
@@ -577,7 +579,7 @@ export function DashboardPurchases() {
                   ? (tickets.data?.length ?? 0)
                   : (orders.data?.length ?? 0)}
               </Text>
-            </Pressable>
+            </AccentPressable>
           );
         })}
       </View>
