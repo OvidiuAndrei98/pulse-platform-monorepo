@@ -76,15 +76,19 @@
 .ui-input[class]:focus-visible { border-color:var(--ui-focus); }
 .ui-input[class][aria-invalid="true"] { border-color:var(--ui-danger); }
 .ui-button[class]:focus-visible,.ui-input[class]:focus-visible,.ui-input-bare[class]:focus-visible { outline:2px solid var(--ui-focus);outline-offset:3px; }
+/* Draw focus over the field border, not as a second perimeter. A real outline
+   also keeps keyboard focus visible in forced-colors mode. */
+.ui-input[class]:focus-visible,.ui-input-bare[class]:focus-visible { outline-offset:-2px;box-shadow:none; }
+.ui-input[class][aria-invalid="true"]:focus-visible { outline-color:var(--ui-danger); }
 .ui-button[class][data-variant="primary"]:focus-visible { box-shadow:0 0 0 6px var(--ui-focus-halo); }
 .ui-button[aria-busy="true"] { opacity:1; }
 @media(min-width:640px) and (hover:hover) and (pointer:fine) { .ui-input[class] { font-size:var(--ui-text-label);line-height:var(--ui-leading-label); } }
-@media(forced-colors:active) { .ui-button[class]:focus-visible,.ui-input[class]:focus-visible,.ui-input-bare[class]:focus-visible { outline-color:Highlight; } }
+@media(forced-colors:active) { .ui-button[class]:focus-visible,.ui-input[class]:focus-visible,.ui-input-bare[class]:focus-visible,.ui-input[class][aria-invalid="true"]:focus-visible { outline-color:Highlight; } }
 .ui-field { align-content:start; }
 .ui-input[class]::placeholder,.ui-input-bare[class]::placeholder { color:var(--ui-muted);opacity:1; }
 /* Compound fields own the focus perimeter, including their icon and padding.
    Keep the bare input's fallback unless a shell can provide its replacement. */
-.ui-input-shell:has(> .ui-input-bare:focus-visible) { outline:2px solid var(--ui-focus);outline-offset:0; }
+.ui-input-shell:has(> .ui-input-bare:focus-visible) { outline:2px solid var(--ui-focus);outline-offset:-2px;border-color:transparent;box-shadow:none; }
 .ui-input-shell--brand:has(> .ui-input-bare:focus-visible) { outline-color:var(--ui-brand); }
 .ui-input-shell:has(> .ui-input-bare:focus-visible) > .ui-input-bare[class]:focus-visible { outline:none; }
 @media(forced-colors:active) { .ui-input-shell:has(> .ui-input-bare:focus-visible) { outline-color:Highlight; } }

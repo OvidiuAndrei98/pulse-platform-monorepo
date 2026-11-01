@@ -24,8 +24,10 @@ withBrowser(async({base,call,evaluate,until,click,delay,errors})=>{
   }.toString()})();`});
 
   const checkNavbar=async(visible)=>{
-    assert.equal(await evaluate(`!!document.querySelector('[data-testid="tab-bar"]')`),visible,visible?'Profile restores the navbar':'Account list must not render a navbar');
-    if(visible)assert.equal(await evaluate(`document.querySelector('[data-testid="tab-Profile"]').getAttribute('aria-selected')`),'true','Restored navbar keeps Profile selected');
+    // Organizer workspace preloading retains an offscreen navbar in the DOM.
+    const visibleBar = `Array.from(document.querySelectorAll('[data-testid="tab-bar"]')).find(el=>el.checkVisibility({checkOpacity:true,checkVisibilityCSS:true}))`;
+    assert.equal(await evaluate(`!!(${visibleBar})`),visible,visible?'Profile restores the navbar':'Account list must not show a navbar');
+    if(visible)assert.equal(await evaluate(`(${visibleBar}).querySelector('[data-testid="tab-Profile"]').getAttribute('aria-selected')`),'true','Restored navbar keeps Profile selected');
   };
 
   await call('Page.navigate',{url:base+'/users/me/tickets'});await until(`document.querySelector('[data-testid="tickets-page"]')`);
@@ -36,6 +38,12 @@ withBrowser(async({base,call,evaluate,until,click,delay,errors})=>{
   await checkNavbar(true);
   await until(`document.querySelector('[data-testid="profile-tickets-all"]')`);await click('profile-tickets-all');await until('location.pathname==="/users/me/tickets"');
   await checkNavbar(false);
+  await click('tickets-tab-history');
+  await until(`document.querySelector('[data-testid="tickets-page"]').textContent.includes('No tickets in this category yet.')`);
+  assert.equal(await evaluate('location.pathname'),'/users/me/tickets','History only filters the full ticket list');
+  await checkNavbar(false);
+  await click('tickets-tab-active');
+  assert.equal(await evaluate('location.pathname'),'/users/me/tickets');
   await click('account-back');await until('location.pathname==="/users/me"');
   assert.equal(await evaluate(`!!document.querySelector('[data-testid="profile-list"]')`),true);
   await checkNavbar(true);
@@ -43,7 +51,6 @@ withBrowser(async({base,call,evaluate,until,click,delay,errors})=>{
   await checkNavbar(true);
   await click('profile-saved-all');await until('location.pathname==="/users/me/saved-events"');await checkNavbar(false);
   await click('account-back');await until('location.pathname==="/users/me"');await checkNavbar(true);
-  await click('profile-tickets-tab-history');
   await evaluate(`Array.from(document.querySelectorAll('[role="button"]')).find(el=>el.textContent.includes('View orders')).click()`);
   await until('location.pathname==="/users/me/invoices"');await checkNavbar(false);
   await click('account-back');await until('location.pathname==="/users/me"');await checkNavbar(true);

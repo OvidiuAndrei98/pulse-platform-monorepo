@@ -1,3 +1,3 @@
-// Expo Go and installed iOS builds render the same navbar and gesture handling.
-// TabBarSurface supplies UIKit glass when available, with the same layout on older iOS.
+// Keep the flat Spottr selection. The separate AppleSegmentedTabBar trial
+// uses UIKit's optical lens while moving, which is not the desired design.
 export { FixedCapsuleTabBar as NativeTabBar } from './FixedCapsuleTabBar';

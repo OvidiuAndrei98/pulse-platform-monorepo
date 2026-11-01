@@ -279,7 +279,7 @@ const s = StyleSheet.create({
   rail: { marginHorizontal: -screenPadding },
   railContent: {
     paddingHorizontal: screenPadding,
-    paddingVertical: 4,
+    paddingBottom: 4,
     alignItems: "stretch",
   },
   controls: {

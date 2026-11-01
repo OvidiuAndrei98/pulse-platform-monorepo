@@ -1,25 +1,32 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Platform } from 'react-native';
-import { cancelAnimation, ReduceMotion, runOnJS, runOnUI, useAnimatedReaction, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
-import { keyboardMorphProgress, searchDismissSpring, searchMorphSpring } from './searchMorph';
+import { cancelAnimation, ReduceMotion, runOnJS, runOnUI, useAnimatedReaction, useReducedMotion, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
+import { keyboardMorphProgress, searchDismissSpring, searchMorphSpring, iosSearchOpenSpring, iosSearchCloseSpring, iosSearchPressSpring, iosSearchPressExpansion, iosSearchFocusFallbackMs } from './searchMorph';
 import { useSearchKeyboardEvents, type SearchKeyboardEvent } from './useSearchKeyboardEvents';
 
 export type SearchRequestOrigin = 'command' | 'keyboard';
 type SearchPhase = 'closed' | 'open' | 'closing';
+const openSpring = Platform.OS === 'ios' ? iosSearchOpenSpring : searchMorphSpring;
+const closeSpring = Platform.OS === 'ios' ? iosSearchCloseSpring : searchDismissSpring;
 
-export function useDiscoverySearchMotion(initialOpen: boolean, onClosed: () => void, onRequested?: (open: boolean, origin: SearchRequestOrigin) => void) {
+export function useDiscoverySearchMotion(initialOpen: boolean, onClosed: () => void, onRequested?: (open: boolean, origin: SearchRequestOrigin) => void, onFocusReady?: () => void) {
   const initialReduced = useReducedMotion(), [reduced, setReduced] = useState(initialReduced);
   const [phase, setPhase] = useState<SearchPhase>(initialOpen ? 'open' : 'closed');
   const [controlsReady, setControlsReady] = useState(!initialOpen);
   const progress = useSharedValue(initialOpen ? 1 : 0), reduce = useSharedValue(reduced), keyboard = useSharedValue(0);
+  const pressed = useSharedValue(0), launchExpansion = useSharedValue(0);
+  const preparedFocus = useSharedValue(-1);
+  const keyboardReturnFrame = useSharedValue(0);
+  const keyboardDrag = useSharedValue({ at: 0, progress: 0, velocity: 0 });
   const request = useSharedValue({
     id: 0, open: initialOpen, owned: initialOpen, seen: false, following: false,
     keyboardClosing: false, settling: false, target: -1,
-    interactive: false, awaitingKeyboard: false, direction: 1, from: initialOpen ? 1 : 0, keyboardFrom: 0,
+    interactive: false, awaitingKeyboard: false, awaitingFocus: false, direction: 1, from: initialOpen ? 1 : 0, keyboardFrom: 0,
   });
   const revision = useRef(0), completed = useRef(-1), hiding = useRef<number | null>(null);
   const desired = useRef(initialOpen), alive = useRef(true), closed = useRef(onClosed), requested = useRef(onRequested);
-  useLayoutEffect(() => { closed.current = onClosed; requested.current = onRequested; }, [onClosed, onRequested]);
+  const focusReady = useRef(onFocusReady);
+  useLayoutEffect(() => { closed.current = onClosed; requested.current = onRequested; focusReady.current = onFocusReady; }, [onClosed, onRequested, onFocusReady]);
   useEffect(() => {
     alive.current = true;
     const listener = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduced);
@@ -39,14 +46,66 @@ export function useDiscoverySearchMotion(initialOpen: boolean, onClosed: () => v
     requested.current?.(next, origin);
   }, []);
   const publishControls = useCallback((next: boolean) => { if (alive.current) setControlsReady(next); }, []);
+  const focusWhenPrepared = useCallback((id: number) => {
+    if (alive.current && id === revision.current && desired.current) focusReady.current?.();
+  }, []);
+  useAnimatedReaction(
+    () => Platform.OS === 'ios' && request.value.open ? request.value.id : -1,
+    id => {
+      if (id >= 0 && id !== preparedFocus.value) {
+        preparedFocus.value = id;
+        runOnJS(focusWhenPrepared)(id);
+      }
+    },
+  );
   useAnimatedReaction(
     () => !request.value.open && progress.value <= .02,
     (next, previous) => { if (next !== previous) runOnJS(publishControls)(next); },
   );
+  useAnimatedReaction(
+    () => progress.value >= 1,
+    full => { if (full) launchExpansion.value = 0; },
+  );
+  const beginPreparedOpen = useCallback(() => {
+    'worklet';
+    const current = request.value;
+    if (!current.open || !current.awaitingFocus) return;
+    request.value = { ...current, awaitingFocus: false };
+    cancelAnimation(progress);
+    // Native focus can leave an older event-frame timestamp in Reanimated.
+    // Begin on the next display frame so the spring cannot skip its start.
+    requestAnimationFrame(() => {
+      if (request.value.id !== current.id || !request.value.open || request.value.interactive) return;
+      progress.value = withSpring(1, { ...openSpring, reduceMotion: reduce.value ? ReduceMotion.Always : ReduceMotion.Never });
+    });
+  }, [request, progress, reduce]);
+  const inputPrepared = useCallback(() => { if (Platform.OS === 'ios') runOnUI(beginPreparedOpen)(); }, [beginPreparedOpen]);
+  const pressIn = useCallback(() => {
+    if (Platform.OS !== 'ios') return;
+    runOnUI(() => {
+      if (request.value.open || reduce.value) return;
+      pressed.value = withSpring(1, { ...iosSearchPressSpring, reduceMotion: ReduceMotion.Never });
+    })();
+  }, [request, reduce, pressed]);
+  const pressOut = useCallback(() => {
+    if (Platform.OS !== 'ios') return;
+    runOnUI(() => { pressed.value = withSpring(0, { ...iosSearchPressSpring, reduceMotion: reduce.value ? ReduceMotion.Always : ReduceMotion.Never }); })();
+  }, [pressed, reduce]);
   const settleClosed = useCallback(() => {
     'worklet';
     const current = request.value, id = current.id;
     if (current.settling) return;
+    // Never bounce under the finger. After release only a recent, fast
+    // downward flick carries velocity into the small terminal settle.
+    const sample = keyboardDrag.value;
+    const velocity = current.interactive && Date.now() - sample.at < 100
+      ? Math.max(-4, Math.min(0, sample.velocity)) : 0;
+    const finishSpring = Platform.OS === 'ios' && current.interactive
+      ? { ...closeSpring, overshootClamping: velocity > -1.5, velocity }
+      : closeSpring;
+    // A close/reversal relaxes the carried press without replaying a press at
+    // the destination. Keep its current value on interrupted openings.
+    if (launchExpansion.value > .001) launchExpansion.value = withSpring(0, { ...closeSpring, reduceMotion: reduce.value ? ReduceMotion.Always : ReduceMotion.Never });
     if (progress.value <= .001) {
       progress.value = 0;
       if (current.keyboardClosing && keyboard.value > .001) return;
@@ -55,7 +114,10 @@ export function useDiscoverySearchMotion(initialOpen: boolean, onClosed: () => v
       return;
     }
     request.value = { ...current, settling: true, following: false, interactive: false, awaitingKeyboard: false };
-    progress.value = withSpring(0, { ...searchDismissSpring, reduceMotion: reduce.value ? ReduceMotion.Always : ReduceMotion.Never }, finished => {
+    const startFinish = () => {
+      'worklet';
+      if (request.value.id !== id || request.value.open || request.value.interactive || !request.value.settling) return;
+      progress.value = withSpring(0, { ...finishSpring, reduceMotion: reduce.value ? ReduceMotion.Always : ReduceMotion.Never }, finished => {
       if (finished && !request.value.open && request.value.id === id) {
         request.value = { ...request.value, settling: false };
         // UIKit can still cancel an automatic dismissal until its end event.
@@ -64,8 +126,20 @@ export function useDiscoverySearchMotion(initialOpen: boolean, onClosed: () => v
         request.value = { ...request.value, owned: false };
         runOnJS(finish)(id);
       }
-    });
-  }, [request, progress, keyboard, reduce, finish]);
+      });
+    };
+    if (Platform.OS === 'ios' && !reduce.value && !current.interactive) {
+      cancelAnimation(progress);
+      requestAnimationFrame(startFinish);
+    } else startFinish();
+  }, [request, progress, keyboard, reduce, finish, launchExpansion, keyboardDrag]);
+  const inputBlurred = useCallback(() => {
+    if (Platform.OS !== 'ios') return;
+    runOnUI(() => {
+      const current = request.value;
+      if (current.owned && !current.open && !current.interactive) settleClosed();
+    })();
+  }, [request, settleClosed]);
   const adoptKeyboardClose = useCallback(() => {
     'worklet';
     const current = request.value;
@@ -75,16 +149,38 @@ export function useDiscoverySearchMotion(initialOpen: boolean, onClosed: () => v
       runOnJS(ready)(current.id, false, 'keyboard');
     }
   }, [request, ready]);
+  const releaseKeyboardGesture = useCallback(() => {
+    if (Platform.OS !== 'ios') return;
+    const id = revision.current;
+    runOnUI((version: number) => {
+      const current = request.value;
+      // At the bottom UIKit may have no remaining animation to report. Finish
+      // only after the finger lifts, and only within the last 2% of travel.
+      // Partial/cancelled drags still belong entirely to the native keyboard.
+      if (current.id !== version || !current.owned || !current.seen || !current.interactive || keyboard.value > .02) return;
+      keyboard.value = 0;
+      request.value = { ...current, open: false, keyboardClosing: false, following: false,
+        interactive: false, awaitingKeyboard: false, settling: false };
+      // Resign the input as well: collapsing just the toolbar would leave the
+      // native responder (and its interactive dismissal) active underneath.
+      runOnJS(ready)(version, false, 'command');
+      settleClosed();
+    })(id);
+  }, [request, keyboard, ready, settleClosed]);
   useLayoutEffect(() => {
     reduce.value = reduced;
     if (reduced) runOnUI(() => {
       const current = request.value;
+      keyboardReturnFrame.value++;
       cancelAnimation(progress);
+      cancelAnimation(pressed);
+      pressed.value = 0;
+      launchExpansion.value = 0;
       progress.value = request.value.open ? 1 : 0;
       request.value = { ...request.value, settling: false, following: false, interactive: false, awaitingKeyboard: false, owned: request.value.owned && request.value.open };
       if (!current.open && current.owned) runOnJS(finish)(current.id);
     })();
-  }, [reduced, reduce, progress, request, finish]);
+  }, [reduced, reduce, progress, request, finish, pressed, launchExpansion, keyboardReturnFrame]);
   const setOpen = useCallback((open: boolean) => {
     if (desired.current === open) return false;
     desired.current = open;
@@ -94,23 +190,37 @@ export function useDiscoverySearchMotion(initialOpen: boolean, onClosed: () => v
     if (Platform.OS === 'web') setPhase(open ? 'open' : 'closing');
     runOnUI((next: boolean, version: number) => {
       const previous = request.value;
+      if (next && progress.value <= .001) {
+        launchExpansion.value = reduce.value ? 0 : iosSearchPressExpansion * Math.max(0, Math.min(1, pressed.value));
+      }
       const alreadyClosing = !next && !previous.open && (previous.following || previous.settling) && !previous.interactive;
       const waiting = !next && !reduce.value && previous.owned && previous.seen && keyboard.value > .001;
       request.value = {
         ...previous, id: version, open: next, owned: true, seen: next ? false : previous.seen,
         keyboardClosing: false, settling: false, target: next ? -1 : previous.target,
         following: alreadyClosing, interactive: false, awaitingKeyboard: next || waiting,
+        awaitingFocus: next && Platform.OS === 'ios' && !reduce.value,
         direction: next ? 1 : previous.direction,
       };
       // The UI intent exists before a focus/blur command can emit keyboard events.
       runOnJS(ready)(version, next, alreadyClosing ? 'keyboard' : 'command');
       if (alreadyClosing) { settleClosed(); return; }
+      // Resigning first responder also occupies the UI thread. Start collapse
+      // at blur/willHide (before the keyboard moves), not during that work.
       if (waiting) { cancelAnimation(progress); return; }
-      if (next) progress.value = withSpring(1, { ...searchMorphSpring, reduceMotion: reduce.value ? ReduceMotion.Always : ReduceMotion.Never });
+      if (next) {
+        const expansion = withSpring(1, { ...openSpring, reduceMotion: reduce.value ? ReduceMotion.Always : ReduceMotion.Never }, finished => {
+          if (finished && request.value.id === version && request.value.open) request.value = { ...request.value, awaitingFocus: false };
+        });
+        if (request.value.awaitingFocus) {
+          cancelAnimation(progress);
+          progress.value = withDelay(iosSearchFocusFallbackMs, expansion);
+        } else progress.value = expansion;
+      }
       else settleClosed();
     })(open, id);
     return true;
-  }, [request, keyboard, reduce, progress, ready, settleClosed]);
+  }, [request, keyboard, reduce, progress, ready, settleClosed, pressed, launchExpansion]);
   const detach = useCallback(() => {
     const id = ++revision.current;
     desired.current = false; hiding.current = id; setPhase('closing');
@@ -119,6 +229,22 @@ export function useDiscoverySearchMotion(initialOpen: boolean, onClosed: () => v
       settleClosed();
     })(id);
   }, [request, settleClosed]);
+  const resumeAfterKeyboardGesture = useCallback(() => {
+    'worklet';
+    const id = request.value.id, frame = ++keyboardReturnFrame.value;
+    cancelAnimation(progress);
+    const resume = () => {
+      'worklet';
+      const current = request.value;
+      if (keyboardReturnFrame.value !== frame || current.id !== id || !current.owned || !current.open || current.interactive) return;
+      progress.value = withSpring(1, { ...openSpring, reduceMotion: reduce.value ? ReduceMotion.Always : ReduceMotion.Never });
+    };
+    // A native cancellation can carry an old event-frame timestamp, just like
+    // initial focus. Preserve the released geometry until a fresh display frame
+    // so the first spring step cannot skip part of the return animation.
+    if (Platform.OS === 'ios' && !reduce.value) requestAnimationFrame(resume);
+    else resume();
+  }, [request, progress, reduce, keyboardReturnFrame]);
   const move = (event: SearchKeyboardEvent) => {
     'worklet';
     const current = request.value;
@@ -176,6 +302,7 @@ export function useDiscoverySearchMotion(initialOpen: boolean, onClosed: () => v
           runOnJS(ready)(current.id, true, 'keyboard');
         }
         request.value = { ...request.value, seen: true, target: event.target };
+        beginPreparedOpen();
       } else {
         if (!current.seen) return;
         adoptKeyboardClose();
@@ -194,7 +321,7 @@ export function useDiscoverySearchMotion(initialOpen: boolean, onClosed: () => v
       if (current.interactive || !current.open) {
         // A cancelled gesture resumes from its current frame. An ordinary
         // keyboard show leaves the already-running opening spring untouched.
-        progress.value = withSpring(1, { ...searchMorphSpring, reduceMotion: reduce.value ? ReduceMotion.Always : ReduceMotion.Never });
+        resumeAfterKeyboardGesture();
       }
       if (reduce.value) progress.value = direction;
     },
@@ -204,7 +331,12 @@ export function useDiscoverySearchMotion(initialOpen: boolean, onClosed: () => v
       const previous = keyboard.value, current = request.value;
       if (!current.owned || !current.seen) { keyboard.value = event.progress; return; }
       if (!current.interactive && current.open && event.progress >= previous - .001) { keyboard.value = event.progress; return; }
+      const at = event.timestamp ?? Date.now(), sample = keyboardDrag.value;
+      const elapsed = at - sample.at;
+      keyboardDrag.value = { at, progress: event.progress, velocity: current.interactive && elapsed > 0 && elapsed < 100
+        ? (event.progress - sample.progress) * 1000 / elapsed : 0 };
       if (!current.interactive) {
+        keyboardReturnFrame.value++;
         cancelAnimation(progress);
         request.value = { ...current, direction: 0, settling: false, following: true, interactive: true, from: progress.value, keyboardFrom: previous };
       }
@@ -217,20 +349,19 @@ export function useDiscoverySearchMotion(initialOpen: boolean, onClosed: () => v
       keyboard.value = event.progress;
       const current = request.value;
       if (!current.owned) return;
-      if (event.progress === 0) {
+      if (event.progress <= .001) {
         if (!current.seen) return;
         // Ignore an old hide completion while a new presentation is underway.
         if (current.open && current.awaitingKeyboard && current.direction === 1 && !current.interactive) return;
+        keyboard.value = 0;
         adoptKeyboardClose();
         settleClosed();
       } else if (current.open) {
-        if (current.interactive) progress.value = withSpring(1, {
-          ...searchMorphSpring, reduceMotion: reduce.value ? ReduceMotion.Always : ReduceMotion.Never,
-        });
         request.value = { ...current, seen: true, following: false, interactive: false, awaitingKeyboard: false };
+        if (current.interactive) resumeAfterKeyboardGesture();
       }
     },
   }, { onWillHide: willHide, onDidHide: didHide, onDidShow: didShow });
   const isOpen = useCallback(() => desired.current, []);
-  return { open: phase === 'open', phase, isOpen, progress, reduced, intent: request, reduceMotion: reduce, controlsReady, setOpen, detach };
+  return { open: phase === 'open', phase, isOpen, progress, reduced, intent: request, reduceMotion: reduce, controlsReady, setOpen, detach, pressIn, pressOut, pressProgress: pressed, launchExpansion, releaseKeyboardGesture, inputPrepared, inputBlurred };
 }

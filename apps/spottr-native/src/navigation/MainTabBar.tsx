@@ -20,13 +20,13 @@ import {
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Platform, View } from 'react-native';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { runOnUI, useSharedValue, withSpring } from 'react-native-reanimated';
+import { runOnUI, useSharedValue } from 'react-native-reanimated';
 import { useAuth } from "../auth/AuthProvider";
 import { TabBar } from "./TabBar";
 import type { RootParamList } from "./types";
 import { useTabIndicator, type TabGestureCommand, type TabIndicatorMotion } from "./useTabIndicator";
-import { tabCapsuleSpring } from './tabCapsuleSpring';
-import { createTabSelectionQueue } from './tabSelectionQueue';
+import { withTabTravel } from './tabCapsuleSpring';
+import { createTabCommitScheduler, createTabSelectionQueue } from './tabSelectionQueue';
 import type { TabIndicatorTimeline } from "./tabIndicatorTimeline";
 import { NavbarScrollContext } from './useNavbarScroll';
 import { isProfileWorkspace } from './profileStackRouter';
@@ -50,8 +50,17 @@ export function MainTabBarRegistration(props: BottomTabBarProps) {
       if (bridge.current === props) bridge.current = null;
     };
   }, [bridge, props]);
-  if (Platform.OS === 'ios') return null;
   const route = props.state.routes[props.state.index];
+  if (Platform.OS === 'ios') {
+    // All four tab roots share one bar and one set of native recognizers.
+    // Search and account pages are pushed above Tabs, carrying this whole
+    // source screen (including its navbar) through the native back transition.
+    return <View testID="tabs-navbar-host" collapsable={false}
+      pointerEvents="box-none"
+      style={{ position: 'absolute', inset: 0, display: 'flex' }}>
+      <MainTabBar />
+    </View>;
+  }
   const profileScreen = route?.name === "Profile"
     ? getFocusedRouteNameFromRoute(route)
     : undefined;
@@ -82,8 +91,8 @@ function currentLocation(state: NavigationState | undefined) {
   return `${route?.key}:${tabs?.routes[tabs.index ?? 0]?.key}`;
 }
 
-/** One persistent iOS bar stays outside the changing native-stack screens.
- * UIKit presentations cover it; card pages with their own Back control hide it. */
+/** Shared selection and motion persist while UIKit carries each scene's bar
+ * beneath the pushed screen, including throughout interactive back gestures. */
 export function MainTabBarProvider({
   navigation,
   state,
@@ -116,9 +125,10 @@ export function MainTabBarProvider({
   const top = state?.routes[state.index];
   const accountRoute = tabState.routes[tabState.index];
   const accountScreen = accountRoute?.name === 'Profile' ? getFocusedRouteNameFromRoute(accountRoute) : undefined;
-  const accountList = accountScreen && ['Tickets', 'Orders', 'SavedEvents'].includes(accountScreen);
+  const accountList = Platform.OS !== 'ios' && accountScreen && ['Tickets', 'Orders', 'SavedEvents'].includes(accountScreen);
   const showPersistentBar = !!top && (['Tabs', 'Dashboard', 'Scanner', 'Admin', 'CheckoutReturn'].includes(top.name)
     || top.name === 'Event' && (top.params as RootParamList['Event'] | undefined)?.presentation !== 'page');
+  const mainNavbarInteractive = showPersistentBar && !(top?.name === 'Tabs' && accountList);
   const [itemWidth, measure] = useState(0);
   const timeline = useRef<TabIndicatorTimeline | null>(null);
   const gestureCommand = useSharedValue<TabGestureCommand>({ id: 0, index: 0, pending: false, acknowledgedId: 0 });
@@ -172,6 +182,8 @@ export function MainTabBarProvider({
   }, [prepareProfile, ready, profileOwner, navigation, state?.key]);
 
   const selectRoute = (screen: string) => {
+    // Native gesture callbacks can already be queued when the bar is covered.
+    if (Platform.OS === 'ios' && !mainNavbarInteractive) return false;
     const root = navigation.getRootState();
     const current = root?.routes[root.index]?.name;
     setPendingProfile(null);
@@ -195,7 +207,10 @@ export function MainTabBarProvider({
     }
     const actualTabs = bridge.current;
     if (current === "Tabs" && actualTabs) {
-      const route = actualTabs.state.routes.find(
+      // UIKit can deliver another tab selection before React renders the first.
+      // Read the navigator's current state rather than the last rendered bar.
+      const currentTabState = actualTabs.navigation.getState();
+      const route = currentTabState.routes.find(
         (item) => item.name === screen,
       );
       if (!route) return false;
@@ -206,7 +221,7 @@ export function MainTabBarProvider({
       });
       if (
         !event.defaultPrevented &&
-        actualTabs.state.routes[actualTabs.state.index]?.key !== route.key
+        currentTabState.routes[currentTabState.index]?.key !== route.key
       ) {
         actualTabs.navigation.navigate(route.name, route.params);
       }
@@ -224,17 +239,20 @@ export function MainTabBarProvider({
 
   const latestSelection = useRef({ selectRoute, activeIndex, itemWidth });
   latestSelection.current = { selectRoute, activeIndex, itemWidth };
-  const selectionQueue = useMemo(() => createTabSelectionQueue<{ screen: string; id: number }>(request => {
-    const current = latestSelection.current;
-    const accepted = current.selectRoute(request.screen);
-    acknowledge(request.id);
-    const rollbackTarget = current.activeIndex * current.itemWidth;
-    if (!accepted) runOnUI(() => {
-      if (gestureCommand.value.id !== request.id) return;
-      gestureCommand.value = { ...gestureCommand.value, pending: false, acknowledgedId: request.id };
-      position.value = withSpring(rollbackTarget, tabCapsuleSpring);
-    })();
-  }, callback => requestAnimationFrame(callback), id => cancelAnimationFrame(id)), [gestureCommand, position]);
+  const selectionQueue = useMemo(() => {
+    const scheduler = createTabCommitScheduler();
+    return createTabSelectionQueue<{ screen: string; id: number }>(request => {
+      const current = latestSelection.current;
+      const accepted = current.selectRoute(request.screen);
+      acknowledge(request.id);
+      const rollbackTarget = current.activeIndex * current.itemWidth;
+      if (!accepted) runOnUI(() => {
+        if (gestureCommand.value.id !== request.id) return;
+        gestureCommand.value = { ...gestureCommand.value, pending: false, acknowledgedId: request.id };
+        position.value = withTabTravel(rollbackTarget);
+      })();
+    }, scheduler.schedule, scheduler.cancel);
+  }, [gestureCommand, position]);
   useEffect(() => () => selectionQueue.clear(), [selectionQueue]);
   useEffect(() => {
     selectionQueue.clear();
@@ -273,24 +291,17 @@ export function MainTabBarProvider({
     >
       <NavbarScrollContext.Provider value={scrollController}>
         {children}
-        {Platform.OS === 'ios' && <View testID="persistent-navbar-host"
-          pointerEvents={showPersistentBar && !(top?.name === 'Tabs' && accountList) ? 'box-none' : 'none'}
-          accessibilityElementsHidden={!showPersistentBar || !!(top?.name === 'Tabs' && accountList)}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-            display: showPersistentBar && !(top?.name === 'Tabs' && accountList) ? 'flex' : 'none' }}>
-          <MainTabBar />
-        </View>}
       </NavbarScrollContext.Provider>
     </Context.Provider>
   );
 }
 
-/** Browser/Android scenes keep their renderer; iOS uses the persistent host. */
+/** Scene-local placement lets the real native transition reveal the whole page. */
 export function SceneMainTabBar() {
-  return Platform.OS === 'ios' ? null : <MainTabBar />;
+  return <MainTabBar />;
 }
 
-export function MainTabBar() {
+export function MainTabBar({ interactionEnabled = true }: { interactionEnabled?: boolean }) {
   const { bridge, navigation, tabState, activeIndex, select, motion } =
     useContext(Context)!;
   const insets = useSafeAreaInsets();
@@ -301,6 +312,7 @@ export function MainTabBar() {
   }, [focused, motion.measure]);
   return (
     <TabBar
+      interactionEnabled={interactionEnabled && (Platform.OS !== 'ios' || focused)}
       state={tabState}
       navigation={
         bridge.current?.navigation ??

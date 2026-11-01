@@ -11,9 +11,12 @@ import { parsePushRegistration, PushRegistry, type PushDevice } from './pushRegi
 export const pushProjectID: string = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId ?? '';
 // An older installed binary may load updated JS before the next Xcode build.
 // Keep its in-app notifications usable instead of crashing during module import.
-const hasModule = !!requireOptionalNativeModule('ExpoPushTokenManager') && !!requireOptionalNativeModule('ExpoNotificationPermissionsModule');
+// Expo Go is already unsupported by this adapter. Check before importing the
+// SDK: its import registers native listeners and emits Expo Go warnings.
+const hasModule = Constants.executionEnvironment !== 'storeClient'
+  && !!requireOptionalNativeModule('ExpoPushTokenManager') && !!requireOptionalNativeModule('ExpoNotificationPermissionsModule');
 const Notifications: typeof import('expo-notifications') | undefined = hasModule ? require('expo-notifications') : undefined;
-export const pushSupported = !!Notifications && /^[a-f\d-]{36}$/i.test(pushProjectID) && Constants.executionEnvironment !== 'storeClient';
+export const pushSupported = !!Notifications && /^[a-f\d-]{36}$/i.test(pushProjectID);
 let storageKey: Promise<string> | undefined;
 const key = () => storageKey ??= Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, API_URL).then(hash => 'spottr.push.' + hash.slice(0, 24));
 export const pushRegistry = new PushRegistry({

@@ -10,9 +10,8 @@ import { GlassButtonGroup } from '../ui/GlassButtonGroup';
 import { GlassSurface } from '../ui/GlassSurface';
 import { FormInput } from '../ui/FormInput';
 import { usePressMotion } from '../ui/MotionPressable';
-import { haptic } from '../ui/haptics';
 import { DiscoveryViewSwitch } from './DiscoveryViewSwitch';
-import { initialSearchBounds, searchMorphGeometry, smoothMorphPhase, type SearchBounds, type SearchMorphBounds } from './searchMorph';
+import { initialSearchBounds, searchMorphGeometry, smoothMorphPhase, iosSearchSourceHandoff, type SearchBounds, type SearchMorphBounds } from './searchMorph';
 import { MorphVisibility } from './MorphVisibility';
 import { DiscoveryNativeGlassGroups } from './DiscoveryNativeGlassGroups';
 import { GlassPressable } from '../ui/GlassPressable';
@@ -21,17 +20,20 @@ import { commitSearchFocus } from './commitSearchFocus';
 import type { EventFilters } from '../../../pulse-app/src/features/events/types';
 
 const AnimatedFormInput = Animated.createAnimatedComponent(FormInput);
+const AnimatedGlassSurface = Animated.createAnimatedComponent(GlassSurface);
 
-export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilters, onCalendar, onCity, onHeight, onSearchActivityChange }: {
+export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilters, onCalendar, onCity, onHeight, onSearchActivityChange, keyboardGestureEndRef }: {
   filters: EventFilters; onChange: (value: EventFilters) => void; view: 'list' | 'map'; onViewChange: (view: 'list' | 'map') => void;
   onFilters: () => void; onCalendar: () => void; onCity: () => void; onHeight: (height: number) => void;
   onSearchActivityChange?: (active: boolean) => void;
+  keyboardGestureEndRef?: React.RefObject<(() => void) | null>;
 }) {
   const { copy } = usePreferences(), { width } = useWindowDimensions(), wide = width >= 1024 && Platform.OS === 'web';
   const focused = useIsFocused();
   const [inputFocused, setInputFocused] = useState(false);
   const input = useRef<TextInputInstance>(null), trigger = useRef<ViewInstance>(null);
   const pendingFocus = useRef(!!filters.q), wasFocused = useRef(focused);
+  const prepareExpansion = useRef<(() => void) | null>(null);
   const current = useRef({ filters, onChange, wide, focused });
   useLayoutEffect(() => { current.current = { filters, onChange, wide, focused }; }, [filters, onChange, wide, focused]);
   const didClose = useCallback(() => {
@@ -44,7 +46,21 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
     if (Platform.OS === 'web') return;
     if (!next && origin === 'command') { input.current?.blur(); Keyboard.dismiss(); }
   }, []);
-  const { open, phase, isOpen, progress, intent, reduceMotion, controlsReady, setOpen: moveSearch, detach } = useDiscoverySearchMotion(!!filters.q, didClose, didRequest);
+  const focusPreparedInput = useCallback(() => {
+    if (current.current.focused && pendingFocus.current) {
+      pendingFocus.current = false;
+      if (input.current?.isFocused()) prepareExpansion.current?.();
+      else input.current?.focus();
+    }
+  }, []);
+  const { open, phase, isOpen, progress, intent, reduceMotion, controlsReady, setOpen: moveSearch, detach, pressIn: capturePressIn, pressOut: capturePressOut, pressProgress, launchExpansion, releaseKeyboardGesture, inputPrepared, inputBlurred } = useDiscoverySearchMotion(!!filters.q, didClose, didRequest, focusPreparedInput);
+  useLayoutEffect(() => { prepareExpansion.current = inputPrepared; }, [inputPrepared]);
+  const nativeInputFocused = useSharedValue(false);
+  useLayoutEffect(() => {
+    if (!keyboardGestureEndRef) return;
+    keyboardGestureEndRef.current = releaseKeyboardGesture;
+    return () => { keyboardGestureEndRef.current = null; };
+  }, [keyboardGestureEndRef, releaseKeyboardGesture]);
   const searchActive = phase !== 'closed';
   useEffect(() => { onSearchActivityChange?.(searchActive && focused); }, [searchActive, focused, onSearchActivityChange]);
   const measured = useRef(initialSearchBounds(width - 40)), lastHeight = useRef(0);
@@ -58,10 +74,11 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
   const measuredTextWidth = useSharedValue(144);
   const geometry = useDerivedValue(() => searchMorphGeometry(bounds.value, progress.value, measuredTextWidth.value, {
     opening: intent.value.open, interactive: intent.value.interactive, reduced: reduceMotion.value,
+    ios: Platform.OS === 'ios', pressExpansion: launchExpansion.value, pressProgress: pressProgress.value,
   }));
-  // A fast, non-bouncing follower preserves the entrance scale if a tap or
-  // keyboard gesture reverses direction halfway through Back's appearance.
-  const backScale = useDerivedValue(() => withSpring(geometry.value.backScale, {
+  // iOS Back shares the field's spring, including its landing and reversals.
+  // A second follower would filter out that bounce and delay the button.
+  const backScale = useDerivedValue(() => Platform.OS === 'ios' ? geometry.value.backScale : withSpring(geometry.value.backScale, {
     mass: .3, stiffness: 600, damping: 27,
     reduceMotion: reduceMotion.value ? ReduceMotion.Always : ReduceMotion.Never,
   }));
@@ -69,7 +86,8 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
   const nativeLayers = Platform.OS === 'ios';
   const active = open || wide;
   const compact = !wide && (open || !controlsReady);
-  const searchPressIn = () => { if (!isOpen()) haptic('selection'); if (!nativeLayers) press.pressIn(); };
+  const searchPressIn = () => { capturePressIn(); if (!nativeLayers) press.pressIn(); };
+  const searchPressOut = () => { capturePressOut(); if (!nativeLayers) press.pressOut(); };
   const openSearch = () => {
     pendingFocus.current = true;
     if (!isOpen()) {
@@ -88,10 +106,10 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
     pendingFocus.current = false;
     if (moveSearch(false) && Platform.OS === 'web') { input.current?.blur(); Keyboard.dismiss(); }
   };
-  // Focus only after the existing input becomes editable. No delayed callback
-  // can refocus it after an interrupted dismissal or steal another screen's focus.
+  // iOS prepares its native responder before starting the visible expansion.
+  // Web/Android retain their existing focus activation.
   useLayoutEffect(() => {
-    if (open && focused && pendingFocus.current) { pendingFocus.current = false; input.current?.focus(); }
+    if (Platform.OS !== 'ios' && open && focused && pendingFocus.current) { pendingFocus.current = false; input.current?.focus(); }
   }, [open, focused]);
   useEffect(() => {
     if (filters.q && phase === 'closed') {
@@ -114,13 +132,13 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
         height: geometry.value.searchHeight, borderRadius: geometry.value.radius,
         transform: [{ translateX: geometry.value.searchX + geometry.value.searchWidth * (geometry.value.fieldScaleX - 1) / 2 },
           { translateY: geometry.value.searchY }, { scaleX: geometry.value.fieldScaleX * geometry.value.sourceScale },
-          { scaleY: geometry.value.sourceScale }] });
+          { scaleY: geometry.value.sourceScale * geometry.value.fieldScaleY }] });
   const contentSize = useAnimatedStyle(() => ({ width: wide ? '100%' : geometry.value.contentWidth }));
   const maskMotion = useAnimatedStyle(() => ({ borderRadius: wide ? 22 : geometry.value.radius }));
   const iconMotion = useAnimatedStyle(() => ({
     opacity: (wide ? .8 : 1 - .2 * Math.max(0, Math.min(1, progress.value))) * (nativeLayers
-      ? smoothMorphPhase(progress.value, 0, .18) * (1 - smoothMorphPhase(progress.value, .88, 1)) : 1),
-    transform: [{ translateX: wide ? -4 : geometry.value.iconX }],
+      ? smoothMorphPhase(progress.value, 0, iosSearchSourceHandoff) * (1 - smoothMorphPhase(progress.value, .88, 1)) : 1),
+    transform: [{ translateX: wide ? -4 : geometry.value.iconX }, { translateY: wide ? 0 : geometry.value.iconY }],
   }));
   const textMotion = useAnimatedStyle(() => ({
     opacity: wide ? 1 : geometry.value.text,
@@ -133,7 +151,7 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
   const backMotion = useAnimatedStyle(() => ({ opacity: geometry.value.back }));
   const backEntrance = useAnimatedStyle(() => ({ transform: [{ scale: backScale.value }] }));
   const materialMotion = useAnimatedStyle(() => ({ opacity: nativeLayers
-    ? smoothMorphPhase(progress.value, 0, .18) * (1 - smoothMorphPhase(progress.value, .88, 1)) : 1 }));
+    ? smoothMorphPhase(progress.value, 0, iosSearchSourceHandoff) * (1 - smoothMorphPhase(progress.value, .88, 1)) : 1 }));
   const filter = <GlassPressable testID="event-filters" style={s.circle} pointerEvents={compact ? 'none' : 'auto'}
     accessibilityLabel={copy('common.filters')} tabIndex={compact ? -1 : 0} onPress={compact ? undefined : onFilters}
     aria-hidden={compact} accessibilityElementsHidden={compact}><SlidersHorizontal size={16} color="white"/></GlassPressable>;
@@ -144,14 +162,18 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
             <AnimatedFormInput ref={input} animatedProps={Platform.OS === 'web' ? undefined : caretMotion}
               variant="bare" focusOwner="container" nativeID="discovery-search" testID="discovery-search" accessibilityLabel={copy('filters.searchEvents')}
               placeholder={copy('filters.searchEvents')} placeholderTextColor={colors.muted} value={filters.q ?? ''}
-              editable={wide || searchActive} tabIndex={active ? 0 : -1}
+              editable={Platform.OS === 'ios' || wide || searchActive} tabIndex={active ? 0 : -1}
               onChangeText={q => onChange({ ...filters, q: Array.from(q).slice(0, 120).join('') })}
               autoCapitalize="none" autoCorrect={false} keyboardAppearance="dark" returnKeyType="search" onSubmitEditing={close}
               onKeyPress={event => { if (event.nativeEvent.key === 'Escape') close(); }}
               onFocus={() => {
-                setInputFocused(true);
+                if (Platform.OS === 'ios') { nativeInputFocused.value = true; inputPrepared(); }
+                else setInputFocused(true);
                 if (wide && !isOpen()) moveSearch(true);
-              }} onBlur={() => setInputFocused(false)} style={s.input}/>
+              }} onBlur={() => {
+                if (Platform.OS === 'ios') { nativeInputFocused.value = false; inputBlurred(); }
+                else setInputFocused(false);
+              }} style={s.input}/>
             <Animated.View style={clearMotion}><Pressable testID="discovery-search-clear" accessibilityRole="button" accessibilityLabel={copy('filters.closeSearch')}
               disabled={!filters.q} aria-hidden={!filters.q} accessibilityElementsHidden={!filters.q}
               onPress={() => { onChange({ ...filters, q: '' }); input.current?.focus(); }} tabIndex={active && filters.q ? 0 : -1}
@@ -168,11 +190,11 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
       </Text></View>
     </View>
     {wide ? <DiscoveryViewSwitch view={view} onChange={onViewChange}/> : nativeLayers ?
-      <DiscoveryNativeGlassGroups bounds={bounds} progress={progress} geometry={geometry} backScale={backScale}
+      <DiscoveryNativeGlassGroups bounds={bounds} progress={progress} geometry={geometry} backScale={backScale} intent={intent} reduceMotion={reduceMotion}
         sourceSwitch={<DiscoveryViewSwitch view={view} onChange={onViewChange} disabled={compact} style={[s.sourceSwitch, { width: '100%' }]}/>}
-        filter={filter} field={field} compact={compact} active={active} focused={inputFocused}
+        filter={filter} field={field} compact={compact} active={active} focused={nativeInputFocused}
         searchLabel={copy('filters.searchEvents')} backLabel={copy('common.back')} triggerRef={trigger}
-        onOpen={openSearch} onClose={close} onSearchPressIn={searchPressIn}
+        onOpen={openSearch} onClose={close} onSearchPressIn={searchPressIn} onSearchPressOut={searchPressOut}
         onSourceLayout={event => measureBound('source', event.nativeEvent.layout)}
         onDestinationLayout={event => measureBound('destination', event.nativeEvent.layout)}/>
       : <>
@@ -206,7 +228,7 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
     </>}
     <Animated.View testID="discovery-search-surface" pointerEvents="box-none" style={[s.searchSurface, surfaceMotion]}>
       <MorphVisibility style={s.fill} opacityStyle={materialMotion} pointerEvents="none">
-        <GlassSurface interactive={false} style={s.morphMaterial}/>
+        <AnimatedGlassSurface interactive={false} style={[s.morphMaterial, maskMotion]}/>
         <Animated.View style={[s.border, maskMotion, inputFocused && s.focusedBorder]}/>
       </MorphVisibility>
       <Animated.View pointerEvents="box-none" style={[s.searchMask, maskMotion]}>
@@ -219,7 +241,7 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
           accessibilityElementsHidden={active || nativeLayers} importantForAccessibility={active || nativeLayers ? 'no-hide-descendants' : 'auto'}>
           <Pressable ref={nativeLayers ? undefined : trigger} testID={nativeLayers ? "discovery-search-moving-toggle" : "discovery-search-toggle"} accessibilityRole="button" accessibilityLabel={copy('filters.searchEvents')}
             accessibilityState={{ expanded: open }} tabIndex={active ? -1 : 0} onPress={openSearch}
-            onPressIn={searchPressIn} onPressOut={press.pressOut} onBlur={press.pressOut} style={s.center}/>
+            onPressIn={searchPressIn} onPressOut={searchPressOut} onBlur={searchPressOut} style={s.center}/>
         </View>
       </Animated.View>
     </Animated.View>

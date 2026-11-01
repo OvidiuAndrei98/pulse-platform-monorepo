@@ -69,21 +69,39 @@ test('Search captures keyboard drags without scrolling or remounting native resu
     '../../../pulse-app/src/features/events/discoveryFilters': { activeDiscoveryStart: () => '2026-10-30', eventWithinDistance: () => true },
     './DiscoveryToolbar': { DiscoveryToolbar: 'DiscoveryToolbar' }, './DiscoveryCalendar': { DiscoveryCalendar: 'DiscoveryCalendar' },
     './DiscoveryKeyboardArea': { DiscoveryKeyboardArea: 'DiscoveryKeyboardArea' },
+    './DiscoverySearchInteraction': { DiscoverySearchInteraction: 'DiscoverySearchInteraction' },
   }).load(path.resolve(__dirname, '../src/screens/DiscoveryScreen.tsx'));
   const render = () => h.render(DiscoveryScreen), byID = (root: any, id: string) => find(root, (n: any) => n.props?.testID === id);
   const toolbar = (root: any) => find(root, (n: any) => n.type === 'DiscoveryToolbar');
   let root = render(), list = byID(root, 'events-list'), resets = 0;
-  const ref = list.props.ref; ref.current = { scrollToOffset: () => resets++ };
-  assert.equal(list.props.scrollEnabled, true);
-  toolbar(root).props.onSearchActivityChange(true); root = render(); list = byID(root, 'events-list');
-  assert.equal(list.props.scrollEnabled, false); assert.equal(list.props.ref, ref); assert.equal(resets, 0);
-  const gesture = byID(root, 'discovery-keyboard-gesture');
-  assert.equal(gesture.props.keyboardDismissMode, 'interactive'); assert.equal(gesture.props.keyboardShouldPersistTaps, 'never');
-  assert.ok(root.props.children[0].props.style.zIndex > gesture.props.style[1].zIndex, 'Search and Back remain reachable');
-  assert.equal(find(gesture, (n: any) => n.type === 'FlatList' || n.type === 'EventsMapPanel'), undefined, 'Scrolling the recognizer cannot move content');
-  toolbar(root).props.onSearchActivityChange(false); root = render();
-  assert.equal(byID(root, 'events-list').props.scrollEnabled, true); assert.equal(resets, 0);
-  assert.equal(byID(root, 'discovery-keyboard-gesture'), undefined);
-  toolbar(root).props.onViewChange('map'); toolbar(root).props.onSearchActivityChange(true); root = render();
-  assert.ok(find(root, (n: any) => n.type === 'EventsMapPanel')); assert.ok(byID(root, 'discovery-keyboard-gesture'));
+  assert.equal(root.props.style.paddingTop,0,'The iOS viewport extends beneath the header');
+  assert.equal(root.props.children[0].props.style.position,'absolute');
+  assert.equal(root.props.children[0].props.style.backgroundColor,undefined,'No opaque header backdrop');
+  assert.equal(list.props.contentContainerStyle.paddingTop,124,'Only the initial content is inset below the controls');
+  const ref = list.props.ref; let scrollEnabled = true;
+  ref.current = { getNativeScrollRef: () => ({ setNativeProps: (props: any) => { scrollEnabled=props.scrollEnabled; } }), scrollToOffset: () => resets++ };
+  const interaction = find(root, (n: any) => n.type === 'DiscoverySearchInteraction');
+  const ih=hooks();
+  const { DiscoverySearchInteraction }=modules({
+    react: { ...ih.react, useLayoutEffect: ih.react.useEffect },
+    'react-native': { Platform:{OS:'ios'}, ScrollView:'ScrollView', View:'View', StyleSheet:{absoluteFill:{}} },
+  }).load(path.resolve(__dirname,'../src/screens/DiscoverySearchInteraction.tsx'));
+  const gestureRender=()=>ih.render(()=>DiscoverySearchInteraction(interaction.props));
+  let gesture=gestureRender(); const gestureRef=gesture.props.ref;
+  assert.equal(gesture.props.pointerEvents,'none'); assert.equal(gesture.props.scrollEnabled,false);
+  toolbar(root).props.onSearchActivityChange(true); gesture=gestureRender();
+  assert.equal(scrollEnabled,false); assert.equal(gesture.props.ref,gestureRef); assert.equal(resets,0);
+  assert.equal(gesture.props.pointerEvents,'auto');
+  let releases=0;
+  toolbar(root).props.keyboardGestureEndRef.current=()=>releases++;
+  gesture.props.onScrollEndDrag(); assert.equal(releases,1);
+  assert.equal(gesture.props.keyboardDismissMode,'interactive'); assert.equal(gesture.props.keyboardShouldPersistTaps,'never');
+  assert.ok(root.props.children[0].props.style.zIndex>gesture.props.style[1].zIndex);
+  assert.equal(find(gesture,(n:any)=>n.type==='FlatList'||n.type==='EventsMapPanel'),undefined);
+  toolbar(root).props.onSearchActivityChange(false); gesture=gestureRender();
+  assert.equal(scrollEnabled,true); assert.equal(gesture.props.pointerEvents,'none'); assert.equal(resets,0);
+  assert.equal(gesture.props.ref,gestureRef,'Closing keeps the recognizer ready for the next opening');
+  toolbar(root).props.onViewChange('map'); root=render();
+  assert.ok(find(root,(n:any)=>n.type==='EventsMapPanel'));
+  ih.unmount(); assert.equal(interaction.props.activityRef.current,null);
 });

@@ -1,14 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import path from 'node:path';
-import { initialSearchBounds, keyboardMorphProgress, searchDismissSpring, searchMorphGeometry, searchMorphSpring } from '../src/screens/searchMorph';
+import { initialSearchBounds, keyboardMorphProgress, searchDismissSpring, searchMorphGeometry, searchMorphSpring, iosSearchOpenSpring, iosSearchCloseSpring, iosSearchPressExpansion, iosSearchFocusFallbackMs } from '../src/screens/searchMorph';
 const { hooks, modules } = require('../../pulse-app/scripts/helpers/qaHarness.cjs');
 
-function fixture(reduced = false, platform = 'ios') {
+function fixture(reduced = false, platform = 'ios', deferredFrames = false) {
   const h = hooks(), react = { ...h.react, useLayoutEffect: h.react.useEffect };
   let handlers: any, visibility: any, onUI = false, motion: any, listener: any, reacting = false;
   const springs: any[] = [], queued: (() => void)[] = [], values: any[] = [], reactions: any[] = [], notifications: boolean[] = [];
-  let completed = 0;
+  const displayFrames: (() => void)[] = [];
+  let completed = 0, focusReady = 0;
   const origins: string[] = [], animations = new Map<any, any>();
   const ui = (fn: any, ...args: any[]) => {
     const previous = onUI; onUI = true;
@@ -45,16 +46,20 @@ function fixture(reduced = false, platform = 'ios') {
         if (!r.registered) { r.registered = true; reactions.push(r); }
       },
       withSpring: (target: number, config: any, callback: any) => ({ spring: true, target, config, callback }),
+      withDelay: (delay: number, animation: any) => ({ ...animation, delay }),
       cancelAnimation: (box: any) => animations.delete(box), ReduceMotion: { Always: 'always', Never: 'never', System: 'system' },
       runOnUI: (fn: any) => (...args: any[]) => ui(fn, ...args),
       runOnJS: (fn: any) => (...args: any[]) => { queued.push(() => fn(...args)); },
     },
     './useSearchKeyboardEvents': { useSearchKeyboardEvents: (value: any, native: any) => { handlers = value; visibility = native; } },
-  }).load(path.resolve(__dirname, '../src/screens/useDiscoverySearchMotion.ts'));
-  const render = () => { motion = h.render(() => useDiscoverySearchMotion(false, () => completed++, (next: boolean, origin: string) => { notifications.push(next); origins.push(origin); })); };
+  }, { requestAnimationFrame: (fn: () => void) => { if(deferredFrames)displayFrames.push(fn);else ui(fn);return 0; } }).load(path.resolve(__dirname, '../src/screens/useDiscoverySearchMotion.ts'));
+  const render = () => { motion = h.render(() => useDiscoverySearchMotion(false, () => completed++, (next: boolean, origin: string) => { notifications.push(next); origins.push(origin); }, () => focusReady++)); };
   render();
   return {
     open: () => motion.setOpen(true), close: () => motion.setOpen(false), detach: () => motion.detach(),
+    pressIn: () => motion.pressIn(), pressOut: () => motion.pressOut(),
+    releaseGesture: () => motion.releaseKeyboardGesture(),
+    launch: () => ui(() => motion.launchExpansion.value),
     set: (value: number) => ui(() => { motion.progress.value = value; }),
     advance: (value: number) => ui(() => {
       const animation = animations.get(motion.progress);
@@ -62,7 +67,7 @@ function fixture(reduced = false, platform = 'ios') {
       if (animation) animations.set(motion.progress, animation);
     }),
     progress: () => ui(() => motion.progress.value),
-    event: (name: string, progress: number) => ui(handlers[name], { progress, height: 300 * progress, duration: 250, target: 7 }),
+    event: (name: string, progress: number, timestamp?: number) => ui(handlers[name], { progress, height: 300 * progress, duration: 250, target: 7, timestamp }),
     native: (name: string) => visibility[name](),
     flush: () => { while (queued.length) queued.shift()!(); render(); },
     finishSpring: (index = springs.length - 1) => { const spring = springs[index]; ui(() => {
@@ -73,6 +78,10 @@ function fixture(reduced = false, platform = 'ios') {
     reduce: (value: boolean) => { listener(value); render(); },
     dispose: () => h.unmount(), springs, notifications, origins, controlsReady: () => motion.controlsReady,
     phase: () => motion.phase, isOpen: () => motion.isOpen(), completed: () => completed,
+    focusReady: () => focusReady,
+    inputPrepared: () => motion.inputPrepared(),
+    inputBlurred: () => motion.inputBlurred(),
+    frame: () => { const pending=displayFrames.splice(0); pending.forEach(fn=>ui(fn)); },
   };
 }
 
@@ -161,6 +170,161 @@ test('opening spends time on visible travel instead of a fast jump followed by a
   assert.ok(fraction(450) >= .99, 'The field reaches its destination without a prolonged half-open state');
 });
 
+test('iOS opening inherits the press and a completed opening cannot replay it on close', () => {
+  const f=fixture();f.pressIn();f.finishSpring();f.pressOut();f.open();f.flush();
+  assert.equal(f.launch(),iosSearchPressExpansion,'release does not erase the current pressed extent before the morph');
+  assert.equal(f.springs.at(-1).config.stiffness,iosSearchOpenSpring.stiffness);
+  f.advance(.35);const carried=f.launch();f.close();f.flush();
+  assert.equal(f.launch(),carried,'an interrupted close relaxes from the displayed extent instead of jumping');
+  const complete=fixture();complete.pressIn();complete.finishSpring();complete.open();complete.flush();
+  complete.finishSpring();assert.equal(complete.launch(),0);
+  complete.event('onStart',1);complete.event('onEnd',1);complete.close();complete.event('onStart',0);
+  assert.equal(complete.launch(),0);assert.equal(complete.springs.at(-1).config.overshootClamping,false);
+});
+
+test('iOS geometry carries the press and scales the controls group into place before settling', () => {
+  const bounds=initialSearchBounds(350),native={opening:true,interactive:false,reduced:false,ios:true,pressExpansion:iosSearchPressExpansion};
+  const first=searchMorphGeometry(bounds,0,144,native);
+  assert.equal(first.searchWidth,47);assert.equal(first.searchHeight,47);
+  assert.equal(first.searchX+first.searchWidth/2,bounds.source.x+22);
+  assert.equal(first.searchY+first.searchHeight/2,22);
+  const middle=searchMorphGeometry(bounds,.5,144,native);
+  assert.ok(middle.searchHeight>44&&middle.searchHeight<47,'The small pressed extent relaxes during expansion');
+  for(let i=0;i<=100;i++){
+    const frame=searchMorphGeometry(bounds,i/100,144,native);
+    assert.equal(frame.radius*2,frame.searchHeight);
+    assert.ok(frame.controlsScale>=.96&&frame.controlsScale<=1,'The controls group grows into place during travel');
+    assert.ok(frame.searchX+frame.searchWidth<=350+5);
+  }
+  const end=searchMorphGeometry(bounds,-.02,144,{...native,opening:false,pressExpansion:0});
+  assert.equal(end.searchWidth,44);assert.equal(end.searchHeight,44);assert.equal(end.sourceScale,1.035);
+  assert.equal(end.fieldScaleY,1);
+  const landing=searchMorphGeometry(bounds,1.02,144,{...native,pressExpansion:0});
+  assert.ok(landing.fieldScaleY>1,'One small vertical settle accompanies arrival');
+  assert.equal(landing.backScale,landing.fieldScaleY,'Back lands with the field instead of finishing before it');
+  assert.equal(searchMorphGeometry(bounds,1.02,144,{...native,opening:false,pressExpansion:0}).backScale,landing.backScale,'Reversing at the peak cannot snap Back');
+  for (let p=0;p<=1;p+=.05) {
+    const exit=searchMorphGeometry(bounds,p,144,{...native,opening:false,pressExpansion:0});
+    assert.ok(exit.backScale>=.93&&exit.backScale<=1,'A normal close does not inflate Back');
+  }
+  assert.equal(searchMorphGeometry(bounds,1.02,144,{...native,reduced:true}).backScale,1);
+  assert.equal(searchMorphGeometry(bounds,1.02,144,{...native,opening:false,pressExpansion:0}).fieldScaleY,landing.fieldScaleY,'Reversing at the peak preserves the displayed shape');
+  const reduced=searchMorphGeometry(bounds,0,144,{...native,reduced:true});assert.equal(reduced.searchWidth,44);
+});
+
+test('iOS arrival remains one continuous expansion across the native-material handoff', () => {
+  const motion={opening:true,interactive:false,reduced:false,ios:true};
+  for (const width of [240,280,350,728]) {
+    const bounds=initialSearchBounds(width), destination=bounds.destination;
+    for (const p of [.98,.9999,1,1.0001,1.01,1.02,1.1]) {
+      const frame=searchMorphGeometry(bounds,p,144,motion);
+      assert.equal(frame.fieldScaleX,1,'No second scale begins after horizontal travel stops');
+      assert.ok(frame.searchWidth<=destination.width*1.02&&frame.searchWidth<=destination.width+6);
+      assert.ok(frame.searchX>=48,'The overshooting field cannot collide with the Back circle');
+      if(p>=1) {
+        assert.ok(Math.abs(frame.searchWidth-destination.width*frame.destinationScaleX)<1e-8);
+        assert.ok(Math.abs(frame.searchX-destination.x-frame.destinationOffsetX)<1e-8);
+      }
+    }
+    const before=searchMorphGeometry(bounds,.9999,144,motion), after=searchMorphGeometry(bounds,1.0001,144,motion);
+    assert.ok(Math.abs(after.searchWidth-before.searchWidth)<.15,'No width discontinuity at arrival');
+  }
+});
+
+test('iOS controls reappear over the last part of collapse while text is hidden before clipping', () => {
+  const bounds=initialSearchBounds(350), motion={opening:false,interactive:false,reduced:false,ios:true};
+  const a=searchMorphGeometry(bounds,.2,144,motion), b=searchMorphGeometry(bounds,.1,144,motion), end=searchMorphGeometry(bounds,0,144,motion);
+  assert.ok(a.controls>0&&a.controls<b.controls&&b.controls<end.controls);
+  assert.ok(a.controlsScale<b.controlsScale&&b.controlsScale<end.controlsScale);
+  assert.equal(end.controlsScale,1);
+  assert.equal(searchMorphGeometry(bounds,.4,24,motion).text,0,'Even short text disappears before the final collapse');
+  const opacity=[.55,.65,.75,.85,.95].map(p=>searchMorphGeometry(bounds,p,108,motion).text);
+  assert.ok(opacity[0]!>0&&opacity[0]!<.2&&opacity[3]!<1);
+  assert.ok(opacity.every((value,i)=>i===0||value>opacity[i-1]!),'Text reveals before the glass handoff over several positions');
+  const drag=searchMorphGeometry(bounds,-.02,144,{...motion,interactive:true});
+  assert.equal(drag.sourceScale,1,'No settle occurs under a held finger');
+});
+
+test('iOS reference spring reaches its expanded shape around 300ms with one small settle',()=>{
+  const {mass,stiffness,damping}=iosSearchOpenSpring,alpha=damping/(2*mass),frequency=Math.sqrt(stiffness/mass-alpha*alpha);
+  const at=(t:number)=>1-Math.exp(-alpha*t)*(Math.cos(frequency*t)+alpha/frequency*Math.sin(frequency*t));
+  assert.ok(at(.1)>.4&&at(.1)<.65);assert.ok(at(.25)>.98);
+  assert.ok(at(Math.PI/frequency)>1&&at(Math.PI/frequency)<1.02);
+});
+
+test('iOS controls return for 120–160ms within the closing spring without stacking glass', () => {
+  const { mass, stiffness, damping } = iosSearchCloseSpring;
+  const alpha = damping / (2 * mass), frequency = Math.sqrt(stiffness / mass - alpha * alpha);
+  const at = (ms: number) => {
+    const t = ms / 1000;
+    return Math.exp(-alpha * t) * (Math.cos(frequency * t) + alpha / frequency * Math.sin(frequency * t));
+  };
+  const motion = { ios: true, opening: false, interactive: false, reduced: false };
+  for (const width of [240, 280, 350, 728]) {
+    const bounds = initialSearchBounds(width);
+    const frames = Array.from({ length: 501 }, (_, ms) => searchMorphGeometry(bounds, at(ms), 144, motion));
+    const first = frames.findIndex(frame => frame.controls > 0);
+    const last = frames.findIndex(frame => frame.controls === 1);
+    assert.ok(at(first) <= .4 && at(first) >= .35, 'Return begins during the final 35–40% of travel');
+    assert.ok(last - first >= 120 && last - first <= 160, 'Entrance derives its duration from the existing spring');
+    for (let i = first; i <= last; i++) {
+      const frame = frames[i]!;
+      assert.equal(frame.back, 0, 'Back cannot overlap the returning segmented control');
+      assert.ok(frame.controlsScale >= .96 && frame.controlsScale <= 1.016);
+      assert.ok(frame.controlsTranslateY >= 0 && frame.controlsTranslateY <= 4);
+      const cutout = frame.controlsCutout;
+      assert.equal(cutout.x - 8 + 1, frame.searchX, 'The padded mask follows the moving capsule');
+      assert.equal(cutout.y - 8 + 1, frame.searchY);
+      assert.equal(cutout.width, frame.searchWidth + 2);
+      assert.equal(cutout.rx * 2, cutout.height, 'The clearance remains rounded instead of slicing Filter vertically');
+      if (i > first) {
+        assert.ok(frame.controls >= frames[i - 1]!.controls);
+        assert.ok(frame.controlsTranslateY <= frames[i - 1]!.controlsTranslateY);
+      }
+    }
+    assert.equal(frames[last]!.controlsTranslateY, 0);
+    const peak = Math.max(...frames.map(frame => frame.sourceScale));
+    assert.ok(peak > 1.025 && peak <= 1.035, 'The circle has a visible but restrained settle within the same spring');
+    const groupPeak = Math.max(...frames.map(frame => frame.controlsScale));
+    assert.ok(groupPeak > 1.012 && groupPeak <= 1.016, 'Switch and Filter share a smaller elastic settle');
+    assert.ok(frames.some(frame => frame.controlsScale === groupPeak && frame.sourceScale === peak), 'The whole header settles together');
+    assert.ok(frames.at(-1)!.controlsScale < 1.001 && frames.at(-1)!.sourceScale < 1.001, 'No delayed rebound after the return');
+    assert.equal(searchMorphGeometry(bounds, 0, 144, motion).sourceScale, 1);
+    assert.equal(searchMorphGeometry(bounds, 0, 144, motion).controlsScale, 1);
+  }
+});
+
+test('native press handoff, reversal and reduced motion preserve continuous geometry', () => {
+  const bounds = initialSearchBounds(350);
+  const motion = { ios: true, opening: true, interactive: false, reduced: false, pressExpansion: iosSearchPressExpansion };
+  const held = searchMorphGeometry(bounds, 0, 144, { ...motion, opening: false, pressExpansion: 0, pressProgress: 1 });
+  const released = searchMorphGeometry(bounds, 0, 144, { ...motion, pressProgress: 0 });
+  assert.equal(held.sourcePressScale, released.sourcePressScale, 'The source cannot shrink while focus is prepared');
+  assert.ok(Math.abs(bounds.source.width * held.sourcePressScale - released.searchWidth) < 1e-8, 'Press and morph share the same initial width');
+  assert.ok(Math.abs(bounds.source.height * held.sourcePressScale - released.searchHeight) < 1e-8);
+  const cancelled = searchMorphGeometry(bounds, 0, 144, { ...motion, opening: false, pressExpansion: 0, pressProgress: 0 });
+  assert.equal(cancelled.sourcePressScale, 1, 'Cancelling a press returns the source without activating Search');
+  let previous = searchMorphGeometry(bounds, 0, 144, motion);
+  for (let i = 1; i <= 1000; i++) {
+    const frame = searchMorphGeometry(bounds, i / 1000, 144, motion);
+    assert.ok(frame.searchWidth > previous.searchWidth, 'The carried press must stretch immediately, without shrinking or pausing first');
+    assert.ok(frame.searchHeight <= previous.searchHeight, 'Press relaxation belongs to the expansion');
+    assert.ok(frame.searchWidth - previous.searchWidth < .3, 'No discontinuity across the early material handoff');
+    previous = frame;
+  }
+  for (const p of [-.04, -.02, -.008, 0, .1, .25, .38, .5, 1, 1.015]) {
+    const opening = searchMorphGeometry(bounds, p, 144, { ...motion, pressExpansion: 0 });
+    const closing = searchMorphGeometry(bounds, p, 144, { ...motion, opening: false, pressExpansion: 0 });
+    assert.deepEqual(opening, closing, 'Reversal cannot switch geometry or restart the controls entrance');
+    for (const variant of [{ interactive: true, reduced: false }, { interactive: false, reduced: true }]) {
+      const frame = searchMorphGeometry(bounds, p, 144, { ...motion, ...variant });
+      assert.equal(frame.sourceScale, 1); assert.equal(frame.fieldScaleY, 1); assert.equal(frame.sourcePressScale, 1);
+      if (p <= 0) assert.equal(frame.controlsScale, 1, 'No controls rebound under the finger or with reduced motion');
+      if (variant.reduced) { assert.equal(frame.controlsScale, 1); assert.equal(frame.controlsTranslateY, 0); }
+    }
+  }
+});
+
 test('focus waits for UI intent and invisible controls cannot activate during a reversal', () => {
   const f = fixture(); f.open(); assert.deepEqual(f.notifications, []);
   f.flush(); assert.deepEqual(f.notifications, [true]); assert.equal(f.controlsReady(), false);
@@ -171,6 +335,43 @@ test('focus waits for UI intent and invisible controls cannot activate during a 
   f.open(); f.close(); f.flush(); assert.equal(f.notifications.at(-1), false, 'An obsolete focus request is ignored');
 });
 
+test('iOS prepares its responder before expansion and cannot refocus an abandoned opening', () => {
+  const f=fixture(); f.open(); f.flush(); assert.equal(f.focusReady(),1); assert.equal(f.progress(),0);
+  assert.equal(f.springs.at(-1).delay,iosSearchFocusFallbackMs,'Only a safety timeout runs before native focus');
+  f.inputPrepared(); assert.equal(f.springs.at(-1).delay,undefined,'Focus starts the spring without waiting for a timer');
+  const count=f.springs.length; f.inputPrepared(); f.event('onStart',1);
+  assert.equal(f.springs.length,count,'Focus and keyboard acknowledgements cannot restart the spring');
+  f.advance(.99); f.flush(); assert.equal(f.focusReady(),1);
+  f.advance(1.02); f.flush(); assert.equal(f.focusReady(),1,'Landing cannot refocus the input');
+  f.advance(.2);f.advance(.7);f.flush();assert.equal(f.focusReady(),1,'A cancelled keyboard drag cannot repeat the focus request');
+  const interrupted=fixture(); interrupted.open(); interrupted.close(); interrupted.flush();
+  assert.equal(interrupted.focusReady(),0,'Queued focus belongs to the abandoned request');
+  const afterClose=interrupted.springs.length; interrupted.inputPrepared();
+  assert.equal(interrupted.springs.length,afterClose,'Late focus cannot reopen a closed Search');
+  interrupted.finishSpring(); interrupted.flush(); interrupted.open(); interrupted.flush();
+  interrupted.finishSpring(); interrupted.flush(); assert.equal(interrupted.focusReady(),1);
+});
+
+test('missing keyboard or focus acknowledgement cannot leave Search collapsed', () => {
+  const f=fixture(); f.open(); f.flush(); f.finishSpring();
+  assert.equal(f.progress(),1); const count=f.springs.length; f.inputPrepared();
+  assert.equal(f.springs.length,count,'Late focus cannot restart an already completed opening');
+  f.close(); f.flush(); f.finishSpring(); f.flush(); assert.equal(f.phase(),'closed');
+});
+
+test('native responder preparation waits for a fresh frame and discards superseded frame callbacks', () => {
+  const f=fixture(false,'ios',true);f.open();f.flush();f.inputPrepared();
+  const before=f.springs.length;assert.equal(f.progress(),0);f.frame();
+  assert.equal(f.springs.length,before+1);assert.equal(f.springs.at(-1).delay,undefined);
+  f.finishSpring();f.event('onStart',1);f.event('onEnd',1);f.close();f.inputBlurred();
+  const beforeReopen=f.springs.length;f.open();f.flush();f.frame();
+  assert.equal(f.springs.length,beforeReopen+1,'An old closing frame cannot replace the new opening');
+  assert.equal(f.springs.at(-1).target,1);
+  const cancelled=fixture(false,'ios',true);cancelled.open();cancelled.flush();cancelled.inputPrepared();
+  cancelled.close();cancelled.flush();const closedCount=cancelled.springs.length;cancelled.frame();
+  assert.equal(cancelled.springs.length,closedCount);assert.equal(cancelled.phase(),'closed');
+});
+
 test('keyboard presentation leaves the opening spring in charge; dismissal uses a bounded finish', () => {
   const f = fixture(); f.open(); f.advance(.15);
   f.event('onStart', 1); f.event('onMove', .4);
@@ -178,9 +379,11 @@ test('keyboard presentation leaves the opening spring in charge; dismissal uses 
   f.event('onEnd', 1); assert.equal(f.progress(), .15, 'Keyboard completion cannot snap the unfinished morph');
   f.finishSpring(); assert.equal(f.progress(), 1);
   const springsBeforeClose = f.springs.length;
-  f.close(); assert.equal(f.progress(), 1); assert.equal(f.springs.length, springsBeforeClose, 'Wait for actual keyboard dismissal');
-  f.event('onStart', 0); f.advance(.7); f.event('onMove', .55); assert.equal(f.progress(), .7, 'Native tail cannot overwrite the finish');
-  assert.equal(f.springs.at(-1).config.stiffness, searchDismissSpring.stiffness);
+  f.close(); assert.equal(f.progress(), 1); assert.equal(f.springs.length, springsBeforeClose, 'Resigning the native responder must not block a running collapse');
+  f.inputBlurred();assert.equal(f.springs.length,springsBeforeClose+1,'Collapse begins at native blur, before keyboard movement');
+  f.advance(.7);f.event('onStart', 0);assert.equal(f.springs.length,springsBeforeClose+1,'Keyboard acknowledgement cannot restart the collapse');
+  f.event('onMove', .55); assert.equal(f.progress(), .7, 'Native tail cannot overwrite the finish');
+  assert.equal(f.springs.at(-1).config.stiffness, iosSearchCloseSpring.stiffness);
   f.event('onEnd', 0); f.finishSpring(); f.flush(); assert.equal(f.progress(), 0); assert.equal(f.completed(), 1);
 });
 
@@ -233,11 +436,102 @@ test('iOS interactive drag follows every frame, including an upward cancellation
   f.finishSpring(); f.flush(); assert.equal(f.phase(), 'open'); assert.equal(f.progress(), 1); assert.equal(f.completed(), 0);
 });
 
+test('upward keyboard release resumes on a fresh display frame, including an end-only cancellation', () => {
+  for (const event of ['onStart', 'onEnd']) {
+    const f = fixture(false, 'ios', true);
+    f.open(); f.flush(); f.inputPrepared(); f.frame(); f.finishSpring();
+    f.event('onStart', 1); f.event('onEnd', 1); f.flush();
+    for (const p of [.8, .3, .4]) f.event('onInteractive', p);
+    const count = f.springs.length, before = f.progress();
+    f.event(event, 1);
+    assert.equal(f.springs.length, count, 'Do not start a return spring with the native event timestamp');
+    assert.equal(f.progress(), before, 'Keep the displayed width until the next display frame');
+    f.event('onStart', 1); f.event('onMove', .9); f.event('onEnd', 1);
+    f.frame();
+    assert.equal(f.springs.length, count + 1, 'Duplicate show/end notifications schedule only one return');
+    f.advance(.75); f.event('onEnd', 1); assert.equal(f.progress(), .75);
+    f.finishSpring(); f.flush();
+    assert.equal(f.progress(), 1); assert.equal(f.phase(), 'open');
+    assert.deepEqual(f.notifications, [true]); assert.equal(f.completed(), 0);
+  }
+});
+
+test('a second gesture or Back supersedes a queued keyboard return without a late expansion', () => {
+  for (const interrupt of ['gesture', 'back', 'detach', 'reduce']) {
+    const f = fixture(false, 'ios', true);
+    f.open(); f.flush(); f.inputPrepared(); f.frame(); f.finishSpring();
+    f.event('onStart', 1); f.event('onEnd', 1); f.flush();
+    f.event('onInteractive', .4); f.event('onStart', 1);
+    const count = f.springs.length;
+    if (interrupt === 'gesture') {
+      f.event('onInteractive', .3); f.event('onStart', 1);
+      f.frame();
+      assert.equal(f.springs.length, count + 1, 'Only the latest gesture may resume Search');
+      f.finishSpring(); f.flush(); assert.equal(f.progress(), 1);
+    } else if (interrupt === 'reduce') {
+      f.reduce(true); f.frame();
+      assert.equal(f.springs.length, count, 'Reduced motion invalidates the queued return');
+      assert.equal(f.progress(), 1);
+    } else {
+      if (interrupt === 'back') { f.close(); f.flush(); f.event('onStart', 0); }
+      else f.detach();
+      f.frame();
+      assert.equal(f.springs.at(-1).target, 0, 'The stale return cannot override dismissal');
+      f.event('onEnd', 0); f.finishSpring(); f.flush();
+      assert.equal(f.phase(), 'closed'); assert.equal(f.completed(), 1);
+    }
+  }
+});
+
 test('committing a partial interactive drag closes Search from its displayed bounds', () => {
   const f = shown(); f.event('onInteractive', .6); const before = f.progress();
   f.event('onStart', 0); f.flush(); assert.equal(f.phase(), 'closing'); assert.equal(f.progress(), before);
   f.advance(.3); f.event('onMove', .5); assert.ok(Math.abs(f.progress() - .3) < 1e-8);
   f.event('onEnd', 0); f.finishSpring(); f.flush(); assert.equal(f.phase(), 'closed'); assert.equal(f.completed(), 1);
+});
+
+test('keyboard drags have no autonomous bounce and only a recent fast flick carries release velocity', () => {
+  for(const [name,start,end,age,elastic] of [
+    ['slow',.9,.88,10,false],['flick',.9,.55,10,true],['held after flick',.9,.55,250,false],
+  ] as const) {
+    const f=shown(), count=f.springs.length, now=Date.now();
+    f.event('onInteractive',start,now-age-50);f.event('onInteractive',end,now-age);
+    assert.equal(f.springs.length,count,name+': follow the held finger directly');
+    f.event('onStart',0);
+    const finish=f.springs.at(-1);
+    assert.equal(finish.config.overshootClamping,!elastic,name);
+    assert.ok(finish.config.velocity<=0&&finish.config.velocity>=-4);
+    if(elastic)assert.ok(finish.config.velocity<=-1.5);
+    assert.ok(Math.abs(f.progress()-end)<1e-8,'Release never snaps the displayed position');
+  }
+});
+
+test('releasing a fully lowered keyboard releases Search even without native completion events', () => {
+  for (const endpoint of [0, .006, .019]) {
+    const f = shown(); f.event('onInteractive', .5); f.event('onInteractive', endpoint); f.flush();
+    assert.equal(f.phase(), 'open', 'Reaching the bottom with the finger down must remain reversible');
+    f.releaseGesture(); f.flush(); if (endpoint > .001) f.finishSpring(); f.flush();
+    assert.equal(f.phase(), 'closed'); assert.equal(f.completed(), 1); assert.equal(f.controlsReady(), true);
+    assert.equal(f.origins.at(-1), 'command', 'The native input must also relinquish focus');
+    f.releaseGesture(); f.native('onDidHide'); f.event('onEnd', 0); f.flush();
+    assert.equal(f.completed(), 1);
+    f.open(); f.flush(); f.finishSpring(); assert.equal(f.phase(), 'open');
+  }
+});
+
+test('release fallback leaves partial and reversed keyboard drags to UIKit', () => {
+  for (const endpoint of [.1, .7]) {
+    const f = shown(); f.event('onInteractive', .01); f.event('onInteractive', endpoint);
+    f.releaseGesture(); f.flush();
+    assert.equal(f.phase(), 'open'); assert.deepEqual(f.origins, ['command']);
+    f.event('onStart', 1); f.event('onEnd', 1); f.finishSpring(); f.flush();
+    assert.equal(f.progress(), 1); assert.equal(f.completed(), 0);
+  }
+});
+
+test('a fractional-zero native completion cannot strand the gesture overlay', () => {
+  const f = shown(); f.event('onInteractive', .4); f.event('onEnd', .00001); f.flush();
+  f.finishSpring(); f.flush(); assert.equal(f.phase(), 'closed'); assert.equal(f.completed(), 1);
 });
 
 test('an iOS willHide notification does not prevent cancelling the native gesture', () => {

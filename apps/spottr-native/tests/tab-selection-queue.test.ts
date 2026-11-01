@@ -1,6 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createTabSelectionQueue } from '../src/navigation/tabSelectionQueue';
+import { createTabCommitScheduler, createTabSelectionQueue } from '../src/navigation/tabSelectionQueue';
+
+test('rapid tab commits settle on the latest command without waiting for a frame, and cancelled work stays cancelled', async () => {
+  const commits: string[] = [], scheduler = createTabCommitScheduler();
+  const queue = createTabSelectionQueue<string>(value => commits.push(value), scheduler.schedule, scheduler.cancel);
+  queue.select('Profile'); queue.select('Home'); queue.select('Explore'); queue.select('Feed');
+  await Promise.resolve();
+  assert.deepEqual(commits, ['Feed']);
+  queue.select('Profile'); queue.clear();
+  await Promise.resolve();
+  assert.deepEqual(commits, ['Feed']);
+  queue.select('Home');
+  await Promise.resolve();
+  assert.deepEqual(commits, ['Feed', 'Home']);
+});
 
 test('a blocked JS frame commits only the latest tab from a burst of touches', () => {
   const frames = new Map<number, () => void>(), commits: string[] = [];

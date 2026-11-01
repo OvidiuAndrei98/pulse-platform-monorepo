@@ -1,7 +1,7 @@
 import { AccentPressable } from '../ui/AccentPressable';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
-import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -46,6 +46,7 @@ import { useDebouncedDiscoverySearch } from '../../../pulse-app/src/features/eve
 import { activeDiscoveryStart, eventMatchesSearch, eventWithinDistance } from '../../../pulse-app/src/features/events/discoveryFilters';
 import { DiscoveryToolbar } from './DiscoveryToolbar';
 import { DiscoveryKeyboardArea } from './DiscoveryKeyboardArea';
+import { DiscoverySearchInteraction } from './DiscoverySearchInteraction';
 import { DiscoveryCalendar } from './DiscoveryCalendar';
 import { DashboardDropdown } from '../dashboard/DashboardDropdown';
 import {
@@ -74,7 +75,10 @@ export function DiscoveryScreen() {
     [draft, setDraft] = useState(defaultEventFilters),
     [open, setOpen] = useState(false);
   const [view, setView] = useState<'list' | 'map'>('list');
-  const [searchActive, setSearchActive] = useState(false);
+  const overlayToolbar = Platform.OS === 'ios' || view === 'map';
+  const searchActivityRef = useRef<((active: boolean) => void) | null>(null);
+  const setSearchActive = useCallback((active: boolean) => searchActivityRef.current?.(active), []);
+  const keyboardGestureEndRef = useRef<(() => void) | null>(null);
   const [calendarOpen,setCalendarOpen]=useState(false),calendarId=useId();
   const navbarScroll = useNavbarScroll(view === 'list');
   const wide=useWindowDimensions().width>=1024&&Platform.OS==='web';
@@ -123,7 +127,7 @@ export function DiscoveryScreen() {
       style={{
         flex: 1,
         backgroundColor: colors.bg,
-        paddingTop: view === 'map' ? 0 : Math.max(24, insets.top),
+        paddingTop: overlayToolbar ? 0 : Math.max(24, insets.top),
       }}
     >
       <View
@@ -132,10 +136,10 @@ export function DiscoveryScreen() {
           paddingHorizontal: 20,
           paddingBottom: 20,
           zIndex: 10,
-          ...(view === 'map' ? { position: 'absolute', left: 0, right: 0, top: Math.max(24, insets.top) } as const : {}),
+          ...(overlayToolbar ? { position: 'absolute', left: 0, right: 0, top: Math.max(24, insets.top) } as const : {}),
         }}
       >
-        <DiscoveryToolbar filters={filters} onChange={setFilters} view={view} onViewChange={setView} onFilters={()=>openPanel(wide?'more':'all')} onCalendar={()=>openPanel('date')} onCity={()=>openPanel('city')} onHeight={setToolbarHeight} onSearchActivityChange={setSearchActive}/>
+        <DiscoveryToolbar filters={filters} onChange={setFilters} view={view} onViewChange={setView} onFilters={()=>openPanel(wide?'more':'all')} onCalendar={()=>openPanel('date')} onCity={()=>openPanel('city')} onHeight={setToolbarHeight} onSearchActivityChange={setSearchActive} keyboardGestureEndRef={keyboardGestureEndRef}/>
       </View>
       {view === 'map' ? <EventsMapPanel events={mapEvents} toolbarHeight={toolbarHeight} onLocationChange={setUserLocation} distance={filters.distance} cityCenter={cityCenters[filters.city] ? { latitude: cityCenters[filters.city]![0], longitude: cityCenters[filters.city]![1] } : null} onOpen={event => { seedEvent(event); navigation.navigate('Event', { id: event.id }); }} loading={events.isFetching} error={events.isError} retry={() => void (events.isFetchNextPageError ? events.fetchNextPage() : events.refetch())} /> : <FlatList
         ref={list}
@@ -145,13 +149,15 @@ export function DiscoveryScreen() {
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         keyboardShouldPersistTaps="never"
         alwaysBounceVertical
-        scrollEnabled={Platform.OS === 'web' || !searchActive}
         data={displayed}
         numColumns={2}
         columnWrapperStyle={{ gap: 12 }}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
+          // The list scrolls beneath the glass. Only its initial content is
+          // inset; a padded parent would clip every card below an opaque strip.
+          paddingTop: Platform.OS === 'ios' ? Math.max(24, insets.top) + toolbarHeight + 20 : 0,
           paddingHorizontal: 20,
           paddingBottom: 110,
           gap: 20,
@@ -221,17 +227,8 @@ export function DiscoveryScreen() {
           ) : undefined
         }
       />}
-      {searchActive && Platform.OS !== 'web' && <ScrollView
-        testID="discovery-keyboard-gesture" style={[StyleSheet.absoluteFill, { zIndex: 5 }]}
-        contentContainerStyle={{ flexGrow: 1 }} alwaysBounceVertical
-        keyboardDismissMode="interactive" keyboardShouldPersistTaps="never"
-        showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="never"
-        scrollsToTop={false}
-        accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        {/* Only this empty native scroll view moves during keyboard dismissal.
-            Results and the map stay mounted at their existing scroll/camera position. */}
-        <View style={{ flex: 1 }} />
-      </ScrollView>}
+      {Platform.OS !== 'web' && <DiscoverySearchInteraction activityRef={searchActivityRef}
+        gestureEndRef={keyboardGestureEndRef} listRef={list} />}
       <Modal
         transparent
         visible={open}

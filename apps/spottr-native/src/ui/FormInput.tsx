@@ -18,6 +18,7 @@ export const formStyles = StyleSheet.create({
 type Props = TextInputProps & { variant?: 'event' | 'profile' | 'billing' | 'bare'; invalid?: boolean; inSheet?: boolean; 'aria-invalid'?: boolean; focusOwner?: 'self' | 'container' };
 export const FormInput = forwardRef<TextInputInstance, Props>(function FormInput({ variant = 'event', invalid, inSheet, style, onFocus, onBlur, editable = true, focusOwner = 'self', ...props }, ref) {
   const [focused, setFocused] = useState(false);
+  const ownsFocusStyle = variant !== 'bare' || (Platform.OS === 'web' && focusOwner === 'self');
   const Input = inSheet ? AppSheetTextInput : TextInput;
   const bad = invalid ?? props['aria-invalid'];
   const shape = StyleSheet.flatten(style);
@@ -25,7 +26,7 @@ export const FormInput = forwardRef<TextInputInstance, Props>(function FormInput
   const fontFamily = shape?.fontFamily ?? (variant === 'bare' ? undefined : formStyles[variant].fontFamily);
   return <Input {...props} ref={ref as never} editable={editable} aria-invalid={!!bad} selectionColor="#ff0044" cursorColor="#ff0044"
     underlineColorAndroid="transparent" placeholderTextColor={colors.muted}
-    onFocus={event => { setFocused(true); onFocus?.(event); }} onBlur={event => { setFocused(false); onBlur?.(event); }}
+    onFocus={event => { if (ownsFocusStyle) setFocused(true); onFocus?.(event); }} onBlur={event => { if (ownsFocusStyle) setFocused(false); onBlur?.(event); }}
     style={[
       variant !== 'bare' && formStyles[variant],
 
@@ -35,7 +36,7 @@ export const FormInput = forwardRef<TextInputInstance, Props>(function FormInput
       variant!=='bare'&&{height:undefined,minHeight:Math.max(props.multiline?104:tokens.control.regular,typeof shape?.minHeight==='number'?shape.minHeight:0,typeof shape?.height==='number'?shape.height:0),paddingHorizontal:tokens.control.fieldPaddingInline,paddingVertical:props.multiline?14:tokens.control.fieldPaddingBlock,lineHeight:tokens.type.body.size*tokens.type.body.lineHeight,borderRadius:tokens.radius.field,borderWidth:1,borderColor:colors.inputBorder,backgroundColor:colors.surface},
       !fontsReady && fontFamily?.startsWith('Inter_') && { fontFamily: undefined },
       variant==='bare'&&typeof shape?.height === 'number' && shape.minHeight === undefined && { minHeight: shape.height },
-      Platform.OS === 'web' && ({outlineStyle:'solid',outlineWidth:focused&&focusOwner==='self'?2:0,outlineColor:colors.focus,outlineOffset:3} as never),
+      Platform.OS === 'web' && ({outlineStyle:'solid',outlineWidth:focused&&focusOwner==='self'?2:0,outlineColor:bad?colors.danger:colors.focus,outlineOffset:-2} as never),
       focused&&variant!=='bare'&&{borderColor:colors.focus},
       bad&&{borderColor:colors.danger},
       !editable && variant !== 'bare' && { opacity: 0.5 },

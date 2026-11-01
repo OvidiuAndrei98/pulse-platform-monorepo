@@ -166,7 +166,7 @@ export function DashboardDropdown({
             opacity: disabled ? 0.5 : 1,
           },
           triggerStyle,
-          Platform.OS === 'web' && {outlineStyle:'solid',outlineWidth:focusVisible?2:0,outlineColor:colors.focus,outlineOffset:2},
+          Platform.OS === 'web' && {outlineStyle:'solid',outlineWidth:focusVisible?2:0,outlineColor:colors.focus,outlineOffset:-2},
           !!anchor && { borderColor: '#ff004499' },
           !!error && { borderColor: '#f87171b3' },
         ]}

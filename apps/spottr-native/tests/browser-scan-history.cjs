@@ -38,6 +38,8 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await input('auth-email','qa@example.test'); await input('auth-password','qa-password'); await click('auth-submit');
   await until(`document.body.innerText.includes('Franco')`);
   await call('Page.navigate',{url:base+'/ticket-validation?resume=1'});
+  await until(`document.querySelector('[data-testid^="validation-event-"]')`);
+  await click(await evaluate(`document.querySelector('[data-testid^="validation-event-"]').getAttribute('data-testid')`));
   await until(`document.querySelector('[data-testid="scanner-open-history"]')`);
   await click('scanner-open-history');
   await until(`document.querySelector('[data-testid="scanner-history-total"]')?.textContent==='35'`);
@@ -63,7 +65,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await until(`document.querySelector('[data-testid="scanner-history-offline"]')?.textContent.includes('last loaded scans')`);
   assert.equal(await evaluate(`document.querySelector('[data-testid="scanner-history-total"]').textContent`),'35');
   await click('scanner-history-back');
-  await until(`document.querySelector('[data-testid="scanner-event-selector"]')?.textContent.includes('Lost Night')`);
+  await until(`document.querySelector('[id="scanner-panel"]') && document.body.innerText.includes('Lost Night')`);
   await until(`!location.pathname.endsWith('/history')`);
   console.log('PASS all/personal scans, names, delayed tab response, infinite loading, cached offline state, back to the selected event');
   await evaluate(`window.__qa.offline=false;window.dispatchEvent(new Event('online'))`);
@@ -76,7 +78,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await click('scanner-open-history'); await until(`document.querySelector('[data-testid="scanner-history-total"]')?.textContent==='35'`);
   // Browser Back must pop the same route, not take the user out of the scanner.
   await evaluate('window.history.back()'); await until(`!location.pathname.endsWith('/history')`);
-  await until(`document.querySelector('[data-testid="scanner-event-selector"]')?.textContent.includes('Lost Night')`);
+  await until(`document.querySelector('[id="scanner-panel"]') && document.body.innerText.includes('Lost Night')`);
   assert.deepEqual(await evaluate('window.__qa.unexpected'),[]);
   assert.deepEqual(errors,[]);
   console.log('PASS revoked access hides cached scans and browser Back returns to Scanner');

@@ -1,8 +1,8 @@
-import type { FlatListInstance, ScrollViewInstance } from 'react-native';
+import type { FlatListInstance } from 'react-native';
 import { ActionIcon } from '../ui/ActionIcon';
-import { GlassSurface } from '../ui/GlassSurface';
+import { GlassSegmentedControl } from '../ui/GlassSegmentedControl';
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Keyboard, Pressable as NativePressable, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, Keyboard, StyleSheet, View } from "react-native";
 import { FormInput as TextInput } from '../ui/FormInput';
 import { MotionPressable as Pressable } from "../ui/MotionPressable";
 import { ArrowUpRight, BadgeCheck, Clock3, Search, UserRound, X } from "lucide-react-native";
@@ -38,8 +38,6 @@ export function SearchScreen({
   const [value, setValue] = useState(""),
     [query, setQuery] = useState("");
   const results = useRef<FlatListInstance>(null);
-  const scopeScroll = useRef<ScrollViewInstance>(null);
-  const scopeOffsets = useRef<Record<string, number>>({});
   useEffect(() => { results.current?.scrollToOffset({ offset: 0, animated: false }); }, [query, scope]);
   useEffect(() => {
     const timer = setTimeout(() => setQuery(value.trim()), 180);
@@ -118,23 +116,9 @@ export function SearchScreen({
             </Pressable>
           )}
         </View>
-        {!!value.trim() && <GlassSurface testID="search-filter-bar" style={s.filterBar}>
-          <ScrollView ref={scopeScroll} horizontal showsHorizontalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled" contentContainerStyle={s.filterTrack}
-            onContentSizeChange={() => scopeScroll.current?.scrollTo({ x: scopeOffsets.current[scope] ?? 0, animated: false })}>
-            {(['all', 'events', 'people', 'organizers'] as const).map(kind => <NativePressable
-              key={kind} testID={'search-filter-' + kind} accessibilityRole="tab"
-              accessibilityLabel={copy('search.' + kind)} accessibilityState={{ selected: scope === kind }}
-              aria-selected={scope === kind}
-              onLayout={({ nativeEvent: { layout } }) => { scopeOffsets.current[kind] = Math.max(0, layout.x - 4); }}
-              onPress={() => {
-                setScope(kind);
-                scopeScroll.current?.scrollTo({ x: scopeOffsets.current[kind] ?? 0, animated: false });
-              }} style={[s.filter, scope === kind && s.filterActive]}>
-              <Text style={[s.filterLabel, scope === kind && s.filterLabelActive]}>{copy('search.' + kind)}</Text>
-            </NativePressable>)}
-          </ScrollView>
-        </GlassSurface>}
+        {!!value.trim() && <GlassSegmentedControl testID="search-filter-bar" role="tab" value={scope} onChange={setScope}
+          options={(['all', 'events', 'people', 'organizers'] as const).map(kind => ({ value: kind, testID: 'search-filter-' + kind, label: copy('search.' + kind) }))}/>}
+
       </View>
       <FlatList
         ref={results}
@@ -237,12 +221,6 @@ export function SearchScreen({
   );
 }
 const s = StyleSheet.create({
-  filterBar: { height: 54, borderRadius: 27, borderWidth: 1, borderColor: '#ffffff1a', backgroundColor: '#121418d9' },
-  filterTrack: { minWidth: '100%', flexDirection: 'row', alignItems: 'center', padding: 4, gap: 2 },
-  filter: { minHeight: 44, flexGrow: 1, flexShrink: 0, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
-  filterActive: { backgroundColor: colors.accent },
-  filterLabel: { color: '#ffffffb3', fontSize: 13, fontWeight: '600' },
-  filterLabelActive: { color: '#080808' },
   field: {
     height: 64,
     flexDirection: "row",

@@ -16,8 +16,7 @@ import { Text } from "../ui/Text";
 import { Wordmark } from "../ui/Logo";
 import { Button } from "../ui/common";
 import { colors } from "../ui/theme";
-import { CapsuleSwitchTrack } from '../ui/CapsuleSwitchTrack';
-import { GlassSurface } from '../ui/GlassSurface';
+import { GlassSegmentedControl } from '../ui/GlassSegmentedControl';
 import { QuickConnectCamera } from './QuickConnectCamera';
 
 export function connectionId(value: string, own: string) {
@@ -137,13 +136,11 @@ export function QuickConnectSheet({ onClose }: { onClose: () => void }) {
             {copy("qr.showOrScanOther")}
           </Text>
         </View>
-        <GlassSurface testID="quick-connect-switch" style={{ height: 48, padding: 4, borderRadius: 24, backgroundColor: '#171717' }}>
-          <CapsuleSwitchTrack value={mode} onChange={change} height={40} role="tab" indicatorTestID="quick-connect-indicator"
+          <GlassSegmentedControl testID="quick-connect-switch" value={mode} onChange={change} role="tab" indicatorTestID="quick-connect-indicator"
             options={[
               { value: 'code', label: copy('qr.myCode'), testID: 'quick-connect-code', content: <><QrCode color="white" size={16}/><Text style={{ color: 'white', fontSize: 12, fontWeight: '600' }}>{copy('qr.myCode')}</Text></> },
               { value: 'scan', label: copy('qr.scanQr'), testID: 'quick-connect-scan', content: <><ScanLine color="white" size={16}/><Text style={{ color: 'white', fontSize: 12, fontWeight: '600' }}>{copy('qr.scanQr')}</Text></> },
             ]}/>
-        </GlassSurface>
         {mode === "code" ? (
           <View testID="quick-connect-code-panel"
             style={{

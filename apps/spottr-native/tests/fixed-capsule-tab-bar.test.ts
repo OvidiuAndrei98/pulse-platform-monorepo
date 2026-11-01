@@ -6,10 +6,10 @@ import test from 'node:test';
 import React from 'react';
 import ts from 'typescript';
 
-const elements = (node: any): any[] => Array.isArray(node) ? node.flatMap(elements) : React.isValidElement(node) ? [node, ...elements((node.props as any).children)] : [];
-type Motion = { position: { value: number }; interaction: { value: number }; edgeResponse?: { value: number }; edgeDirection?: { value: number }; itemWidth: number; measure: (value: number) => void; timeline: { current: null } };
+const elements = (node: any): any[] => Array.isArray(node) ? node.flatMap(elements) : React.isValidElement(node) ? [node, ...elements((node.type as any)?.type?.name === 'FixedTabIndicator' ? (node.type as any).type(node.props) : (node.props as any).children)] : [];
+type Motion = { position: { value: number }; interaction: { value: number }; edgeResponse?: { value: number }; edgeDirection?: { value: number }; gestureCommand?: { value: { id: number; index: number; pending: boolean; acknowledgedId: number } }; itemWidth: number; measure: (value: number) => void; timeline: { current: null } };
 
-function mount({ prevented = false, roleRouting = false, activeIndex = 0, indicatorMotion, deferPickup = false, deferSelection = false, scrollCompact = 0 }: { prevented?: boolean; roleRouting?: boolean; activeIndex?: number; indicatorMotion?: Motion; deferPickup?: boolean; deferSelection?: boolean; scrollCompact?: number } = {}) {
+function mount({ prevented = false, roleRouting = false, activeIndex = 0, indicatorMotion, deferPickup = false, deferFollow = false, deferSelection = false, scrollCompact = 0 }: { prevented?: boolean; roleRouting?: boolean; activeIndex?: number; indicatorMotion?: Motion; deferPickup?: boolean; deferFollow?: boolean; deferSelection?: boolean; scrollCompact?: number } = {}) {
   const slots: any[] = [], effects: (() => void)[] = [], shared: { value: any }[] = [];
   const events: any[] = [], navigations: any[] = [], selections: string[] = [], springs: any[] = [];
   const impacts: number[] = [];
@@ -20,6 +20,7 @@ function mount({ prevented = false, roleRouting = false, activeIndex = 0, indica
   const flushReactions = () => {
     for (const reaction of reactions) {
       const value = reaction.prepare(), previous = reaction.previous;
+      if (Object.is(value, previous)) continue;
       reaction.previous = value; reaction.react(value, previous);
     }
   };
@@ -28,13 +29,13 @@ function mount({ prevented = false, roleRouting = false, activeIndex = 0, indica
     const value = {
       get value() { return current; },
       set value(next: any) {
-        if (next?.deferredPickup) pending.set(value, { from: current, target: next.target });
+        if (next?.deferredSpring) pending.set(value, { from: current, target: next.target });
         else { pending.delete(value); current = next; }
       },
     };
     return value;
   };
-  let cursor = 0, tree: any, pan: any, tap: any;
+  let cursor = 0, tree: any, pan: any;
   const memo = (factory: () => any, deps: unknown[]) => {
     const index = cursor++, previous = slots[index];
     if (!previous || deps.some((value, n) => !Object.is(value, previous.deps[n]))) slots[index] = { deps, value: factory() };
@@ -61,11 +62,11 @@ function mount({ prevented = false, roleRouting = false, activeIndex = 0, indica
   };
   const buildGesture = (type: string) => {
     const handlers: Record<string, any> = {};
-    const builder: any = new Proxy({}, { get: (_, key: string) => (...args: any[]) => {
+    const builder: any = new Proxy({}, { get: (_, key: string) => key === 'testHandlers' ? handlers : (...args: any[]) => {
       handlers[key] = typeof args[0] === 'function' ? (...event: any[]) => { args[0](...event); flushReactions(); } : args[0];
       return builder;
     } });
-    if (type === 'pan') pan = handlers; else tap = handlers;
+    if (type === 'pan') pan = handlers;
     return builder;
   };
   const deps: Record<string, any> = {
@@ -85,17 +86,19 @@ function mount({ prevented = false, roleRouting = false, activeIndex = 0, indica
       useDerivedValue: (derive: () => any) => ({ get value() { return derive(); } }),
       withSpring: (target: number, config: any) => {
         springs.push({ target, config });
-        return (deferPickup && config.kind === 'pickup') || (deferSelection && config.kind === 'selection') ? { deferredPickup: true, target } : target;
+        return (deferPickup && config.kind === 'pickup') || (deferFollow && config.kind === 'follow') || (deferSelection && config.kind === 'selection') ? { deferredSpring: true, target } : target;
       },
-      withTiming: (target: number) => { impacts.push(target); return target; },
+      withTiming: (target: number) => { if (target !== 0) impacts.push(target); return target; },
       // Hold an impact at its peak so its deformation can be inspected.
       withSequence: (...values: any[]) => values[0],
-      cancelAnimation: (value: any) => { pending.delete(value); }, runOnJS: (fn: any) => fn,
+      cancelAnimation: (value: any) => { pending.delete(value); }, runOnJS: (fn: any) => fn, runOnUI: (fn: any) => fn,
     },
     '../usePreferences': { usePreferences: () => ({ copy: (key: string) => key }) },
+    '../ui/theme': { colors: { accent: '#ff0044' } },
     '../ui/ToastHost': { ToastHost: 'ToastHost' }, './TabBarIcon': { TabBarIcon: 'Icon' }, './TabBarSurface': { TabBarSurface: 'Surface' },
+    './TabBarIndicatorSurface': { TabBarIndicatorSurface: 'IndicatorSurface' },
     './useNavbarScroll': { NavbarScrollContext: {}, navbarCompactScale: 0.83 },
-    './tabCapsuleSpring': { tabCapsuleImpactTiming: {}, tabCapsuleSpring: { kind: 'selection' }, tabCapsulePickupSpring: { kind: 'pickup' }, tabCapsulePressSpring: { kind: 'press' }, tabCapsuleReleaseSpring: { kind: 'release' } },
+    './tabCapsuleSpring': { withTabTravel: (target: number) => deps['react-native-reanimated'].withSpring(target, { kind: 'selection' }), tabCapsuleFollowSpring: { kind: 'follow' }, tabCapsuleImpactTiming: {}, tabCapsulePickupSpring: { kind: 'pickup' }, tabCapsulePressSpring: { kind: 'press' }, tabCapsuleReleaseSpring: { kind: 'release' } },
   };
   const exports: any = {};
   const js = ts.transpileModule(readFileSync(resolve(__dirname, '../src/navigation/FixedCapsuleTabBar.tsx'), 'utf8'), {
@@ -107,26 +110,70 @@ function mount({ prevented = false, roleRouting = false, activeIndex = 0, indica
   render();
   elements(tree).find(element => element.props.onLayout)?.props.onLayout({ nativeEvent: { layout: { width: 360 } } });
   render();
+  const advanceSprings = (progress: number) => {
+    for (const [value, animation] of [...pending]) {
+      value.value = animation.from + (animation.target - animation.from) * progress;
+      if (progress < 1) pending.set(value, animation);
+    }
+    flushReactions();
+  };
   return { render, find, events, navigations, selections, springs, impacts, scrollController,
     position: indicatorMotion?.position ?? shared[0]!, interaction: indicatorMotion?.interaction ?? shared[1]!,
     edgeResponse: indicatorMotion?.edgeResponse ?? shared[2]!,
-    advancePickup: (progress: number) => {
-      for (const [value, animation] of [...pending]) {
-        value.value = animation.from + (animation.target - animation.from) * progress;
-        if (progress < 1) pending.set(value, animation);
-      }
-      flushReactions();
-    },
-    pan: () => pan, tap: () => tap, elements: () => elements(tree),
+    advancePickup: advanceSprings, advanceSprings,
+    pan: () => pan, tap: (index = 0) => elements(tree).find(element => element.type === 'GestureDetector' && element.props.children.props.testID === `tab-${props.state.routes[index].name}`).props.gesture.testHandlers, elements: () => elements(tree),
     transform: () => find('tab-indicator').props.style[2].transform,
     barTransform: () => find('tab-bar-motion').props.style[1].transform,
-    glassWidth: () => find('tab-bar-motion').props.style[0].width,
+    glassWidth: () => find('tab-bar-motion').props.style[0].width * find('tab-bar-motion').props.style[1].transform[1].scaleX,
     trackWidth: () => find('tab-track').props.style[1].width,
     trackTransform: () => find('tab-track').props.style[2].transform,
     compactTransform: () => find('tab-compact-motion').props.style.transform,
     x: () => find('tab-indicator').props.style[2].transform[0].translateX,
   };
 }
+
+test('hidden native navbar disables gestures and rejects a callback queued before hiding', () => {
+  const ui = mount({ roleRouting: true });
+  const queuedTap = ui.tap(3);
+  assert.equal(queuedTap.enabled, true);
+  ui.render({ interactionEnabled: false });
+  assert.equal(ui.pan().enabled, false);
+  assert.equal(ui.tap().enabled, false);
+  queuedTap.onEnd({ x: 314 }, true);
+  ui.find('tab-Profile').props.onAccessibilityTap();
+  assert.deepEqual(ui.selections, []);
+  assert.deepEqual(ui.events, []);
+  ui.render({ interactionEnabled: true });
+  assert.equal(ui.pan().enabled, true);
+  assert.equal(ui.tap().enabled, true);
+  ui.tap(1).onEnd({ x: 132 }, true);
+  assert.deepEqual(ui.selections, ['Explore']);
+});
+
+test('a background navbar follows the shared blob without restarting the foreground edge spring', () => {
+  const shared: Motion = { position: { value: 88 }, interaction: { value: 0 }, edgeResponse: { value: 0 }, edgeDirection: { value: 1 }, itemWidth: 88, measure() {}, timeline: { current: null } };
+  const ui = mount({ indicatorMotion: shared, activeIndex: 1 });
+  ui.render({ interactionEnabled: false });
+  shared.position.value = 264;
+  ui.render({ interactionEnabled: false, activeIndex: 3 });
+  assert.equal(ui.x(), 264, 'The returning scene already displays the shared position');
+  assert.equal(ui.impacts.length, 0, 'An offscreen copy must not write a competing shared animation');
+  assert.equal(shared.edgeResponse!.value, 0);
+  ui.render({ interactionEnabled: true });
+  assert.equal(ui.x(), 264, 'Focus handoff does not snap or replay the movement');
+  assert.equal(ui.impacts.length, 0);
+});
+
+test('an already accepted UI tap survives a rapid scene handoff before its JS callback runs', () => {
+  const motion: Motion = { position: { value: 0 }, interaction: { value: 0 }, gestureCommand: { value: { id: 0, index: 0, pending: false, acknowledgedId: 0 } }, itemWidth: 88, measure() {}, timeline: { current: null } };
+  const ui = mount({ roleRouting: true, indicatorMotion: motion });
+  const acceptedTap = ui.tap(1);
+  ui.render({ interactionEnabled: false });
+  acceptedTap.onEnd({ x: 132 }, true);
+  assert.deepEqual(ui.selections, ['Explore'], 'Route eligibility is checked by the current provider, not the old scene');
+  ui.find('tab-Profile').props.onAccessibilityTap();
+  assert.deepEqual(ui.selections, ['Explore'], 'New touches on a hidden bar remain blocked');
+});
 
 test('a drag selects once, and a failed tap cannot navigate back to its starting tab', () => {
   const ui = mount();
@@ -140,12 +187,12 @@ test('a drag selects once, and a failed tap cannot navigate back to its starting
   assert.equal(ui.navigations[0][1].retained, true);
   assert.equal(ui.find('tab-Explore').props.onPress, undefined, 'No competing child touch handler');
   const detector = ui.elements().find(element => element.type === 'GestureDetector');
-  assert.equal(detector.props.gesture.exclusive.length, 2);
+  for (const index of [0, 1, 2, 3]) assert.equal(ui.tap(index).requireExternalGestureToFail, detector.props.gesture);
 });
 
 test('an accepted tap stays at its target while navigation publishes the new route later', () => {
   const ui = mount({ roleRouting: true });
-  ui.pan().onBegin(); ui.pan().onFinalize(); ui.tap().onEnd({ x: 220 }, true);
+  ui.pan().onBegin(); ui.pan().onFinalize(); ui.tap(2).onEnd({ x: 220 }, true);
   assert.equal(ui.x(), 176); assert.deepEqual(ui.selections, ['Feed']);
   ui.render(); assert.equal(ui.x(), 176, 'No acknowledgement springs back to the old route');
   ui.render({ activeIndex: 2 }); assert.equal(ui.x(), 176);
@@ -153,12 +200,50 @@ test('an accepted tap stays at its target while navigation publishes the new rou
 
 test('a page selection is published while the capsule is still travelling', () => {
   const ui = mount({ roleRouting: true, deferSelection: true });
-  ui.pan().onBegin(); ui.pan().onFinalize(); ui.tap().onEnd({ x: 314 }, true);
+  ui.pan().onBegin(); ui.pan().onFinalize(); ui.tap(3).onEnd({ x: 314 }, true);
   assert.equal(ui.position.value, 0, 'The spring has not reached its destination');
   assert.deepEqual(ui.selections, ['Profile'], 'The page does not wait for arrival');
   ui.advancePickup(0.5);
   assert.equal(ui.position.value, 132);
   assert.equal(ui.selections.length, 1);
+});
+
+test('a tap starts one trip on release without previewing another tab on touch down', () => {
+  const ui = mount({ roleRouting: true, deferSelection: true });
+  const trips = () => ui.springs.filter(spring => spring.config.kind === 'selection').length;
+  const before = trips();
+  ui.pan().onBegin({ x: 314 });
+  assert.equal(trips(), before);
+  assert.equal(ui.position.value, 0);
+  assert.deepEqual(ui.selections, []);
+  ui.pan().onFinalize(); ui.tap(3).onEnd({ x: 314 }, true);
+  assert.deepEqual(ui.selections, ['Profile']);
+  assert.equal(trips(), before + 1);
+  ui.advanceSprings(0.4);
+  assert.ok(Math.abs(ui.position.value - 105.6) < 0.001);
+});
+
+test('a cancelled touch leaves the current tab and capsule position unchanged', () => {
+  const ui = mount({ roleRouting: true });
+  ui.pan().onBegin({ x: 314 });
+  assert.equal(ui.position.value, 0);
+  ui.pan().onFinalize(); ui.tap().onEnd({ x: 314 }, false);
+  assert.equal(ui.position.value, 0);
+  assert.deepEqual(ui.selections, []);
+});
+
+test('acknowledging a previous tap does not cancel the next finger movement', () => {
+  const motion: Motion = { position: { value: 0 }, interaction: { value: 0 }, gestureCommand: { value: { id: 1, index: 1, pending: false, acknowledgedId: 1 } }, itemWidth: 88, measure() {}, timeline: { current: null } };
+  const ui = mount({ roleRouting: true, indicatorMotion: motion });
+  ui.pan().onBegin();
+  ui.pan().onStart({ x: 220, translationX: 0 });
+  // React publishes the previous Explore tap after the next gesture began.
+  ui.render({ activeIndex: 1 });
+  ui.pan().onUpdate({ translationX: 88 });
+  ui.pan().onEnd({}, true); ui.pan().onFinalize();
+  assert.deepEqual(ui.selections, ['Profile'], 'The latest touch must still select its destination');
+  assert.equal(motion.gestureCommand!.value.id, 2);
+  assert.equal(motion.gestureCommand!.value.index, 3);
 });
 
 test('page acknowledgement keeps the same native gesture recognizers and cancellation reads the current tab', () => {
@@ -171,6 +256,22 @@ test('page acknowledgement keeps the same native gesture recognizers and cancell
   ui.pan().onEnd({}, false); ui.pan().onFinalize();
   ui.edgeResponse.value = 0;
   assert.equal(ui.x(), 264, 'The stable handlers restore the new controlled tab');
+});
+
+test('different tabs own separate native tap targets throughout rapid reversals', () => {
+  const ui = mount({ roleRouting: true });
+  const recognizers = [0, 1, 2, 3].map(index => ui.tap(index));
+  assert.equal(new Set(recognizers).size, 4, 'Two tab contacts must not share one tap recognizer');
+  const requested = Array.from({ length: 100 }, (_, n) => n % 2 ? 3 : 0);
+  for (const index of requested) {
+    // A failed surrounding pan must not block an independently recognized tap.
+    ui.pan().onBegin(); ui.pan().onFinalize();
+    ui.tap(index).onEnd({ x: 20 }, true);
+    ui.render({ activeIndex: index });
+    for (let tab = 0; tab < 4; tab++) assert.equal(ui.tap(tab), recognizers[tab]);
+  }
+  assert.deepEqual(ui.selections, requested.map(index => index === 0 ? 'Home' : 'Profile'));
+  assert.equal(ui.position.value, 264);
 });
 
 test('picking up an in-flight capsule centers smoothly and resists travel past both ends', () => {
@@ -205,7 +306,7 @@ test('grabbing either side of the selected capsule brings its center under the f
     ui.advancePickup(1);
     assert.equal(ui.x() + 48, x, 'The original grip offset disappears');
     ui.pan().onUpdate({ translationX });
-    assert.equal(ui.x() + 48, x - initialTranslation + translationX, 'The center follows the moving finger');
+    assert.equal(ui.x() + 48, x - initialTranslation + translationX, 'The settled follow spring centers on the moving finger');
     assert.equal(ui.events.length, 0, 'Centering alone does not change pages');
   }
 });
@@ -219,8 +320,50 @@ test('holding another tab brings the capsule under the finger progressively', ()
   ui.advancePickup(1);
   assert.equal(ui.x(), 182);
   ui.pan().onUpdate({ translationX: 20 });
-  assert.equal(ui.x(), 192, 'After pickup the capsule follows the finger directly');
+  assert.equal(ui.x(), 192, 'After pickup the settled follow spring reaches the finger target');
   assert.equal(ui.events.length, 0, 'Dragging does not select before release');
+});
+
+test('held movement follows through the spring and reverses from its displayed position', () => {
+  const ui = mount({ activeIndex: 1, deferFollow: true });
+  ui.pan().onStart({ x: 136, translationX: 0 });
+  ui.pan().onUpdate({ translationX: 70 });
+  assert.equal(ui.position.value, 88, 'Moving the finger does not teleport the capsule');
+  assert.equal(ui.springs.at(-1).target, 158);
+  assert.equal(ui.springs.at(-1).config.kind, 'follow');
+  ui.advanceSprings(0.5);
+  assert.equal(ui.position.value, 123, 'The capsule has a visible intermediate position');
+  ui.pan().onUpdate({ translationX: -30 });
+  assert.equal(ui.position.value, 123, 'Reversal starts from the displayed position');
+  assert.equal(ui.springs.at(-1).target, 58);
+  ui.advanceSprings(0.5);
+  assert.ok(ui.position.value < 123 && ui.position.value > 58);
+  assert.equal(ui.events.length, 0, 'Following alone does not change pages');
+});
+
+test('a quick release selects the finger target even while the follow spring lags behind', () => {
+  const ui = mount({ deferFollow: true });
+  ui.pan().onStart({ x: 48, translationX: 0 });
+  ui.pan().onUpdate({ translationX: 260 });
+  assert.equal(ui.position.value, 0);
+  ui.pan().onEnd({}, true); ui.pan().onFinalize();
+  assert.equal(ui.navigations[0][0], 'Profile');
+  ui.advanceSprings(1);
+  assert.equal(ui.position.value, 264, 'Old following cannot replace the selected tab');
+  assert.equal(ui.events.length, 1);
+});
+
+test('external navigation cancels a lagging follow without a late drag selection', () => {
+  const ui = mount({ deferFollow: true });
+  ui.pan().onStart({ x: 48, translationX: 0 });
+  ui.pan().onUpdate({ translationX: 200 });
+  ui.advanceSprings(0.3);
+  const running = ui.pan();
+  ui.render({ activeIndex: 1 });
+  ui.advanceSprings(1);
+  running.onUpdate({ translationX: 264 }); running.onEnd({}, true);
+  assert.equal(ui.position.value, 88);
+  assert.equal(ui.events.length, 0);
 });
 
 test('releasing during pickup selects the finger target rather than the lagging capsule', () => {
@@ -264,14 +407,14 @@ test('a held pickup reaches the end without an impact and pressure stays continu
   ui.advancePickup(1);
   assert.equal(ui.impacts.length, 0, 'A held pickup is not a free-flight collision');
   assert.ok(ui.glassWidth() > 360 && ui.glassWidth() <= 363);
-  assert.equal(ui.barTransform()[1].scaleY, 1);
+  assert.equal(ui.barTransform()[2].scaleY, 1);
   ui.pan().onUpdate({ translationX: 30 }); ui.pan().onUpdate({ translationX: 40 });
   assert.equal(ui.impacts.length, 0, 'Holding against the end never launches a bounce');
   ui.pan().onEnd({}, true); ui.pan().onFinalize();
   assert.equal(ui.impacts.length, 0, 'Releasing at the contacted end does not add a delayed impact');
   ui.edgeResponse.value = 0;
   assert.equal(ui.glassWidth(), 360);
-  assert.equal(ui.barTransform()[1].scaleY, 1);
+  assert.equal(ui.barTransform()[2].scaleY, 1);
 });
 
 test('a distant tap has more impact than a nearby tap at the same edge', () => {
@@ -287,14 +430,17 @@ test('impact stretches toward the contacted end while the opposite edge and icon
   for (const direction of [-1, 1]) {
     const ui = mount({ activeIndex: 1 });
     ui.pan().onBegin(); ui.pan().onFinalize();
-    ui.tap().onEnd({ x: direction < 0 ? 44 : 314 }, true);
+    ui.tap(direction < 0 ? 0 : 3).onEnd({ x: direction < 0 ? 44 : 314 }, true);
     const outer = ui.barTransform(), inner = ui.trackTransform();
     const shift = outer[0].translateX;
     const width = 360;
-    const fixedEdgeMovement = direction < 0 ? shift + ui.glassWidth() - width : shift;
+    const extension = ui.glassWidth() - width;
+    const fixedEdgeMovement = direction < 0 ? shift + extension / 2 : shift - extension / 2;
     assert.ok(Math.abs(fixedEdgeMovement) < 1e-9, 'The far end stays anchored');
     assert.equal(ui.trackWidth(), 352, 'The controls retain their measured width');
-    assert.ok(Math.abs(shift + inner[0].translateX) < 1e-9, 'Controls retain their position');
+    assert.ok(Math.abs(shift + outer[1].scaleX * inner[0].translateX) < 1e-9, 'Controls retain their position');
+    assert.ok(Math.abs(outer[1].scaleX * inner[1].scaleX - 1) < 1e-9, 'Controls retain their scale');
+    assert.equal(ui.find('tab-bar-motion').props.style[0].width, width, 'No per-frame layout width update');
     assert.ok(direction < 0 ? shift < 0 : ui.glassWidth() > width);
   }
 });
@@ -307,8 +453,8 @@ test('holding and reversing between both edges never launches a collision', () =
     assert.equal(ui.impacts.length, 0);
     assert.equal(ui.edgeResponse.value, 0);
     assert.ok(ui.glassWidth() >= 360 && ui.glassWidth() <= 363);
-    const left = ui.barTransform()[0].translateX;
-    assert.ok(translationX < 0 ? left < 0 : left === 0, 'Held pressure follows the contacted side');
+    const left = ui.barTransform()[0].translateX - (ui.glassWidth() - 360) / 2;
+    assert.ok(translationX < 0 ? left < 0 : Math.abs(left) < 1e-9, 'Held pressure follows the contacted side');
     assert.equal(ui.events.length, 0, 'Holding does not navigate');
   }
   ui.pan().onEnd({}, true); ui.pan().onFinalize();
@@ -343,10 +489,10 @@ test('releasing before an edge preserves the free arrival impact in both directi
 });
 
 test('a tap that reaches an end without overshooting still pushes the glass on both sides', () => {
-  for (const [start, x, target, direction] of [[3, 44, 0, -1], [0, 314, 264, 1]]) {
+  for (const [start, x, target, direction] of [[3, 44, 0, -1], [0, 314, 264, 1]] as const) {
     const ui = mount({ activeIndex: start! });
     assert.equal(ui.impacts.length, 0, 'Initial layout is not an impact');
-    ui.pan().onBegin(); ui.pan().onFinalize(); ui.tap().onEnd({ x }, true);
+    ui.pan().onBegin(); ui.pan().onFinalize(); ui.tap(target / 88).onEnd({ x }, true);
     assert.equal(ui.position.value, target, 'The mocked spring arrives exactly at the slot');
     assert.equal(ui.impacts.length, 1);
     assert.ok(ui.glassWidth() >= 367.5, 'A full-width approach visibly extends the material');
@@ -389,7 +535,7 @@ test('cancelled and prevented drags restore the controlled route', () => {
   prevented.edgeResponse.value = 0;
   assert.equal(prevented.x(), 0); assert.equal(prevented.navigations.length, 0);
   const rolePrevented = mount({ roleRouting: true, prevented: true });
-  rolePrevented.tap().onEnd({ x: 220 }, true);
+  rolePrevented.tap(2).onEnd({ x: 220 }, true);
   assert.equal(rolePrevented.x(), 0); assert.deepEqual(rolePrevented.selections, ['Feed']);
 });
 
@@ -430,7 +576,8 @@ test('press briefly expands the capsule and releases through the bounce spring',
   assert.equal(ui.transform()[1].scaleX, 1.08); assert.equal(ui.transform()[2].scaleY, 1.04);
   assert.ok(ui.springs.some(spring => spring.target === 1 && spring.config.kind === 'press'));
   ui.pan().onFinalize();
-  assert.equal(ui.transform()[1].scaleX, 1); assert.equal(ui.springs.at(-1).config.kind, 'release');
+  assert.equal(ui.transform()[1].scaleX, 1); assert.equal(ui.interaction.value, 0);
+  assert.ok(ui.springs.some(spring => spring.target === 0 && spring.config.kind === 'release'));
   assert.equal(ui.events.length, 0);
 });
 

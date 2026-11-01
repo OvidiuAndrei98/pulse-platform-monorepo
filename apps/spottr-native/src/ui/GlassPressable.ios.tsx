@@ -12,15 +12,15 @@ const NativeGlassView = glass?.isLiquidGlassAvailable() && glass.isGlassEffectAP
   ? glass.GlassView : null;
 
 export const GlassPressable = forwardRef<ViewInstance, GlassPressableProps>(function GlassPressable(
-  { style, glassStyle, disabled, accessibilityState, fallback, ...props }, ref,
+  { style, glassStyle, nativePressEffect = true, disabled, accessibilityState, fallback, ...props }, ref,
 ) {
   if (!NativeGlassView) return <GlassPressableFallback {...props} ref={ref} style={style} fallback={fallback}
     disabled={disabled} accessibilityState={accessibilityState} />;
   const styles = glassButtonStyles(StyleSheet.flatten([style, glassStyle]) ?? {}, Boolean(disabled));
   return <NativeGlassView style={styles.surface} {...liquidGlassAppearance}
-    isInteractive pointerEvents={disabled ? 'none' : 'auto'}>
-    {/* UIKit owns the press effect. A second animated scale would fight it.
-        Keep the material opaque; only dim its content for disabled controls. */}
+    isInteractive={nativePressEffect} pointerEvents={disabled ? 'none' : 'auto'}>
+    {/* UIKit normally owns pressing; a shared morph may own the deformation
+        instead. Keep the material opaque in both cases. */}
     <Pressable {...props} ref={ref} disabled={disabled}
       accessibilityRole={props.accessibilityRole ?? 'button'}
       accessibilityState={{ ...accessibilityState, disabled: Boolean(disabled) }}

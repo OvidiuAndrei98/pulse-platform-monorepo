@@ -6,7 +6,7 @@ import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import { GlassSegmentedControl } from '../ui/GlassSegmentedControl';
 import { Check, History, RefreshCw, UserRound, Users, WifiOff } from 'lucide-react-native';
 import { useAuth } from '../auth/AuthProvider';
 import { usePreferences } from '../usePreferences';
@@ -72,10 +72,6 @@ export function ScannerHistoryScreen({ route, navigation }: NativeStackScreenPro
   const loadMore = () => {
     if (history.hasNextPage && !history.isFetching && !history.isError && !offline && !forbidden) void history.fetchNextPage();
   };
-  const [tabWidth, setTabWidth] = useState(0);
-  const position = useSharedValue(0), reducedMotion = useReducedMotion();
-  useEffect(() => { position.value = withTiming(scope === 'mine' ? 1 : 0, { duration: reducedMotion ? 0 : 220 }); }, [scope, position, reducedMotion]);
-  const highlight = useAnimatedStyle(() => ({ transform: [{ translateX: position.value * tabWidth / 2 }] }));
   const back = () => {
     if (navigation.canGoBack()) navigation.goBack();
     else navigation.replace('Scanner', { eventId });
@@ -94,16 +90,14 @@ export function ScannerHistoryScreen({ route, navigation }: NativeStackScreenPro
           <Text accessibilityRole="header" style={s.heading}>{copy('validation.scanHistory')}</Text>
           <Text style={s.event} numberOfLines={2}>{eventTitle || copy('validation.scansForEvent')}</Text>
         </View>
-        {!!user && <View style={s.tabs} onLayout={event => setTabWidth(Math.max(0, event.nativeEvent.layout.width - 8))}>
-          <Animated.View pointerEvents="none" style={[s.highlight, { width: tabWidth / 2 }, highlight]} />
-          {(['all', 'mine'] as const).map(value => {
+        {!!user && <GlassSegmentedControl testID="scanner-history-switch" role="tab" value={scope} onChange={setScope}
+          options={(['all', 'mine'] as const).map(value => {
             const Icon = value === 'all' ? Users : UserRound;
-            return <Pressable key={value} testID={'scanner-history-tab-' + value} accessibilityRole="tab" accessibilityState={{ selected: scope === value }} onPress={() => setScope(value)} style={s.tab}>
-              <Icon size={15} color={scope === value ? colors.text : colors.muted} />
-              <Text style={[s.tabLabel, scope === value && { color: colors.text }]}>{copy(value === 'all' ? 'validation.historyAll' : 'validation.historyMine')}</Text>
-            </Pressable>;
-          })}
-        </View>}
+            const label = copy(value === 'all' ? 'validation.historyAll' : 'validation.historyMine');
+            return { value, label, testID: 'scanner-history-tab-' + value,
+              content: <><Icon size={15} color={scope === value ? colors.text : colors.muted}/><Text style={[s.tabLabel, scope === value && { color: colors.text }]}>{label}</Text></> };
+          })}/>}
+
       </View>
       {!user ? <Feedback title={copy('scanner.sessionUnavailable')} /> : !uuid.test(eventId) ? <Feedback title={copy('feedback.loadFailed')} /> : <>
         <View style={s.summary}>
@@ -147,9 +141,6 @@ const s = StyleSheet.create({
   back: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.raised, alignItems: 'center', justifyContent: 'center' },
   heading: { fontSize: 28, fontWeight: '800', letterSpacing: -0.8, color: colors.text },
   event: { fontSize: 14, lineHeight: 20, color: colors.muted },
-  tabs: { flexDirection: 'row', padding: 4, borderRadius: 99, backgroundColor: '#101012', borderWidth: 1, borderColor: '#ffffff12' },
-  highlight: { position: 'absolute', left: 3, top: 3, bottom: 3, backgroundColor: colors.accent, borderRadius: 99 },
-  tab: { flex: 1, minHeight: 40, paddingHorizontal: 6, flexDirection: 'row', gap: 7, justifyContent: 'center', alignItems: 'center' },
   tabLabel: { fontSize: 13, fontWeight: '600', color: colors.muted },
   summary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 22, paddingBottom: 14 },
   summaryLabel: { color: colors.muted, fontSize: 12, fontWeight: '500' },

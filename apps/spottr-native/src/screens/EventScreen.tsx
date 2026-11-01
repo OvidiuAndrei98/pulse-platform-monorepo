@@ -1,3 +1,4 @@
+import { openAccountPage } from '../navigation/accountNavigation';
 import { AccentPressable } from '../ui/AccentPressable';
 import { GlassPressable } from '../ui/GlassPressable';
 import { GlassButtonGroup } from '../ui/GlassButtonGroup';
@@ -107,7 +108,7 @@ export function EventScreen({
       parseBooking(await accountApi('/events/' + event.id + '/tickets/book', { token, method: 'POST', body: { items: [{ ticketTypeId: ticket.id, quantity: 1 }] } }));
       if (version !== revision.current || controller.getToken() !== token) return;
       for (const key of ['tickets', 'orders', 'event', 'event-social', 'event-friends', 'social-feed']) void queryClient.invalidateQueries({ queryKey: [key] });
-      navigation.popTo('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } });
+      openAccountPage(navigation, 'Tickets', true);
     } catch (cause) {
       if (version !== revision.current || controller.getToken() !== token) return;
       setPurchaseError(cause instanceof ApiError && cause.status === 409 ? 'checkout.selectionUnavailable' : verified ? 'eventSheet.purchaseError' : 'checkout.availabilityCheckFailed');

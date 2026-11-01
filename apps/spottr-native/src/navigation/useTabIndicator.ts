@@ -7,10 +7,9 @@ import {
   Easing,
   useSharedValue,
   withTiming,
-  withSpring,
   type SharedValue,
 } from "react-native-reanimated";
-import { tabCapsuleSpring } from './tabCapsuleSpring';
+import { withTabTravel } from './tabCapsuleSpring';
 
 export type TabIndicatorMotion = {
   position: SharedValue<number>;
@@ -74,8 +73,9 @@ export function useTabIndicator(
         if (request.pending && (request.id > acknowledged || request.index !== activeIndex)) return;
         const fromGesture = request.id > request.acknowledgedId;
         if (fromGesture) command.value = { ...request, pending: false, acknowledgedId: request.id };
-        if (snap) position.value = target;
-        else if (!fromGesture || resized) position.value = withSpring(target, tabCapsuleSpring);
+        if (snap) {
+          position.value = target;
+        } else if (!fromGesture || resized) position.value = withTabTravel(target);
       })();
       return;
     }
@@ -86,7 +86,7 @@ export function useTabIndicator(
     // Run each frame on Reanimated's UI runtime (also used by our sheets).
     // Retarget the current shared position, including across stack scenes,
     // without reading it back onto JS or restarting at a tab's old position.
-    position.value = Platform.OS === 'ios' ? withSpring(target, tabCapsuleSpring) : withTiming(target, {
+    position.value = Platform.OS === 'ios' ? withTabTravel(target) : withTiming(target, {
       duration: 320,
       easing: Easing.bezier(0.4, 0, 0.2, 1),
     });

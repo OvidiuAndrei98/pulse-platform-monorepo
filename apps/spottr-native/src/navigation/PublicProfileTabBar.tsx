@@ -1,5 +1,5 @@
 import React from 'react';
-import { StackActions, useNavigation } from '@react-navigation/native';
+import { StackActions, useIsFocused, useNavigation } from '@react-navigation/native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TabBar } from './TabBar';
@@ -16,6 +16,7 @@ const initialTabs: BottomTabBarProps['state'] = {
 /** Reuse the same bar while keeping the actual tab screens mounted underneath. */
 export function PublicProfileTabBar({ activeIndex = 3 }: { activeIndex?: number }) {
   const navigation = useNavigation(), insets = useSafeAreaInsets();
+  const focused = useIsFocused();
   const { user } = useAuth();
   let root = navigation;
   while (root.getParent()) root = root.getParent()!;
@@ -29,5 +30,5 @@ export function PublicProfileTabBar({ activeIndex = 3 }: { activeIndex?: number 
   // onSelectTab handles all presses, including the highlighted Profile tab.
   // The source navbar highlights Profile for every /users/:id route.
   return <TabBar state={tabs?.type === 'tab' ? tabs as BottomTabBarProps['state'] : initialTabs} navigation={navigation as unknown as BottomTabBarProps['navigation']}
-    descriptors={{}} insets={insets} activeIndex={activeIndex} onSelectTab={select} />;
+    descriptors={{}} insets={insets} activeIndex={activeIndex} onSelectTab={select} interactionEnabled={focused} />;
 }

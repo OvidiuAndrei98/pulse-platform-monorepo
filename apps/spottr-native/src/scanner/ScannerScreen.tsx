@@ -55,6 +55,12 @@ export function ScannerScreen({
     ),
     [selected, setSelected] = useState(eventId ?? route?.params?.eventId ?? ""),
     [tab, setTab] = useState<"scan" | "team" | "links">("scan");
+  const rememberEvent = (id?: string) => {
+    const state = navigation.getState();
+    // The standalone Scanner route also renders inside the dashboard shell.
+    // Keep its event in the URL so browser Back restores the scanner selection.
+    if (!embedded || state.routes[state.index]?.name === 'Scanner') navigation.setParams({ eventId: id });
+  };
   const [offlineState, setOfflineState] = useState<OfflineState>(),
     [offlineError, setOfflineError] = useState(""),
     [busy, setBusy] = useState(false),
@@ -504,10 +510,10 @@ export function ScannerScreen({
               />
             ) : null}
             {!event ? <ScannerEventList events={events.data?.events ?? []} loading={events.isPending} failed={events.isError} offline={offline}
-              onRefresh={() => { void events.refetch(); }} onSelect={id => { setTab("scan"); setSelected(id); }} /> : <>
+              onRefresh={() => { void events.refetch(); }} onSelect={id => { setTab("scan"); setSelected(id); rememberEvent(id); }} /> : <>
             <View style={{ gap: 12 }}>
               <Action secondary title={copy("validation.changeEvent")} disabled={busy || work}
-                onPress={() => { setTab("scan"); setSelected(""); }}
+                onPress={() => { setTab("scan"); setSelected(""); rememberEvent(); }}
                 style={{ alignSelf: "flex-start", minHeight: 44, backgroundColor: "transparent", borderWidth: 1, borderColor: colors.line }}
                 textStyle={{ color: colors.text, fontSize: 14 }} />
               <Text accessibilityRole="header" style={[s.heading, { fontSize: 20 }]}>{event.title}</Text>

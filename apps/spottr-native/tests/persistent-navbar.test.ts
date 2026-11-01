@@ -33,8 +33,8 @@ function host(os = 'ios', role = 'user', ready = true) {
     './TabBar': {}, './useTabIndicator': { useTabIndicator: () => ({ value: 0 }) },
     './useNavbarScroll': { NavbarScrollContext: { Provider: 'ScrollContext' } },
     './profileStackRouter': { isProfileWorkspace: (name: string) => ['Dashboard', 'Admin'].includes(name) },
-    './tabCapsuleSpring': { tabCapsuleSpring: {} },
-    './tabSelectionQueue': { createTabSelectionQueue: () => ({ select() {}, clear() {} }) },
+    './tabCapsuleSpring': { withTabTravel: (target: number) => target },
+    './tabSelectionQueue': { createTabCommitScheduler: () => ({ schedule() { return 0; }, cancel() {} }), createTabSelectionQueue: () => ({ select() {}, clear() {} }) },
   };
   const exports: any = {};
   runInNewContext(ts.transpileModule(readFileSync(resolve(__dirname, '../src/navigation/MainTabBar.tsx'), 'utf8'), {
@@ -56,28 +56,48 @@ function host(os = 'ios', role = 'user', ready = true) {
   return { exports, context, render, auth, preloads, preloadedRoutes, resets, setNavigationReady: (value: boolean) => { navigationReady = value; } };
 }
 
-test('iOS uses one persistent navbar host across user, organizer and admin pages', () => {
+test('iOS keeps shared navbar state outside scenes without drawing over the native stack', () => {
   const ui = host();
   for (const name of ['Tabs', 'Dashboard', 'Admin', 'Scanner']) {
-    assert.equal(ui.render(name).bars.length, 1, name + ' uses the same host');
-    assert.equal(ui.render(name).visible, true);
-    assert.equal(ui.exports.SceneMainTabBar(), null, 'A scene never creates a second iOS bar');
+    assert.equal(ui.render(name).bars.length, 0, name + ' has no window-level bar');
+    assert.equal(ui.exports.SceneMainTabBar().type, ui.exports.MainTabBar, 'Each workspace carries its bar underneath pushed pages');
   }
   const props = { state: { index: 0, routes: [{ name: 'Home' }] } };
-  assert.equal(ui.exports.MainTabBarRegistration(props), null);
+  const scene = ui.exports.MainTabBarRegistration(props);
+  assert.equal(scene.props.testID, 'tabs-navbar-host');
+  assert.equal(scene.props.style.display, 'flex');
+  assert.equal(scene.props.children.type, ui.exports.MainTabBar);
   assert.equal(ui.context.bridge.current, props, 'The real tab event bridge remains registered');
 });
 
-test('Back pages hide the host, while a transparent native event presentation keeps it underneath', () => {
+test('Search and account pages keep the one source navbar beneath the root stack', () => {
   const ui = host();
-  for (const name of ['Search', 'Auth', 'Legal', 'Checkout', 'PublicProfile', 'SafetyGroup']) {
-    assert.equal(ui.render(name).visible, false, name);
-    assert.equal(ui.render(name).bars.length, 1, 'Hiding does not recreate the navbar');
+  const props = { state: { index: 0, routes: [{ name: 'Home' }] } };
+  for (const name of ['Tabs', 'Search', 'Tickets', 'Orders', 'SavedEvents', 'Auth', 'Legal', 'Checkout', 'PublicProfile', 'SafetyGroup', 'Tabs']) {
+    assert.equal(ui.render(name).bars.length, 0, 'Foreground pages have no global bar');
+    const scene = ui.exports.MainTabBarRegistration(props);
+    assert.equal(scene.props.style.display, 'flex', name + ' retains the source bar throughout its native transition');
   }
-  for (const page of ['Tickets', 'Orders', 'SavedEvents']) assert.equal(ui.render('Tabs', page).visible, false, page);
-  assert.equal(ui.render('Event', 'ProfileHome', 'page').visible, false);
-  assert.equal(ui.render('Event', 'ProfileHome', 'sheet').visible, true);
-  assert.equal(ui.render('Tabs').visible, true);
+  const profile = ui.exports.MainTabBarRegistration({ state: { index: 0, routes: [{ name: 'Profile' }] } });
+  assert.equal(profile.props.style.display, 'flex');
+  assert.equal(profile.props.children.type, ui.exports.MainTabBar);
+});
+
+test('rapid visits to Profile keep the same visible tab host and gesture surface', () => {
+  const ui = host();
+  const routes = ['Home', 'Explore', 'Feed', 'Profile'].map(name => ({ name }));
+  let previous: any;
+  for (const index of [0, 3, 1, 3, 2, 0, 3, 0]) {
+    const scene = ui.exports.MainTabBarRegistration({ state: { index, routes } });
+    assert.equal(scene.props.style.display, 'flex');
+    assert.notEqual(scene.props.children.props.interactionEnabled, false);
+    if (previous) {
+      assert.equal(scene.type, previous.type);
+      assert.equal(scene.key, previous.key);
+      assert.equal(scene.props.children.type, previous.props.children.type);
+    }
+    previous = scene;
+  }
 });
 
 test('web and Android keep their scene navbars without adding an overlay host', () => {

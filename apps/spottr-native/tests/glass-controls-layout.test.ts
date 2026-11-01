@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import path from 'node:path';
 import { loadYoga } from 'yoga-layout/load';
 import { glassButtonStyles } from '../src/ui/glassButtonStyles';
+const { modules } = require('../../pulse-app/scripts/helpers/qaHarness.cjs');
 
 test('native glass stays circular in stretched rows, columns and full-width auth containers', async () => {
   const y = await loadYoga();
@@ -44,4 +46,31 @@ test('disabled glass dims the icon without fading the native material or moving 
   assert.equal(disabled.surface.top, 12);
   assert.equal(disabled.surface.right, 12);
   assert.equal(disabled.control.opacity, 0.4);
+});
+
+test('a shared Search morph can own pressing without disabling taps or changing other glass buttons', () => {
+  const react = { forwardRef: (render: any) => (props: any) => render(props, null) };
+  for (const native of [false, true]) {
+    const { GlassPressable } = modules({
+      react,
+      'react-native': { Pressable: 'Pressable', StyleSheet: { flatten: (styles: any[]) => Object.assign({}, ...styles) } },
+      expo: { requireOptionalNativeModule: () => native ? {} : null },
+      'expo-glass-effect': { GlassView: 'NativeGlassView', isLiquidGlassAvailable: () => true, isGlassEffectAPIAvailable: () => true },
+      './GlassPressableFallback': { GlassPressableFallback: 'Fallback' },
+      './glassButtonStyles': { glassButtonStyles },
+      './liquidGlassAppearance': { liquidGlassAppearance: { glassEffectStyle: 'regular', colorScheme: 'dark' } },
+    }).load(path.resolve(__dirname, '../src/ui/GlassPressable.ios.tsx'));
+    const onPress = () => {};
+    for (const nativePressEffect of [undefined, false]) {
+      const view = GlassPressable({ nativePressEffect, onPress, fallback: 'Pressable', style: { width: 44, height: 44 } });
+      const control = native ? view.props.children : view;
+      assert.equal(control.props.onPress, onPress, 'Optical deformation must not control touch input');
+      assert.equal(control.props.nativePressEffect, undefined, 'Native-only configuration must not leak to Pressable');
+      if (native) {
+        assert.equal(view.props.isInteractive, nativePressEffect !== false);
+        assert.equal(view.props.pointerEvents, 'auto');
+        assert.equal(view.props.glassEffectStyle, 'regular');
+      } else assert.equal(view.props.fallback, 'Pressable', 'The shared morph also owns the older-iOS press response');
+    }
+  }
 });

@@ -1,13 +1,14 @@
 import React, { useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { cancelAnimation, runOnJS, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { cancelAnimation, runOnJS, runOnUI, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence, withSpring, withTiming, type DerivedValue, type SharedValue } from 'react-native-reanimated';
 import { usePreferences } from '../usePreferences';
 import { ToastHost } from '../ui/ToastHost';
 import type { NativeTabBarProps } from './NativeTabBar';
 import { TabBarIcon } from './TabBarIcon';
 import { TabBarSurface } from './TabBarSurface';
-import { tabCapsuleImpactTiming, tabCapsulePickupSpring, tabCapsulePressSpring, tabCapsuleReleaseSpring, tabCapsuleSpring } from './tabCapsuleSpring';
+import { TabBarIndicatorSurface } from './TabBarIndicatorSurface';
+import { tabCapsuleFollowSpring, tabCapsuleImpactTiming, tabCapsulePickupSpring, tabCapsulePressSpring, tabCapsuleReleaseSpring, withTabTravel } from './tabCapsuleSpring';
 import { NavbarScrollContext, navbarCompactScale } from './useNavbarScroll';
 
 const labels = ['nav.home', 'nav.map', 'nav.feed', 'nav.profile'] as const;
@@ -23,8 +24,29 @@ function resistedPosition(value: number, limit: number) {
   return bound + excess * edgeTravel / (Math.abs(excess) + 32);
 }
 
+// Route/focus updates must not recreate the travelling indicator's mapper.
+// Background scenes follow the same position, ready for a seamless handoff.
+const FixedTabIndicator = React.memo(function FixedTabIndicator({ position, interaction, edgeResponse, edgeDirection, extension, itemWidth, limit }: {
+  position: SharedValue<number>; interaction: SharedValue<number>; edgeResponse: SharedValue<number>;
+  edgeDirection: SharedValue<number>; extension: DerivedValue<number>; itemWidth: number; limit: number;
+}) {
+  const motion = useAnimatedStyle(() => {
+    const x = Math.min(limit + edgeTravel, Math.max(-edgeTravel, position.value));
+    const pressure = Math.abs(x - Math.min(limit, Math.max(0, x))) / edgeTravel;
+    const contact = Math.max(0, 1 - Math.max(0, Math.min(x, limit - x)) / 12);
+    return { transform: [
+      { translateX: x + edgeDirection.value * extension.value * contact },
+      { scaleX: 1 + interaction.value * 0.08 * (1 - pressure) - pressure * 0.05 + edgeResponse.value * 0.045 },
+      { scaleY: 1 + interaction.value * 0.04 + pressure * 0.025 - edgeResponse.value * 0.015 },
+    ] };
+  });
+  return <Animated.View testID="tab-indicator" pointerEvents="none" style={[s.indicator, { width: itemWidth }, motion]}>
+    <TabBarIndicatorSurface />
+  </Animated.View>;
+});
+
 /** One glass navbar for Expo Go and installed builds; gestures stay on the UI thread. */
-export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = state.index, onSelectTab, indicatorMotion }: NativeTabBarProps) {
+export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = state.index, onSelectTab, indicatorMotion, interactionEnabled = true }: NativeTabBarProps) {
   const { copy } = usePreferences();
   const [width, measure] = useState(0);
   const previousWidth = useRef(0);
@@ -36,7 +58,6 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
   const scrollController = useContext(NavbarScrollContext);
   const compact = scrollController?.compact ?? localCompact;
   const onBarTouch = scrollController?.onTouch;
-  const touchScale = useSharedValue(1);
   const position = indicatorMotion?.position ?? localPosition;
   const gestureCommand = indicatorMotion?.gestureCommand;
   const interaction = indicatorMotion?.interaction ?? localInteraction;
@@ -57,24 +78,33 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
 
   useLayoutEffect(() => {
     if (!itemWidth) return;
-    controlledIndex.value = activeIndex;
-    tracking.value = false;
-    cancelAnimation(pickupOffset);
-    pickupOffset.value = 0;
+    const resized = previousWidth.current !== width;
+    runOnUI(() => {
+      controlledIndex.value = activeIndex;
+      const request = gestureCommand?.value;
+      // A route acknowledgement can arrive after the next finger has already
+      // picked up the capsule. It must not cancel that newer gesture. External
+      // navigation and geometry changes still release the current grip.
+      if (resized || !request || (!request.pending && request.index !== activeIndex)) {
+        tracking.value = false;
+        cancelAnimation(pickupOffset);
+        pickupOffset.value = 0;
+      }
+    })();
     // The provider owns a shared spring across stack scenes. A newly mounted
     // navbar joins it without resetting it or starting another animation.
     if (!sharedMotion) {
       const target = activeIndex * itemWidth;
-      position.value = previousWidth.current === width ? withSpring(target, tabCapsuleSpring) : target;
+      position.value = previousWidth.current === width ? withTabTravel(target) : target;
     }
     previousWidth.current = width;
-  }, [activeIndex, itemWidth, width, sharedMotion, position, tracking, pickupOffset]);
+  }, [activeIndex, itemWidth, width, sharedMotion, position, tracking, pickupOffset, controlledIndex, gestureCommand]);
 
-  // Every pickup eases the capsule's center under the finger. The initial
-  // offset springs away while the centered target follows subsequent movement.
+  // Ease the initial grip offset away, then keep following with a little weight.
+  // Retargeting this UI-thread spring carries motion through quick reversals.
   useAnimatedReaction(
-    () => tracking.value ? dragTarget.value + pickupOffset.value : null,
-    value => { if (value !== null) position.value = value; },
+    () => interactionEnabled && tracking.value ? dragTarget.value + pickupOffset.value : null,
+    value => { if (value !== null) position.value = withSpring(value, tabCapsuleFollowSpring); },
   );
 
   const bounceAtEdge = (strength: number, side: number) => {
@@ -89,7 +119,7 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
   // Only a freely travelling capsule can impact the glass. Under a held finger
   // the edge applies continuous resistance, without launching a recoil spring.
   useAnimatedReaction(
-    () => itemWidth > 0 ? { position: position.value, tracking: tracking.value } : null,
+    () => interactionEnabled && itemWidth > 0 ? { position: position.value, tracking: tracking.value } : null,
     (current, previous) => {
       if (current === null) return;
       const value = current.position;
@@ -116,10 +146,13 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
     },
   );
 
-  const selection = useRef({ state, navigation, onSelectTab, activeIndex });
-  useLayoutEffect(() => { selection.current = { state, navigation, onSelectTab, activeIndex }; }, [state, navigation, onSelectTab, activeIndex]);
+  const selection = useRef({ state, navigation, onSelectTab, activeIndex, interactionEnabled });
+  useLayoutEffect(() => { selection.current = { state, navigation, onSelectTab, activeIndex, interactionEnabled }; }, [state, navigation, onSelectTab, activeIndex, interactionEnabled]);
   const select = useCallback((index: number, animatedOnUI = false, gestureId?: number) => {
-    const { state, navigation, onSelectTab, activeIndex } = selection.current;
+    const { state, navigation, onSelectTab, activeIndex, interactionEnabled } = selection.current;
+    // A valid UI-thread tap may reach JS after another tap changed the scene.
+    // The provider still rejects gestures when a pushed page covers all bars.
+    if (!interactionEnabled && !(animatedOnUI && gestureId !== undefined && onSelectTab)) return;
     if (!animatedOnUI) {
       compact.value = withSpring(0, tabCapsulePressSpring);
       onBarTouch?.();
@@ -133,13 +166,12 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
       accepted = !event.defaultPrevented;
       if (index !== activeIndex && accepted) navigation.navigate(route.name, route.params);
     }
-    if (!accepted || !animatedOnUI) position.value = withSpring((accepted ? index : activeIndex) * itemWidth, tabCapsuleSpring);
+    if (!accepted || !animatedOnUI) position.value = withTabTravel((accepted ? index : activeIndex) * itemWidth);
   }, [compact, onBarTouch, itemWidth, position]);
 
-  const pan = useMemo(() => Gesture.Pan().enabled(itemWidth > 0).maxPointers(1)
+  const pan = useMemo(() => Gesture.Pan().enabled(interactionEnabled && itemWidth > 0).maxPointers(1)
     .activeOffsetX([-4, 4]).failOffsetY([-8, 8])
     .onBegin(() => {
-      touchScale.value = 1 - compact.value * (1 - navbarCompactScale);
       compact.value = withSpring(0, tabCapsulePressSpring);
       if (onBarTouch) runOnJS(onBarTouch)();
       impactOrigin.value = position.value;
@@ -170,7 +202,7 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
       tracking.value = false;
       cancelAnimation(pickupOffset);
       if (!success) {
-        position.value = withSpring(controlledIndex.value * itemWidth, tabCapsuleSpring);
+        position.value = withTabTravel(controlledIndex.value * itemWidth);
         return;
       }
       // A quick release commits the finger's target even while pickup is running.
@@ -178,7 +210,7 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
       const request = gestureCommand?.value;
       const gestureId = request ? request.id + 1 : undefined;
       if (gestureCommand && request) gestureCommand.value = { ...request, id: gestureId!, index, pending: true };
-      position.value = withSpring(index * itemWidth, tabCapsuleSpring);
+      position.value = withTabTravel(index * itemWidth);
       runOnJS(select)(index, true, gestureId);
     })
     .onFinalize(() => {
@@ -186,24 +218,28 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
       if (!tracking.value) return;
       tracking.value = false;
       cancelAnimation(pickupOffset);
-      position.value = withSpring(controlledIndex.value * itemWidth, tabCapsuleSpring);
-    }), [itemWidth, limit, barWidth, count, onBarTouch, select, position, compact, touchScale, impactOrigin, interaction, edgeResponse, pickupOffset, tracking, origin, dragTarget, edgeSide, controlledIndex, gestureCommand]);
-  const tap = useMemo(() => Gesture.Tap().enabled(itemWidth > 0).maxDuration(10000)
-    .onEnd((event, success) => {
+      position.value = withTabTravel(controlledIndex.value * itemWidth);
+    }), [interactionEnabled, itemWidth, limit, count, onBarTouch, select, position, compact, impactOrigin, interaction, edgeResponse, pickupOffset, tracking, origin, dragTarget, edgeSide, controlledIndex, gestureCommand]);
+  // Each tab owns its tap recognizer. A whole-bar Tap treats overlapping
+  // contacts on different tabs as one unfinished gesture on iOS, swallowing
+  // rapid alternations before they ever reach the navigation queue.
+  const taps = useMemo(() => Array.from({ length: count }, (_, index) =>
+    Gesture.Tap().enabled(interactionEnabled && itemWidth > 0).maxDuration(10000)
+    .requireExternalGestureToFail(pan)
+    .onEnd((_event, success) => {
       if (!success) return;
-      const x = (event.x - barWidth / 2) / touchScale.value + barWidth / 2 - barInset;
-      const index = Math.max(0, Math.min(count - 1, Math.floor(x / itemWidth)));
+      const target = index * itemWidth;
+      const distanceInTabs = Math.abs(target - position.value) / itemWidth;
       const request = gestureCommand?.value;
       const gestureId = request ? request.id + 1 : undefined;
       if (gestureCommand && request) gestureCommand.value = { ...request, id: gestureId!, index, pending: true };
-      position.value = withSpring(index * itemWidth, tabCapsuleSpring);
+      position.value = withTabTravel(target, distanceInTabs);
       runOnJS(select)(index, true, gestureId);
-    }), [itemWidth, barWidth, count, select, position, touchScale, gestureCommand]);
-  // A pan and a tap are mutually exclusive. There is no child Pressable that
-  // could fire a second selection for the tab where the drag originally began.
-  const gesture = useMemo(() => Gesture.Exclusive(pan, tap), [pan, tap]);
-  // Only publish a new glass size when contact changes. Reading the travelling
-  // position in its layout styles forced a Fabric layout commit every frame.
+    })), [interactionEnabled, itemWidth, count, select, position, gestureCommand, pan]);
+  // Dragging still belongs to the whole bar. Every tap waits for that pan to
+  // fail, so releasing a drag cannot also select its starting tab.
+  // Every scene displays the same travelling position for native handoffs;
+  // only the foreground scene's reactions write the shared edge response.
   const glassExtension = useDerivedValue(() => {
     const overflow = Math.max(0, -position.value, position.value - limit);
     const heldPressure = tracking.value ? Math.min(1, overflow / edgeTravel) * 3 : 0;
@@ -212,26 +248,18 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
     const impact = edgeResponse.value * impactExtension * contact;
     return heldPressure > 0 ? Math.max(heldPressure, impact) : impact;
   });
-  const motion = useAnimatedStyle(() => {
-    const x = Math.min(limit + edgeTravel, Math.max(-edgeTravel, position.value));
-    const pressure = Math.abs(x - Math.min(limit, Math.max(0, x))) / edgeTravel;
-    const contact = Math.max(0, 1 - Math.max(0, Math.min(x, limit - x)) / 12);
-    return { transform: [
-      { translateX: x + edgeDirection.value * glassExtension.value * contact },
-      { scaleX: 1 + interaction.value * 0.08 * (1 - pressure) - pressure * 0.05 + edgeResponse.value * 0.045 },
-      { scaleY: 1 + interaction.value * 0.04 + pressure * 0.025 - edgeResponse.value * 0.015 },
-    ] };
-  });
+  // Keep Fabric layout fixed throughout motion. Transform the glass toward
+  // the contacted edge and compensate its content, leaving icons stationary.
+  const barSize = { width: itemWidth > 0 ? barWidth : '100%' } as const;
   const barMotion = useAnimatedStyle(() => ({ transform: [
-    { translateX: edgeDirection.value < 0 ? -glassExtension.value : 0 },
+    { translateX: edgeDirection.value * glassExtension.value / 2 },
+    { scaleX: barWidth > 0 ? 1 + glassExtension.value / barWidth : 1 },
     { scaleY: 1 - edgeResponse.value * 0.006 },
   ] }));
-  const barSize = useAnimatedStyle(() => ({ width: itemWidth > 0 ? barWidth + glassExtension.value : '100%' }));
-  // Change the glass's actual bounds. A fixed-width track compensates only
-  // its leftward extension, so the controls and gesture geometry stay put.
   const trackMotion = useAnimatedStyle(() => ({
     transform: [
-      { translateX: edgeDirection.value < 0 ? glassExtension.value : 0 },
+      { translateX: barWidth > 0 ? -edgeDirection.value * glassExtension.value / (2 * (1 + glassExtension.value / barWidth)) : 0 },
+      { scaleX: barWidth > 0 ? 1 / (1 + glassExtension.value / barWidth) : 1 },
       { scaleY: 1 / (1 - edgeResponse.value * 0.006) },
     ],
   }));
@@ -239,8 +267,8 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
     { scale: 1 - compact.value * (1 - navbarCompactScale) },
   ] }));
 
-  return <View pointerEvents="box-none" style={[s.position, { bottom: Math.max(12, insets.bottom - 12) }]}>
-    <GestureDetector gesture={gesture}>
+  return <View collapsable={false} pointerEvents={interactionEnabled ? 'box-none' : 'none'} accessibilityElementsHidden={!interactionEnabled} style={[s.position, { bottom: Math.max(12, insets.bottom - 12) }]}>
+    <GestureDetector gesture={pan}>
       <View testID="tab-hit-area" collapsable={false} style={s.hitArea} onLayout={event => {
         const nextWidth = Math.max(0, event.nativeEvent.layout.width - barInset * 2);
         if (!nextWidth) return;
@@ -250,15 +278,18 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
           <Animated.View testID="tab-bar-motion" style={[barSize, barMotion]}>
             <TabBarSurface testID="tab-bar" style={s.bar}>
               <Animated.View testID="tab-track" collapsable={false} style={[s.track, { width: itemWidth > 0 ? itemWidth * count : '100%' }, trackMotion]}>
-                {itemWidth > 0 && <Animated.View testID="tab-indicator" pointerEvents="none" style={[s.indicator, { width: itemWidth }, motion]} />}
-                {state.routes.map((route, index) => <View key={route.key} testID={`tab-${route.name}`} accessible
+                {itemWidth > 0 && <FixedTabIndicator position={position} interaction={interaction} edgeResponse={edgeResponse}
+                  edgeDirection={edgeDirection} extension={glassExtension} itemWidth={itemWidth} limit={limit} />}
+                {state.routes.map((route, index) => <GestureDetector key={route.key} gesture={taps[index]!}>
+                  <View collapsable={false} testID={`tab-${route.name}`} accessible
                   accessibilityRole="tab" accessibilityLabel={copy(labels[index] ?? 'nav.home')}
                   accessibilityState={{ selected: index === activeIndex }} style={s.tab}
                   onAccessibilityTap={() => select(index)}
                   accessibilityActions={[{ name: 'activate' }]}
                   onAccessibilityAction={event => { if (event.nativeEvent.actionName === 'activate') select(index); }}>
                   <TabBarIcon index={index} active={index === activeIndex} size={26} color="white" strokeWidth={2} />
-                </View>)}
+                  </View>
+                </GestureDetector>)}
               </Animated.View>
             </TabBarSurface>
           </Animated.View>
@@ -274,6 +305,6 @@ const s = StyleSheet.create({
   hitArea: { height: 62, width: '100%' },
   bar: { height: 62, width: '100%', padding: barInset, borderRadius: 31, overflow: 'hidden' },
   track: { flex: 1, flexDirection: 'row', position: 'relative' },
-  indicator: { position: 'absolute', top: 0, bottom: 0, left: 0, borderRadius: 27, backgroundColor: 'rgba(0,0,0,0.42)' },
+  indicator: { position: 'absolute', top: 1, bottom: 1, left: 0, borderRadius: 26 },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 27 },
 });

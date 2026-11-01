@@ -1,3 +1,4 @@
+import { GlassSegmentedControl } from '../ui/GlassSegmentedControl';
 import { AccentPressable } from '../ui/AccentPressable';
 import { GlassSurface } from '../ui/GlassSurface';
 import React, { useEffect, useState } from "react";
@@ -26,7 +27,6 @@ import { formatDate } from "../data/events";
 import { useTickets } from "../data/useTickets";
 import { useOrders } from "../data/useOrders";
 import { isConfirmedPurchase, orderTotalBani, orderStatusKey } from "../../../pulse-app/src/features/checkout/orderHistory";
-import { TicketAvailability } from '../profile/TicketAvailability';
 import {
   TicketSheet,
   ticketStatus,
@@ -524,66 +524,13 @@ export function DashboardPurchases() {
         title={copy("purchases.title")}
         subtitle={copy("purchases.subtitle")}
       />
-      <View
-        style={{
-          flexDirection: "row",
-          height: 44,
-          width: "100%",
-          maxWidth: 384,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: "#ffffff1a",
-          backgroundColor: "#ffffff09",
-          padding: 4,
-        }}
-      >
-        {(["tickets", "orders"] as const).map((value) => {
-          const Icon = value === "tickets" ? Ticket : Receipt;
-          return (
-            <AccentPressable fallback={Pressable}
-              key={value}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: tab === value }}
-              onPress={() => setTab(value)}
-              style={{
-                flex: 1,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                borderRadius: 8,
-                backgroundColor: tab === value ? colors.accent : "transparent",
-              }}
-            >
-              <Icon size={14} color={tab === value ? "#fff" : colors.muted} />
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "600",
-                  color: tab === value ? "#fff" : colors.muted,
-                }}
-              >
-                {copy(
-                  value === "tickets"
-                    ? "purchases.tickets"
-                    : "purchases.orders",
-                )}
-              </Text>
-              <Text
-                style={{
-                  fontSize: 10,
-                  color: tab === value ? "#ffffffcc" : colors.muted,
-                }}
-              >
-                {value === "tickets"
-                  ? (tickets.data?.length ?? 0)
-                  : (orders.data?.length ?? 0)}
-              </Text>
-            </AccentPressable>
-          );
-        })}
-      </View>
-      {tab === 'tickets' && <TicketAvailability offline={tickets.offline} savedAt={tickets.savedAt} storageError={tickets.storageError} refreshing={tickets.isFetching} onRefresh={() => void tickets.refetch()} />}
+      <GlassSegmentedControl testID="purchases-switch" role="tab" style={{ maxWidth: 384 }} value={tab} onChange={setTab}
+        options={(['tickets', 'orders'] as const).map(value => {
+          const Icon = value === 'tickets' ? Ticket : Receipt;
+          const label = copy(value === 'tickets' ? 'purchases.tickets' : 'purchases.orders');
+          const count = value === 'tickets' ? tickets.data?.length ?? 0 : orders.data?.length ?? 0;
+          return { value, label: label + ' (' + count + ')', content: <><Icon size={14} color={tab === value ? colors.text : colors.muted}/><Text style={{ fontSize: 12, fontWeight: '600', color: tab === value ? colors.text : colors.muted }}>{label} ({count})</Text></> };
+        })}/>
       {(tab === "tickets" ? tickets : orders).isPending ? (
         <Loading />
       ) : (tab === "tickets" ? tickets : orders).isError ? (
@@ -775,8 +722,6 @@ export function DashboardPurchases() {
         <TicketSheet
           tickets={(tickets.data ?? []).filter(item => item.eventId === ticket.eventId)}
           preferUnused={false}
-          offline={tickets.offline}
-          savedAt={tickets.savedAt}
           initialId={ticket.id}
           onClose={() => setTicket(null)}
         />

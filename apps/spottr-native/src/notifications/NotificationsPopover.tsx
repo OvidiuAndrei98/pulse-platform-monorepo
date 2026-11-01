@@ -1,3 +1,4 @@
+import { openAccountPage } from '../navigation/accountNavigation';
 import type { ViewInstance } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
 import { ActionIcon } from '../ui/ActionIcon';
@@ -42,7 +43,7 @@ export function NotificationsPopover() {
     void query.markRead(item);
     setPosition(null);
     const target = notificationDestination(item);
-    if (item.type === 'ticket_purchased') navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } });
+    if (item.type === 'ticket_purchased') openAccountPage(navigation, 'Tickets');
     else if (target?.kind === 'event') navigation.navigate('Event', { id: target.id, presentation: 'page' });
     else if (target?.kind === 'profile') navigation.navigate('PublicProfile', { id: target.id });
     else if (target) navigation.navigate('SafetyGroup', { eventId: target.id });

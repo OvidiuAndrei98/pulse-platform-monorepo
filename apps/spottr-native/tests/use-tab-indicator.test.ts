@@ -34,7 +34,7 @@ function mount(platform = 'ios') {
       withTiming(target: number) { timings.push(target); return target; },
       Easing: { bezier: () => 'easing' },
     },
-    './tabCapsuleSpring': { tabCapsuleSpring: {} },
+    './tabCapsuleSpring': { withTabTravel: (target: number) => deps['react-native-reanimated'].withSpring(target) },
   };
   const exports: any = {};
   const output = ts.transpileModule(readFileSync(resolve(__dirname, '../src/navigation/useTabIndicator.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;

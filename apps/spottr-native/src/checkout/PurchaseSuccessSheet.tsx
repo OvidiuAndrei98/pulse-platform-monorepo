@@ -1,3 +1,4 @@
+import { openAccountPage } from '../navigation/accountNavigation';
 import { AccentPressable } from '../ui/AccentPressable';
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ActivityIndicator, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -49,7 +50,7 @@ function PurchaseSuccessSheet({ receipt }: { receipt: PurchaseCompletion }) {
     if (!current()) return;
     if (action.current === 'ticket') { action.current = 'dismiss'; setClosing(false); setGroup(nextTickets.current); return; }
     finish();
-    if (action.current === 'all') navigation.popTo('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } });
+    if (action.current === 'all') openAccountPage(navigation, 'Tickets', true);
     if (action.current === 'register') navigation.navigate('Auth', { mode: 'register', returnTab: 'Profile' });
   };
   const leave = (destination: typeof action.current) => {
@@ -78,7 +79,7 @@ function PurchaseSuccessSheet({ receipt }: { receipt: PurchaseCompletion }) {
     finally { busy.current = false; if (current()) setLoading(false); }
   };
   const currentTickets = ticketsForPurchase(query.data ?? [], receipt);
-  if (group?.length && currentTickets.length) return <TicketSheet tickets={currentTickets} initialId={group[0]!.id} onClose={finish} offline={query.offline} savedAt={query.savedAt} />;
+  if (group?.length && currentTickets.length) return <TicketSheet tickets={currentTickets} initialId={group[0]!.id} onClose={finish} />;
   const unavailable = !!group;
   // Compact on ordinary phones; allow text to scroll at large accessibility
   // sizes or in landscape rather than clipping either action.

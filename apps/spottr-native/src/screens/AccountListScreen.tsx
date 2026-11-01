@@ -1,11 +1,11 @@
 import { AccentPressable } from '../ui/AccentPressable';
 import { ActionIcon } from '../ui/ActionIcon';
-import React, { useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Platform, ScrollView, StyleSheet, View, type FlatListInstance } from 'react-native';
 import { MotionPressable as Pressable } from '../ui/MotionPressable';
-import { Bookmark, Calendar, ChevronRight, ExternalLink, MapPin, QrCode, Receipt, Ticket } from 'lucide-react-native';
+import { Bookmark, Calendar, ChevronRight, ExternalLink, MapPin, Receipt, Ticket } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useIsFocused, useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
+import { StackActions, useIsFocused, useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthProvider';
@@ -13,7 +13,10 @@ import { usePreferences } from '../usePreferences';
 import { useTickets } from '../data/useTickets';
 import { useOrders } from '../data/useOrders';
 import { isConfirmedPurchase, isInvoiceOrder, invoiceStatusKey, orderStatusKey, orderTotalBani } from '../../../pulse-app/src/features/checkout/orderHistory';
-import { TicketAvailability } from '../profile/TicketAvailability';
+import { TicketListViewport } from '../profile/TicketListViewport';
+import { useWalletLists } from '../profile/useWalletLists';
+import { GlassSegmentedControl } from '../ui/GlassSegmentedControl';
+import { GlassPressable } from '../ui/GlassPressable';
 import { TicketSheet } from '../profile/TicketSheet';
 import { ticketStatus, type UserTicket } from '../data/tickets';
 import { EventImage, Feedback, Loading, useOpenLink } from '../ui/common';
@@ -35,46 +38,31 @@ export function SavedEventsScreen() {
 }
 
 export function TicketsScreen() {
-  const focused = useIsFocused(), { user } = useAuth(), { copy, language } = usePreferences();
+  const focused = useIsFocused(), { user } = useAuth(), { copy } = usePreferences();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
-  const [tab, setTab] = useState<'active' | 'history' | 'used' | 'expired'>('active'), [selected, setSelected] = useState<string | null>(null);
+  const [tab, setTab] = useState<'active' | 'history'>('active');
+  const [selected, setSelected] = useState<string | null>(null);
   const tickets = useTickets(focused, !!selected);
   const [now, setNow] = useState(Date.now());
   useEffect(() => { if (focused) setNow(Date.now()); const timer = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(timer); }, [focused]);
   useEffect(() => { setSelected(null); setTab('active'); }, [user?.id]);
-  const all = tickets.data ?? [], activeCount = all.filter(ticket => ticketStatus(ticket, now) === 'active').length;
-  const data = all.filter(ticket => tab === 'history' ? ticketStatus(ticket, now) !== 'active' : ticketStatus(ticket, now) === tab);
-  const groups = new Map<string, UserTicket[]>();
-  for (const ticket of data) groups.set(ticket.eventId, [...(groups.get(ticket.eventId) ?? []), ticket]);
+  const all = tickets.data ?? [];
+  const openTicket = useCallback((ticket: UserTicket) => setSelected(ticket.id), []);
+  const openGroup = useCallback((eventId: string) => navigation.navigate('SafetyGroup', { eventId }), [navigation]);
+  const explore = useCallback(() => navigation.navigate('Tabs', { screen: 'Home' }), [navigation]);
+  const { activeNodes, historyNodes, activeCount, historyFilter } = useWalletLists({
+    all, now, owner: user?.id, pending: tickets.isPending, error: tickets.isError,
+    retry: tickets.refetch, onOpen: openTicket, onGroup: openGroup, onExplore: explore,
+  });
   const chosen = all.find(ticket => ticket.id === selected);
-  return <><AccountPage id="tickets-page" title={copy('tickets.title')} large subtitle={tickets.isPending ? copy('common.loading') : tickets.isError ? '' : copy('tickets.count', {count:all.length})}>
-    <View style={{ flexDirection: 'row', padding: 4, marginTop:12, backgroundColor: '#ffffff0a', borderWidth:1,borderColor:'#ffffff1a',borderRadius: 99 }}>{(['active', 'history'] as const).map(value => {
-      const active = value === 'active' ? tab === 'active' : tab !== 'active';
-      return <AccentPressable fallback={Pressable} key={value} accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={() => setTab(value)} style={{ flex: 1, padding: 12, alignItems: 'center', borderRadius: 99, backgroundColor: active ? colors.accent : 'transparent' }}><Text style={title}>{copy('tickets.' + value)} <Text style={{fontSize:12}}>({value === 'active' ? activeCount : all.length - activeCount})</Text></Text></AccentPressable>;
-    })}</View>
-    {tab !== 'active' && <View style={{ flexDirection: 'row', gap: 8 }}>{(['history', 'used', 'expired'] as const).map(value => <Pressable key={value} accessibilityRole="button" onPress={() => setTab(value)} style={{ paddingHorizontal:14,paddingVertical:10,borderWidth:1,borderColor:tab===value?'#ff00444d':'#ffffff1a',borderRadius:99,backgroundColor:tab===value?'#ff00441a':'transparent' }}><Text style={{ color: tab === value ? colors.accent : colors.muted, fontSize: 12 }}>{copy(value === 'history' ? 'tickets.allHistory' : 'tickets.' + value)}</Text></Pressable>)}</View>}
-    <TicketAvailability offline={tickets.offline} savedAt={tickets.savedAt} storageError={tickets.storageError} refreshing={tickets.isFetching} onRefresh={() => void tickets.refetch()} />
-    {tickets.isPending ? <Loading /> : tickets.isError ? <Feedback title={copy('feedback.loadFailed')} retry={() => void tickets.refetch()} /> : [...groups.values()].sort((a, b) => (Date.parse(a[0]!.startTime) - Date.parse(b[0]!.startTime)) * (tab === 'active' ? 1 : -1)).map((group,index) => {
-      const event = group[0]!, featured = tab === 'active' && index === 0, happening = Date.parse(event.startTime)<=now;
-      return <View key={event.eventId} style={{borderRadius:26,borderWidth:1,borderColor:featured?'#ff00444d':'#ffffff1a',backgroundColor:'#ffffff06',overflow:'hidden',marginTop:8}}>
-        {featured && <LinearGradient pointerEvents="none" colors={['#ff00441f','#111111','#0a0a0a']} start={{x:0,y:0}} end={{x:1,y:1}} style={{position:'absolute',inset:0}} />}
-        <View style={{padding:20,gap:12}}>
-          {featured && <Text style={{color:colors.accent,fontWeight:'700',fontSize:10,letterSpacing:1.6,marginBottom:4}}>● {copy(happening?'tickets.happeningNow':'tickets.nextEvent').toUpperCase()}</Text>}
-          <Text style={{color:'white',fontSize:featured?24:18,fontWeight:'700',letterSpacing:-0.5}}>{event.eventTitle}</Text>
-          {Date.parse(event.endTime) + 86400000 >= now && <Pressable accessibilityRole="button" onPress={() => navigation.navigate('SafetyGroup', { eventId: event.eventId })} style={{ paddingVertical: 12 }}><Text style={{ color: '#6ee7b7', fontSize: 14 }}>{copy('safetyGroup.openOrCreate')}</Text></Pressable>}
-          <View style={{flexDirection:'row',gap:8}}><Calendar size={16} color={colors.muted}/><Text style={muted}>{formatDate(event.startTime,language,true)}</Text></View>
-          <View style={{flexDirection:'row',gap:8}}><MapPin size={16} color={colors.accent}/><Text style={[muted,{flex:1}]}>{event.locationName}</Text></View>
-          {featured && <AccentPressable fallback={Pressable} accessibilityRole="button" onPress={()=>setSelected(event.id)} style={{minHeight:48,backgroundColor:colors.accent,borderRadius:99,flexDirection:'row',gap:8,alignItems:'center',justifyContent:'center',marginTop:8}}><QrCode size={16} color="white"/><Text style={title}>{copy('tickets.showQr')}{group.length>1 ? ` (${group.length})` : ''}</Text></AccentPressable>}
-        </View>
-        {group.map((ticket,index)=>{const status=ticketStatus(ticket,now);return <Pressable key={ticket.id} accessibilityRole="button" onPress={()=>setSelected(ticket.id)} style={{minHeight:80,paddingHorizontal:20,paddingVertical:16,flexDirection:'row',gap:12,alignItems:'center',borderTopWidth:1,borderColor:'#ffffff1a'}}>
-          <View style={{width:40,height:40,borderRadius:20,backgroundColor:status==='active'?'#ff00441a':'#ffffff0d',alignItems:'center',justifyContent:'center'}}><QrCode size={16} color={status==='active'?colors.accent:colors.muted}/></View>
-          <View style={{flex:1,gap:4}}><Text style={title}>{ticket.ticketTypeName}</Text><Text style={muted}>{copy('tickets.ticketNumber',{count:index+1})}</Text></View>
-          {status!=='active' && <Text style={muted}>{copy('tickets.'+status)}</Text>}<ChevronRight size={16} color={colors.muted}/>
-        </Pressable>})}
-      </View>;
-    })}
-    {!tickets.isPending && !tickets.isError && !data.length && <View style={{paddingHorizontal:20,paddingVertical:48,borderRadius:26,borderWidth:1,borderStyle:'dashed',borderColor:'#ffffff26',alignItems:'center',gap:12}}><Ticket size={28} color={colors.accent}/><Text style={title}>{copy(tab==='active'?'tickets.noUpcoming':'tickets.noHistory')}</Text><Text style={[muted,{textAlign:'center'}]}>{copy(tab==='active'?'tickets.noUpcomingHint':'tickets.emptyHint')}</Text>{tab==='active' && <AccentPressable fallback={Pressable} accessibilityRole="button" onPress={()=>navigation.navigate('Tabs',{screen:'Explore'})} style={{paddingHorizontal:20,minHeight:44,borderRadius:99,backgroundColor:colors.accent,justifyContent:'center',marginTop:8}}><Text style={title}>{copy('tickets.exploreEvents')}</Text></AccentPressable>}</View>}
-  </AccountPage>{chosen && user && <TicketSheet key={user.id} initialId={chosen.id} preferUnused={false} tickets={all.filter(item => item.eventId === chosen.eventId)} offline={tickets.offline} savedAt={tickets.savedAt} onClose={() => setSelected(null)} />}</>;
+  return <><AccountPage id="tickets-page" title={copy('tickets.title')}
+    subtitle={tickets.isPending ? copy('common.loading') : tickets.isError ? '' : copy('tickets.count', { count: all.length })}
+    scrollKey={tab + ':' + historyFilter} pane={tab} historyContent={historyNodes}
+    stickyControls={<GlassSegmentedControl testID="tickets-switch" role="tab" value={tab} onChange={setTab}
+      options={(['active', 'history'] as const).map(value => ({ value, testID: 'tickets-tab-' + value,
+        label: copy('tickets.' + value) + ' (' + (value === 'active' ? activeCount : all.length - activeCount) + ')' }))}/> }>
+    {activeNodes}
+  </AccountPage>{chosen && user && <TicketSheet key={user.id} initialId={chosen.id} preferUnused={false} tickets={all.filter(item => item.eventId === chosen.eventId)} onClose={() => setSelected(null)} />}</>;
 }
 
 export function OrdersScreen() {
@@ -100,15 +88,52 @@ export function OrdersScreen() {
   </AccountPage>;
 }
 
-function AccountPage({ id, title: heading, subtitle, large, children }: React.PropsWithChildren<{ id: string; title: string; subtitle?: string; large?: boolean }>) {
+function AccountPage({ id, title: heading, subtitle, large, stickyControls, scrollKey, pane = 'active', historyContent, children }: React.PropsWithChildren<{
+  id: string; title: string; subtitle?: string; large?: boolean; stickyControls?: React.ReactNode; scrollKey?: string; pane?: 'active' | 'history'; historyContent?: React.ReactNode;
+}>) {
   const navigation = useNavigation<CompositeNavigationProp<NativeStackNavigationProp<ProfileParamList>,NativeStackNavigationProp<RootParamList>>>(), safe = useSafeAreaInsets(), { user, ready } = useAuth(), { copy } = usePreferences(), focused=useIsFocused();
+  const scroll = useRef<FlatListInstance>(null), historyScroll = useRef<FlatListInstance>(null), top = Math.max(12, safe.top);
+  const activeRows = useMemo(() => React.Children.toArray(children), [children]);
+  const historyRows = useMemo(() => React.Children.toArray(historyContent), [historyContent]);
+  const [headerHeight, setHeaderHeight] = useState(top + 116);
   useEffect(() => { if (focused && ready && !user) navigation.navigate('Auth', { returnTab: 'Profile' }); }, [focused,ready,user,navigation]);
+  useLayoutEffect(() => { if (scrollKey !== undefined) (pane === 'active' ? scroll : historyScroll).current?.scrollToOffset({ offset: 0, animated: false }); }, [scrollKey, pane]);
+  const back = () => {
+    // Pop the owning stack, not a parent's tab history.
+    if(navigation.getState().index>0) navigation.goBack();
+    else if(Platform.OS==='ios') navigation.dispatch(StackActions.replace('Tabs',{screen:'Profile'}));
+    else navigation.replace('ProfileHome');
+  };
   if (!ready || !user) return <Loading />;
+  if (stickyControls) return <View testID={id} style={{ flex: 1, backgroundColor: colors.bg }}>
+    {(['active', 'history'] as const).map(value => <View key={value} pointerEvents={pane === value ? 'auto' : 'none'}
+      accessibilityElementsHidden={pane !== value} importantForAccessibility={pane === value ? 'auto' : 'no-hide-descendants'} aria-hidden={pane !== value}
+      style={[StyleSheet.absoluteFill, { opacity: pane === value ? 1 : 0 }, Platform.OS === 'web' && pane !== value && ({ visibility: 'hidden' } as never)]}>
+      <TicketListViewport testID={'tickets-' + value + '-list'} rows={value === 'active' ? activeRows : historyRows}
+        scrollRef={value === 'active' ? scroll : historyScroll} top={headerHeight} bottom={safe.bottom}/>
+    </View>)}
+    <View pointerEvents="box-none" testID="tickets-sticky-header" onLayout={event => { const height = event.nativeEvent.layout.height; if (height > 0) setHeaderHeight(height); }}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, paddingTop: top, paddingBottom: 16 }}>
+      <LinearGradient pointerEvents="none" colors={['#000000', '#000000f5', '#00000000']} locations={[0, .46, 1]} style={StyleSheet.absoluteFill}/>
+      <View pointerEvents="box-none" style={{ width: '100%', maxWidth: 640, alignSelf: 'center', paddingHorizontal: 20, gap: 12 }}>
+        <View pointerEvents="box-none" style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 }}>
+          <GlassPressable testID="account-back" accessibilityLabel={copy('tickets.profile')} onPress={back}
+            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }}>
+            <ActionIcon name="back" size={20} color={colors.text}/>
+          </GlassPressable>
+          <View pointerEvents="none" style={{ flex: 1, gap: 2 }}><Text style={{ color: colors.text, fontSize: 22, fontWeight: '700', letterSpacing: -.5 }}>{heading}</Text>
+            {!!subtitle && <Text style={{ color: colors.muted, fontSize: 11 }}>{subtitle}</Text>}</View>
+        </View>
+        {stickyControls}
+      </View>
+    </View>
+  </View>;
   return <ScrollView testID={id} style={{flex:1,backgroundColor:'#000'}} contentContainerStyle={{paddingHorizontal:20,paddingTop:Math.max(24,safe.top),paddingBottom:Math.max(28,safe.bottom+16),gap:16}}>
-    <Pressable accessibilityRole="button" testID="account-back" onPress={()=>{ /* Only pop this profile stack: canGoBack also sees parent tabs. */ if(navigation.getState().index>0) navigation.goBack(); else navigation.replace('ProfileHome'); }} style={{flexDirection:'row',gap:6,minHeight:40,alignItems:'center'}}><ActionIcon name="back" size={16} color={colors.muted}/><Text style={{color:colors.muted,fontSize:14}}>{copy('tickets.profile')}</Text></Pressable>
+    <Pressable accessibilityRole="button" testID="account-back" onPress={back} style={{flexDirection:'row',gap:6,minHeight:40,alignItems:'center'}}><ActionIcon name="back" size={16} color={colors.muted}/><Text style={{color:colors.muted,fontSize:14}}>{copy('tickets.profile')}</Text></Pressable>
     <View style={{gap:large?8:4,marginBottom:12}}><Text style={{color:'white',fontSize:large?30:24,fontWeight:large?'700':'600',letterSpacing:large?-0.5:0}}>{heading}</Text>{!!subtitle && <Text style={{color:colors.muted,fontSize:14}}>{subtitle}</Text>}</View>{children}
   </ScrollView>;
 }
+
 const title = {color:'white',fontSize:14,fontWeight:'600' as const};
 const muted = {color:colors.muted,fontSize:12,lineHeight:18};
 const invoiceText = {color:colors.accent,fontSize:11,fontWeight:'600' as const};

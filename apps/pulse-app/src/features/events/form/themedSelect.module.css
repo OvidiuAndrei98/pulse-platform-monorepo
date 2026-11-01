@@ -4,7 +4,7 @@
 .trigger[aria-expanded="true"] { border-color:var(--primary); }
 .trigger[aria-invalid="true"] { border-color:#f87171; }
 .trigger:disabled { opacity:.45; }
-.trigger:focus-visible { outline:2px solid var(--ui-focus); outline-offset:2px; }
+.trigger:focus-visible { outline:2px solid var(--ui-focus); outline-offset:-2px; }
 .value { flex:1; min-width:0; overflow-wrap:anywhere; }
 .icon,.chevron { width:16px; height:16px; flex-shrink:0; }
 .icon { color:var(--primary); }

@@ -9,9 +9,9 @@ import { liquidGlassAppearance } from '../src/ui/liquidGlassAppearance';
 
 // Load the actual iOS adapter without requiring UIKit on the Windows test host.
 // Missing native modules are a real upgrade case: JS can refresh before a rebuild.
-function loadSurface(modulePresent: boolean, compiled = true, runtime = true) {
+function loadSurface(modulePresent: boolean, compiled = true, runtime = true, file = 'TabBarSurface.ios.tsx') {
   let glassImports = 0;
-  const output = ts.transpileModule(readFileSync(resolve(__dirname, '../src/navigation/TabBarSurface.ios.tsx'), 'utf8'), {
+  const output = ts.transpileModule(readFileSync(resolve(__dirname, '../src/navigation', file), 'utf8'), {
     compilerOptions: { jsx: ts.JsxEmit.React, module: ts.ModuleKind.CommonJS, esModuleInterop: true, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const exports: any = {};
@@ -19,7 +19,8 @@ function loadSurface(modulePresent: boolean, compiled = true, runtime = true) {
     exports,
     require(name: string) {
       if (name === 'react') return React;
-      if (name === 'react-native') return { StyleSheet: { create: (styles: unknown) => styles } };
+      if (name === 'react-native') return { View: 'View', StyleSheet: { absoluteFill: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }, create: (styles: unknown) => styles } };
+      if (name === '../ui/theme') return { colors: { accent: '#ff0044' } };
       if (name === 'expo') return { requireOptionalNativeModule: (nativeName: string) => {
         assert.equal(nativeName, 'ExpoGlassEffect');
         return modulePresent ? {} : null;
@@ -99,4 +100,39 @@ test('iPhone navigation artwork does not require SF Symbols and has a consistent
     assert.equal(icon.props.stroke, 'white');
     assert.ok(icon.props.children.props.d.length > 20);
   }
+});
+
+test('the iPhone selection stays flat even when native Liquid Glass is available', () => {
+  const surface = loadSurface(true, true, true, 'TabBarIndicatorSurface.ios.tsx');
+  const view = surface.TabBarIndicatorSurface();
+  assert.equal(view.type, 'View');
+  assert.equal(surface.glassImports, 0);
+  assert.equal(view.props.pointerEvents, 'none');
+  assert.equal(view.props.style.backgroundColor, '#ff004473');
+  assert.equal(view.props.style.borderCurve, 'continuous');
+  assert.equal(view.props.style.opacity, undefined);
+});
+
+for (const [label, present, compiled, runtime] of [
+  ['a binary without the glass module', false, true, true],
+  ['an older iOS version', true, false, true],
+  ['a runtime without the glass API', true, true, false],
+] as const) {
+  test('the selection keeps its previous accent surface on ' + label, () => {
+    const surface = loadSurface(present, compiled, runtime, 'TabBarIndicatorSurface.ios.tsx');
+    const view = surface.TabBarIndicatorSurface();
+    assert.equal(view.type, 'View');
+    assert.equal(surface.glassImports, 0, 'The indicator never imports an unavailable view manager');
+    assert.equal(view.props.pointerEvents, 'none');
+    assert.equal(view.props.style.backgroundColor, '#ff004473');
+  });
+}
+
+test('Android and web keep the flat selection without importing UIKit', () => {
+  const surface = loadSurface(false, false, false, 'TabBarIndicatorSurface.tsx');
+  const view = surface.TabBarIndicatorSurface();
+  assert.equal(view.type, 'View');
+  assert.equal(surface.glassImports, 0);
+  assert.equal(view.props.style.backgroundColor, '#ff004440');
+  assert.equal(view.props.style.borderRadius, 26);
 });

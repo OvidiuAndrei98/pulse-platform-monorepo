@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { profileTicketGroups } from "../src/profile/ticketGroups";
+import { historyMonths, initialGroupTicket, profileTicketGroups, ticketTypeSummary } from "../src/profile/ticketGroups";
 import type { UserTicket } from "../src/data/tickets";
 
 const now = Date.parse("2026-10-12T12:00:00Z");
@@ -73,19 +73,46 @@ test("history is newest first and includes used tickets even before the event en
   assert.deepEqual(profileTicketGroups(input, "active", now), []);
 });
 
-test("a partly used group separates active and history counts without losing either ticket", () => {
+test("a partly used event stays together in Active, opening an unused QR first", () => {
   const input = [
     ticket("used", "night", "2026-10-12T10:00:00Z", { isValidated: true }),
     ticket("unused", "night", "2026-10-12T10:00:00Z"),
   ];
   assert.deepEqual(
     profileTicketGroups(input, "active", now)[0]!.tickets.map((t) => t.id),
-    ["unused"],
+    ["used", "unused"],
   );
   assert.deepEqual(
-    profileTicketGroups(input, "history", now)[0]!.tickets.map((t) => t.id),
-    ["used"],
+    profileTicketGroups(input, "history", now),
+    [],
   );
+  assert.equal(initialGroupTicket(input, 'used', true, now), 'unused');
+  assert.equal(initialGroupTicket(input, 'used', false, now), 'used');
+  const scanned = input.map(t => ({ ...t, isValidated: true }));
+  assert.equal(profileTicketGroups(scanned, 'active', now).length, 0);
+  assert.equal(profileTicketGroups(scanned, 'history', now)[0]!.tickets.length, 2);
+});
+
+test('history groups month boundaries in Bucharest and retains used/expired tickets', () => {
+  const input = [ticket('late', 'next-month', '2025-10-31T23:30:00Z', { isValidated: true }),
+    ticket('early', 'previous-month', '2025-10-31T20:00:00Z', { endTime: '2025-10-31T21:00:00Z' })];
+  const months = historyMonths(profileTicketGroups(input, 'history', now), 'en');
+  assert.deepEqual(months.map(m => m.key), ['2025-11', '2025-10']);
+  assert.equal(months[0]!.label, 'November 2025');
+  assert.deepEqual(months.flatMap(m => m.groups.flatMap(g => g.tickets.map(t => t.id))), ['late', 'early']);
+});
+
+test('ticket types reflect the whole event across different purchases', () => {
+  const a = ticket('1', 'night', '2026-10-13T20:00:00Z');
+  assert.equal(ticketTypeSummary([a, { ...a, id: '2' }, { ...a, id: '3', ticketTypeName: 'VIP' }]), '2 × General · 1 × VIP');
+});
+
+test('large wallets have no duplicated event across Active and History', () => {
+  const input = Array.from({ length: 2000 }, (_, i) => ticket(String(i), String(Math.floor(i / 4)), '2026-10-13T20:00:00Z', { isValidated: i % 4 !== 0 }));
+  const active = profileTicketGroups(input, 'active', now);
+  assert.equal(active.length, 500);
+  assert.equal(active.reduce((count, group) => count + group.tickets.length, 0), 2000);
+  assert.deepEqual(profileTicketGroups(input, 'history', now), []);
 });
 
 test("an event moves to history exactly at its end; empty categories stay empty", () => {

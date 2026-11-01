@@ -6,6 +6,8 @@ export type NativeTabBarProps = BottomTabBarProps & {
   activeIndex?: number;
   onSelectTab?: (name: string, gestureId?: number) => boolean | void;
   indicatorMotion?: TabIndicatorMotion;
+  /** A mounted but covered/hidden iOS navbar must not receive native gestures. */
+  interactionEnabled?: boolean;
 };
 
 // Android and browser navigation retain their current rendering and gestures.

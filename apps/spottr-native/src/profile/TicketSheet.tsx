@@ -2,9 +2,9 @@ import { AccentPressable } from '../ui/AccentPressable';
 import React, { useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { MotionPressable as Pressable } from "../ui/MotionPressable";
-import { BottomSheetView } from "@gorhom/bottom-sheet";
+import { BottomSheetFlatList, BottomSheetView } from "@gorhom/bottom-sheet";
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import QRCode from "react-native-qrcode-svg";
 import {
   ChevronLeft,
@@ -14,6 +14,8 @@ import {
   Zap,
   CheckCircle2,
   Clock3,
+  ChevronDown,
+  X,
 } from "lucide-react-native";
 import { AppSheet } from "../ui/AppSheet";
 import { Text } from "../ui/Text";
@@ -26,8 +28,9 @@ import { exportTicket } from "./exportTicket";
 import { formatTicketDate } from "../../../pulse-app/src/components/tickets/ticketDesign";
 import { ticketStatus, type UserTicket } from "../data/tickets";
 import { useAuth } from "../auth/AuthProvider";
-import { TicketAvailability } from './TicketAvailability';
 import { initialGroupTicket } from './ticketGroups';
+import { WalletTicketRow } from './WalletEvent';
+import { useReducedMotionPreference } from '../ui/useReducedMotionPreference';
 import { useEventClock } from '../data/useEventClock';
 import {ActionButton as UIActionButton} from '../ui/ActionButton';
 export { ticketStatus, type UserTicket } from "../data/tickets";
@@ -36,15 +39,11 @@ export function TicketSheet({
   tickets,
   initialId,
   onClose,
-  offline = false,
-  savedAt,
   preferUnused = true,
 }: {
   tickets: UserTicket[];
   initialId: string;
   onClose: () => void;
-  offline?: boolean;
-  savedAt?: number;
   preferUnused?: boolean;
 }) {
   const { controller } = useAuth();
@@ -56,8 +55,10 @@ export function TicketSheet({
     };
   }, []);
   const { copy, language } = usePreferences(),
-    brightness = useTicketBrightness(),
     link = useOpenLink();
+  const reduced = useReducedMotionPreference();
+  const [picker, setPicker] = useState(false);
+  useTicketBrightness();
   const [id, setId] = useState(() => initialGroupTicket(tickets, initialId, preferUnused)),
     [busy, setBusy] = useState(false),
     [failed, setFailed] = useState(false);
@@ -65,11 +66,17 @@ export function TicketSheet({
       toDataURL: (callback: (value: string) => void) => void;
     } | null>(null),
     pending = useRef(false);
-  const [area, setArea] = useState({ width: 320, height: 480 }),
-    [cardHeight, setCardHeight] = useState(480);
+  const [area, setArea] = useState({ width: 0, height: 0 });
+  const [cardLayout, setCardLayout] = useState<{ key: string; height: number } | null>(null);
+  const qrSize = Math.max(100, Math.min(230, area.width - 76, area.height - 280));
+  const cardWidth = Math.min(440, Math.max(0, area.width - 2));
+  const layoutKey = `${cardWidth}:${qrSize}`;
+  const measured = cardLayout?.key === layoutKey && cardLayout.height > 0;
+  const scale = measured ? Math.min(1, Math.max(0.1, (area.height - 2) / cardLayout.height)) : 1;
   const now = useEventClock();
   const opacity = useSharedValue(1);
-  const cardMotion = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  const displacement = useSharedValue(0);
+  const cardMotion = useAnimatedStyle(() => ({ opacity: measured ? opacity.value : 0, transform: [{ translateX: displacement.value }, { scale }] }));
   const moveTicket = (direction: number) => {
     if (pending.current) return;
     setId(current => {
@@ -78,20 +85,23 @@ export function TicketSheet({
     });
   };
   useEffect(() => {
-    opacity.value = 0.65;
-    opacity.value = withTiming(1, { duration: 180 });
-  }, [id, opacity]);
-  const swipe = Gesture.Pan().enabled(tickets.length > 1 && !busy)
-    .activeOffsetX([-20, 20]).failOffsetY([-12, 12]).runOnJS(true)
+    opacity.value = reduced ? 1 : 0.65;
+    if (!reduced) opacity.value = withTiming(1, { duration: 180 });
+  }, [id, opacity, reduced]);
+  const swipe = Gesture.Pan().enabled(tickets.length > 1 && !busy && !picker)
+    .activeOffsetX([-20, 20]).failOffsetY([-12, 12])
+    .onUpdate(({ translationX }) => {
+      if (!reduced) displacement.value = Math.max(-30, Math.min(30, translationX * .16));
+    })
     .onEnd(({ translationX }) => {
-      if (Math.abs(translationX) >= 45) moveTicket(translationX < 0 ? 1 : -1);
+      if (Math.abs(translationX) >= 45) runOnJS(moveTicket)(translationX < 0 ? 1 : -1);
+    }).onFinalize(() => {
+      displacement.value = reduced ? 0 : withSpring(0, { damping: 26, stiffness: 300, mass: .6 });
     });
   const ticket = tickets.find((item) => item.id === id) ?? tickets[0];
   if (!ticket) return null;
   const index = tickets.indexOf(ticket);
-  const status = ticketStatus(ticket, now),
-    qrSize = Math.max(100, Math.min(230, area.width - 76, area.height - 280));
-  const scale = Math.min(1, Math.max(0.1, (area.height - 2) / cardHeight));
+  const status = ticketStatus(ticket, now);
   const download = async () => {
     if (pending.current) return;
     pending.current = true;
@@ -153,7 +163,6 @@ export function TicketSheet({
             {copy("tickets.yourEntrance").toUpperCase()}
           </Text>
           <Text style={s.heading}>{copy("tickets.showAtDoor")}</Text>
-          <TicketAvailability offline={offline} savedAt={savedAt} />
         </View>
         {tickets.length > 1 && (
           <View testID="ticket-paging" style={s.paging}>
@@ -166,12 +175,16 @@ export function TicketSheet({
             >
               <ChevronLeft color="white" size={20} />
             </Pressable>
+            <Pressable testID="ticket-picker-toggle" accessibilityRole="button" accessibilityLabel={copy('tickets.chooseTicket')}
+              accessibilityState={{ expanded: picker }} disabled={busy} onPress={() => setPicker(current => !current)}
+              style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Text style={{ color: "white", fontSize: 14, fontWeight: "600" }}>
               {copy("tickets.ticketPosition", {
                 current: index + 1,
                 total: tickets.length,
               })}
             </Text>
+            <ChevronDown size={14} color={colors.muted}/></Pressable>
             <Pressable
               disabled={index === tickets.length - 1 || busy}
               onPress={() => moveTicket(1)}
@@ -189,7 +202,9 @@ export function TicketSheet({
         <GestureDetector gesture={swipe} touchAction="pan-y">
         <View collapsable={false}
           testID="ticket-fit-area"
-          onLayout={(e) => setArea(e.nativeEvent.layout)}
+          onLayout={({ nativeEvent: { layout } }) => setArea(current =>
+            current.width === layout.width && current.height === layout.height ? current
+              : { width: layout.width, height: layout.height })}
           style={{
             flex: 1,
             minHeight: 0,
@@ -198,12 +213,20 @@ export function TicketSheet({
             overflow: "hidden",
           }}
         >
-          <Animated.View
-            onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)}
+          {area.width > 0 && area.height > 0 && <Animated.View
+            testID="ticket-pass"
+            accessibilityElementsHidden={picker}
+            importantForAccessibility={picker ? 'no-hide-descendants' : 'auto'}
+            aria-hidden={picker}
+            onLayout={({ nativeEvent: { layout } }) => setCardLayout(current =>
+              current?.key === layoutKey && current.height === layout.height ? current
+                : { key: layoutKey, height: layout.height })}
             style={[
               s.pass,
               cardMotion,
-              { width: Math.min(440, area.width - 2), transform: [{ scale }] },
+              // Measure at the actual sheet width before revealing the pass.
+              // The QR and card must not flash at placeholder dimensions.
+              { width: cardWidth },
             ]}
           >
             <Wordmark />
@@ -260,12 +283,29 @@ export function TicketSheet({
               <Text style={s.location}>{ticket.locationName}</Text>
             </Pressable>
             <Text style={s.hint}>{copy(status === 'active' ? 'ticketPdf.validationHint' : status === 'used' ? 'tickets.alreadyUsed' : 'tickets.eventEnded')}</Text>
-          </Animated.View>
+          </Animated.View>}
+          {picker && <View testID="ticket-picker" accessibilityViewIsModal style={s.picker}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingBottom: 8 }}>
+              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', flex: 1 }}>{copy('tickets.chooseTicket')}</Text>
+              <Pressable testID="ticket-picker-close" accessibilityRole="button" accessibilityLabel={copy('common.close')} onPress={() => setPicker(false)} style={s.arrow}><X size={18} color={colors.text}/></Pressable>
+            </View>
+            <BottomSheetFlatList<UserTicket> data={tickets} keyExtractor={item => item.id}
+              style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 12 }}
+              initialScrollIndex={index} initialNumToRender={6} maxToRenderPerBatch={6} windowSize={3}
+              getItemLayout={(_, position) => ({ length: 96, offset: 96 * position, index: position })}
+              renderItem={({ item, index: position }) => <View style={{ height: 96, paddingBottom: 8 }}>
+                <WalletTicketRow testID={`ticket-picker-${item.id}`} ticket={item} index={position} now={now} selected={item.id === ticket.id}
+                  onOpen={choice => { if (!pending.current) { setId(choice.id); setPicker(false); } }}/>
+              </View>}/>
+          </View>}
         </View>
         </GestureDetector>
-        {brightness && (
+        {Platform.OS !== 'web' && (
           <View
-            style={{ flexDirection: "row", justifyContent: "center", gap: 7 }}
+            testID="ticket-brightness-hint"
+            // Explain the automatic adjustment from the first frame, while
+            // brightness is still transitioning toward maximum.
+            style={{ flexDirection: "row", justifyContent: "center", gap: 7, minHeight: 14 }}
           >
             <Zap size={13} color={colors.accent} />
             <Text style={{ fontSize: 10, color: "#999195" }}>
@@ -283,6 +323,7 @@ export function TicketSheet({
         )}
         <UIActionButton
           testID="ticket-download"
+          tone="primary"
           accessibilityRole="button"
           disabled={busy}
           onPress={() => void download()}
@@ -298,6 +339,7 @@ export function TicketSheet({
   );
 }
 const s = StyleSheet.create({
+  picker: { ...StyleSheet.absoluteFill, backgroundColor: '#111113', borderRadius: 22, paddingTop: 12, paddingBottom: 4, borderWidth: 1, borderColor: '#ffffff20' },
   eyebrow: {
     fontSize: 10,
     fontWeight: "700",

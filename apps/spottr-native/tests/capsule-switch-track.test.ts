@@ -5,7 +5,8 @@ const { hooks, modules, find } = require('../../pulse-app/scripts/helpers/qaHarn
 
 function fixture() {
   const h = hooks(), react = { ...h.react, useLayoutEffect: h.react.useEffect };
-  let onUI = false, handlers: Record<string, any> = {};
+  let onUI = false, panHandlers: Record<string, any> = {};
+  const taps: Record<string, any>[] = [];
   const queued: (() => void)[] = [], changes: string[] = [], springs: { target: number; kind: string }[] = [];
   const animated = new Map<any, { target: number; kind: string }>();
   const ui = (fn: (...args: any[]) => any, ...args: any[]) => {
@@ -23,24 +24,27 @@ function fixture() {
     };
     return value;
   };
-  const buildTap = () => {
-    handlers = {};
-    const own = handlers;
+  const build = (pan: boolean) => {
+    const own: Record<string, any> = {};
+    if (pan) panHandlers = own; else taps.push(own);
     const builder: any = new Proxy({}, { get: (_, name: string) => (arg: any) => { own[name] = arg; return builder; } });
     return builder;
   };
   const { CapsuleSwitchTrack } = modules({
     react,
     'react-native': { Platform: { OS: 'ios' }, View: 'View', Pressable: 'Pressable', StyleSheet: { create: (s: any) => s } },
-    'react-native-gesture-handler': { GestureDetector: 'GestureDetector', Gesture: { Tap: buildTap } },
+    'react-native-gesture-handler': { GestureDetector: 'GestureDetector', Gesture: { Tap: () => build(false), Pan: () => build(true) } },
     'react-native-reanimated': { __esModule: true, default: { View: 'AnimatedView' },
       useSharedValue: (initial: any) => react.useRef(shared(initial)).current,
       useAnimatedStyle: (fn: () => any) => ({ animated: fn }),
+      useReducedMotion: () => false,
+      useAnimatedReaction: () => {},
+      cancelAnimation: (value: any) => animated.delete(value),
       withSpring: (target: number, config: any) => ({ spring: { target, kind: config.kind } }),
       runOnUI: (fn: any) => (...args: any[]) => ui(fn, ...args),
       runOnJS: (fn: any) => (...args: any[]) => { queued.push(() => fn(...args)); },
     },
-    '../navigation/tabCapsuleSpring': { tabCapsuleSpring: { kind: 'selection' }, tabCapsulePressSpring: { kind: 'press' }, tabCapsuleReleaseSpring: { kind: 'release' } },
+    '../navigation/tabCapsuleSpring': { tabCapsuleSpring: { kind: 'selection' }, tabCapsulePressSpring: { kind: 'press' }, tabCapsuleReleaseSpring: { kind: 'release' }, tabCapsuleFollowSpring: { kind: 'follow' } },
     './theme': { colors: { accent: '#ff0044' } },
   }).load(path.resolve(__dirname, '../src/ui/CapsuleSwitchTrack.tsx'));
   let tree: any;
@@ -50,13 +54,19 @@ function fixture() {
   render();
   return {
     render, changes, queued, dispose: () => h.unmount(),
-    press: (x: number, success = true) => { ui(handlers.onBegin); ui(handlers.onEnd, { x }, success); ui(handlers.onFinalize); },
+    press: (x: number, success = true) => { ui(panHandlers.onBegin); ui(panHandlers.onFinalize); ui(taps.slice(-2)[x >= 72 ? 1 : 0]!.onEnd, { x }, success); },
+    drag: (translationX: number, success: boolean) => {
+      ui(panHandlers.onBegin); ui(panHandlers.onStart);
+      ui(panHandlers.onUpdate, { translationX });
+      ui(panHandlers.onEnd, { translationX, velocityX: 0 }, success);
+      ui(panHandlers.onFinalize);
+    },
     option: (id: string) => find(tree, (n: any) => n.props?.testID === id).props,
     blob: () => find(tree, (n: any) => n.props?.testID === 'blob').props,
     style: () => ui(find(tree, (n: any) => n.props?.testID === 'blob').props.style.at(-1).animated),
     selectionSprings: () => springs.filter(s => s.kind === 'selection'),
     advance: (progress: number) => { for (const [value, spring] of animated) if (spring.kind === 'selection') ui(() => { value.value = progress; }); },
-    enabled: () => handlers.enabled,
+    enabled: () => taps.at(-1)!.enabled,
   };
 }
 
@@ -99,4 +109,15 @@ test('native switch preserves accessibility, cancellation, disabled state and un
   assert.equal(f.queued.length, 0);
   f.render({ disabled: false }); f.press(15); f.dispose(); f.queued.shift()!();
   assert.deepEqual(f.changes, ['map'], 'An unmounted switch cannot change a page');
+});
+
+test('drag commits one selection on release and cancellation restores the original tab', () => {
+  const f = fixture(); f.drag(60, false);
+  assert.equal(f.queued.length, 0, 'Cancelling does not open another view');
+  assert.equal(f.selectionSprings().at(-1)?.target, 0);
+  f.drag(60, true);
+  assert.equal(f.queued.length, 1, 'No intermediate selection or extra tap while dragging');
+  f.queued.shift()!(); f.render({ value: 'map' });
+  assert.deepEqual(f.changes, ['map']);
+  assert.equal(f.selectionSprings().at(-1)?.target, 1);
 });

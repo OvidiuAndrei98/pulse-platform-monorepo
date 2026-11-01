@@ -1,3 +1,4 @@
+import { openAccountPage } from '../navigation/accountNavigation';
 import { AccentPressable } from '../ui/AccentPressable';
 import { GlassPressable } from '../ui/GlassPressable';
 import { FormInput as TextInput, formStyles } from '../ui/FormInput';
@@ -56,7 +57,6 @@ import { ProfileDisclosure, PROFILE_DISCLOSURE_MOTION } from "../profile/Profile
 import { ProfileEmptyState } from '../profile/ProfileEmptyState';
 import {
   TicketSheet,
-  ticketStatus,
   type UserTicket,
 } from "../profile/TicketSheet";
 import { Text } from "../ui/Text";
@@ -68,12 +68,10 @@ import { WEB_URL } from "../config";
 import type { RootParamList } from "../navigation/types";
 import { AuthButton, AuthMessage } from "./AuthScreen";
 import { useTickets } from "../data/useTickets";
-import { TicketAvailability } from "../profile/TicketAvailability";
-import { TicketCarousel } from "../profile/TicketCarousel";
+import { FeaturedEventPass } from "../profile/WalletEvent";
 import { profileTicketGroups } from "../profile/ticketGroups";
 import { useEventClock } from "../data/useEventClock";
 import { useNavbarScroll } from '../navigation/useNavbarScroll';
-import {ActionButton as UIActionButton} from '../ui/ActionButton';
 
 type ProfileAction = "avatar" | "details" | "password" | "language" | "privacy";
 type ProfileNotice = { kind: "error" | "success"; key: string };
@@ -107,8 +105,7 @@ export function ProfileScreen() {
     [sheet, setSheet] = useState<"preferences" | "connect" | "delete" | null>(
       null,
     );
-  const [ticket, setTicket] = useState<UserTicket | null>(null),
-    [tab, setTab] = useState<"active" | "history">("active");
+  const [ticket, setTicket] = useState<UserTicket | null>(null);
   const [activeAction, setActiveAction] = useState<ProfileAction | null>(null),
     [notices, setNotices] = useState<Partial<Record<ProfileAction, ProfileNotice>>>({});
   const busy = activeAction !== null;
@@ -129,14 +126,10 @@ export function ProfileScreen() {
     setSheet(null);
     setTicket(null);
     setNotices({});
-    setTab("active");
   }, [auth.user?.id]);
-  const groups = useMemo(() => profileTicketGroups(tickets.data ?? [], tab, now), [tickets.data, tab, now]);
+  const groups = useMemo(() => profileTicketGroups(tickets.data ?? [], 'active', now), [tickets.data, now]);
   if (!auth.ready || !auth.user) return <><ProfileActivity watchAdmission={false} /><Loading /></>;
-  const user = auth.user,
-    activeTickets = (tickets.data ?? []).filter(
-      (item) => ticketStatus(item, now) === "active",
-    );
+  const user = auth.user;
   const explore = () => navigation.navigate('Tabs', { screen: 'Explore' });
   const clearNotice = (action: ProfileAction) =>
     setNotices(old => ({ ...old, [action]: undefined }));
@@ -210,15 +203,18 @@ export function ProfileScreen() {
                 <UserRound color={colors.muted} size={40} />
               )}
             </View>
-            <UIActionButton
+            <AccentPressable fallback={Pressable}
+              testID="profile-avatar-change"
               accessibilityRole="button"
               accessibilityLabel={copy("profile.changeAvatar")}
+              accessibilityState={{ disabled: busy, busy: activeAction === 'avatar' }}
+              hitSlop={7}
               disabled={busy}
               onPress={() => void avatar()}
               style={s.camera}
             >
               {activeAction === "avatar" ? <ActivityIndicator size="small" color="white" /> : <Camera size={17} color="white" />}
-            </UIActionButton>
+            </AccentPressable>
           </View>
           <View style={{ flex: 1, minWidth: 0, gap: 7 }}>
             <Text numberOfLines={1} style={{ color: "white", fontWeight: "600", fontSize: 24 }}>
@@ -268,34 +264,14 @@ export function ProfileScreen() {
         <WardrobeCard />
         {user.role !== 'organizer' && !!validationEvents.data?.length && <Row icon={QrCode} title={copy('userProfile.ticketValidation')} hint={copy('userProfile.validationAccess', { count: validationEvents.data.length })} onPress={() => navigation.navigate('Scanner')}/>}
         <View style={{ gap: 12 }}>
-          <Text style={s.section}>{copy("userProfile.ticketsOrders")}</Text>
-          <View style={s.tabs}>
-            {(["active", "history"] as const).map((value) => (
-              <AccentPressable fallback={Pressable}
-                key={value}
-                testID={'profile-tickets-tab-' + value}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: tab === value }}
-                onPress={() => setTab(value)}
-                style={[
-                  s.tab,
-                  tab === value && { backgroundColor: colors.accent },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: tab === value ? "white" : colors.muted,
-                    fontSize: 13,
-                    fontWeight: "600",
-                  }}
-                >
-                  {copy("userProfile." + value)}
-                  {value === "active" ? ` (${activeTickets.length})` : ""}
-                </Text>
-              </AccentPressable>
-            ))}
+          <View testID="profile-tickets-heading" style={s.sectionHeading}>
+            <Text style={[s.section, { flex: 1 }]}>{copy("tickets.title")}</Text>
+            <Pressable testID="profile-tickets-all" accessibilityRole="button" hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
+              onPress={() => openAccountPage(navigation, 'Tickets')}
+              style={s.seeAll}>
+              <Text style={s.more}>{copy("common.seeAll")}</Text>
+            </Pressable>
           </View>
-          <TicketAvailability offline={tickets.offline} savedAt={tickets.savedAt} storageError={tickets.storageError} refreshing={tickets.isFetching} onRefresh={() => void tickets.refetch()} />
           {tickets.isPending ? (
             <Loading />
           ) : tickets.isError && !tickets.data ? (
@@ -304,30 +280,27 @@ export function ProfileScreen() {
               retry={() => void tickets.refetch()}
             />
           ) : groups.length ? (
-            <TicketCarousel
-              key={user.id + ':' + tab}
-              groups={groups}
-              tab={tab}
+            <FeaturedEventPass
+              key={user.id}
+              testID="profile-featured-pass"
+              group={groups[0]!}
               now={now}
               onOpen={setTicket}
             />
           ) : (
             <ProfileEmptyState testID="profile-empty-tickets" icon={Ticket}
-              title={copy(tab === 'active' ? 'userProfile.noActiveTickets' : 'tickets.noHistory')}
+              title={copy('userProfile.noActiveTickets')}
               onExplore={explore} />
           )}
-          {(tickets.isPending || tickets.isError || !!tickets.data?.length) && <Pressable testID="profile-tickets-all" accessibilityRole="button" onPress={() => navigation.navigate("Tabs", {screen:"Profile",params:{screen:"Tickets"}})} style={{minHeight:44,alignItems:"center",justifyContent:"center",borderRadius:99,borderWidth:1,borderColor:"#ffffff1a"}}><Text style={{color:"white",fontSize:14,fontWeight:"600"}}>{copy("userProfile.viewAllTickets")}</Text></Pressable>}
-          {tab === "history" && (
-            <Row
-              icon={Receipt}
-              title={copy("userProfile.viewInvoices")}
-              hint={copy("userProfile.ordersPayments")}
-              onPress={() => navigation.navigate("Tabs", {screen:"Profile",params:{screen:"Orders"}})}
-            />
-          )}
+          <Row
+            icon={Receipt}
+            title={copy("userProfile.viewInvoices")}
+            hint={copy("userProfile.ordersPayments")}
+            onPress={() => openAccountPage(navigation, 'Orders')}
+          />
         </View>
         <View style={{ gap: 12 }}>
-          <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between"}}><Text style={s.section}>{copy("userProfile.savedEvents")}</Text>{saved.length > 4 && <Pressable accessibilityRole="button" testID="profile-saved-all" onPress={() => navigation.navigate("Tabs", {screen:"Profile",params:{screen:"SavedEvents"}})} style={{minHeight:44,justifyContent:"center"}}><Text style={{fontSize:12,color:colors.accent}}>{copy("common.seeAll")}</Text></Pressable>}</View>
+          <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between"}}><Text style={s.section}>{copy("userProfile.savedEvents")}</Text>{saved.length > 4 && <Pressable accessibilityRole="button" testID="profile-saved-all" onPress={() => openAccountPage(navigation, 'SavedEvents')} style={{minHeight:44,justifyContent:"center"}}><Text style={{fontSize:12,color:colors.accent}}>{copy("common.seeAll")}</Text></Pressable>}</View>
           {actionError && <AuthMessage text={copy("feedback.actionFailed")} />}
           {savedLoading ? <Loading /> : savedError ? <Feedback title={copy("feedback.loadFailed")} retry={retrySaved} /> : saved.length ? (
             saved.slice(0, 4).map((event) => (
@@ -561,19 +534,19 @@ export function ProfileScreen() {
           </View>
         </View>
         {link.error && <AuthMessage text={copy("feedback.actionFailed")} />}
-        <Pressable
+        <AccentPressable fallback={Pressable} glassColor="rgba(0, 0, 0, 0.15)" testID="profile-logout"
           accessibilityRole="button"
           onPress={() => {
             void auth.controller.logout();
             navigation.navigate("Tabs", { screen: "Home" });
           }}
-          style={s.logout}
+          style={[s.logout, Platform.OS === 'ios' && { alignSelf: 'stretch', height: 48 }]}
         >
           <LogOut color="#f87171" size={16} />
           <Text style={{ color: "#f87171", fontSize: 14, fontWeight: "600" }}>
             {copy("userProfile.logout")}
           </Text>
-        </Pressable>
+        </AccentPressable>
         <Text style={{ color: "#ffffff66", textAlign: "center", fontSize: 10 }}>
           SPOTTR
         </Text>
@@ -588,9 +561,7 @@ export function ProfileScreen() {
       {ticket && (
         <TicketSheet
           initialId={ticket.id}
-          preferUnused={tab === 'active'}
-          offline={tickets.offline}
-          savedAt={tickets.savedAt}
+          preferUnused
           tickets={(tickets.data ?? []).filter(item => item.eventId === ticket.eventId)}
           onClose={() => setTicket(null)}
         />
@@ -721,6 +692,9 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   section: { fontSize: 18, fontWeight: "600", color: "white" },
+  sectionHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  seeAll: { alignSelf: 'stretch', justifyContent: 'center', flexShrink: 0 },
+  more: { color: colors.accent, fontSize: 12, fontWeight: '600' },
   hint: { fontSize: 12, lineHeight: 18, color: colors.muted, marginTop: 3 },
   panel: {
     borderRadius: 22,
@@ -763,15 +737,6 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ffffff1a",
   },
-  tabs: {
-    padding: 4,
-    borderRadius: 99,
-    flexDirection: "row",
-    backgroundColor: "#ffffff0a",
-    borderWidth: 1,
-    borderColor: "#ffffff1a",
-  },
-  tab: { flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 99 },
   input: formStyles.profile,
   form: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 20, gap: 10 },
   languageMenu: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 16, gap: 4 },

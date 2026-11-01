@@ -1,3 +1,4 @@
+import { openAccountPage } from '../navigation/accountNavigation';
 import { AccentPressable } from '../ui/AccentPressable';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
@@ -107,7 +108,7 @@ export function PushNavigation({ navigation, state }: { navigation: NavigationCo
       const item = parseNotifications({ items: [raw] }).items[0];
       if (!item || item.id !== id) throw new Error('Invalid notification');
       consumeRef.current();
-      if (item.type === 'ticket_purchased') navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'Tickets' } });
+      if (item.type === 'ticket_purchased') openAccountPage(navigation, 'Tickets');
       else {
         const target = notificationDestination(item);
         if (target?.kind === 'event') navigation.navigate('Event', { id: target.id, presentation: 'page' });

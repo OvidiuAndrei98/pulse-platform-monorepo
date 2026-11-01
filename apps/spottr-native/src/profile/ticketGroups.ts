@@ -18,8 +18,6 @@ export function profileTicketGroups(
 ): TicketGroup[] {
   const groups = new Map<string, TicketGroup>();
   for (const ticket of tickets) {
-    if ((ticketStatus(ticket, now) === "active") !== (tab === "active"))
-      continue;
     const group = groups.get(ticket.eventId);
     if (group) group.tickets.push(ticket);
     else
@@ -28,7 +26,9 @@ export function profileTicketGroups(
         tickets: [ticket],
       });
   }
-  return [...groups.values()].sort((a, b) => {
+  return [...groups.values()].filter(group =>
+    group.tickets.some(ticket => ticketStatus(ticket, now) === 'active') === (tab === 'active')
+  ).sort((a, b) => {
     const difference =
       Date.parse(a.tickets[0]!.startTime) - Date.parse(b.tickets[0]!.startTime);
     return (
@@ -36,4 +36,28 @@ export function profileTicketGroups(
       a.eventId.localeCompare(b.eventId)
     );
   });
+}
+
+/** Calendar grouping is in the event timezone, never the device's timezone. */
+export function historyMonths(groups: readonly TicketGroup[], language: string) {
+  const months = new Map<string, { key: string; label: string; groups: TicketGroup[] }>();
+  const format = new Intl.DateTimeFormat(language === 'ro' ? 'ro-RO' : 'en-GB', {
+    timeZone: 'Europe/Bucharest', month: 'long', year: 'numeric',
+  });
+  const keyFormat = new Intl.DateTimeFormat('en', { timeZone: 'Europe/Bucharest', year: 'numeric', month: '2-digit' });
+  for (const group of groups) {
+    const date = new Date(group.tickets[0]!.startTime);
+    const parts = keyFormat.formatToParts(date);
+    const key = parts.find(part => part.type === 'year')!.value + '-' + parts.find(part => part.type === 'month')!.value;
+    const month = months.get(key);
+    if (month) month.groups.push(group);
+    else months.set(key, { key, label: format.format(date), groups: [group] });
+  }
+  return [...months.values()].sort((a, b) => b.key.localeCompare(a.key));
+}
+
+export function ticketTypeSummary(tickets: readonly UserTicket[]) {
+  const types = new Map<string, number>();
+  for (const ticket of tickets) types.set(ticket.ticketTypeName, (types.get(ticket.ticketTypeName) ?? 0) + 1);
+  return [...types].map(([name, count]) => `${count} × ${name}`).join(' · ');
 }

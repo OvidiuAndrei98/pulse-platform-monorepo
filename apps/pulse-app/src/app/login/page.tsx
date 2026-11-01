@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { BackLink } from "@/components/BackLink";
@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError } from "@packages/api-client/src/Client";
 import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
 import {Input as UIInput} from '@/components/ui/Field';
+import { completeCredentials, createCredentialFillSubmitter, watchBrowserCredentialFill } from '@/lib/auth/credentialFill';
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -46,6 +47,21 @@ export default function LoginPage() {
       new URLSearchParams(window.location.search).get("returnTo") || "";
     return safeInternalPath(value, "");
   });
+  const emailInput = useRef<HTMLInputElement>(null), passwordInput = useRef<HTMLInputElement>(null);
+  const pending = useRef(false), submitRef = useRef<() => void>(() => {}), fillEnabled = useRef(false);
+  fillEnabled.current = showEmailForm && !loading && !user;
+  const fillRef = useRef<ReturnType<typeof createCredentialFillSubmitter> | null>(null);
+  if (!fillRef.current) fillRef.current = createCredentialFillSubmitter({ enabled: () => fillEnabled.current && !pending.current, submit: () => submitRef.current() });
+  const fill = fillRef.current;
+  useEffect(() => () => { fill.reset(); }, [fill]);
+  useEffect(() => {
+    if (!showEmailForm) { fill.cancel(); return; }
+    if (!emailInput.current || !passwordInput.current) return;
+    return watchBrowserCredentialFill(emailInput.current, passwordInput.current, value => {
+      setEmail(value.email); setPassword(value.password);
+      fill.update('email', value.email, true); fill.update('password', value.password, true);
+    });
+  }, [showEmailForm, fill]);
 
   useEffect(() => {
     if (!loading && user) {
@@ -61,11 +77,19 @@ export default function LoginPage() {
     }
   }, [loading, returnTo, router, user]);
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleSubmit = async (event?: React.FormEvent) => {
+    event?.preventDefault();
+    if (pending.current || loading || user || !showEmailForm) return;
+    fill.cancel();
+    // Read actual values too: some password managers fill without React events.
+    const credentials = { email: (emailInput.current?.value ?? email).trim(), password: passwordInput.current?.value ?? password };
+    if (!completeCredentials(credentials)) return;
+    fill.update('email', credentials.email); fill.update('password', credentials.password);
+    fill.markAttempt();
+    pending.current = true;
     setLoginError("");
     try {
-      await login(email, password);
+      await login(credentials.email, credentials.password);
     } catch (cause) {
       const message =
         cause instanceof ApiError && cause.status === 401
@@ -74,8 +98,11 @@ export default function LoginPage() {
             ? t("auth.accountInactive")
             : t("common.loginFailed");
       setLoginError(message);
+    } finally {
+      pending.current = false;
     }
   };
+  submitRef.current = () => { void handleSubmit(); };
 
   return (
     <main className="relative min-h-dvh overflow-hidden bg-black text-white">
@@ -186,11 +213,17 @@ export default function LoginPage() {
                 <Mail className="h-4 w-4 shrink-0" />
                 <UIInput
                   id="email"
+                  ref={emailInput}
+                  name="username"
                   type="email"
-                  autoComplete="email"
+                  autoComplete="username"
+                  enterKeyHint={password ? 'go' : 'next'}
                   required
                   value={email}
-                  onChange={(inputEvent) => setEmail(inputEvent.target.value)}
+                  onChange={(inputEvent) => { const value = inputEvent.target.value; fill.update('email', value); setEmail(value); }}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter' && !event.nativeEvent.isComposing && !passwordInput.current?.value) { event.preventDefault(); passwordInput.current?.focus(); }
+                  }}
                   className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white  placeholder:text-white/45"
                   placeholder={t("auth.emailPlaceholder")} bare
                 />
@@ -205,13 +238,14 @@ export default function LoginPage() {
                 <LockKeyhole className="h-4 w-4 shrink-0" />
                 <UIInput
                   id="password"
+                  ref={passwordInput}
+                  name="password"
                   type="password"
                   autoComplete="current-password"
+                  enterKeyHint="go"
                   required
                   value={password}
-                  onChange={(inputEvent) =>
-                    setPassword(inputEvent.target.value)
-                  }
+                  onChange={(inputEvent) => { const value = inputEvent.target.value; fill.update('password', value); setPassword(value); }}
                   className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white  placeholder:text-white/45"
                   placeholder={t("auth.passwordPlaceholder")} bare
                 />

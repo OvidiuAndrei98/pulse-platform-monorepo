@@ -29,6 +29,8 @@ import { isEventId } from "../data/events";
 import { returnToEvent } from "../navigation/returnToEvent";
 import { GoogleButton } from '../auth/GoogleButton';
 import {ActionButton as UIActionButton} from '../ui/ActionButton';
+import { useIsFocused } from '@react-navigation/native';
+import { createCredentialFillSubmitter, watchBrowserCredentialFill } from '../../../pulse-app/src/lib/auth/credentialFill';
 
 export function AuthScreen({
   route,
@@ -52,6 +54,29 @@ export function AuthScreen({
     [sent, setSent] = useState(false);
   const pending = useRef(false),
     revision = useRef(0);
+  const focused = useIsFocused();
+  const emailInput = useRef<React.ComponentRef<typeof TextInput>>(null);
+  const passwordInput = useRef<React.ComponentRef<typeof TextInput>>(null);
+  const submitRef = useRef<() => void>(() => {});
+  const fillEnabled = useRef(false);
+  fillEnabled.current = mode === 'login' && emailForm && focused && !busy && !auth.busy && !auth.user;
+  const fillRef = useRef<ReturnType<typeof createCredentialFillSubmitter> | null>(null);
+  if (!fillRef.current) fillRef.current = createCredentialFillSubmitter({ enabled: () => fillEnabled.current && !pending.current, submit: () => submitRef.current() });
+  const fill = fillRef.current;
+  const changeEmail = (value: string) => { fill.update('email', value); setEmail(value); };
+  const changePassword = (value: string) => { fill.update('password', value); setPassword(value); };
+  useEffect(() => () => { fill.reset(); }, [fill]);
+  useEffect(() => {
+    if (!focused || !emailForm) fill.cancel();
+    if (Platform.OS !== 'web' || !emailForm || mode !== 'login' || !focused) return;
+    const emailNode = emailInput.current as unknown as HTMLInputElement | null;
+    const passwordNode = passwordInput.current as unknown as HTMLInputElement | null;
+    if (!emailNode || !passwordNode) return;
+    return watchBrowserCredentialFill(emailNode, passwordNode, value => {
+      setEmail(value.email); setPassword(value.password);
+      fill.update('email', value.email, true); fill.update('password', value.password, true);
+    });
+  }, [emailForm, mode, focused, fill]);
   useEffect(
     () => () => auth.controller.cancelPendingLogin(),
     [auth.controller],
@@ -61,11 +86,12 @@ export function AuthScreen({
     setError("");
     setSent(false);
     setPassword("");
+    fill.reset({ email: fill.read().email, password: '' });
     setConfirm("");
     return () => {
       revision.current++;
     };
-  }, [mode]);
+  }, [mode, fill]);
   useEffect(() => {
     if (!auth.ready || !auth.user || (mode !== "login" && mode !== "register")) return;
     // Never back into a protected screen on close/logout; authenticated return
@@ -90,6 +116,8 @@ export function AuthScreen({
   const form = mode !== "login" || emailForm;
   const submit = async () => {
     if (pending.current || auth.busy) return;
+    fill.cancel();
+    const { email, password } = fill.read();
     setError("");
     if (mode !== "reset" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError(copy("auth.emailPlaceholder"));
@@ -122,6 +150,7 @@ export function AuthScreen({
       setError(copy("auth.invalidReset"));
       return;
     }
+    fill.markAttempt();
     pending.current = true;
     setBusy(true);
     const version = revision.current;
@@ -156,6 +185,7 @@ export function AuthScreen({
       if (version === revision.current && mode !== "login") {
         setSent(true);
         setPassword("");
+        fill.reset({ email, password: '' });
         setConfirm("");
       }
     } catch (cause) {
@@ -178,6 +208,7 @@ export function AuthScreen({
       if (version === revision.current) setBusy(false);
     }
   };
+  submitRef.current = () => { void submit(); };
   const title =
     mode === "register"
       ? "auth.createProfile"
@@ -339,12 +370,20 @@ export function AuthScreen({
               {mode !== "reset" && (
                 <AuthField
                   testID="auth-email"
+                  inputRef={emailInput}
                   label={copy("auth.email")}
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={changeEmail}
                   icon={<Mail size={16} color="#ffffffb3" />}
                   keyboardType="email-address"
-                  autoComplete="email"
+                  autoComplete={mode === 'login' ? 'username' : 'email'}
+                  importantForAutofill="yes"
+                  returnKeyType={mode === 'forgot' || (mode === 'login' && !!password) ? 'go' : 'next'}
+                  submitBehavior="submit"
+                  onSubmitEditing={() => {
+                    if (mode === 'forgot' || (mode === 'login' && !!fill.read().password)) void submit();
+                    else passwordInput.current?.focus();
+                  }}
                   maxLength={100}
                   editable={!busy}
                 />
@@ -352,16 +391,21 @@ export function AuthScreen({
               {mode !== "forgot" && (
                 <AuthField
                   testID="auth-password"
+                  inputRef={passwordInput}
                   label={copy(
                     mode === "reset" ? "auth.newPassword" : "auth.password",
                   )}
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={changePassword}
                   secureTextEntry
                   icon={<LockKeyhole size={16} color="#ffffffb3" />}
                   autoComplete={
                     mode === "login" ? "current-password" : "new-password"
                   }
+                  importantForAutofill="yes"
+                  returnKeyType={mode === 'login' ? 'go' : 'next'}
+                  submitBehavior="submit"
+                  onSubmitEditing={mode === 'login' ? () => void submit() : undefined}
                   editable={!busy}
                 />
               )}
@@ -487,10 +531,12 @@ export function AuthScreen({
 export function AuthField({
   label,
   icon,
+  inputRef,
   ...props
 }: React.ComponentProps<typeof TextInput> & {
   label: string;
   icon?: React.ReactNode;
+  inputRef?: React.Ref<React.ComponentRef<typeof TextInput>>;
 }) {
   const [focused, setFocused] = useState(false);
   return (
@@ -500,6 +546,7 @@ export function AuthField({
         {React.isValidElement<{ color?: string }>(icon) && focused ? React.cloneElement(icon, { color: colors.accent }) : icon}
         <TextInput
           {...props}
+          ref={inputRef}
           accessibilityLabel={label}
           autoCapitalize={props.autoCapitalize ?? "none"}
           autoCorrect={false}

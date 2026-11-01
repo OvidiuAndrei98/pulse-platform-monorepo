@@ -6,11 +6,13 @@ import type { SearchMorphBounds, searchMorphGeometry } from './searchMorph';
 export type DiscoveryNativeGlassGroupsProps = {
   bounds: SharedValue<SearchMorphBounds>; progress: SharedValue<number>;
   geometry: DerivedValue<ReturnType<typeof searchMorphGeometry>>;
+  intent: { readonly value: { open: boolean; interactive: boolean } };
+  reduceMotion: SharedValue<boolean>;
   backScale: SharedValue<number>;
   sourceSwitch: React.ReactNode; filter: React.ReactNode; field: React.ReactNode;
-  compact: boolean; active: boolean; focused: boolean;
+  compact: boolean; active: boolean; focused: SharedValue<boolean>;
   searchLabel: string; backLabel: string; triggerRef: React.Ref<ViewInstance>;
-  onOpen: () => void; onClose: () => void; onSearchPressIn: () => void;
+  onOpen: () => void; onClose: () => void; onSearchPressIn: () => void; onSearchPressOut: () => void;
   onSourceLayout: (event: LayoutChangeEvent) => void;
   onDestinationLayout: (event: LayoutChangeEvent) => void;
 };

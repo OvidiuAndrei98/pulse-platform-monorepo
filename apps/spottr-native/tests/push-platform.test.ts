@@ -7,7 +7,7 @@ import ts from 'typescript';
 import { PushRegistry, parsePushRegistration } from '../src/notifications/pushRegistry';
 
 const project = '11111111-1111-4111-8111-111111111111';
-function fixture(hasNative = true, platform = 'ios') {
+function fixture(hasNative = true, platform = 'ios', environment = 'standalone') {
   const calls: string[] = [];
   const state = { granted: false, canAskAgain: true, enabled: true, projectId: project };
   let listener: ((value: unknown) => void) | undefined, initialResolve: ((value: unknown) => void) | undefined;
@@ -24,7 +24,7 @@ function fixture(hasNative = true, platform = 'ios') {
     clearLastNotificationResponseAsync: async () => {},
   };
   const modules: Record<string, unknown> = {
-    'expo-constants': { expoConfig: { extra: { eas: { projectId: project } } } },
+    'expo-constants': { executionEnvironment: environment, expoConfig: { extra: { eas: { projectId: project } } } },
     'expo': { requireOptionalNativeModule: () => hasNative ? {} : null },
     'expo-notifications': sdk,
     'react-native': { Platform: { OS: platform }, Linking: {}, AppState: {} },
@@ -34,7 +34,11 @@ function fixture(hasNative = true, platform = 'ios') {
   };
   const exports: any = {};
   const source = ts.transpileModule(readFileSync(resolve(import.meta.dirname, '../src/notifications/pushPlatform.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
-  runInNewContext(source, { exports, require: (name: string) => { if (name === 'expo-notifications' && !hasNative) throw Error('Old binary must not import missing native SDK'); if (!(name in modules)) throw Error(name); return modules[name]; }, setTimeout, clearTimeout, console });
+  runInNewContext(source, { exports, require: (name: string) => {
+    if (name === 'expo-notifications' && (!hasNative || environment === 'storeClient')) throw Error('Unsupported runtimes must not initialize the push SDK');
+    if (!(name in modules)) throw Error(name);
+    return modules[name];
+  }, setTimeout, clearTimeout, console });
   return { runtime: exports, calls, state, respond: (value: unknown) => listener?.(value), resolveInitial: (value: unknown) => initialResolve?.(value) };
 }
 test('older native binaries remain usable when the push module is missing', async () => {
@@ -42,6 +46,20 @@ test('older native binaries remain usable when the push module is missing', asyn
   let status = '';
   assert.equal(await f.runtime.getPushDevice(true, 'session', (value: string) => { status = value; }), null);
   assert.equal(status, 'unavailable'); assert.deepEqual(f.calls, []);
+});
+
+test('Expo Go skips push SDK initialization and registration on both phone platforms', async () => {
+  for (const platform of ['ios', 'android']) {
+    const f = fixture(true, platform, 'storeClient');
+    assert.equal(f.runtime.pushSupported, false);
+    let status = '';
+    assert.equal(await f.runtime.getPushDevice(true, 'session', (value: string) => { status = value; }), null);
+    assert.equal(status, 'unavailable');
+    const stop = f.runtime.listenPush(() => true, () => {}, () => {});
+    stop();
+    await f.runtime.clearPresentedPush();
+    assert.deepEqual(f.calls, [], 'No permission prompt, token request, or SDK listener in Expo Go');
+  }
 });
 test('automatic registration never asks permission; explicit Android activation creates channel before prompt', async () => {
   const f = fixture(true, 'android'), statuses: string[] = [];

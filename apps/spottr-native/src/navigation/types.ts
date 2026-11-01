@@ -20,6 +20,9 @@ export type RootParamList = {
   Event: { id: string; presentation?: "sheet" | "page" };
   EventDetails: { id: string; presentation?: "sheet" | "page" };
   Search: undefined;
+  Tickets: undefined;
+  Orders: undefined;
+  SavedEvents: undefined;
   PublicProfile: { id: string };
   Legal: { document: 'terms' | 'privacy' };
   SafetyGroup: { eventId: string };
