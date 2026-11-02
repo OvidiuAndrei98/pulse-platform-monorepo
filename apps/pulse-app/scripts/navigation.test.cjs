@@ -102,9 +102,12 @@ test("client scope excludes organizer, admin and validation routes", () => {
 
 test("tab order, nested destinations and native event links use one navigation policy", () => {
   const tabs = browser().load("lib/navigation/tabs.ts");
-  assert.equal(tabs.mainTabs().map(tab => tab.path).join(","), "/,/events,/feed,/users/me");
-  assert.equal(tabs.mainTabs(true)[3].path, "/dashboard");
-  assert.equal(tabs.mainTabIndex("/users/me/saved-events"), 3);
+  assert.equal(tabs.mainTabs().map(tab => tab.path).join(","), "/,/events,/friends,/feed,/users/me");
+  assert.equal(tabs.mainTabs(true)[4].path, "/dashboard");
+  assert.equal(tabs.mainTabIndex("/users/me/saved-events"), 4);
+  assert.equal(tabs.mainTabIndex("/users/me/friends"), 2);
+  assert.equal(tabs.mainTabIndex("/outings"), 2);
+  assert.equal(tabs.mainTabIndex("/feed"), 3);
   assert.equal(tabs.mainTabIndex("/events/123"), 1);
   assert.equal(tabs.isMainTabRoot("/events", "?view=map"), true);
   assert.equal(tabs.isMainTabRoot("/events", "?eventId=123"), false);

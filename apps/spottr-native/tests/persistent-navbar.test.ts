@@ -5,6 +5,7 @@ import { runInNewContext } from 'node:vm';
 import test from 'node:test';
 import React from 'react';
 import ts from 'typescript';
+import * as mainTabs from '@packages/app-core/navigation/mainTabs';
 
 function host(os = 'ios', role = 'user', ready = true) {
   const context = { bridge: { current: null as any } };
@@ -18,6 +19,7 @@ function host(os = 'ios', role = 'user', ready = true) {
     dispatch: (action: any) => { resets.push(action); preloadedRoutes.splice(0, preloadedRoutes.length, ...action.payload.preloadedRoutes); root = action.payload; },
   };
   const deps: Record<string, any> = {
+    '@packages/app-core/navigation/mainTabs': mainTabs,
     react: { ...React, createContext: () => ({ Provider: 'MainContext' }), useContext: () => context,
       useRef: (value: any) => refs[cursor++] ??= { current: value }, useState: (value: any) => [value, () => {}],
       useEffect() {}, useLayoutEffect: (effect: () => void) => { effect(); },
@@ -43,8 +45,8 @@ function host(os = 'ios', role = 'user', ready = true) {
   }).outputText, { exports, require: (name: string) => { assert.ok(name in deps, name); return deps[name]; } });
   const elements = (node: any): any[] => Array.isArray(node) ? node.flatMap(elements) : React.isValidElement(node) ? [node, ...elements((node.props as any).children)] : [];
   const render = (name: string, accountScreen = 'ProfileHome', presentation?: string) => {
-    const tabs = { name: 'Tabs', key: 'tabs', state: { type: 'tab', index: 3, routes: [
-      { name: 'Home' }, { name: 'Explore' }, { name: 'Feed' },
+    const tabs = { name: 'Tabs', key: 'tabs', state: { type: 'tab', index: 4, routes: [
+      { name: 'Home' }, { name: 'Explore' }, { name: 'Friends' }, { name: 'Feed' },
       { name: 'Profile', state: { index: 0, routes: [{ name: accountScreen }] } },
     ] } };
     const routes = name === 'Tabs' ? [tabs] : [tabs, { name, key: name, params: { presentation } }];
@@ -53,6 +55,7 @@ function host(os = 'ios', role = 'user', ready = true) {
     const tree = exports.MainTabBarProvider({ state: root, navigation, children: React.createElement('RootNavigator') });
     const nodes = elements(tree), host = nodes.find(element => element.props.testID === 'persistent-navbar-host');
     return { bars: nodes.filter(element => element.type === exports.MainTabBar), visible: host?.props.style.display === 'flex',
+      activeIndex: nodes.find(element => element.type === 'MainContext').props.value.activeIndex,
       select: nodes.find(element => element.type === 'MainContext').props.value.select,
       bridge: nodes.find(element => element.type === 'MainContext').props.value.bridge };
   };
@@ -88,9 +91,9 @@ test('Search and account pages keep the one source navbar beneath the root stack
 
 test('rapid visits to Profile keep the same visible tab host and gesture surface', () => {
   const ui = host();
-  const routes = ['Home', 'Explore', 'Feed', 'Profile'].map(name => ({ name }));
+  const routes = mainTabs.MAIN_TAB_NAMES.map(name => ({ name }));
   let previous: any;
-  for (const index of [0, 3, 1, 3, 2, 0, 3, 0]) {
+  for (const index of [0, 4, 1, 4, 2, 3, 0, 4, 0]) {
     const scene = ui.exports.MainTabBarRegistration({ state: { index, routes } });
     assert.equal(scene.props.style.display, 'flex');
     assert.notEqual(scene.props.children.props.interactionEnabled, false);
@@ -100,6 +103,13 @@ test('rapid visits to Profile keep the same visible tab host and gesture surface
       assert.equal(scene.props.children.type, previous.props.children.type);
     }
     previous = scene;
+  }
+});
+
+test('role workspaces highlight Profile at index four, independently of Feed', () => {
+  for (const role of ['user', 'admin', 'organizer']) {
+    const ui = host('ios', role);
+    for (const page of ['Tabs', 'Dashboard', 'Admin', 'Scanner']) assert.equal(ui.render(page).activeIndex, mainTabs.PROFILE_TAB_INDEX);
   }
 });
 

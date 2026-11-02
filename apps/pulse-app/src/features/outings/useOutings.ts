@@ -6,7 +6,7 @@ import { OutingsStore, type OutingsRequest } from '@packages/app-core/outings/mo
 import { useDataProvider } from '@/core/DataProviderContext';
 import { startVisiblePolling } from '@/lib/visiblePolling';
 
-export function useOutings() {
+export function useOutings(scope:'plans'|'transfers'='plans') {
   const auth=useDataProvider(),actor=auth.user?.properties.id,token=auth.getToken(),current=useRef(auth);current.current=auth;
   const store=useMemo(()=>{
     const request:OutingsRequest=async(path,method,body,signal)=>{
@@ -19,8 +19,8 @@ export function useOutings() {
       const options={params,body,signal,cache:'no-store' as const};
       return method==='GET'?ApiClient.instance.get(route as keyof paths,options as never):ApiClient.instance.post(route as keyof paths,options as never);
     };
-    return new OutingsStore(request,()=>!!actor&&!!token&&current.current.user?.properties.id===actor&&current.current.getToken()===token,()=>crypto.randomUUID());
-  },[actor,token]);
+    return new OutingsStore(request,()=>!!actor&&!!token&&current.current.user?.properties.id===actor&&current.current.getToken()===token,()=>crypto.randomUUID(),scope);
+  },[actor,token,scope]);
   const state=useSyncExternalStore(store.subscribe,store.getSnapshot,store.getSnapshot);
   useEffect(()=>{store.activate();if(actor)void store.load();const stop=actor?startVisiblePolling(()=>store.load(true),20_000):()=>{};return()=>{stop();store.dispose();};},[store,actor]);
   return {...state,store,user:auth.user,ready:!auth.loading};

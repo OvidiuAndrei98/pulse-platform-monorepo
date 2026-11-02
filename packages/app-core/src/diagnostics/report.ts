@@ -5,6 +5,8 @@ export const screens = [
   "Home",
   "Explore",
   "Feed",
+  "Friends",
+  "FriendsHome",
   "Profile",
   "Tabs",
   "FeedHome",

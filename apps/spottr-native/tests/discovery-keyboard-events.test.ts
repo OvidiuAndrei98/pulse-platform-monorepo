@@ -74,9 +74,10 @@ test('Search captures keyboard drags without scrolling or remounting native resu
   const render = () => h.render(DiscoveryScreen), byID = (root: any, id: string) => find(root, (n: any) => n.props?.testID === id);
   const toolbar = (root: any) => find(root, (n: any) => n.type === 'DiscoveryToolbar');
   let root = render(), list = byID(root, 'events-list'), resets = 0;
+  const header = find(root, (n: any) => n.type === 'View' && n.props.children?.type === 'DiscoveryToolbar');
   assert.equal(root.props.style.paddingTop,0,'The iOS viewport extends beneath the header');
-  assert.equal(root.props.children[0].props.style.position,'absolute');
-  assert.equal(root.props.children[0].props.style.backgroundColor,undefined,'No opaque header backdrop');
+  assert.equal(header.props.style.position,'absolute');
+  assert.equal(header.props.style.backgroundColor,undefined,'No opaque header backdrop');
   assert.equal(list.props.contentContainerStyle.paddingTop,124,'Only the initial content is inset below the controls');
   const ref = list.props.ref; let scrollEnabled = true;
   ref.current = { getNativeScrollRef: () => ({ setNativeProps: (props: any) => { scrollEnabled=props.scrollEnabled; } }), scrollToOffset: () => resets++ };
@@ -96,7 +97,7 @@ test('Search captures keyboard drags without scrolling or remounting native resu
   toolbar(root).props.keyboardGestureEndRef.current=()=>releases++;
   gesture.props.onScrollEndDrag(); assert.equal(releases,1);
   assert.equal(gesture.props.keyboardDismissMode,'interactive'); assert.equal(gesture.props.keyboardShouldPersistTaps,'never');
-  assert.ok(root.props.children[0].props.style.zIndex>gesture.props.style[1].zIndex);
+  assert.ok(header.props.style.zIndex>gesture.props.style[1].zIndex);
   assert.equal(find(gesture,(n:any)=>n.type==='FlatList'||n.type==='EventsMapPanel'),undefined);
   toolbar(root).props.onSearchActivityChange(false); gesture=gestureRender();
   assert.equal(scrollEnabled,true); assert.equal(gesture.props.pointerEvents,'none'); assert.equal(resets,0);

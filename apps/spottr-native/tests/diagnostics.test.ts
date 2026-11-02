@@ -172,6 +172,9 @@ test("empty and unexpected thrown values do not escape the reporting schema", ()
     });
   }
   assert.equal(screenName("NestedEvent:private-event-id"), "Event");
+  assert.equal(screenName('FriendsHome'), 'FriendsHome');
+  assert.equal(screenName('Friends'), 'Friends');
+  assert.equal(screenName('FeedHome'), 'FeedHome'); // Older installed builds.
   assert.equal(screenName("/users/me?token=private"), "Unknown");
   assert.equal(safeVersion("https://private.test"), "unknown");
   assert.equal(reportError({}, context, true).category, "render_exception");

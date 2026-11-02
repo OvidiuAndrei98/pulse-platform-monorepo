@@ -3,7 +3,7 @@
 import { scrollClientPageToTop } from "@/components/ClientNavigation";
 import { useState, useEffect, useRef } from "react";
 import { mainTabs, mainTabIndex, navigateMainTab, TAB_VISUAL_STATE, type TabVisualState } from "@/lib/navigation/tabs";
-import { Home, Map, UsersRound, UserRound } from "lucide-react";
+import { Home, Map, UsersRound, UserRound, GalleryVerticalEnd } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
@@ -31,7 +31,7 @@ function BottomNav() {
   const router = useRouter();
   const { isOrganizer } = useDataProvider();
   const { t } = useTranslation();
-  const icons = { home: Home, map: Map, feed: UsersRound, profile: UserRound };
+  const icons = { home: Home, map: Map, friends: UsersRound, feed: GalleryVerticalEnd, profile: UserRound };
   const items: NavItem[] = mainTabs(isOrganizer).map(tab => ({ icon: icons[tab.id], label: t(tab.label), url: tab.path }));
   const getCurrentIndexFromPath = () => Math.max(0, mainTabIndex(pathname ?? "/"));
 

@@ -6,6 +6,7 @@ import { runInNewContext } from 'node:vm';
 import test from 'node:test';
 import React from 'react';
 import ts from 'typescript';
+import { MAIN_TAB_NAMES, PROFILE_TAB_INDEX } from '@packages/app-core/navigation/mainTabs';
 
 const nativeRequire = createRequire(require.resolve('@react-navigation/native/package.json'));
 const coreRequire = createRequire(nativeRequire.resolve('@react-navigation/core/package.json'));
@@ -145,7 +146,7 @@ test('an administrator can switch workspaces without reusing a dismissed native 
 
 test('ordinary user Profile preloads and retains its tab route across Home and Feed', () => {
   const router = TabRouter({ initialRouteName: 'Home' });
-  const options = { routeNames: ['Home', 'Explore', 'Feed', 'Profile'], routeParamList: {}, routeGetIdList: {} };
+  const options = { routeNames: [...MAIN_TAB_NAMES], routeParamList: {}, routeGetIdList: {} };
   let state = router.getInitialState(options);
   state = router.getStateForAction(state, CommonActions.preload('Profile'), options);
   const key = state.routes.find((route: any) => route.name === 'Profile').key;
@@ -153,7 +154,7 @@ test('ordinary user Profile preloads and retains its tab route across Home and F
   for (const name of ['Profile', 'Home', 'Profile', 'Feed', 'Profile']) {
     state = router.getStateForAction(state, CommonActions.navigate(name), options);
     assert.equal(state.routes.find((route: any) => route.name === 'Profile').key, key);
-    assert.equal(state.routes.length, 4);
+    assert.equal(state.routes.length, MAIN_TAB_NAMES.length);
   }
 });
 
@@ -172,26 +173,26 @@ test('changing account resets the Profile route, including nested admin state, w
     profileHomeScreen: exports.profileHomeScreen, Platform: { OS: 'ios' }, colors: { bg: '#000' },
     Tabs: {Navigator:'Tabs', Screen:'Screen'}, Profile: {Navigator:'Profile', Screen:'Screen'},
     PersistentTabScenes:'PersistentTabScenes', MainTabBarRegistration:'Bar', Home:'Home', Explore:'Explore',
-    FeedNavigator:'Feed', ProfileNavigator:'Profile', ProfileScreen:'ProfileHome', ProfileDashboardRoute:'Dashboard', ProfileAdminRoute:'Admin' });
+    FriendsNavigator:'Friends', EventFeedScreen:'Feed', ProfileNavigator:'Profile', ProfileScreen:'ProfileHome', ProfileDashboardRoute:'Dashboard', ProfileAdminRoute:'Admin' });
   const screen = () => ui.MainTabs().props.children.props.children.find((element: any) => element.props.name === 'Profile');
   const router = TabRouter({ initialRouteName: 'Home' });
-  const options = {routeNames:['Home','Explore','Feed','Profile'],routeParamList:{},routeGetIdList:{}};
+  const options = {routeNames:[...MAIN_TAB_NAMES],routeParamList:{},routeGetIdList:{}};
   let state = router.getInitialState(options), previousKey = screen().props.navigationKey;
-  const hostKey = state.key, otherTabs = state.routes.slice(0,3);
+  const hostKey = state.key, otherTabs = state.routes.slice(0,PROFILE_TAB_INDEX);
   for (const next of [null, {id:'basic-account',role:'user'}, {id:'organizer-account',role:'organizer'},
     {id:'admin-account',role:'admin'}, {id:'another-admin',role:'admin'}, {id:'another-admin',role:'user'}]) {
-    const previousProfileKey = state.routes[3].key;
-    state.routes[3] = {...state.routes[3],params:{screen:'Admin',params:{section:'commissions'}},
+    const previousProfileKey = state.routes[PROFILE_TAB_INDEX].key;
+    state.routes[PROFILE_TAB_INDEX] = {...state.routes[PROFILE_TAB_INDEX],params:{screen:'Admin',params:{section:'commissions'}},
       state:{index:0,routes:[{key:'old-private-route',name:'Admin'}]}};
     user = next;
     const navigationKey = screen().props.navigationKey;
     assert.notEqual(navigationKey, previousKey, 'Different identities and roles invalidate private navigation');
     state = router.getStateForRouteNamesChange(state, {...options,routeKeyChanges:navigationKey !== previousKey ? ['Profile'] : []});
     assert.equal(state.key,hostKey,'The navbar keeps its original navigator');
-    assert.deepEqual(state.routes.slice(0,3),otherTabs,'The other three tabs keep their state');
-    assert.notEqual(state.routes[3].key,previousProfileKey);
-    assert.equal(state.routes[3].state,undefined,'No nested Admin screen survives');
-    assert.equal(state.routes[3].params,undefined,'No old params can reopen Admin');
+    assert.deepEqual(state.routes.slice(0,PROFILE_TAB_INDEX),otherTabs,'The other tabs keep their state');
+    assert.notEqual(state.routes[PROFILE_TAB_INDEX].key,previousProfileKey);
+    assert.equal(state.routes[PROFILE_TAB_INDEX].state,undefined,'No nested Admin screen survives');
+    assert.equal(state.routes[PROFILE_TAB_INDEX].params,undefined,'No old params can reopen Admin');
     assert.equal(ui.NativeProfileNavigator().props.initialRouteName,exports.profileHomeScreen(next?.role));
     assert.equal(screen().props.navigationKey,navigationKey,'Ordinary renders retain this account workspace');
     assert.equal(ui.MainTabs().props.children.key,null,'The full tab navigator is not keyed by account');

@@ -48,7 +48,7 @@ export function PublicProfileScreen({ route, navigation }: NativeStackScreenProp
     return () => clearTimeout(timer);
   }, [events.data, now]);
   const { upcomingEvents, pastEvents } = useMemo(() => splitOrganizerEvents(events.data ?? [], now), [events.data, now]);
-  const back = () => navigation.canGoBack() ? navigation.goBack() : navigation.replace('Tabs', { screen: 'Feed' });
+  const back = () => navigation.canGoBack() ? navigation.goBack() : navigation.replace('Tabs', { screen: 'Friends' });
   const signIn = () => navigation.navigate('Auth', { returnProfile: id });
   const openEvent = (eventId: string, presentation: 'sheet' | 'page' = 'sheet') => {
     const event = events.data?.find(item => item.id === eventId);

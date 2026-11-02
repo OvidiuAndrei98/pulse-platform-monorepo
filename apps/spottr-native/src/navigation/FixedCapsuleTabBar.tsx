@@ -1,3 +1,4 @@
+import { MAIN_TAB_LABELS } from '@packages/app-core/navigation/mainTabs';
 import React, { useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -11,7 +12,7 @@ import { TabBarIndicatorSurface } from './TabBarIndicatorSurface';
 import { tabCapsuleFollowSpring, tabCapsuleImpactTiming, tabCapsulePickupSpring, tabCapsulePressSpring, tabCapsuleReleaseSpring, withTabTravel } from './tabCapsuleSpring';
 import { NavbarScrollContext, navbarCompactScale } from './useNavbarScroll';
 
-const labels = ['nav.home', 'nav.map', 'nav.feed', 'nav.profile'] as const;
+const labels = MAIN_TAB_LABELS;
 const edgeTravel = 8;
 const barInset = 4;
 const impactExtension = 8;

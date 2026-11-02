@@ -803,6 +803,7 @@ func (h *Handler) HandleGetEventAttendees(w http.ResponseWriter, r *http.Request
 }
 
 func (h *Handler) HandleGetSocialFeed(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	viewerID, ok := userIDFromRequest(r)
 	if !ok {
 		router.RespondWithError(w, http.StatusUnauthorized, "Utilizator neautentificat")

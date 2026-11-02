@@ -1,13 +1,13 @@
 import "@typespec/http";
 using TypeSpec.Http;
 namespace Pulse;
-model OutingMember { userId: string; username: string; status: "pending" | "accepted" | "declined"; voteEventId?: string; }
-model OutingOption { eventId: string; title: string; location: string; startTime: utcDateTime; available: boolean; }
+model OutingMember { userId: string; username: string; status: "pending" | "accepted" | "declined"; voteEventId?: string; hasTicket?: boolean; }
+model OutingOption { eventId: string; title: string; location: string; startTime: utcDateTime; available: boolean; proposedBy?: string; priceRon?: float64; ticketAvailability?: "on_sale" | "upcoming" | "sold_out" | "sales_ended" | "external" | "unavailable"; }
 model OutingPlan {
   id: string; ownerId: string; title: string; status: "pending" | "accepted" | "declined";
-  chosenEventId?: string; expiresAt: utcDateTime; members: OutingMember[]; options: OutingOption[];
+  outingDate?: string; city?: string; chosenEventId?: string; expiresAt: utcDateTime; members: OutingMember[]; options: OutingOption[];
 }
-model CreateOutingPlan { requestId: string; title: string; eventIds: string[]; friendIds: string[]; }
+model CreateOutingPlan { requestId: string; title: string; outingDate: string; city: string; eventIds?: string[]; friendIds: string[]; }
 model OutingResponse { status: "accepted" | "declined"; }
 model OutingEventChoice { eventId: string; }
 model OutingMutationResult { ok: boolean; }
@@ -23,6 +23,7 @@ model RespondTicketTransfer { status: "accepted" | "declined" | "cancelled"; }
   @post @route("/plans") createPlan(@body body: CreateOutingPlan): OutingPlan;
   @get @route("/plans/{planID}") plan(@path planID: string): OutingPlan;
   @post @route("/plans/{planID}/respond") respond(@path planID: string, @body body: OutingResponse): OutingMutationResult;
+  @post @route("/plans/{planID}/proposals") propose(@path planID: string, @body body: OutingEventChoice): OutingMutationResult;
   @post @route("/plans/{planID}/vote") vote(@path planID: string, @body body: OutingEventChoice): OutingMutationResult;
   @post @route("/plans/{planID}/choose") choose(@path planID: string, @body body: OutingEventChoice): OutingMutationResult;
   @get @route("/transfers") transfers(): TicketTransfer[];

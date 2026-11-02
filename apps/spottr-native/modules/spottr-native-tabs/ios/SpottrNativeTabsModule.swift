@@ -55,13 +55,13 @@ final class SpottrNativeTabsView: ExpoView, UIGestureRecognizerDelegate {
     indicator.backgroundColor = UIColor.black.withAlphaComponent(0.42)
     indicator.isUserInteractionEnabled = false
     indicator.accessibilityIdentifier = "tab-indicator"
-    for index in 0..<4 {
+    for index in 0..<5 {
       let button = UIButton(type: .custom)
       button.tag = index
       button.tintColor = .white
       button.setImage(SpottrTabIcons.image(index: index, selected: false), for: .normal)
       button.setImage(SpottrTabIcons.image(index: index, selected: true), for: .selected)
-      button.accessibilityIdentifier = ["tab-Home", "tab-Explore", "tab-Feed", "tab-Profile"][index]
+      button.accessibilityIdentifier = ["tab-Home", "tab-Explore", "tab-Friends", "tab-Feed", "tab-Profile"][index]
       button.addTarget(self, action: #selector(tap(_:)), for: .touchUpInside)
       track.addSubview(button)
       buttons.append(button)

@@ -52,6 +52,14 @@ enum SpottrTabIcons {
         c.move(to: CGPoint(x: 19, y: 16))
         c.addCurve(to: CGPoint(x: 24, y: 23), control1: CGPoint(x: 23, y: 16), control2: CGPoint(x: 24, y: 19))
         c.strokePath()
+      case 3:
+        c.move(to: CGPoint(x: 7, y: 3)); c.addLine(to: CGPoint(x: 19, y: 3))
+        c.move(to: CGPoint(x: 5, y: 6)); c.addLine(to: CGPoint(x: 21, y: 6))
+        c.strokePath()
+        c.addRect(CGRect(x: 3, y: 10, width: 20, height: 13))
+        c.move(to: CGPoint(x: 7, y: 19)); c.addLine(to: CGPoint(x: 11, y: 15))
+        c.addLine(to: CGPoint(x: 14, y: 18)); c.addLine(to: CGPoint(x: 18, y: 13))
+        c.addLine(to: CGPoint(x: 21, y: 17)); c.strokePath()
       default:
         head(c, x: 13, y: 8, radius: 5, selected: selected)
         c.move(to: CGPoint(x: 3, y: 23))

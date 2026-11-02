@@ -23,6 +23,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Event, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
+import { SuggestOutingLink } from '@/features/outings/SuggestOutingLink';
 import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
 import { EventLineup } from "@/features/events/lineup/EventLineup";
@@ -343,6 +344,7 @@ export default function EventStandalonePage() {
                 </div>
 
                 <div className="mt-6 max-w-xl">
+                  <SuggestOutingLink eventId={event.id}/>
                   <EventSocialProof eventId={event.id} className="border-0 py-0" />
                 </div>
 

@@ -1,36 +1,61 @@
 "use client";
-import { useState } from 'react';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useEffect,useRef,useState } from 'react';
+import { ArrowLeft,LockKeyhole,Plus } from 'lucide-react';
+import { useRouter,useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
-import { ActionButton } from '@/components/ui/ActionButton';
-import { WardrobeTabs as SectionTabs } from '@/features/wardrobe/WardrobeTabs';
+import { isOutingId } from '@packages/app-core/outings/model';
+import { ActionButton,ActionLink } from '@/components/ui/ActionButton';
+import { StatusNotice } from '@/components/ui/StatusNotice';
+import { useDataProvider } from '@/core/DataProviderContext';
 import { useOutings } from './useOutings';
 import { OutingPlanBuilder } from './OutingPlanBuilder';
 import { OutingPlanDetails } from './OutingPlanDetails';
-import { TicketTransfers } from './TicketTransfers';
-import { useDataProvider } from '@/core/DataProviderContext';
+import { SuggestForOuting } from './SuggestForOuting';
+import { OutingEmpty,PlanCard } from './OutingPrimitives';
+import s from './outings.module.css';
 
 export default function OutingsPage() {
-  const {user}=useDataProvider();return <OutingsContent key={user?.properties.id??'guest'}/>;
+  const {user}=useDataProvider(),params=useSearchParams(),router=useRouter();
+  const legacy=params.has('ticket')||params.get('tab')==='transfers';
+  useEffect(()=>{
+    if(legacy){const ticket=params.get('ticket');router.replace('/ticket-transfers'+(isOutingId(ticket)?'?ticket='+ticket:''));}
+  },[legacy,params,router]);
+  return legacy?null:<OutingsContent key={(user?.properties.id??'guest')+':'+params.toString()}/>;
 }
 function OutingsContent() {
-  const model=useOutings(),{t,i18n}=useTranslation(),params=useSearchParams(),ticketId=params.get('ticket')??undefined;
-  const [tab,setTab]=useState<'plans'|'transfers'>(ticketId||params.get('tab')==='transfers'?'transfers':'plans'),[selected,setSelected]=useState(params.get('plan')??''),[building,setBuilding]=useState(false);
-  const plan=model.plans.find(p=>p.id===selected);
-  return <main data-testid="outings-screen" className="mx-auto w-full max-w-3xl space-y-6 px-5 pt-6 pb-32">
-    <Link href="/users/me" className="inline-flex min-h-11 items-center text-sm text-muted-foreground">← {t('common.back')}</Link>
-    <header className="space-y-2"><h1 className="text-3xl font-bold">{t('outings.title')}</h1><p className="text-muted-foreground">{t('outings.hint')}</p></header>
-    {!model.user?<Link href="/login" className="text-primary underline">{t('nav.profile')}</Link>:<>
-      <SectionTabs id="outings-tabs" panelId="outings-panel" label={t('outings.title')} value={tab} onChange={setTab} disabled={model.working} ro={i18n.language.startsWith('ro')} options={[{value:'plans',label:t('outings.plans')},{value:'transfers',label:t('outings.transfers')}]}/>
-      {model.error&&<p role="alert" className="text-destructive">{t(model.error)}</p>}{model.notice&&<p role="status">{t(model.notice)}</p>}
-      <div id="outings-panel" role="tabpanel" aria-labelledby={'outings-tabs-'+tab}>
-        {model.pending?<p role="status">{t('common.loading')}</p>:tab==='transfers'?<TicketTransfers model={model} initialTicketId={ticketId}/>
-          :building?<OutingPlanBuilder model={model} onCreated={id=>{setBuilding(false);setSelected(id);}} onCancel={()=>setBuilding(false)}/>
-          :plan?<><ActionButton tone="ghost" onClick={()=>setSelected('')}>{t('outings.plans')}</ActionButton><OutingPlanDetails plan={plan} model={model}/></>
-          :<div className="space-y-4"><ActionButton data-testid="outing-new" onClick={()=>setBuilding(true)}>{t('outings.newPlan')}</ActionButton>{!model.plans.length&&<p className="text-muted-foreground">{t('outings.empty')}</p>}{model.plans.map(p=><ActionButton key={p.id} tone="secondary" className="w-full" onClick={()=>setSelected(p.id)}>{p.title} · {t('outings.'+p.status)}</ActionButton>)}</div>}
+  const model=useOutings(),{t}=useTranslation(),params=useSearchParams(),root=useRef<HTMLElement>(null);
+  const planId=params.get('plan'),eventId=params.get('event');
+  const [selected,setSelected]=useState(isOutingId(planId)?planId:''),[building,setBuilding]=useState(params.get('new')==='1');
+  useEffect(()=>{if(selected&&!model.pending)void model.store.loadPlan(selected);},[selected,model.pending,model.store]);
+  useEffect(()=>{root.current?.querySelector<HTMLElement>('h1')?.focus();},[selected,building]);
+  const plan=model.plans.find(item=>item.id===selected);
+  const invitations=model.plans.filter(item=>item.status==='pending'),mine=model.plans.filter(item=>item.status==='accepted');
+  const back=()=>building?setBuilding(false):setSelected('');
+  const create=<ActionButton data-testid="outing-new" onClick={()=>setBuilding(true)}><Plus size={18} aria-hidden/>{t('outings.newPlan')}</ActionButton>;
+  return <main ref={root} data-testid="outings-screen" className={s.page}>
+    <div className={s.toolbar}>
+      {building||selected?<ActionButton tone="ghost" disabled={model.working} onClick={back}><ArrowLeft size={18} aria-hidden/>{t('common.back')}</ActionButton>:
+        <ActionLink href="/friends" tone="ghost"><ArrowLeft size={18} aria-hidden/>{t('common.back')}</ActionLink>}
+    </div>
+    {(!plan||building)&&<header className={s.listHeader}>
+      <div className={s.hero} style={{margin:0}}>
+        <p className={s.eyebrow}><LockKeyhole size={14} aria-hidden/>{t('outings.ui.private')}</p>
+        <h1 tabIndex={-1} className={s.title}>{t(building?'outings.newPlan':'outings.title')}</h1>
+        <p className={s.description}>{t(building?'outings.ui.detailHint':'outings.hint')}</p>
       </div>
-      <ActionButton tone="ghost" busy={model.refreshing} disabled={model.working} onClick={()=>void model.store.load()}>{t('outings.refresh')}</ActionButton>
-    </>}
+      {!building&&model.user&&model.plans.length>0&&create}
+    </header>}
+    <p className="sr-only" role="status">{model.notice?t(model.notice):''}</p>
+    {model.error&&<div style={{marginBottom:24}}><StatusNotice kind="error" title={t(model.error)} action={()=>void model.store.load()} actionLabel={t('common.retry')}/></div>}
+    {!model.ready||model.user&&model.pending?<div className={s.stack} aria-busy="true" role="status" aria-label={t('common.loading')}><div className={s.skeleton}/><div className={s.skeleton}/></div>:
+      !model.user?<OutingEmpty title={t('outings.ui.emptyTitle')} detail={t('outings.ui.emptyHint')}><ActionLink href="/login">{t('nav.profile')}</ActionLink></OutingEmpty>:
+      model.error&&!model.plans.length&&!building&&!selected?null:building?<OutingPlanBuilder model={model} onCreated={id=>{setBuilding(false);setSelected(id);}} onCancel={()=>setBuilding(false)}/>:
+      plan?<OutingPlanDetails plan={plan} model={model}/>:
+      <div className={s.stack}>
+        {isOutingId(eventId)&&<div className={s.section}><SuggestForOuting eventId={eventId} model={model} onProposed={setSelected}/></div>}
+        {invitations.length>0&&<section><div className={s.sectionHeader}><h2>{t('outings.ui.invitations')}</h2><span className={s.pill}>{invitations.length}</span></div><div className={s.planGrid}>{invitations.map(item=><PlanCard key={item.id} plan={item} onOpen={()=>setSelected(item.id)} disabled={model.working}/>)}</div></section>}
+        {mine.length>0&&<section><div className={s.sectionHeader}><h2>{t('outings.ui.yourOutings')}</h2><span className={s.pill}>{mine.length}</span></div><div className={s.planGrid}>{mine.map(item=><PlanCard key={item.id} plan={item} onOpen={()=>setSelected(item.id)} disabled={model.working}/>)}</div></section>}
+        {!model.plans.length&&<OutingEmpty title={t('outings.ui.emptyTitle')} detail={t('outings.ui.emptyHint')}>{create}</OutingEmpty>}
+      </div>}
   </main>;
 }

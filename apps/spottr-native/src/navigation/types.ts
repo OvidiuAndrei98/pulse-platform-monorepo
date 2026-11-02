@@ -7,13 +7,14 @@ export type ProfileParamList = {
   Tickets: undefined;
   Orders: undefined;
 };
-export type FeedParamList = { FeedHome: undefined; FriendsManage: undefined };
+export type FriendsParamList = { FriendsHome: undefined; FriendsManage: undefined };
 export type TabsParamList = {
   Home: undefined;
   Explore:
     | { category?: string; focusSearch?: boolean; date?: string }
     | undefined;
-  Feed: NavigatorScreenParams<FeedParamList> | undefined;
+  Friends: NavigatorScreenParams<FriendsParamList> | undefined;
+  Feed: undefined;
   Profile: NavigatorScreenParams<ProfileParamList> | undefined;
 };
 export type RootParamList = {
@@ -28,7 +29,8 @@ export type RootParamList = {
   PublicProfile: { id: string };
   Legal: { document: 'terms' | 'privacy' };
   SafetyGroup: { eventId: string };
-  Outings: { planId?:string; ticketId?:string; plan?:string; ticket?:string; tab?:'plans'|'transfers' } | undefined;
+  Outings: { new?:boolean; planId?:string; ticketId?:string; plan?:string; ticket?:string; event?:string; tab?:'plans'|'transfers' } | undefined;
+  TicketTransfers: {ticketId?:string;ticket?:string} | undefined;
   EventNight: { eventId:string };
   Dashboard: { section?: string; eventId?: string; filter?: string; organizerReturn?: 'connect' | 'promotion'; campaignId?: string; returnStatus?: 'complete' | 'refresh' | 'cancelled' } | undefined;
   Scanner: { eventId?: string } | undefined;
@@ -43,11 +45,12 @@ export type RootParamList = {
         mode?: "login" | "register" | "forgot" | "reset";
         token?: string;
         activation?: string;
-        returnTab?: "Home" | "Explore" | "Feed" | "Profile";
+        returnTab?: "Home" | "Explore" | "Friends" | "Feed" | "Profile";
         returnEvent?: string;
         returnProfile?: string;
         returnSafetyGroup?: string;
         returnOutings?: boolean;
+        returnTicketTransfers?: boolean;
         returnEventNight?: string;
         returnDashboard?: boolean;
         returnDashboardParams?: RootParamList['Dashboard'];

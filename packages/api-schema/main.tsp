@@ -3,6 +3,7 @@ import "@typespec/rest";
 import "@typespec/openapi3";
 import "./wardrobe.tsp";
 import "./outings.tsp";
+import "./event-feed.tsp";
 
 using TypeSpec.Http;
 using TypeSpec.Rest;

@@ -340,6 +340,7 @@ export function EventScreen({
                   retry={() => void query.refetch()}
                 />
               )}
+              <UIActionButton testID="event-outing" title={copy('outings.addToPlan')} tone="secondary" onPress={()=>navigation.navigate('Outings',{event:event.id})}/>
               <EventSocial eventId={event.id} signIn={signIn} />
               <EventAttendees eventId={event.id} compact={isSheet}/>
               <View>

@@ -43,7 +43,8 @@ export function NotificationsPopover() {
     void query.markRead(item);
     setPosition(null);
     const target = notificationDestination(item);
-    if(item.type==='outing_plan_invite'||item.type==='ticket_transfer')navigation.navigate('Outings',item.type==='ticket_transfer'?{tab:'transfers'}:undefined);
+    if(item.type==='ticket_transfer')navigation.navigate('TicketTransfers');
+    else if(item.type==='outing_plan_invite'||item.type==='outing_plan_chosen')navigation.navigate('Outings');
     else if (item.type === 'ticket_purchased') openAccountPage(navigation, 'Tickets');
     else if (target?.kind === 'event') navigation.navigate('Event', { id: target.id, presentation: 'page' });
     else if (target?.kind === 'profile') navigation.navigate('PublicProfile', { id: target.id });

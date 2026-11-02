@@ -77,6 +77,9 @@ type HandlersConfig struct {
 	// Events
 	CreateEvent                    http.HandlerFunc
 	ListEvents                     http.HandlerFunc
+	ListEventFeed                  http.HandlerFunc
+	GetEventLikes                  http.HandlerFunc
+	SetEventLike                   http.HandlerFunc
 	GetEventByID                   http.HandlerFunc
 	GetEventWithStats              http.HandlerFunc
 	GetLiveEventsInArea            http.HandlerFunc
@@ -305,7 +308,13 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 		}
 
 		// --- EVENTS: Citire publică (nu necesită autentificare) ---
+		if cfg.ListEventFeed != nil {
+			r.With(rateLimit("event_feed_read_ip", 240, time.Minute), optionalAuthMiddleware).Get("/event-feed", cfg.ListEventFeed)
+		}
 		r.Route("/events", func(r chi.Router) {
+			if cfg.GetEventLikes != nil {
+				r.With(rateLimit("event_likes_read_ip", 240, time.Minute), optionalAuthMiddleware).Get("/{id}/likes", cfg.GetEventLikes)
+			}
 			r.With(optionalAuthMiddleware).Get("/", cfg.ListEvents)
 			r.With(optionalAuthMiddleware).Get("/map", cfg.GetLiveEventsInArea)
 			r.With(optionalAuthMiddleware).Get("/{id}", cfg.GetEventByID)
@@ -365,6 +374,10 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 				r.With(identityLimit("outings", 180, time.Minute)).Mount("/outings", cfg.Outings)
 			}
 			r.Post("/events/{id}/check-in", cfg.CreateCheckIn)
+			if cfg.SetEventLike != nil {
+				r.With(rateLimit("event_like_write_ip", 300, time.Minute), identityLimit("event_like_write_user", 60, time.Minute)).Put("/events/{id}/likes", cfg.SetEventLike)
+				r.With(rateLimit("event_like_write_ip", 300, time.Minute), identityLimit("event_like_write_user", 60, time.Minute)).Delete("/events/{id}/likes", cfg.SetEventLike)
+			}
 			r.With(rateLimit("free_ticket_booking_ip", 3000, 10*time.Minute), identityLimit("free_ticket_booking_user", 20, 10*time.Minute)).Post("/events/{id}/tickets/book", cfg.BookFreeTicket)
 			r.Post("/events/{id}/comments", cfg.AddComment)
 			r.Post("/events/{id}/favorite", cfg.SaveEvent)

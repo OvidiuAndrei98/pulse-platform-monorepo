@@ -1,3 +1,4 @@
+import { MAIN_TAB_LABELS } from '@packages/app-core/navigation/mainTabs';
 import React, { useRef, useState } from "react";
 import {
   Platform,
@@ -17,7 +18,7 @@ import { TabBarSurface, usesLiquidGlass } from "./TabBarSurface";
 import { TabBarIcon } from "./TabBarIcon";
 import { NativeTabBar, type NativeTabBarProps } from "./NativeTabBar";
 
-const labels = ["nav.home", "nav.map", "nav.feed", "nav.profile"] as const;
+const labels = MAIN_TAB_LABELS;
 export function TabBar(props: NativeTabBarProps) {
   if (NativeTabBar) return <NativeTabBar {...props} />;
   return <CustomTabBar {...props} />;

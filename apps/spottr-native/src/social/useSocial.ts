@@ -17,13 +17,13 @@ export function useSocial() {
     queryFn: async ({ signal }) => parseFeed(await accountApi('/feed', { signal })) });
   useFocusEffect(useCallback(() => {
     if (!id) return;
-    // Friendship controls stay current. Feed rows refresh only on a user pull
-    // or after an explicit friendship mutation, preserving their reading position.
+    // Revalidate quietly on return; retained rows keep their reading position.
+    void feed.refetch({ cancelRefetch: false });
     if (eligible) {
       void friends.refetch({ cancelRefetch: false });
       void requests.refetch({ cancelRefetch: false });
     }
-  }, [id, eligible, friends.refetch, requests.refetch]));
+  }, [id, eligible, friends.refetch, requests.refetch, feed.refetch]));
   const [pendingId, setPendingId] = useState<string | null>(null), [error, setError] = useState(false);
   const busy = useRef(false), revision = useRef(0);
   useEffect(() => { revision.current++; busy.current = false; setPendingId(null); setError(false); return () => { revision.current++; }; }, [id]);

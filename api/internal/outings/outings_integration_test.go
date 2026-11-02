@@ -26,6 +26,7 @@ type fixture struct {
 	pool                                   *pgxpool.Pool
 	users                                  [3]pgtype.UUID
 	emails                                 [3]string
+	initialHash                            string
 	event, otherEvent, tier, order, ticket pgtype.UUID
 	handler                                *Handler
 }
@@ -76,7 +77,8 @@ func seed(t *testing.T) fixture {
 	}
 	f.tier = rowID(t, f.pool, `INSERT INTO ticket_types(event_id,name,price_ron,capacity,tickets_sold,start_sales,end_sales) VALUES($1,'General',50,100,1,now()-interval '1 day',now()+interval '1 day') RETURNING id`, f.event)
 	f.order = rowID(t, f.pool, `INSERT INTO orders(user_id,event_id,email,total_amount,status) VALUES($1,$2,$3,50,'completed') RETURNING id`, f.users[0], f.event, f.emails[0])
-	f.ticket = rowID(t, f.pool, `INSERT INTO tickets(order_id,ticket_type_id,user_id,validation_hash) VALUES($1,$2,$3,$4) RETURNING id`, f.order, f.tier, f.users[0], strings.Repeat("a", 64))
+	f.initialHash = strings.ReplaceAll(sid(f.users[0])+sid(f.users[1]), "-", "")
+	f.ticket = rowID(t, f.pool, `INSERT INTO tickets(order_id,ticket_type_id,user_id,validation_hash) VALUES($1,$2,$3,$4) RETURNING id`, f.order, f.tier, f.users[0], f.initialHash)
 	mustExec(t, f.pool, `INSERT INTO friendships(user_id,friend_id,status) VALUES($1,$2,'accepted')`, f.users[0], f.users[1])
 	t.Cleanup(func() {
 		mustExec(t, f.pool, `DELETE FROM outing_plans WHERE owner_id=$1`, f.users[0])
@@ -142,7 +144,7 @@ func TestTransferOwnershipRotationIdempotencyAndFinancialIsolation(t *testing.T)
 	want(t, f.call("POST", "/transfers/"+x.ID+"/respond", map[string]string{"status": "accepted"}, f.users[2]), 404)
 	want(t, f.call("POST", "/transfers/"+x.ID+"/respond", map[string]string{"status": "accepted"}, f.users[1]), 200)
 	owner, hash, generation, used := storedTicket(t, f)
-	if owner != f.users[1] || hash == strings.Repeat("a", 64) || len(hash) != 64 || generation != 1 || used {
+	if owner != f.users[1] || hash == f.initialHash || len(hash) != 64 || generation != 1 || used {
 		t.Fatal("rotation/ownership failed")
 	}
 	want(t, f.call("POST", "/transfers/"+x.ID+"/respond", map[string]string{"status": "accepted"}, f.users[1]), 200)
@@ -163,7 +165,7 @@ func TestTransferOwnershipRotationIdempotencyAndFinancialIsolation(t *testing.T)
 	if e = f.pool.QueryRow(context.Background(), `SELECT user_id FROM orders WHERE id=$1`, f.order).Scan(&buyer); e != nil || buyer != f.users[0] {
 		t.Fatal("financial ownership moved")
 	}
-	if _, e = q.GetTicketByHash(context.Background(), strings.Repeat("a", 64)); e != pgx.ErrNoRows {
+	if _, e = q.GetTicketByHash(context.Background(), f.initialHash); e != pgx.ErrNoRows {
 		t.Fatal("old QR is still live")
 	}
 	// A legacy API query which previously read the old hash must fail closed.
@@ -175,7 +177,7 @@ func TestTransferOwnershipRotationIdempotencyAndFinancialIsolation(t *testing.T)
 	if used {
 		t.Fatal("legacy validation changed ticket")
 	}
-	_, e = q.ValidateTicketOnce(context.Background(), db.ValidateTicketOnceParams{ID: f.ticket, ValidationHash: strings.Repeat("a", 64), AdmissionAt: pgtype.Timestamptz{Time: time.Now(), Valid: true}})
+	_, e = q.ValidateTicketOnce(context.Background(), db.ValidateTicketOnceParams{ID: f.ticket, ValidationHash: f.initialHash, AdmissionAt: pgtype.Timestamptz{Time: time.Now(), Valid: true}})
 	if e != pgx.ErrNoRows {
 		t.Fatalf("old expected hash: %v", e)
 	}
@@ -437,7 +439,7 @@ func TestInactiveSenderClosesPendingTransferAndSuppressesNotification(t *testing
 	mustExec(t, f.pool, `UPDATE users SET is_active=FALSE WHERE id=$1`, f.users[0])
 	want(t, f.call("POST", "/transfers/"+x.ID+"/respond", map[string]string{"status": "accepted"}, f.users[1]), 409)
 	owner, hash, generation, _ := storedTicket(t, f)
-	if owner != f.users[0] || hash != strings.Repeat("a", 64) || generation != 0 {
+	if owner != f.users[0] || hash != f.initialHash || generation != 0 {
 		t.Fatal("suspended sender ticket moved")
 	}
 	if err := expireTransfers(context.Background(), f.pool, pgtype.UUID{}); err != nil {

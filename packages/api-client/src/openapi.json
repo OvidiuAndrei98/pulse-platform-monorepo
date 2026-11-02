@@ -2295,6 +2295,35 @@
         }
       }
     },
+    "/event-feed": {
+      "get": {
+        "operationId": "EventFeedOperations_list",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventFeedPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events": {
       "get": {
         "operationId": "EventOperations_listEvents",
@@ -2705,6 +2734,83 @@
                   "items": {
                     "$ref": "#/components/schemas/UserMinResponse"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}/likes": {
+      "get": {
+        "operationId": "EventLikeOperations_get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventLikeResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "EventLikeOperations_like",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventLikeResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "EventLikeOperations_unlike",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventLikeResponse"
                 }
               }
             }
@@ -3720,6 +3826,43 @@
     "/outings/plans/{planID}/choose": {
       "post": {
         "operationId": "Outings_choose",
+        "parameters": [
+          {
+            "name": "planID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingMutationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutingEventChoice"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/outings/plans/{planID}/proposals": {
+      "post": {
+        "operationId": "Outings_propose",
         "parameters": [
           {
             "name": "planID",
@@ -6027,7 +6170,8 @@
         "required": [
           "requestId",
           "title",
-          "eventIds",
+          "outingDate",
+          "city",
           "friendIds"
         ],
         "properties": {
@@ -6035,6 +6179,12 @@
             "type": "string"
           },
           "title": {
+            "type": "string"
+          },
+          "outingDate": {
+            "type": "string"
+          },
+          "city": {
             "type": "string"
           },
           "eventIds": {
@@ -6394,6 +6544,105 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "EventFeedItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "organizerId",
+          "title",
+          "category",
+          "city",
+          "locationName",
+          "description",
+          "startTime",
+          "endTime",
+          "externalTickets",
+          "likeCount",
+          "liked"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "organizerId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "bannerUrl": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "priceRon": {
+            "type": "number",
+            "format": "double"
+          },
+          "externalTickets": {
+            "type": "boolean"
+          },
+          "likeCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "liked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EventFeedPage": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventFeedItem"
+            }
+          },
+          "nextPage": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "EventLikeResponse": {
+        "type": "object",
+        "required": [
+          "likeCount",
+          "liked"
+        ],
+        "properties": {
+          "likeCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "liked": {
+            "type": "boolean"
           }
         }
       },
@@ -7718,6 +7967,9 @@
           },
           "voteEventId": {
             "type": "string"
+          },
+          "hasTicket": {
+            "type": "boolean"
           }
         }
       },
@@ -7757,6 +8009,24 @@
           },
           "available": {
             "type": "boolean"
+          },
+          "proposedBy": {
+            "type": "string"
+          },
+          "priceRon": {
+            "type": "number",
+            "format": "double"
+          },
+          "ticketAvailability": {
+            "type": "string",
+            "enum": [
+              "on_sale",
+              "upcoming",
+              "sold_out",
+              "sales_ended",
+              "external",
+              "unavailable"
+            ]
           }
         }
       },
@@ -7788,6 +8058,12 @@
               "accepted",
               "declined"
             ]
+          },
+          "outingDate": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
           },
           "chosenEventId": {
             "type": "string"

@@ -5,6 +5,7 @@ import { runInNewContext } from 'node:vm';
 import test from 'node:test';
 import React from 'react';
 import ts from 'typescript';
+import * as mainTabs from '@packages/app-core/navigation/mainTabs';
 
 const elements = (node: any): any[] => Array.isArray(node) ? node.flatMap(elements) : React.isValidElement(node) ? [node, ...elements((node.type as any)?.type?.name === 'FixedTabIndicator' ? (node.type as any).type(node.props) : (node.props as any).children)] : [];
 type Motion = { position: { value: number }; interaction: { value: number }; edgeResponse?: { value: number }; edgeDirection?: { value: number }; gestureCommand?: { value: { id: number; index: number; pending: boolean; acknowledgedId: number } }; itemWidth: number; measure: (value: number) => void; timeline: { current: null } };
@@ -93,6 +94,7 @@ function mount({ prevented = false, roleRouting = false, activeIndex = 0, indica
       withSequence: (...values: any[]) => values[0],
       cancelAnimation: (value: any) => { pending.delete(value); }, runOnJS: (fn: any) => fn, runOnUI: (fn: any) => fn,
     },
+    '@packages/app-core/navigation/mainTabs': mainTabs,
     '../usePreferences': { usePreferences: () => ({ copy: (key: string) => key }) },
     '../ui/theme': { colors: { accent: '#ff0044' } },
     '../ui/ToastHost': { ToastHost: 'ToastHost' }, './TabBarIcon': { TabBarIcon: 'Icon' }, './TabBarSurface': { TabBarSurface: 'Surface' },
@@ -144,6 +146,17 @@ test('account route reset preserves physical tab identity and uses the new navig
   tap.onEnd({}, true);
   assert.equal(ui.events.at(-1).target, 'Profile-new-account', 'The retained recognizer reads the current account route');
   assert.equal(ui.navigations.at(-1)[0], 'Profile');
+});
+
+test('five destinations retain distinct accessibility names, targets and the Profile edge', () => {
+  const ui = mount({roleRouting: true});
+  ui.render({state: {index: 0, routes: mainTabs.MAIN_TAB_NAMES.map(name => ({name, key: name}))}});
+  assert.equal(ui.find('tab-Friends').props.accessibilityLabel, 'nav.friends');
+  assert.equal(ui.find('tab-Feed').props.accessibilityLabel, 'nav.feed');
+  assert.equal(ui.find('tab-Profile').props.accessibilityLabel, 'nav.profile');
+  ui.find('tab-Profile').props.onAccessibilityTap();
+  assert.deepEqual(ui.selections, ['Profile']);
+  assert.ok(Math.abs(ui.x() - 281.6) < .01);
 });
 
 test('hidden native navbar disables gestures and rejects a callback queued before hiding', () => {

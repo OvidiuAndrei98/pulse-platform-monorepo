@@ -265,6 +265,7 @@ export function DateTimeField({
   error,
   placeholder,
   variant = "event",
+  dateOnly = false,
 }: {
   label: string;
   value: string;
@@ -273,10 +274,11 @@ export function DateTimeField({
   error?: string;
   placeholder?: string;
   variant?: "event" | "scanner";
+  dateOnly?: boolean;
 }) {
   const { copy, language } = usePreferences(),
     pop = usePopover();
-  const parsed = new Date(value),
+  const parsed = new Date(dateOnly && value ? value+'T12:00:00' : value),
     selected = Number.isFinite(parsed.getTime()) ? parsed : new Date();
   const [month, setMonth] = useState(
     () => new Date(selected.getFullYear(), selected.getMonth(), 1),
@@ -291,7 +293,7 @@ export function DateTimeField({
         7,
     ) * 7;
   const emit = (date: Date) =>
-    onChange(formatToDatetimeLocal(date.toISOString()));
+    onChange(formatToDatetimeLocal(date.toISOString()).slice(0,dateOnly?10:16));
   const time = (hours: number, minutes: number) => {
     const date = new Date(selected);
     date.setHours(hours, minutes, 0, 0);
@@ -354,11 +356,11 @@ export function DateTimeField({
           {value
             ? new Intl.DateTimeFormat(locale, {
                 dateStyle: "medium",
-                timeStyle: "short",
+                timeStyle: dateOnly ? undefined : "short",
               }).format(selected)
             : (placeholder ?? copy("datePicker.placeholder"))}
         </Text>
-        <Clock size={16} color={dColors.muted} />
+        {!dateOnly && <Clock size={16} color={dColors.muted} />}
       </Pressable>
       <Popover
         label={label}
@@ -483,7 +485,7 @@ export function DateTimeField({
             );
           })}
         </View>
-        <View
+        {!dateOnly && <View
           style={{
             marginTop: 12,
             borderTopWidth: 1,
@@ -516,7 +518,7 @@ export function DateTimeField({
               onChange={(minute) => time(selected.getHours(), minute)}
             />
           </View>
-        </View>
+        </View>}
         <View
           style={{
             marginTop: 12,
