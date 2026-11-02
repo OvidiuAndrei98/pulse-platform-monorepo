@@ -2,7 +2,7 @@
 
 import type { HTMLAttributes } from "react";
 import { useTranslation } from "react-i18next";
-import { eventCategories } from "@/core/mappers";
+import { eventCategories } from "@packages/app-core/events/categories";
 
 function classes(...values: Array<string | undefined>) {
   return values.filter(Boolean).join(" ");

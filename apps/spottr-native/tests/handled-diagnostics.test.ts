@@ -7,7 +7,7 @@ import { createOfflineScanner } from '../src/scanner/offline';
 import { PaymentSheetFailure } from '../src/checkout/paymentSheetFailure';
 import { confirmPayment } from '../src/checkout/confirmation';
 import { verifyTicketDelivery } from '../src/checkout/ticketDelivery';
-import type { HandledFailure } from '../../pulse-app/src/features/diagnostics/report';
+import type { HandledFailure } from '@packages/app-core/diagnostics/report';
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 function reports(t: { after(fn: () => void): void }) {

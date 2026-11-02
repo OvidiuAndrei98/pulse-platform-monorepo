@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { LocateFixed, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
-import { Coordinates } from "@/features/events/types";
+import { Coordinates } from "@packages/app-core/events/types";
 import { requestCurrentLocation } from "@/lib/native/location";
 
 export function MapControls({

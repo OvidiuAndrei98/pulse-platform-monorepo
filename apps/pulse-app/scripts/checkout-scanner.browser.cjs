@@ -1,17 +1,21 @@
 // Local UI regression: real pages/IndexedDB, isolated fake API and payment provider.
 const assert = require('node:assert/strict');
 const { withBrowser } = require('../../spottr-native/tests/browser-harness.cjs');
+const { selectScannerEvent } = require('../../spottr-native/tests/helpers/scanner-event.cjs');
 const base = process.env.NAVIGATION_TEST_URL || 'http://localhost:3206';
 if (!['127.0.0.1', 'localhost'].includes(new URL(base).hostname)) throw Error('LOCAL_TEST_SERVER_REQUIRED');
 const eventId = '00000000-0000-4000-8000-000000000001';
 
-withBrowser(async ({ call, evaluate, until, delay, capture, errors }) => {
+withBrowser(async ({ call, evaluate, until, click, delay, capture, errors }) => {
   await call('Page.addScriptToEvaluateOnNewDocument', { source: `(${function mock() {
     const original = window.fetch.bind(window), id = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
     const params = new URLSearchParams(location.search);
     localStorage.setItem('pulse_token', 'isolated-flow-test');
     localStorage.setItem('i18nextLng', 'en');
     const qa = window.__qa = { offline: false, status: params.get('outcome') || 'pending', purchases: [], scans: [], syncs: [], reconciles: [], accepted: [], requests: [], priceChanged: false };
+    // This suite exercises the IndexedDB journal without a registered service
+    // worker. Asset caching is covered separately by offline-scanner-worker tests.
+    if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration = async () => undefined;
     Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => !qa.offline });
     const event = { id: id(1), organizerId: id(2), title: 'Flow QA Night', description: 'Local checkout and scanner verification.', locationName: 'QA Venue', city: 'Cluj-Napoca', latitude: 46.77, longitude: 23.59, category: 'TECHNO', status: 'published', startTime: '2020-01-01T18:00:00Z', endTime: '2099-01-02T04:00:00Z', commissionRateBps: 500, commissionPerTicketBani: 150, canManage: true, stats: { isFavorited: false, goingCount: 0 }, ticketTypes: [{ id: id(3), name: 'General QA', priceRon: 50, capacity: 100, ticketsSold: 0, startSales: '2020-01-01T00:00:00Z', endSales: '2099-01-01T23:00:00Z' }], lineup: [] };
     const billing = { type: 'individual', name: 'Buyer QA', taxId: '', registrationNumber: '', address: 'Test Street 10', city: 'Cluj-Napoca', county: 'Cluj', sector: '', country: 'Romania' };
@@ -62,6 +66,7 @@ withBrowser(async ({ call, evaluate, until, delay, capture, errors }) => {
   };
   const open = async route => { await call('Page.navigate', { url: base + route }); await until('window.__qa && document.readyState === "complete"', 60000); };
   await open('/dashboard/ticket-validation');
+  await selectScannerEvent({evaluate,until,click},eventId,'Flow QA Night');
   await until(`document.body.innerText.includes('Flow QA Night') && document.querySelector('textarea')`, 60000);
   const scan = async (code, message) => {
     await evaluate(`{ const input=document.querySelector('textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(input,${JSON.stringify(code.repeat(64))}); input.dispatchEvent(new Event('input',{bubbles:true})); }`);
@@ -76,7 +81,7 @@ withBrowser(async ({ call, evaluate, until, delay, capture, errors }) => {
   assert.equal(await evaluate('window.__qa.accepted.length'), 1);
   console.log('PASS Next scanner online validation, duplicate and invalid ticket');
   await press('Prepare offline');
-  await until(`document.body.textContent.includes('Offline package ready with 2 tickets.')`, 7000);
+  await until(`document.body.textContent.includes('Offline package ready with 2 tickets.')`);
   await evaluate(`window.__qa.offline=true;window.dispatchEvent(new Event('offline'))`);
   await scan('b', 'Ticket accepted offline');
   await scan('b', 'Ticket already scanned on this device');

@@ -15,7 +15,7 @@ import {
   type EventDraft,
 } from "../src/dashboard/data";
 import { createHttp } from "../src/data/http";
-import { resources } from "../../pulse-app/src/i18n/resources";
+import { resources } from "@packages/app-core/i18n/resources";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 const id = "00000000-0000-4000-8000-000000000001";

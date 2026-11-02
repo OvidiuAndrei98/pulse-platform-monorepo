@@ -1,243 +1,56 @@
 "use client";
+import { CancellationReviewPanel } from "./presentation/CancellationReviewPanel";
+import { PromotionInvoiceReviewPanel } from "./presentation/PromotionInvoiceReviewPanel";
+import { OrganizerVerificationOverview } from "./presentation/OrganizerVerificationOverview";
+import { OrganizerReviewDialog } from "./presentation/OrganizerReviewDialog";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {ModalFrame} from "@/components/ui/ModalFrame";
-import {Field} from "@/components/ui/Field";
-import {
-  Building2,
-  Ban,
-  Check,
-  CircleCheck,
-  CircleX,
-  Clock3,
-  CreditCard,
-  ExternalLink,
-  Loader2,
-  LogOut,
-  RefreshCw,
-  ShieldCheck,
-  Ticket,
-  X,
-} from "lucide-react";
-import { toast } from "sonner";
+import { useAdminOperations } from "./useAdminOperations";
+import { VerificationStatus, getStripeStatus, StripeStatus } from "./useAdminOperations.contracts";
+
+import { ModalFrame } from "@/components/ui/ModalFrame";
+import { Field } from "@/components/ui/Field";
+import { Building2, Check, Clock3, CreditCard, Loader2, LogOut, RefreshCw, ShieldCheck, Ticket, X } from "lucide-react";
+
 import { useTranslation } from "react-i18next";
-import {
-  type EventCancellationRequest,
-  type OrganizerVerificationRequest,
-  type PromotionInvoiceAttention,
-  type RefundAttentionItem,
-} from "@/core/DataProvider";
-import { useDataProvider } from "@/core/DataProviderContext";
+import { type OrganizerVerificationRequest } from "@/core/DataProvider";
+
 import { RefundAttentionList } from "@/app/dashboard/components/RefundAttentionList";
 import { CommissionsPanel } from './CommissionsPanel';
 import { ClientErrorsPanel } from './ClientErrorsPanel';
-import { adminLabel, type AdminSection } from '@/features/admin/navigation';
-import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
-import {TextArea as UITextArea} from '@/components/ui/Field';
+import { adminLabel } from '@packages/app-core/admin/navigation';
+import { ActionButton as UIActionButton } from '@/components/ui/ActionButton';
+import { TextArea as UITextArea } from '@/components/ui/Field';
 
-type VerificationStatus = "pending" | "approved" | "rejected";
-type StatusFilter = "all" | VerificationStatus;
-type StripeStatus = "active" | "onboarding" | "attention" | "notConnected";
-
-function getStripeStatus(request: OrganizerVerificationRequest): StripeStatus {
-  if (!request.stripeAccountId) return "notConnected";
-  if (!request.stripeDetailsSubmitted) return "onboarding";
-  if (request.stripeChargesEnabled && request.stripePayoutsEnabled) return "active";
-  return "attention";
-}
-
-export function AdminOperationsPage({ section }: { section: AdminSection }) {
-  const { t, i18n } = useTranslation();
-  const { user, logout } = useDataProvider();
-  const [requests, setRequests] = useState<OrganizerVerificationRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<StatusFilter>("pending");
-  const [reviewTarget, setReviewTarget] = useState<{
-    request: OrganizerVerificationRequest;
-    status: "approved" | "rejected";
-  }>();
-  const [reviewing, setReviewing] = useState(false);
-  const [cancellations, setCancellations] = useState<EventCancellationRequest[]>([]);
-  const [cancellationsLoading, setCancellationsLoading] = useState(true);
-  const [cancellationTarget, setCancellationTarget] = useState<{ request: EventCancellationRequest; action: "retain" | "refund" | "reject" }>();
-  const [adminNote, setAdminNote] = useState("");
-  const [refunds, setRefunds] = useState<RefundAttentionItem[]>([]);
-  const [refundsLoading, setRefundsLoading] = useState(true);
-  const [refundsError, setRefundsError] = useState("");
-  const [reconcilingOrderId, setReconcilingOrderId] = useState<string>();
-  const [promotionInvoiceAttention, setPromotionInvoiceAttention] = useState<PromotionInvoiceAttention[]>([]);
-  const [promotionInvoiceAttentionLoading, setPromotionInvoiceAttentionLoading] = useState(true);
-
-  const loadRequests = useCallback(async () => {
-    if (!user || section !== 'verifications') return;
-    setLoading(true);
-    try {
-      setRequests(await user.listOrganizerVerifications());
-    } catch {
-      toast.error(t("admin.loadFailed"));
-    } finally {
-      setLoading(false);
-    }
-  }, [t, user, section]);
-
-  useEffect(() => {
-    void loadRequests();
-  }, [loadRequests]);
-
-  const loadCancellations = useCallback(async () => {
-    if (!user || section !== 'cancellations') return;
-    setCancellationsLoading(true);
-    try {
-      setCancellations(await user.listEventCancellationRequests());
-    } catch {
-      toast.error(t("adminCancellations.loadFailed"));
-    } finally {
-      setCancellationsLoading(false);
-    }
-  }, [t, user, section]);
-
-  useEffect(() => {
-    void loadCancellations();
-  }, [loadCancellations]);
-
-  const loadRefunds = useCallback(async () => {
-    if (!user || section !== 'refunds') return;
-    setRefundsLoading(true);
-    setRefundsError("");
-    try {
-      setRefunds(await user.listAdminRefundsRequiringAttention());
-    } catch {
-      setRefundsError(t("refundAttention.loadFailed"));
-    } finally {
-      setRefundsLoading(false);
-    }
-  }, [t, user, section]);
-
-  useEffect(() => {
-    void loadRefunds();
-  }, [loadRefunds]);
-
-  const loadPromotionInvoiceAttention = useCallback(async () => {
-    if (!user || section !== 'invoices') return;
-    setPromotionInvoiceAttentionLoading(true);
-    try {
-      setPromotionInvoiceAttention(await user.listPromotionInvoicesRequiringAttention());
-    } catch {
-      toast.error(t("adminPromotionInvoices.loadFailed"));
-    } finally {
-      setPromotionInvoiceAttentionLoading(false);
-    }
-  }, [t, user, section]);
-
-  useEffect(() => {
-    void loadPromotionInvoiceAttention();
-  }, [loadPromotionInvoiceAttention]);
-
-  const reconcileRefund = async (orderId: string) => {
-    if (!user || reconcilingOrderId) return;
-    setReconcilingOrderId(orderId);
-    try {
-      const result = await user.reconcileAdminRefund(orderId);
-      if (result.requiresAttention) {
-        toast.info(t("refundAttention.stillPartial"));
-      } else {
-        toast.success(t("refundAttention.fullyRefunded"));
-      }
-      await Promise.all([loadRefunds(), loadCancellations()]);
-    } catch {
-      toast.error(t("refundAttention.checkFailed"));
-    } finally {
-      setReconcilingOrderId(undefined);
-    }
-  };
-
-  const confirmCancellation = async () => {
-    if (!user || !cancellationTarget) return;
-    setReviewing(true);
-    try {
-      if (cancellationTarget.action === "reject") {
-        await user.rejectEventCancellation(cancellationTarget.request.id, adminNote);
-      } else {
-        await user.approveEventCancellation(cancellationTarget.request.id, cancellationTarget.action, adminNote);
-      }
-      toast.success(t("adminCancellations.saved"));
-      setCancellationTarget(undefined);
-      setAdminNote("");
-      await loadCancellations();
-    } catch {
-      toast.error(t("adminCancellations.saveFailed"));
-    } finally {
-      setReviewing(false);
-    }
-  };
-
-  const counts = useMemo(
-    () => ({
-      all: requests.length,
-      pending: requests.filter((request) => request.verificationStatus === "pending").length,
-      approved: requests.filter((request) => request.verificationStatus === "approved").length,
-      rejected: requests.filter((request) => request.verificationStatus === "rejected").length,
-    }),
-    [requests],
-  );
-
-  const visibleRequests = useMemo(
-    () =>
-      filter === "all"
-        ? requests
-        : requests.filter((request) => request.verificationStatus === filter),
-    [filter, requests],
-  );
-
-  const stripeCounts = useMemo(
-    () =>
-      requests.reduce(
-        (result, request) => {
-          result[getStripeStatus(request)] += 1;
-          return result;
-        },
-        { active: 0, onboarding: 0, attention: 0, notConnected: 0 } satisfies Record<StripeStatus, number>,
-      ),
-    [requests],
-  );
-
-  const confirmReview = async () => {
-    if (!user || !reviewTarget) return;
-    setReviewing(true);
-    try {
-      const profile = await user.reviewOrganizerVerification(
-        reviewTarget.request.userId,
-        reviewTarget.status,
-      );
-      setRequests((current) =>
-        current.map((request) =>
-          request.userId === reviewTarget.request.userId
-            ? {
-                ...request,
-                verificationStatus: profile.verificationStatus,
-                verifiedAt:
-                  profile.verificationStatus === "approved"
-                    ? new Date().toISOString()
-                    : undefined,
-                updatedAt: new Date().toISOString(),
-              }
-            : request,
-        ),
-      );
-      toast.success(
-        reviewTarget.status === "approved"
-          ? t("admin.approvedSuccess")
-          : t("admin.rejectedSuccess"),
-      );
-      setReviewTarget(undefined);
-    } catch {
-      toast.error(t("admin.reviewFailed"));
-    } finally {
-      setReviewing(false);
-    }
-  };
-
-  const locale = i18n.language === "ro" ? "ro-RO" : "en-GB";
+export function AdminOperationsPage(props: Parameters<typeof useAdminOperations>[0]) {
+  const model = useAdminOperations(props);
+  const {
+    adminNote,
+    cancellationTarget,
+    cancellationsLoading,
+    confirmCancellation,
+    i18n,
+    loadCancellations,
+    loadPromotionInvoiceAttention,
+    loadRefunds,
+    loadRequests,
+    loading,
+    locale,
+    logout,
+    promotionInvoiceAttentionLoading,
+    reconcileRefund,
+    reconcilingOrderId,
+    refunds,
+    refundsError,
+    refundsLoading,
+    reviewTarget,
+    reviewing,
+    section,
+    setAdminNote,
+    setCancellationTarget,
+    setReviewTarget,
+    t,
+    visibleRequests,
+  } = model;
 
   return (
     <div className="text-foreground">
@@ -279,42 +92,7 @@ export function AdminOperationsPage({ section }: { section: AdminSection }) {
 
         {section === 'commissions' && <CommissionsPanel initiallyOpen />}
         {section === 'errors' && <ClientErrorsPanel initiallyOpen />}
-        {section === 'cancellations' && <section className="space-y-3">
-          <div>
-            <h2 className="text-lg font-semibold">{t("adminCancellations.title")}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{t("adminCancellations.subtitle")}</p>
-          </div>
-          {cancellationsLoading ? (
-            <div className="h-40 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />
-          ) : cancellations.length ? cancellations.map((request) => (
-            <article key={request.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2"><Ban className="h-4 w-4 text-red-300" /><h3 className="truncate font-semibold">{request.eventTitle}</h3></div>
-                  <p className="mt-1 text-xs text-muted-foreground">{request.companyName} · {request.organizerEmail}</p>
-                </div>
-                <span className="w-fit rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide">{t(`adminCancellations.status.${request.status}`)}</span>
-              </div>
-              <p className="mt-4 rounded-xl bg-black/20 p-3 text-sm leading-6 text-muted-foreground">{request.reason}</p>
-              {request.evidenceUrl && <a href={request.evidenceUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-primary">{t("eventCancellation.evidence")}<ExternalLink className="h-3.5 w-3.5" /></a>}
-              <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <FinancialStat label={t("adminCancellations.tickets")} value={String(request.ticketCount ?? 0)} />
-                <FinancialStat label={t("adminCancellations.customerTotal")} value={`${((request.customerTotalBani ?? 0) / 100).toFixed(2)} RON`} />
-                <FinancialStat label={t("adminCancellations.spottrFee")} value={`${((request.platformFeeBani ?? 0) / 100).toFixed(2)} RON`} />
-                <FinancialStat label={t("adminCancellations.refundProgress")} value={`${request.succeededRefunds ?? 0}/${request.orderCount ?? 0}`} />
-              </dl>
-              {request.failedRefunds ? <p className="mt-3 text-xs font-semibold text-red-300">{t("adminCancellations.failedCount", { count: request.failedRefunds })}</p> : null}
-              {request.failedRefunds ? <button type="button" onClick={async () => { try { await user?.retryEventCancellation(request.id); toast.success(t("adminCancellations.retryStarted")); await loadCancellations(); } catch { toast.error(t("adminCancellations.saveFailed")); } }} className="mt-3 h-10 rounded-lg border border-red-400/25 px-4 text-xs font-semibold text-red-300">{t("adminCancellations.retry")}</button> : null}
-              {request.status === "pending" && (
-                <div className="mt-5 grid gap-2 sm:grid-cols-3">
-                  <button type="button" onClick={() => setCancellationTarget({ request, action: "reject" })} className="h-10 rounded-lg border border-white/10 text-xs font-semibold">{t("adminCancellations.reject")}</button>
-                  <button type="button" onClick={() => setCancellationTarget({ request, action: "refund" })} className="h-10 rounded-lg border border-amber-300/20 bg-amber-300/10 text-xs font-semibold text-amber-200">{t("adminCancellations.approveRefundFee")}</button>
-                  <UIActionButton type="button" onClick={() => setCancellationTarget({ request, action: "retain" })} className="h-10 text-xs font-semibold">{t("adminCancellations.approveRetainFee")}</UIActionButton>
-                </div>
-              )}
-            </article>
-          )) : <div className="rounded-2xl border border-dashed border-white/15 px-5 py-10 text-center text-sm text-muted-foreground">{t("adminCancellations.empty")}</div>}
-        </section>}
+        {section === 'cancellations' && <CancellationReviewPanel model={model} />}
 
         {section === 'refunds' && <RefundAttentionList
           items={refunds}
@@ -325,74 +103,9 @@ export function AdminOperationsPage({ section }: { section: AdminSection }) {
           onReconcile={(orderId) => void reconcileRefund(orderId)}
         />}
 
-        {section === 'invoices' && <section className="space-y-3">
-          <div>
-            <h2 className="text-lg font-semibold">{t("adminPromotionInvoices.title")}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{t("adminPromotionInvoices.subtitle")}</p>
-          </div>
-          {promotionInvoiceAttentionLoading ? (
-            <div className="h-32 animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />
-          ) : promotionInvoiceAttention.length ? (
-            promotionInvoiceAttention.map((item) => (
-              <article key={item.id} className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] p-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <h3 className="truncate font-semibold">{item.eventTitle}</h3>
-                    <p className="mt-1 break-all text-xs text-muted-foreground">{item.customerEmail} · {item.paymentIntentId || item.campaignId}</p>
-                  </div>
-                  <span className="w-fit rounded-full border border-amber-300/25 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-200">
-                    {t("adminPromotionInvoices.needsReview")}
-                  </span>
-                </div>
-                <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <FinancialStat label={t("adminPromotionInvoices.paid")} value={`${item.amountRon.toFixed(2)} RON`} />
-                  <FinancialStat label={t("adminPromotionInvoices.refunded")} value={`${item.refundedAmountRon.toFixed(2)} RON`} />
-                  <FinancialStat label={t("adminPromotionInvoices.invoiceStatus")} value={item.invoiceStatus || "—"} />
-                  <FinancialStat label={t("adminPromotionInvoices.refundStatus")} value={item.refundStatus || "—"} />
-                </dl>
-                <p className="mt-3 rounded-xl bg-black/20 p-3 text-xs leading-5 text-amber-100/80">{item.reason}</p>
-              </article>
-            ))
-          ) : (
-            <div className="rounded-2xl border border-dashed border-white/15 px-5 py-8 text-center text-sm text-muted-foreground">
-              {t("adminPromotionInvoices.empty")}
-            </div>
-          )}
-        </section>}
+        {section === 'invoices' && <PromotionInvoiceReviewPanel model={model} />}
 
-        {section === 'verifications' && <><section>
-          <div>
-            <h2 className="text-lg font-semibold">{t("admin.organizersTitle")}</h2>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-              {t("admin.subtitle")}
-            </p>
-          </div>
-          <dl className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <FinancialStat label={t("admin.stripe.status.active")} value={String(stripeCounts.active)} />
-            <FinancialStat label={t("admin.stripe.status.onboarding")} value={String(stripeCounts.onboarding)} />
-            <FinancialStat label={t("admin.stripe.status.attention")} value={String(stripeCounts.attention)} />
-            <FinancialStat label={t("admin.stripe.status.notConnected")} value={String(stripeCounts.notConnected)} />
-          </dl>
-          <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
-            {(["pending", "approved", "rejected", "all"] as const).map((status) => (
-              <button
-                key={status}
-                type="button"
-                onClick={() => setFilter(status)}
-                className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-xs font-semibold transition ${
-                  filter === status
-                    ? "border-primary bg-[var(--ui-action)] text-primary-foreground"
-                    : "border-white/10 bg-white/[0.03] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
-                }`}
-              >
-                {t(`admin.filters.${status}`)}
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${filter === status ? "bg-black/20" : "bg-white/10"}`}>
-                  {counts[status]}
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
+        {section === 'verifications' && <><OrganizerVerificationOverview model={model} />
 
         {loading ? (
           <div className="grid gap-3 md:grid-cols-2">
@@ -473,39 +186,7 @@ export function AdminOperationsPage({ section }: { section: AdminSection }) {
       </div>
 
       {reviewTarget && (
-        <ModalFrame open onClose={()=>setReviewTarget(undefined)} dismissible={!reviewing} label={reviewTarget.status==='approved'?t('admin.approveTitle'):t('admin.rejectTitle')}>
-          <div className="p-5">
-            <div className={`grid h-11 w-11 place-items-center rounded-full ${reviewTarget.status === "approved" ? "bg-primary/15 text-primary" : "bg-red-500/10 text-red-300"}`}>
-              {reviewTarget.status === "approved" ? <CircleCheck className="h-5 w-5" /> : <CircleX className="h-5 w-5" />}
-            </div>
-            <h2 className="mt-4 text-lg font-semibold">
-              {reviewTarget.status === "approved" ? t("admin.approveTitle") : t("admin.rejectTitle")}
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {t("admin.reviewHint", { company: reviewTarget.request.companyName })}
-            </p>
-            <div className="mt-6 flex gap-2">
-              <button
-                type="button"
-                data-dialog-initial-focus
-                onClick={() => setReviewTarget(undefined)}
-                disabled={reviewing}
-                className="h-10 flex-1 rounded-lg border border-white/15 text-sm font-semibold transition hover:bg-white/5 disabled:opacity-50"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={() => void confirmReview()}
-                disabled={reviewing}
-                className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50 ${reviewTarget.status === "approved" ? "bg-[var(--ui-action)]" : "bg-red-600 hover:bg-red-500"}`}
-              >
-                {reviewing && <Loader2 className="h-4 w-4 animate-spin" />}
-                {reviewTarget.status === "approved" ? t("admin.approve") : t("admin.reject")}
-              </button>
-            </div>
-          </div>
-        </ModalFrame>
+        <OrganizerReviewDialog model={model} />
       )}
 
       {cancellationTarget && (
@@ -523,10 +204,6 @@ export function AdminOperationsPage({ section }: { section: AdminSection }) {
       )}
     </div>
   );
-}
-
-function FinancialStat({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl border border-white/10 bg-black/20 p-3"><dt className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</dt><dd className="mt-1 text-sm font-semibold">{value}</dd></div>;
 }
 
 function StatusBadge({ status }: { status: VerificationStatus }) {

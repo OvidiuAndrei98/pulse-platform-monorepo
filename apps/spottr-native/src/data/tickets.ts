@@ -1,4 +1,4 @@
-import type { components } from "@packages/api-client/src/schema";
+import type { components } from "@packages/api-client/schema";
 import { ApiError } from "./http";
 export type UserTicket = components["schemas"]["UserTicketResponse"];
 const fields = [

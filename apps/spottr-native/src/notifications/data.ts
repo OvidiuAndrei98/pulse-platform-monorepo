@@ -1,4 +1,4 @@
-import type { components } from '@packages/api-client/src/schema';
+import type { components } from '@packages/api-client/schema';
 export type Notification = components['schemas']['NotificationResponse'];
 export type NotificationList = components['schemas']['NotificationListResponse'];
 

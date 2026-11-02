@@ -14,7 +14,7 @@ import {
   LoaderCircle,
   Trash2,
 } from "lucide-react";
-import { eventCategories } from "@/core/mappers";
+import { eventCategories } from "@packages/app-core/events/categories";
 import { DeleteEventDialog } from "@/features/events/form/DeleteEventDialog";
 import { EventDetailsSection } from "@/features/events/form/EventDetailsSection";
 import { TicketTypesSection } from "@/features/events/form/TicketTypesSection";
@@ -22,13 +22,13 @@ import { LineupSection } from "@/features/events/lineup/LineupSection";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
 import { EventPublicationSection } from "@/features/events/form/EventPublicationSection";
-import { formatToDatetimeLocal } from "@/features/events/form/dateTimeValues";
+import { formatToDatetimeLocal } from "@packages/app-core/events/dateTimeValues";
 import {
   basicsFields,
   scheduleFields,
   getErrorDestination,
   type EditorSection,
-} from "@/features/events/form/editorSections";
+} from "@packages/app-core/events/editorSections";
 import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
 
 export const ticketTypeSchema = z

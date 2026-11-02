@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ChevronRight, Ticket, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
+import { ApiClient, type ReadableSchema } from "@packages/api-client/client";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { routeForPlatform } from "@/lib/native/navigation";
 

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCommissionInputs, parseCommissionSettings, commissionFormula } from '../../pulse-app/src/features/admin/commissions';
-import { calculateServiceFeeRon } from '../../pulse-app/src/features/events/serviceFee';
+import { parseCommissionInputs, parseCommissionSettings, commissionFormula } from '@packages/app-core/admin/commissions';
+import { calculateServiceFeeRon } from '@packages/app-core/events/serviceFee';
 import { normalizeEvent } from '../src/data/events';
 import { checkoutFailure } from '../src/checkout/errors';
 import { ApiError } from '../src/data/http';

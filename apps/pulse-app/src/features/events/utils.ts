@@ -1,5 +1,5 @@
 import { Event } from "@/core/DataProvider";
-import { Coordinates } from "@/features/events/types";
+import { Coordinates } from "@packages/app-core/events/types";
 
 export function getDistanceKm(from: Coordinates, event: Event) {
   const toRadians = (value: number) => (value * Math.PI) / 180;

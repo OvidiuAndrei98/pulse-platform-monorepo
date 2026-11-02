@@ -1,9 +1,10 @@
+import { wardrobeText } from '@packages/app-core/wardrobe/model';
 import React,{useEffect,useRef,useState} from 'react';
 import { I18nManager,Platform,Pressable,ScrollView,StyleSheet,View,type KeyDownEvent,type ScrollViewInstance,type ViewInstance } from 'react-native';
 import { ChevronLeft,ChevronRight } from 'lucide-react-native';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
-import { tabFocusIndex,type WardrobeTabOption } from '../../../pulse-app/src/features/wardrobe/tabNavigation';
+import { tabFocusIndex,type WardrobeTabOption } from '@packages/app-core/wardrobe/tabNavigation';
 
 export function WardrobeTabs<T extends string>({id,label,value,options,onChange,disabled=false,locked=false,panelId,ro}:{id:string;label:string;value:T;options:WardrobeTabOption<T>[];onChange:(value:T)=>void;disabled?:boolean;locked?:boolean;panelId:string;ro:boolean}) {
   const rail=useRef<ScrollViewInstance>(null),buttons=useRef<(ViewInstance|null)[]>([]),positions=useRef<number[]>([]);

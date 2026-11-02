@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { OrganizerSidebar } from "./components/DashboardSidebar";
 import { OrganizerHeader } from "./components/DashboardSliderMenu";
 import { DashboardAccessGuard } from "./components/DashboardAccessGuard";
-import { resources } from "@/i18n/resources";
+import { resources } from "@packages/app-core/i18n/resources";
 
 export const metadata: Metadata = {
   title: resources.en.translation.metadata.organizerTitle,

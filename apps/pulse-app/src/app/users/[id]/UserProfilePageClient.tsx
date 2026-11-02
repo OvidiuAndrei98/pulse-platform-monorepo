@@ -6,11 +6,11 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, BadgeCheck, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
+import { ApiClient, type ReadableSchema } from "@packages/api-client/client";
 import { Event, PublicEventsService } from "@/core/DataProvider";
 import { OrganizerProfile } from "@/components/social/OrganizerProfile";
 import { ProfileActions } from "@/components/social/ProfileActions";
-import { splitOrganizerEvents } from "@/components/social/organizerEvents";
+import { splitOrganizerEvents } from "@packages/app-core/social/organizerEvents";
 
 type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 

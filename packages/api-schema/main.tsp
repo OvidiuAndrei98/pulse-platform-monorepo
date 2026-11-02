@@ -2,6 +2,7 @@ import "@typespec/http";
 import "@typespec/rest";
 import "@typespec/openapi3";
 import "./wardrobe.tsp";
+import "./outings.tsp";
 
 using TypeSpec.Http;
 using TypeSpec.Rest;
@@ -240,6 +241,7 @@ model EligibleSafetyFriendResponse {
 }
 
 model EventSafetyGroupResponse {
+  meetingPoint?: string;
   id: string;
   eventId: string;
   eventTitle: string;

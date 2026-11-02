@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sortValidationEvents } from '@packages/api-client/src/validationEventSelection';
+import { sortValidationEvents } from '@packages/api-client/validation-event-selection';
 import { mergeValidationEvents } from '../src/scanner/data';
 
 test('validation list keeps current admissions first, upcoming chronologically and offline journals reachable', () => {

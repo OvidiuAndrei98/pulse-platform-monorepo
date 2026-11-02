@@ -1,6 +1,6 @@
 import { Map as LibreMap, Marker, AttributionControl, setWorkerUrl, type StyleSpecification } from 'maplibre-gl';
-import darkStyle from '../../../../pulse-app/src/features/events/map/openFreeMapDark.json';
-import { clusterEvents, clusterZoom, radialPositions, validCoordinate, type Coordinate } from '../geometry';
+import darkStyle from '@packages/app-core/events/map/openFreeMapDark.json';
+import { clusterEvents, clusterZoom, radialPositions, validCoordinate, type Coordinate } from '@packages/app-core/maps/geometry';
 import type { WebMapMessage, WebMapState } from './bridge';
 
 declare const __SPOTTR_MAP_WORKER__: string;

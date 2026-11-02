@@ -38,7 +38,7 @@ test('protected logout redirects once using replace, never pushes a dashboard/lo
       './apiRoot': { apiRoot: 'https://test' }, '@/components/ui/loading': { PageLoadingState: 'loading' },
       '@/lib/native/sessionStorage': { getAccessTokenSync: () => token, hydrateAccessToken: async () => token,
         saveOfflineSession: async () => {}, clearAccessToken: async () => { token = null; }, clearOfflineSession: async () => {} },
-      '@packages/api-client/src/Client': { ApiError: class extends Error {}, ApiClient: { configure() {}, instance: { get: async () => ({ id: 'organizer', role: 'organizer' }) } } },
+      '@packages/api-client/client': { ApiError: class extends Error {}, ApiClient: { configure() {}, instance: { get: async () => ({ id: 'organizer', role: 'organizer' }) } } },
     }, { window }).load('core/DataProviderContext');
     const render = () => h.render(() => DataProvider({ children: null }));
     render(); await settle();

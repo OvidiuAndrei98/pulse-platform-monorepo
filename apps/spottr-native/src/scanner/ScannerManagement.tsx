@@ -22,7 +22,14 @@ import type { ValidationEvent } from "./data";
 import { scannerApi } from "./runtime";
 import { s } from "./ScannerPanel";
 import { DateTimeField } from "../dashboard/DateTimeField";
-import { formatToDatetimeLocal } from "../../../pulse-app/src/features/events/form/dateTimeValues";
+import { formatToDatetimeLocal } from "@packages/app-core/events/dateTimeValues";
+
+/** Keep bearer credentials and session-keyed remounting inside the account adapter. */
+export function AccountScannerManagement(props: Omit<Parameters<typeof ScannerManagement>[0], 'token'>) {
+  const {controller}=useAuth();
+  const token=controller.getToken();
+  return token?<ScannerManagement key={props.event.id+':'+token} {...props} token={token}/>:null;
+}
 
 export function ScannerManagement({
   event,

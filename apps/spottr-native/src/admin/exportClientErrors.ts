@@ -1,6 +1,6 @@
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import type { ErrorEntry } from "../../../pulse-app/src/features/diagnostics/report";
+import type { ErrorEntry } from "@packages/app-core/diagnostics/report";
 export async function exportClientErrors(
   rows: ErrorEntry[],
   current: () => boolean,

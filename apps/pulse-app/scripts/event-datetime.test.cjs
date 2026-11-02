@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { modules } = require('./helpers/qaHarness.cjs');
-const { formatToDatetimeLocal } = modules().load('features/events/form/dateTimeValues');
+const { formatToDatetimeLocal } = modules().load('@packages/app-core/events/dateTimeValues');
 
 test('organizer picker matches the local card time and saving does not shift event timestamps', () => {
   const previous = process.env.TZ;

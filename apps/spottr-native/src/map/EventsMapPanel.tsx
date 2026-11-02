@@ -3,13 +3,13 @@ import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, useWindowD
 import * as Location from 'expo-location';
 import { Clock, LocateFixed, Minus, Plus, X } from 'lucide-react-native';
 import { EventMap } from './EventMap';
-import { DEFAULT_CENTER, validCoordinate, zoomForDistance, type Coordinate, type Point } from './geometry';
+import { DEFAULT_CENTER, validCoordinate, zoomForDistance, type Coordinate, type Point } from '@packages/app-core/maps/geometry';
 import { isLive, type Event } from '../data/events';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
 import { EventImage, Feedback } from '../ui/common';
 import { usePreferences } from '../usePreferences';
-import { formatEventTime } from '../../../pulse-app/src/features/events/dateFormat';
+import { formatEventTime } from '@packages/app-core/events/dateFormat';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapEventsCarousel } from './MapEventsCarousel';
 import { GlassButtonGroup } from '../ui/GlassButtonGroup';
@@ -17,7 +17,7 @@ import { GlassPressable } from '../ui/GlassPressable';
 import { GlassSurface } from '../ui/GlassSurface';
 
 export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, error, retry,toolbarHeight=44,onLocationChange }: { events: Event[]; cityCenter?: Coordinate | null; distance: number; onOpen: (event: Event) => void; loading: boolean; error: boolean; retry: () => void;toolbarHeight?:number;onLocationChange?:(coordinate:readonly[number,number])=>void }) {
-  const { copy } = usePreferences(), [location, setLocation] = useState<Coordinate | null>(null);
+  const { copy, language } = usePreferences(), [location, setLocation] = useState<Coordinate | null>(null);
   const [camera, setCamera] = useState({ center: cityCenter ?? DEFAULT_CENTER, zoom: 12 });
   const [selected, setSelected] = useState<string | null>(null), [point, setPoint] = useState<Point | null>(null), [previewHeight, setPreviewHeight] = useState(150);
   const [locating, setLocating] = useState(false), [locationError, setLocationError] = useState('');
@@ -92,7 +92,7 @@ export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, 
         <EventImage uri={event.bannerUrl} style={{ width: 56, height: 56, borderRadius: 8, borderWidth: 1, borderColor: '#ffffff1a' }} />
         <View style={{ flex: 1, paddingRight: 20 }}>
           <Text numberOfLines={1} style={{ color: 'white', fontWeight: '700', fontSize: 14 }}>{event.title}</Text>
-          <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 4 }}><Clock size={14} color="#a1a1aa" /><Text style={{ color: '#a1a1aa', fontSize: 12 }}>{formatEventTime(event.startTime)}</Text></View>
+          <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 4 }}><Clock size={14} color="#a1a1aa" /><Text style={{ color: '#a1a1aa', fontSize: 12 }}>{formatEventTime(event.startTime, language)}</Text></View>
           <View style={{ flexDirection: 'row', gap: 6, marginTop: 10 }}>
             <Text style={s.badge}>{event.category || copy('events.generalCategory')}</Text>
             {isLive(event) && <Text style={[s.badge, { color: '#f87171', backgroundColor: '#00000099', borderColor: '#ef44444d' }]}>● {copy('common.liveNow').toUpperCase()}</Text>}

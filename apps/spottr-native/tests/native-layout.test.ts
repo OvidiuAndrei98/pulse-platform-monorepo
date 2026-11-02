@@ -29,7 +29,7 @@ function loadUI(relative: string, overrides: Record<string, any> = {}, platform 
     './managementData': { invoiceStats: () => ({ issued: 0, inProgress: 0, attention: 0 }), financeSummary: () => ({ customerTotal: 0, platformFee: 0, tickets: 0 }) },
     './useOrganizerFlow': { useOrganizerFlow: () => ({}) },
     './usePromotionBilling': { usePromotionBilling: () => ({ details: {}, saved: { address: 'Test street', city: 'Test city' }, source: 'saved' }) },
-    '../../../pulse-app/src/features/promotions/promotionBilling': { isPromotionBucharestAddress: () => false },
+    '@packages/app-core/promotions/promotionBilling': { isPromotionBucharestAddress: () => false },
     ...overrides,
   };
   function load(file: string): any {
@@ -77,7 +77,7 @@ function sheetViewportStyle(platform: string, screenHeight = 874, fraction = .9,
     'react-native-reanimated': { __esModule: true, default: { View: 'AnimatedView' }, useAnimatedReaction() {}, useSharedValue: shared,
       useAnimatedStyle: (fn: any) => fn(), withSpring: (value: number) => value, withTiming: (value: number) => value },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 62 }) },
-    '../../../pulse-app/src/components/ui/drawerDesign': { drawerDesign: { handleAreaHeight: 32 } },
+    '@packages/app-core/presentation/drawerDesign': { drawerDesign: { handleAreaHeight: 32 } },
     './SheetScrollBridge': { SheetScrollProvider: 'Provider', useSheetScrollSurface() {} },
   }, platform);
   const app = ui.AppSheet({ open: true, embedded: true, height: fraction, onClose() {}, label: 'Close' });
@@ -232,7 +232,7 @@ test('ordinary native sheet touches leave scroll unlocking and animation ownersh
     'react-native-reanimated': { __esModule: true, default: { View: 'AnimatedView' }, runOnUI: (fn: any) => fn, useAnimatedReaction() {}, useSharedValue: shared,
       useAnimatedStyle: (fn: any) => fn(), withSpring: (value: number) => value, withTiming: (value: number) => value },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0 }) },
-    '../../../pulse-app/src/components/ui/drawerDesign': { drawerDesign: {} },
+    '@packages/app-core/presentation/drawerDesign': { drawerDesign: {} },
     './SheetScrollBridge': { SheetScrollProvider: 'Provider', useSheetScrollSurface() {} },
   });
   const footer = React.createElement('View', { testID: 'event-actions' });
@@ -260,7 +260,7 @@ test('native sheet handle dismisses on tap without a diagnostic long-press actio
     'react-native-gesture-handler': { Gesture: { Pan: () => pan }, GestureDetector: 'GestureDetector' },
     'react-native-reanimated': { __esModule: true, default: { View: 'AnimatedView' } },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 59 }) },
-    '../../../pulse-app/src/components/ui/drawerDesign': { drawerDesign: {} },
+    '@packages/app-core/presentation/drawerDesign': { drawerDesign: {} },
     './SheetScrollBridge': { SheetScrollProvider: 'Provider' },
   });
   const app = ui.AppSheet({ open: true, embedded: true, label: 'Close', onClose() {} });

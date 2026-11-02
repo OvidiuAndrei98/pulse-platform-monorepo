@@ -20,10 +20,10 @@ import {
 import { useDataProvider } from "@/core/DataProviderContext";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { useTranslation } from "react-i18next";
-import { ApiError } from "@packages/api-client/src/Client";
+import { ApiError } from "@packages/api-client/client";
 import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
 import {Input as UIInput} from '@/components/ui/Field';
-import { completeCredentials, createCredentialFillSubmitter, watchBrowserCredentialFill } from '@/lib/auth/credentialFill';
+import { completeCredentials, createCredentialFillSubmitter, watchBrowserCredentialFill } from '@packages/browser-core/auth/credentialFill';
 
 export default function LoginPage() {
   const { t } = useTranslation();

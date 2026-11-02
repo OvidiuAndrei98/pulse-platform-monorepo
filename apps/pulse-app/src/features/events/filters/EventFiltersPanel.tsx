@@ -6,9 +6,9 @@ import {
   eventCities,
   eventDateFilters,
   eventVibes,
-} from "@/features/events/constants";
-import { eventCategories } from "@/core/mappers";
-import { EventFilters } from "@/features/events/types";
+} from "@packages/app-core/events/constants";
+import { eventCategories } from "@packages/app-core/events/categories";
+import { EventFilters } from "@packages/app-core/events/types";
 import { DiscoveryCalendar } from './DiscoveryCalendar';
 import { ThemedSelect } from '../form/ThemedSelect';
 import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';

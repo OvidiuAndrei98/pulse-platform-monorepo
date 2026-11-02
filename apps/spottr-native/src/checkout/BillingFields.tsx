@@ -7,7 +7,7 @@ import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
 import { FormInput, formStyles } from '../ui/FormInput';
 import { DashboardDropdown } from '../dashboard/DashboardDropdown';
-import { invoiceFieldLimits, isBucharestAddress, type InvoiceDetails, type InvoiceFieldErrors } from '../../../pulse-app/src/features/checkout/invoiceDetails';
+import { invoiceFieldLimits, isBucharestAddress, type InvoiceDetails, type InvoiceFieldErrors } from '@packages/app-core/checkout/invoiceDetails';
 
 export function BillingFields({ value, onChange, errors, disabled }: { value: InvoiceDetails; onChange: (value: InvoiceDetails) => void; errors: InvoiceFieldErrors; disabled: boolean }) {
   const { copy } = usePreferences();

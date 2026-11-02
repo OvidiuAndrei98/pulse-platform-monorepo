@@ -28,7 +28,7 @@ import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
 import { useToast } from '../ui/ToastProvider';
 import { WEB_URL } from '../config';
-import { drawerDesign } from '../../../pulse-app/src/components/ui/drawerDesign';
+import { drawerDesign } from '@packages/app-core/presentation/drawerDesign';
 import { useNavbarScroll } from '../navigation/useNavbarScroll';
 
 export function PublicProfileScreen({ route, navigation }: NativeStackScreenProps<RootParamList, 'PublicProfile'>) {

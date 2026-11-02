@@ -28,6 +28,7 @@ function fixture() {
     '../ui/AppSheet': { AppSheet: 'Sheet' }, '../ui/Text': { Text: 'Text' }, '../ui/Logo': { Wordmark: 'Logo' },
     '../ui/common': { Button: 'Button' }, '../ui/theme': { colors: { accent: '#ff0044', muted: '#aaa' } },
     '../ui/CapsuleSwitchTrack': { CapsuleSwitchTrack: 'CapsuleSwitchTrack' }, '../ui/GlassSurface': { GlassSurface: 'GlassSurface' },
+    '../ui/GlassSegmentedControl': { GlassSegmentedControl: 'GlassSegmentedControl' },
     './QuickConnectCamera': { QuickConnectCamera: 'CameraFrame' },
   };
   const loader = modules(dependencies), Sheet = loader.load('../../spottr-native/src/profile/QuickConnectSheet.tsx').QuickConnectSheet;
@@ -41,7 +42,7 @@ function fixture() {
     return previewHooks.render(() => Preview({ stopped, onScan: (value: string) => scans.push(value), onRetry() {} }));
   };
   return { sheet, frame, preview, writes, scans, apiGate, permissionGate,
-    mode: (value: string) => find(sheet(), (node: any) => node.type === 'CapsuleSwitchTrack').props.onChange(value),
+    mode: (value: string) => find(sheet(), (node: any) => node.type === 'GlassSegmentedControl').props.onChange(value),
     appState: (value: string) => activeListener(value), setStopped: (value: boolean) => { stopped = value; },
     setPermission: (value: any) => { permission = value; }, permissionReads: () => permissionReads, permissionRequests: () => permissionRequests,
     disposeSheet: () => sheetHooks.unmount(), disposePreview: () => previewHooks.unmount() };

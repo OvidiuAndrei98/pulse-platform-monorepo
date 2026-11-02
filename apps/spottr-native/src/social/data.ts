@@ -1,7 +1,7 @@
-import type { ReadableSchema } from '@packages/api-client/src/Client';
-import type { SocialFeedItem } from '../../../pulse-app/src/components/social/feedTypes';
-export { groupFeedItems } from '../../../pulse-app/src/components/social/groupFeedItems';
-export type { FeedGroup } from '../../../pulse-app/src/components/social/feedTypes';
+import type { ReadableSchema } from '@packages/api-client/client';
+import type { SocialFeedItem } from '@packages/app-core/social/feedTypes';
+export { groupFeedItems } from '@packages/app-core/social/groupFeedItems';
+export type { FeedGroup } from '@packages/app-core/social/feedTypes';
 export type Friend = Pick<ReadableSchema<'PublicProfileResponse'>, 'id' | 'username' | 'avatarUrl' | 'bio'>;
 const text = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);

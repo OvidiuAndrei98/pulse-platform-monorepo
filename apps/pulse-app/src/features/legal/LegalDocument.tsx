@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import type { LegalSection } from './types';
-export type { LegalSection } from './types';
+import type { LegalSection } from '@packages/app-core/legal/types';
+export type { LegalSection } from '@packages/app-core/legal/types';
 
 export function LegalDocument({
   eyebrow,

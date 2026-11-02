@@ -1,7 +1,7 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { File } from "expo-file-system";
-import type { PrintableTicket } from "../../../pulse-app/src/components/tickets/ticketDesign";
+import type { PrintableTicket } from "@packages/app-core/tickets/design";
 import { renderInvitationPdf } from "./invitationPdfHtml";
 export async function exportInvitationBatch(
   tickets: PrintableTicket[],

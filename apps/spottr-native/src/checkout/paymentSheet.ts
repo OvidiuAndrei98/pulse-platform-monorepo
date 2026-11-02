@@ -1,7 +1,7 @@
 import { Linking } from 'react-native';
 import Constants from 'expo-constants';
 import { initStripe, initPaymentSheet, presentPaymentSheet, handleURLCallback } from '@stripe/stripe-react-native';
-import type { InvoiceDetails } from '../../../pulse-app/src/features/checkout/invoiceDetails';
+import type { InvoiceDetails } from '@packages/app-core/checkout/invoiceDetails';
 import { isStripeReturnURL, type NativePaymentSession } from './nativePayment';
 import { paymentSheetOptions } from './paymentSheetOptions';
 import { PaymentSheetFailure } from './paymentSheetFailure';

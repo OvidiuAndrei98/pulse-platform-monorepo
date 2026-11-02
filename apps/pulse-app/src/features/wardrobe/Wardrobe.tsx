@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useDataProvider } from '@/core/DataProviderContext';
-import { operatorAccount, wardrobeEventPhase, wardrobeEventPhaseLabel, wardrobeTabLabel, changeItemCount, taskDeposits,wardrobeFlow,wardrobeTasks,availableZones,canReserveBelongings,wardrobeEventDescription,type WardrobeTask } from './flow';
+import { operatorAccount, wardrobeEventPhase, wardrobeEventPhaseLabel, wardrobeTabLabel, changeItemCount, taskDeposits,wardrobeFlow,wardrobeTasks,availableZones,canReserveBelongings,wardrobeEventDescription,type WardrobeTask } from '@packages/app-core/wardrobe/flow';
 import { Shirt, ArrowLeft, CalendarDays, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
 import { TicketQrCode } from "@/components/tickets/TicketQrCode";
@@ -26,7 +26,7 @@ import {
   type Command,
   type Deposit,
   type WardrobeEvent,
-} from "./model";
+} from "@packages/app-core/wardrobe/model";
 import s from "./wardrobe.module.css";
 import {Input as UIInput,TextArea as UITextArea} from '@/components/ui/Field';
 import {ActionButton,ActionLink} from '@/components/ui/ActionButton';
@@ -245,7 +245,7 @@ export function WardrobePage({
     return (
       <main className={s.page}>
         <ActionLink href="/login" className={s.button}>
-          {ro ? "Conectează-te" : "Sign in"}
+          {wardrobeText(ro).signIn}
         </ActionLink>
       </main>
     );
@@ -330,14 +330,14 @@ export function WardrobePage({
       ) : (
         <>
           {!state.eventId?<>
-            <div className={s.between}><h2 id="wardrobe-events-heading">{ro?'Evenimente active':'Active events'}</h2>{refreshControl}</div>
-            <p>{ro?'Alege evenimentul pentru primire, predare și gestionarea garderobei.':'Choose an event to receive, return and manage belongings.'}</p>
+            <div className={s.between}><h2 id="wardrobe-events-heading">{wardrobeText(ro).activeEvents}</h2>{refreshControl}</div>
+            <p>{wardrobeText(ro).eventListHint}</p>
             {state.loading&&!state.events.length&&<p role="status">{c.loading}</p>}
             <div>{activeEvents.map(eventRow)}</div>
-            {!state.loading&&!activeEvents.length&&<p>{!state.events.length?c.noEvents:ro?'Nu ai evenimente active. Evenimentele încheiate și ciornele sunt disponibile mai jos.':'No active events. Past events and drafts are available below.'}</p>}
-            {!!otherEvents.length&&<><button type="button" className={s.otherEvents} aria-expanded={otherVisible} aria-controls={otherVisible?"wardrobe-other-events":undefined} onClick={()=>setShowOther(!otherVisible)}>{ro?'Alte evenimente':'Other events'} ({otherEvents.length}){otherVisible?<ChevronDown aria-hidden="true" size={18}/>:<ChevronRight aria-hidden="true" size={18}/>}</button>{otherVisible&&<div id="wardrobe-other-events">{otherEvents.map(eventRow)}</div>}</>}
+            {!state.loading&&!activeEvents.length&&<p>{!state.events.length?c.noEvents:wardrobeText(ro).noActiveEvents}</p>}
+            {!!otherEvents.length&&<><button type="button" className={s.otherEvents} aria-expanded={otherVisible} aria-controls={otherVisible?"wardrobe-other-events":undefined} onClick={()=>setShowOther(!otherVisible)}>{wardrobeText(ro).otherEvents} ({otherEvents.length}){otherVisible?<ChevronDown aria-hidden="true" size={18}/>:<ChevronRight aria-hidden="true" size={18}/>}</button>{otherVisible&&<div id="wardrobe-other-events">{otherEvents.map(eventRow)}</div>}</>}
           </>:<>
-            <div className={s.between}><button type="button" data-testid="wardrobe-back-events" className={s.backEvents} disabled={busy||d?.status==='reserved'} onClick={leaveEvent}><ArrowLeft aria-hidden="true" size={18}/>{ro?'Înapoi la evenimente':'Back to events'}</button>{refreshControl}</div>
+            <div className={s.between}><button type="button" data-testid="wardrobe-back-events" className={s.backEvents} disabled={busy||d?.status==='reserved'} onClick={leaveEvent}><ArrowLeft aria-hidden="true" size={18}/>{wardrobeText(ro).backEvents}</button>{refreshControl}</div>
             <h2 id="wardrobe-event-heading" className={s.eventTitle}>{overview?.title||state.events.find(event=>event.id===state.eventId)?.title}</h2>
             <p className={s.eventMeta}>{wardrobeEventDescription(state.events.find(event=>event.id===state.eventId)??{id:state.eventId,title:'',canManage},ro)}</p>
             <WardrobeTabs id="wardrobe-operations" label={flow.operations} value={task} options={wardrobeTasks(canManage).map(value=>({value,label:wardrobeTabLabel(value,ro)}))} onChange={beginTask} disabled={busy} locked={d?.status==='reserved'} panelId="wardrobe-panel" ro={ro}/>
@@ -349,8 +349,8 @@ export function WardrobePage({
               {o&&<>
 
 
-              {task==='setup'&&<WardrobeTabs id="wardrobe-settings" label={flow.settings} value={setupTab} options={[{value:'zones',label:ro?'Zone și obiecte':'Zones and items'},{value:'team',label:flow.team}]} onChange={setSetupTab} disabled={busy} panelId="wardrobe-settings-panel" ro={ro}/>}
-              {task==='pickup'&&<div className={s.card}><p>{flow.pickupHint}</p>{button(c.scan,()=>{cameraGate.current=false;setCamera(true);})}{pickupLookup!==null&&button(ro?'Caută alt client':'Find another customer',()=>{setPickupLookup(null);store.select();},true)}</div>}
+              {task==='setup'&&<WardrobeTabs id="wardrobe-settings" label={flow.settings} value={setupTab} options={[{value:'zones',label:wardrobeText(ro).zonesAndItems},{value:'team',label:flow.team}]} onChange={setSetupTab} disabled={busy} panelId="wardrobe-settings-panel" ro={ro}/>}
+              {task==='pickup'&&<div className={s.card}><p>{flow.pickupHint}</p>{button(c.scan,()=>{cameraGate.current=false;setCamera(true);})}{pickupLookup!==null&&button(wardrobeText(ro).anotherCustomer,()=>{setPickupLookup(null);store.select();},true)}</div>}
               {!!flowError&&<p role="alert" className={s.error}>{flowError}</p>}
 
               {tab === "history" && (

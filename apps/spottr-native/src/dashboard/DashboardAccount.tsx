@@ -26,7 +26,7 @@ import { EventImage, Feedback, Loading } from "../ui/common";
 import { formatDate } from "../data/events";
 import { useTickets } from "../data/useTickets";
 import { useOrders } from "../data/useOrders";
-import { isConfirmedPurchase, orderTotalBani, orderStatusKey } from "../../../pulse-app/src/features/checkout/orderHistory";
+import { isConfirmedPurchase, orderTotalBani, orderStatusKey } from "@packages/app-core/checkout/orderHistory";
 import {
   TicketSheet,
   ticketStatus,
@@ -34,7 +34,7 @@ import {
 } from "../profile/TicketSheet";
 import { uploadProfileAvatar } from "../profile/avatar";
 import { OrganizerAccountClosure } from "../profile/OrganizerAccountClosure";
-import { formatRon } from "../../../pulse-app/src/features/events/serviceFee";
+import { formatRon } from "@packages/app-core/events/serviceFee";
 import { Action, Field, dColors as colors, useAction } from "./common";
 import type { OrganizerProfile } from "./data";
 import { Grid } from "./managementUi";

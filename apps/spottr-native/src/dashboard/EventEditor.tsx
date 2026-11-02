@@ -15,7 +15,7 @@ import { categories } from "../data/events";
 import {
   eventCities,
   eventVibes,
-} from "../../../pulse-app/src/features/events/constants";
+} from "@packages/app-core/events/constants";
 import { Confirm, Field, dashboardApi, dColors, useAction } from "./common";
 import {
   draftFromEvent,

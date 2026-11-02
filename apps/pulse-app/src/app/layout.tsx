@@ -9,7 +9,7 @@ import { OfflineScannerServiceWorker } from "@/components/OfflineScannerServiceW
 import { ToastProvider } from "@/components/ToastProvider";
 import { NativeAppBridge } from "@/components/NativeAppBridge";
 import { NativeNavigationGestures } from "@/components/NativeNavigationGestures";
-import { resources } from "@/i18n/resources";
+import { resources } from "@packages/app-core/i18n/resources";
 import { ClientNavigation } from "@/components/ClientNavigation";
 import { TabPageTransition } from "@/components/TabPageTransition";
 import { InterfaceProvider } from '@/components/ui/InterfaceProvider';

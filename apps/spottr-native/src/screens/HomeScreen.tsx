@@ -34,7 +34,7 @@ import { Text } from "../ui/Text";
 import { Logo } from "../ui/Logo";
 import { colors } from "../ui/theme";
 import type { RootParamList } from "../navigation/types";
-import { mixFeedPromotions } from '../../../pulse-app/src/features/events/promotions';
+import { mixFeedPromotions } from '@packages/app-core/events/promotions';
 import { VisiblePromotion, trackPromotion } from '../ui/VisiblePromotion';
 import { useNavbarScroll } from '../navigation/useNavbarScroll';
 

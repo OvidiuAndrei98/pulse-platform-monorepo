@@ -5,8 +5,8 @@ import { SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDrawerViewport } from '@/components/ui/useDrawerViewport';
 import { useBackLayer } from '@/lib/navigation/useBackLayer';
-import { defaultEventFilters } from '@/features/events/constants';
-import type { EventFilters } from '@/features/events/types';
+import { defaultEventFilters } from '@packages/app-core/events/constants';
+import type { EventFilters } from '@packages/app-core/events/types';
 import { EventFiltersPanel } from '@/features/events/filters/EventFiltersPanel';
 
 export function FiltersSheet({value,onChange,desktopCompact=false,distanceReady=true}:{value?:EventFilters;onChange?:(value:EventFilters)=>void;desktopCompact?:boolean;distanceReady?:boolean}={}) {

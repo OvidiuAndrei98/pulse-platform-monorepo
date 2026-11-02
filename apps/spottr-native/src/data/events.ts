@@ -1,4 +1,4 @@
-import type { components } from "@packages/api-client/src/schema";
+import type { components } from "@packages/api-client/schema";
 
 type EventDTO = components["schemas"]["EventResponse"];
 export type Ticket = Pick<

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, PanResponder, Platform, Pressable, StyleSheet, View, type ViewInstance, type ViewStyle } from 'react-native';
 import { ChevronUp, Layers } from 'lucide-react-native';
-import { carouselCardAction, dismissCarouselDrag, verticalCarouselDrag } from '../../../pulse-app/src/features/events/map/carouselGestures';
+import { carouselCardAction, dismissCarouselDrag, verticalCarouselDrag } from '@packages/app-core/events/map/carouselGestures';
 import { formatDate, type Event } from '../data/events';
 import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';

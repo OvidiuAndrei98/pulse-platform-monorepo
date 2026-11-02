@@ -6,7 +6,7 @@ import { Gesture, GestureDetector, GestureHandlerRootView, State } from 'react-n
 import Animated, { useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring, withTiming, type WithSpringConfig, type WithTimingConfig } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { drawerDesign } from '../../../pulse-app/src/components/ui/drawerDesign';
+import { drawerDesign } from '@packages/app-core/presentation/drawerDesign';
 import { SheetScrollProvider, sheetGestureHandlersHook, useSheetScrollSurface } from './SheetScrollBridge';
 
 type Props = React.PropsWithChildren<{ open: boolean; closing?: boolean; onClose: () => void; height?: number; embedded?: boolean; edgeToEdge?: boolean; horizontalContent?: boolean; label: string; testID?: string; footer?: React.ReactNode }>;

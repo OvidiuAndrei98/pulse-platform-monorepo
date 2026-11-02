@@ -4,8 +4,8 @@ import { useTranslation } from "react-i18next";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { apiRoot } from "@/core/apiRoot";
 import { getAccessTokenSync } from "@/lib/native/sessionStorage";
-import { parseErrorPage, type ErrorEntry } from "@/features/diagnostics/report";
-import { diagnosticTitle, diagnosticFailure, groupDiagnosticReports } from '@/features/diagnostics/presentation';
+import { parseErrorPage, type ErrorEntry } from "@packages/app-core/diagnostics/report";
+import { diagnosticTitle, diagnosticFailure, groupDiagnosticReports } from '@packages/app-core/diagnostics/presentation';
 
 export function ClientErrorsPanel({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
   const { user, isAdmin } = useDataProvider(),

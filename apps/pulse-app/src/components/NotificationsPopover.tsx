@@ -21,7 +21,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { User, type AppNotification } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
-import { notificationText, formatNotificationTime } from "./notificationContent";
+import { notificationText, formatNotificationTime } from "@packages/app-core/notifications/content";
 import { formatEventDateShort } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 import { startVisiblePolling } from "@/lib/visiblePolling";
@@ -67,6 +67,9 @@ export function NotificationsPopover() {
   const openNotification = (notification: AppNotification) => {
     if (!notification.isRead) markRead(notification.id);
     setOpen(false);
+    if(notification.type==='outing_plan_invite'||notification.type==='ticket_transfer'){
+      window.dispatchEvent(new Event('spottr:layer-navigation'));router.push('/outings'+(notification.type==='ticket_transfer'?'?tab=transfers':''));return;
+    }
     if (notification.type === "ticket_purchased") {
       window.dispatchEvent(new Event("spottr:layer-navigation"));
       router.push(routeForPlatform("/users/me/tickets"));

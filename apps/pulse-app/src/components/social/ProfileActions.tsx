@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Check, Loader2, UserMinus, UserPlus } from "lucide-react";
 import { useFeedbackAction } from "@/lib/useFeedbackAction";
-import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
+import { ApiClient, type ReadableSchema } from "@packages/api-client/client";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
 

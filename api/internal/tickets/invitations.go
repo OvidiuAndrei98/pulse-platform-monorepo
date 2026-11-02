@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	db "pulse-api/db/generated"
 	"pulse-api/internal/auth"
@@ -25,7 +26,7 @@ type createInvitationRequest struct {
 	Quantity     int32  `json:"quantity"`
 }
 
-func validateInvitation(ctx context.Context, queries *db.Queries, eventID pgtype.UUID, hash string) (map[string]any, bool, error) {
+func validateInvitation(ctx context.Context, queries *db.Queries, eventID pgtype.UUID, hash string, admissionAt time.Time) (map[string]any, bool, error) {
 	params := db.GetInvitationForValidationParams{EventID: eventID, ValidationHash: hash}
 	invitation, err := queries.GetInvitationForValidation(ctx, db.GetInvitationForValidationParams{
 		EventID: eventID, ValidationHash: hash,
@@ -38,12 +39,14 @@ func validateInvitation(ctx context.Context, queries *db.Queries, eventID pgtype
 	}
 	status := "valid"
 	validatedAt := invitation.ValidatedAt
-	if invitation.RevokedAt.Valid {
+	if !invitation.EndTime.Valid || !admissionAt.Before(invitation.EndTime.Time) || invitation.EventStatus != "published" && invitation.EventStatus != "scheduled" && invitation.EventStatus != "completed" {
+		status = "invalid"
+	} else if invitation.RevokedAt.Valid {
 		status = "revoked"
 	} else if validatedAt.Valid {
 		status = "already_validated"
 	} else {
-		validatedAt, err = queries.MarkInvitationValidated(ctx, invitation.ID)
+		validatedAt, err = queries.MarkInvitationValidated(ctx, db.MarkInvitationValidatedParams{ID: invitation.ID, AdmissionAt: pgtype.Timestamptz{Time: admissionAt, Valid: true}})
 		if errors.Is(err, pgx.ErrNoRows) {
 			// Another request consumed or revoked it. Return the committed state,
 			// not a false "already used" verdict for a database failure.
@@ -52,9 +55,15 @@ func validateInvitation(ctx context.Context, queries *db.Queries, eventID pgtype
 				return nil, true, lookupErr
 			}
 			validatedAt = current.ValidatedAt
-			status = "already_validated"
+			status = "invalid"
+			if current.ValidatedAt.Valid {
+				status = "already_validated"
+			}
 			if current.RevokedAt.Valid {
 				status = "revoked"
+			}
+			if !current.EndTime.Valid || !admissionAt.Before(current.EndTime.Time) || current.EventStatus != "published" && current.EventStatus != "scheduled" && current.EventStatus != "completed" {
+				status = "invalid"
 			}
 		} else if err != nil {
 			return nil, true, err

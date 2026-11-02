@@ -1,4 +1,4 @@
-import { validCoordinate, type Coordinate, type Point } from '../geometry';
+import { validCoordinate, type Coordinate, type Point } from '@packages/app-core/maps/geometry';
 
 export type WebMapEvent = Coordinate & { id: string; title: string; live: boolean };
 export type WebMapState = {

@@ -1,7 +1,7 @@
 import {
   NATIVE_ORGANIZER_RETURN,
   parseOrganizerReturn,
-} from "../../../pulse-app/src/features/checkout/organizerReturn";
+} from "@packages/app-core/checkout/organizerReturn";
 export type OrganizerExpectation =
   { flow: "connect" } | { flow: "promotion"; campaignId: string };
 export type OrganizerPaymentStatus =

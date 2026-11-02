@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { LegalDocument, type LegalSection } from "@/features/legal/LegalDocument";
-import { publicLegalDocuments } from "@/features/legal/publicLegalDocuments";
+import { publicLegalDocuments } from "@packages/app-core/legal/publicLegalDocuments";
 
 type LegalDocumentKey = "terms" | "privacy" | "agreement";
 

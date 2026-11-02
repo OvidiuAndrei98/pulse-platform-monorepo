@@ -1,4 +1,4 @@
-import { ApiClient } from "@packages/api-client/src/Client";
+import { ApiClient } from "@packages/api-client/client";
 import type { InvoiceDetails } from "./InvoiceDetailsFields";
 
 export async function readSavedBillingDetails(userId?: string) {

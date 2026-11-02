@@ -1,16 +1,7 @@
 import { eventErrors, validHttps, type EventDraft } from "./data";
 
-export type EditorSection = "details" | "lineup" | "tickets" | "admin";
-// Runtime reuse avoids importing the Next.js form's DOM-only type graph into native.
-const { basicsFields, scheduleFields, getErrorDestination } =
-  require("../../../pulse-app/src/features/events/form/editorSections") as {
-    basicsFields: string[];
-    scheduleFields: string[];
-    getErrorDestination: (
-      errors: Record<string, { type: string }>,
-      mode: "create" | "edit",
-    ) => { step: number; section: EditorSection } | undefined;
-  };
+import { basicsFields, scheduleFields, getErrorDestination } from '@packages/app-core/events/editorSections';
+export type { EditorSection } from '@packages/app-core/events/editorSections';
 
 export type EditorErrors = Record<string, string>;
 /** Keep the original wizard's validation groups and destination precedence. */

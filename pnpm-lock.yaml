@@ -62,6 +62,12 @@ importers:
       '@packages/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@packages/app-core':
+        specifier: workspace:*
+        version: link:../../packages/app-core
+      '@packages/browser-core':
+        specifier: workspace:*
+        version: link:../../packages/browser-core
       framer-motion:
         specifier: ^12.43.0
         version: 12.43.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -174,6 +180,12 @@ importers:
       '@packages/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@packages/app-core':
+        specifier: workspace:*
+        version: link:../../packages/app-core
+      '@packages/browser-core':
+        specifier: workspace:*
+        version: link:../../packages/browser-core
       '@react-native-async-storage/async-storage':
         specifier: 2.2.0
         version: 2.2.0(react-native@0.88.1(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.88.1(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))
@@ -382,6 +394,47 @@ importers:
       '@typespec/rest':
         specifier: latest
         version: 0.87.0(@typespec/compiler@1.17.0(@types/node@20.19.43))(@typespec/http@1.17.0(@typespec/compiler@1.17.0(@types/node@20.19.43)))
+
+  packages/app-core:
+    dependencies:
+      '@packages/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+    devDependencies:
+      '@types/node':
+        specifier: 20.19.43
+        version: 20.19.43
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/browser-core:
+    dependencies:
+      '@packages/app-core':
+        specifier: workspace:*
+        version: link:../app-core
+      html2canvas:
+        specifier: 1.4.1
+        version: 1.4.1
+      jspdf:
+        specifier: ^4.2.1
+        version: 4.2.1
+      maplibre-gl:
+        specifier: 6.16.0
+        version: 6.16.0
+      qrcode:
+        specifier: ^1.5.4
+        version: 1.5.4
+    devDependencies:
+      '@types/qrcode':
+        specifier: ^1.5.6
+        version: 1.5.6
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
 packages:
 

@@ -8,8 +8,8 @@ import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { FormInput } from '../ui/FormInput';
 import { colors } from '../ui/theme';
-import { commissionFormula, commissionText, parseCommissionInputs, parseCommissionSettings, type OrganizerCommission, type CommissionSettings } from '../../../pulse-app/src/features/admin/commissions';
-import type { DirectoryDetail } from '../../../pulse-app/src/features/admin/organizers';
+import { commissionFormula, commissionText, parseCommissionInputs, parseCommissionSettings, type OrganizerCommission, type CommissionSettings } from '@packages/app-core/admin/commissions';
+import type { DirectoryDetail } from '@packages/app-core/admin/organizers';
 
 export function CommissionsPanel({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
   const { user, controller } = useAuth();

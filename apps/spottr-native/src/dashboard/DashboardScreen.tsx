@@ -34,7 +34,7 @@ import { StripeAccountPanel } from "./StripeAccountPanel";
 import {
   parseDashboardEventFilter,
   type DashboardEventFilter,
-} from "../../../pulse-app/src/features/events/dashboardEvents";
+} from "@packages/app-core/events/dashboardEvents";
 
 export type DashboardScreenProps = {
   onClose(): void;

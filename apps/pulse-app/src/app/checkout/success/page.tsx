@@ -5,8 +5,8 @@ import Link from "next/link";
 import { AlertCircle, ArrowLeft, ArrowRight, Clock3, LoaderCircle, Mail, Ticket, WifiOff } from "lucide-react";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
-import { ApiClient } from "@packages/api-client/src/Client";
-import { checkPaymentConfirmation, type ConfirmationResult } from "@/features/checkout/confirmation";
+import { ApiClient } from "@packages/api-client/client";
+import { checkPaymentConfirmation, type ConfirmationResult } from "@packages/app-core/checkout/confirmation";
 
 import { CheckoutSuccessTicket, PaymentSuccessCheck } from "@/features/checkout/CheckoutSuccessTicket";
 import styles from "@/features/checkout/checkoutResult.module.css";

@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
 import { ArrowUpRight, Building2, ShieldCheck, Ban, RotateCcw, Receipt, Percent, Activity } from 'lucide-react';
-import { adminSections, adminLabel, adminHref } from '@/features/admin/navigation';
+import { adminSections, adminLabel, adminHref } from '@packages/app-core/admin/navigation';
 const icons = [Building2,ShieldCheck,Ban,RotateCcw,Receipt,Percent,Activity];
 export default function AdminPage() {
   const { i18n } = useTranslation(), ro = i18n.language.startsWith('ro');

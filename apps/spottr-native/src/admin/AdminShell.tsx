@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
-import { adminSections, adminLabel, type AdminSection } from '../../../pulse-app/src/features/admin/navigation';
+import { adminSections, adminLabel, type AdminSection } from '@packages/app-core/admin/navigation';
 
 export function AdminShell({section,children}: {section:AdminSection;children:React.ReactNode}) {
   const navigation = useNavigation<any>(), {language} = usePreferences(), ro = language === 'ro', insets = useSafeAreaInsets(), wide = useWindowDimensions().width >= 1000;

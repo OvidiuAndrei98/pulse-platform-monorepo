@@ -1239,11 +1239,21 @@ func (h *CheckoutHandler) deliverTicketConfirmation(orderID pgtype.UUID) error {
 		_ = h.queries.ReleaseTicketEmailClaim(cleanup, db.ReleaseTicketEmailClaimParams{ID: orderID, TicketEmailClaim: claim})
 	}()
 	rows, err := h.queries.ListOrderTicketEmailDetails(ctx, orderID)
-	if err != nil || len(rows) == 0 {
-		if err != nil {
-			log.Printf("ticket confirmation email details failed for order %s: %v", common.UUIDToString(orderID), err)
-		}
+	if err != nil {
+		log.Printf("ticket confirmation email details failed for order %s: %v", common.UUIDToString(orderID), err)
 		return err
+	}
+	complete := func() error {
+		updated, e := h.queries.CompleteTicketEmailClaim(ctx, db.CompleteTicketEmailClaimParams{ID: orderID, TicketEmailClaim: claim})
+		if e != nil || updated != 1 {
+			return fmt.Errorf("ticket email completion lost claim or failed: updated=%d err=%v", updated, e)
+		}
+		return nil
+	}
+	// The buyer retains financial documents, but transferred admission codes
+	// belong exclusively to the new holders. An empty delivery is terminal.
+	if len(rows) == 0 {
+		return complete()
 	}
 	if rows[0].TicketEmailSentAt.Valid {
 		return nil
@@ -1263,10 +1273,7 @@ func (h *CheckoutHandler) deliverTicketConfirmation(orderID pgtype.UUID) error {
 		log.Printf("ticket confirmation email failed for order %s: %v", common.UUIDToString(orderID), err)
 		return err
 	}
-	if updated, err := h.queries.CompleteTicketEmailClaim(ctx, db.CompleteTicketEmailClaimParams{ID: orderID, TicketEmailClaim: claim}); err != nil || updated != 1 {
-		return fmt.Errorf("ticket email completion lost claim or failed: updated=%d err=%v", updated, err)
-	}
-	return nil
+	return complete()
 }
 
 // ReleaseExpiredCheckout releases inventory only for the exact Checkout Session

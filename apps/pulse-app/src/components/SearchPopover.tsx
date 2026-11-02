@@ -23,7 +23,7 @@ import {
 import {
   ApiClient,
   type ReadableSchema,
-} from "@packages/api-client/src/Client";
+} from "@packages/api-client/client";
 import { useTranslation } from "react-i18next";
 import {Input as UIInput} from '@/components/ui/Field';
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { nativeCheckoutReturn } from "@/features/checkout/nativeReturn";
+import { nativeCheckoutReturn } from "@packages/app-core/checkout/nativeReturn";
 
 export default function NativeCheckoutReturnPage() {
   const { t } = useTranslation();

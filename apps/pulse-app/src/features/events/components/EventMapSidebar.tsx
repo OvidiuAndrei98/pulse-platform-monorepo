@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { Clock, MapPin } from "lucide-react";
 import { Event } from "@/core/DataProvider";
-import { Coordinates } from "@/features/events/types";
+import { Coordinates } from "@packages/app-core/events/types";
 import { formatDistance, getDistanceKm } from "@/features/events/utils";
 import { EventStatusBadge } from "@/features/events/components/EventStatusBadge";
 import { formatEventTime } from "@/features/events/dateFormat";

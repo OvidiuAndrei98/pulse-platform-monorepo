@@ -294,6 +294,7 @@ JOIN events e ON e.id = o.event_id
 JOIN tickets t ON t.order_id = o.id
 JOIN ticket_types tt ON tt.id = t.ticket_type_id
 WHERE o.id = $1
+  AND ((o.user_id IS NOT NULL AND t.user_id=o.user_id) OR (o.user_id IS NULL AND t.user_id IS NULL))
 ORDER BY t.created_at ASC;
 
 -- name: MarkTicketEmailSent :exec
@@ -412,18 +413,29 @@ FROM tickets t
 JOIN ticket_types tt ON t.ticket_type_id = tt.id
 JOIN events e ON tt.event_id = e.id
 JOIN orders o ON o.id = t.order_id
-WHERE t.validation_hash = $1 AND o.status = 'completed';
+WHERE t.validation_hash = $1 AND o.status = 'completed'
+  AND e.status IN ('published','scheduled','completed') AND o.stripe_refund_status='none'
+  AND o.stripe_amount_refunded_bani=0 AND NOT o.stripe_refund_needs_attention;
 
 -- name: ValidateTicketOnce :one
+WITH validation_context AS MATERIALIZED (
+    SELECT set_config('spottr.validation_hash',sqlc.arg(validation_hash)::TEXT,TRUE) AS expected_hash
+)
 UPDATE tickets
 SET is_validated = TRUE,
     validated_at = CURRENT_TIMESTAMP,
     validated_by_user_id = $2,
     validated_by_scanner_access_id = $3
+FROM validation_context
 WHERE tickets.id = $1 AND tickets.is_validated = FALSE
+  AND tickets.validation_hash = sqlc.arg(validation_hash)::TEXT
+  AND validation_context.expected_hash = tickets.validation_hash
   AND EXISTS (
-      SELECT 1 FROM orders o
+      SELECT 1 FROM orders o JOIN events e ON e.id=o.event_id
       WHERE o.id = tickets.order_id AND o.status = 'completed'
+        AND e.status IN ('published','scheduled','completed') AND e.end_time>sqlc.arg(admission_at)
+        AND o.stripe_refund_status='none' AND o.stripe_amount_refunded_bani=0
+        AND NOT o.stripe_refund_needs_attention
   )
 RETURNING validated_at;
 
@@ -447,8 +459,8 @@ WHERE i.event_id = $1
 ORDER BY i.created_at ASC;
 
 -- name: CreateOfflineValidationSnapshot :one
-INSERT INTO offline_validation_snapshots (event_id, created_by_user_id, ticket_count, expires_at)
-VALUES ($1, $2, $3, $4)
+INSERT INTO offline_validation_snapshots (event_id, created_by_user_id, ticket_count, expires_at, format_version)
+VALUES ($1, $2, $3, $4, 2)
 RETURNING id, event_id, created_by_user_id, ticket_count, expires_at, created_at;
 
 -- name: GetOfflineValidationSnapshotForSync :one
@@ -547,16 +559,18 @@ ORDER BY o.created_at DESC;
 
 -- name: GetInvitationForValidation :one
 SELECT i.id, i.label, COALESCE(tt.name, '') AS ticket_type,
-       i.validated_at, i.revoked_at
+       i.validated_at, i.revoked_at, e.status AS event_status,e.end_time
 FROM invitation_tickets i
+JOIN events e ON e.id=i.event_id
 LEFT JOIN ticket_types tt ON tt.id = i.ticket_type_id
 WHERE i.event_id = $1 AND i.validation_hash = $2;
 
 -- name: MarkInvitationValidated :one
 UPDATE invitation_tickets
 SET validated_at = CURRENT_TIMESTAMP
-WHERE id = $1 AND validated_at IS NULL AND revoked_at IS NULL
-RETURNING validated_at;
+WHERE invitation_tickets.id = $1 AND validated_at IS NULL AND revoked_at IS NULL
+  AND EXISTS(SELECT 1 FROM events e WHERE e.id=invitation_tickets.event_id AND e.status IN ('published','scheduled','completed') AND e.end_time>sqlc.arg(admission_at))
+RETURNING invitation_tickets.validated_at;
 
 -- name: GetInvitationTicketType :one
 SELECT name

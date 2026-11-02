@@ -1,6 +1,6 @@
-import type { components } from '@packages/api-client/src/schema';
+import type { components } from '@packages/api-client/schema';
 import { ApiError, type createHttp } from '../data/http';
-import { parseDirectoryPage, parseDirectoryDetail } from '../../../pulse-app/src/features/admin/organizers';
+import { parseDirectoryPage, parseDirectoryDetail } from '@packages/app-core/admin/organizers';
 
 type Schema = components['schemas'];
 export type OrganizerReview = Schema['OrganizerVerificationRequest'];

@@ -1,10 +1,10 @@
 import { ApiError } from '../data/http';
 import { isEventId, type Event } from '../data/events';
-import { calculateServiceFeeRon } from '../../../pulse-app/src/features/events/serviceFee';
-import { discountedUnitPrice } from '../../../pulse-app/src/features/events/promoPrice';
-import { isTicketSelectionAvailable } from '../../../pulse-app/src/features/checkout/ticketAvailability';
-import { emptyInvoiceDetails, type InvoiceDetails } from '../../../pulse-app/src/features/checkout/invoiceDetails';
-import { validCheckoutSession } from '../../../pulse-app/src/features/checkout/nativeReturn';
+
+
+import { isTicketSelectionAvailable } from '@packages/app-core/checkout/ticketAvailability';
+import { emptyInvoiceDetails, type InvoiceDetails } from '@packages/app-core/checkout/invoiceDetails';
+import { validCheckoutSession } from '@packages/app-core/checkout/nativeReturn';
 
 export type Quantities = Record<string, number>;
 export type Promo = { code: string; discountPercent: number };
@@ -14,14 +14,7 @@ export function parseBooking(value: unknown) {
   if (!row || !isEventId(row.orderId) || typeof row.alreadyBooked !== 'boolean') throw new ApiError(0, 'INVALID_RESPONSE');
   return { orderId: row.orderId, alreadyBooked: row.alreadyBooked };
 }
-export function checkoutTotals(event: Event, quantities: Quantities, discount = 0) {
-  const tickets = event.ticketTypes.filter(ticket => (quantities[ticket.id] ?? 0) > 0);
-  const count = tickets.reduce((sum, ticket) => sum + quantities[ticket.id]!, 0);
-  const subtotal = tickets.reduce((sum, ticket) => sum + quantities[ticket.id]! * ticket.priceRon, 0);
-  const discounted = tickets.reduce((sum, ticket) => sum + quantities[ticket.id]! * discountedUnitPrice(ticket.priceRon, discount), 0);
-  const fee = event.organizerAbsorbsServiceFee ? 0 : calculateServiceFeeRon(discounted, count, event);
-  return { tickets, count, subtotal, discount: subtotal - discounted, fee, total: discounted + fee };
-}
+export { checkoutTotals } from "@packages/app-core/checkout/totals";
 export function validSelection(event: Event, quantities: Quantities, userId?: string, now = Date.now()) {
   return event.organizerId !== userId && Date.parse(event.endTime) > now &&
     Object.values(quantities).every(n => Number.isSafeInteger(n) && n >= 0 && n <= 8) &&

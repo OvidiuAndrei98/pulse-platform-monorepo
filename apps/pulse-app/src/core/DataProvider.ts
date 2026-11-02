@@ -4,7 +4,7 @@ import {
   ReadableSchema,
   WritableSchema,
   ApiClient,
-} from "@packages/api-client/src/Client";
+} from "@packages/api-client/client";
 import {
   clearClientQueryCache,
   getClientQuery,

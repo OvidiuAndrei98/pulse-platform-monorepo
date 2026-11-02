@@ -9,7 +9,7 @@ import { Text } from "../ui/Text";
 import { Feedback, Loading } from "../ui/common";
 import { usePreferences } from "../usePreferences";
 import { accountApi, useAuth } from "../auth/AuthProvider";
-import { eventCategories } from "../../../pulse-app/src/core/mappers";
+import { eventCategories } from "@packages/app-core/events/categories";
 import { queryClient } from "../data/queries";
 import { colors } from "../ui/theme";
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { Music2, Search } from "lucide-react-native";
 import { useQuery } from "@tanstack/react-query";
-import type { components } from "@packages/api-client/src/schema";
+import type { components } from "@packages/api-client/schema";
 import { accountApi } from "../auth/AuthProvider";
 import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";

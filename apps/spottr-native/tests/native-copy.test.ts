@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { resources } from '../../pulse-app/src/i18n/resources';
+import { resources } from '@packages/app-core/i18n/resources';
 
 test('native screens resolve literal product translations in both languages', () => {
   const namespaces = new Set(Object.keys(resources.en.translation));

@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Event } from "@/core/DataProvider";
 import { useEventDetails } from "@/components/EventDetailsSheet";
 import { EventStatusBadge } from "@/features/events/components/EventStatusBadge";
-import { Coordinates } from "@/features/events/types";
+import { Coordinates } from "@packages/app-core/events/types";
 import { formatDistance, getDistanceKm } from "@/features/events/utils";
 import {
   formatEventDateShort,

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Download } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { PrintableTicket } from "./ticketDesign";
-import { createTicketPdf, downloadPdf } from "./ticketPdf";
+import { createTicketPdf, downloadPdf } from "@packages/browser-core/tickets/ticketPdf";
 
 type TicketPdfButtonProps = {
   ticket: PrintableTicket;

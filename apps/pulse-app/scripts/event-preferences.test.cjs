@@ -13,7 +13,7 @@ function preferences({ hidden = [], hide, show } = {}) {
     react: hook.react,
     'react-i18next': { useTranslation: () => ({ t: key => key }) },
     sonner: { toast: { error: message => errors.push(message) } },
-    '@/core/mappers': { eventCategories: ['TECHNO', 'HOUSE'] },
+    '@packages/app-core/events/categories': { eventCategories: ['TECHNO', 'HOUSE'] },
     '@/core/DataProviderContext': { useDataProvider: () => ({ user }) },
     '@/lib/useClientQuery': { useClientQuery: () => ({ data: hidden, pending: false, error: null }) },
     '@/components/ui/RequestFeedback': { RequestError: 'RequestError' },

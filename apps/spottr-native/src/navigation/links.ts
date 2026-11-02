@@ -1,4 +1,4 @@
-import { parseOrganizerReturn } from '../../../pulse-app/src/features/checkout/organizerReturn';
+import { parseOrganizerReturn } from '@packages/app-core/checkout/organizerReturn';
 /** Normalize original web routes into the native route graph, preserving only typed destinations. */
 export function nativePath(path: string) {
   const value = new URL(path.replace(/^\/+/, ''), 'https://native.invalid/'), params = value.searchParams;

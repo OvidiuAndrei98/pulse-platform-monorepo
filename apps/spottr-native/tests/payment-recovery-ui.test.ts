@@ -7,7 +7,7 @@ import React from 'react';
 import ts from 'typescript';
 import * as payments from '../src/checkout/nativePayment';
 import { createPaymentRecoveryStore } from '../src/checkout/paymentRecoveryStore';
-import { checkPaymentConfirmation } from '../../pulse-app/src/features/checkout/confirmation';
+import { checkPaymentConfirmation } from '@packages/app-core/checkout/confirmation';
 import { isEventId } from '../src/data/events';
 import { confirmPayment, canRecheckPayment, canRestartCheckout } from '../src/checkout/confirmation';
 import { ApiError } from '../src/data/http';
@@ -73,7 +73,7 @@ async function fixture() {
   let current: any = { name: 'Home' };
   const navigation = {
     isReady: () => navReady, getCurrentRoute: () => current,
-    navigate: (...args: any[]) => { calls.push(args); }, popTo: (...args: any[]) => { calls.push(args); },
+    navigate: (...args: any[]) => { calls.push(args); }, popTo: (...args: any[]) => { calls.push(args); }, dispatch: (action: any) => { calls.push(action); },
     getState: () => ({ routes: [{ name: 'Tabs' }, { name: 'CheckoutReturn' }], index: 1 }),
   };
   const prefs = { copy: (key: string) => key };
@@ -109,8 +109,9 @@ async function fixture() {
     './paymentRecoveryStorage': {}, '../checkout/paymentRecoveryStorage': {},
     './nativePayment': payments, '../checkout/nativePayment': payments,
     '../navigation/returnToEvent': { returnToEvent: (...args: unknown[]) => calls.push(args) },
-    '../../../pulse-app/src/features/checkout/confirmation': { checkPaymentConfirmation: (read: any, active: any) => checkPaymentConfirmation(read, active, async () => {}) },
-    '../../../pulse-app/src/features/checkout/nativeReturn': { validCheckoutSession: () => true },
+    '../navigation/accountNavigation': require('./helpers/account-navigation.cjs').loadAccountNavigation('ios'),
+    '@packages/app-core/checkout/confirmation': { checkPaymentConfirmation: (read: any, active: any) => checkPaymentConfirmation(read, active, async () => {}) },
+    '@packages/app-core/checkout/nativeReturn': { validCheckoutSession: () => true },
   };
   return { store, auth, deps, navigation, calls, requests, requestedOrders, subscriptions, haptics, invalidations,
     advance: (ms: number) => { now += ms; }, gate: (value: Promise<void> | undefined) => { gate = value; },
@@ -343,7 +344,7 @@ test('a cancellation still under server review cannot become a failed purchase o
   assert.deepEqual(f.invalidations, []);
   assert.deepEqual(f.haptics, []);
   ui.find('checkout-check-tickets').props.onPress(); await ui.flush();
-  assert.deepEqual(JSON.parse(JSON.stringify(f.calls.at(-1))), ['Tabs', { screen: 'Profile', params: { screen: 'Tickets' } }]);
+  assert.deepEqual(JSON.parse(JSON.stringify(f.calls.at(-1))), {type:'NAVIGATE',payload:{name:'Tickets'}});
   ui.unmount();
   assert.equal((await f.store.load(account)).length, 1, 'Checking tickets must retain the unresolved attempt');
 });

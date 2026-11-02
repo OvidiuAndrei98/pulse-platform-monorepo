@@ -1,4 +1,4 @@
-// Only simulated accounts, tickets and transport. Chrome uses a fake camera.
+// Simulated accounts, tickets, transport, decoder and a deterministic canvas camera stream.
 const assert = require('node:assert/strict');
 const { withBrowser } = require('./browser-harness.cjs');
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -11,10 +11,12 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
     if (!query.has('resume')) localStorage.clear();
     const qa = window.__qa = { offline: query.has('offline'), snapshotFailure: true, qr: '', requests: [], reports: [], unexpected: [], sounds: [], awake: 0 };
     qa.cameraErrors = [];
-    const getMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-    navigator.mediaDevices.getUserMedia = async constraints => {
-      try { return await getMedia(constraints); }
-      catch (error) { qa.cameraErrors.push({ name: error.name, message: error.message, constraints }); throw error; }
+    navigator.mediaDevices.getUserMedia = async () => {
+      const canvas=document.createElement('canvas');canvas.width=360;canvas.height=640;
+      const draw=()=>{const context=canvas.getContext('2d');context.fillStyle='#121212';context.fillRect(0,0,360,640);context.fillStyle='#fff';context.fillRect(20,20,20,20);};
+      draw();const stream=canvas.captureStream(30),timer=setInterval(draw,33);
+      for(const track of stream.getTracks()){const stop=track.stop.bind(track);track.stop=()=>{clearInterval(timer);stop();};}
+      return stream;
     };
     const originalPlay = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function () { if (this instanceof HTMLAudioElement) { qa.sounds.push(this.src); return Promise.resolve(); } return originalPlay.call(this); };

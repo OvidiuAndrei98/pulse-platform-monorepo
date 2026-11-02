@@ -3,7 +3,7 @@ import React from 'react';
 import { Linking, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { publicLegalDocuments } from '../../../pulse-app/src/features/legal/publicLegalDocuments';
+import { publicLegalDocuments } from '@packages/app-core/legal/publicLegalDocuments';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
 import { usePreferences } from '../usePreferences';

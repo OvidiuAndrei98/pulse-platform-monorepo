@@ -7,9 +7,9 @@ import {
   screenName,
   safeVersion,
   type ErrorReport,
-} from "../../pulse-app/src/features/diagnostics/report";
+} from "@packages/app-core/diagnostics/report";
 import { createErrorReporter } from "../src/diagnostics/reporter";
-import { groupDiagnosticReports } from '../../pulse-app/src/features/diagnostics/presentation';
+import { groupDiagnosticReports } from '@packages/app-core/diagnostics/presentation';
 
 const id = (n: number) =>
   `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;

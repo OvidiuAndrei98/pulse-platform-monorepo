@@ -16,7 +16,7 @@ import { useEventDetails } from "@/components/EventDetailsSheet";
 import { formatEventDate } from "@/features/events/dateFormat";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { SocialAvatar } from "./SocialAvatar";
-import type { FeedGroup } from "./feedTypes";
+import type { FeedGroup } from "@packages/app-core/social/feedTypes";
 
 export function FeedActivityCard({ item }: { item: FeedGroup }) {
   const { t, i18n } = useTranslation();

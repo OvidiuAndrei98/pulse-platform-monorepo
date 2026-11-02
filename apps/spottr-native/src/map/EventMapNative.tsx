@@ -2,13 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 import { Map as MapView, Camera, Marker, type MapRef, type CameraRef, type StyleSpecification } from '@maplibre/maplibre-react-native';
 import { MapPin } from 'lucide-react-native';
-import darkStyle from '../../../pulse-app/src/features/events/map/openFreeMapDark.json';
+import darkStyle from '@packages/app-core/events/map/openFreeMapDark.json';
 import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { Feedback } from '../ui/common';
 import { colors } from '../ui/theme';
 import { isLive } from '../data/events';
-import { clusterEvents, clusterZoom, radialPositions, validCoordinate, type Coordinate } from './geometry';
+import { clusterEvents, clusterZoom, radialPositions, validCoordinate, type Coordinate } from '@packages/app-core/maps/geometry';
 import type { EventMapProps } from './types';
 
 export function EventMapNative(props: EventMapProps) {

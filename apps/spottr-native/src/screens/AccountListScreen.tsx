@@ -12,7 +12,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { usePreferences } from '../usePreferences';
 import { useTickets } from '../data/useTickets';
 import { useOrders } from '../data/useOrders';
-import { isConfirmedPurchase, isInvoiceOrder, invoiceStatusKey, orderStatusKey, orderTotalBani } from '../../../pulse-app/src/features/checkout/orderHistory';
+import { isConfirmedPurchase, isInvoiceOrder, invoiceStatusKey, orderStatusKey, orderTotalBani } from '@packages/app-core/checkout/orderHistory';
 import { TicketListViewport } from '../profile/TicketListViewport';
 import { useWalletLists } from '../profile/useWalletLists';
 import { GlassSegmentedControl } from '../ui/GlassSegmentedControl';
@@ -25,7 +25,7 @@ import { colors } from '../ui/theme';
 import { formatDate } from '../data/events';
 import { seedEvent } from '../data/queries';
 import type { RootParamList, ProfileParamList } from '../navigation/types';
-import { formatRon } from '../../../pulse-app/src/features/events/serviceFee';
+import { formatRon } from '@packages/app-core/events/serviceFee';
 
 export function SavedEventsScreen() {
   const { saved, savedLoading, savedError, retrySaved, copy, language } = usePreferences();

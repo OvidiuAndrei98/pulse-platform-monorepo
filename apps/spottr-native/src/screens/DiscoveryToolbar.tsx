@@ -17,7 +17,7 @@ import { DiscoveryNativeGlassGroups } from './DiscoveryNativeGlassGroups';
 import { GlassPressable } from '../ui/GlassPressable';
 import { useDiscoverySearchMotion, type SearchRequestOrigin } from './useDiscoverySearchMotion';
 import { commitSearchFocus } from './commitSearchFocus';
-import type { EventFilters } from '../../../pulse-app/src/features/events/types';
+import type { EventFilters } from '@packages/app-core/events/types';
 
 const AnimatedFormInput = Animated.createAnimatedComponent(FormInput);
 const AnimatedGlassSurface = Animated.createAnimatedComponent(GlassSurface);

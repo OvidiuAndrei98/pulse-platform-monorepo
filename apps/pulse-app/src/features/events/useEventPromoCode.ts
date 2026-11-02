@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiClient, ApiError } from "@packages/api-client/src/Client";
+import { ApiClient, ApiError } from "@packages/api-client/client";
 
 export interface AppliedEventPromoCode {
   code: string;
@@ -94,4 +94,4 @@ export function useEventPromoCode(eventId: string) {
   return { code, setCode, applied, error, isValidating, apply, clear };
 }
 
-export { discountedUnitPrice } from "./promoPrice";
+export { discountedUnitPrice } from "@packages/app-core/events/promoPrice";

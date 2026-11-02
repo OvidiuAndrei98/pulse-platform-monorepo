@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { emptyInvoiceDetails } from '../../pulse-app/src/features/checkout/invoiceDetails';
+import { emptyInvoiceDetails } from '@packages/app-core/checkout/invoiceDetails';
 import { clearNativePayments, getNativePayment, getPendingNativePayment, isStripeReturnURL, parseNativePayment, presentAndResolveNativePayment, rememberNativePayment, resolveNativePayment, type NativePaymentSession } from '../src/checkout/nativePayment';
 import { paymentSheetOptions } from '../src/checkout/paymentSheetOptions';
-import { checkPaymentConfirmation } from '../../pulse-app/src/features/checkout/confirmation';
+import { checkPaymentConfirmation } from '@packages/app-core/checkout/confirmation';
 
 const orderId = '12345678-abcd-abcd-abcd-123456789012';
 const eventId = '12345678-abcd-abcd-abcd-123456789013';

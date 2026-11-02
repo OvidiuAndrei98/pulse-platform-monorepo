@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import type { components } from "@packages/api-client/src/schema";
+import type { components } from "@packages/api-client/schema";
 import {
   financeSummary,
   invoiceStats,

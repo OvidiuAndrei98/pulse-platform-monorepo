@@ -11,7 +11,7 @@ import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { Event } from "@/core/DataProvider";
-import { ApiClient, ApiError, ReadableSchema } from "@packages/api-client/src/Client";
+import { ApiClient, ApiError, ReadableSchema } from "@packages/api-client/client";
 import { TicketPreview } from "@/components/tickets/TicketPreview";
 import { TicketStatusTabs } from "@/components/tickets/TicketStatusTabs";
 import { ProfileConnectionQr } from "@/components/social/ProfileConnectionQr";
@@ -256,7 +256,7 @@ export default function MePage() {
 
             {!isOrganizer && activeValidatedEvent && (
               <Link
-                href={routeForPlatform(`/events/${activeValidatedEvent.eventId}/group`)}
+                href={routeForPlatform(`/events/${activeValidatedEvent.eventId}/night`)}
                 className="flex items-center gap-3 rounded-[26px] border border-emerald-400/30 bg-emerald-400/[0.09] p-4 text-left transition hover:bg-emerald-400/[0.14]"
               >
                 <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-emerald-400 text-black">
@@ -267,7 +267,7 @@ export default function MePage() {
                     {t("safetyGroup.activeEvent", { event: activeValidatedEvent.event })}
                   </span>
                   <span className="mt-0.5 block text-xs text-muted-foreground">
-                    {t("safetyGroup.openGroup")}
+                    {t("outings.night")}
                   </span>
                 </span>
                 <ChevronRight className="h-4 w-4 shrink-0 text-emerald-300" />
@@ -298,6 +298,7 @@ export default function MePage() {
 
             {!isOrganizer && <ProfileConnectionQr />}
             <WardrobeCard />
+            <Link href="/outings" className="flex min-h-14 items-center justify-between rounded-3xl border border-white/10 p-5"><span>{t('outings.title')}</span><ChevronRight aria-hidden="true" size={18}/></Link>
 
             {/* Securitatea pe Desktop */}
             <section className="hidden md:block">

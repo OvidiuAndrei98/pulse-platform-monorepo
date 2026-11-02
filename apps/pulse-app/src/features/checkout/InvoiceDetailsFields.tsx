@@ -4,10 +4,10 @@ import { ReceiptText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ThemedSelect } from "@/features/events/form/ThemedSelect";
 
-import { invoiceFieldLimits, isBucharestAddress, type InvoiceDetails, type InvoiceFieldErrors } from "./invoiceDetails";
+import { invoiceFieldLimits, isBucharestAddress, type InvoiceDetails, type InvoiceFieldErrors } from "@packages/app-core/checkout/invoiceDetails";
 import {Input as UIInput} from '@/components/ui/Field';
-export { emptyInvoiceDetails, getInvoiceFieldErrors, isBucharestAddress, validateInvoiceDetails } from "./invoiceDetails";
-export type { InvoiceDetails, InvoiceFieldErrors } from "./invoiceDetails";
+export { emptyInvoiceDetails, getInvoiceFieldErrors, isBucharestAddress, validateInvoiceDetails } from "@packages/app-core/checkout/invoiceDetails";
+export type { InvoiceDetails, InvoiceFieldErrors } from "@packages/app-core/checkout/invoiceDetails";
 
 export function InvoiceDetailsFields({
   value,

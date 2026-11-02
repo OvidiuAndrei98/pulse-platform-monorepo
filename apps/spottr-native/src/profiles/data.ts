@@ -1,11 +1,11 @@
-import type { components } from '@packages/api-client/src/schema';
+import type { components } from '@packages/api-client/schema';
 import { ApiError, type createHttp } from '../data/http';
 import { httpUrl, isEventId, ensurePageProgress, mergePages, type EventPage } from '../data/events';
 import type { createEventsApi } from '../data/api';
 
 export type PublicProfile = components['schemas']['PublicProfileResponse'];
 export type OrganizerUpdate = components['schemas']['OrganizerEventUpdateResponse'];
-export { splitOrganizerEvents } from '../../../pulse-app/src/components/social/organizerEvents';
+export { splitOrganizerEvents } from '@packages/app-core/social/organizerEvents';
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 const text = (value: unknown) => typeof value === 'string' ? value : undefined;
 const count = (value: unknown) => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0;

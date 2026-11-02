@@ -39,7 +39,7 @@ test('public events service forwards filters on every page, including organizer 
     const requests = [], size = organizerId ? 100 : 20;
     const { PublicEventsService } = modules({
       './apiRoot': { apiRoot: 'https://api.test' },
-      '@packages/api-client/src/Client': { ApiClient: { instance: { get: async (path, options) => {
+      '@packages/api-client/client': { ApiClient: { instance: { get: async (path, options) => {
         requests.push(options.params.query);
         return Array.from({ length: options.params.query.page === 1 ? size : 1 }, (_, i) => ({ id: `${options.params.query.page}-${i}` }));
       } } } }, '@/lib/clientQueryCache': {}, '@/lib/useCachedClientQuery': {},
@@ -54,7 +54,7 @@ test('public events service forwards filters on every page, including organizer 
 test('Sunday weekend includes the current Sunday, Saturday and Monday retain correct ranges', () => {
   for (const [today, start, end] of [['2026-10-04', 3, 5], ['2026-10-03', 3, 5], ['2026-10-05', 10, 12]]) {
     class Clock extends Date { constructor(...args) { super(...(args.length ? args : [today + 'T12:00:00'])); } }
-    const { getEventDateRange } = modules({}, { Date: Clock }).load('features/events/dateFilters');
+    const { getEventDateRange } = modules({}, { Date: Clock }).load('@packages/app-core/events/dateFilters');
     const range = getEventDateRange('This weekend');
     const day=value=>Number(new Intl.DateTimeFormat('en-GB',{day:'numeric',timeZone:'Europe/Bucharest'}).format(new Date(value)));
     assert.equal(day(range.startsAfter), start);
@@ -64,7 +64,7 @@ test('Sunday weekend includes the current Sunday, Saturday and Monday retain cor
 });
 
 test('pulled ticket availability excludes sold out, future, expired and malformed tiers at exact boundaries', () => {
-  const api = modules({ react: {}, 'react-i18next': {}, '@/features/events/serviceFee': {} }).load('features/checkout/TicketTypeSelector');
+  const api = modules({ react: {}, 'react-i18next': {}, '@packages/app-core/events/serviceFee': {} }).load('features/checkout/TicketTypeSelector');
   const now = Date.parse('2026-10-03T12:00:00Z');
   const ticket = { id: 'tier', capacity: 10, ticketsSold: 9, startSales: '2026-10-03T12:00:00Z', endSales: '2026-10-04T12:00:00Z' };
   assert.equal(api.getTicketAvailability(ticket, now), 'available');
@@ -82,7 +82,7 @@ test('pulled ticket availability excludes sold out, future, expired and malforme
 function promoHarness() {
   const h = hooks(), requests = [];
   class ApiError extends Error { constructor(status) { super('request failed'); this.status = status; } }
-  const { useEventPromoCode } = modules({ react: h.react, '@packages/api-client/src/Client': {
+  const { useEventPromoCode } = modules({ react: h.react, '@packages/api-client/client': {
     ApiError, ApiClient: { instance: { post: () => { const request = deferred(); requests.push(request); return request.promise; } } },
   } }).load('features/events/useEventPromoCode');
   let event = 'event-a';
@@ -91,8 +91,8 @@ function promoHarness() {
 }
 
 test('promo helper extraction preserves the hook export and integer ticket-price rounding', () => {
-  const loader = modules({ react: {}, '@packages/api-client/src/Client': {} });
-  const { discountedUnitPrice } = loader.load('features/events/promoPrice');
+  const loader = modules({ react: {}, '@packages/api-client/client': {} });
+  const { discountedUnitPrice } = loader.load('@packages/app-core/events/promoPrice');
   assert.equal(loader.load('features/events/useEventPromoCode').discountedUnitPrice, discountedUnitPrice);
   for (const [price, discount, expected] of [[50, 0, 50], [50, 10, 45], [49, 33, 33], [5, 50, 3], [50, 100, 1]]) {
     assert.equal(discountedUnitPrice(price, discount), expected);
@@ -183,7 +183,7 @@ function sessionHarness({ failure, cached, token = 'token', storageFailure = fal
     './DataProvider': { User: class { constructor(properties) { this.properties = properties; } }, clearSessionCaches() {} },
     '@/lib/native/apiFetch': { apiFetch() {} },
     './apiRoot': { apiRoot: 'https://test' }, '@/components/ui/loading': {}, '@/lib/native/sessionStorage': storage,
-    '@packages/api-client/src/Client': { ApiError, ApiClient: { configure() {}, instance: { get: () => failure ? Promise.reject(new ApiError(failure)) : response.promise } } },
+    '@packages/api-client/client': { ApiError, ApiClient: { configure() {}, instance: { get: () => failure ? Promise.reject(new ApiError(failure)) : response.promise } } },
   }, { window, navigator: { onLine: true } }).load('core/DataProviderContext');
   const render = () => h.render(() => DataProvider({ children: null })).props.value;
   render();
@@ -217,7 +217,7 @@ test('storage failure exits loading and exposes a recoverable error', async () =
 test('banner upload failure restores the saved image and does not change the submitted value', async () => {
   const h = hooks(), request = deferred(), changed = [], revoked = [];
   const { EventBannerUpload } = modules({ react: h.react, 'react-i18next': { useTranslation: () => ({ t: key => key }) },
-    '@packages/api-client/src/Client': { ApiClient: { instance: { uploadEventBanner: () => request.promise } } },
+    '@packages/api-client/client': { ApiClient: { instance: { uploadEventBanner: () => request.promise } } },
   }, { URL: { createObjectURL: () => 'blob:preview', revokeObjectURL: value => revoked.push(value) } }).load('features/events/form/EventBannerUpload');
   const render = () => h.render(() => EventBannerUpload({ value: 'saved.webp', onChange: value => changed.push(value) }));
   const pending = find(render(), node => node.type === 'input').props.onChange({ target: { files: [{ type: 'image/jpeg', size: 512 }], value: 'file' } });

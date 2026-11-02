@@ -30,7 +30,8 @@ import { returnToEvent } from "../navigation/returnToEvent";
 import { GoogleButton } from '../auth/GoogleButton';
 import {ActionButton as UIActionButton} from '../ui/ActionButton';
 import { useIsFocused } from '@react-navigation/native';
-import { createCredentialFillSubmitter, watchBrowserCredentialFill } from '../../../pulse-app/src/lib/auth/credentialFill';
+import { createCredentialFillSubmitter } from '@packages/app-core/auth/credentialFill';
+import { watchBrowserCredentialFill } from '../auth/credentialFill';
 
 export function AuthScreen({
   route,
@@ -97,6 +98,8 @@ export function AuthScreen({
     // Never back into a protected screen on close/logout; authenticated return
     // destinations are a typed tab, never a URL supplied by a third party.
     if (isEventId(route.params?.returnSafetyGroup)) navigation.popTo('SafetyGroup', { eventId: route.params.returnSafetyGroup }, { merge: true });
+    else if (route.params?.returnOutings) navigation.popTo('Outings', undefined);
+    else if (isEventId(route.params?.returnEventNight)) navigation.popTo('EventNight',{eventId:route.params.returnEventNight});
     else if (route.params?.returnScanner) navigation.popTo('Scanner', undefined);
     else if (isEventId(route.params?.returnProfile)) navigation.popTo('PublicProfile', { id: route.params.returnProfile }, { merge: true });
     else if (isEventId(route.params?.returnEvent)) returnToEvent(navigation, route.params.returnEvent);
@@ -104,7 +107,7 @@ export function AuthScreen({
     else if ((!route.params?.returnTab || route.params.returnTab === 'Profile') && auth.user.role === 'admin') navigation.popTo('Admin', undefined);
     else if ((!route.params?.returnTab || route.params.returnTab === 'Profile') && auth.user.role === 'organizer') navigation.popTo('Dashboard', undefined);
     else navigation.popTo("Tabs", { screen: route.params?.returnTab ?? "Profile" });
-  }, [auth.ready, auth.user, mode, navigation, route.params?.returnTab, route.params?.returnEvent, route.params?.returnProfile, route.params?.returnSafetyGroup, route.params?.returnScanner, route.params?.returnDashboard, route.params?.returnDashboardParams]);
+  }, [auth.ready, auth.user, mode, navigation, route.params?.returnTab, route.params?.returnEvent, route.params?.returnProfile, route.params?.returnSafetyGroup, route.params?.returnOutings, route.params?.returnEventNight, route.params?.returnScanner, route.params?.returnDashboard, route.params?.returnDashboardParams]);
   const go = (next: "login" | "register" | "forgot" | "reset") => {
     if (!pending.current && !auth.busy) navigation.setParams({ mode: next });
   };

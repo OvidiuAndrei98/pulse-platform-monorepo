@@ -11,20 +11,20 @@ import { RequestError, RequestProgress } from "@/components/ui/RequestFeedback";
 import { useTranslation } from "react-i18next";
 import { DiscoveryToolbar } from '@/features/events/filters/DiscoveryToolbar';
 import { useDebouncedDiscoverySearch } from '@/features/events/useDebouncedDiscoverySearch';
-import { activeDiscoveryStart, productToday, eventMatchesSearch, eventWithinDistance } from '@/features/events/discoveryFilters';
+import { activeDiscoveryStart, productToday, eventMatchesSearch, eventWithinDistance } from '@packages/app-core/events/discoveryFilters';
 import { Event, PromotedEvent, PublicEventsService } from "@/core/DataProvider";
 import {
   cityCenters,
   defaultEventFilters,
-} from "@/features/events/constants";
+} from "@packages/app-core/events/constants";
 import { EventBrowseCard } from "@/features/events/components/EventBrowseCard";
-import { getEventDateRange } from "@/features/events/dateFilters";
-import { Coordinates } from "@/features/events/types";
+import { getEventDateRange } from "@packages/app-core/events/dateFilters";
+import { Coordinates } from "@packages/app-core/events/types";
 import { EventCardSkeleton, PageLoadingState } from "@/components/ui/loading";
 import {
   mixFeedPromotions,
   promotionCampaignsByEvent,
-} from "@/features/events/promotions";
+} from "@packages/app-core/events/promotions";
 
 const EventsMapLayout = dynamic(
   () =>

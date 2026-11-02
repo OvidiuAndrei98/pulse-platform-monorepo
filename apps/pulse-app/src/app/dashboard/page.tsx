@@ -24,8 +24,8 @@ import {
   dashboardTicketCounts,
   isDashboardEventLive,
   selectDashboardEvent,
-} from "@/features/events/dashboardFeatured";
-import { dashboardEventGroups } from "@/features/events/dashboardEvents";
+} from "@packages/app-core/events/dashboardFeatured";
+import { dashboardEventGroups } from "@packages/app-core/events/dashboardEvents";
 import { useDashboardClock } from "@/features/events/useDashboardClock";
 import { startVisiblePolling } from "@/lib/visiblePolling";
 import {ActionLink as UIActionLink} from '@/components/ui/ActionButton';

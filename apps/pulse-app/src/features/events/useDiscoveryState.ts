@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { defaultEventFilters, eventDateFilters } from "./constants";
-import type { EventFilters } from "./types";
-import { normalizeDiscoverySearch, validCalendarDay } from './discoveryFilters';
+import { defaultEventFilters, eventDateFilters } from "@packages/app-core/events/constants";
+import type { EventFilters } from "@packages/app-core/events/types";
+import { normalizeDiscoverySearch, validCalendarDay } from '@packages/app-core/events/discoveryFilters';
 
 type DiscoveryState = { filters: EventFilters; view: "list" | "map" };
 const filterKeys = ["date", "dateFrom", "dateTo", "q", "city", "categories", "vibes", "distance", "view"];

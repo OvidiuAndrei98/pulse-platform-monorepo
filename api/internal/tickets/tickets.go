@@ -193,6 +193,7 @@ func (h *Handler) HandleGetTicketTypesForEvent(w http.ResponseWriter, r *http.Re
 }
 
 func (h *Handler) HandleGetUserTickets(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control","no-store")
 	ctx := r.Context()
 	userIDStr, err := auth.GetUserIDFromContext(ctx)
 	if err != nil || userIDStr == "" {
@@ -756,6 +757,7 @@ func (h *Handler) HandleQuickValidateTicket(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *Handler) HandleCreateOfflineSnapshot(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	ctx := r.Context()
 	userIDString, err := auth.GetUserIDFromContext(ctx)
 	if err != nil || userIDString == "" {
@@ -791,27 +793,41 @@ func (h *Handler) HandleCreateOfflineSnapshot(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	tickets, err := h.Queries.ListOfflineValidationTickets(ctx, eventID)
+	tx, err := h.DB.Begin(ctx)
 	if err != nil {
-		router.RespondWithError(w, http.StatusInternalServerError, "Biletele pentru validare offline nu au putut fi incarcate")
+		router.RespondWithError(w, 503, "Pachetul offline nu a putut fi pregatit")
 		return
 	}
-	responseTickets := make([]OfflineTicketSnapshot, 0, len(tickets))
-	for _, ticket := range tickets {
-		responseTickets = append(responseTickets, OfflineTicketSnapshot{TicketID: common.UUIDToString(ticket.ID), ValidationHash: ticket.ValidationHash, TicketType: ticket.TicketTypeName})
-	}
-	invitationRows, err := h.Queries.ListOfflineInvitationTickets(ctx, eventID)
+	defer tx.Rollback(ctx)
+	// Serialize snapshot issuance with transfers. This permanent gate survives
+	// snapshot cleanup and ensures no downloaded admission code is later rotated.
+	var lockedID pgtype.UUID
+	err = tx.QueryRow(ctx, `UPDATE events SET ticket_transfers_locked=TRUE
+	    WHERE id=$1 AND status IN ('published','scheduled') AND end_time>CURRENT_TIMESTAMP RETURNING id`, eventID).Scan(&lockedID)
 	if err != nil {
-		router.RespondWithError(w, http.StatusInternalServerError, "Invitatiile offline nu au putut fi incarcate")
+		router.RespondWithError(w, 409, "Evenimentul nu mai accepta pregatire offline")
 		return
 	}
-	for _, invitation := range invitationRows {
-		responseTickets = append(responseTickets, OfflineTicketSnapshot{TicketID: common.UUIDToString(invitation.ID), ValidationHash: invitation.ValidationHash, TicketType: invitation.TicketTypeName})
+	qtx := h.Queries.WithTx(tx)
+	// Re-check and hold the grant until credentials have been issued.
+	currentEvent, e := qtx.GetEventForValidation(ctx, eventID)
+	if e != nil {
+		router.RespondWithError(w, 503, "ACCESS_CHECK_FAILED")
+		return
 	}
-	snapshot, err := h.Queries.CreateOfflineValidationSnapshot(ctx, db.CreateOfflineValidationSnapshotParams{
+	if currentEvent.OrganizerID != userID {
+		var grant pgtype.UUID
+		e = tx.QueryRow(ctx, `SELECT user_id FROM event_validation_staff WHERE event_id=$1 AND user_id=$2 FOR SHARE`, eventID, userID).Scan(&grant)
+		if e != nil {
+			router.RespondWithError(w, 403, "ACCESS_DENIED")
+			return
+		}
+	}
+	responseTickets := make([]OfflineTicketSnapshot, 0)
+	snapshot, err := qtx.CreateOfflineValidationSnapshot(ctx, db.CreateOfflineValidationSnapshotParams{
 		EventID:         eventID,
 		CreatedByUserID: userID,
-		TicketCount:     int32(len(responseTickets)),
+		TicketCount:     0,
 		ExpiresAt:       event.EndTime,
 	})
 	if err != nil {
@@ -819,13 +835,35 @@ func (h *Handler) HandleCreateOfflineSnapshot(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	entries, entryErr := tx.Query(ctx, `SELECT ticket_id,validation_hash,ticket_type FROM offline_validation_snapshot_entries WHERE snapshot_id=$1 ORDER BY ticket_id`, snapshot.ID)
+	if entryErr != nil {
+		router.RespondWithError(w, 503, "SNAPSHOT_READ_FAILED")
+		return
+	}
+	for entries.Next() {
+		var id pgtype.UUID
+		var hash, name string
+		if err = entries.Scan(&id, &hash, &name); err != nil {
+			break
+		}
+		responseTickets = append(responseTickets, OfflineTicketSnapshot{TicketID: common.UUIDToString(id), ValidationHash: hash, TicketType: name})
+	}
+	entries.Close()
+	if err != nil || entries.Err() != nil {
+		router.RespondWithError(w, 503, "SNAPSHOT_READ_FAILED")
+		return
+	}
+	if err = tx.Commit(ctx); err != nil {
+		router.RespondWithError(w, 503, "Pachetul offline nu a putut fi salvat")
+		return
+	}
 	router.RespondWithJSON(w, http.StatusOK, OfflineValidationSnapshotResponse{
 		SnapshotID:  common.UUIDToString(snapshot.ID),
 		EventID:     common.UUIDToString(eventID),
 		EventTitle:  event.Title,
 		GeneratedAt: common.TimestampToString(snapshot.CreatedAt),
 		ExpiresAt:   common.TimestampToString(snapshot.ExpiresAt),
-		TicketCount: snapshot.TicketCount,
+		TicketCount: int32(len(responseTickets)),
 		Tickets:     responseTickets,
 	})
 }
@@ -886,7 +924,28 @@ func (h *Handler) syncOfflineTicketScan(ctx context.Context, eventID, userID, sn
 	}
 
 	result := OfflineTicketSyncResult{ClientScanID: scan.ClientScanID}
-	if invitation, handled, invitationErr := validateInvitation(ctx, qtx, eventID, strings.TrimSpace(scan.ValidationHash)); invitationErr != nil {
+	var member bool
+	// New packs are bound to exactly the persisted response. Legacy packs had
+	// immutable credentials; their strict created-time fallback is versioned.
+	err = tx.QueryRow(ctx, `SELECT (CASE WHEN s.format_version=2 THEN EXISTS(SELECT 1 FROM offline_validation_snapshot_entries i WHERE i.snapshot_id=s.id AND i.validation_hash=$2)
+      ELSE EXISTS(SELECT 1 FROM tickets t JOIN orders o ON o.id=t.order_id WHERE o.event_id=s.event_id AND t.validation_hash=$2 AND t.created_at<=s.created_at)
+        OR EXISTS(SELECT 1 FROM invitation_tickets i WHERE i.event_id=s.event_id AND i.validation_hash=$2 AND i.created_at<=s.created_at) END)
+        AND e.status IN ('published','scheduled','completed') AND e.end_time>$3
+      FROM offline_validation_snapshots s JOIN events e ON e.id=s.event_id WHERE s.id=$1`, snapshotID, strings.TrimSpace(scan.ValidationHash), scannedAt).Scan(&member)
+	if err != nil {
+		return OfflineTicketSyncResult{}, err
+	}
+	if !member {
+		result.Status = "invalid"
+		if err = qtx.CompleteOfflineTicketValidation(ctx, db.CompleteOfflineTicketValidationParams{ID: auditID, Result: result.Status}); err != nil {
+			return OfflineTicketSyncResult{}, err
+		}
+		if err = tx.Commit(ctx); err != nil {
+			return OfflineTicketSyncResult{}, err
+		}
+		return result, nil
+	}
+	if invitation, handled, invitationErr := validateInvitation(ctx, qtx, eventID, strings.TrimSpace(scan.ValidationHash),scannedAt); invitationErr != nil {
 		return OfflineTicketSyncResult{}, invitationErr
 	} else if handled {
 		result.Status, _ = invitation["status"].(string)
@@ -925,12 +984,21 @@ func (h *Handler) syncOfflineTicketScan(ctx context.Context, eventID, userID, sn
 				result.ValidatedAt = common.TimestampToString(ticket.ValidatedAt)
 			} else {
 				validatedAt, validationErr := qtx.ValidateTicketOnce(ctx, db.ValidateTicketOnceParams{
+					ValidationHash:             validationHash,
+					AdmissionAt:                pgtype.Timestamptz{Time: scannedAt, Valid: true},
 					ID:                         ticket.ID,
 					ValidatedByUserID:          userID,
 					ValidatedByScannerAccessID: pgtype.UUID{},
 				})
 				if errors.Is(validationErr, pgx.ErrNoRows) {
-					result.Status = "already_validated"
+					result.Status = "invalid"
+					current, readErr := qtx.GetTicketByHash(ctx, validationHash)
+					if readErr == nil && current.IsValidated {
+						result.Status = "already_validated"
+					}
+					if readErr != nil && !errors.Is(readErr, pgx.ErrNoRows) {
+						return OfflineTicketSyncResult{}, readErr
+					}
 				} else if validationErr != nil {
 					return OfflineTicketSyncResult{}, validationErr
 				} else {
@@ -1076,14 +1144,23 @@ func (h *Handler) validateTicketForEvent(ctx context.Context, eventID pgtype.UUI
 	}
 
 	validatedAt, err := qtx.ValidateTicketOnce(ctx, db.ValidateTicketOnceParams{
+		ValidationHash:             validationHash,
+		AdmissionAt:                pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		ID:                         ticketRow.ID,
 		ValidatedByUserID:          validatedByUserID,
 		ValidatedByScannerAccessID: validatedByScannerAccessID,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		response := MapTicketValidationResponse(ticketRow)
-		response.Status = "already_validated"
-		return response, http.StatusOK, ""
+		current, readErr := qtx.GetTicketByHash(ctx, validationHash)
+		if readErr == nil && current.IsValidated {
+			response := MapTicketValidationResponse(current)
+			response.Status = "already_validated"
+			return response, http.StatusOK, ""
+		}
+		if readErr != nil && !errors.Is(readErr, pgx.ErrNoRows) {
+			return TicketValidationResponse{}, http.StatusServiceUnavailable, "Validarea este temporar indisponibila"
+		}
+		return TicketValidationResponse{}, http.StatusNotFound, "Biletul nu mai este valid"
 	}
 	if err != nil {
 		return TicketValidationResponse{}, http.StatusInternalServerError, "Biletul nu a putut fi validat"
@@ -1158,7 +1235,7 @@ func (h *Handler) HandleValidateTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if invitation, handled, err := validateInvitation(ctx, h.Queries, eventID, req.ValidationHash); err != nil {
+	if invitation, handled, err := validateInvitation(ctx, h.Queries, eventID, req.ValidationHash,time.Now()); err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Invitatia nu a putut fi validata")
 		return
 	} else if handled {

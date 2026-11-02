@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { ShieldCheck, ArrowUpRight } from 'lucide-react';
 import { useDataProvider } from '@/core/DataProviderContext';
-import { adminSections, adminLabel, adminHref, adminSection } from '@/features/admin/navigation';
+import { adminSections, adminLabel, adminHref, adminSection } from '@packages/app-core/admin/navigation';
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { user, isAdmin, loading } = useDataProvider(), { i18n } = useTranslation(), path = usePathname(), ro = i18n.language.startsWith('ro');
   const selected = adminSection(path.split('/')[2]);

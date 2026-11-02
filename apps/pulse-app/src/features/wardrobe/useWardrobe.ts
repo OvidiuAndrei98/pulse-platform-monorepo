@@ -3,8 +3,8 @@ import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { apiRoot } from "@/core/apiRoot";
 import { apiFetch } from "@/lib/native/apiFetch";
-import { WardrobeStore, type Request } from "./model";
-import { operatorAccount } from './flow';
+import { WardrobeStore, type Request } from "@packages/app-core/wardrobe/model";
+import { operatorAccount } from '@packages/app-core/wardrobe/flow';
 
 export function useWardrobe(staff = false, interval = 5000) {
   const { user, getToken } = useDataProvider();

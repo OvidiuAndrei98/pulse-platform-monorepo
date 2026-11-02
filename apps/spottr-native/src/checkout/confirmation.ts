@@ -1,4 +1,4 @@
-import { checkPaymentConfirmation } from '../../../pulse-app/src/features/checkout/confirmation';
+import { checkPaymentConfirmation } from '@packages/app-core/checkout/confirmation';
 import { ApiError } from '../data/http';
 import { isEventId } from '../data/events';
 import { captureHandledFailure } from '../diagnostics/handled';

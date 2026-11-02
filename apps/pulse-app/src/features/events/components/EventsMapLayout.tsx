@@ -3,7 +3,7 @@ import { Event } from "@/core/DataProvider";
 import { useEventDetails } from "@/components/EventDetailsSheet";
 import { EventsMapView } from "@/components/EventsMapView";
 import { EventMapSidebar } from "@/features/events/components/EventMapSidebar";
-import { Coordinates } from "@/features/events/types";
+import { Coordinates } from "@packages/app-core/events/types";
 
 export function EventsMapLayout({
   events,

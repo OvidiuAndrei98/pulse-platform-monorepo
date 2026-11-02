@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import style from '../../pulse-app/src/features/events/map/openFreeMapDark.json';
-import { clusterEvents, validCoordinate } from '../src/map/geometry';
+import style from '@packages/app-core/events/map/openFreeMapDark.json';
+import { clusterEvents, validCoordinate } from '@packages/app-core/maps/geometry';
 
 test('the bundled dark map uses the intended source and real building height expressions', () => {
   assert.equal(style.version,8);

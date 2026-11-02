@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { eventCategories } from "@/core/mappers";
+import { eventCategories } from "@packages/app-core/events/categories";
 import type { User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useClientQuery } from "@/lib/useClientQuery";

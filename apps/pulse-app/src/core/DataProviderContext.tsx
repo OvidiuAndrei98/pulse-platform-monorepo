@@ -10,7 +10,7 @@ import React, {
   useRef,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ApiClient, ApiError } from "@packages/api-client/src/Client";
+import { ApiClient, ApiError } from "@packages/api-client/client";
 import { clearSessionCaches, User, UserData } from "./DataProvider";
 import { apiRoot } from "./apiRoot";
 import { apiFetch } from "@/lib/native/apiFetch";

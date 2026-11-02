@@ -4,8 +4,8 @@ import {
   PlacesAutocomplete,
   PlaceResult,
 } from "@/components/PlacesAutocomplete";
-import { eventCategories } from "@/core/mappers";
-import { eventCities, eventVibes } from "@/features/events/constants";
+import { eventCategories } from "@packages/app-core/events/categories";
+import { eventCities, eventVibes } from "@packages/app-core/events/constants";
 import { EventFormValues } from "@/app/dashboard/components/EventsForm";
 import { ThemedSelect } from "@/features/events/form/ThemedSelect";
 import { DateTimePicker } from "@/features/events/form/DateTimePicker";

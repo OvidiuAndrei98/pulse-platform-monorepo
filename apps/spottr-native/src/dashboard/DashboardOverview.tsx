@@ -20,12 +20,12 @@ import {
   dashboardTicketCounts,
   isDashboardEventLive,
   selectDashboardEvent,
-} from "../../../pulse-app/src/features/events/dashboardFeatured";
+} from "@packages/app-core/events/dashboardFeatured";
 import { useEventClock } from "../data/useEventClock";
 import {
   dashboardEventGroups,
   type DashboardEventFilter,
-} from "../../../pulse-app/src/features/events/dashboardEvents";
+} from "@packages/app-core/events/dashboardEvents";
 
 export function DashboardTitle({
   title,

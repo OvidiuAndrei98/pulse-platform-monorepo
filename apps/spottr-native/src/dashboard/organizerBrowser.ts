@@ -1,5 +1,5 @@
 import { openAuthSessionAsync, dismissAuthSession } from "expo-web-browser";
-import { NATIVE_ORGANIZER_RETURN } from "../../../pulse-app/src/features/checkout/organizerReturn";
+import { NATIVE_ORGANIZER_RETURN } from "@packages/app-core/checkout/organizerReturn";
 import {
   validateOrganizerCallback,
   type OrganizerBrowser,

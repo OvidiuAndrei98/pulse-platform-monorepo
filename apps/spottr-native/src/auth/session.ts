@@ -1,4 +1,4 @@
-import type { components } from "@packages/api-client/src/schema";
+import type { components } from "@packages/api-client/schema";
 import { ApiError } from "../data/http";
 
 export type Account = components["schemas"]["CurrentUser"] & {

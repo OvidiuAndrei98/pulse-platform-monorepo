@@ -4,7 +4,7 @@ import * as React from "react";
 import { Drawer as DrawerPrimitive } from "vaul";
 import { useBackLayer } from "@/lib/navigation/useBackLayer";
 import { useDrawerViewport } from "./useDrawerViewport";
-import { drawerDesign, drawerShadeCss } from "./drawerDesign";
+import { drawerDesign, drawerShadeCss } from "@packages/app-core/presentation/drawerDesign";
 
 export function Drawer({ historyBack = false, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root> & { historyBack?: boolean }) {
   useBackLayer(historyBack && Boolean(props.open), () => {

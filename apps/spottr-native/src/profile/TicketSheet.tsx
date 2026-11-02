@@ -25,9 +25,11 @@ import { colors } from "../ui/theme";
 import { usePreferences } from "../usePreferences";
 import { useTicketBrightness } from "./useTicketBrightness";
 import { exportTicket } from "./exportTicket";
-import { formatTicketDate } from "../../../pulse-app/src/components/tickets/ticketDesign";
+import { formatTicketDate } from "@packages/app-core/tickets/design";
 import { ticketStatus, type UserTicket } from "../data/tickets";
 import { useAuth } from "../auth/AuthProvider";
+import { useNavigation } from '@react-navigation/native';
+import { canOfferTransfer } from '@packages/app-core/outings/model';
 import { initialGroupTicket } from './ticketGroups';
 import { WalletTicketRow } from './WalletEvent';
 import { useReducedMotionPreference } from '../ui/useReducedMotionPreference';
@@ -47,6 +49,7 @@ export function TicketSheet({
   preferUnused?: boolean;
 }) {
   const { controller } = useAuth();
+  const navigation=useNavigation<any>();
   const alive = useRef(true);
   useEffect(() => {
     alive.current = true;
@@ -321,6 +324,10 @@ export function TicketSheet({
             {copy("feedback.actionFailed")}
           </Text>
         )}
+        <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
+          <UIActionButton title={copy('outings.night')} tone="secondary" onPress={()=>{onClose();navigation.navigate('EventNight',{eventId:ticket.eventId});}} style={{flexGrow:1}}/>
+          {canOfferTransfer(ticket)&&<UIActionButton testID="ticket-transfer" title={copy('outings.transferTitle')} tone="secondary" disabled={busy} onPress={()=>{onClose();navigation.navigate('Outings',{ticketId:ticket.id});}} style={{flexGrow:1}}/>}
+        </View>
         <UIActionButton
           testID="ticket-download"
           tone="primary"

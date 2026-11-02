@@ -35,7 +35,7 @@ import { EventOrganizerUpdates } from "@/components/EventOrganizerUpdates";
 import {
   calculateServiceFeeRon,
   formatRon,
-} from "@/features/events/serviceFee";
+} from "@packages/app-core/events/serviceFee";
 import { formatEventDateTime } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 import { shareEvent } from "@/lib/native/share";
@@ -50,7 +50,7 @@ import {
 } from "@/features/checkout/TicketTypeSelector";
 import { TicketCheckoutDrawer } from "@/features/checkout/TicketCheckoutDrawer";
 import { bookFreeTicket } from "@/features/checkout/freeBooking";
-import { ApiError } from "@packages/api-client/src/Client";
+import { ApiError } from "@packages/api-client/client";
 import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
 
 interface EventDetailsContextType {

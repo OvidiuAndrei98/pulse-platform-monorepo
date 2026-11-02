@@ -14,7 +14,7 @@ import {
   Ticket,
   WalletCards,
 } from "lucide-react-native";
-import type { components } from "@packages/api-client/src/schema";
+import type { components } from "@packages/api-client/schema";
 import { accountApi } from "../auth/AuthProvider";
 import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";

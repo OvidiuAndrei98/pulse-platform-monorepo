@@ -4,7 +4,7 @@ const { webcrypto } = require('node:crypto');
 const { modules } = require('./helpers/qaHarness.cjs');
 
 test('checkout retries reuse their intent while changed purchases get a new UUID', () => {
-  const { checkoutRequestKey } = modules({}, { crypto: webcrypto }).load('features/checkout/requestKey');
+  const { checkoutRequestKey } = modules({}, { crypto: webcrypto }).load('@packages/app-core/checkout/requestKey');
   const first = checkoutRequestKey(null, 'one ticket');
   assert.match(first.key, /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/);
   assert.equal(checkoutRequestKey(first, 'one ticket'), first);
@@ -12,7 +12,7 @@ test('checkout retries reuse their intent while changed purchases get a new UUID
 });
 
 test('checkout accepts injected secure bytes and never generates new entropy for a retry', () => {
-  const { checkoutRequestKey } = modules().load('features/checkout/requestKey');
+  const { checkoutRequestKey } = modules().load('@packages/app-core/checkout/requestKey');
   let calls = 0;
   const random = () => { calls++; return Uint8Array.from({ length: 16 }, (_, i) => i); };
   const first = checkoutRequestKey(null, 'one ticket', random);

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "test": "pnpm -w run check:architecture && pnpm --filter @packages/app-core test && node --test scripts/*.test.cjs",
     "dev": "node ../../tools/sync-design-tokens.cjs --check && node ../../tools/sync-map-assets.cjs && cross-env NODE_ENV=development next dev -p 3000",
     "build": "node ../../tools/sync-design-tokens.cjs --check && node ../../tools/sync-map-assets.cjs && cross-env NODE_ENV=production next build",
     "build:mobile": "node ../../tools/sync-design-tokens.cjs --check && node ../../tools/sync-map-assets.cjs && cross-env NODE_ENV=production CAPACITOR_BUILD=true next build",
@@ -27,6 +28,8 @@
     "@capacitor/share": "8.0.1",
     "@hookform/resolvers": "^5.9.2",
     "@packages/api-client": "workspace:*",
+    "@packages/app-core": "workspace:*",
+    "@packages/browser-core": "workspace:*",
     "framer-motion": "^12.43.0",
     "html2canvas": "1.4.1",
     "i18next": "^26.5.11",

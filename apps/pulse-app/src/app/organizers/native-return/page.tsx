@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { nativeOrganizerReturn } from "@/features/checkout/organizerReturn";
+import { nativeOrganizerReturn } from "@packages/app-core/checkout/organizerReturn";
 
 export default function NativeOrganizerReturnPage() {
   const { t } = useTranslation();

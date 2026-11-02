@@ -1,6 +1,7 @@
 // Exercises the exported app with isolated, simulated accounts and API only.
 const assert = require('node:assert/strict');
 const { withBrowser } = require('./browser-harness.cjs');
+const { selectScannerEvent } = require('./helpers/scanner-event.cjs');
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
 withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, errors }) => {
@@ -137,23 +138,16 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   assert.deepEqual(await evaluate('window.__qa.unexpected'), []);
   console.log('PASS organizer dashboard route, account and event loading');
 
-  await open('/ticket-validation'); await until(`document.querySelector('[data-testid="scanner-event-selector"]') && document.body.innerText.includes('QA Night')`);
-  assert.equal(await evaluate(`!!document.querySelector('[data-testid="scanner-tabs"]')`), false, 'Scan-only staff must not see an empty Management tab');
-  assert.equal(await evaluate(`!!document.querySelector('[data-testid="scanner-panel"]')`), true, 'Scan-only staff land directly on the scanner');
-  assert.equal(await evaluate(`window.__qa.requests.filter(v=>v.route.endsWith('/staff') || v.route.endsWith('/quick-access')).length`), 0, 'Scan-only staff must not load management data');
-  assert.equal(await evaluate(`!!document.querySelector('[data-testid="scanner-code-input"]')`), false, 'Manual entry is initially collapsed');
-  await click('scanner-event-selector'); await until(`document.querySelector('[data-testid="scanner-event-menu"]')`);
-  const menu = await evaluate(`{const r=document.querySelector('[data-testid="scanner-event-menu"]').getBoundingClientRect();({x:r.x,y:r.y,right:r.right,bottom:r.bottom})}`);
-  assert.ok(menu.x >= 8 && menu.right <= 382 && menu.y >= 8 && menu.bottom <= 836, 'Scanner menu stays within the mobile viewport');
-  await call('Input.dispatchMouseEvent', { type: 'mousePressed', x: 4, y: 4, button: 'left', clickCount: 1 });
-  await call('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 4, y: 4, button: 'left', clickCount: 1 });
-  await until(`!document.querySelector('[data-testid="scanner-event-menu"]')`);
-  await click('scanner-event-selector'); await until(`document.querySelector('[data-testid="scanner-event-menu"]')`);
-  await call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-  await call('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-  await until(`!document.querySelector('[data-testid="scanner-event-menu"]')`);
-  await click('scanner-event-selector'); await until(`document.querySelector('[data-testid="scanner-event-menu"]')`);
-  await evaluate(`document.querySelector('[data-testid="scanner-event-menu"] [role="button"]').click()`); await until(`!document.querySelector('[data-testid="scanner-event-menu"]')`);
+  await open('/ticket-validation');await until('document.body.innerText.includes("QA Night")');
+  assert.equal(await evaluate('!!document.querySelector("[data-testid=\\"scanner-panel\\"]")'),false,'An event must be chosen explicitly');
+  await selectScannerEvent({evaluate,until,click},'00000000-0000-4000-8000-000000000001','QA Night');
+  await until('document.querySelector("[data-testid=\\"scanner-panel\\"]")');
+  assert.equal(await evaluate('document.querySelectorAll("[data-testid=\\"scanner-tabs\\"] [role=tab]").length'),1,'Scan-only staff have only the Scan tab');
+  assert.equal(await evaluate('window.__qa.requests.filter(v=>v.route.endsWith("/staff")||v.route.endsWith("/quick-access")).length'),0,'Staff cannot load management data');
+  const backToEvents='[...document.querySelectorAll("button,[role=button]")].find(node=>node.getAttribute("aria-label")==="Change event"||node.textContent.trim()==="Change event")';
+  await until(backToEvents);await evaluate(backToEvents+'.click()');await until('document.querySelector("[data-testid=\\"validation-event-list\\"]")');
+  assert.equal(await evaluate('!!document.querySelector("[aria-modal=\\"true\\"]")'),false,'The event picker is a page, not a blocking dropdown');
+  await selectScannerEvent({evaluate,until,click},'00000000-0000-4000-8000-000000000001','QA Night');await until('document.querySelector("[data-testid=\\"scanner-panel\\"]")');
   await click('scanner-manual-toggle'); await until(`document.querySelector('textarea')`);
   await evaluate(`{const el=document.querySelector('textarea');el.setAttribute('data-testid','qa-scan-input');}`);
   await input('qa-scan-input', 'a'.repeat(64)); await pressText('Validate ticket'); await until(`window.__qa.scanCount===1`);
@@ -178,8 +172,11 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   }
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   console.log('PASS scanner selector, collapsed manual entry and responsive history page');
-  await open('/ticket-validation?role=organizer'); await until(`Array.from(document.querySelectorAll('[role="tab"]')).some(el=>el.textContent==='Management')`);
-  await evaluate(`Array.from(document.querySelectorAll('[role="tab"]')).find(el=>el.textContent==='Management').click()`);
+  await open('/ticket-validation?role=organizer');
+  await selectScannerEvent({ evaluate, until, click }, '00000000-0000-4000-8000-000000000001', 'QA Night');
+  await click('scanner-tab-team');
+  await until(`document.querySelector('[data-testid="scanner-staff-list"]').textContent.includes('Gate staff')`);
+  await click('scanner-tab-links');
   await until(`document.querySelector('[role="button"][aria-label="Active from"]')`);
   assert.equal(await evaluate(`!!document.querySelector('[data-testid="scanner-management"]')`), true);
   await evaluate(`document.querySelector('[role="button"][aria-label="Active from"]').click()`); await until(`document.querySelector('[data-testid="editor-date-popover"]')`);
@@ -200,23 +197,25 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   assert.deepEqual(await evaluate('window.__qa.unexpected'), []);
   console.log('PASS scanner staff/access rows, link creation and clipboard denied/fallback/retry feedback');
   await open('/ticket-validation?role=organizer&mixedAccess=true');
-  await click('scanner-tab-management'); await until(`document.querySelector('[data-testid="scanner-management"]')`);
-  await click('scanner-event-selector'); await until(`document.querySelector('[data-testid="scanner-event-menu"]')`);
-  await evaluate(`Array.from(document.querySelectorAll('[data-testid="scanner-event-menu"] [role="button"]')).find(el=>el.textContent.includes('Assigned gate')).click()`);
+  await selectScannerEvent({ evaluate, until, click }, id(1), 'QA Night');
+  await click('scanner-tab-team'); await until(`document.querySelector('[data-testid="scanner-management"]')`);
+  await evaluate(backToEvents+'.click()');
+  await selectScannerEvent({ evaluate, until, click }, id(9), 'Assigned gate');
   await until(`document.querySelector('[data-testid="scanner-panel"]')?.textContent.includes('Assigned gate')`);
-  assert.equal(await evaluate(`!!document.querySelector('[data-testid="scanner-tabs"]')`), false, 'Organizer role does not imply management access to an assigned event');
+  assert.equal(await evaluate(`document.querySelectorAll('[data-testid="scanner-tabs"] [role="tab"]').length`), 1, 'Organizer role does not imply management access to an assigned event');
   assert.equal(await evaluate(`!!document.querySelector('[data-testid="scanner-management"]')`), false);
   assert.equal(await evaluate(`window.__qa.requests.filter(v=>v.route.includes('${id(9)}') && (v.route.endsWith('/staff') || v.route.endsWith('/quick-access'))).length`), 0);
-  await click('scanner-event-selector'); await until(`document.querySelector('[data-testid="scanner-event-menu"]')`);
-  await evaluate(`Array.from(document.querySelectorAll('[data-testid="scanner-event-menu"] [role="button"]')).find(el=>el.textContent.includes('QA Night')).click()`);
+  await evaluate(backToEvents+'.click()');
+  await selectScannerEvent({ evaluate, until, click }, id(1), 'QA Night');
   await until(`document.querySelector('[data-testid="scanner-tab-scan"]') && document.querySelector('[data-testid="scanner-panel"]')?.textContent.includes('QA Night')`);
-  await click('scanner-tab-management'); await until(`document.querySelector('[data-testid="scanner-management"]')`);
+  await click('scanner-tab-team'); await until(`document.querySelector('[data-testid="scanner-management"]')`);
   await evaluate(`window.__qa.validationEvents[0].canManage=false`);
-  await until(`!document.querySelector('[data-testid="scanner-tabs"]') && document.querySelector('[data-testid="scanner-panel"]')`, 20000);
+  await until(`document.querySelectorAll('[data-testid="scanner-tabs"] [role="tab"]').length===1 && document.querySelector('[data-testid="scanner-panel"]')`, 20000);
   assert.equal(await evaluate(`!!document.querySelector('[data-testid="scanner-management"]')`), false, 'Losing management permission during refetch returns to scanning');
   assert.deepEqual(await evaluate('window.__qa.unexpected'), []);
   console.log('PASS scanner management follows event permissions, including mixed access and permission changes');
   await open('/ticket-validation?ended=true');
+  await selectScannerEvent({ evaluate, until, click }, id(1), 'QA Night');
   await until(`window.__qa.writes.some(v=>v.route.endsWith('/offline-sync'))`);
   await until(`JSON.parse(localStorage.getItem('spottr-native:scanner:v1:${id(2)}:${id(1)}')).scans[0].status==='synced'`);
   assert.equal(await evaluate(`JSON.parse(localStorage.getItem('spottr-native:scanner:v1:${id(2)}:${id(1)}')).revoked`), false);

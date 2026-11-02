@@ -5,11 +5,14 @@ import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { ReadableSchema } from "@packages/api-client/src/Client";
+import type { ReadableSchema } from "@packages/api-client/client";
 import { Drawer, DrawerContent, DrawerHandleOverlay, DrawerTitle } from "@/components/ui/drawer";
 import { TicketPass } from "./TicketPass";
 import { TicketPdfButton } from "./TicketPdfButton";
 import styles from "./ticketPass.module.css";
+import Link from 'next/link';
+import { canOfferTransfer } from '@packages/app-core/outings/model';
+import { routeForPlatform } from '@/lib/native/navigation';
 import { useTicketBrightness } from "@/lib/native/useTicketBrightness";
 
 type UserTicket = ReadableSchema<"UserTicketResponse">;
@@ -95,6 +98,7 @@ export function TicketPreview({
       <TicketPass ticket={ticket} status={status} />
       {brightnessActive && <p className={styles.brightness}><Zap aria-hidden="true" />{t("tickets.autoBrightness")}</p>}
       <div className={styles.actions}>
+        <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm"><Link className="inline-flex min-h-11 items-center text-primary underline" href={routeForPlatform('/events/'+ticket.eventId+'/night')} onClick={requestClose}>{t('outings.night')}</Link>{canOfferTransfer(ticket)&&<Link data-testid="ticket-transfer" className="inline-flex min-h-11 items-center text-primary underline" href={'/outings?ticket='+ticket.id} onClick={requestClose}>{t('outings.transferTitle')}</Link>}</div>
         {tickets.length > 1 && <div className={styles.paging}>
           <button type="button" aria-label={t("tickets.previousTicket")} disabled={index <= 0} onClick={() => onSelect?.(tickets[index - 1])} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/5 disabled:opacity-25 focus-visible:outline-2 focus-visible:outline-primary"><ChevronLeft className="h-5 w-5" /></button>
           <p aria-live="polite" className="text-sm font-semibold tabular-nums">{t("tickets.ticketPosition", { current: index + 1, total: tickets.length })}</p>

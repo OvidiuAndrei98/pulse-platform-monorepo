@@ -5,9 +5,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
 const design = require('../../../api/internal/email/ticket-design.json');
-const source = fs.readFileSync(path.join(__dirname,'../src/components/tickets/ticketDesign.ts'),'utf8');
-const exportsUnderTest = {};
-vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,esModuleInterop:true}}).outputText,{exports:exportsUnderTest,require:()=>design});
+const { modules } = require('./helpers/qaHarness.cjs');
+const exportsUnderTest = modules().load('components/tickets/ticketDesign');
 const { renderTicketPass, formatTicketDate } = exportsUnderTest;
 const ticket = {id:'ticket-1',eventTitle:'Night <script>alert(1)</script> {{id}}',ticketTypeName:'VIP "test"',locationName:'A&B',startTime:'2026-09-29T18:30:00Z',validationHash:'private-hash'};
 

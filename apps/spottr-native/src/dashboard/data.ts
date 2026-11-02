@@ -1,7 +1,7 @@
-import type { components } from "@packages/api-client/src/schema";
+import type { components } from "@packages/api-client/schema";
 import type { createHttp } from "../data/http";
 import { isEventId } from "../data/events";
-import { formatToDatetimeLocal } from "../../../pulse-app/src/features/events/form/dateTimeValues";
+import { formatToDatetimeLocal } from "@packages/app-core/events/dateTimeValues";
 
 type Schema = components["schemas"];
 export type DashboardEvent = Schema["EventResponse"];

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { QrCode, ScanLine } from "lucide-react";
-import { ApiClient, ApiError } from "@packages/api-client/src/Client";
+import { ApiClient, ApiError } from "@packages/api-client/client";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { QrCameraScanner } from "@/components/tickets/QrCameraScanner";
 import { TicketQrCode } from "@/components/tickets/TicketQrCode";

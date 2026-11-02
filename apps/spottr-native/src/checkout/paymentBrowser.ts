@@ -1,5 +1,5 @@
 import { dismissAuthSession, openAuthSessionAsync } from 'expo-web-browser';
-import { NATIVE_CHECKOUT_RETURN } from '../../../pulse-app/src/features/checkout/nativeReturn';
+import { NATIVE_CHECKOUT_RETURN } from '@packages/app-core/checkout/nativeReturn';
 let active = false;
 export const paymentBrowserActive = () => active;
 export const paymentReturnOrigin = (): string | undefined => undefined;

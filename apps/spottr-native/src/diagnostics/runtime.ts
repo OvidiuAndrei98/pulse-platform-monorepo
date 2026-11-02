@@ -5,7 +5,7 @@ import { randomUUID } from "expo-crypto";
 import { AppState, Platform } from "react-native";
 import { API_URL } from "../config";
 import { REMOTE_API_URL } from "../config.shared";
-import { safeVersion } from "../../../pulse-app/src/features/diagnostics/report";
+import { safeVersion } from "@packages/app-core/diagnostics/report";
 import { createErrorReporter } from "./reporter";
 import { bindHandledReporting } from './handled';
 import { diagnosticVersions } from './metadata';

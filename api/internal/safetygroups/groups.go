@@ -58,6 +58,7 @@ type friendResponse struct {
 }
 
 type groupResponse struct {
+	MeetingPoint         string            `json:"meetingPoint,omitempty"`
 	ID                   string            `json:"id"`
 	EventID              string            `json:"eventId"`
 	EventTitle           string            `json:"eventTitle"`
@@ -145,7 +146,7 @@ func (h *Handler) hasPaidTicket(ctx context.Context, executor interface {
 			FROM tickets ticket
 			JOIN orders order_row ON order_row.id = ticket.order_id
 			WHERE order_row.event_id = $2
-			  AND order_row.status = 'completed'
+			  AND order_row.status = 'completed' AND order_row.stripe_refund_status='none' AND order_row.stripe_amount_refunded_bani=0 AND NOT order_row.stripe_refund_needs_attention AND NOT EXISTS(SELECT 1 FROM order_refund_operations rf WHERE rf.order_id=order_row.id)
 			  AND (ticket.user_id = $1 OR (ticket.user_id IS NULL AND order_row.user_id = $1))
 		)`, userID, eventID).Scan(&exists)
 	return exists, err
@@ -164,7 +165,7 @@ func isEligibleFriend(ctx context.Context, executor interface {
 		) AND EXISTS (
 			SELECT 1 FROM tickets ticket
 			JOIN orders order_row ON order_row.id = ticket.order_id
-			WHERE order_row.event_id = $3 AND order_row.status = 'completed'
+			WHERE order_row.event_id = $3 AND order_row.status = 'completed' AND order_row.stripe_refund_status='none' AND order_row.stripe_amount_refunded_bani=0 AND NOT order_row.stripe_refund_needs_attention AND NOT EXISTS(SELECT 1 FROM order_refund_operations rf WHERE rf.order_id=order_row.id)
 			  AND (ticket.user_id = $2 OR (ticket.user_id IS NULL AND order_row.user_id = $2))
 		)`, ownerID, friendID, eventID).Scan(&eligible)
 	return eligible, err
@@ -178,7 +179,7 @@ func (h *Handler) hasValidatedTicket(ctx context.Context, userID, eventID pgtype
 			FROM tickets ticket
 			JOIN orders order_row ON order_row.id = ticket.order_id
 			WHERE order_row.event_id = $2
-			  AND order_row.status = 'completed'
+			  AND order_row.status = 'completed' AND order_row.stripe_refund_status='none' AND order_row.stripe_amount_refunded_bani=0 AND NOT order_row.stripe_refund_needs_attention AND NOT EXISTS(SELECT 1 FROM order_refund_operations rf WHERE rf.order_id=order_row.id)
 			  AND ticket.user_id = $1
 			  AND ticket.is_validated = TRUE
 		)`, userID, eventID).Scan(&exists)
@@ -201,7 +202,7 @@ func (h *Handler) eligibleFriends(ctx context.Context, userID, eventID pgtype.UU
 			FROM tickets ticket
 			JOIN orders order_row ON order_row.id = ticket.order_id
 			WHERE order_row.event_id = $2
-			  AND order_row.status = 'completed'
+			  AND order_row.status = 'completed' AND order_row.stripe_refund_status='none' AND order_row.stripe_amount_refunded_bani=0 AND NOT order_row.stripe_refund_needs_attention AND NOT EXISTS(SELECT 1 FROM order_refund_operations rf WHERE rf.order_id=order_row.id)
 			  AND (ticket.user_id = friend.id OR (ticket.user_id IS NULL AND order_row.user_id = friend.id))
 		)
 		AND NOT EXISTS (
@@ -229,6 +230,7 @@ func (h *Handler) eligibleFriends(ctx context.Context, userID, eventID pgtype.UU
 }
 
 func (h *Handler) HandleGet(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	userID, eventID, ok := requestUUIDs(r)
 	if !ok {
 		router.RespondWithError(w, http.StatusBadRequest, "Cerere invalida")
@@ -256,20 +258,20 @@ func (h *Handler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var (
-		groupID, ownerID              pgtype.UUID
-		title, location, memberStatus string
-		startTime, endTime, expiresAt time.Time
+		groupID, ownerID                            pgtype.UUID
+		title, location, memberStatus, meetingPoint string
+		startTime, endTime, expiresAt               time.Time
 	)
 	err = h.DB.QueryRow(r.Context(), `
 		SELECT group_row.id, group_row.owner_id, event.title, event.location_name,
-		       event.start_time, event.end_time, group_row.expires_at, member.status
+		       event.start_time, event.end_time, group_row.expires_at, member.status, group_row.meeting_point
 		FROM event_safety_group_members member
 		JOIN event_safety_groups group_row ON group_row.id = member.group_id
 		JOIN events event ON event.id = group_row.event_id
 		WHERE member.user_id = $1 AND member.event_id = $2
 		  AND group_row.expires_at > CURRENT_TIMESTAMP
 		LIMIT 1`, userID, eventID).Scan(
-		&groupID, &ownerID, &title, &location, &startTime, &endTime, &expiresAt, &memberStatus,
+		&groupID, &ownerID, &title, &location, &startTime, &endTime, &expiresAt, &memberStatus, &meetingPoint,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		var eventExpires time.Time
@@ -303,6 +305,9 @@ func (h *Handler) HandleGet(w http.ResponseWriter, r *http.Request) {
 		CurrentMemberStatus: memberStatus, CanSendHelp: false,
 		Members: make([]memberResponse, 0), Messages: make([]messageResponse, 0),
 	}
+	if memberStatus == "accepted" {
+		group.MeetingPoint = meetingPoint
+	}
 
 	memberRows, err := h.DB.Query(r.Context(), `
 		SELECT member.user_id, user_row.username, COALESCE(user_row.avatar_url, ''), member.status
@@ -335,7 +340,7 @@ func (h *Handler) HandleGet(w http.ResponseWriter, r *http.Request) {
 			  AND EXISTS (
 				SELECT 1 FROM tickets ticket
 				JOIN orders order_row ON order_row.id = ticket.order_id
-				WHERE order_row.event_id = $3 AND order_row.status = 'completed'
+				WHERE order_row.event_id = $3 AND order_row.status = 'completed' AND order_row.stripe_refund_status='none' AND order_row.stripe_amount_refunded_bani=0 AND NOT order_row.stripe_refund_needs_attention AND NOT EXISTS(SELECT 1 FROM order_refund_operations rf WHERE rf.order_id=order_row.id)
 				  AND (ticket.user_id = member.user_id
 				    OR (ticket.user_id IS NULL AND order_row.user_id = member.user_id))
 			  )
@@ -771,7 +776,7 @@ func (h *Handler) insertMessage(w http.ResponseWriter, r *http.Request, kind, fa
 				SELECT 1
 				FROM tickets ticket
 				JOIN orders order_row ON order_row.id = ticket.order_id
-				WHERE order_row.event_id = $4 AND order_row.status = 'completed'
+				WHERE order_row.event_id = $4 AND order_row.status = 'completed' AND order_row.stripe_refund_status='none' AND order_row.stripe_amount_refunded_bani=0 AND NOT order_row.stripe_refund_needs_attention AND NOT EXISTS(SELECT 1 FROM order_refund_operations rf WHERE rf.order_id=order_row.id)
 				  AND (ticket.user_id = member.user_id
 				    OR (ticket.user_id IS NULL AND order_row.user_id = member.user_id))
 			  )`,

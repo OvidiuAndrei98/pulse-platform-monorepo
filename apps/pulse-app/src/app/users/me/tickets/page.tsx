@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, ChevronLeft, ChevronRight, MapPin, QrCode, Ticket } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
+import { ApiClient, type ReadableSchema } from "@packages/api-client/client";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useNavigationState } from "@/lib/navigation/useNavigationState";
 import { useClientQuery } from "@/lib/useClientQuery";

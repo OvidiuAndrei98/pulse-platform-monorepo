@@ -5,10 +5,10 @@ import { useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { ThemedSelect } from '@/features/events/form/ThemedSelect';
 import { Building2, ArrowRight, ArrowLeft, Search } from 'lucide-react';
-import { ApiClient } from '@packages/api-client/src/Client';
+import { ApiClient } from '@packages/api-client/client';
 import { useDataProvider } from '@/core/DataProviderContext';
 import { getAccessTokenSync } from '@/lib/native/sessionStorage';
-import { parseDirectoryPage, parseDirectoryDetail, isOrganizerId, organizerIssues, type DirectoryDetail } from '@/features/admin/organizers';
+import { parseDirectoryPage, parseDirectoryDetail, isOrganizerId, organizerIssues, type DirectoryDetail } from '@packages/app-core/admin/organizers';
 import { OrganizerCommissionSettings } from '../CommissionsPanel';
 import {Input as UIInput} from '@/components/ui/Field';
 

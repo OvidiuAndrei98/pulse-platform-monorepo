@@ -8,7 +8,7 @@ import {
   savedCompanyBilling,
   validatePromotionBillingDetails,
   type PromotionBillingDetails,
-} from "../../../pulse-app/src/features/promotions/promotionBilling";
+} from "@packages/app-core/promotions/promotionBilling";
 import type { OrganizerProfile } from "./data";
 
 export function usePromotionBilling(profile?: OrganizerProfile) {

@@ -7,16 +7,16 @@ import { MapControls } from "@/features/events/map/MapControls";
 import { SelectedEventPopup } from "@/features/events/map/SelectedEventPopup";
 import { VectorEventMap, type MapFocus } from "@/features/events/map/VectorEventMap";
 import { useEventDetails } from "@/components/EventDetailsSheet";
-import type { Coordinates } from "@/features/events/types";
+import type { Coordinates } from "@packages/app-core/events/types";
 import { useTranslation } from "react-i18next";
 import { requestCurrentLocation } from "@/lib/native/location";
 import { readNavigationState, writeNavigationState } from "@/lib/navigation/state";
 import { formatEventDateShort, formatEventTime } from "@/features/events/dateFormat";
-import { zoomForDistance } from "../../../spottr-native/src/map/geometry";
+import { zoomForDistance } from "@packages/app-core/maps/geometry";
 import carouselStyle from "@/features/events/map/eventMapCarousel.module.css";
 import { ChevronUp, Layers } from 'lucide-react';
 import { useReducedMotion } from 'framer-motion';
-import { carouselCardAction, dismissCarouselDrag, verticalCarouselDrag } from '@/features/events/map/carouselGestures';
+import { carouselCardAction, dismissCarouselDrag, verticalCarouselDrag } from '@packages/app-core/events/map/carouselGestures';
 
 export function EventsMapView({events,selectedId:selectedIdProp,onSelect,fullScreenOnMobile=false,desktopFillViewport=false,isFullView=false,onToggleFullView,userLocation:userLocationProp,onUserLocationChange,onBoundsEventsChange,focusRequest,distanceKm=15,cityCenter}: {
   events:Event[];selectedId?:string|null;onSelect?:(id:string|null)=>void;fullScreenOnMobile?:boolean;desktopFillViewport?:boolean;

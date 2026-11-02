@@ -1,5 +1,5 @@
 import type { Event, InvitationTicket } from "@/core/DataProvider";
-import { createTicketPdf, downloadPdf, safeFileName } from "./ticketPdf";
+import { createTicketPdf, downloadPdf, safeFileName } from "@packages/browser-core/tickets/ticketPdf";
 
 export async function createInvitationBatchPdf(
   event: Event,

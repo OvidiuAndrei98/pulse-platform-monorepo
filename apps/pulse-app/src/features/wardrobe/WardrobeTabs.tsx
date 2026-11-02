@@ -1,7 +1,8 @@
 "use client";
+import { wardrobeText } from '@packages/app-core/wardrobe/model';
 import { useEffect,useRef,useState } from 'react';
 import { ChevronLeft,ChevronRight } from 'lucide-react';
-import { tabFocusIndex,type WardrobeTabOption } from './tabNavigation';
+import { tabFocusIndex,type WardrobeTabOption } from '@packages/app-core/wardrobe/tabNavigation';
 import s from './wardrobe.module.css';
 
 export function WardrobeTabs<T extends string>({id,label,value,options,onChange,disabled=false,locked=false,panelId,ro}:{id:string;label:string;value:T;options:WardrobeTabOption<T>[];onChange:(value:T)=>void;disabled?:boolean;locked?:boolean;panelId:string;ro:boolean}) {
@@ -21,10 +22,10 @@ export function WardrobeTabs<T extends string>({id,label,value,options,onChange,
   useEffect(()=>reveal(selected),[selected]);
   const move=(direction:number)=>{const node=rail.current;if(node)node.scrollBy({left:direction*(getComputedStyle(node).direction==='rtl'?-1:1)*node.clientWidth*.75,behavior:'instant'});};
   return <div className={s.tabBar}>
-    {overflow&&<button type="button" className={s.tabArrow} tabIndex={-1} disabled={edges.start} aria-label={ro?'Arată secțiunile anterioare':'Show previous sections'} onClick={()=>move(-1)}><ChevronLeft aria-hidden="true" size={18}/></button>}
+    {overflow&&<button type="button" className={s.tabArrow} tabIndex={-1} disabled={edges.start} aria-label={wardrobeText(ro).previousSections} onClick={()=>move(-1)}><ChevronLeft aria-hidden="true" size={18}/></button>}
     <div ref={rail} role="tablist" aria-label={label} className={s.tabRail}>
       {options.map((option,index)=><button key={option.value} ref={node=>{buttons.current[index]=node;}} type="button" role="tab" id={id+'-'+option.value} data-testid={id==='wardrobe-operations'?'wardrobe-task-'+option.value:id+'-'+option.value} aria-controls={panelId} aria-selected={option.value===value} disabled={unavailable[index]} tabIndex={index===(focusIndex<0?selected:focusIndex)?0:-1} className={s.tabButton} onFocus={()=>setFocused(option.value)} onClick={()=>{if(option.value!==value)onChange(option.value);}} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();if(!unavailable[index]&&option.value!==value)onChange(option.value);return;}const next=tabFocusIndex(event.key,index,unavailable,getComputedStyle(event.currentTarget).direction==='rtl');if(next<0)return;event.preventDefault();buttons.current[next]?.focus({preventScroll:true});reveal(next);}}>{option.label}</button>)}
     </div>
-    {overflow&&<button type="button" className={s.tabArrow} tabIndex={-1} disabled={edges.end} aria-label={ro?'Arată alte secțiuni':'Show more sections'} onClick={()=>move(1)}><ChevronRight aria-hidden="true" size={18}/></button>}
+    {overflow&&<button type="button" className={s.tabArrow} tabIndex={-1} disabled={edges.end} aria-label={wardrobeText(ro).moreSections} onClick={()=>move(1)}><ChevronRight aria-hidden="true" size={18}/></button>}
   </div>;
 }

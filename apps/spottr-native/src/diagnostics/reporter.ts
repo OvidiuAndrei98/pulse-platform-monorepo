@@ -4,7 +4,7 @@ import {
   screenName,
   type ErrorReport,
   type HandledFailure,
-} from "../../../pulse-app/src/features/diagnostics/report";
+} from "@packages/app-core/diagnostics/report";
 type Storage = {
   read(): Promise<string | null>;
   write(value: string): Promise<void>;

@@ -67,7 +67,11 @@ func TestOfflineSyncAfterExpiryIntegration(t *testing.T) {
 	hash := strings.Repeat(strings.ReplaceAll(id(`SELECT gen_random_uuid()::text`), "-", ""), 2)
 	exec(`INSERT INTO tickets(order_id,ticket_type_id,user_id,validation_hash) VALUES($1,$2,$3,$4)`, order, tier, owner, hash)
 	expires := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
-	snapshot := id(`INSERT INTO offline_validation_snapshots(event_id,created_by_user_id,ticket_count,created_at,expires_at) VALUES($1,$2,1,$3,$4) RETURNING id::text`, event, owner, expires.Add(-3*time.Hour), expires)
+	// Construct an issued v2 pack, then age the fixture to model a real delayed
+	// sync after the lifecycle worker has completed the event.
+	exec(`UPDATE events SET end_time=now()+interval '1 hour' WHERE id=$1`, event)
+	snapshot := id(`INSERT INTO offline_validation_snapshots(event_id,created_by_user_id,ticket_count,created_at,expires_at,format_version) VALUES($1,$2,1,$3,$4,2) RETURNING id::text`, event, owner, expires.Add(-3*time.Hour), expires)
+	exec(`UPDATE events SET end_time=now()-interval '2 hours',status='completed' WHERE id=$1`, event)
 	scanID := id(`SELECT gen_random_uuid()::text`)
 	scan := OfflineTicketScanPayload{ClientScanID: scanID, ValidationHash: hash, ScannedAt: expires.Add(-time.Hour).Format(time.RFC3339)}
 	handler := NewHandler(db.New(pool), pool, "https://example.invalid")
@@ -115,6 +119,7 @@ func TestOfflineSyncAfterExpiryIntegration(t *testing.T) {
 	}
 
 	t.Run("one winner across 100 concurrent online scans", func(t *testing.T) {
+		exec(`UPDATE events SET end_time=now()+interval '1 hour',status='published' WHERE id=$1`, event)
 		parallelConfig := cfg.Copy()
 		parallelConfig.MaxConns = 15
 		parallelPool, err := pgxpool.NewWithConfig(ctx, parallelConfig)

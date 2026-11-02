@@ -16,7 +16,7 @@ import { Feedback, Loading } from '../ui/common';
 import { SocialPhoto } from '../social/components';
 import { colors } from '../ui/theme';
 import type { RootParamList } from '../navigation/types';
-import { notificationText, formatNotificationTime } from '../../../pulse-app/src/components/notificationContent';
+import { notificationText, formatNotificationTime } from '@packages/app-core/notifications/content';
 import { notificationDestination, type Notification } from './data';
 import { useNotifications } from './useNotifications';
 import { PushPreference } from './PushProvider';
@@ -43,7 +43,8 @@ export function NotificationsPopover() {
     void query.markRead(item);
     setPosition(null);
     const target = notificationDestination(item);
-    if (item.type === 'ticket_purchased') openAccountPage(navigation, 'Tickets');
+    if(item.type==='outing_plan_invite'||item.type==='ticket_transfer')navigation.navigate('Outings',item.type==='ticket_transfer'?{tab:'transfers'}:undefined);
+    else if (item.type === 'ticket_purchased') openAccountPage(navigation, 'Tickets');
     else if (target?.kind === 'event') navigation.navigate('Event', { id: target.id, presentation: 'page' });
     else if (target?.kind === 'profile') navigation.navigate('PublicProfile', { id: target.id });
     else if (target) navigation.navigate('SafetyGroup', { eventId: target.id });

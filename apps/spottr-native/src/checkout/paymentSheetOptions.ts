@@ -1,5 +1,5 @@
 import type { PaymentSheet } from '@stripe/stripe-react-native';
-import type { InvoiceDetails } from '../../../pulse-app/src/features/checkout/invoiceDetails';
+import type { InvoiceDetails } from '@packages/app-core/checkout/invoiceDetails';
 import { STRIPE_RETURN_URL, type NativePaymentSession } from './nativePayment';
 
 export function paymentSheetOptions(session: NativePaymentSession, email: string, details: InvoiceDetails,

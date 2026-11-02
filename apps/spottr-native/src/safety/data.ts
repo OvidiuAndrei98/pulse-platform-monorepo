@@ -1,4 +1,4 @@
-import type { components } from '@packages/api-client/src/schema';
+import type { components } from '@packages/api-client/schema';
 import { ApiError, type createHttp } from '../data/http';
 import { httpUrl, isEventId } from '../data/events';
 
@@ -9,6 +9,7 @@ export type SafetyAction =
   | { kind: 'create'; friendIds: string[] }
   | { kind: 'invite'; friendIds: string[] }
   | { kind: 'respond'; status: 'accepted' | 'declined' }
+  | { kind: 'meeting-point'; content: string }
   | { kind: 'messages' | 'help' | 'help-resolved'; content: string };
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const date = (v: unknown): v is string => typeof v === 'string' && Number.isFinite(Date.parse(v));
@@ -38,6 +39,7 @@ export function parseSafetyEnvelope(value: unknown, eventId: string): SafetyEnve
     id: id(group.id), eventId: id(group.eventId), ownerId: id(group.ownerId), eventTitle: text(group.eventTitle), eventLocation: text(group.eventLocation),
     startTime: stamp(group.startTime), endTime: stamp(group.endTime), expiresAt: stamp(group.expiresAt),
     currentMemberStatus: group.currentMemberStatus as SafetyGroup['currentMemberStatus'],
+    meetingPoint: typeof group.meetingPoint==='string'?group.meetingPoint:undefined,
     canSendHelp: bool(group.canSendHelp), currentUserNeedsHelp: bool(group.currentUserNeedsHelp),
     members: unique(rows(group.members).map(value => {
       if (!object(value) || !['pending', 'accepted'].includes(String(value.status))) return invalid();
@@ -65,6 +67,7 @@ export function canSafetyAction(data: SafetyEnvelope | null, action: SafetyActio
   }
   if (action.kind === 'respond') return !!group && group.currentMemberStatus === 'pending';
   if (!group || group.currentMemberStatus !== 'accepted' || !action.content.trim() || Array.from(action.content.trim()).length > 500) return false;
+  if(action.kind==='meeting-point')return group.ownerId===viewer&&Array.from(action.content.trim()).length<=160;
   return action.kind === 'help' ? group.canSendHelp && !group.currentUserNeedsHelp : action.kind === 'help-resolved' ? group.currentUserNeedsHelp : true;
 }
 export function createSafetyApi(request: ReturnType<typeof createHttp>) {
@@ -74,7 +77,7 @@ export function createSafetyApi(request: ReturnType<typeof createHttp>) {
     async change(eventId: string, action: SafetyAction, token: string, signal: AbortSignal) {
       const body = action.kind === 'create' || action.kind === 'invite' ? { friendIds: action.friendIds }
         : action.kind === 'respond' ? { status: action.status } : { content: action.content.trim() };
-      await request(path(eventId) + (action.kind === 'create' ? '' : '/' + action.kind), { token, signal, method: 'POST', body });
+      await request(action.kind==='meeting-point'?'/outings/meeting-point/'+eventId:path(eventId) + (action.kind === 'create' ? '' : '/' + action.kind), { token, signal, method: 'POST', body });
     },
   };
 }

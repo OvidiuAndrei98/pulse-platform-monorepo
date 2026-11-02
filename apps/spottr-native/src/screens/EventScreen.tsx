@@ -36,7 +36,7 @@ import type { RootParamList } from "../navigation/types";
 import {
   calculateServiceFeeRon,
   formatRon,
-} from "../../../pulse-app/src/features/events/serviceFee";
+} from "@packages/app-core/events/serviceFee";
 import { AppSheetScrollView } from "../ui/AppSheetScrollView";
 import { AppSheet } from "../ui/AppSheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

@@ -22,6 +22,7 @@ import (
 	"pulse-api/internal/invoicing"
 	"pulse-api/internal/notifications"
 	"pulse-api/internal/organizer"
+	"pulse-api/internal/outings"
 	"pulse-api/internal/payments"
 	"pulse-api/internal/places"
 	"pulse-api/internal/promotions"
@@ -246,6 +247,7 @@ func (app *Application) BuildRouter() http.Handler {
 	cfg := router.HandlersConfig{
 		HealthCheck: app.Pool.Ping,
 		Wardrobe:    (&wardrobe.Handler{Pool: app.Pool}).Routes(),
+		Outings:     (&outings.Handler{Pool: app.Pool, Abuse: app.Abuse}).Routes(),
 
 		// Middleware-uri
 		AuthMiddleware:         authMiddleware,
@@ -491,6 +493,7 @@ func (app *Application) StartDiagnosticsCleanupWorker(ctx context.Context) {
 
 func (app *Application) StartWardrobeCleanupWorker(ctx context.Context) {
 	(&wardrobe.Handler{Pool: app.Pool}).StartCleanupWorker(ctx)
+	(&outings.Handler{Pool: app.Pool}).StartCleanupWorker(ctx)
 }
 
 func (app *Application) StartPushWorker(ctx context.Context) {

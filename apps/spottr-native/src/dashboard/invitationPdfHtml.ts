@@ -1,5 +1,5 @@
-import { renderTicketPdfHtml } from "../../../pulse-app/src/components/tickets/ticketPdfHtml";
-import type { PrintableTicket } from "../../../pulse-app/src/components/tickets/ticketDesign";
+import { renderTicketPdfHtml } from "@packages/app-core/tickets/ticketPdfHtml";
+import type { PrintableTicket } from "@packages/app-core/tickets/design";
 export function renderInvitationPdf(
   tickets: readonly PrintableTicket[],
   qrs: readonly string[],

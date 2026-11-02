@@ -7,7 +7,7 @@ import { BackLink } from "@/components/BackLink";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { RequestError } from "@/components/ui/RequestFeedback";
 import { useClientQuery } from "@/lib/useClientQuery";
-import { ApiError } from "@packages/api-client/src/Client";
+import { ApiError } from "@packages/api-client/client";
 import { notFound, useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -28,7 +28,7 @@ import { EventAttendees } from "@/components/social/EventAttendees";
 import { EventLineup } from "@/features/events/lineup/EventLineup";
 import { EventOrganizerProfile } from "@/components/EventOrganizerProfile";
 import { EventOrganizerUpdates } from "@/components/EventOrganizerUpdates";
-import { calculateServiceFeeRon, formatRon } from "@/features/events/serviceFee";
+import { calculateServiceFeeRon, formatRon } from "@packages/app-core/events/serviceFee";
 import { formatEventDate, formatEventTime } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
 import { shareEvent as shareNativeEvent } from "@/lib/native/share";

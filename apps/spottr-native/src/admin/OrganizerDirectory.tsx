@@ -11,7 +11,7 @@ import { colors } from '../ui/theme';
 import { Feedback,Loading } from '../ui/common';
 import { createAdminApi } from './data';
 import { OrganizerCommissionSettings } from './CommissionsPanel';
-import { isOrganizerId,organizerIssues } from '../../../pulse-app/src/features/admin/organizers';
+import { isOrganizerId,organizerIssues } from '@packages/app-core/admin/organizers';
 
 const card = {padding:20,borderRadius:16,borderWidth:1,borderColor:colors.line,gap:14} as const;
 const body = {fontSize:14,lineHeight:22,color:colors.muted};

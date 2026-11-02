@@ -1,7 +1,7 @@
 import { Geolocation } from "@capacitor/geolocation";
 import type { PermissionStatus } from "@capacitor/geolocation";
 import { isNativePlatform } from "@/lib/native/platform";
-import type { Coordinates } from "@/features/events/types";
+import type { Coordinates } from "@packages/app-core/events/types";
 
 type LocationOptions = {
   enableHighAccuracy?: boolean;

@@ -4,11 +4,11 @@ import { useEffect, useId, useState } from "react";
 import { Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TicketTier } from "@/core/DataProvider";
-import { formatRon } from "@/features/events/serviceFee";
+import { formatRon } from "@packages/app-core/events/serviceFee";
 
-import { getTicketAvailability, getRemainingTicketCapacity, isTicketSelectionAvailable } from "./ticketAvailability";
-export { getTicketAvailability, getRemainingTicketCapacity, isTicketSelectionAvailable } from "./ticketAvailability";
-export type { TicketAvailability } from "./ticketAvailability";
+import { getTicketAvailability, getRemainingTicketCapacity, isTicketSelectionAvailable } from "@packages/app-core/checkout/ticketAvailability";
+export { getTicketAvailability, getRemainingTicketCapacity, isTicketSelectionAvailable } from "@packages/app-core/checkout/ticketAvailability";
+export type { TicketAvailability } from "@packages/app-core/checkout/ticketAvailability";
 
 export function TicketTypeSelector({
   tickets,

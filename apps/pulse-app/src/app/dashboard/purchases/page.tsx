@@ -6,12 +6,12 @@ import { Calendar, MapPin, QrCode, Receipt, Ticket } from "lucide-react";
 import {
   ApiClient,
   type ReadableSchema,
-} from "@packages/api-client/src/Client";
+} from "@packages/api-client/client";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { TicketPreview } from "@/components/tickets/TicketPreview";
 import { formatEventDate } from "@/features/events/dateFormat";
-import { formatRon } from "@/features/events/serviceFee";
-import { isConfirmedPurchase, isVisibleTransaction, orderTotalBani, orderStatusKey } from "@/features/checkout/orderHistory";
+import { formatRon } from "@packages/app-core/events/serviceFee";
+import { isConfirmedPurchase, isVisibleTransaction, orderTotalBani, orderStatusKey } from "@packages/app-core/checkout/orderHistory";
 import { useTranslation } from "react-i18next";
 import { Skeleton } from "@/components/ui/loading";
 import { RequestError } from "@/components/ui/RequestFeedback";

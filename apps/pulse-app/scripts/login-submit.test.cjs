@@ -8,7 +8,7 @@ test('Next login submits DOM autofill values, guards duplicate Enter and permits
     '@/components/BackLink':{BackLink:'a'},'@/lib/native/navigation':{routeForPlatform:v=>v},
     'next/navigation':{useRouter:()=>({replace:()=>{}})},'@/core/DataProviderContext':{useDataProvider:()=>provider},
     '@/components/auth/GoogleSignInButton':{GoogleSignInButton:'Google'},'react-i18next':{useTranslation:()=>({t:key=>key})},
-    '@packages/api-client/src/Client':{ApiError:class extends Error{}},
+    '@packages/api-client/client':{ApiError:class extends Error{}},
     '@/components/ui/ActionButton':{ActionButton:'button'},'@/components/ui/Field':{Input:'input'},
   },{URLSearchParams,window:{location:{search:'?activation=success'}}}).load('app/login/page.tsx');
   let tree = h.render(Login);

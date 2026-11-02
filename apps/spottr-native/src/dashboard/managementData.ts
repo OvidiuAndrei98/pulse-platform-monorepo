@@ -1,5 +1,5 @@
-import type { components } from "@packages/api-client/src/schema";
-import type { PrintableTicket } from "../../../pulse-app/src/components/tickets/ticketDesign";
+import type { components } from "@packages/api-client/schema";
+import type { PrintableTicket } from "@packages/app-core/tickets/design";
 type S = components["schemas"];
 export function financeSummary(
   rows: readonly S["OrganizerFinanceEventResponse"][],

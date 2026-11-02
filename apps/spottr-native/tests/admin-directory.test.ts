@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseDirectoryPage,parseDirectoryDetail,organizerIssues,isOrganizerId } from '../../pulse-app/src/features/admin/organizers';
-import { adminSection,adminHref,adminSections } from '../../pulse-app/src/features/admin/navigation';
+import { parseDirectoryPage,parseDirectoryDetail,organizerIssues,isOrganizerId } from '@packages/app-core/admin/organizers';
+import { adminSection,adminHref,adminSections } from '@packages/app-core/admin/navigation';
 import { createAdminApi } from '../src/admin/data';
 import { createHttp } from '../src/data/http';
 

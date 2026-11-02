@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ApiClient } from '@packages/api-client/src/Client';
+import { ApiClient } from '@packages/api-client/client';
 import { useDataProvider } from '@/core/DataProviderContext';
-import { commissionFormula, commissionText, parseCommissionInputs, parseCommissionSettings, type CommissionSettings, type OrganizerCommission } from '@/features/admin/commissions';
-import type { DirectoryDetail } from '@/features/admin/organizers';
+import { commissionFormula, commissionText, parseCommissionInputs, parseCommissionSettings, type CommissionSettings, type OrganizerCommission } from '@packages/app-core/admin/commissions';
+import type { DirectoryDetail } from '@packages/app-core/admin/organizers';
 import {Input as UIInput} from '@/components/ui/Field';
 import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
 

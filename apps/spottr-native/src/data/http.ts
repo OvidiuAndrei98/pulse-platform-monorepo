@@ -1,5 +1,5 @@
 import { captureHandledFailure, requestOperation } from '../diagnostics/handled';
-import { httpDiagnostic, type DiagnosticContext } from '../../../pulse-app/src/features/diagnostics/context';
+import { httpDiagnostic, type DiagnosticContext } from '@packages/app-core/diagnostics/context';
 
 export class ApiError extends Error {
   constructor(

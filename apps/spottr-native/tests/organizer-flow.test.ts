@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { nativeOrganizerReturn, parseOrganizerReturn } from '../../pulse-app/src/features/checkout/organizerReturn';
+import { nativeOrganizerReturn, parseOrganizerReturn } from '@packages/app-core/checkout/organizerReturn';
 import { createOrganizerFlow, parseConnectStatus, parsePromotionStatus, parsePromotionReconciliation, validateOrganizerCallback, validateOrganizerURL, type OrganizerFlowState } from '../src/dashboard/organizerFlow';
 const id = '00000000-0000-4000-8000-000000000001';
 const expected = { flow: 'promotion' as const, campaignId: id };

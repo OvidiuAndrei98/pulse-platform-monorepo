@@ -1,10 +1,10 @@
 import { useIsFocused } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import type { components } from '@packages/api-client/src/schema';
+import type { components } from '@packages/api-client/schema';
 import { accountApi, useAuth } from '../auth/AuthProvider';
 import { ApiError } from './http';
 import { observeOperation } from '../diagnostics/handled';
-import { isVisibleTransaction } from '../../../pulse-app/src/features/checkout/orderHistory';
+import { isVisibleTransaction } from '@packages/app-core/checkout/orderHistory';
 
 export function useOrders() {
   const { user } = useAuth(), focused = useIsFocused();

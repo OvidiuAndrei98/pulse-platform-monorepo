@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { AppState, Platform } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { accountApi, useAuth } from "../auth/AuthProvider";
-import { operatorAccount } from '../../../pulse-app/src/features/wardrobe/flow';
+import { operatorAccount } from '@packages/app-core/wardrobe/flow';
 import {
   WardrobeStore,
   type Request,
-} from "../../../pulse-app/src/features/wardrobe/model";
+} from "@packages/app-core/wardrobe/model";
 export function useWardrobe(staff = false, interval = 5000) {
   const auth = useAuth(),
     focused = useIsFocused();

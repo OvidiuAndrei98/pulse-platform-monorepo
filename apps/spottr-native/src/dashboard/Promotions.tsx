@@ -12,7 +12,7 @@ import {
   Sparkles,
 } from "lucide-react-native";
 import { Grid, SmallButton, Status, CheckRow, p } from "./managementUi";
-import type { components } from "@packages/api-client/src/schema";
+import type { components } from "@packages/api-client/schema";
 import { usePreferences } from "../usePreferences";
 import { accountApi, useAuth } from "../auth/AuthProvider";
 import { Text } from "../ui/Text";
@@ -31,7 +31,7 @@ import {
   getPromotionBillingFieldErrors,
   isPromotionBucharestAddress,
   validatePromotionBillingDetails,
-} from "../../../pulse-app/src/features/promotions/promotionBilling";
+} from "@packages/app-core/promotions/promotionBilling";
 import { usePromotionBilling } from "./usePromotionBilling";
 import { dColors as colors } from "./common";
 export function Promotions({

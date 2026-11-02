@@ -1,8 +1,8 @@
 import {
   createTicketPdf,
   downloadPdf,
-} from "../../../pulse-app/src/components/tickets/ticketPdf";
-import type { PrintableTicket } from "../../../pulse-app/src/components/tickets/ticketDesign";
+} from "@packages/browser-core/tickets/ticketPdf";
+import type { PrintableTicket } from "@packages/app-core/tickets/design";
 export async function exportInvitationBatch(
   tickets: PrintableTicket[],
   _qrs: string[],

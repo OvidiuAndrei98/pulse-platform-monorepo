@@ -6,11 +6,11 @@ import { useClientQuery } from "@/lib/useClientQuery";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, ChevronLeft, ExternalLink, MapPin, Receipt } from "lucide-react";
-import { ApiClient, type ReadableSchema } from "@packages/api-client/src/Client";
+import { ApiClient, type ReadableSchema } from "@packages/api-client/client";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { formatEventDate } from "@/features/events/dateFormat";
-import { formatRon } from "@/features/events/serviceFee";
-import { isConfirmedPurchase, isVisibleTransaction, isInvoiceOrder, invoiceStatusKey, orderStatusKey, orderTotalBani } from "@/features/checkout/orderHistory";
+import { formatRon } from "@packages/app-core/events/serviceFee";
+import { isConfirmedPurchase, isVisibleTransaction, isInvoiceOrder, invoiceStatusKey, orderStatusKey, orderTotalBani } from "@packages/app-core/checkout/orderHistory";
 import { useTranslation } from "react-i18next";
 
 type UserOrder = ReadableSchema<"UserOrderResponse">;

@@ -6,7 +6,7 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
 import { PageLoadingState } from "@/components/ui/loading";
 import { hasPreparedOfflineValidationForUser } from "@/features/tickets/offlineValidationStore";
-import { ApiError } from "@packages/api-client/src/Client";
+import { ApiError } from "@packages/api-client/client";
 
 export function DashboardAccessGuard({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();

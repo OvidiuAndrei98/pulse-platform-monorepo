@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { calendarCells, productToday, selectCalendarDay, shiftCalendarDay } from '../discoveryFilters';
+import { calendarCells, productToday, selectCalendarDay, shiftCalendarDay } from '@packages/app-core/events/discoveryFilters';
 import s from './discoveryToolbar.module.css';
 
 export function DiscoveryCalendar({from='',to='',onChange}:{from?:string;to?:string;onChange:(from:string,to:string)=>void}) {

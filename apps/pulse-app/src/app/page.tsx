@@ -10,12 +10,12 @@ import { useDataProvider } from "@/core/DataProviderContext";
 import { User, Event, PublicEventsService, type PromotedEvent } from "@/core/DataProvider";
 import { HomeEventCarousel } from "@/features/events/home/HomeEventCarousel";
 import { PromotedEventsHeroCarousel } from "@/features/events/home/PromotedEventsHeroCarousel";
-import { Coordinates } from "@/features/events/types";
+import { Coordinates } from "@packages/app-core/events/types";
 import { getDistanceKm } from "@/features/events/utils";
 import {
   mixFeedPromotions,
   promotionCampaignsByEvent,
-} from "@/features/events/promotions";
+} from "@packages/app-core/events/promotions";
 import { useTranslation } from "react-i18next";
 import { requestCurrentLocation } from "@/lib/native/location";
 import { NotificationsPopover } from "@/components/NotificationsPopover";

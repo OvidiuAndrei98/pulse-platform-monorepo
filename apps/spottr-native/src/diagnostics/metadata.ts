@@ -1,4 +1,4 @@
-import { safeVersion } from '../../../pulse-app/src/features/diagnostics/report';
+import { safeVersion } from '@packages/app-core/diagnostics/report';
 
 export function diagnosticVersions(native: { nativeApplicationVersion: unknown; nativeBuildVersion: unknown },
   config: { version?: unknown; ios?: { buildNumber?: unknown }; android?: { versionCode?: unknown } } | null | undefined,

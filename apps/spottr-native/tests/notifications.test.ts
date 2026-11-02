@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseNotifications, markNotificationRead, notificationDestination } from '../src/notifications/data';
-import { notificationText, formatNotificationTime } from '../../pulse-app/src/components/notificationContent';
+import { notificationText, formatNotificationTime } from '@packages/app-core/notifications/content';
 import { productCopy } from '../src/copy';
 import { formatDate } from '../src/data/events';
 

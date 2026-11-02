@@ -5,7 +5,7 @@ import { UsersRound } from "lucide-react";
 import {
   ApiClient,
   type ReadableSchema,
-} from "@packages/api-client/src/Client";
+} from "@packages/api-client/client";
 
 type EventSocial = ReadableSchema<"EventSocialResponse">;
 

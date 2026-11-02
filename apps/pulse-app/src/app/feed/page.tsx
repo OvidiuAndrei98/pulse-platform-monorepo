@@ -8,7 +8,7 @@ import { useFeedbackAction } from "@/lib/useFeedbackAction";
 
 import { FriendsSheet } from "@/components/social/FriendsSheet";
 import { FeedActivityCard } from "@/components/social/FeedActivityCard";
-import { groupFeedItems } from "@/components/social/groupFeedItems";
+import { groupFeedItems } from "@packages/app-core/social/groupFeedItems";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { UserRoundPlus, UsersRound } from "lucide-react";

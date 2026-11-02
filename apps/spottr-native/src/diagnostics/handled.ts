@@ -1,4 +1,4 @@
-import { operations, type HandledFailure } from '../../../pulse-app/src/features/diagnostics/report';
+import { operations, type HandledFailure } from '@packages/app-core/diagnostics/report';
 
 type Operation = HandledFailure['operation'];
 type Sink = (error: unknown, detail: HandledFailure) => void;

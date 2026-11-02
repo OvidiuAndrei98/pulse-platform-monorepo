@@ -6,7 +6,7 @@ import { WebView } from 'react-native-webview';
 import { usePreferences } from '../usePreferences';
 import { Feedback } from '../ui/common';
 import { isLive } from '../data/events';
-import { validCoordinate, type Coordinate } from './geometry';
+import { validCoordinate, type Coordinate } from '@packages/app-core/maps/geometry';
 import { isMapCredit, isMapDocument, parseMapMessage, type WebMapState } from './webview/bridge';
 import type { EventMapProps } from './types';
 

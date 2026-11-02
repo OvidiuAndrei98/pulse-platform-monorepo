@@ -2,7 +2,7 @@ import { AccentPressable } from '../ui/AccentPressable';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, View, type ViewInstance } from 'react-native';
 import { CalendarDays, ChevronRight, MapPin, RefreshCw, Ticket } from 'lucide-react-native';
-import { sortValidationEvents } from '@packages/api-client/src/validationEventSelection';
+import { sortValidationEvents } from '@packages/api-client/validation-event-selection';
 import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { Loading } from '../ui/common';

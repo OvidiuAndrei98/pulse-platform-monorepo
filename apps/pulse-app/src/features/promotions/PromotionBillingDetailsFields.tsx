@@ -3,9 +3,9 @@
 import { useTranslation } from "react-i18next";
 import { ThemedSelect } from "@/features/events/form/ThemedSelect";
 
-import { isPromotionBucharestAddress, type PromotionBillingDetails, type PromotionBillingFieldErrors } from './promotionBilling';
+import { isPromotionBucharestAddress, type PromotionBillingDetails, type PromotionBillingFieldErrors } from '@packages/app-core/promotions/promotionBilling';
 import {Input as UIInput} from '@/components/ui/Field';
-export { emptyPromotionBillingDetails, getPromotionBillingFieldErrors, validatePromotionBillingDetails, type PromotionBillingDetails, type PromotionBillingFieldErrors } from './promotionBilling';
+export { emptyPromotionBillingDetails, getPromotionBillingFieldErrors, validatePromotionBillingDetails, type PromotionBillingDetails, type PromotionBillingFieldErrors } from '@packages/app-core/promotions/promotionBilling';
 
 export function PromotionBillingDetailsFields({
   value,

@@ -4,6 +4,8 @@ export function routeForPlatform(path: string) {
   if (!isNativePlatform()) return path;
 
   const url = new URL(path, window.location.origin);
+  const eventNightMatch=url.pathname.match(/^\/events\/([^/]+)\/night$/);
+  if(eventNightMatch)return `/events/mobile/night?eventId=${encodeURIComponent(eventNightMatch[1])}`;
   const eventGroupMatch = url.pathname.match(/^\/events\/([^/]+)\/group$/);
   if (eventGroupMatch) return `/events/mobile/group?groupEventId=${encodeURIComponent(eventGroupMatch[1])}${url.search ? `&${url.search.slice(1)}` : ""}`;
 

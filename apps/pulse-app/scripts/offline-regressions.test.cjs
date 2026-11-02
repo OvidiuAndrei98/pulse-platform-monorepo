@@ -113,7 +113,7 @@ test('dashboard allows prepared staff offline and refuses missing packages or ex
       'next/navigation': { usePathname: () => '/dashboard/ticket-validation', useRouter: () => router },
       '@/core/DataProviderContext': { useDataProvider: () => ({ user, loading: false, isOrganizer: false }) },
       'react-i18next': { useTranslation: () => ({ t: key => key }) }, '@/components/ui/loading': { PageLoadingState: 'loading' },
-      '@packages/api-client/src/Client': { ApiError }, '@/features/tickets/offlineValidationStore': { hasPreparedOfflineValidationForUser: async id => id === 'staff' && prepared },
+      '@packages/api-client/client': { ApiError }, '@/features/tickets/offlineValidationStore': { hasPreparedOfflineValidationForUser: async id => id === 'staff' && prepared },
     }).load('app/dashboard/components/DashboardAccessGuard');
     h.render(() => DashboardAccessGuard({ children: 'scanner' })); await settle();
     assert.equal(h.render().props.children === 'scanner', expectedAccess);

@@ -1,0 +1,28 @@
+{
+  "name": "@packages/browser-core",
+  "version": "1.0.0",
+  "private": true,
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    "./maps/vectorMap": "./src/maps/vectorMap.ts",
+    "./maps/style.css": "./src/maps/vectorMap.css",
+    "./tickets/ticketPdf": "./src/tickets/ticketPdf.ts",
+    "./auth/credentialFill": "./src/auth/credentialFill.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@packages/app-core": "workspace:*",
+    "html2canvas": "1.4.1",
+    "jspdf": "^4.2.1",
+    "qrcode": "^1.5.4",
+    "maplibre-gl": "6.16.0"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6",
+    "typescript": "^5.9.3"
+  }
+}

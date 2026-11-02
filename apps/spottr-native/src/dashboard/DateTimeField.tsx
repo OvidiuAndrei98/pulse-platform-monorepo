@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { colors } from "../ui/theme";
-import { formatToDatetimeLocal } from "../../../pulse-app/src/features/events/form/dateTimeValues";
+import { formatToDatetimeLocal } from "@packages/app-core/events/dateTimeValues";
 import { dColors } from "./common";
 import { e } from "./EditorControls";
 

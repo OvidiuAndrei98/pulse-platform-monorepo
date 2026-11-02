@@ -13,7 +13,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { AlertCircle, ArrowRight, Clock3, Mail, RotateCcw, Ticket, WifiOff } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { validCheckoutSession } from '../../../pulse-app/src/features/checkout/nativeReturn';
+import { validCheckoutSession } from '@packages/app-core/checkout/nativeReturn';
 import { accountApi, useAuth } from '../auth/AuthProvider';
 import { queryClient } from '../data/queries';
 import { isEventId } from '../data/events';

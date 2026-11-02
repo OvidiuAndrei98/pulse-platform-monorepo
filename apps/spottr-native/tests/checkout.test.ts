@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { normalizeEvent } from '../src/data/events';
 import { parseEventSocial } from '../src/data/api';
 import { checkoutTotals, parseBilling, parseBooking, parseCheckout, parsePromo, validPaidSelection, validSelection } from '../src/checkout/data';
-import { checkoutRequestKey } from '../../pulse-app/src/features/checkout/requestKey';
-import { emptyInvoiceDetails, getInvoiceFieldErrors, invoiceFieldLimits, validateInvoiceDetails } from '../../pulse-app/src/features/checkout/invoiceDetails';
-import { nativeCheckoutReturn } from '../../pulse-app/src/features/checkout/nativeReturn';
-import { checkPaymentConfirmation } from '../../pulse-app/src/features/checkout/confirmation';
+import { checkoutRequestKey } from '@packages/app-core/checkout/requestKey';
+import { emptyInvoiceDetails, getInvoiceFieldErrors, invoiceFieldLimits, validateInvoiceDetails } from '@packages/app-core/checkout/invoiceDetails';
+import { nativeCheckoutReturn } from '@packages/app-core/checkout/nativeReturn';
+import { checkPaymentConfirmation } from '@packages/app-core/checkout/confirmation';
 
 const id = (n = 1) => `12345678-abcd-abcd-abcd-${String(n).padStart(12, '0')}`;
 const now = Date.parse('2026-10-08T12:00:00Z');

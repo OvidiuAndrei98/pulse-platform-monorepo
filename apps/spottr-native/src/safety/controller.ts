@@ -64,7 +64,7 @@ export class SafetyController {
       await this.load(true);
       return current();
     } catch (cause) {
-      if (current()) this.update({ actionError: failure(cause, ({ create: 'safetyGroup.createFailed', invite: 'safetyGroup.inviteFailed', respond: 'safetyGroup.responseFailed', help: 'safetyGroup.helpFailed', messages: 'safetyGroup.sendFailed', 'help-resolved': 'safetyGroup.sendFailed' })[action.kind]) });
+      if (current()) this.update({ actionError: failure(cause, ({ create: 'safetyGroup.createFailed', invite: 'safetyGroup.inviteFailed', respond: 'safetyGroup.responseFailed', help: 'safetyGroup.helpFailed', messages: 'safetyGroup.sendFailed', 'help-resolved': 'safetyGroup.sendFailed', 'meeting-point':'outings.failed' })[action.kind]) });
       return false;
     } finally { if (current()) { this.write = null; this.update({ working: false }); } }
   }

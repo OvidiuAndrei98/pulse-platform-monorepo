@@ -3,7 +3,7 @@ import { Platform, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import { useAuth } from "../auth/AuthProvider";
 import { usePreferences } from "../usePreferences";
-import type { PrintableTicket } from "../../../pulse-app/src/components/tickets/ticketDesign";
+import type { PrintableTicket } from "@packages/app-core/tickets/design";
 import { exportInvitationBatch } from "./invitationPdf";
 export function useInvitationExport() {
   const { controller } = useAuth(),

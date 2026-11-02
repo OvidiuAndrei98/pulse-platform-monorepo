@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   WalletCards,
 } from "lucide-react-native";
-import { resources } from "../../../pulse-app/src/i18n/resources";
+import { resources } from "@packages/app-core/i18n/resources";
 import { accountApi } from "../auth/AuthProvider";
 import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";

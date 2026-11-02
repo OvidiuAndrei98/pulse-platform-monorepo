@@ -5,6 +5,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 const ts = require("typescript");
 const root = path.join(__dirname, "../src");
+const requireWorkspace = name => require.resolve(name, {paths:[root]});
 
 function browser(initial = "/", moduleMocks = {}) {
   class Events {
@@ -79,7 +80,7 @@ function browser(initial = "/", moduleMocks = {}) {
     const exports = {}; modules.set(file, exports);
     const require = (name) => {
       if (mocks[name]) return mocks[name];
-      const resolved = name.startsWith("@/") ? path.join(root, name.slice(2)) : path.resolve(path.dirname(file), name);
+      const resolved = name.startsWith('@packages/') ? requireWorkspace(name) : name.startsWith("@/") ? path.join(root, name.slice(2)) : path.resolve(path.dirname(file), name);
       return load([resolved, resolved + ".ts", resolved + ".tsx"].find((candidate) => fs.existsSync(candidate)));
     };
     vm.runInContext("(function(require,exports){" + output + "\n})", context)(require, exports);

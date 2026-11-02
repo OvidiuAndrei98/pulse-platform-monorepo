@@ -1,4 +1,5 @@
 import i18n from "@/i18n";
+import { formatEventTime as coreEventTime } from '@packages/app-core/events/dateFormat';
 
 type DateValue = Date | string | null | undefined;
 
@@ -25,8 +26,7 @@ export function formatEventDateShort(value: DateValue) {
 }
 
 export function formatEventTime(value: DateValue) {
-  const date = toValidDate(value);
-  return date ? new Intl.DateTimeFormat(locale(), { hour: "2-digit", minute: "2-digit", hour12: false }).format(date) : "--:--";
+  return coreEventTime(value, i18n.language);
 }
 
 export function formatEventDateTime(value: DateValue) {

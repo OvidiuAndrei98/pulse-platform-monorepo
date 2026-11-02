@@ -1,4 +1,4 @@
-import { ApiClient } from "@packages/api-client/src/Client";
+import { ApiClient } from "@packages/api-client/client";
 
 export function bookFreeTicket(eventId: string, ticketTypeId: string) {
   return ApiClient.instance.post("/events/{id}/tickets/book", {

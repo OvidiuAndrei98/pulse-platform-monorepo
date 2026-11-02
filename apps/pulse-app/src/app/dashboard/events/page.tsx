@@ -30,7 +30,7 @@ import {
   filterDashboardEvents,
   parseDashboardEventFilter,
   type DashboardEventFilter,
-} from "@/features/events/dashboardEvents";
+} from "@packages/app-core/events/dashboardEvents";
 import { useDashboardClock } from "@/features/events/useDashboardClock";
 import {Input as UIInput} from '@/components/ui/Field';
 import {ActionLink as UIActionLink} from '@/components/ui/ActionButton';

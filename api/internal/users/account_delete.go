@@ -129,6 +129,12 @@ func (h *Handler) HandleDeleteMe(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusInternalServerError, "Biletele contului nu au putut fi sterse")
 		return
 	}
+	// Invitations addressed to this verified email may not yet have a bound
+	// recipient_id, so their email data is not covered by user foreign keys.
+	if _, err = tx.Exec(r.Context(), `DELETE FROM ticket_transfers WHERE recipient_email=(SELECT lower(email) FROM users WHERE id=$1)`, userUUID); err != nil {
+		router.RespondWithError(w, 500, "Invitatiile contului nu au putut fi sterse")
+		return
+	}
 	deleted, err := tx.Exec(r.Context(), `DELETE FROM users WHERE id = $1 AND role = 'user'`, userUUID)
 	if err != nil {
 		router.RespondWithError(w, http.StatusConflict, "Contul nu poate fi sters automat. Contacteaza suportul SPOTTR")

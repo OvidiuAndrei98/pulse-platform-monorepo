@@ -3,7 +3,7 @@
 import { ImagePlus, LoaderCircle, Trash2 } from "lucide-react";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ApiClient } from "@packages/api-client/src/Client";
+import { ApiClient } from "@packages/api-client/client";
 
 const maxImageBytes = 5 * 1024 * 1024;
 const acceptedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);

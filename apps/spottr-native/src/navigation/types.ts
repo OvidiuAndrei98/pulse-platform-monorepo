@@ -26,6 +26,8 @@ export type RootParamList = {
   PublicProfile: { id: string };
   Legal: { document: 'terms' | 'privacy' };
   SafetyGroup: { eventId: string };
+  Outings: { planId?:string; ticketId?:string; plan?:string; ticket?:string; tab?:'plans'|'transfers' } | undefined;
+  EventNight: { eventId:string };
   Dashboard: { section?: string; eventId?: string; filter?: string; organizerReturn?: 'connect' | 'promotion'; campaignId?: string; returnStatus?: 'complete' | 'refresh' | 'cancelled' } | undefined;
   Scanner: { eventId?: string } | undefined;
   ScannerHistory: { eventId: string; eventTitle?: string };
@@ -43,6 +45,8 @@ export type RootParamList = {
         returnEvent?: string;
         returnProfile?: string;
         returnSafetyGroup?: string;
+        returnOutings?: boolean;
+        returnEventNight?: string;
         returnDashboard?: boolean;
         returnDashboardParams?: RootParamList['Dashboard'];
         returnScanner?: boolean;

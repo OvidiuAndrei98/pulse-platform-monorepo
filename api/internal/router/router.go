@@ -17,6 +17,7 @@ import (
 // HandlersConfig colectează toate funcțiile HTTP și middleware-urile necesare.
 type HandlersConfig struct {
 	Wardrobe http.Handler
+	Outings  http.Handler
 	// HealthCheck verifies critical dependencies before the load balancer accepts the task.
 	HealthCheck func(context.Context) error
 
@@ -359,6 +360,9 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			// --- INTERACȚIUNI EVENIMENTE (orice utilizator autentificat) ---
 			if cfg.Wardrobe != nil {
 				r.With(identityLimit("wardrobe", 300, time.Minute)).Mount("/wardrobe", cfg.Wardrobe)
+			}
+			if cfg.Outings != nil {
+				r.With(identityLimit("outings", 180, time.Minute)).Mount("/outings", cfg.Outings)
 			}
 			r.Post("/events/{id}/check-in", cfg.CreateCheckIn)
 			r.With(rateLimit("free_ticket_booking_ip", 3000, 10*time.Minute), identityLimit("free_ticket_booking_user", 20, 10*time.Minute)).Post("/events/{id}/tickets/book", cfg.BookFreeTicket)

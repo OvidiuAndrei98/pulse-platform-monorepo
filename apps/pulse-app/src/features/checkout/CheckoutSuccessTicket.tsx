@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { CalendarDays, MapPin, Ticket } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { ApiClient, type OperationResponse } from "@packages/api-client/src/Client";
+import { ApiClient, type OperationResponse } from "@packages/api-client/client";
 import styles from "./checkoutResult.module.css";
 
 type EventSummary = Pick<OperationResponse<"/events/{id}", "get">, "title" | "startTime" | "locationName" | "city">;

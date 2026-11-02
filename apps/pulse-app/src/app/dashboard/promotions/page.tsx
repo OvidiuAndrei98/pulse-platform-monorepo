@@ -35,7 +35,7 @@ import {
   type PromotionBillingDetails,
   validatePromotionBillingDetails,
 } from "@/features/promotions/PromotionBillingDetailsFields";
-import { normalizedCUI, promotionBillingFromSaved, savedCompanyBilling } from "@/features/promotions/promotionBilling";
+import { normalizedCUI, promotionBillingFromSaved, savedCompanyBilling } from "@packages/app-core/promotions/promotionBilling";
 import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
 
 const toDateKey = (date: Date) =>

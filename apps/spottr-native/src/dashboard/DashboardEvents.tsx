@@ -31,9 +31,9 @@ import {
   dashboardEventFilters,
   filterDashboardEvents,
   type DashboardEventFilter,
-} from "../../../pulse-app/src/features/events/dashboardEvents";
+} from "@packages/app-core/events/dashboardEvents";
 import { useEventClock } from "../data/useEventClock";
-import { selectDashboardEvent } from "../../../pulse-app/src/features/events/dashboardFeatured";
+import { selectDashboardEvent } from "@packages/app-core/events/dashboardFeatured";
 
 export function DashboardEvents({
   events,

@@ -1,8 +1,8 @@
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { File } from "expo-file-system";
-import { renderTicketPdfHtml } from "../../../pulse-app/src/components/tickets/ticketPdfHtml";
-import type { PrintableTicket } from "../../../pulse-app/src/components/tickets/ticketDesign";
+import { renderTicketPdfHtml } from "@packages/app-core/tickets/ticketPdfHtml";
+import type { PrintableTicket } from "@packages/app-core/tickets/design";
 export async function exportTicket(
   ticket: PrintableTicket,
   qr: string,

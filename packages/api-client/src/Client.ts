@@ -12,9 +12,8 @@ type Simplify<T> = T extends object ? { [K in keyof T]: T[K] } : T;
 /**
  * Extrage tipul de Response (Readable) direct din components['schemas'].
  */
-export type ReadableSchema<Name extends keyof components["schemas"]> = Simplify<
-  components["schemas"][Name]
->;
+export type { ReadableSchema } from './schemaTypes';
+import type { ReadableSchema } from './schemaTypes';
 
 /**
  * Extrage tipul de Request (Writable) eliminând câmpurile standard de tip ID sau Timestamps generate de server.

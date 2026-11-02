@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clusterEvents, clusterZoom, radialPositions, project, unproject, validCoordinate, zoomForDistance } from '../src/map/geometry';
+import { clusterEvents, clusterZoom, radialPositions, project, unproject, validCoordinate, zoomForDistance } from '@packages/app-core/maps/geometry';
 import { normalizeEvent } from '../src/data/events';
 import { googleLoginUrl, readGoogleToken, GOOGLE_RETURN } from '../src/auth/google';
 import { nativePath } from '../src/navigation/links';

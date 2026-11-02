@@ -6,16 +6,8 @@ const vm = require("node:vm");
 const ts = require("typescript");
 const { modules } = require("./helpers/qaHarness.cjs");
 
-function load(file, globals = {}) {
-  const source = fs.readFileSync(path.join(__dirname, "../src/", file), "utf8");
-  const compiled = ts.transpileModule(source, { compilerOptions: {
-    module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX,
-  } }).outputText;
-  const exports = {};
-  vm.runInNewContext(compiled, { exports, require: () => ({}), setTimeout, clearTimeout, ...globals });
-  return exports;
-}
-const { checkPaymentConfirmation } = load("features/checkout/confirmation.ts");
+function load(file, globals = {}) { return modules({},globals).load(file); }
+const { checkPaymentConfirmation } = load("@packages/app-core/checkout/confirmation");
 const noWait = async () => {};
 
 test("unconfirmed payment stops polling and remains pending", async () => {
@@ -52,11 +44,11 @@ test("leaving confirmation ignores late results and stops further requests", asy
   assert.equal(calls, 1);
 });
 test("requests which never resolve are bounded by a timeout", async () => {
-  const api = load("features/checkout/confirmation.ts", { setTimeout: (callback) => setTimeout(callback, 1) });
+  const api = load("@packages/app-core/checkout/confirmation", { setTimeout: (callback) => setTimeout(callback, 1) });
   assert.equal(await api.checkPaymentConfirmation(() => new Promise(() => {}), () => true, noWait), "unavailable");
 });
 test("billing errors identify missing fields, including company and Bucharest requirements", () => {
-  const { emptyInvoiceDetails, getInvoiceFieldErrors, validateInvoiceDetails } = load("features/checkout/invoiceDetails.ts");
+  const { emptyInvoiceDetails, getInvoiceFieldErrors, validateInvoiceDetails } = load("@packages/app-core/checkout/invoiceDetails");
   const details = emptyInvoiceDetails();
   assert.deepEqual(Object.keys(getInvoiceFieldErrors(details)), ["name", "address", "city", "county"]);
   Object.assign(details, { type: "company", name: "Test", address: "Street 1", city: "București" });
@@ -68,8 +60,8 @@ test("billing errors identify missing fields, including company and Bucharest re
 });
 
 test("the billing component keeps the original helper exports after extraction", () => {
-  const loader = modules({ "react-i18next": {}, "@/features/events/form/ThemedSelect": {} });
-  const helpers = loader.load("features/checkout/invoiceDetails");
+  const loader = modules({ "react-i18next": {}, "@/features/events/form/ThemedSelect": {}, '@/components/ui/Field': {Input:'input'} });
+  const helpers = loader.load("@packages/app-core/checkout/invoiceDetails");
   const component = loader.load("features/checkout/InvoiceDetailsFields");
   for (const key of ["emptyInvoiceDetails", "getInvoiceFieldErrors", "isBucharestAddress", "validateInvoiceDetails"]) {
     assert.equal(component[key], helpers[key], key);
@@ -77,7 +69,7 @@ test("the billing component keeps the original helper exports after extraction",
 });
 
 test("billing validates stored fields against both API byte limits and canonical sectors", () => {
-  const { emptyInvoiceDetails, getInvoiceFieldErrors } = load("features/checkout/invoiceDetails.ts");
+  const { emptyInvoiceDetails, getInvoiceFieldErrors } = load("@packages/app-core/checkout/invoiceDetails");
   const valid = { ...emptyInvoiceDetails("Buyer"), address: "Street", city: "Cluj", county: "Cluj" };
   assert.equal(getInvoiceFieldErrors({ ...valid, name: "ă".repeat(100) }).name, undefined);
   assert.equal(getInvoiceFieldErrors({ ...valid, name: "ă".repeat(101) }).name, "feedback.fieldTooLong");
@@ -87,7 +79,7 @@ test("billing validates stored fields against both API byte limits and canonical
   assert.equal(getInvoiceFieldErrors({ ...valid, city: "Bucuresti", sector: "Sector 6" }).sector, undefined);
 });
 test("email validation works without a mounted billing input", () => {
-  const { checkoutEmailError } = load("features/checkout/validateEmail.ts");
+  const { checkoutEmailError } = load("@packages/app-core/checkout/validateEmail");
   assert.equal(checkoutEmailError("  test+ticket@example.com  "), null);
   assert.equal(checkoutEmailError(" "), "eventSheet.emailRequired");
   for (const email of ["name", "a@@example.com", "a b@example.com", "a@-bad.com"]) {

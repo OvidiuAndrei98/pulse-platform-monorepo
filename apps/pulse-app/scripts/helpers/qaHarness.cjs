@@ -3,6 +3,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
 const root = path.resolve(__dirname, '../../src');
+const resolveWorkspace = name => require.resolve(name, { paths: [root] });
 
 function hooks() {
   const slots = [];
@@ -45,17 +46,34 @@ function hooks() {
 
 function modules(mocks = {}, globals = {}) {
   const cache = new Map();
+  let canonicalMocks;
+  const resolveLocal = value => [value,value+'.ts',value+'.tsx',value+'.json'].find(candidate=>fs.existsSync(candidate)&&fs.statSync(candidate).isFile());
   const context = vm.createContext({ console, Date, Error, TypeError, URL, Map, Set, Promise, Event, setTimeout, clearTimeout, ...globals });
   function load(file) {
+    const requested=file;
+    if (file.startsWith('@packages/')) file = resolveWorkspace(file);
     file = path.resolve(root, file);
     file = [file, file + '.ts', file + '.tsx'].find(candidate => fs.existsSync(candidate));
-    if (!file) throw new Error('Missing test module');
+    if (!file) throw new Error('Missing test module: '+requested);
+    if(!canonicalMocks){
+      canonicalMocks=new Map();
+      for(const [name,value] of Object.entries(mocks))if(name.startsWith('.')||name.startsWith('@/')){
+        const target=resolveLocal(name.startsWith('@/')?path.resolve(root,name.slice(2)):path.resolve(path.dirname(file),name));
+        if(target)canonicalMocks.set(target,value);
+      }
+    }
     if (cache.has(file)) return cache.get(file);
     const exports = {}; cache.set(file, exports);
+    if(file.endsWith('.json')){const value=JSON.parse(fs.readFileSync(file,'utf8'));const json={...value,default:value,__esModule:true};cache.set(file,json);return json;}
     const require = name => {
       if (name in mocks) return mocks[name];
+      if(name.startsWith('.')||name.startsWith('@/')){
+        const target=resolveLocal(name.startsWith('@/')?path.resolve(root,name.slice(2)):path.resolve(path.dirname(file),name));
+        if(canonicalMocks.has(target))return canonicalMocks.get(target);
+      }
       if (name === 'react/jsx-runtime') return { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) };
       if (name === 'lucide-react') return new Proxy({}, { get: (_, key) => key });
+      if(name.startsWith('@packages/'))return load(name);
       return load(name.startsWith('@/') ? name.slice(2) : path.resolve(path.dirname(file), name));
     };
     const output = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: {

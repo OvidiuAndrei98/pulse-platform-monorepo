@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
-import { calendarCells, productToday, selectCalendarDay, shiftCalendarDay } from '../../../pulse-app/src/features/events/discoveryFilters';
+import { calendarCells, productToday, selectCalendarDay, shiftCalendarDay } from '@packages/app-core/events/discoveryFilters';
 
 export function DiscoveryCalendar({from='',to='',onChange}:{from?:string;to?:string;onChange:(from:string,to:string)=>void}) {
   const {copy,language}=usePreferences(),locale=language==='ro'?'ro-RO':'en-GB';

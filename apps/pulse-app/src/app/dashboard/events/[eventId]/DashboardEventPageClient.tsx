@@ -10,7 +10,7 @@ import { useState, useEffect, useMemo, type ComponentProps } from "react";
 import { useParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { ApiError } from "@packages/api-client/src/Client";
+import { ApiError } from "@packages/api-client/client";
 import { OrganizerUpdatesManager } from "../../components/OrganizerUpdatesManager";
 import { InvitationManager } from "../../components/InvitationManager";
 import { PromoCodeManager } from "../../components/PromoCodeManager";

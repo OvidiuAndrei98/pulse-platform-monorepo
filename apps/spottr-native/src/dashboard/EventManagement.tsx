@@ -18,7 +18,7 @@ import {
   X,
   XCircle,
 } from "lucide-react-native";
-import type { components } from "@packages/api-client/src/schema";
+import type { components } from "@packages/api-client/schema";
 import { accountApi, useAuth } from "../auth/AuthProvider";
 import { usePreferences } from "../usePreferences";
 import { AppSheet } from "../ui/AppSheet";

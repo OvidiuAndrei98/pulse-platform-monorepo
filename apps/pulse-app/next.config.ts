@@ -5,6 +5,7 @@ const isStagingBranch = process.env.VERCEL_GIT_COMMIT_REF === "staging";
 const stagingApiUrl = "https://api-staging.spottr.ro/api/v1";
 
 const nextConfig: NextConfig = {
+  transpilePackages: ['@packages/app-core', '@packages/browser-core'],
   output: isMobileBuild ? "export" : undefined,
   // The iOS association file has no extension; serve its actual JSON type.
   ...(isMobileBuild ? {} : { async headers() { return [{ source: '/.well-known/apple-app-site-association', headers: [{ key: 'Content-Type', value: 'application/json' }] }]; } }),

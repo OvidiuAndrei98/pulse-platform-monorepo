@@ -5,7 +5,7 @@ import fs from 'node:fs';
 const source=fs.readFileSync(new URL('../../pulse-app/public/offline-scanner-sw.js',import.meta.url),'utf8');
 test('offline preparation and worker agree on the cache version',()=>{
   const name=/const CACHE_NAME = "([^"]+)"/.exec(source)![1];
-  const page=fs.readFileSync(new URL('../../pulse-app/src/app/dashboard/ticket-validation/page.tsx',import.meta.url),'utf8');
+  const page=fs.readFileSync(new URL('../../pulse-app/src/features/scanner/useTicketValidation.ts',import.meta.url),'utf8');
   assert.ok(page.includes('caches.open("'+name+'")'),'Preparation must await writes to the cache the active worker actually reads');
 });
 function worker(failRead:boolean,failWrite:boolean){

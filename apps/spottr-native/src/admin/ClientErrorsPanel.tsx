@@ -6,9 +6,9 @@ import { useAuth, accountApi } from "../auth/AuthProvider";
 import { usePreferences } from "../usePreferences";
 import { Text } from "../ui/Text";
 import { Button, Feedback, Loading } from "../ui/common";
-import { parseErrorPage } from "../../../pulse-app/src/features/diagnostics/report";
+import { parseErrorPage } from "@packages/app-core/diagnostics/report";
 import { exportClientErrors } from "./exportClientErrors";
-import { diagnosticTitle, diagnosticFailure, groupDiagnosticReports } from '../../../pulse-app/src/features/diagnostics/presentation';
+import { diagnosticTitle, diagnosticFailure, groupDiagnosticReports } from '@packages/app-core/diagnostics/presentation';
 import { diagnosticsEnabled } from '../diagnostics/runtime';
 
 export function ClientErrorsPanel({ initiallyOpen = false }: { initiallyOpen?: boolean }) {

@@ -4,6 +4,13 @@
   "private": true,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./src/Client.ts",
+    "./client": "./src/Client.ts",
+    "./validation-event-selection": "./src/validationEventSelection.ts",
+    "./schema": { "types": "./src/schema.d.ts" },
+    "./schema-types": "./src/schemaTypes.ts"
+  },
   "scripts": {
     "build": "openapi-typescript ./src/openapi.json -o ./src/schema.d.ts"
   },

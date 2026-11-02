@@ -37,13 +37,13 @@ import { colors } from "../ui/theme";
 import { EventsMapPanel } from '../map/EventsMapPanel';
 import { useQuery } from '@tanstack/react-query';
 import { eventsApi } from '../data/api';
-import { mixFeedPromotions } from '../../../pulse-app/src/features/events/promotions';
+import { mixFeedPromotions } from '@packages/app-core/events/promotions';
 import { VisiblePromotion, trackPromotion } from '../ui/VisiblePromotion';
 import { useNavbarScroll } from '../navigation/useNavbarScroll';
 import type { RootParamList, TabsParamList } from "../navigation/types";
-import { getEventDateRange } from "../../../pulse-app/src/features/events/dateFilters";
-import { useDebouncedDiscoverySearch } from '../../../pulse-app/src/features/events/useDebouncedDiscoverySearch';
-import { activeDiscoveryStart, eventMatchesSearch, eventWithinDistance } from '../../../pulse-app/src/features/events/discoveryFilters';
+import { getEventDateRange } from "@packages/app-core/events/dateFilters";
+import { useDebouncedDiscoverySearch } from './useDebouncedDiscoverySearch';
+import { activeDiscoveryStart, eventMatchesSearch, eventWithinDistance } from '@packages/app-core/events/discoveryFilters';
 import { DiscoveryToolbar } from './DiscoveryToolbar';
 import { DiscoveryKeyboardArea } from './DiscoveryKeyboardArea';
 import { DiscoverySearchInteraction } from './DiscoverySearchInteraction';
@@ -55,7 +55,7 @@ import {
   eventCities,
   eventDateFilters,
   eventVibes,
-} from "../../../pulse-app/src/features/events/constants";
+} from "@packages/app-core/events/constants";
 import {ActionButton as UIActionButton} from '../ui/ActionButton';
 
 const dateKeys = [

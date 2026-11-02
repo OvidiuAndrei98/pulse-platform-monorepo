@@ -14,6 +14,8 @@ function manager() {
   };
   const { OrganizerUpdatesManager } = modules({
     react: hook.react,
+    '@/components/ui/ActionButton': {ActionButton:'button'},
+    '@/components/ui/Field': {TextArea:'textarea',Field:'field'},
     'react-i18next': { useTranslation: () => ({ t: key => key }) },
     sonner: { toast: { success: () => {}, error: text => state.errors.push(text) } },
     '@/core/DataProviderContext': { useDataProvider: () => ({ user }) },
