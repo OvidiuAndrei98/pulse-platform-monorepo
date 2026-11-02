@@ -53,6 +53,7 @@ test('Search captures keyboard drags without scrolling or remounting native resu
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 60, bottom: 34 }) },
     '@react-navigation/native': { useNavigation: () => navigation, useRoute: () => ({}), useScrollToTop: empty },
     '../usePreferences': { usePreferences: () => ({ copy: (s: string) => s }) },
+    '../auth/AuthProvider': { useAuth: (scope: string) => { assert.equal(scope, 'account'); return {}; } },
     '../data/events': { categories: [] },
     '../data/queries': { useEvents: () => ({ items: [], loadMore: empty }), seedEvent: empty },
     '../ui/AccentPressable': { AccentPressable: 'AccentPressable' }, '../ui/GlassPressable': { GlassPressable: 'GlassPressable' },

@@ -608,7 +608,7 @@ func (h *Handler) HandleSendFriendRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if relationship == "pending_received" {
-		updated, err := h.Queries.AcceptFriendRequest(r.Context(), db.AcceptFriendRequestParams{UserID: viewerID, FriendID: targetID})
+		updated, err := h.Queries.AcceptFriendRequest(r.Context(), db.AcceptFriendRequestParams{RecipientID: viewerID, RequesterID: targetID})
 		if err != nil || updated == 0 {
 			router.RespondWithError(w, http.StatusInternalServerError, "Cererea nu a putut fi acceptata")
 			return
@@ -645,7 +645,8 @@ func (h *Handler) HandleSendFriendRequest(w http.ResponseWriter, r *http.Request
 }
 
 type friendRequestAction struct {
-	Status string `json:"status"`
+	Status         string `json:"status"`
+	NotificationID string `json:"notificationId,omitempty"`
 }
 
 func (h *Handler) HandleRespondToFriendRequest(w http.ResponseWriter, r *http.Request) {
@@ -660,16 +661,34 @@ func (h *Handler) HandleRespondToFriendRequest(w http.ResponseWriter, r *http.Re
 		router.RespondWithError(w, http.StatusBadRequest, "Raspuns invalid")
 		return
 	}
+	var notificationID pgtype.UUID
+	if action.NotificationID != "" {
+		if err := notificationID.Scan(action.NotificationID); err != nil || !notificationID.Valid {
+			router.RespondWithError(w, http.StatusBadRequest, "ID notificare invalid")
+			return
+		}
+	}
+	removedNotifications := make([]string, 0)
 	var err error
 	if action.Status == "accepted" {
 		var updated int64
-		updated, err = h.Queries.AcceptFriendRequest(r.Context(), db.AcceptFriendRequestParams{UserID: viewerID, FriendID: requesterID})
+		updated, err = h.Queries.AcceptFriendRequest(r.Context(), db.AcceptFriendRequestParams{RecipientID: viewerID, RequesterID: requesterID})
 		if err == nil && updated == 0 {
 			router.RespondWithError(w, http.StatusNotFound, "Cererea nu mai este disponibila")
 			return
 		}
 	} else {
-		err = h.Queries.DeclineFriendRequest(r.Context(), db.DeclineFriendRequestParams{UserID: viewerID, FriendID: requesterID})
+		var result db.DeclineFriendRequestRow
+		result, err = h.Queries.DeclineFriendRequest(r.Context(), db.DeclineFriendRequestParams{
+			RecipientID: viewerID, RequesterID: requesterID, NotificationID: notificationID,
+		})
+		if err == nil && !result.Declined {
+			router.RespondWithError(w, http.StatusNotFound, "Cererea nu mai este disponibila")
+			return
+		}
+		for _, id := range result.NotificationIds {
+			removedNotifications = append(removedNotifications, common.UUIDToString(id))
+		}
 	}
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Cererea nu a putut fi actualizata")
@@ -686,7 +705,7 @@ func (h *Handler) HandleRespondToFriendRequest(w http.ResponseWriter, r *http.Re
 			ActorID: viewerID,
 		})
 	}
-	router.RespondWithJSON(w, http.StatusOK, map[string]string{"relationship": relationship})
+	router.RespondWithJSON(w, http.StatusOK, map[string]any{"relationship": relationship, "removedNotificationIds": removedNotifications})
 }
 
 func (h *Handler) HandleConnectWithFriend(w http.ResponseWriter, r *http.Request) {

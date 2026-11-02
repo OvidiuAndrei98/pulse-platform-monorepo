@@ -1355,9 +1355,11 @@ interface FriendOperations {
     @path userId: string,
     @body action: {
       status: "accepted" | "declined";
+      notificationId?: string;
     },
   ): {
     @statusCode statusCode: 200;
+    @body body: { relationship: "none" | "friends"; removedNotificationIds: string[]; };
   };
 
   @summary("Elimina un prieten")

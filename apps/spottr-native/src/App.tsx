@@ -46,6 +46,7 @@ import type { FriendsParamList, ProfileParamList, RootParamList, TabsParamList }
 import { DiscoveryScreen } from "./screens/DiscoveryScreen";
 import { HomeScreen } from "./screens/HomeScreen";
 import { SearchScreen } from "./screens/SearchScreen";
+import { NotificationsScreen } from './notifications/NotificationsScreen';
 import { PublicProfileScreen } from "./screens/PublicProfileScreen";
 import { EventScreen } from "./screens/EventScreen";
 import { FriendsScreen, FriendsManageScreen } from "./screens/FriendsScreen";
@@ -130,6 +131,7 @@ const linking: LinkingOptions<RootParamList> = {
       },
       Event: "events/:id",
       Search: "search",
+      Notifications: 'notifications',
       ...(Platform.OS === 'ios' ? accountPagePaths : {}),
       PublicProfile: "users/:id",
       SafetyGroup: 'events/:eventId/group',
@@ -326,6 +328,7 @@ const MainNavigationScreens = React.memo(function MainNavigationScreens() {
         component={SearchScreen}
         options={{ ...nativeBackOptions, presentation: "card" }}
       />
+      <Root.Screen name="Notifications" component={NotificationsScreen} options={{ ...nativeBackOptions, presentation: 'card' }} />
       <Root.Screen
         name="Auth"
         component={AuthScreen}

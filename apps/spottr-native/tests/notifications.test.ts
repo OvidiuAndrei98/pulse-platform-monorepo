@@ -1,11 +1,60 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseNotifications, markNotificationRead, notificationDestination } from '../src/notifications/data';
+import { groupNotifications, pendingRequestNotifications, parseNotifications, markNotificationRead, removeNotifications, notificationDestination } from '../src/notifications/data';
 import { notificationText, formatNotificationTime } from '@packages/app-core/notifications/content';
 import { productCopy } from '../src/copy';
 import { formatDate } from '../src/data/events';
 
 const notification = (extra: Record<string, unknown> = {}) => ({ id: 'notice-1', type: 'friend_request', title: 'New friend', body: 'Alex sent a request', createdAt: '2026-10-07T16:00:00Z', isRead: false, ...extra });
+
+test('inbox periods use local calendar days, newest first, without changing cached notifications', () => {
+  const now = new Date(2026, 10, 3, 12).getTime();
+  const at = (days: number, hour = 12) => new Date(2026, 10, 3 - days, hour).toISOString();
+  const items = parseNotifications({ items: [
+    notification({ id: 'month', createdAt: at(29) }), notification({ id: 'yesterday', createdAt: at(1, 23) }),
+    notification({ id: 'earlier', createdAt: at(30) }), notification({ id: 'morning', createdAt: at(0, 1) }),
+    notification({ id: 'week', createdAt: at(6) }), notification({ id: 'recent', createdAt: at(0, 11) }),
+  ] }).items;
+  const previous = JSON.stringify(items);
+  const groups = groupNotifications(items, now);
+  assert.deepEqual(groups.map(group => [group.key, group.data.map(item => item.id)]), [
+    ['today', ['recent', 'morning']], ['yesterday', ['yesterday']], ['week', ['week']], ['month', ['month']], ['earlier', ['earlier']],
+  ]);
+  assert.equal(JSON.stringify(items), previous);
+  assert.deepEqual(groupNotifications([], now), []);
+});
+
+test('calendar grouping stays correct across daylight-saving changes and omits empty periods', () => {
+  const now = new Date(2026, 9, 26, 0, 5).getTime();
+  const rows = parseNotifications({ items: [notification({ createdAt: new Date(2026, 9, 25, 0, 10).toISOString() })] }).items;
+  assert.deepEqual(groupNotifications(rows, now).map(group => group.key), ['yesterday']);
+});
+
+test('friend-request buttons belong only to the latest notice for a real pending request', () => {
+  const items = parseNotifications({ items: [
+    notification({ id: 'old', actorId: 'a' }),
+    notification({ id: 'latest', actorId: 'a', createdAt: '2026-10-08T16:00:00Z' }),
+    notification({ id: 'resolved', actorId: 'b' }), notification({ id: 'unknown' }),
+    notification({ id: 'other-kind', type: 'friend_accepted', actorId: 'c' }),
+  ] }).items;
+  assert.deepEqual([...pendingRequestNotifications(items, ['a', 'c'])], ['latest']);
+  assert.deepEqual([...pendingRequestNotifications(items, [])], []);
+});
+
+test('declining removes only the server-confirmed interaction and adjusts unread count exactly once', () => {
+  const original = parseNotifications({ unreadCount: 20, items: [
+    notification({ id: 'declined', actorId: 'same-friend' }),
+    notification({ id: 'older-interaction', actorId: 'same-friend', isRead: true }),
+    notification({ id: 'other-kind', actorId: 'same-friend', type: 'friend_accepted' }),
+    notification({ id: 'someone-else', actorId: 'another-friend' }),
+  ] });
+  const updated = removeNotifications(original, ['declined', 'declined'])!;
+  assert.deepEqual(updated.items.map(item => item.id), ['older-interaction', 'other-kind', 'someone-else']);
+  assert.equal(updated.unreadCount, 19);
+  assert.equal(original.items.length, 4);
+  assert.equal(removeNotifications(updated, ['declined']), updated);
+  assert.equal(removeNotifications(undefined, ['declined']), undefined);
+});
 test('notification responses handle empty lists and reject malformed envelopes', () => {
   for (const items of [[], null, undefined]) assert.deepEqual(parseNotifications({ items, unreadCount: 0 }), { items: [], unreadCount: 0 });
   for (const value of [null, undefined, [], 'bad', { items: 'bad' }]) assert.throws(() => parseNotifications(value));

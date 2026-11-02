@@ -13,6 +13,7 @@ type NativeGlassSurface = React.ComponentType<
 >;
 const NativeGlassView = glass?.isLiquidGlassAvailable() && glass.isGlassEffectAPIAvailable()
   ? glass.GlassView as NativeGlassSurface : null;
+export const supportsLiquidGlass = NativeGlassView !== null;
 
 /** One interactive material around multiple controls; retain the capsule's layout. */
 export const GlassSurface = forwardRef<ViewInstance, GlassSurfaceProps>(function GlassSurface({ style, tintColor, interactive = true, ...props }, ref) {

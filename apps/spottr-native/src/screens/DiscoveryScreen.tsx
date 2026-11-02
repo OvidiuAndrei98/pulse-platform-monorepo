@@ -27,6 +27,7 @@ import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { categories, type Event, type EventFilters } from "../data/events";
 import { useEvents, seedEvent } from "../data/queries";
 import { usePreferences } from "../usePreferences";
+import { useAuth } from '../auth/AuthProvider';
 import { EventBrowseCard } from "../ui/EventBrowseCard";
 import {
   Feedback,
@@ -76,6 +77,10 @@ function DiscoveryActivity({ query, view }: { query: EventFilters; view: string 
 }
 
 export function DiscoveryScreen() {
+  // Identity changes clear the query cache. Rebind these passive observers to
+  // the replacement queries, even when this persistent screen stays mounted.
+  // Request busy state stays excluded so login typing does not rebuild Search.
+  useAuth('account');
   const { copy } = usePreferences('copy'),
     insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();

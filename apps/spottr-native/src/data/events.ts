@@ -197,15 +197,21 @@ export function eventUrl(base: string, id: string) {
   return `${base}/events/${encodeURIComponent(id)}`;
 }
 
-export function formatDate(value: string, language: "ro" | "en", time = false, options: { year?: boolean; deviceTime?: boolean } = {}) {
+export function formatDate(value: string, language: "ro" | "en", time = false, options: { year?: boolean; deviceTime?: boolean; timeSeparator?: string } = {}) {
   if (!value || !Number.isFinite(Date.parse(value))) return "—";
-  return new Intl.DateTimeFormat(language === "ro" ? "ro-RO" : "en-GB", {
-    ...(options.deviceTime ? {} : { timeZone: "Europe/Bucharest" }),
+  const locale = language === "ro" ? "ro-RO" : "en-GB";
+  const zone = options.deviceTime ? {} : { timeZone: "Europe/Bucharest" };
+  const clock = { hour: "2-digit", minute: "2-digit", hour12: false } as const;
+  const formatter = new Intl.DateTimeFormat(locale, {
+    ...zone,
     day: "numeric",
     month: "short",
     ...(options.year ? { year: "numeric" as const } : {}),
-    ...(time
-      ? ({ hour: "2-digit", minute: "2-digit", hour12: false } as const)
-      : {}),
-  }).format(new Date(value));
+    ...(time && options.timeSeparator === undefined ? clock : {}),
+  });
+  const date = new Date(value);
+  if (!time || options.timeSeparator === undefined) return formatter.format(date);
+  // Format separately: iOS Hermes can label the time as literals in formatToParts.
+  return formatter.format(date) + options.timeSeparator
+    + new Intl.DateTimeFormat(locale, { ...zone, ...clock }).format(date);
 }

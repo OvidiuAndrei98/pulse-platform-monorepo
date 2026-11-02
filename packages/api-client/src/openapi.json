@@ -3439,7 +3439,33 @@
         ],
         "responses": {
           "200": {
-            "description": "The request has succeeded."
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "relationship": {
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "friends"
+                      ]
+                    },
+                    "removedNotificationIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "relationship",
+                    "removedNotificationIds"
+                  ]
+                }
+              }
+            }
           }
         },
         "requestBody": {
@@ -3455,6 +3481,9 @@
                       "accepted",
                       "declined"
                     ]
+                  },
+                  "notificationId": {
+                    "type": "string"
                   }
                 },
                 "required": [

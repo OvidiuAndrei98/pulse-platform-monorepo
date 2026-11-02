@@ -6080,6 +6080,7 @@ export interface operations {
                 "application/json": {
                     /** @enum {string} */
                     status: "accepted" | "declined";
+                    notificationId?: string;
                 };
             };
         };
@@ -6089,7 +6090,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        relationship: "none" | "friends";
+                        removedNotificationIds: string[];
+                    };
+                };
             };
         };
     };

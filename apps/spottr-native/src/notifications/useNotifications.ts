@@ -6,7 +6,7 @@ import { queryClient } from '../data/queries';
 import { parseNotifications, markNotificationRead, type Notification, type NotificationList } from './data';
 
 export function useNotifications() {
-  const { user, controller } = useAuth(), focused = useIsFocused(), id = user?.id;
+  const { user, controller } = useAuth('account'), focused = useIsFocused(), id = user?.id;
   const key = ['notifications', id];
   const query = useQuery({ queryKey: key, enabled: !!id, staleTime: 30_000, refetchInterval: focused ? 30_000 : false, refetchIntervalInBackground: false,
     queryFn: async ({ signal }) => parseNotifications(await accountApi('/notifications', { signal })) });

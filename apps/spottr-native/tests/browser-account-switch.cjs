@@ -25,6 +25,8 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, errors })
       if (path === '/wardrobe/mine') return reply({deposits:[],staffAccess:false});
       if (path === '/users/me/billing-details') return reply({details:null});
       if (path === '/diagnostics/errors') return new Response(null,{status:204});
+      if (path === '/events') return reply([{ id:'00000000-0000-4000-8000-000000000099', title:'Discover '+qa.role+' fixture', category:'HOUSE', city:'Bucuresti',
+        locationName:'QA Club', startTime:'2030-11-01T20:00:00Z', endTime:'2030-11-02T04:00:00Z', ticketTypes:[], lineup:[] }]);
       return reply([]);
     };
   }.toString()})();` });
@@ -38,6 +40,10 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, errors })
     await call('Input.dispatchMouseEvent',{type:'mouseReleased',...coords,button:'left',clickCount:1});
   };
   await call('Page.navigate', { url: base + '/' });
+  // Keep Discover mounted through the cache clear. Its passive list observer
+  // must rejoin the fresh query instead of retaining an orphaned loading state.
+  await pressTab('Explore');
+  await until(`[...document.querySelectorAll('[data-testid="events-list"]')].some(el=>el.innerText.includes('Discover admin fixture'))`);
   await pressTab('Profile');
   await until(`location.pathname==='/admin' && document.querySelector('[data-testid="admin-organizer-account"]')`);
   await evaluate(`{const button=[...document.querySelectorAll('[data-testid="admin-profile"] [role="button"]')].find(el=>el.textContent==='Back to profile');if(!button)throw Error('Missing profile shortcut');button.click();}`);
@@ -52,6 +58,10 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, errors })
   assert.ok(await evaluate(`document.body.innerText.includes('Basic fixture')`));
   assert.deepEqual(await evaluate(`window.__switchQA.requests.filter(r=>r.role==='user'&&r.path==='/events')`), [],
     'Login into Profile must not reload the hidden Home event list');
+  await pressTab('Explore');
+  await until(`[...document.querySelectorAll('[data-testid="events-list"]')].some(el=>el.innerText.includes('Discover user fixture'))`);
+  assert.ok(!await evaluate(`[...document.querySelectorAll('[data-testid="events-list"]')].some(el=>el.innerText.includes('Discover admin fixture'))`),
+    'Discover shows new-account results after its old query was removed');
   for (let i = 0; i < 3; i++) {
     await pressTab('Home'); await until(`location.pathname==='/'`);
     await pressTab('Profile'); await until(`location.pathname==='/users/me'`);
@@ -63,5 +73,5 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, errors })
     'The event list still loads when Home is actually opened');
   assert.deepEqual(await evaluate(`window.__switchQA.warnings.filter(w=>w.includes("argument to 'navigate'"))`),[]);
   assert.deepEqual(errors,[]);
-  console.log('PASS admin → logout → basic login → repeated Profile/Home, no stale admin destination or navigation warnings');
+  console.log('PASS admin → logout → basic login → Discover rebinds results → repeated Profile/Home, no stale admin destination or navigation warnings');
 }).catch(error => { console.error(error); process.exitCode = 1; });

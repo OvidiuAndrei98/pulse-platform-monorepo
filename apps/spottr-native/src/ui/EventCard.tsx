@@ -12,6 +12,7 @@ import { Text } from "./Text";
 import { EventFriendsPreview } from '../social/EventFriendsPreview';
 import { MotionPressable, usePressMotion } from './MotionPressable';
 import { AnimatedBookmark } from './AnimatedBookmark';
+import { GlassBadge } from './GlassBadge';
 
 export function EventCard({
   event,
@@ -59,16 +60,16 @@ export function EventCard({
           />
           <View style={s.badges}>
             <View style={{ gap: 4 }}>
-            {promoted && <Text style={[s.live, { color: colors.accent, borderColor: '#ff004466', backgroundColor: '#ff00441a' }]}>{copy('promotions.sponsored').toUpperCase()}</Text>}
+            {promoted && <GlassBadge testID="event-promoted-badge" style={[s.live, { color: colors.accent, borderColor: '#ff004466', backgroundColor: '#ff00441a' }]}>{copy('promotions.sponsored').toUpperCase()}</GlassBadge>}
             {live ? (
-              <Text style={s.live}>
+              <GlassBadge testID="event-live-badge" style={s.live}>
                 ● {copy("common.liveNow").toUpperCase()}
-              </Text>
+              </GlassBadge>
             ) : (
               <View />
             )}
             </View>
-            <Text style={s.date}>{time}</Text>
+            <GlassBadge testID="event-time-badge" style={s.date}>{time}</GlassBadge>
           </View>
           {event.organizerAbsorbsServiceFee && (
             <View style={s.tax}>
@@ -103,9 +104,9 @@ export function EventCard({
           onPressOut={motion.pressOut}
           style={{ gap: 8 }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Text style={s.category}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><GlassBadge testID="event-category-badge" style={s.category}>
             {event.category || copy("events.generalCategory")}
-          </Text><EventFriendsPreview eventId={event.id}/></View>
+          </GlassBadge><EventFriendsPreview eventId={event.id}/></View>
           <View style={s.location}>
             <MapPin size={14} color="#a1a1aa" />
             <Text numberOfLines={1} style={s.locationText}>
@@ -144,9 +145,9 @@ export function HeroCard({
         colors={["#00000033", "#00000026", "#000000ff"]}
         style={StyleSheet.absoluteFill}
       />
-      <Text style={[s.date, s.heroDate]}>
-        {formatDate(event.startTime, language, true)}
-      </Text>
+      <GlassBadge testID="promotion-date-badge" style={[s.date, s.heroDate]}>
+        {formatDate(event.startTime, language, true, { timeSeparator: ' · ' })}
+      </GlassBadge>
       <View style={s.heroBody}>
         <Text style={s.heroCategory}>{event.category}</Text>
         <Text style={s.heroTitle} numberOfLines={2}>

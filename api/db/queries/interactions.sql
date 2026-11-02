@@ -121,13 +121,31 @@ WHERE f.status = 'pending';
 -- name: AcceptFriendRequest :execrows
 UPDATE friendships
 SET status = 'accepted'
-WHERE ((user_id = $2 AND friend_id = $1)
-    OR (user_id = $1 AND friend_id = $2))
+WHERE user_id = sqlc.arg(requester_id) AND friend_id = sqlc.arg(recipient_id)
   AND status = 'pending';
 
--- name: DeclineFriendRequest :exec
-DELETE FROM friendships
-WHERE user_id = $2 AND friend_id = $1 AND status = 'pending';
+-- name: DeclineFriendRequest :one
+WITH notice AS MATERIALIZED (
+    SELECT n.id FROM notifications n
+    WHERE n.user_id = sqlc.arg(recipient_id) AND n.actor_id = sqlc.arg(requester_id)
+      AND n.type = 'friend_request'
+    ORDER BY n.created_at DESC, n.id DESC
+    LIMIT 1
+), declined AS (
+    DELETE FROM friendships f
+    WHERE f.user_id = sqlc.arg(requester_id) AND f.friend_id = sqlc.arg(recipient_id)
+      AND f.status = 'pending'
+      AND (sqlc.narg(notification_id)::uuid IS NULL OR sqlc.narg(notification_id)::uuid = (SELECT id FROM notice))
+    RETURNING f.user_id
+), removed AS (
+    DELETE FROM notifications n
+    WHERE n.user_id = sqlc.arg(recipient_id) AND n.actor_id = sqlc.arg(requester_id)
+      AND n.type = 'friend_request' AND n.id = (SELECT id FROM notice)
+      AND EXISTS(SELECT 1 FROM declined)
+    RETURNING n.id
+)
+SELECT EXISTS(SELECT 1 FROM declined) AS declined,
+       ARRAY(SELECT id FROM removed)::uuid[] AS notification_ids;
 
 -- name: ConnectFriends :exec
 WITH existing AS (

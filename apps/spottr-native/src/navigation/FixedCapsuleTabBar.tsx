@@ -11,10 +11,11 @@ import { TabBarSurface } from './TabBarSurface';
 import { TabBarIndicatorSurface } from './TabBarIndicatorSurface';
 import { tabCapsuleFollowSpring, tabCapsuleImpactTiming, tabCapsulePickupSpring, tabCapsulePressSpring, tabCapsuleReleaseSpring, withTabTravel } from './tabCapsuleSpring';
 import { NavbarScrollContext, navbarCompactScale } from './useNavbarScroll';
+import { getTabCapsuleFrame, getTabCapsuleGeometry, tabBarInset, tabBarWidthFromSpacing } from './tabCapsuleGeometry';
 
 const labels = MAIN_TAB_LABELS;
 const edgeTravel = 8;
-const barInset = 4;
+const barInset = tabBarInset;
 const impactExtension = 8;
 
 /** Increasing resistance keeps the capsule close to the glass at either end. */
@@ -27,21 +28,19 @@ function resistedPosition(value: number, limit: number) {
 
 // Route/focus updates must not recreate the travelling indicator's mapper.
 // Background scenes follow the same position, ready for a seamless handoff.
-const FixedTabIndicator = React.memo(function FixedTabIndicator({ position, interaction, edgeResponse, edgeDirection, extension, itemWidth, limit }: {
+const FixedTabIndicator = React.memo(function FixedTabIndicator({ position, interaction, edgeResponse, edgeDirection, extension, blobWidth, left, limit }: {
   position: SharedValue<number>; interaction: SharedValue<number>; edgeResponse: SharedValue<number>;
-  edgeDirection: SharedValue<number>; extension: DerivedValue<number>; itemWidth: number; limit: number;
+  edgeDirection: SharedValue<number>; extension: DerivedValue<number>; blobWidth: number; left: number; limit: number;
 }) {
   const motion = useAnimatedStyle(() => {
-    const x = Math.min(limit + edgeTravel, Math.max(-edgeTravel, position.value));
-    const pressure = Math.abs(x - Math.min(limit, Math.max(0, x))) / edgeTravel;
-    const contact = Math.max(0, 1 - Math.max(0, Math.min(x, limit - x)) / 12);
+    const frame = getTabCapsuleFrame(position.value, limit, blobWidth, interaction.value, edgeResponse.value, edgeDirection.value, extension.value);
     return { transform: [
-      { translateX: x + edgeDirection.value * extension.value * contact },
-      { scaleX: 1 + interaction.value * 0.08 * (1 - pressure) - pressure * 0.05 + edgeResponse.value * 0.045 },
-      { scaleY: 1 + interaction.value * 0.04 + pressure * 0.025 - edgeResponse.value * 0.015 },
+      { translateX: frame.translateX },
+      { scaleX: frame.scaleX },
+      { scaleY: frame.scaleY },
     ] };
   });
-  return <Animated.View testID="tab-indicator" pointerEvents="none" style={[s.indicator, { width: itemWidth }, motion]}>
+  return <Animated.View testID="tab-indicator" pointerEvents="none" style={[s.indicator, { width: blobWidth, left }, motion]}>
     <TabBarIndicatorSurface />
   </Animated.View>;
 });
@@ -50,7 +49,7 @@ const FixedTabIndicator = React.memo(function FixedTabIndicator({ position, inte
 export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = state.index, onSelectTab, indicatorMotion, interactionEnabled = true }: NativeTabBarProps) {
   const { copy } = usePreferences('copy');
   const [width, measure] = useState(0);
-  const previousWidth = useRef(0);
+  const previousSpacing = useRef(0);
   const localPosition = useSharedValue(0);
   const localInteraction = useSharedValue(0);
   const localEdgeResponse = useSharedValue(0);
@@ -73,13 +72,22 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
   const impactOrigin = useSharedValue(0);
   const controlledIndex = useSharedValue(activeIndex);
   const count = state.routes.length;
-  const itemWidth = width ? width / count : indicatorMotion?.itemWidth ?? 0;
-  const limit = Math.max(0, (count - 1) * itemWidth);
-  const barWidth = itemWidth * count + barInset * 2;
+  const barWidth = width || tabBarWidthFromSpacing(indicatorMotion?.itemWidth ?? 0, count);
+  const geometry = useMemo(() => getTabCapsuleGeometry(barWidth, count), [barWidth, count]);
+  // The shared motion's itemWidth is the distance between centers, not the
+  // visual width. Route acknowledgements continue using the same coordinates.
+  const itemWidth = geometry.spacing;
+  const { limit, firstCenter } = geometry;
+
+  useLayoutEffect(() => {
+    // Count/proportion changes need to update the shared route destinations
+    // even when the native outer View keeps exactly the same layout width.
+    if (width && itemWidth > 0 && indicatorMotion?.itemWidth !== itemWidth) indicatorMotion?.measure(itemWidth);
+  }, [width, itemWidth, indicatorMotion?.itemWidth, indicatorMotion?.measure]);
 
   useLayoutEffect(() => {
     if (!itemWidth) return;
-    const resized = previousWidth.current !== width;
+    const resized = previousSpacing.current !== itemWidth;
     runOnUI(() => {
       controlledIndex.value = activeIndex;
       const request = gestureCommand?.value;
@@ -96,9 +104,9 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
     // navbar joins it without resetting it or starting another animation.
     if (!sharedMotion) {
       const target = activeIndex * itemWidth;
-      position.value = previousWidth.current === width ? withTabTravel(target) : target;
+      position.value = resized ? target : withTabTravel(target);
     }
-    previousWidth.current = width;
+    previousSpacing.current = itemWidth;
   }, [activeIndex, itemWidth, width, sharedMotion, position, tracking, pickupOffset, controlledIndex, gestureCommand]);
 
   // Ease the initial grip offset away, then keep following with a little weight.
@@ -187,7 +195,7 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
       position.value = Math.min(limit + edgeTravel, Math.max(-edgeTravel, position.value));
       cancelAnimation(pickupOffset);
       const physicalStart = event.x - event.translationX;
-      origin.value = physicalStart - barInset - itemWidth / 2;
+      origin.value = physicalStart - firstCenter;
       dragTarget.value = resistedPosition(origin.value + event.translationX, limit);
       pickupOffset.value = position.value - dragTarget.value;
       edgeSide.value = 0;
@@ -220,7 +228,7 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
       tracking.value = false;
       cancelAnimation(pickupOffset);
       position.value = withTabTravel(controlledIndex.value * itemWidth);
-    }), [interactionEnabled, itemWidth, limit, count, onBarTouch, select, position, compact, impactOrigin, interaction, edgeResponse, pickupOffset, tracking, origin, dragTarget, edgeSide, controlledIndex, gestureCommand]);
+    }), [interactionEnabled, itemWidth, firstCenter, limit, count, onBarTouch, select, position, compact, impactOrigin, interaction, edgeResponse, pickupOffset, tracking, origin, dragTarget, edgeSide, controlledIndex, gestureCommand]);
   // Each tab owns its tap recognizer. A whole-bar Tap treats overlapping
   // contacts on different tabs as one unfinished gesture on iOS, swallowing
   // rapid alternations before they ever reach the navigation queue.
@@ -271,26 +279,28 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
   return <View collapsable={false} pointerEvents={interactionEnabled ? 'box-none' : 'none'} accessibilityElementsHidden={!interactionEnabled} style={[s.position, { bottom: Math.max(12, insets.bottom - 12) }]}>
     <GestureDetector gesture={pan}>
       <View testID="tab-hit-area" collapsable={false} style={s.hitArea} onLayout={event => {
-        const nextWidth = Math.max(0, event.nativeEvent.layout.width - barInset * 2);
+        const nextWidth = Math.max(0, event.nativeEvent.layout.width);
         if (!nextWidth) return;
-        measure(nextWidth); indicatorMotion?.measure(nextWidth / state.routes.length);
+        measure(nextWidth);
       }}>
         <Animated.View testID="tab-compact-motion" style={compactMotion}>
           <Animated.View testID="tab-bar-motion" style={[barSize, barMotion]}>
             <TabBarSurface testID="tab-bar" style={s.bar}>
-              <Animated.View testID="tab-track" collapsable={false} style={[s.track, { width: itemWidth > 0 ? itemWidth * count : '100%' }, trackMotion]}>
+              <Animated.View testID="tab-track" collapsable={false} style={[s.track, { width: itemWidth > 0 ? geometry.trackWidth : '100%' }, trackMotion]}>
                 {itemWidth > 0 && <FixedTabIndicator position={position} interaction={interaction} edgeResponse={edgeResponse}
-                  edgeDirection={edgeDirection} extension={glassExtension} itemWidth={itemWidth} limit={limit} />}
+                  edgeDirection={edgeDirection} extension={glassExtension} blobWidth={geometry.blobWidth} left={geometry.blobLeft} limit={limit} />}
                 {/* Account changes reset the Profile screen's route key, not
                     its physical button or recognizer in this persistent bar. */}
                 {state.routes.map((route, index) => <GestureDetector key={route.name} gesture={taps[index]!}>
                   <View collapsable={false} testID={`tab-${route.name}`} accessible
                   accessibilityRole="tab" accessibilityLabel={copy(labels[index] ?? 'nav.home')}
-                  accessibilityState={{ selected: index === activeIndex }} style={s.tab}
+                  accessibilityState={{ selected: index === activeIndex }} style={[s.tab, itemWidth > 0 && { flex: 0, width: geometry.tabs[index]!.width }]}
                   onAccessibilityTap={() => select(index)}
                   accessibilityActions={[{ name: 'activate' }]}
                   onAccessibilityAction={event => { if (event.nativeEvent.actionName === 'activate') select(index); }}>
-                  <TabBarIcon index={index} active={index === activeIndex} size={26} color="white" strokeWidth={2} />
+                  <View testID={`tab-icon-${route.name}`} pointerEvents="none" style={itemWidth > 0 ? { transform: [{ translateX: geometry.tabs[index]!.iconOffset }] } : undefined}>
+                    <TabBarIcon index={index} active={index === activeIndex} size={26} color="white" strokeWidth={2} />
+                  </View>
                   </View>
                 </GestureDetector>)}
               </Animated.View>

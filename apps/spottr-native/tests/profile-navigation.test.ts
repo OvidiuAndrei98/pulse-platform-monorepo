@@ -25,6 +25,35 @@ function stack() {
   return { get state() { return state; }, dispatch(action: any) { state = router.getStateForAction(state, action, options) ?? state; return state; } };
 }
 
+test('preloaded Search and pushed Notifications retain Home and never demote a native screen across repeated returns', () => {
+  const original = StackRouter({ initialRouteName: 'Tabs' });
+  const router = { ...original, ...exports.profileTabRouter(original) };
+  const options = { routeNames: ['Tabs', 'Search', 'Notifications', 'PublicProfile', 'Tickets'], routeParamList: {}, routeGetIdList: {} };
+  let state = router.getInitialState(options);
+  const tabsKey = state.routes[0].key;
+  const levels = (value: any) => new Map([...value.routes.map((route: any) => [route.key, 2]), ...value.preloadedRoutes.map((route: any) => [route.key, 0])]);
+  const dispatch = (action: any) => {
+    const before = levels(state);
+    state = router.getStateForAction(state, action, options) ?? state;
+    for (const [key, value] of levels(state)) assert.ok(!before.has(key) || before.get(key)! <= value!, 'Mounted native screens never change from active to preloaded');
+    assert.equal(state.routes[0].key, tabsKey, 'The source page and its navbar survive');
+  };
+  for (let cycle = 0; cycle < 8; cycle++) {
+    dispatch(CommonActions.preload('Search'));
+    const searchKey = state.preloadedRoutes[0].key;
+    dispatch(CommonActions.navigate('Notifications'));
+    for (const destination of ['PublicProfile', 'Tickets']) {
+      dispatch(CommonActions.navigate(destination, destination === 'PublicProfile' ? { id: 'friend' } : undefined));
+      dispatch(CommonActions.goBack());
+      assert.equal(state.routes.at(-1).name, 'Notifications');
+    }
+    dispatch(CommonActions.goBack());
+    dispatch(CommonActions.navigate('Search'));
+    assert.equal(state.routes.at(-1).key, searchKey, 'Search adopts the already prepared native screen');
+    dispatch(CommonActions.goBack());
+  }
+});
+
 test('iOS admin and organizer returns target the retained Profile tab instead of a root workspace', () => {
   const original = StackRouter({ initialRouteName: 'Tabs' });
   const router = { ...original, ...exports.profileTabRouter(original) };

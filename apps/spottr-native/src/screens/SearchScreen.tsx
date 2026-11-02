@@ -15,6 +15,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { usePreferences } from "../usePreferences";
 import { seedEvent, useEvents, useHomeEvents } from "../data/queries";
 import { formatDate } from "../data/events";
+import { useEventClock } from '../data/useEventClock';
 import {
   EventImage,
   Feedback,
@@ -29,9 +30,19 @@ import type { RootParamList } from "../navigation/types";
 export function SearchScreen({
   navigation,
 }: NativeStackScreenProps<RootParamList, "Search">) {
-  const { copy, language } = usePreferences(),
+  const navigationRef = useRef(navigation);
+  navigationRef.current = navigation;
+  return <SearchContent navigationRef={navigationRef} />;
+}
+
+// Activating a preloaded native screen replaces its navigation methods. Keep
+// that handoff from rebuilding the input, list and image views during the push.
+const SearchContent = React.memo(function SearchContent({ navigationRef }: {
+  navigationRef: React.RefObject<NativeStackScreenProps<RootParamList, 'Search'>['navigation']>;
+}) {
+  const { copy, language } = usePreferences('copy'),
     insets = useSafeAreaInsets();
-  const { user, ready } = useAuth();
+  const { user, ready } = useAuth('account');
   const recent = useRecentSearches(user?.id ?? 'guest', ready);
   const [scope, setScope] = useState<'all' | 'events' | 'people' | 'organizers'>('all');
   const [focused, setFocused] = useState(false);
@@ -55,10 +66,11 @@ export function SearchScreen({
   const profiles = useQuery({ queryKey: ['profile-search', user?.id ?? 'guest', query, profileKind], enabled: ready && query.length >= 2 && showProfiles,
     queryFn: ({ signal }) => profilesApi.search(query, signal, profileKind) });
   const profilesPending = value.trim() !== query || !ready || profiles.isPending;
-  const recommended = (home.data ?? [])
-    .filter((e) => Date.parse(e.endTime) > Date.now())
+  const now = useEventClock();
+  const recommended = useMemo(() => (home.data ?? [])
+    .filter((e) => Date.parse(e.endTime) > now)
     .sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime))
-    .slice(0, 6);
+    .slice(0, 6), [home.data, now]);
   const data = !showEvents ? [] : query ? events.items : recommended,
     pending =
       value.trim() !== query || (query ? events.isPending : home.isPending);
@@ -74,7 +86,7 @@ export function SearchScreen({
       <View style={{ paddingHorizontal: 20, gap: 16, paddingBottom: 20 }}>
         <IconButton
           label={copy("common.back")}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigationRef.current.goBack()}
         >
           <ActionIcon name="back" color={colors.text} size={20} />
         </IconButton>
@@ -180,7 +192,7 @@ export function SearchScreen({
             <Text style={s.heading}>{copy(profileKind ? 'search.' + profileKind : 'search.peopleAndOrganizers')}{!profilesPending && !profiles.isError ? ` · ${profiles.data?.length ?? 0}` : ''}</Text>
             {profilesPending ? <Loading /> : profiles.isError ? <Feedback compact title={copy('feedback.loadFailed')} retry={() => void profiles.refetch()} /> : profiles.data?.length ? profiles.data.map(profile => {
               const organizer = profile.role === 'organizer', Icon = organizer ? BadgeCheck : UserRound;
-              return <Pressable key={profile.id} testID={'search-profile-' + profile.id} accessibilityRole="button" onPress={() => { recent.remember(query); navigation.replace('PublicProfile', { id: profile.id }); }} style={[s.row, { borderBottomWidth: 0, borderRadius: 16 }]}>
+              return <Pressable key={profile.id} testID={'search-profile-' + profile.id} accessibilityRole="button" onPress={() => { recent.remember(query); navigationRef.current.replace('PublicProfile', { id: profile.id }); }} style={[s.row, { borderBottomWidth: 0, borderRadius: 16 }]}>
                 <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#ffffff0d', alignItems: 'center', justifyContent: 'center' }}><Icon size={18} color={colors.accent} /></View>
                 <View style={{ flex: 1, gap: 4 }}><Text numberOfLines={1} style={s.title}>{organizer ? profile.organizerName || profile.username : '@' + profile.username}</Text><Text numberOfLines={1} style={s.meta}>{organizer ? copy('search.organizerMeta', { username: profile.username }) : profile.bio || copy('search.publicProfile')}</Text></View>
                 <ArrowUpRight size={16} color={colors.muted} />
@@ -194,7 +206,7 @@ export function SearchScreen({
             onPress={() => {
               if (query) recent.remember(query);
               seedEvent(item);
-              navigation.replace("Event", {
+              navigationRef.current.replace("Event", {
                 id: item.id,
                 presentation: "page",
               });
@@ -219,7 +231,7 @@ export function SearchScreen({
       />
     </View>
   );
-}
+});
 const s = StyleSheet.create({
   field: {
     height: 64,

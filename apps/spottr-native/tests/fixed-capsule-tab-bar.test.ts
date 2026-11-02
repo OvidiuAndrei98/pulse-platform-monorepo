@@ -6,6 +6,13 @@ import test from 'node:test';
 import React from 'react';
 import ts from 'typescript';
 import * as mainTabs from '@packages/app-core/navigation/mainTabs';
+import * as geometry from '../src/navigation/tabCapsuleGeometry';
+
+// Keep the gesture fixture's 88-point center spacing, independently of the
+// visual capsule width. Reference proportions have their own measured tests.
+const fixtureWidth = geometry.tabBarWidthFromSpacing(88, 4);
+const fixtureGeometry = geometry.getTabCapsuleGeometry(fixtureWidth, 4);
+const firstCenter = fixtureGeometry.firstCenter;
 
 const elements = (node: any): any[] => Array.isArray(node) ? node.flatMap(elements) : React.isValidElement(node) ? [node, ...elements((node.type as any)?.type?.name === 'FixedTabIndicator' ? (node.type as any).type(node.props) : (node.props as any).children)] : [];
 type Motion = { position: { value: number }; interaction: { value: number }; edgeResponse?: { value: number }; edgeDirection?: { value: number }; gestureCommand?: { value: { id: number; index: number; pending: boolean; acknowledgedId: number } }; itemWidth: number; measure: (value: number) => void; timeline: { current: null } };
@@ -100,6 +107,7 @@ function mount({ prevented = false, roleRouting = false, activeIndex = 0, indica
     '../ui/ToastHost': { ToastHost: 'ToastHost' }, './TabBarIcon': { TabBarIcon: 'Icon' }, './TabBarSurface': { TabBarSurface: 'Surface' },
     './TabBarIndicatorSurface': { TabBarIndicatorSurface: 'IndicatorSurface' },
     './useNavbarScroll': { NavbarScrollContext: {}, navbarCompactScale: 0.83 },
+    './tabCapsuleGeometry': geometry,
     './tabCapsuleSpring': { withTabTravel: (target: number) => deps['react-native-reanimated'].withSpring(target, { kind: 'selection' }), tabCapsuleFollowSpring: { kind: 'follow' }, tabCapsuleImpactTiming: {}, tabCapsulePickupSpring: { kind: 'pickup' }, tabCapsulePressSpring: { kind: 'press' }, tabCapsuleReleaseSpring: { kind: 'release' } },
   };
   const exports: any = {};
@@ -110,7 +118,7 @@ function mount({ prevented = false, roleRouting = false, activeIndex = 0, indica
   const render = (next: Record<string, unknown> = {}) => { Object.assign(props, next); cursor = 0; tree = exports.FixedCapsuleTabBar(props); while (effects.length) effects.shift()!(); flushReactions(); };
   const find = (id: string) => elements(tree).find(element => element.props.testID === id);
   render();
-  elements(tree).find(element => element.props.onLayout)?.props.onLayout({ nativeEvent: { layout: { width: 360 } } });
+  elements(tree).find(element => element.props.onLayout)?.props.onLayout({ nativeEvent: { layout: { width: fixtureWidth } } });
   render();
   const advanceSprings = (progress: number) => {
     for (const [value, animation] of [...pending]) {
@@ -156,7 +164,24 @@ test('five destinations retain distinct accessibility names, targets and the Pro
   assert.equal(ui.find('tab-Profile').props.accessibilityLabel, 'nav.profile');
   ui.find('tab-Profile').props.onAccessibilityTap();
   assert.deepEqual(ui.selections, ['Profile']);
-  assert.ok(Math.abs(ui.x() - 281.6) < .01);
+  assert.ok(Math.abs(ui.x() - geometry.getTabCapsuleGeometry(fixtureWidth, 5).limit) < .01);
+});
+
+test('changing the tab count updates the shared travel spacing even without a new outer layout event', () => {
+  const measured: number[] = [];
+  const motion: Motion = { position: { value: 0 }, interaction: { value: 0 }, itemWidth: 88, measure: width => measured.push(width), timeline: { current: null } };
+  const ui = mount({ indicatorMotion: motion });
+  ui.render({ state: { index: 0, routes: mainTabs.MAIN_TAB_NAMES.map(name => ({name, key:name})) } });
+  assert.equal(measured.at(-1), geometry.getTabCapsuleGeometry(fixtureWidth, 5).spacing);
+});
+
+test('the endpoint capsule inset matches the existing top and bottom inset', () => {
+  const ui = mount();
+  const bar = ui.find('tab-bar').props.style;
+  const indicator = ui.find('tab-indicator').props.style;
+  const horizontalInset = bar.padding + indicator[1].left;
+  assert.equal(horizontalInset, bar.padding + indicator[0].top);
+  assert.equal(horizontalInset, bar.padding + indicator[0].bottom);
 });
 
 test('hidden native navbar disables gestures and rejects a callback queued before hiding', () => {
@@ -303,20 +328,20 @@ test('different tabs own separate native tap targets throughout rapid reversals'
 
 test('picking up an in-flight capsule centers smoothly and resists travel past both ends', () => {
   const ui = mount({ deferPickup: true }); ui.position.value = 38;
-  ui.pan().onStart({ x: 58, translationX: 8 });
+  ui.pan().onStart({ x: firstCenter + 10, translationX: 8 });
   assert.equal(ui.x(), 38, 'The new grip does not teleport an in-flight capsule');
   ui.advancePickup(0.5);
   assert.equal(ui.x(), 24, 'The center moves progressively toward the finger');
   ui.advancePickup(1);
-  assert.equal(ui.x() + 48, 58);
+  assert.equal(ui.x() + firstCenter, firstCenter + 10);
   ui.pan().onUpdate({ translationX: 12 }); assert.equal(ui.x(), 14);
   ui.pan().onUpdate({ translationX: 2000 }); assert.ok(ui.x() > 264 && ui.x() < 280);
   ui.pan().onUpdate({ translationX: -2000 }); assert.ok(ui.x() < 0 && ui.x() > -16);
   ui.pan().onEnd({}, true);
   assert.equal(ui.events.length, 1); assert.equal(ui.navigations.length, 0);
   ui.edgeResponse.value = 0;
-  ui.position.value = -6; assert.equal(ui.x(), -6);
-  ui.pan().onStart({ x: 45, translationX: 1 });
+  ui.position.value = -6; assert.ok(ui.x() < 0 && ui.x() >= -6, 'An edge overrun stays inside the wider capsule clearance');
+  ui.pan().onStart({ x: firstCenter - 3, translationX: 1 });
   const heldX = ui.x();
   ui.pan().onUpdate({ translationX: 3 });
   assert.ok(ui.x() > heldX && ui.x() < 0, 'An edge pickup moves back without a hard jump to zero');
@@ -328,12 +353,12 @@ test('grabbing either side of the selected capsule brings its center under the f
     ui.pan().onBegin(); ui.pan().onStart({ x, translationX: initialTranslation });
     assert.equal(ui.position.value, 88, 'Pickup begins at the displayed position');
     ui.advancePickup(0.5);
-    const intermediateCenter = ui.x() + 48;
-    assert.ok(intermediateCenter > Math.min(136, x) && intermediateCenter < Math.max(136, x));
+    const intermediateCenter = ui.x() + firstCenter;
+    assert.ok(intermediateCenter > Math.min(firstCenter + 88, x) && intermediateCenter < Math.max(firstCenter + 88, x));
     ui.advancePickup(1);
-    assert.equal(ui.x() + 48, x, 'The original grip offset disappears');
+    assert.equal(ui.x() + firstCenter, x, 'The original grip offset disappears');
     ui.pan().onUpdate({ translationX });
-    assert.equal(ui.x() + 48, x - initialTranslation + translationX, 'The settled follow spring centers on the moving finger');
+    assert.equal(ui.x() + firstCenter, x - initialTranslation + translationX, 'The settled follow spring centers on the moving finger');
     assert.equal(ui.events.length, 0, 'Centering alone does not change pages');
   }
 });
@@ -345,15 +370,15 @@ test('holding another tab brings the capsule under the finger progressively', ()
   ui.advancePickup(0.5);
   assert.ok(ui.x() > 0 && ui.x() < 182, 'Pickup has an intermediate frame');
   ui.advancePickup(1);
-  assert.equal(ui.x(), 182);
+  assert.equal(ui.x(), 230 - firstCenter);
   ui.pan().onUpdate({ translationX: 20 });
-  assert.equal(ui.x(), 192, 'After pickup the settled follow spring reaches the finger target');
+  assert.equal(ui.x(), 240 - firstCenter, 'After pickup the settled follow spring reaches the finger target');
   assert.equal(ui.events.length, 0, 'Dragging does not select before release');
 });
 
 test('held movement follows through the spring and reverses from its displayed position', () => {
   const ui = mount({ activeIndex: 1, deferFollow: true });
-  ui.pan().onStart({ x: 136, translationX: 0 });
+  ui.pan().onStart({ x: firstCenter + 88, translationX: 0 });
   ui.pan().onUpdate({ translationX: 70 });
   assert.equal(ui.position.value, 88, 'Moving the finger does not teleport the capsule');
   assert.equal(ui.springs.at(-1).target, 158);
@@ -424,23 +449,23 @@ test('edge resistance deforms the capsule and releases to a valid end tab', () =
 
 test('a held pickup reaches the end without an impact and pressure stays continuous', () => {
   const ui = mount({ deferPickup: true });
-  ui.pan().onBegin(); ui.pan().onStart({ x: 314, translationX: 10 });
+  ui.pan().onBegin(); ui.pan().onStart({ x: firstCenter + 266, translationX: 10 });
   assert.equal(ui.impacts.length, 0);
-  assert.equal(ui.glassWidth(), 360);
+  assert.equal(ui.glassWidth(), fixtureWidth);
   for (const progress of [0.005, 0.01, 0.02, 0.5]) {
     ui.advancePickup(progress);
     assert.equal(ui.impacts.length, 0, 'Departure and transit do not trigger contact');
   }
   ui.advancePickup(1);
   assert.equal(ui.impacts.length, 0, 'A held pickup is not a free-flight collision');
-  assert.ok(ui.glassWidth() > 360 && ui.glassWidth() <= 363);
+  assert.ok(ui.glassWidth() > fixtureWidth && ui.glassWidth() <= fixtureWidth + 3);
   assert.equal(ui.barTransform()[2].scaleY, 1);
   ui.pan().onUpdate({ translationX: 30 }); ui.pan().onUpdate({ translationX: 40 });
   assert.equal(ui.impacts.length, 0, 'Holding against the end never launches a bounce');
   ui.pan().onEnd({}, true); ui.pan().onFinalize();
   assert.equal(ui.impacts.length, 0, 'Releasing at the contacted end does not add a delayed impact');
   ui.edgeResponse.value = 0;
-  assert.equal(ui.glassWidth(), 360);
+  assert.equal(ui.glassWidth(), fixtureWidth);
   assert.equal(ui.barTransform()[2].scaleY, 1);
 });
 
@@ -460,11 +485,11 @@ test('impact stretches toward the contacted end while the opposite edge and icon
     ui.tap(direction < 0 ? 0 : 3).onEnd({ x: direction < 0 ? 44 : 314 }, true);
     const outer = ui.barTransform(), inner = ui.trackTransform();
     const shift = outer[0].translateX;
-    const width = 360;
+    const width = fixtureWidth;
     const extension = ui.glassWidth() - width;
     const fixedEdgeMovement = direction < 0 ? shift + extension / 2 : shift - extension / 2;
     assert.ok(Math.abs(fixedEdgeMovement) < 1e-9, 'The far end stays anchored');
-    assert.equal(ui.trackWidth(), 352, 'The controls retain their measured width');
+    assert.equal(ui.trackWidth(), fixtureWidth - 8, 'The controls retain their measured width');
     assert.ok(Math.abs(shift + outer[1].scaleX * inner[0].translateX) < 1e-9, 'Controls retain their position');
     assert.ok(Math.abs(outer[1].scaleX * inner[1].scaleX - 1) < 1e-9, 'Controls retain their scale');
     assert.equal(ui.find('tab-bar-motion').props.style[0].width, width, 'No per-frame layout width update');
@@ -479,15 +504,15 @@ test('holding and reversing between both edges never launches a collision', () =
     ui.pan().onUpdate({ translationX });
     assert.equal(ui.impacts.length, 0);
     assert.equal(ui.edgeResponse.value, 0);
-    assert.ok(ui.glassWidth() >= 360 && ui.glassWidth() <= 363);
-    const left = ui.barTransform()[0].translateX - (ui.glassWidth() - 360) / 2;
+    assert.ok(ui.glassWidth() >= fixtureWidth && ui.glassWidth() <= fixtureWidth + 3);
+    const left = ui.barTransform()[0].translateX - (ui.glassWidth() - fixtureWidth) / 2;
     assert.ok(translationX < 0 ? left < 0 : Math.abs(left) < 1e-9, 'Held pressure follows the contacted side');
     assert.equal(ui.events.length, 0, 'Holding does not navigate');
   }
   ui.pan().onEnd({}, true); ui.pan().onFinalize();
   assert.equal(ui.impacts.length, 0);
   assert.equal(ui.navigations[0][0], 'Profile');
-  assert.equal(ui.glassWidth(), 360);
+  assert.equal(ui.glassWidth(), fixtureWidth);
 });
 
 test('grabbing an active edge recoil cancels it before following the finger', () => {
@@ -504,13 +529,13 @@ test('grabbing an active edge recoil cancels it before following the finger', ()
 test('releasing before an edge preserves the free arrival impact in both directions', () => {
   for (const [translationX, target] of [[-60, 'Home'], [150, 'Profile']] as const) {
     const ui = mount({ activeIndex: 1 });
-    ui.pan().onBegin(); ui.pan().onStart({ x: 132, translationX: 5 });
+    ui.pan().onBegin(); ui.pan().onStart({ x: firstCenter + 84, translationX: 5 });
     ui.pan().onUpdate({ translationX });
     assert.equal(ui.impacts.length, 0);
     assert.ok(ui.position.value > 9 && ui.position.value < 255);
     ui.pan().onEnd({}, true); ui.pan().onFinalize();
     assert.equal(ui.impacts.length, 1, 'Only the released capsule can impact the edge');
-    assert.ok(ui.glassWidth() > 360);
+    assert.ok(ui.glassWidth() > fixtureWidth);
     assert.equal(ui.events[0].target, target + '-key');
   }
 });
@@ -522,10 +547,10 @@ test('a tap that reaches an end without overshooting still pushes the glass on b
     ui.pan().onBegin(); ui.pan().onFinalize(); ui.tap(target / 88).onEnd({ x }, true);
     assert.equal(ui.position.value, target, 'The mocked spring arrives exactly at the slot');
     assert.equal(ui.impacts.length, 1);
-    assert.ok(ui.glassWidth() >= 367.5, 'A full-width approach visibly extends the material');
+    assert.ok(ui.glassWidth() >= fixtureWidth + 7.5, 'A full-width approach visibly extends the material');
     assert.ok(direction! < 0 ? ui.x() < 0 : ui.x() > 264, 'The capsule presses into the extended end');
     ui.edgeResponse.value = 0;
-    assert.equal(ui.glassWidth(), 360);
+    assert.equal(ui.glassWidth(), fixtureWidth);
     assert.equal(ui.x(), target);
   }
 });
@@ -533,11 +558,11 @@ test('a tap that reaches an end without overshooting still pushes the glass on b
 test('the expanding glass cannot feed a larger width back into tab and gesture measurements', () => {
   const ui = mount({ activeIndex: 3 });
   ui.pan().onBegin(); ui.pan().onFinalize(); ui.tap().onEnd({ x: 44 }, true);
-  assert.ok(ui.glassWidth() > 360);
+  assert.ok(ui.glassWidth() > fixtureWidth);
   assert.equal(ui.find('tab-track').props.onLayout, undefined, 'The deforming glass does not measure the track');
-  ui.find('tab-hit-area').props.onLayout({ nativeEvent: { layout: { width: 360 } } }); ui.render();
-  assert.equal(ui.trackWidth(), 352);
-  assert.equal(ui.find('tab-indicator').props.style[1].width, 88);
+  ui.find('tab-hit-area').props.onLayout({ nativeEvent: { layout: { width: fixtureWidth } } }); ui.render();
+  assert.equal(ui.trackWidth(), fixtureWidth - 8);
+  assert.equal(ui.find('tab-indicator').props.style[1].width, fixtureGeometry.blobWidth);
   assert.equal(ui.impacts.length, 1);
 });
 
@@ -548,7 +573,7 @@ test('a hidden profile reporting zero width cannot remove the shared indicator o
   const before = widths.length;
   ui.find('tab-hit-area').props.onLayout({ nativeEvent: { layout: { width: 0 } } }); ui.render();
   assert.equal(widths.length, before, 'A hidden layout never resets shared width');
-  assert.equal(ui.find('tab-indicator').props.style[1].width, 88);
+  assert.equal(ui.find('tab-indicator').props.style[1].width, fixtureGeometry.blobWidth);
   assert.equal(ui.position.value, 123);
   assert.equal(ui.springs.length, 0, 'The in-flight animation was not replaced');
 });

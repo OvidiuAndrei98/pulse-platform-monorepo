@@ -5,6 +5,7 @@ import { ActionIcon } from '../ui/ActionIcon';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
+  Platform,
   ScrollView,
   StyleSheet,
   View,
@@ -20,7 +21,7 @@ import * as Location from "expo-location";
 import { usePreferences } from "../usePreferences";
 import { eventsApi } from "../data/api";
 import { useAuth } from "../auth/AuthProvider";
-import { NotificationsPopover } from "../notifications/NotificationsPopover";
+import { NotificationsBell } from "../notifications/NotificationsBell";
 import { useEventClock } from "../data/useEventClock";
 import { manualRefreshOptions, seedEvent, useHomeEvents } from "../data/queries";
 import { RefreshScrollView } from "../ui/RefreshScrollView";
@@ -58,6 +59,21 @@ function distance(lat: number, lon: number, event: Event) {
 /** Focus gates network work without rebuilding the whole Home on each tab tap. */
 function HomeActivity() {
   const focused = useIsFocused();
+  const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
+  // Prepare native inputs, recent searches and image views before the push.
+  // A visited screen is never demoted to preloaded (RNScreens forbids 2 → 0).
+  useEffect(() => {
+    if (!focused || Platform.OS !== 'ios') return;
+    const idle = requestIdleCallback(() => {
+      let root = navigation;
+      for (let parent = root.getParent<typeof navigation>(); parent; parent = root.getParent<typeof navigation>()) root = parent;
+      const state = root.getState();
+      if (!state.routeNames.includes('Search') || state.routes.some(route => route.name === 'Search')
+        || state.preloadedRoutes.some(route => route.name === 'Search')) return;
+      root.preload('Search');
+    });
+    return () => cancelIdleCallback(idle);
+  }, [focused, navigation]);
   useHomeEvents(focused);
   useQuery({ ...manualRefreshOptions, enabled: focused, queryKey: ['promotions'], queryFn: ({ signal }) => eventsApi.promotions(signal) });
   return null;
@@ -188,7 +204,7 @@ export function HomeScreen() {
         <View style={s.header}>
           <Logo size={32} />
           <GlassButtonGroup testID="home-header-actions">
-          {user && <NotificationsPopover key={user.id} />}
+          {user && <NotificationsBell key={user.id} />}
           <GlassPressable fallback={Pressable}
             testID="home-search"
             accessibilityLabel={copy("search.open")}

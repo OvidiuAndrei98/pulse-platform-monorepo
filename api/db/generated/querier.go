@@ -81,7 +81,7 @@ type Querier interface {
 	CreateTicketPurchaseNotification(ctx context.Context, id pgtype.UUID) error
 	CreateTicketType(ctx context.Context, arg CreateTicketTypeParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (Users, error)
-	DeclineFriendRequest(ctx context.Context, arg DeclineFriendRequestParams) error
+	DeclineFriendRequest(ctx context.Context, arg DeclineFriendRequestParams) (DeclineFriendRequestRow, error)
 	DecrementPromoCodeRedemption(ctx context.Context, id pgtype.UUID) error
 	DecrementTicketsSold(ctx context.Context, arg DecrementTicketsSoldParams) error
 	DeleteCheckIn(ctx context.Context, arg DeleteCheckInParams) error
