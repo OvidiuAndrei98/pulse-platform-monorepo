@@ -343,6 +343,7 @@ export function ProfileScreen() {
         <View style={{ gap: 12 }}>
           <Text style={s.section}>{copy("userProfile.accountSecurity")}</Text>
           <View testID="profile-account-settings" style={s.panel}>
+            <Row icon={Ticket} title={copy('outings.transfers')} onPress={()=>navigation.navigate('TicketTransfers')}/>
             <Row
               testID="profile-details-toggle"
               icon={UserRound}

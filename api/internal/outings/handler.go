@@ -105,6 +105,7 @@ func (h *Handler) Routes() http.Handler {
 	r.Post("/plans", h.endpoint("create_plan", true, h.createPlan))
 	r.Get("/plans/{planID}", h.endpoint("plan", false, h.getPlan))
 	r.Post("/plans/{planID}/respond", h.endpoint("respond_plan", true, h.respondPlan))
+	r.Post("/plans/{planID}/proposals", h.endpoint("propose", true, h.propose))
 	r.Post("/plans/{planID}/vote", h.endpoint("vote", true, h.vote))
 	r.Post("/plans/{planID}/choose", h.endpoint("choose", true, h.choose))
 	r.Get("/transfers", h.endpoint("transfers", false, h.listTransfers))

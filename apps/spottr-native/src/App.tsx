@@ -1,3 +1,5 @@
+import { isOutingId } from '@packages/app-core/outings/model';
+import { TicketTransfersScreen } from './outings/TicketTransfersScreen';
 import { AppFontsReadyContext, Text } from "./ui/Text";
 import { captureAppError, diagnosticScreen } from './diagnostics/runtime';
 import React, { useCallback, useEffect, useId, useState } from "react";
@@ -126,7 +128,8 @@ const linking: LinkingOptions<RootParamList> = {
       ...(Platform.OS === 'ios' ? accountPagePaths : {}),
       PublicProfile: "users/:id",
       SafetyGroup: 'events/:eventId/group',
-      Outings: {path:'outings',parse:{plan:String,ticket:String}},
+      Outings: {path:'outings',parse:{plan:String,ticket:String,event:String}},
+      TicketTransfers: {path:'ticket-transfers',parse:{ticket:String}},
       EventNight: 'events/:eventId/night',
       Dashboard: 'dashboard/:section?',
       Scanner: 'ticket-validation',
@@ -207,7 +210,16 @@ function MainTabs() {
 function SafetyRoute({ route, navigation }: NativeStackScreenProps<RootParamList, 'SafetyGroup'>) {
   return <SafetyGroupScreen eventId={route.params.eventId} onBack={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs', { screen: 'Home' })} onLogin={() => navigation.navigate('Auth', { returnSafetyGroup: route.params.eventId })} bottomBar={<PublicProfileTabBar activeIndex={1}/>} />;
 }
-function OutingsRoute({route}:NativeStackScreenProps<RootParamList,'Outings'>){return <OutingsScreen key={[route.params?.planId,route.params?.ticketId,route.params?.plan,route.params?.ticket,route.params?.tab].join(':')} planId={route.params?.planId??route.params?.plan} ticketId={route.params?.ticketId??route.params?.ticket} initialTab={route.params?.tab}/>;}
+function OutingsRoute({route,navigation}:NativeStackScreenProps<RootParamList,'Outings'>){
+  const ticket=route.params?.ticketId??route.params?.ticket;
+  const legacy=ticket!==undefined||route.params?.tab==='transfers';
+  useEffect(()=>{if(legacy)navigation.replace('TicketTransfers',isOutingId(ticket)?{ticketId:ticket}:undefined);},[legacy,ticket,navigation]);
+  return legacy?null:<OutingsScreen key={[route.params?.planId,route.params?.plan,route.params?.event].join(':')} planId={route.params?.planId??route.params?.plan} eventId={route.params?.event}/>;
+}
+function TicketTransfersRoute({route}:NativeStackScreenProps<RootParamList,'TicketTransfers'>){
+  const ticket=route.params?.ticketId??route.params?.ticket;
+  return <TicketTransfersScreen key={ticket??''} ticketId={isOutingId(ticket)?ticket:undefined}/>;
+}
 function EventNightRoute({route}:NativeStackScreenProps<RootParamList,'EventNight'>){return <EventNightScreen eventId={route.params.eventId}/>;}
 function DashboardRoute({ route, navigation }: NativeStackScreenProps<RootParamList, 'Dashboard'>) {
   const { user, ready } = useAuth();
@@ -243,6 +255,7 @@ function EventFlow({ route }: { route: { params: RootParamList['Event'] } }) {
     <Purchase.Screen name="PublicProfile" component={PublicProfileScreen} options={{ presentation: Platform.OS === 'web' ? 'transparentModal' : 'card', gestureEnabled: true }} />
     <Purchase.Screen name="SafetyGroup" component={SafetyRoute} options={{ presentation: Platform.OS === 'web' ? 'transparentModal' : 'card' }}/>
     <Purchase.Screen name="Outings" component={OutingsRoute}/>
+    <Purchase.Screen name="TicketTransfers" component={TicketTransfersRoute}/>
     <Purchase.Screen name="EventNight" component={EventNightRoute}/>
     <Purchase.Screen name="Legal" component={LegalScreen}/>
     <Purchase.Screen name="Checkout" component={CheckoutScreen} options={{ ...nativeBackOptions, presentation: Platform.OS === 'web' ? 'transparentModal' : 'card' }} />
@@ -301,6 +314,7 @@ const MainNavigationScreens = React.memo(function MainNavigationScreens() {
       <Root.Screen name="Legal" component={LegalScreen}/>
       <Root.Screen name="SafetyGroup" component={SafetyRoute}/>
       <Root.Screen name="Outings" component={OutingsRoute}/>
+      <Root.Screen name="TicketTransfers" component={TicketTransfersRoute}/>
       <Root.Screen name="EventNight" component={EventNightRoute}/>
       <Root.Screen name="Dashboard" component={DashboardRoute} options={{ animation: "none" }}/>
       <Root.Screen name="Scanner" component={ScannerDashboardRoute} options={{ animation: "none" }}/>

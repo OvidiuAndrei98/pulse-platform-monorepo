@@ -330,6 +330,7 @@ export default function MePage() {
                     <PasswordResetRequest email={user.properties.email} />
                   </div>
                 </Row>
+                <Row icon={Ticket} label={t('outings.transfers')} onClick={()=>router.push('/ticket-transfers')}/>
                 <LanguagePreferenceRow />
                 {!isOrganizer && <EventPreferencesRow hiddenCount={hiddenCategoryCount} onOpen={openPreferences} />}
                 <AttendancePrivacyRow />
@@ -592,7 +593,8 @@ export default function MePage() {
                       <PasswordResetRequest email={user.properties.email} />
                     </div>
                   </Row>
-                  <LanguagePreferenceRow />
+                  <Row icon={Ticket} label={t('outings.transfers')} onClick={()=>router.push('/ticket-transfers')}/>
+                <LanguagePreferenceRow />
                   {!isOrganizer && <EventPreferencesRow hiddenCount={hiddenCategoryCount} onOpen={openPreferences} />}
                   <AttendancePrivacyRow />
                   <Row

@@ -15,11 +15,14 @@ withBrowser(async({base,call,evaluate,until,click,input,capture,errors,delay})=>
     const user={id:id(1),username:'Outing QA',email:'outing@example.test',role:'user',hasPassword:true,preferredLanguage:'en',createdAt:'2026-01-01T00:00:00Z'};
     localStorage.setItem('pulse_token','isolated-outing-test');localStorage.setItem('i18nextLng','en');
     localStorage.setItem('spottr-native.session.v1',JSON.stringify({version:1,token:'isolated-outing-test',user}));
-    const events=[4,5].map(n=>({id:id(n),organizerId:id(3),title:'Outing Event '+n,description:'Test event',locationName:'QA Venue',city:'Bucuresti',category:'house',vibe:'indoor',status:'published',startTime:'2099-01-01T20:00:00Z',endTime:'2099-01-02T04:00:00Z',latitude:44.4,longitude:26.1,ticketTypes:[],lineup:[{id:id(20),name:'QA Artist',stage:'Main stage',performanceTime:'22:00',isHeadliner:true,source:'MANUAL'}],stats:{goingCount:1,isFavorited:false}}));
+    const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Bucharest',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const end=new Date(Date.parse(day+'T12:00:00Z')+86400000).toISOString().slice(0,10);
+    const events=[4,5].map(n=>({id:id(n),organizerId:id(3),title:'Outing Event '+n,description:'Test event',locationName:'QA Venue',city:'Bucuresti',category:'house',vibe:'indoor',status:'published',startTime:day+'T20:00:00Z',endTime:end+'T04:00:00Z',latitude:44.4,longitude:26.1,ticketTypes:[],lineup:[{id:id(20),name:'QA Artist',stage:'Main stage',performanceTime:'22:00',isHeadliner:true,source:'MANUAL'}],stats:{goingCount:1,isFavorited:false}}));
     const friend={id:id(2),username:'Friend QA',role:'user',relationship:'friends',showAttendancePublicly:false,createdAt:'2026-01-01T00:00:00Z'};
-    const ticket={id:id(90),orderId:id(80),eventId:id(4),validationHash:'a'.repeat(64),isValidated:mode==='night',ticketTypeName:'General',eventTitle:events[0].title,locationName:'QA Venue',startTime:events[0].startTime,endTime:events[0].endTime};
+    const ticket={id:id(90),orderId:id(80),eventId:id(4),validationHash:'a'.repeat(64),isValidated:mode==='night',ticketTypeName:'General',eventTitle:events[0].title,locationName:'QA Venue',startTime:'2099-01-01T20:00:00Z',endTime:'2099-01-02T04:00:00Z'};
     const qa=window.__outings={writes:[],plans:[],transfers:[],ticket,help:false,meeting:'Main entrance',approved:false};
     if(mode==='invited')qa.plans=[{id:id(30),ownerId:id(2),title:'Invited plan',status:'pending',expiresAt:'2099-01-01T00:00:00Z',members:[{userId:id(2),username:friend.username,status:'accepted'},{userId:id(1),username:user.username,status:'pending'}],options:events.map(e=>({eventId:e.id,title:e.title,location:e.locationName,startTime:e.startTime,available:true}))}];
+    if(mode==='suggest')qa.plans=[{id:id(30),ownerId:id(1),title:'Suggest plan',outingDate:day,city:'Bucuresti',status:'accepted',expiresAt:'2099-01-01T00:00:00Z',members:[{userId:id(1),username:user.username,status:'accepted'}],options:[]}];
     if(mode==='incoming')qa.transfers=[{id:id(40),ticketId:id(91),eventId:id(4),eventTitle:events[0].title,senderId:id(2),senderName:friend.username,recipientId:'',recipientName:'',status:'pending',expiresAt:'2099-01-01T00:00:00Z'}];
     const group=()=>({canCreate:true,ticketValidated:true,eligibleFriends:[],group:{id:id(50),eventId:id(4),ownerId:id(1),eventTitle:events[0].title,eventLocation:'QA Venue',startTime:events[0].startTime,endTime:events[0].endTime,expiresAt:'2099-01-03T04:00:00Z',currentMemberStatus:'accepted',canSendHelp:true,currentUserNeedsHelp:qa.help,meetingPoint:qa.meeting,members:[{userId:id(1),username:user.username,status:'accepted'}],messages:[]}});
     const deposit=()=>({id:id(60),eventId:id(4),eventTitle:events[0].title,userId:id(1),customerName:user.username,zoneId:id(61),zoneName:'A',number:'A001',status:'stored',items:{coat:1,bag:0,backpack:0},remaining:{coat:1,bag:0,backpack:0},revision:1,reservedUntil:'2099-01-01T00:00:00Z',createdAt:'2026-01-01T00:00:00Z',storedAt:'2026-01-01T00:00:00Z',returnedAt:null,pickupId:id(62),pickupItems:{coat:1,bag:0,backpack:0},pickupExpiresAt:'2099-01-03T00:00:00Z',pickupApproved:qa.approved});
@@ -34,14 +37,16 @@ withBrowser(async({base,call,evaluate,until,click,input,capture,errors,delay})=>
       if(route==='/events')return reply(url.searchParams.get('page')>1?[]:events);
       if(route==='/events/'+id(4))return reply(events[0]);
       if(route==='/users/me/tickets')return reply([ticket]);
-      if(route==='/outings/plans'&&method==='GET')return reply(qa.plans);
+      if(route==='/outings/plans'&&method==='GET')return reply(qa.plans.map(p=>p.status==='pending'?{...p,members:[],options:[]}:p));
+      if(route.startsWith('/outings/plans/')&&method==='GET'){const p=qa.plans.find(p=>route.endsWith('/'+p.id));return reply(p?.status==='pending'?{...p,members:[],options:[]}:p);}
       if(route==='/outings/plans'&&method==='POST'){
-        const plan={id:id(30),ownerId:id(1),title:body.title,status:'accepted',expiresAt:'2099-01-01T00:00:00Z',members:[{userId:id(1),username:user.username,status:'accepted'},...body.friendIds.map(userId=>({userId,username:friend.username,status:'pending'}))],options:events.filter(e=>body.eventIds.includes(e.id)).map(e=>({eventId:e.id,title:e.title,location:e.locationName,startTime:e.startTime,available:true}))};qa.plans=[plan];return reply(plan,201);
+        const plan={id:id(30),ownerId:id(1),title:body.title,outingDate:body.outingDate,city:body.city,status:'accepted',expiresAt:'2099-01-01T00:00:00Z',members:[{userId:id(1),username:user.username,status:'accepted'},...body.friendIds.map(userId=>({userId,username:friend.username,status:'pending'}))],options:events.filter(e=>(body.eventIds??[]).includes(e.id)).map(e=>({eventId:e.id,title:e.title,location:e.locationName,startTime:e.startTime,available:true}))};qa.plans=[plan];return reply(plan,201);
       }
       if(route.startsWith('/outings/plans/')&&method==='POST'){
         const p=qa.plans[0];if(route.endsWith('/respond')){p.status=body.status;p.members.find(m=>m.userId===user.id).status=body.status;}
         if(route.endsWith('/vote'))p.members.find(m=>m.userId===user.id).voteEventId=body.eventId;
-        if(route.endsWith('/choose'))p.chosenEventId=body.eventId;return reply({ok:true});
+        if(route.endsWith('/proposals')){const e=events.find(e=>e.id===body.eventId);p.options.push({eventId:e.id,title:e.title,location:e.locationName,startTime:e.startTime,available:true,priceRon:50,ticketAvailability:'on_sale'});}
+        if(route.endsWith('/choose')){p.chosenEventId=body.eventId;p.members.forEach(m=>{if(m.status==='accepted')m.hasTicket=m.userId===user.id;});}return reply({ok:true});
       }
       if(route==='/outings/transfers'&&method==='GET')return reply(qa.transfers);
       if(route==='/outings/transfers'&&method==='POST'){const x={id:id(40),ticketId:body.ticketId,eventId:id(4),eventTitle:events[0].title,senderId:id(1),senderName:user.username,recipientId:'',recipientName:'',status:'pending',expiresAt:'2099-01-01T00:00:00Z'};qa.transfers=[x];return reply(x,201);}
@@ -60,14 +65,20 @@ withBrowser(async({base,call,evaluate,until,click,input,capture,errors,delay})=>
   const open=async route=>{await call('Page.navigate',{url:origin+route});await until('window.__outings && document.readyState==="complete"',60000);};
   const press=async text=>{const q=`[...document.querySelectorAll('button,[role="button"]')].find(n=>n.textContent.trim()===${JSON.stringify(text)}||n.getAttribute('aria-label')===${JSON.stringify(text)})`;await until(q);await evaluate(`${q}.setAttribute('data-testid','outing-qa-press')`);await click('outing-qa-press');await evaluate(`document.querySelector('[data-testid="outing-qa-press"]')?.removeAttribute('data-testid')`);};
   const choose=async title=>{const q=`[...document.querySelectorAll('label,[role="checkbox"]')].find(n=>n.textContent.trim().startsWith(${JSON.stringify(title)}))`;await until(q);await evaluate(`${q}.setAttribute('data-testid','outing-qa-choice')`);await click('outing-qa-choice');await evaluate(`document.querySelector('[data-testid="outing-qa-choice"]')?.removeAttribute('data-testid')`);};
-  await open('/outings');await press(t('outings.newPlan'));await until(`document.body.innerText.includes('Outing Event 4')`);await choose('Outing Event 4');await choose('Outing Event 5');await choose('Friend QA');await press(t('outings.create'));
+  const responsive=async name=>{for(const width of [320,390,1024]){await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<700});await until('document.documentElement.scrollWidth<=innerWidth+1');await capture('outings-'+(web?'web':'native-web')+'-'+name+'-'+width);}};
+  await open('/outings');await press(t('outings.newPlan'));await responsive('create');await until(`document.body.innerText.includes('Friend QA')`);await choose('Friend QA');await press(t('outings.create'));
   await until(`window.__outings.plans.length===1 && document.body.innerText.includes(${JSON.stringify(t('outings.share'))})`);
   assert.equal(await evaluate(`window.__outings.writes.filter(w=>w.route==='/outings/plans').length`),1);
+  assert.equal(await evaluate('window.__outings.plans[0].options.length'),0,'Creation does not require event choices');
+  await click('outing-propose-00000000-0000-4000-8000-000000000004');await until('window.__outings.plans[0].options.length===1');
   await click('outing-vote-00000000-0000-4000-8000-000000000004');await until(`window.__outings.plans[0].members[0].voteEventId`);await press(t('outings.choose'));await until(`document.body.innerText.includes(${JSON.stringify(t('outings.chosenHint'))})`);
+  await responsive('chosen');
+  assert.equal(await evaluate(`document.body.innerText.includes(${JSON.stringify(t('outings.transfers'))})`),false,'Ticket transfers are separate from outing plans');
   console.log('PASS '+(web?'Web':'Native-web')+' private plan creation, selection, vote and owner decision');
   await open('/outings?case=invited&plan=00000000-0000-4000-8000-000000000030');await press(t('outings.accept'));await until(`window.__outings.plans[0].status==='accepted'`);
-  await open('/outings?case=incoming&tab=transfers');await until(`document.querySelector('[data-testid="transfer-accept-00000000-0000-4000-8000-000000000040"]')`);await click('transfer-accept-00000000-0000-4000-8000-000000000040');await until(`window.__outings.transfers[0].status==='accepted'`);
-  await open('/outings?ticket=00000000-0000-4000-8000-000000000090');await until(`document.querySelector('[data-testid="transfer-email"]')`);await input('transfer-email','recipient@example.test');await choose(t('outings.confirmTransfer'));await click('transfer-send');await until(`window.__outings.transfers.length===1`);
+  await open('/ticket-transfers?case=incoming');await until(`document.querySelector('[data-testid="transfer-accept-00000000-0000-4000-8000-000000000040"]')`);await click('transfer-accept-00000000-0000-4000-8000-000000000040');await until(`window.__outings.transfers[0].status==='accepted'`);
+  await open('/outings?case=suggest&event=00000000-0000-4000-8000-000000000004');await click('outing-suggest-00000000-0000-4000-8000-000000000030');await until('window.__outings.plans[0].options.length===1');
+  await open('/outings?ticket=00000000-0000-4000-8000-000000000090');await until(`document.querySelector('[data-testid="transfer-email"]')`);assert.equal(await evaluate('location.pathname'),'/ticket-transfers','Legacy transfer link redirects to the separate screen');await input('transfer-email','recipient@example.test');await choose(t('outings.confirmTransfer'));await click('transfer-send');await until(`window.__outings.transfers.length===1`);
   assert.equal(await evaluate(`window.__outings.writes.filter(w=>w.route==='/outings/transfers').length`),1);
   console.log('PASS private invitation acceptance, incoming transfer and confirmed outgoing transfer');
   await open('/events/00000000-0000-4000-8000-000000000004/night?case=night');await until(`document.querySelector('[data-testid="night-ticket"]')`);

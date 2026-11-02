@@ -2,10 +2,14 @@
 
 ## Entry points
 
-- Profile → “Where are we going?” / “Unde ieșim?” opens private plans and transfers (`/outings`).
-- Create a plan with 2–4 public events and 1–7 existing friends. Friends accept before voting. Each accepted member has one changeable vote; only the creator can make the final choice. Choosing an event does not reserve or purchase tickets.
+- Profile → “Where are we going?” / “Unde ieșim?” opens private plans (`/outings`). Ticket transfers live separately in Profile → Account and security → Ticket transfers (`/ticket-transfers`). Legacy transfer links under `/outings` redirect to that page with only a validated ticket UUID.
+- Create a plan with a name, a Romania calendar date (today through 365 days ahead), a supported city and 1–7 existing friends. No initial events are required. Accepted participants propose up to 8 events from the plan search or the event page/map sheet. Every proposal must match the date and city on the server. Friends accept before proposing or voting. Each accepted member has one changeable vote; only the creator can make the final choice. Choosing an event atomically notifies accepted participants and closes proposals/voting; retries do not duplicate notifications. It does not reserve or purchase tickets.
 - A ticket opens “Your event night” (`/events/{eventId}/night`): admission QR, private group/help, meeting point, cloakroom pickup confirmation, lineup and event updates. The existing private group can be created before the event; help requires a validated admission. This is an in-app alert to friends, not an emergency service.
 - The ticket viewer also opens the transfer form. Enter the recipient’s account email and confirm. An active account with that verified email accepts from its transfer inbox. Pending invitations generate in-app notifications; this feature does not send transfer invitation emails. Addresses not registered yet get the same creation response and can register/activate before accepting.
+
+After the choice, accepted participants see current Spottr admission ownership, live ticket pricing/availability and links to buy their own ticket. Eligible holders can open the event-night screen and existing private event group. Membership in an outing never creates ticket rights or bypasses group invitations. External-platform tickets cannot be verified by Spottr.
+
+Pending invitees receive only the plan context, never members, proposals, votes or admission status. Declined/outsider accounts cannot read the plan. Plans created by older versions are backfilled from their first proposal; an empty legacy plan without context is preserved but cannot receive new proposals.
 
 ## Ownership and safety rules
 
@@ -19,14 +23,14 @@
 
 ## Retention and translations
 
-- Outing plans expire after 30 days and are removed by the minute worker.
+- New outing plans expire at Romania midnight two calendar days after the selected date and are removed by the minute worker. This keeps future plans open beyond the former 30-day limit.
 - Existing event safety groups/messages expire 24 hours after the event ends.
 - Terminal ticket transfer records, including the invitation email, are removed after 90 days. Deleting a recipient account also removes email-addressed invitations; financial records follow the existing account-deletion policy. QR generation protection remains on the ticket independently of transfer history.
 - Cloakroom copy is centralized under `translation.wardrobe` in `packages/app-core/src/i18n/resources.ts`, for both Romanian and English. Web and Native use the same resource data; compatibility helpers no longer contain separate dictionaries.
 
 ## Deployment
 
-1. Apply `20261102160000_outing_plans_and_ticket_transfers.sql` using the maintenance migration task before starting the new API version.
+1. Apply migrations through `20261102180000_outing_planning_flow.sql` using the maintenance migration task before starting the new API version (including `20261102160000_outing_plans_and_ticket_transfers.sql` if not applied yet). The new migration backfills existing plans; its Down refuses a lossy rollback when more than four proposals exist.
 2. Deploy the API and verify health checks, then publish Web and the Native build.
 3. Check on staging: create/accept/vote/choose; transfer/accept/old QR rejection; buyer invoice/refund ownership; offline package creation followed by transfer rejection; event-night help and pickup approval.
 
@@ -40,7 +44,7 @@ No cloud deployment, production data change or real email/payment was performed 
 - Full Go suite passed against isolated migrated PostgreSQL test databases. Integration cases cover QR rotation, concurrent cancel/accept, financial ownership, buyer email retries, stale validators, snapshot/transfer races, revoked scanner access, refunds, inactive accounts and invitation eligibility.
 - Production Next build, Expo Web export and iOS Hermes bundle export passed. A bundle export is not a signed iOS install.
 - Browser flows run against both built applications with isolated simulated APIs at 320, 390 and 1024 pixels. They cover plan creation/voting/decision, invitation acceptance, incoming/outgoing transfers, meeting point editing, hold-for-help/resolve and pickup approval.
-- Independent backend/security review: ACCEPT, 9.1/10; no remaining critical/high/medium findings in this scope. Low observations: a stale in-app notification can briefly arrive after eligibility changes (it grants no access), and reusing a plan request ID with a changed payload returns the original plan.
+- Independent security review: initial transfers 9.1/10; this planning iteration ACCEPT at 9.4/10, with no remaining critical/high/medium findings. Planning adds fingerprint binding for creation retries, minimal pending-invitation responses and explicit server-side date/city checks. A stale in-app transfer notification can briefly arrive after eligibility changes; it grants no access.
 - Physical iPhone/Android checks for keyboard, native gestures, camera and Liquid Glass remain necessary before release.
 
 Run the browser suite from `apps/spottr-native` with `node tests/browser-outings.cjs`. For Next, start a local production preview and set `OUTINGS_TEST_PLATFORM=web` and `NAVIGATION_TEST_URL=http://127.0.0.1:49188` before running the same script. All integration DSNs must point to isolated local test databases.

@@ -3754,6 +3754,43 @@
         }
       }
     },
+    "/outings/plans/{planID}/proposals": {
+      "post": {
+        "operationId": "Outings_propose",
+        "parameters": [
+          {
+            "name": "planID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingMutationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutingEventChoice"
+              }
+            }
+          }
+        }
+      }
+    },
     "/outings/plans/{planID}/respond": {
       "post": {
         "operationId": "Outings_respond",
@@ -6027,7 +6064,8 @@
         "required": [
           "requestId",
           "title",
-          "eventIds",
+          "outingDate",
+          "city",
           "friendIds"
         ],
         "properties": {
@@ -6035,6 +6073,12 @@
             "type": "string"
           },
           "title": {
+            "type": "string"
+          },
+          "outingDate": {
+            "type": "string"
+          },
+          "city": {
             "type": "string"
           },
           "eventIds": {
@@ -7718,6 +7762,9 @@
           },
           "voteEventId": {
             "type": "string"
+          },
+          "hasTicket": {
+            "type": "boolean"
           }
         }
       },
@@ -7757,6 +7804,24 @@
           },
           "available": {
             "type": "boolean"
+          },
+          "proposedBy": {
+            "type": "string"
+          },
+          "priceRon": {
+            "type": "number",
+            "format": "double"
+          },
+          "ticketAvailability": {
+            "type": "string",
+            "enum": [
+              "on_sale",
+              "upcoming",
+              "sold_out",
+              "sales_ended",
+              "external",
+              "unavailable"
+            ]
           }
         }
       },
@@ -7788,6 +7853,12 @@
               "accepted",
               "declined"
             ]
+          },
+          "outingDate": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
           },
           "chosenEventId": {
             "type": "string"

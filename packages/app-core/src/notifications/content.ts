@@ -5,6 +5,7 @@ type Copy = (key: string, values?: Record<string, string | number>) => string;
 
 export function notificationText(notification: Notification, t: Copy) {
   if(notification.type==='outing_plan_invite')return {title:t('outings.title'),body:t('outings.hint')};
+  if(notification.type==='outing_plan_chosen')return {title:t('outings.chosen'),body:t('outings.chosenNotification')};
   if(notification.type==='ticket_transfer')return {title:t('outings.transferTitle'),body:t('outings.from',{name:notification.actorUsername||t('notifications.someone')})};
   if (notification.type === "friend_request" || notification.type === "friend_accepted") {
     const kind = notification.type === "friend_request" ? "friendRequest" : "friendAccepted";

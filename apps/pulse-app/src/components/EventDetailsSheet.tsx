@@ -38,6 +38,7 @@ import {
 } from "@packages/app-core/events/serviceFee";
 import { formatEventDateTime } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
+import { SuggestOutingLink } from '@/features/outings/SuggestOutingLink';
 import { shareEvent } from "@/lib/native/share";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { Drawer, DrawerContent, DrawerHandleOverlay, DrawerTitle } from "@/components/ui/drawer";
@@ -583,6 +584,7 @@ export function EventDetailsSheet({
 
         {/* CONTINUT PRINCIPAL */}
         <div className="space-y-6 px-5 pb-8 pt-5 md:px-6">
+          <SuggestOutingLink eventId={event.id} onNavigate={onClose}/>
           <EventSocialProof eventId={event.id} />
           <EventAttendees eventId={event.id} />
 

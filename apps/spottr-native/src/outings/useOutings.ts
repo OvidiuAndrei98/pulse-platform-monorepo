@@ -5,12 +5,12 @@ import { randomUUID } from 'expo-crypto';
 import { OutingsStore, type OutingsRequest } from '@packages/app-core/outings/model';
 import { accountApi, useAuth } from '../auth/AuthProvider';
 
-export function useOutings() {
+export function useOutings(scope:'plans'|'transfers'='plans') {
   const auth=useAuth(), focused=useIsFocused(), actor=auth.user?.id, token=auth.controller.getToken();
   const store=useMemo(()=> {
     const request: OutingsRequest=(path,method,body,signal)=>accountApi(path,{method,body,signal,token:token??null});
-    return new OutingsStore(request,()=>!!actor&&!!token&&auth.controller.getToken()===token&&auth.controller.getSnapshot().user?.id===actor,randomUUID);
-  },[actor,token,auth.controller]);
+    return new OutingsStore(request,()=>!!actor&&!!token&&auth.controller.getToken()===token&&auth.controller.getSnapshot().user?.id===actor,randomUUID,scope);
+  },[actor,token,auth.controller,scope]);
   const state=useSyncExternalStore(store.subscribe,store.getSnapshot,store.getSnapshot);
   useEffect(()=>{store.activate();return()=>store.dispose();},[store]);
   useEffect(()=>{

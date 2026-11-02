@@ -752,9 +752,10 @@ type OutingPlanMembers struct {
 }
 
 type OutingPlanOptions struct {
-	PlanID   pgtype.UUID `json:"plan_id"`
-	EventID  pgtype.UUID `json:"event_id"`
-	Position int16       `json:"position"`
+	PlanID     pgtype.UUID `json:"plan_id"`
+	EventID    pgtype.UUID `json:"event_id"`
+	Position   int16       `json:"position"`
+	ProposedBy pgtype.UUID `json:"proposed_by"`
 }
 
 type OutingPlanVotes struct {
@@ -764,13 +765,16 @@ type OutingPlanVotes struct {
 }
 
 type OutingPlans struct {
-	ID            pgtype.UUID        `json:"id"`
-	OwnerID       pgtype.UUID        `json:"owner_id"`
-	RequestID     pgtype.UUID        `json:"request_id"`
-	Title         string             `json:"title"`
-	ChosenEventID pgtype.UUID        `json:"chosen_event_id"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	ExpiresAt     pgtype.Timestamptz `json:"expires_at"`
+	ID                 pgtype.UUID        `json:"id"`
+	OwnerID            pgtype.UUID        `json:"owner_id"`
+	RequestID          pgtype.UUID        `json:"request_id"`
+	Title              string             `json:"title"`
+	ChosenEventID      pgtype.UUID        `json:"chosen_event_id"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	ExpiresAt          pgtype.Timestamptz `json:"expires_at"`
+	OutingDate         pgtype.Date        `json:"outing_date"`
+	City               pgtype.Text        `json:"city"`
+	RequestFingerprint pgtype.Text        `json:"request_fingerprint"`
 }
 
 type PlatformCommissionInvoices struct {

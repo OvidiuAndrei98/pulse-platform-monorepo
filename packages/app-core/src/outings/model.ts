@@ -1,9 +1,11 @@
+import { eventCities } from '../events/constants';
+import { productToday, productMidnight, shiftCalendarDay, validCalendarDay } from '../events/discoveryFilters';
 import type { components } from '@packages/api-client/schema';
 
 export type OutingPlan = components['schemas']['OutingPlan'];
 export type TicketTransfer = components['schemas']['TicketTransfer'];
 export type PlanDraft = components['schemas']['CreateOutingPlan'];
-export type PlanEvent = { id: string; title: string; startTime: string; endTime: string; locationName: string };
+export type PlanEvent = { id: string; title: string; startTime: string; endTime: string; locationName: string; city: string };
 export type PlanFriend = { id: string; username: string };
 export type OutingsRequest = <T>(path: string, method: 'GET' | 'POST', body?: unknown, signal?: AbortSignal) => Promise<T>;
 export type OutingsState = {
@@ -21,8 +23,11 @@ export function parsePlans(value: unknown): OutingPlan[] {
   for (const p of value) {
     if (!record(p) || !isOutingId(p.id) || !isOutingId(p.ownerId) || typeof p.title !== 'string' || !date(p.expiresAt) || !['pending', 'accepted'].includes(String(p.status)) ||
       p.chosenEventId !== undefined && !isOutingId(p.chosenEventId) || !Array.isArray(p.members) || !Array.isArray(p.options)) return invalid();
-    for (const m of p.members) if (!record(m) || !isOutingId(m.userId) || typeof m.username !== 'string' || !['pending', 'accepted'].includes(String(m.status)) || m.voteEventId !== undefined && !isOutingId(m.voteEventId)) return invalid();
-    for (const o of p.options) if (!record(o) || !isOutingId(o.eventId) || typeof o.title !== 'string' || typeof o.location !== 'string' || !date(o.startTime) || typeof o.available !== 'boolean') return invalid();
+    if(p.outingDate!==undefined&&!validCalendarDay(p.outingDate)||p.city!==undefined&&(typeof p.city!=='string'||p.city.length>80))return invalid();
+    for (const m of p.members) if (!record(m) || !isOutingId(m.userId) || typeof m.username !== 'string' || !['pending', 'accepted'].includes(String(m.status)) || m.voteEventId !== undefined && !isOutingId(m.voteEventId) || m.hasTicket!==undefined&&typeof m.hasTicket!=='boolean') return invalid();
+    for (const o of p.options) if (!record(o) || !isOutingId(o.eventId) || typeof o.title !== 'string' || typeof o.location !== 'string' || !date(o.startTime) || typeof o.available !== 'boolean' ||
+      o.proposedBy!==undefined&&!isOutingId(o.proposedBy)||o.priceRon!==undefined&&(typeof o.priceRon!=='number'||!Number.isFinite(o.priceRon)||o.priceRon<0)||
+      o.ticketAvailability!==undefined&&!['on_sale','upcoming','sold_out','sales_ended','external','unavailable'].includes(String(o.ticketAvailability))) return invalid();
   }
   return value as OutingPlan[];
 }
@@ -36,9 +41,17 @@ export function parseTransfers(value: unknown): TicketTransfer[] {
 export function planVoteCount(plan: OutingPlan, eventId: string): number {
   return plan.members.filter(m => m.status === 'accepted' && m.voteEventId === eventId).length;
 }
-export function canCreatePlan(title: string, events: readonly string[], friends: readonly string[]): boolean {
-  return !!title.trim() && Array.from(title.trim()).length <= 80 && events.length >= 2 && events.length <= 4 && friends.length >= 1 && friends.length <= 7 &&
-    new Set(events).size === events.length && new Set(friends).size === friends.length && [...events, ...friends].every(isOutingId);
+export { productToday as planningToday };
+export function validPlanningDate(value: string, now=new Date()): boolean {
+  const today=productToday(now);
+  return validCalendarDay(value)&&value>=today&&value<=shiftCalendarDay(today,365);
+}
+export function canCreatePlan(title:string,day:string,city:string,friends:readonly string[]):boolean {
+  return !!title.trim()&&Array.from(title.trim()).length<=80&&validPlanningDate(day)&&eventCities.includes(city)&&
+    friends.length>=1&&friends.length<=7&&new Set(friends).size===friends.length&&friends.every(isOutingId);
+}
+export function matchesPlanningContext(event:PlanEvent,context:{outingDate?:string;city?:string}) {
+  return !!context.outingDate&&event.city.toLowerCase()===context.city?.toLowerCase()&&productToday(new Date(event.startTime))===context.outingDate;
 }
 export function canOfferTransfer(ticket: {isValidated: boolean; startTime: string; endTime: string}, now = Date.now()): boolean {
   return !ticket.isValidated && Date.parse(ticket.startTime) > now && Date.parse(ticket.endTime) > now;
@@ -50,7 +63,7 @@ export function outingFailure(cause: unknown): string {
   const value = cause as {code?: string; message?: string; status?: number};
   if (value?.status === 401 || value?.status === 403) return 'outings.sessionEnded';
   const code = `${value?.code ?? ''} ${value?.message ?? ''}`;
-  for (const key of ['TRANSFER_WINDOW_CLOSED','TRANSFER_PENDING','TRANSFER_CLOSED','TICKET_NOT_TRANSFERABLE','RECIPIENT_UNAVAILABLE','REQUEST_REUSED','EVENT_UNAVAILABLE','PLAN_DECIDED','INVITATION_CLOSED','FRIEND_UNAVAILABLE']) {
+  for (const key of ['TRANSFER_WINDOW_CLOSED','TRANSFER_PENDING','TRANSFER_CLOSED','TICKET_NOT_TRANSFERABLE','RECIPIENT_UNAVAILABLE','REQUEST_REUSED','EVENT_UNAVAILABLE','PLAN_DECIDED','INVITATION_CLOSED','FRIEND_UNAVAILABLE','INVALID_PLAN_CONTEXT','PROPOSAL_LIMIT']) {
     if (code.includes(key)) return 'outings.errors.' + key;
   }
   return 'outings.failed';
@@ -66,23 +79,29 @@ export class OutingsStore {
   private disposed = false;
   private revision = 0;
   private keys = new Map<string,string>();
-  constructor(private request: OutingsRequest, private current: () => boolean, private newId: () => string) {}
+  constructor(private request: OutingsRequest, private current: () => boolean, private newId: () => string, private scope:'plans'|'transfers'|'all'='all') {}
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => {this.listeners.add(listener);return () => {this.listeners.delete(listener);};};
   private publish(patch: Partial<OutingsState>) { if(this.disposed || !this.current())return;this.state={...this.state,...patch};this.listeners.forEach(fn=>fn()); }
   private active = () => !this.disposed && this.current();
-  activate() {this.disposed=false;}
-  async searchEvents(query='',page=1) {
+  activate() {this.disposed=false;this.publish({working:false,refreshing:false,catalogPending:false});}
+  async searchEvents(query='',page=1,context?:{outingDate?:string;city?:string}) {
     if(!this.active())return;
     this.catalog?.abort();const request=this.catalog=new AbortController();this.publish({catalogPending:true});
+    const params=new URLSearchParams({q:query.trim().slice(0,120),page:String(page)});
+    if(context?.city)params.set('city',context.city);
+    if(context?.outingDate&&validCalendarDay(context.outingDate)){
+      params.set('startsAfter',productMidnight(context.outingDate));
+      params.set('startsBefore',productMidnight(shiftCalendarDay(context.outingDate,1)));
+    }
     try {
       const [events,friends]=await Promise.all([
-        this.request<unknown>('/events?q='+encodeURIComponent(query.trim().slice(0,120))+'&page='+page,'GET',undefined,request.signal),
+        this.request<unknown>('/events?'+params.toString(),'GET',undefined,request.signal),
         this.request<unknown>('/friends','GET',undefined,request.signal),
       ]);
       if(!this.active()||request.signal.aborted)return;
       if(!Array.isArray(events)||!Array.isArray(friends))return invalid();
-      const options=events.filter((e):e is PlanEvent => record(e)&&isOutingId(e.id)&&typeof e.title==='string'&&typeof e.locationName==='string'&&date(e.startTime)&&date(e.endTime)&&Date.parse(e.endTime as string)>Date.now());
+      const options=events.filter((e):e is PlanEvent => record(e)&&isOutingId(e.id)&&typeof e.title==='string'&&typeof e.locationName==='string'&&typeof e.city==='string'&&date(e.startTime)&&date(e.endTime)&&Date.parse(e.endTime as string)>Date.now());
       const people=friends.filter((f):f is PlanFriend=>record(f)&&isOutingId(f.id)&&typeof f.username==='string');
       this.publish({events:page===1?options:[...new Map([...this.state.events,...options].map(e=>[e.id,e])).values()],friends:people,moreEvents:events.length>0});
     }catch(cause){if(this.active()&&!request.signal.aborted)this.publish({error:outingFailure(cause)});}
@@ -94,7 +113,8 @@ export class OutingsStore {
     if(!quiet)this.publish({refreshing:true});
     try {
       const [plans,transfers]=await Promise.all([
-        this.request<unknown>('/outings/plans','GET',undefined,request.signal),this.request<unknown>('/outings/transfers','GET',undefined,request.signal),
+        this.scope==='transfers'?Promise.resolve(this.state.plans):this.request<unknown>('/outings/plans','GET',undefined,request.signal),
+        this.scope==='plans'?Promise.resolve(this.state.transfers):this.request<unknown>('/outings/transfers','GET',undefined,request.signal),
       ]);
       if(this.active() && version===this.revision && !request.signal.aborted)this.publish({plans:parsePlans(plans),transfers:parseTransfers(transfers),error:null,pending:false});
     } catch(cause) {if(this.active()&&!request.signal.aborted&&version===this.revision)this.publish({error:outingFailure(cause),pending:false});}
@@ -106,8 +126,17 @@ export class OutingsStore {
     if(!id){id=this.newId();this.keys.set(fingerprint,id);}return id;
   }
   createPlan(draft: Omit<PlanDraft,'requestId'>) {
-    if(!canCreatePlan(draft.title,draft.eventIds,draft.friendIds))return Promise.resolve(undefined);
+    if(!canCreatePlan(draft.title,draft.outingDate,draft.city,draft.friendIds))return Promise.resolve(undefined);
     return this.mutate<OutingPlan>('/outings/plans',{...draft,requestId:this.requestId('plan',draft)});
+  }
+  propose(id:string,eventId:string) {return isOutingId(id)&&isOutingId(eventId)?this.mutate('/outings/plans/'+id+'/proposals',{eventId}):Promise.resolve(undefined);}
+  async loadPlan(id:string) {
+    if(!this.active()||!isOutingId(id)||this.write)return;
+    const version=this.revision;
+    try {
+      const result=await this.request<unknown>('/outings/plans/'+id,'GET');
+      if(this.active()&&version===this.revision){const [plan]=parsePlans([result]);this.publish({plans:[plan!,...this.state.plans.filter(p=>p.id!==id)]});}
+    }catch(cause){if(this.active()&&version===this.revision)this.publish({error:outingFailure(cause)});}
   }
   respondPlan(id:string,status:'accepted'|'declined') {return isOutingId(id)?this.mutate('/outings/plans/'+id+'/respond',{status}):Promise.resolve(undefined);}
   vote(id:string,eventId:string) {return isOutingId(id)&&isOutingId(eventId)?this.mutate('/outings/plans/'+id+'/vote',{eventId}):Promise.resolve(undefined);}

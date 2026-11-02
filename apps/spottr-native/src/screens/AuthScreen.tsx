@@ -98,6 +98,7 @@ export function AuthScreen({
     // Never back into a protected screen on close/logout; authenticated return
     // destinations are a typed tab, never a URL supplied by a third party.
     if (isEventId(route.params?.returnSafetyGroup)) navigation.popTo('SafetyGroup', { eventId: route.params.returnSafetyGroup }, { merge: true });
+    else if (route.params?.returnTicketTransfers) navigation.popTo('TicketTransfers', undefined);
     else if (route.params?.returnOutings) navigation.popTo('Outings', undefined);
     else if (isEventId(route.params?.returnEventNight)) navigation.popTo('EventNight',{eventId:route.params.returnEventNight});
     else if (route.params?.returnScanner) navigation.popTo('Scanner', undefined);
@@ -107,7 +108,7 @@ export function AuthScreen({
     else if ((!route.params?.returnTab || route.params.returnTab === 'Profile') && auth.user.role === 'admin') navigation.popTo('Admin', undefined);
     else if ((!route.params?.returnTab || route.params.returnTab === 'Profile') && auth.user.role === 'organizer') navigation.popTo('Dashboard', undefined);
     else navigation.popTo("Tabs", { screen: route.params?.returnTab ?? "Profile" });
-  }, [auth.ready, auth.user, mode, navigation, route.params?.returnTab, route.params?.returnEvent, route.params?.returnProfile, route.params?.returnSafetyGroup, route.params?.returnOutings, route.params?.returnEventNight, route.params?.returnScanner, route.params?.returnDashboard, route.params?.returnDashboardParams]);
+  }, [auth.ready, auth.user, mode, navigation, route.params?.returnTab, route.params?.returnEvent, route.params?.returnProfile, route.params?.returnSafetyGroup, route.params?.returnOutings, route.params?.returnTicketTransfers, route.params?.returnEventNight, route.params?.returnScanner, route.params?.returnDashboard, route.params?.returnDashboardParams]);
   const go = (next: "login" | "register" | "forgot" | "reset") => {
     if (!pending.current && !auth.busy) navigation.setParams({ mode: next });
   };

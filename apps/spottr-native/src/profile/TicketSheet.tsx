@@ -326,7 +326,7 @@ export function TicketSheet({
         )}
         <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
           <UIActionButton title={copy('outings.night')} tone="secondary" onPress={()=>{onClose();navigation.navigate('EventNight',{eventId:ticket.eventId});}} style={{flexGrow:1}}/>
-          {canOfferTransfer(ticket)&&<UIActionButton testID="ticket-transfer" title={copy('outings.transferTitle')} tone="secondary" disabled={busy} onPress={()=>{onClose();navigation.navigate('Outings',{ticketId:ticket.id});}} style={{flexGrow:1}}/>}
+          {canOfferTransfer(ticket)&&<UIActionButton testID="ticket-transfer" title={copy('outings.transferTitle')} tone="secondary" disabled={busy} onPress={()=>{onClose();navigation.navigate('TicketTransfers',{ticketId:ticket.id});}} style={{flexGrow:1}}/>}
         </View>
         <UIActionButton
           testID="ticket-download"
