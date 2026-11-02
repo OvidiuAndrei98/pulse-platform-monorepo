@@ -51,6 +51,7 @@ export type RootParamList = {
         returnProfile?: string;
         returnSafetyGroup?: string;
         returnOutings?: boolean;
+        returnOutingsEvent?: string;
         returnTicketTransfers?: boolean;
         returnEventNight?: string;
         returnDashboard?: boolean;

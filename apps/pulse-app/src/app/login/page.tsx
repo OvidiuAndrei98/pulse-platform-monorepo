@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { BackLink } from "@/components/BackLink";
 import { isPublicLoginReturnPath } from "@/lib/navigation/loginReturn";
 import { safeInternalPath } from "@/lib/navigation/state";
 import { routeForPlatform } from "@/lib/native/navigation";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -26,9 +26,14 @@ import {Input as UIInput} from '@/components/ui/Field';
 import { completeCredentials, createCredentialFillSubmitter, watchBrowserCredentialFill } from '@packages/browser-core/auth/credentialFill';
 
 export default function LoginPage() {
+  return <Suspense><LoginContent /></Suspense>;
+}
+
+function LoginContent() {
   const { t } = useTranslation();
   const { login, loading, user } = useDataProvider();
   const router = useRouter();
+  const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -41,12 +46,8 @@ export default function LoginPage() {
     if (typeof window === "undefined") return false;
     return new URLSearchParams(window.location.search).get("activation") === "success";
   });
-  const [returnTo] = useState(() => {
-    if (typeof window === "undefined") return "";
-    const value =
-      new URLSearchParams(window.location.search).get("returnTo") || "";
-    return safeInternalPath(value, "");
-  });
+  // Next can render the destination before updating window.location/history.
+  const returnTo = safeInternalPath(params.get('returnTo'), '');
   const emailInput = useRef<HTMLInputElement>(null), passwordInput = useRef<HTMLInputElement>(null);
   const pending = useRef(false), submitRef = useRef<() => void>(() => {}), fillEnabled = useRef(false);
   fillEnabled.current = showEmailForm && !loading && !user;
