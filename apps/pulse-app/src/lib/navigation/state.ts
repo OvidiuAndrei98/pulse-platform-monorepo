@@ -1,5 +1,5 @@
 export function isClientRoute(path: string) {
-  return path === "/" || /^\/(events|feed|profiles|users|login|register|forgot-password|reset-password|auth|checkout|legal)(\/|$)/.test(path);
+  return path === "/" || /^\/(events|friends|outings|ticket-transfers|feed|profiles|users|login|register|forgot-password|reset-password|auth|checkout|legal)(\/|$)/.test(path);
 }
 
 export function safeInternalPath(value: string | null | undefined, fallback = "/") {

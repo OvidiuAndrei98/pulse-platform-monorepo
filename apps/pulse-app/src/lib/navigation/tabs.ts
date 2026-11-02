@@ -1,15 +1,12 @@
-export const MAIN_TABS = [
-  { id: "home", path: "/", label: "nav.home" },
-  { id: "map", path: "/events", label: "nav.map" },
-  { id: "feed", path: "/feed", label: "nav.feed" },
-  { id: "profile", path: "/users/me", label: "nav.profile" },
-] as const;
+import { MAIN_TAB_DEFINITIONS } from '@packages/app-core/navigation/mainTabs';
+export const MAIN_TABS = MAIN_TAB_DEFINITIONS;
 
 export function mainTabs(organizer = false) {
   return MAIN_TABS.map((tab) => ({ ...tab, path: tab.id === "profile" && organizer ? "/dashboard" : tab.path }));
 }
 
 export function mainTabIndex(path: string) {
+  if (path === '/users/me/friends' || path === '/outings') return MAIN_TABS.findIndex(tab => tab.id === 'friends');
   return MAIN_TABS.findIndex((tab) => {
     if (tab.id === "profile") return /^\/(users|profiles|dashboard|ticket-validation)(\/|$)/.test(path);
     return path === tab.path || (tab.path !== "/" && path.startsWith(tab.path + "/"));

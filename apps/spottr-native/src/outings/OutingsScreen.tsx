@@ -1,6 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import { AccessibilityInfo,ActivityIndicator,View,useWindowDimensions } from 'react-native';
-import { ArrowLeft,LockKeyhole,Plus,RefreshCw } from 'lucide-react-native';
+import { ArrowLeft,LockKeyhole,Plus } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isOutingId } from '@packages/app-core/outings/model';
@@ -17,16 +17,16 @@ import { usePreferences } from '../usePreferences';
 import { useAuth } from '../auth/AuthProvider';
 import { o } from './outingsStyles';
 
-export function OutingsScreen({planId,eventId}:{planId?:string;eventId?:string}) {
-  const {user}=useAuth();return <OutingsContent key={user?.id??'guest'} planId={planId} eventId={eventId}/>;
+export function OutingsScreen({planId,eventId,newPlan}:{planId?:string;eventId?:string;newPlan?:boolean}) {
+  const {user}=useAuth();return <OutingsContent key={user?.id??'guest'} planId={planId} eventId={eventId} newPlan={newPlan}/>;
 }
-function OutingsContent({planId,eventId}:{planId?:string;eventId?:string}) {
+function OutingsContent({planId,eventId,newPlan}:{planId?:string;eventId?:string;newPlan?:boolean}) {
   const model=useOutings(),{copy}=usePreferences(),navigation=useNavigation<any>(),safe=useSafeAreaInsets(),wide=useWindowDimensions().width>=850;
-  const [selected,setSelected]=useState(isOutingId(planId)?planId:''),[building,setBuilding]=useState(false);
+  const [selected,setSelected]=useState(isOutingId(planId)?planId:''),[building,setBuilding]=useState(!!newPlan);
   useEffect(()=>{if(selected&&!model.pending)void model.store.loadPlan(selected);},[selected,model.pending,model.store]);
   useEffect(()=>{if(model.notice)AccessibilityInfo.announceForAccessibility(copy(model.notice));},[model.notice,copy]);
   const plan=model.plans.find(item=>item.id===selected),invitations=model.plans.filter(item=>item.status==='pending'),mine=model.plans.filter(item=>item.status==='accepted');
-  const back=()=>{if(building)setBuilding(false);else if(selected)setSelected('');else if(navigation.canGoBack())navigation.goBack();else navigation.navigate('Tabs',{screen:'Profile'});};
+  const back=()=>{if(building)setBuilding(false);else if(selected)setSelected('');else if(navigation.canGoBack())navigation.goBack();else navigation.navigate('Tabs',{screen:'Friends'});};
   const create=<ActionButton testID="outing-new" title={copy('outings.newPlan')} icon={<Plus size={18}/>} onPress={()=>setBuilding(true)}/>;
   const cards=(rows:typeof model.plans,label:string)=><View style={{gap:16}}>
     <View style={o.split}><Text style={o.heading}>{label}</Text><Text style={o.caption}>{rows.length}</Text></View>
@@ -36,7 +36,6 @@ function OutingsContent({planId,eventId}:{planId?:string;eventId?:string}) {
     <FormScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:20,paddingBottom:safe.bottom+48,gap:24,maxWidth:1120,width:'100%',alignSelf:'center'}}>
       <View style={o.split}>
         <ActionButton title={copy('common.back')} icon={<ArrowLeft size={18}/>} tone="ghost" disabled={model.working} onPress={back}/>
-        {model.user&&<ActionButton accessibilityLabel={copy('outings.ui.refreshHint')} tone="secondary" busy={model.refreshing} disabled={model.working} style={{width:44,paddingHorizontal:10}} icon={!model.refreshing?<RefreshCw size={18}/>:undefined} onPress={()=>void model.store.load()}/>}
       </View>
       {(!plan||building)&&<View style={{gap:12}}>
         <View style={[o.row,{gap:8}]}><LockKeyhole size={14} color={colors.muted}/><Text style={o.caption}>{copy('outings.ui.private')}</Text></View>

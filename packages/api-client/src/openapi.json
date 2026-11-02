@@ -2295,6 +2295,35 @@
         }
       }
     },
+    "/event-feed": {
+      "get": {
+        "operationId": "EventFeedOperations_list",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventFeedPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events": {
       "get": {
         "operationId": "EventOperations_listEvents",
@@ -2705,6 +2734,83 @@
                   "items": {
                     "$ref": "#/components/schemas/UserMinResponse"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events/{id}/likes": {
+      "get": {
+        "operationId": "EventLikeOperations_get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventLikeResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "EventLikeOperations_like",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventLikeResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "EventLikeOperations_unlike",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventLikeResponse"
                 }
               }
             }
@@ -6438,6 +6544,105 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "EventFeedItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "organizerId",
+          "title",
+          "category",
+          "city",
+          "locationName",
+          "description",
+          "startTime",
+          "endTime",
+          "externalTickets",
+          "likeCount",
+          "liked"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "organizerId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "bannerUrl": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "priceRon": {
+            "type": "number",
+            "format": "double"
+          },
+          "externalTickets": {
+            "type": "boolean"
+          },
+          "likeCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "liked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EventFeedPage": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventFeedItem"
+            }
+          },
+          "nextPage": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "EventLikeResponse": {
+        "type": "object",
+        "required": [
+          "likeCount",
+          "liked"
+        ],
+        "properties": {
+          "likeCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "liked": {
+            "type": "boolean"
           }
         }
       },

@@ -1022,6 +1022,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/event-feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["EventFeedOperations_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/events": {
         parameters: {
             query?: never;
@@ -1138,6 +1154,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{id}/likes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["EventLikeOperations_get"];
+        put: operations["EventLikeOperations_like"];
+        post?: never;
+        delete: operations["EventLikeOperations_unlike"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2321,6 +2353,36 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        EventFeedItem: {
+            id: string;
+            organizerId: string;
+            title: string;
+            category: string;
+            city: string;
+            locationName: string;
+            description: string;
+            bannerUrl?: string;
+            /** Format: date-time */
+            startTime: string;
+            /** Format: date-time */
+            endTime: string;
+            /** Format: double */
+            priceRon?: number;
+            externalTickets: boolean;
+            /** Format: int64 */
+            likeCount: number;
+            liked: boolean;
+        };
+        EventFeedPage: {
+            items: components["schemas"]["EventFeedItem"][];
+            /** Format: int32 */
+            nextPage?: number;
+        };
+        EventLikeResponse: {
+            /** Format: int64 */
+            likeCount: number;
+            liked: boolean;
         };
         EventResponse: {
             /** Format: int32 */
@@ -5265,6 +5327,28 @@ export interface operations {
             };
         };
     };
+    EventFeedOperations_list: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventFeedPage"];
+                };
+            };
+        };
+    };
     EventOperations_listEvents: {
         parameters: {
             query?: {
@@ -5497,6 +5581,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserMinResponse"][];
+                };
+            };
+        };
+    };
+    EventLikeOperations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventLikeResponse"];
+                };
+            };
+        };
+    };
+    EventLikeOperations_like: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventLikeResponse"];
+                };
+            };
+        };
+    };
+    EventLikeOperations_unlike: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventLikeResponse"];
                 };
             };
         };

@@ -338,6 +338,9 @@ func (app *Application) BuildRouter() http.Handler {
 		// Events
 		CreateEvent:                    eventsHandler.HandleCreateEvent,
 		ListEvents:                     eventsHandler.HandleListEvents,
+		ListEventFeed:                  eventsHandler.HandleEventFeed,
+		GetEventLikes:                  eventsHandler.HandleEventLikes,
+		SetEventLike:                   eventsHandler.HandleSetEventLike,
 		GetEventByID:                   eventsHandler.HandleGetEventByID,
 		GetLiveEventsInArea:            eventsHandler.HandleGetLiveEventsInArea,
 		DeleteEvent:                    eventsHandler.HandleDeleteEvent,

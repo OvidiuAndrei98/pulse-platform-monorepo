@@ -1,5 +1,5 @@
 import React from "react";
-import { Map, UsersRound, UserRound } from "lucide-react-native";
+import { Map, UsersRound, UserRound, GalleryVerticalEnd } from "lucide-react-native";
 import Svg, { Path, Polyline } from "react-native-svg";
 
 export type TabBarIconProps = {
@@ -18,7 +18,7 @@ function HomeIcon({ size, color, strokeWidth }: Omit<TabBarIconProps, "index" | 
   </Svg>;
 }
 
-const icons = [HomeIcon, Map, UsersRound, UserRound];
+const icons = [HomeIcon, Map, UsersRound, GalleryVerticalEnd, UserRound];
 
 export function TabBarIconFallback({ index, active: _active, ...props }: TabBarIconProps) {
   const Icon = icons[index] ?? HomeIcon;

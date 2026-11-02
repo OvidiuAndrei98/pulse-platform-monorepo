@@ -1,3 +1,4 @@
+import { EventFeedScreen } from './feed/EventFeedScreen';
 import { isOutingId } from '@packages/app-core/outings/model';
 import { TicketTransfersScreen } from './outings/TicketTransfersScreen';
 import { AppFontsReadyContext, Text } from "./ui/Text";
@@ -38,7 +39,7 @@ import { SceneMainTabBar, MainTabBarProvider, MainTabBarRegistration } from "./n
 import { accountLinkOrigin, accountPagePaths, openAccountPage } from './navigation/accountNavigation';
 import { profileStackRouter } from './navigation/profileStackRouter';
 import { PersistentTabScenes } from './navigation/PersistentTabScenes';
-import type { FeedParamList, ProfileParamList, RootParamList, TabsParamList } from "./navigation/types";
+import type { FriendsParamList, ProfileParamList, RootParamList, TabsParamList } from "./navigation/types";
 import { DiscoveryScreen } from "./screens/DiscoveryScreen";
 import { HomeScreen } from "./screens/HomeScreen";
 import { SearchScreen } from "./screens/SearchScreen";
@@ -82,7 +83,7 @@ const Root = createNativeStackNavigator<RootParamList>();
 const Purchase = createNativeStackNavigator<RootParamList>();
 const Tabs = createBottomTabNavigator<TabsParamList>();
 const Profile = createNativeStackNavigator<ProfileParamList>();
-const Feed = createNativeStackNavigator<FeedParamList>();
+const Friends = createNativeStackNavigator<FriendsParamList>();
 // Search, Checkout and scan history use UIKit push/pop and its interactive Back gesture.
 // Leave fullScreenGestureEnabled unset: iOS chooses its own native behavior
 // (edge swipe on older iOS, content swipe on newer iOS). Forcing it on older
@@ -118,7 +119,8 @@ const linking: LinkingOptions<RootParamList> = {
         screens: {
           Home: "",
           Explore: "events",
-          Feed: { screens: { FeedHome: "feed", FriendsManage: "users/me/friends" } },
+          Friends: { screens: { FriendsHome: "friends", FriendsManage: "users/me/friends" } },
+          Feed: "feed",
           Profile: (Platform.OS === 'ios' ? { path: 'users/me', alias: ['profile'] }
             : { initialRouteName: "ProfileHome", screens: { ProfileHome: { path: "users/me", alias: ["profile"] }, ...accountPagePaths } }) as PathConfig<ProfileParamList>,
         },
@@ -128,7 +130,7 @@ const linking: LinkingOptions<RootParamList> = {
       ...(Platform.OS === 'ios' ? accountPagePaths : {}),
       PublicProfile: "users/:id",
       SafetyGroup: 'events/:eventId/group',
-      Outings: {path:'outings',parse:{plan:String,ticket:String,event:String}},
+      Outings: {path:'outings',parse:{plan:String,ticket:String,event:String,new:value=>value==='1'}},
       TicketTransfers: {path:'ticket-transfers',parse:{ticket:String}},
       EventNight: 'events/:eventId/night',
       Dashboard: 'dashboard/:section?',
@@ -158,11 +160,11 @@ function ProfileNavigator() {
     <Profile.Screen name="Orders" component={OrdersScreen} />
   </Profile.Navigator>;
 }
-function FeedNavigator() {
-  return <Feed.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-    <Feed.Screen name="FeedHome" component={FriendsScreen} />
-    <Feed.Screen name="FriendsManage" component={FriendsManageScreen} />
-  </Feed.Navigator>;
+function FriendsNavigator() {
+  return <Friends.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+    <Friends.Screen name="FriendsHome" component={FriendsScreen} />
+    <Friends.Screen name="FriendsManage" component={FriendsManageScreen} />
+  </Friends.Navigator>;
 }
 function MainTabs() {
   const { t } = usePreferences();
@@ -194,10 +196,11 @@ function MainTabs() {
         options={{ title: t("explore") }}
       />
       <Tabs.Screen
-        name="Feed"
-        component={FeedNavigator}
-        options={{ title: "Feed" }}
+        name="Friends"
+        component={FriendsNavigator}
+        options={{ title: "Friends" }}
       />
+      <Tabs.Screen name="Feed" component={EventFeedScreen} options={{ title: "Feed" }} />
       <Tabs.Screen
         name="Profile"
         component={ProfileNavigator}
@@ -214,7 +217,7 @@ function OutingsRoute({route,navigation}:NativeStackScreenProps<RootParamList,'O
   const ticket=route.params?.ticketId??route.params?.ticket;
   const legacy=ticket!==undefined||route.params?.tab==='transfers';
   useEffect(()=>{if(legacy)navigation.replace('TicketTransfers',isOutingId(ticket)?{ticketId:ticket}:undefined);},[legacy,ticket,navigation]);
-  return legacy?null:<OutingsScreen key={[route.params?.planId,route.params?.plan,route.params?.event].join(':')} planId={route.params?.planId??route.params?.plan} eventId={route.params?.event}/>;
+  return legacy?null:<OutingsScreen key={[route.params?.planId,route.params?.plan,route.params?.event,route.params?.new].join(':')} planId={route.params?.planId??route.params?.plan} eventId={route.params?.event} newPlan={route.params?.new}/>;
 }
 function TicketTransfersRoute({route}:NativeStackScreenProps<RootParamList,'TicketTransfers'>){
   const ticket=route.params?.ticketId??route.params?.ticket;

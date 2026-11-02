@@ -107,9 +107,12 @@ WITH friend_ids AS (
            ''::text AS organizer_update_caption
     FROM tickets t
     JOIN orders o ON o.id = t.order_id AND o.status = 'completed'
+        AND o.stripe_refund_status = 'none' AND o.stripe_amount_refunded_bani = 0 AND NOT o.stripe_refund_needs_attention
+        AND NOT EXISTS (SELECT 1 FROM order_refund_operations refund WHERE refund.order_id = o.id)
     JOIN ticket_types tt ON tt.id = t.ticket_type_id
-    JOIN events e ON e.id = tt.event_id
-    JOIN users u ON u.id = t.user_id AND u.show_attendance_publicly = TRUE
+    JOIN events e ON e.id = tt.event_id AND e.status = 'published' AND e.end_time > CURRENT_TIMESTAMP
+    JOIN users owner ON owner.id = e.organizer_id AND owner.is_active
+    JOIN users u ON u.id = t.user_id AND u.show_attendance_publicly = TRUE AND u.is_active
     WHERE t.user_id IN (SELECT user_id FROM friend_ids)
     GROUP BY u.id, u.username, u.avatar_url, e.id, e.title, e.banner_url, e.start_time
 
@@ -123,14 +126,17 @@ WITH friend_ids AS (
            NULL::uuid AS organizer_update_id, ''::text AS organizer_update_image_url,
            ''::text AS organizer_update_caption
     FROM event_rsvps r
-    JOIN users u ON u.id = r.user_id AND u.show_attendance_publicly = TRUE
-    JOIN events e ON e.id = r.event_id
+    JOIN users u ON u.id = r.user_id AND u.show_attendance_publicly = TRUE AND u.is_active
+    JOIN events e ON e.id = r.event_id AND e.status = 'published' AND e.end_time > CURRENT_TIMESTAMP
+    JOIN users owner ON owner.id = e.organizer_id AND owner.is_active
     WHERE r.user_id IN (SELECT user_id FROM friend_ids)
       AND r.status = 'going'
       AND NOT EXISTS (
           SELECT 1
           FROM tickets t
           JOIN orders o ON o.id = t.order_id AND o.status = 'completed'
+              AND o.stripe_refund_status = 'none' AND o.stripe_amount_refunded_bani = 0 AND NOT o.stripe_refund_needs_attention
+              AND NOT EXISTS (SELECT 1 FROM order_refund_operations refund WHERE refund.order_id = o.id)
           JOIN ticket_types tt ON tt.id = t.ticket_type_id
           WHERE t.user_id = r.user_id AND tt.event_id = r.event_id
       )

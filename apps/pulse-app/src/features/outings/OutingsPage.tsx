@@ -1,10 +1,10 @@
 "use client";
 import { useEffect,useRef,useState } from 'react';
-import { ArrowLeft,LockKeyhole,Plus,RefreshCw } from 'lucide-react';
+import { ArrowLeft,LockKeyhole,Plus } from 'lucide-react';
 import { useRouter,useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { isOutingId } from '@packages/app-core/outings/model';
-import { ActionButton,ActionLink,IconButton } from '@/components/ui/ActionButton';
+import { ActionButton,ActionLink } from '@/components/ui/ActionButton';
 import { StatusNotice } from '@/components/ui/StatusNotice';
 import { useDataProvider } from '@/core/DataProviderContext';
 import { useOutings } from './useOutings';
@@ -25,7 +25,7 @@ export default function OutingsPage() {
 function OutingsContent() {
   const model=useOutings(),{t}=useTranslation(),params=useSearchParams(),root=useRef<HTMLElement>(null);
   const planId=params.get('plan'),eventId=params.get('event');
-  const [selected,setSelected]=useState(isOutingId(planId)?planId:''),[building,setBuilding]=useState(false);
+  const [selected,setSelected]=useState(isOutingId(planId)?planId:''),[building,setBuilding]=useState(params.get('new')==='1');
   useEffect(()=>{if(selected&&!model.pending)void model.store.loadPlan(selected);},[selected,model.pending,model.store]);
   useEffect(()=>{root.current?.querySelector<HTMLElement>('h1')?.focus();},[selected,building]);
   const plan=model.plans.find(item=>item.id===selected);
@@ -35,8 +35,7 @@ function OutingsContent() {
   return <main ref={root} data-testid="outings-screen" className={s.page}>
     <div className={s.toolbar}>
       {building||selected?<ActionButton tone="ghost" disabled={model.working} onClick={back}><ArrowLeft size={18} aria-hidden/>{t('common.back')}</ActionButton>:
-        <ActionLink href="/users/me" tone="ghost"><ArrowLeft size={18} aria-hidden/>{t('common.back')}</ActionLink>}
-      {model.user&&<IconButton label={t('outings.ui.refreshHint')} busy={model.refreshing} disabled={model.working} onClick={()=>void model.store.load()}>{!model.refreshing&&<RefreshCw size={18} aria-hidden/>}</IconButton>}
+        <ActionLink href="/friends" tone="ghost"><ArrowLeft size={18} aria-hidden/>{t('common.back')}</ActionLink>}
     </div>
     {(!plan||building)&&<header className={s.listHeader}>
       <div className={s.hero} style={{margin:0}}>

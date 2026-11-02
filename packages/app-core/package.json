@@ -4,6 +4,8 @@
   "private": true,
   "sideEffects": false,
   "exports": {
+    "./navigation/mainTabs": "./src/navigation/mainTabs.ts",
+    "./feed/model": "./src/feed/model.ts",
     "./outings/presentation": "./src/outings/presentation.ts",
     "./outings/model": "./src/outings/model.ts",
     "./i18n/translate": "./src/i18n/translate.ts",

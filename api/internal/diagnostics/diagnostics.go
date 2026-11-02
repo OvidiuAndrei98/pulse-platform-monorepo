@@ -76,7 +76,7 @@ func oneOf(value, options string) bool {
 	return strings.Contains("|"+options+"|", "|"+value+"|") && value != "" && !strings.Contains(value, "|")
 }
 func Screen(value string) bool {
-	return oneOf(value, "Unknown|Home|Explore|Feed|Profile|Tabs|FeedHome|FriendsManage|ProfileHome|SavedEvents|Tickets|Orders|Event|EventDetails|Search|PublicProfile|Legal|SafetyGroup|Dashboard|Scanner|Admin|QuickScanner|Checkout|CheckoutReturn|Auth")
+	return oneOf(value, "Unknown|Home|Explore|Feed|Friends|FriendsHome|Profile|Tabs|FeedHome|FriendsManage|ProfileHome|SavedEvents|Tickets|Orders|Event|EventDetails|Search|PublicProfile|Legal|SafetyGroup|Dashboard|Scanner|Admin|QuickScanner|Checkout|CheckoutReturn|Auth")
 }
 func (r Report) valid(now time.Time) bool {
 	if !uuid.MatchString(r.ID) || r.OccurredAt.Before(now.Add(-7*24*time.Hour)) || r.OccurredAt.After(now.Add(5*time.Minute)) || !oneOf(r.Platform, "ios|android|web") || !version.MatchString(r.AppVersion) || !version.MatchString(r.BuildVersion) || !version.MatchString(r.OSVersion) {

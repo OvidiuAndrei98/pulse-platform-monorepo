@@ -1,3 +1,4 @@
+import { MAIN_TAB_NAMES, PROFILE_TAB_INDEX } from '@packages/app-core/navigation/mainTabs';
 import React, {
   createContext,
   useContext,
@@ -52,7 +53,7 @@ export function MainTabBarRegistration(props: BottomTabBarProps) {
   }, [bridge, props]);
   const route = props.state.routes[props.state.index];
   if (Platform.OS === 'ios') {
-    // All four tab roots share one bar and one set of native recognizers.
+    // All tab roots share one bar and one set of native recognizers.
     // Search and account pages are pushed above Tabs, carrying this whole
     // source screen (including its navbar) through the native back transition.
     return <View testID="tabs-navbar-host" collapsable={false}
@@ -76,10 +77,10 @@ const initialTabs: BottomTabBarProps["state"] = {
   type: "tab",
   key: "main-tabs",
   index: 0,
-  routeNames: ["Home", "Explore", "Feed", "Profile"],
+  routeNames: [...MAIN_TAB_NAMES],
   history: [],
   preloadedRouteKeys: [],
-  routes: ["Home", "Explore", "Feed", "Profile"].map((name) => ({
+  routes: [...MAIN_TAB_NAMES].map((name) => ({
     key: "main-" + name,
     name,
   })),
@@ -121,7 +122,7 @@ export function MainTabBarProvider({
     tabs?.type === "tab" ? (tabs as BottomTabBarProps["state"]) : initialTabs;
 
   const activeIndex =
-    pendingProfile !== null || focused !== "Tabs" ? 3 : tabState.index;
+    pendingProfile !== null || focused !== "Tabs" ? PROFILE_TAB_INDEX : tabState.index;
   const top = state?.routes[state.index];
   const accountRoute = tabState.routes[tabState.index];
   const accountScreen = accountRoute?.name === 'Profile' ? getFocusedRouteNameFromRoute(accountRoute) : undefined;
@@ -230,8 +231,8 @@ export function MainTabBarProvider({
     const params =
       screen === "Profile"
         ? { screen: "ProfileHome" }
-        : screen === "Feed"
-          ? { screen: "FeedHome" }
+        : screen === "Friends"
+          ? { screen: "FriendsHome" }
           : undefined;
     navigation.dispatch(StackActions.popTo("Tabs", { screen, params }));
     return true;

@@ -1,3 +1,4 @@
+import { MAIN_TAB_LABELS } from '@packages/app-core/navigation/mainTabs';
 import React, { useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import SegmentedControlNative, { type SegmentedControlProps } from '@react-native-segmented-control/segmented-control';
@@ -12,7 +13,7 @@ import { NavbarScrollContext, navbarCompactScale } from './useNavbarScroll';
 import { tabCapsulePickupSpring } from './tabCapsuleSpring';
 import { createAppleTabSelection } from './appleTabSelection';
 
-const labels = ['nav.home', 'nav.map', 'nav.feed', 'nav.profile'] as const;
+const labels = MAIN_TAB_LABELS;
 const hiddenTitle = { color: 'transparent', fontSize: 1 } as const;
 type AppleControlHandle = { setNativeProps: (props: { selectedIndex: number }) => void };
 // This package forwards its host ref at runtime; its old class/mixin types use

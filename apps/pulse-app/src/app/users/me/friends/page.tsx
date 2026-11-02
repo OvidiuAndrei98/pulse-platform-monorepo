@@ -83,10 +83,10 @@ export default function FriendsPage() {
   return (
     <main className="app-page-spacing mx-auto min-h-screen max-w-3xl pb-32 text-foreground">
       <BackLink
-        href="/feed"
+        href="/friends"
         className="inline-flex h-9 items-center gap-2 text-xs font-semibold text-muted-foreground transition hover:text-primary"
       >
-        <ArrowLeft className="h-4 w-4" /> {t("friends.backToFeed")}
+        <ArrowLeft className="h-4 w-4" /> {t("friendsHub.back")}
       </BackLink>
       <header className="mt-5 flex items-center gap-3">
         <span className="grid h-10 w-10 place-items-center rounded-full bg-primary/15 text-primary">

@@ -14,6 +14,17 @@ import (
 
 var testNow = time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
 
+func TestFriendsAndFeedScreenNamesRemainSafeAndBackwardsCompatible(t *testing.T) {
+	for _, name := range []string{"Friends", "FriendsHome", "FriendsManage", "Feed", "FeedHome"} {
+		if !Screen(name) {
+			t.Fatal("missing diagnostic screen", name)
+		}
+	}
+	if Screen("Friends/private-user-id") {
+		t.Fatal("private path accepted as screen")
+	}
+}
+
 func testReport(n int) Report {
 	return Report{ID: fmt.Sprintf("00000000-0000-4000-8000-%012d", n), OccurredAt: testNow, Platform: "ios", AppVersion: "1.0.0", BuildVersion: "12", OSVersion: "26.0", ErrorType: "TypeError", Category: "property_access", Fatal: true, Screen: "Checkout", Breadcrumbs: []string{"Home", "Checkout"}, Frames: []Frame{{File: "index.bundle", Function: "showTicket", Line: 1, Column: 2048}}}
 }

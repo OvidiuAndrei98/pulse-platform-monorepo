@@ -1,3 +1,26 @@
+const discoveryTranslations = {
+  en: {
+    title: 'Feed', hint: 'Find your next night out', like: 'Like {{event}}', unlike: 'Unlike {{event}}',
+    likes: '{{count}} likes', likes_one: '{{count}} like', publicLikes: 'Public likes', view: 'View event',
+    propose: 'Suggest to friends', from: 'From {{price}}', free: 'Free tickets', external: 'Tickets',
+    share: 'Share event', copied: 'Event link copied', swipe: 'Scroll to discover', previous: 'Previous event', next: 'Next event',
+    empty: 'More nights are on the way', emptyHint: 'New events will appear here as organizers publish them.',
+    likeFailed: 'Your like could not be updated. Try again.', loadMore: 'More events', end: 'You’re all caught up',
+  },
+  ro: {
+    title: 'Feed', hint: 'Descoperă următoarea ieșire', like: 'Apreciază {{event}}', unlike: 'Retrage aprecierea pentru {{event}}',
+    likes: '{{count}} aprecieri', likes_one: '{{count}} apreciere', publicLikes: 'Aprecieri publice', view: 'Vezi evenimentul',
+    propose: 'Propune prietenilor', from: 'De la {{price}}', free: 'Bilete gratuite', external: 'Bilete',
+    share: 'Distribuie evenimentul', copied: 'Linkul evenimentului a fost copiat', swipe: 'Derulează pentru a descoperi', previous: 'Evenimentul anterior', next: 'Evenimentul următor',
+    empty: 'Se pregătesc noi ieșiri', emptyHint: 'Evenimentele noi vor apărea aici când sunt publicate de organizatori.',
+    likeFailed: 'Aprecierea nu a putut fi actualizată. Încearcă din nou.', loadMore: 'Mai multe evenimente', end: 'Ai văzut toate evenimentele',
+  },
+};
+const friendsHubTranslations = {
+  en: {title: 'Friends', hint: 'Make plans. Go together.', plans: 'Where are we going?', plansHint: 'One plan for your group: propose, vote and pick a night out.', allPlans: 'All plans', newPlan: 'Make a plan', events: 'Where friends are going', eventsHint: 'Shared by friends who make their attendance visible.', noEvents: 'Your next night starts with a plan', noEventsHint: 'Invite friends to a plan, or explore the Feed for ideas.', manage: 'Your friends', find: 'Find friends', invitations: '{{count}} pending invitations', guestHint: 'Sign in to make plans and see where your friends are going.', organizer: 'Friends and plans are available on personal accounts.', back: 'Back to friends'},
+  ro: {title: 'Prieteni', hint: 'Faceți planuri. Ieșiți împreună.', plans: 'Unde ieșim?', plansHint: 'Un plan pentru grup: propuneți, votați și alegeți împreună.', allPlans: 'Toate planurile', newPlan: 'Creează un plan', events: 'Unde merg prietenii', eventsHint: 'Distribuit de prietenii care își fac participarea vizibilă.', noEvents: 'Următoarea ieșire începe cu un plan', noEventsHint: 'Invită prietenii într-un plan sau descoperă idei în Feed.', manage: 'Prietenii tăi', find: 'Caută prieteni', invitations: '{{count}} invitații în așteptare', guestHint: 'Intră în cont pentru a face planuri și a vedea unde merg prietenii.', organizer: 'Prietenii și planurile sunt disponibile în conturile personale.', back: 'Înapoi la prieteni'},
+};
+
 const outingsTranslations = {
   "en": {
     "title": "Where are we going?",
@@ -706,6 +729,8 @@ export const resources = {
     translation: {
       wardrobe: wardrobeTranslations.en,
       outings: outingsTranslations.en,
+      discovery: discoveryTranslations.en,
+      friendsHub: friendsHubTranslations.en,
       eventNight: eventNightTranslations.en,
       ui: {quantity:"Quantity",decrease:"Decrease {{field}}",increase:"Increase {{field}}"},
       feedback: {
@@ -722,7 +747,7 @@ export const resources = {
         fieldRequired: "Please fill in this field.",
         fieldTooLong: "This value is too long. Please shorten it.",
       },
-      nav: { home: "Home", map: "Map", feed: "Feed", profile: "Profile" },
+      nav: { home: "Home", map: "Map", friends: "Friends", feed: "Feed", profile: "Profile" },
       metadata: {
         appTitle: "SPOTTR",
         appDescription: "SPOTTR event platform",
@@ -2471,6 +2496,8 @@ export const resources = {
     translation: {
       wardrobe: wardrobeTranslations.ro,
       outings: outingsTranslations.ro,
+      discovery: discoveryTranslations.ro,
+      friendsHub: friendsHubTranslations.ro,
       eventNight: eventNightTranslations.ro,
       ui: {quantity:"Cantitate",decrease:"Scade {{field}}",increase:"Crește {{field}}"},
       feedback: {
@@ -2490,7 +2517,8 @@ export const resources = {
       nav: {
         home: "Acasa",
         map: "Harta",
-        feed: "Activitate",
+        friends: "Prieteni",
+        feed: "Feed",
         profile: "Profil",
       },
       metadata: {
