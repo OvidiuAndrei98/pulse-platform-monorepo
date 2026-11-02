@@ -46,15 +46,15 @@ export function IconButton({ label, onPress, children, disabled }: React.PropsWi
     style={styles.iconButton}>{children}</GlassPressable>;
 }
 export function Feedback({ title, detail, retry, compact = false }: { title: string; detail?: string; retry?: () => void; compact?: boolean }) {
-  const { t } = usePreferences();
+  const { t } = usePreferences('copy');
   return <StatusNotice kind={retry?'error':'empty'} title={title} detail={detail} onRetry={retry} retryLabel={t('retry')}/>;
 }
 export function Loading() {
-  const { t } = usePreferences();
+  const { t } = usePreferences('copy');
   return <StatusNotice kind="loading" title={t('loading')}/>;
 }
 export function useOpenLink() {
-  const { t } = usePreferences();
+  const { t } = usePreferences('copy');
   const [error, setError] = useState(false);
   return { error, clearError: () => setError(false), open: async (url: string) => {
     setError(false);

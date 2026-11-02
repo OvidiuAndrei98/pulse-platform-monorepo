@@ -6,7 +6,7 @@ import { ticketCache } from './ticketStorage';
 import { canUseSavedTickets, ticketQueryOptions, type TicketData } from './ticketQuery';
 
 export function useTickets(enabled = true, watchAdmission = false) {
-  const { user, ready, controller } = useAuth(), client = useQueryClient();
+  const { user, ready, controller } = useAuth('account'), client = useQueryClient();
   const accountId = user?.id ?? '', token = controller.getToken() ?? '';
   const [foreground, setForeground] = useState(AppState.currentState !== 'background' && AppState.currentState !== 'inactive');
   const current = () => controller.getToken() === token && controller.getSnapshot().user?.id === accountId;

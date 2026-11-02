@@ -47,7 +47,7 @@ const FixedTabIndicator = React.memo(function FixedTabIndicator({ position, inte
 
 /** One glass navbar for Expo Go and installed builds; gestures stay on the UI thread. */
 export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = state.index, onSelectTab, indicatorMotion, interactionEnabled = true }: NativeTabBarProps) {
-  const { copy } = usePreferences();
+  const { copy } = usePreferences('copy');
   const [width, measure] = useState(0);
   const previousWidth = useRef(0);
   const localPosition = useSharedValue(0);
@@ -280,7 +280,9 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
               <Animated.View testID="tab-track" collapsable={false} style={[s.track, { width: itemWidth > 0 ? itemWidth * count : '100%' }, trackMotion]}>
                 {itemWidth > 0 && <FixedTabIndicator position={position} interaction={interaction} edgeResponse={edgeResponse}
                   edgeDirection={edgeDirection} extension={glassExtension} itemWidth={itemWidth} limit={limit} />}
-                {state.routes.map((route, index) => <GestureDetector key={route.key} gesture={taps[index]!}>
+                {/* Account changes reset the Profile screen's route key, not
+                    its physical button or recognizer in this persistent bar. */}
+                {state.routes.map((route, index) => <GestureDetector key={route.name} gesture={taps[index]!}>
                   <View collapsable={false} testID={`tab-${route.name}`} accessible
                   accessibilityRole="tab" accessibilityLabel={copy(labels[index] ?? 'nav.home')}
                   accessibilityState={{ selected: index === activeIndex }} style={s.tab}

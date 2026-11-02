@@ -18,7 +18,7 @@ type EventProps = {
 };
 
 function useEventPass(group: TicketGroup, now: number) {
-  const { copy, language } = usePreferences();
+  const { copy, language } = usePreferences('copy');
   const event = group.tickets[0]!;
   const data = useMemo(() => {
     const locale = language === 'ro' ? 'ro-RO' : 'en-GB';
@@ -103,7 +103,7 @@ export const WalletEventRow = React.memo(function WalletEventRow({ group, now, o
 });
 
 function GroupAction({ event, now, onGroup }: { event: UserTicket; now: number; onGroup: (id: string) => void }) {
-  const { copy } = usePreferences();
+  const { copy } = usePreferences('copy');
   if (Date.parse(event.endTime) + 86400000 < now) return null;
   return <Pressable accessibilityRole="button" accessibilityLabel={copy('safetyGroup.openOrCreate')} onPress={() => onGroup(event.eventId)} style={s.groupButton}><UsersRound size={17} color={colors.success}/></Pressable>;
 }
@@ -111,7 +111,7 @@ function GroupAction({ event, now, onGroup }: { event: UserTicket; now: number; 
 export const WalletTicketRow = React.memo(function WalletTicketRow({ ticket, index, now, onOpen, selected, testID }: {
   ticket: UserTicket; index: number; now: number; onOpen: (ticket: UserTicket) => void; selected?: boolean; testID?: string;
 }) {
-  const { copy } = usePreferences(), status = ticketStatus(ticket, now), valid = status === 'active';
+  const { copy } = usePreferences('copy'), status = ticketStatus(ticket, now), valid = status === 'active';
   return <Pressable testID={testID ?? `tickets-open-${ticket.id}`} accessibilityRole="button" accessibilityState={{ selected }}
     accessibilityLabel={`${copy('tickets.ticketNumber', { count: index + 1 })}. ${ticket.ticketTypeName}. ${copy(valid ? 'tickets.validForEntry' : 'tickets.' + status)}`}
     onPress={() => onOpen(ticket)} style={[s.ticketRow, selected && s.expanded]}>

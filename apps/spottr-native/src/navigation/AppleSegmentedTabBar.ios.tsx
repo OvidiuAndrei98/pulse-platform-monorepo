@@ -22,7 +22,7 @@ const SegmentedControl = SegmentedControlNative as unknown as React.ForwardRefEx
 /** UIKit animates and tracks the selector. No JS pan recognizer, travelling
  * overlay, or second spring is layered onto its selection animation. */
 export function AppleSegmentedTabBar({ state, navigation, insets, activeIndex = state.index, onSelectTab, interactionEnabled = true }: NativeTabBarProps) {
-  const { copy } = usePreferences();
+  const { copy } = usePreferences('copy');
   const control = useRef<AppleControlHandle>(null);
   const initialIndex = useRef(activeIndex).current;
   const selection = useRef(createAppleTabSelection(activeIndex)).current;

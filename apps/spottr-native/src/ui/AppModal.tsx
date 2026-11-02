@@ -9,7 +9,7 @@ import {Text} from './Text';
 import {ActionButton} from './ActionButton';
 import {useReducedMotionPreference} from './useReducedMotionPreference';
 export function AppModal({open,onClose,title,children,footer,dismissible=true}:{open:boolean;onClose:()=>void;title:string;children:React.ReactNode;footer?:React.ReactNode;dismissible?:boolean}){
- const {copy}=usePreferences(),reduced=useReducedMotionPreference(),insets=useSafeAreaInsets(),{height}=useWindowDimensions(),close=useRef<ViewInstance>(null);
+ const {copy}=usePreferences('copy'),reduced=useReducedMotionPreference(),insets=useSafeAreaInsets(),{height}=useWindowDimensions(),close=useRef<ViewInstance>(null);
  return <Modal visible={open} transparent animationType={reduced?'none':'fade'} accessibilityLabel={title} onShow={()=>{if(Platform.OS==='web')close.current?.focus();}} onRequestClose={()=>{if(dismissible)onClose();}} accessibilityViewIsModal>
   <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={[s.backdrop,{paddingTop:Math.max(16,insets.top),paddingBottom:Math.max(16,insets.bottom),paddingLeft:Math.max(16,insets.left),paddingRight:Math.max(16,insets.right)}]}>
    <Pressable accessible={false} disabled={!dismissible} onPress={onClose} style={StyleSheet.absoluteFill}/>

@@ -37,7 +37,7 @@ export function AuthScreen({
   route,
   navigation,
 }: NativeStackScreenProps<RootParamList, "Auth">) {
-  const { copy } = usePreferences(),
+  const { copy } = usePreferences('copy'),
     auth = useAuth(),
     safe = useSafeAreaInsets();
   const mode = route.params?.mode ?? "login";
@@ -60,7 +60,10 @@ export function AuthScreen({
   const passwordInput = useRef<React.ComponentRef<typeof TextInput>>(null);
   const submitRef = useRef<() => void>(() => {});
   const fillEnabled = useRef(false);
-  fillEnabled.current = mode === 'login' && emailForm && focused && !busy && !auth.busy && !auth.user;
+  // Browsers may restore saved credentials on mount/focus without a deliberate
+  // password-manager selection. Keep them editable; only Enter/Sign in submits.
+  // Native Passwords/biometric completion keeps its existing behavior.
+  fillEnabled.current = Platform.OS !== 'web' && mode === 'login' && emailForm && focused && !busy && !auth.busy && !auth.user;
   const fillRef = useRef<ReturnType<typeof createCredentialFillSubmitter> | null>(null);
   if (!fillRef.current) fillRef.current = createCredentialFillSubmitter({ enabled: () => fillEnabled.current && !pending.current, submit: () => submitRef.current() });
   const fill = fillRef.current;
@@ -106,7 +109,11 @@ export function AuthScreen({
     else if (route.params?.returnDashboard) navigation.popTo('Dashboard', typeof route.params.returnDashboardParams === 'object' ? route.params.returnDashboardParams : undefined);
     else if ((!route.params?.returnTab || route.params.returnTab === 'Profile') && auth.user.role === 'admin') navigation.popTo('Admin', undefined);
     else if ((!route.params?.returnTab || route.params.returnTab === 'Profile') && auth.user.role === 'organizer') navigation.popTo('Dashboard', undefined);
-    else navigation.popTo("Tabs", { screen: route.params?.returnTab ?? "Profile" });
+    else {
+      const screen = route.params?.returnTab ?? 'Profile';
+      if (screen === 'Profile') navigation.popTo('Tabs', { screen, params: { screen: 'ProfileHome' } });
+      else navigation.popTo('Tabs', { screen });
+    }
   }, [auth.ready, auth.user, mode, navigation, route.params?.returnTab, route.params?.returnEvent, route.params?.returnProfile, route.params?.returnSafetyGroup, route.params?.returnOutings, route.params?.returnEventNight, route.params?.returnScanner, route.params?.returnDashboard, route.params?.returnDashboardParams]);
   const go = (next: "login" | "register" | "forgot" | "reset") => {
     if (!pending.current && !auth.busy) navigation.setParams({ mode: next });

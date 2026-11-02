@@ -7,7 +7,7 @@ import React, {
 import { API_URL } from "../config";
 import { createHttp, bindSession } from "../data/http";
 import { queryClient } from "../data/queries";
-import { SessionController } from "./session";
+import { SessionController, type AccountState, type SessionState } from "./session";
 import { sessionStorage } from "./storage";
 import { clearNativePayments } from "../checkout/nativePayment";
 import { purchaseCompletion } from "../checkout/purchaseCompletion";
@@ -49,13 +49,15 @@ export function AuthProvider({ children }: React.PropsWithChildren) {
     <Context.Provider value={sessionController}>{children}</Context.Provider>
   );
 }
-export function useAuth() {
+export function useAuth(): SessionState & { controller: SessionController };
+export function useAuth(scope: 'account'): AccountState & { controller: SessionController };
+export function useAuth(scope?: 'account') {
   const controller = useContext(Context);
   if (!controller) throw new Error("Missing AuthProvider");
   const state = useSyncExternalStore(
     controller.subscribe,
-    controller.getSnapshot,
-    controller.getSnapshot,
+    scope === 'account' ? controller.getAccountSnapshot : controller.getSnapshot,
+    scope === 'account' ? controller.getAccountSnapshot : controller.getSnapshot,
   );
   return { ...state, controller };
 }

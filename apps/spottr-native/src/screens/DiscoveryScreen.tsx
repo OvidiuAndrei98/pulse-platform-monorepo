@@ -20,6 +20,7 @@ import {
   useNavigation,
   useRoute,
   useScrollToTop,
+  useIsFocused,
 } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
@@ -65,8 +66,17 @@ const dateKeys = [
   "filters.weekend",
   "filters.nextWeek",
 ];
+/** Focus changes fetch eligibility without rebuilding the glass search header. */
+function DiscoveryActivity({ query, view }: { query: EventFilters; view: string }) {
+  const focused = useIsFocused();
+  const events = useEvents(query, focused);
+  useQuery({ queryKey: ['promotions'], enabled: focused, queryFn: ({ signal }) => eventsApi.promotions(signal) });
+  useEffect(() => { if (focused && view === 'map') events.loadMore(); }, [focused, view, events.data, events.isFetching, events.hasNextPage]);
+  return null;
+}
+
 export function DiscoveryScreen() {
-  const { copy } = usePreferences(),
+  const { copy } = usePreferences('copy'),
     insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const route =
@@ -103,15 +113,17 @@ export function DiscoveryScreen() {
       startsAfter: activeDiscoveryStart(range.startsAfter),
     };
   }, [filters.categories,filters.vibes,filters.city,filters.date,filters.dateFrom,filters.dateTo,search]);
-  const events = useEvents(query);
-  const promotions = useQuery({ queryKey: ['promotions'], queryFn: ({ signal }) => eventsApi.promotions(signal) });
+  const events = useEvents(query, false);
+  const promotions = useQuery({ queryKey: ['promotions'], enabled: false, queryFn: ({ signal }) => eventsApi.promotions(signal) });
   const [promotionSeed] = useState(() => String(Date.now()));
-  const feedPromotions = (promotions.data ?? []).filter(p => p.placement === 'feed');
-  const campaigns = new Map(feedPromotions.map(p => [p.event.id, p.campaignId]));
+  const feedPromotions = useMemo(() => (promotions.data ?? []).filter(p => p.placement === 'feed'), [promotions.data]);
+  const campaigns = useMemo(() => new Map(feedPromotions.map(p => [p.event.id, p.campaignId])), [feedPromotions]);
   const center=cityCenters[filters.city]??userLocation;
-  const displayed = mixFeedPromotions(events.items, feedPromotions, promotionSeed, event => eventMatchesSearch(event,search) && (!filters.categories.length || filters.categories.includes(event.category)) && (!filters.vibes.length || filters.vibes.includes(event.vibe)) && (!filters.city || filters.city === event.city) && (!query.startsAfter || Date.parse(event.endTime) > Date.parse(query.startsAfter)) && (!query.startsBefore || Date.parse(event.startTime) < Date.parse(query.startsBefore)), 3).filter(event=>eventWithinDistance(event,center,filters.distance));
-  const mapEvents=events.items.filter(event=>eventWithinDistance(event,center,filters.distance));
-  useEffect(() => { if (view === 'map') events.loadMore(); }, [view, events.data, events.isFetching, events.hasNextPage]);
+  const displayed = useMemo(() => mixFeedPromotions(events.items, feedPromotions, promotionSeed, event => eventMatchesSearch(event,search) && (!filters.categories.length || filters.categories.includes(event.category)) && (!filters.vibes.length || filters.vibes.includes(event.vibe)) && (!filters.city || filters.city === event.city) && (!query.startsAfter || Date.parse(event.endTime) > Date.parse(query.startsAfter)) && (!query.startsBefore || Date.parse(event.startTime) < Date.parse(query.startsBefore)), 3).filter(event=>eventWithinDistance(event,center,filters.distance)), [events.items, feedPromotions, promotionSeed, search, filters.categories, filters.vibes, filters.city, query.startsAfter, query.startsBefore, center, filters.distance]);
+  const mapEvents = useMemo(() => events.items.filter(event=>eventWithinDistance(event,center,filters.distance)), [events.items, center, filters.distance]);
+  const renderEvent = useCallback(({ item }: { item: Event }) => <VisiblePromotion campaignId={campaigns.get(item.id)} style={{ flex: 1, maxWidth: '48.5%' }}><EventBrowseCard fill promoted={campaigns.has(item.id)}
+    event={item} onOpen={() => { seedEvent(item); trackPromotion(campaigns.get(item.id), 'click'); navigation.navigate('Event', { id: item.id }); }}
+  /></VisiblePromotion>, [campaigns, navigation]);
   useEffect(() => {
     list.current?.scrollToOffset({ offset: 0, animated: false });
   }, [query]);
@@ -130,6 +142,7 @@ export function DiscoveryScreen() {
         paddingTop: overlayToolbar ? 0 : Math.max(24, insets.top),
       }}
     >
+      <DiscoveryActivity query={query} view={view} />
       <View
         pointerEvents="box-none"
         style={{
@@ -162,16 +175,7 @@ export function DiscoveryScreen() {
           paddingBottom: 110,
           gap: 20,
         }}
-        renderItem={({ item }) => (
-          <VisiblePromotion campaignId={campaigns.get(item.id)} style={{ flex: 1, maxWidth: '48.5%' }}><EventBrowseCard fill promoted={campaigns.has(item.id)}
-            event={item}
-            onOpen={() => {
-              seedEvent(item);
-              trackPromotion(campaigns.get(item.id), 'click');
-              navigation.navigate("Event", { id: item.id });
-            }}
-          /></VisiblePromotion>
-        )}
+        renderItem={renderEvent}
         ListEmptyComponent={
           events.isPending ? (
             <Loading />

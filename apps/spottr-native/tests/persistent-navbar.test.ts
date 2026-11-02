@@ -28,11 +28,12 @@ function host(os = 'ios', role = 'user', ready = true) {
       CommonActions: { reset: (state: any) => ({ type: 'RESET', payload: state }) },
     },
     'react-native-safe-area-context': {},
-    'react-native-reanimated': { useSharedValue: (value: number) => ({ value }) },
+    'react-native-reanimated': { useSharedValue: (value: number) => ({ value }), runOnUI: (fn: any) => fn },
     '../auth/AuthProvider': { useAuth: () => auth },
     './TabBar': {}, './useTabIndicator': { useTabIndicator: () => ({ value: 0 }) },
     './useNavbarScroll': { NavbarScrollContext: { Provider: 'ScrollContext' } },
-    './profileStackRouter': { isProfileWorkspace: (name: string) => ['Dashboard', 'Admin'].includes(name) },
+    './profileStackRouter': { isProfileWorkspace: (name: string) => ['Dashboard', 'Admin'].includes(name),
+      profileHomeScreen: (role: string) => role === 'admin' ? 'Admin' : role === 'organizer' ? 'Dashboard' : 'ProfileHome' },
     './tabCapsuleSpring': { withTabTravel: (target: number) => target },
     './tabSelectionQueue': { createTabCommitScheduler: () => ({ schedule() { return 0; }, cancel() {} }), createTabSelectionQueue: () => ({ select() {}, clear() {} }) },
   };
@@ -51,7 +52,9 @@ function host(os = 'ios', role = 'user', ready = true) {
     cursor = 0;
     const tree = exports.MainTabBarProvider({ state: root, navigation, children: React.createElement('RootNavigator') });
     const nodes = elements(tree), host = nodes.find(element => element.props.testID === 'persistent-navbar-host');
-    return { bars: nodes.filter(element => element.type === exports.MainTabBar), visible: host?.props.style.display === 'flex' };
+    return { bars: nodes.filter(element => element.type === exports.MainTabBar), visible: host?.props.style.display === 'flex',
+      select: nodes.find(element => element.type === 'MainContext').props.value.select,
+      bridge: nodes.find(element => element.type === 'MainContext').props.value.bridge };
   };
   return { exports, context, render, auth, preloads, preloadedRoutes, resets, setNavigationReady: (value: boolean) => { navigationReady = value; } };
 }
@@ -108,16 +111,27 @@ test('web and Android keep their scene navbars without adding an overlay host', 
   }
 });
 
-test('iOS prepares organizer and admin workspaces when the session resolves without waiting for idle', () => {
+test('iOS uses the existing Profile tab for role workspaces without preloading a second root screen', () => {
   for (const [role, target] of [['organizer', 'Dashboard'], ['admin', 'Admin']]) {
     const ui = host('ios', role, false);
     ui.render('Tabs');
     assert.equal(ui.preloads.length, 0, 'The unverified role cannot preload a private workspace');
     ui.auth.ready = true;
     ui.render('Tabs');
-    assert.deepEqual(ui.preloads, [target]);
+    assert.deepEqual(ui.preloads, []);
     ui.render('Tabs');
-    assert.equal(ui.preloads.length, 1, 'An already prepared workspace is reused');
+    assert.equal(ui.preloads.length, 0, 'The tab owns the workspace');
+    const state = { index: 0, routes: [
+      { name: 'Home', key: 'home' },
+      { name: 'Profile', key: 'profile', state: { index: 0, routes: [{ name: target }] } },
+    ] };
+    const commands: any[] = [];
+    ui.render('Tabs', target).bridge.current = { navigation: { getState: () => state, emit: () => ({defaultPrevented:false}),
+      navigate: (...args: any[]) => commands.push(args) } };
+    for (let i = 0; i < 10; i++) ui.render('Tabs', target).select('Profile');
+    assert.equal(commands.length, 10, 'Rapid role-profile presses use the real tab event path');
+    assert.ok(commands.every(args => args[0] === 'Profile'));
+    assert.equal(ui.resets.length, 0, 'No native-stack replacement or preload is involved');
   }
 });
 
@@ -135,6 +149,6 @@ test('session hydration before navigator initialization waits before clearing an
   ui.setNavigationReady(true);
   ui.render('Tabs');
   assert.equal(ui.resets.length, 1);
-  assert.deepEqual(ui.preloads, ['Admin']);
-  assert.deepEqual(ui.preloadedRoutes.map(route => route.name), ['Admin'], 'The previous account workspace is removed first');
+  assert.deepEqual(ui.preloads, []);
+  assert.deepEqual(ui.preloadedRoutes, [], 'The previous account workspace is removed, without mounting a duplicate');
 });

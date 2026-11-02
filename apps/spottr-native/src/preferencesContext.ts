@@ -16,6 +16,26 @@ export type PreferencesState = Preferences & {
   toggleSaved: (event: Event) => void;
 };
 
-// Keep the identity independent of refreshes to the provider and its copy/data
-// dependencies. Mounted providers and newly refreshed consumers must agree.
-export const PreferencesContext = createContext<PreferencesState | null>(null);
+// Loading favorites must not broadcast through every screen that only needs
+// translated copy. Keep this context stable until language actually changes.
+export type CopyPreferences = Pick<PreferencesState, 'language' | 't' | 'copy' | 'setLanguage'>;
+
+function createPreferencesContexts() {
+  return {
+    preferences: createContext<PreferencesState | null>(null),
+    copy: createContext<CopyPreferences | null>(null),
+  };
+}
+
+// Fast Refresh can re-evaluate this module before replacing a mounted provider.
+// Reuse context identities in development so refreshed consumers still see it.
+// This stores no preference/account snapshot; React still owns provider values.
+// Production and a full Reload always start with fresh contexts.
+const runtime = globalThis as typeof globalThis & {
+  __spottrPreferencesContextsV1?: ReturnType<typeof createPreferencesContexts>;
+};
+const contexts = typeof __DEV__ !== 'undefined' && __DEV__
+  ? (runtime.__spottrPreferencesContextsV1 ??= createPreferencesContexts())
+  : createPreferencesContexts();
+export const PreferencesContext = contexts.preferences;
+export const CopyPreferencesContext = contexts.copy;

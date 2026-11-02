@@ -7,6 +7,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import {
   DarkTheme,
   useFocusEffect,
+  useNavigation,
+  useRoute,
   NavigationContainer,
   useNavigationContainerRef,
   ThemeProvider,
@@ -14,8 +16,9 @@ import {
   type LinkingOptions,
   type PathConfig,
   type NavigationState,
+  type RouteProp,
 } from "@react-navigation/native";
-import { createNativeStackNavigator, type NativeStackScreenProps, type NativeStackNavigationOptions } from "@react-navigation/native-stack";
+import { createNativeStackNavigator, type NativeStackNavigationProp, type NativeStackScreenProps, type NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
@@ -34,7 +37,7 @@ import {InterfaceProvider} from "./ui/InterfaceProvider";
 import { queryClient } from "./data/queries";
 import { SceneMainTabBar, MainTabBarProvider, MainTabBarRegistration } from "./navigation/MainTabBar";
 import { accountLinkOrigin, accountPagePaths, openAccountPage } from './navigation/accountNavigation';
-import { profileStackRouter } from './navigation/profileStackRouter';
+import { nativeProfilePaths, profileHomeScreen, profileStackRouter, profileTabRouter } from './navigation/profileStackRouter';
 import { PersistentTabScenes } from './navigation/PersistentTabScenes';
 import type { FeedParamList, ProfileParamList, RootParamList, TabsParamList } from "./navigation/types";
 import { DiscoveryScreen } from "./screens/DiscoveryScreen";
@@ -117,7 +120,7 @@ const linking: LinkingOptions<RootParamList> = {
           Home: "",
           Explore: "events",
           Feed: { screens: { FeedHome: "feed", FriendsManage: "users/me/friends" } },
-          Profile: (Platform.OS === 'ios' ? { path: 'users/me', alias: ['profile'] }
+          Profile: (Platform.OS === 'ios' ? { screens: nativeProfilePaths }
             : { initialRouteName: "ProfileHome", screens: { ProfileHome: { path: "users/me", alias: ["profile"] }, ...accountPagePaths } }) as PathConfig<ProfileParamList>,
         },
       },
@@ -128,13 +131,12 @@ const linking: LinkingOptions<RootParamList> = {
       SafetyGroup: 'events/:eventId/group',
       Outings: {path:'outings',parse:{plan:String,ticket:String}},
       EventNight: 'events/:eventId/night',
-      Dashboard: 'dashboard/:section?',
+      ...(Platform.OS !== 'ios' ? { Dashboard: 'dashboard/:section?', Admin: 'admin' } : {}),
       Scanner: 'ticket-validation',
       ScannerHistory: 'ticket-validation/:eventId/history',
       Wardrobe: 'wardrobe',
       QuickScanner: 'scan',
       Legal: 'legal/:document',
-      Admin: 'admin',
       Auth: { path: 'login', parse: { mode: value => ['login', 'register', 'forgot', 'reset'].includes(value) ? value : 'login', returnDashboard: value => value === 'true', returnScanner: value => value === 'true' } },
       CheckoutReturn: "checkout/return",
     },
@@ -147,12 +149,25 @@ function Explore() {
   return <DiscoveryScreen />;
 }
 function ProfileNavigator() {
-  if (Platform.OS === 'ios') return <ProfileScreen />;
+  if (Platform.OS === 'ios') return <NativeProfileNavigator />;
   return <Profile.Navigator initialRouteName="ProfileHome" screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
     <Profile.Screen name="ProfileHome" component={ProfileScreen} />
     <Profile.Screen name="SavedEvents" component={SavedEventsScreen} />
     <Profile.Screen name="Tickets" component={TicketsScreen} />
     <Profile.Screen name="Orders" component={OrdersScreen} />
+  </Profile.Navigator>;
+}
+function NativeProfileNavigator() {
+  const { user, ready } = useAuth('account');
+  // MainTabs owns the account's navigationKey. A React key here alone would
+  // remount the component but rehydrate the previous account's nested route.
+  if (!ready) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  return <Profile.Navigator
+    initialRouteName={profileHomeScreen(user?.role)}
+    screenOptions={{ headerShown: false, animation: 'none', contentStyle: { backgroundColor: colors.bg } }}>
+    <Profile.Screen name="ProfileHome" component={ProfileScreen} />
+    <Profile.Screen name="Dashboard" component={ProfileDashboardRoute} />
+    <Profile.Screen name="Admin" component={ProfileAdminRoute} />
   </Profile.Navigator>;
 }
 function FeedNavigator() {
@@ -162,7 +177,8 @@ function FeedNavigator() {
   </Feed.Navigator>;
 }
 function MainTabs() {
-  const { t } = usePreferences();
+  const { t } = usePreferences('copy');
+  const { user } = useAuth('account');
   return (
     <PersistentTabScenes>
     <Tabs.Navigator
@@ -197,6 +213,7 @@ function MainTabs() {
       />
       <Tabs.Screen
         name="Profile"
+        navigationKey={`${user?.id ?? 'guest'}:${user?.role ?? ''}`}
         component={ProfileNavigator}
         options={{ title: t("profile") }}
       />
@@ -209,21 +226,27 @@ function SafetyRoute({ route, navigation }: NativeStackScreenProps<RootParamList
 }
 function OutingsRoute({route}:NativeStackScreenProps<RootParamList,'Outings'>){return <OutingsScreen key={[route.params?.planId,route.params?.ticketId,route.params?.plan,route.params?.ticket,route.params?.tab].join(':')} planId={route.params?.planId??route.params?.plan} ticketId={route.params?.ticketId??route.params?.ticket} initialTab={route.params?.tab}/>;}
 function EventNightRoute({route}:NativeStackScreenProps<RootParamList,'EventNight'>){return <EventNightScreen eventId={route.params.eventId}/>;}
-function DashboardRoute({ route, navigation }: NativeStackScreenProps<RootParamList, 'Dashboard'>) {
-  const { user, ready } = useAuth();
+function DashboardRoute() { return <DashboardContent />; }
+function ProfileDashboardRoute() { return <DashboardContent embedded />; }
+function DashboardContent({ embedded = false }: { embedded?: boolean }) {
+  const route = useRoute<RouteProp<RootParamList, 'Dashboard'>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
+  const { user, ready } = useAuth('account');
   const publicDocument = route.params?.section==='agreement'||route.params?.section==='stripe-info';
   useFocusEffect(useCallback(() => { if (ready && !user && !publicDocument) navigation.navigate('Auth', { returnDashboard: true, returnDashboardParams: route.params }); }, [ready, user, navigation, route.params, publicDocument]));
   const section = ['overview','events','new','scanner','wardrobe','finance','invoicing','profile','purchases','promotions','edit','company','agreement','stripe-info'].includes(route.params?.section ?? '') ? route.params!.section as DashboardScreenProps['initialSection'] : undefined;
   if (!user && !publicDocument) return <View style={{ flex: 1, backgroundColor: colors.bg }}/>;
-  return <View style={{ flex: 1 }}><DashboardScreen onSignIn={() => navigation.navigate('Auth', {returnDashboard:true,returnDashboardParams:{section:'agreement'}})} key={[section, route.params?.eventId, route.params?.filter, route.params?.organizerReturn, route.params?.campaignId, route.params?.returnStatus].join(':')} initialSection={section} initialEventId={route.params?.eventId} initialEventFilter={route.params?.filter} organizerReturn={route.params?.organizerReturn} campaignId={route.params?.campaignId} returnStatus={route.params?.returnStatus} onClose={() => navigation.popTo('Tabs', { screen: 'Home' })} onScanner={() => navigation.navigate('Scanner')} onTickets={() => openAccountPage(navigation, 'Tickets')} onOrders={() => openAccountPage(navigation, 'Orders')} onProfileSettings={() => navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'ProfileHome' } })} onPublicProfile={() => { if(user) navigation.navigate('PublicProfile', { id: user.id }); }}/><SceneMainTabBar/></View>;
+  return <View style={{ flex: 1 }}><DashboardScreen onSignIn={() => navigation.navigate('Auth', {returnDashboard:true,returnDashboardParams:{section:'agreement'}})} key={[section, route.params?.eventId, route.params?.filter, route.params?.organizerReturn, route.params?.campaignId, route.params?.returnStatus].join(':')} initialSection={section} initialEventId={route.params?.eventId} initialEventFilter={route.params?.filter} organizerReturn={route.params?.organizerReturn} campaignId={route.params?.campaignId} returnStatus={route.params?.returnStatus} onClose={() => navigation.popTo('Tabs', { screen: 'Home' })} onScanner={() => navigation.navigate('Scanner')} onTickets={() => openAccountPage(navigation, 'Tickets')} onOrders={() => openAccountPage(navigation, 'Orders')} onProfileSettings={() => navigation.navigate('Tabs', { screen: 'Profile', params: { screen: 'ProfileHome' } })} onPublicProfile={() => { if(user) navigation.navigate('PublicProfile', { id: user.id }); }}/>{!embedded && <SceneMainTabBar/>}</View>;
 }
 function ScannerDashboardRoute({ route, navigation }: NativeStackScreenProps<RootParamList, 'Scanner'>) {
-  const { user, ready } = useAuth();
+  const { user, ready } = useAuth('account');
   useFocusEffect(useCallback(() => { if(ready && !user) navigation.navigate('Auth', {returnScanner:true}); }, [ready,user,navigation]));
   return <View style={{ flex:1 }}><DashboardScreen initialSection="scanner" initialEventId={route.params?.eventId} onClose={() => navigation.popTo('Tabs', {screen:'Home'})} onScanner={() => {}} onTickets={() => openAccountPage(navigation, 'Tickets')} onOrders={() => openAccountPage(navigation, 'Orders')} onProfileSettings={() => navigation.navigate('Tabs', {screen:'Profile',params:{screen:'ProfileHome'}})} onPublicProfile={() => {if(user) navigation.navigate('PublicProfile',{id:user.id});}}/><SceneMainTabBar/></View>;
 }
-function AdminRoute() {
-  return <View testID="admin-profile" style={{ flex: 1 }}><View style={{ flex: 1, paddingBottom: 88 }}><AdminScreen /></View><SceneMainTabBar /></View>;
+function AdminRoute() { return <AdminContent />; }
+function ProfileAdminRoute() { return <AdminContent embedded />; }
+function AdminContent({ embedded = false }: { embedded?: boolean }) {
+  return <View testID="admin-profile" style={{ flex: 1 }}><View style={{ flex: 1, paddingBottom: 88 }}><AdminScreen /></View>{!embedded && <SceneMainTabBar />}</View>;
 }
 // UIKit cannot push a root card on top of a presented Event modal. Keep the
 // purchase stack inside that presentation so an interactive native back swipe
@@ -254,7 +277,7 @@ function EventFlow({ route }: { route: { params: RootParamList['Event'] } }) {
 const MainNavigationScreens = React.memo(function MainNavigationScreens() {
   return (
     <Root.Navigator
-      UNSTABLE_router={profileStackRouter}
+      UNSTABLE_router={Platform.OS === 'ios' ? profileTabRouter : profileStackRouter}
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: colors.bg },

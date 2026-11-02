@@ -24,7 +24,7 @@ export function TabBar(props: NativeTabBarProps) {
 }
 
 function CustomTabBar({ state, navigation, insets, activeIndex = state.index, onSelectTab, indicatorMotion }: Parameters<typeof TabBar>[0]) {
-  const { copy } = usePreferences();
+  const { copy } = usePreferences('copy');
   const { width: viewportWidth } = useWindowDimensions();
   const desktopPreview = Platform.OS === "web" && viewportWidth >= 768;
   // Expo's web BlurView adds a gray tint and saturate(180%), and intensity 32

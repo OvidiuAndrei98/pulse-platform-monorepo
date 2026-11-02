@@ -9,7 +9,7 @@ import { usePreferences } from '../usePreferences';
 export function ProfileEmptyState({ icon: Icon, title, onExplore, testID }: {
   icon: LucideIcon; title: string; onExplore: () => void; testID: string;
 }) {
-  const { copy } = usePreferences();
+  const { copy } = usePreferences('copy');
   return <View testID={testID} style={s.panel}>
     <View style={{ width: 32, alignItems: 'center', paddingTop: 3 }}><Icon size={23} color={colors.muted} /></View>
     <View style={{ flex: 1, minWidth: 0 }}>

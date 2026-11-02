@@ -29,7 +29,7 @@ import { withTabTravel } from './tabCapsuleSpring';
 import { createTabCommitScheduler, createTabSelectionQueue } from './tabSelectionQueue';
 import type { TabIndicatorTimeline } from "./tabIndicatorTimeline";
 import { NavbarScrollContext } from './useNavbarScroll';
-import { isProfileWorkspace } from './profileStackRouter';
+import { isProfileWorkspace, profileHomeScreen } from './profileStackRouter';
 
 type TabBridge = React.RefObject<BottomTabBarProps | null>;
 const Context = createContext<{
@@ -103,7 +103,7 @@ export function MainTabBarProvider({
   children: React.ReactNode;
 }) {
   const bridge = useRef<BottomTabBarProps | null>(null);
-  const { user, ready } = useAuth();
+  const { user, ready } = useAuth('account');
   const [pendingProfile, setPendingProfile] = useState<string | null>(null);
   const focused =
     state?.routes
@@ -155,26 +155,22 @@ export function MainTabBarProvider({
   }, [profileOwner, navigation, state?.key]);
 
   const prepareProfile = useCallback(() => {
-    if (!ready || !user) return;
+    // iOS prepares the role workspace in the Profile tab itself. Preloading a
+    // root-stack copy would mount a second panel and a second glass navbar.
+    if (Platform.OS === 'ios' || !ready || !user) return;
     const target = user.role === 'admin' ? 'Admin' : user.role === 'organizer' ? 'Dashboard' : null;
-    if ((!target && Platform.OS === 'ios') || !navigation.isReady()) return;
+    if (!navigation.isReady()) return;
     if (target) {
       const root = navigation.getRootState() as NavigationState & { preloadedRoutes?: NavigationState['routes'] };
       if (!root.routes.some(route => route.name === target) && !root.preloadedRoutes?.some(route => route.name === target)) navigation.preload(target);
-    } else if (Platform.OS !== 'ios') bridge.current?.navigation.preload('Profile');
+    } else bridge.current?.navigation.preload('Profile');
   }, [ready, profileOwner, navigation]);
-
-  // iOS builds every tab in the initial layout. Prepare a role's root-stack
-  // workspace as soon as the session is known, before accepting its first tap.
-  useLayoutEffect(() => {
-    if (Platform.OS === 'ios' && state) prepareProfile();
-  }, [prepareProfile, state]);
 
   useEffect(() => {
     if (Platform.OS === 'ios') return;
     if (!ready || !user) return;
-    // Build the first profile while idle. Subsequent role-profile visits reuse
-    // the existing native screen rather than rebuilding its form and lists.
+    // Prepare the first profile while idle. After a workspace is dismissed,
+    // profileStackRouter prepares a fresh native screen for its next visit.
     const idle = requestIdleCallback(() => {
       startTransition(prepareProfile);
     });
@@ -195,6 +191,7 @@ export function MainTabBarProvider({
     }
     if (
       screen === "Profile" &&
+      Platform.OS !== 'ios' &&
       (user?.role === "organizer" || user?.role === "admin")
     ) {
       const target = user.role === "admin" ? "Admin" : "Dashboard";
@@ -202,7 +199,7 @@ export function MainTabBarProvider({
       const existing = root?.routes.find(route => route.name === target);
       const cached = (root as NavigationState & { preloadedRoutes?: NavigationState['routes'] })?.preloadedRoutes?.find(route => route.name === target);
       if (existing) navigation.dispatch(StackActions.popTo(target, existing.params));
-      else navigation.dispatch(CommonActions.navigate({ name: target, params: cached?.params }));
+      else navigation.dispatch(CommonActions.navigate(target, cached?.params));
       return true;
     }
     const actualTabs = bridge.current;
@@ -219,17 +216,20 @@ export function MainTabBarProvider({
         target: route.key,
         canPreventDefault: true,
       });
+      const workspace = profileHomeScreen(user?.role);
+      const returnToWorkspace = Platform.OS === 'ios' && screen === 'Profile'
+        && workspace !== 'ProfileHome' && getFocusedRouteNameFromRoute(route) === 'ProfileHome';
       if (
         !event.defaultPrevented &&
-        currentTabState.routes[currentTabState.index]?.key !== route.key
+        (currentTabState.routes[currentTabState.index]?.key !== route.key || returnToWorkspace)
       ) {
-        actualTabs.navigation.navigate(route.name, route.params);
+        actualTabs.navigation.navigate(route.name, returnToWorkspace ? { screen: workspace } : route.params);
       }
       return !event.defaultPrevented;
     }
     const params =
       screen === "Profile"
-        ? { screen: "ProfileHome" }
+        ? (Platform.OS === 'ios' ? undefined : { screen: "ProfileHome" })
         : screen === "Feed"
           ? { screen: "FeedHome" }
           : undefined;
@@ -243,8 +243,14 @@ export function MainTabBarProvider({
     const scheduler = createTabCommitScheduler();
     return createTabSelectionQueue<{ screen: string; id: number }>(request => {
       const current = latestSelection.current;
-      const accepted = current.selectRoute(request.screen);
-      acknowledge(request.id);
+      let accepted = true;
+      // The touch already started its spring on the UI thread. React can yield
+      // while preparing the destination instead of synchronously rendering the
+      // whole page at the same priority as the touch. No timer or spring change.
+      startTransition(() => {
+        accepted = current.selectRoute(request.screen);
+        acknowledge(request.id);
+      });
       const rollbackTarget = current.activeIndex * current.itemWidth;
       if (!accepted) runOnUI(() => {
         if (gestureCommand.value.id !== request.id) return;
@@ -258,7 +264,7 @@ export function MainTabBarProvider({
     selectionQueue.clear();
     if (Platform.OS === 'ios') runOnUI(() => { gestureCommand.value = { ...gestureCommand.value, pending: false, acknowledgedId: gestureCommand.value.id }; })();
   }, [profileOwner, selectionQueue, gestureCommand]);
-  const select = (screen: string, gestureId?: number) => {
+  const select = useCallback((screen: string, gestureId?: number) => {
     if (Platform.OS === 'ios' && gestureId !== undefined) {
       selectionQueue.select({ screen, id: gestureId });
       return true;
@@ -267,8 +273,8 @@ export function MainTabBarProvider({
       selectionQueue.clear();
       runOnUI(() => { gestureCommand.value = { ...gestureCommand.value, pending: false, acknowledgedId: gestureCommand.value.id }; })();
     }
-    return selectRoute(screen);
-  };
+    return latestSelection.current.selectRoute(screen);
+  }, [selectionQueue, gestureCommand]);
 
   useEffect(() => {
     if (pendingProfile === null) return;
@@ -278,17 +284,14 @@ export function MainTabBarProvider({
     } else if (ready) select("Profile");
   }, [pendingProfile, ready, user?.role, state]);
 
+  // Acknowledging a touch updates the shared spring, not the glass hierarchy.
+  // Keep this context stable until the actual route or measured geometry changes.
+  const motion = useMemo(() => ({ position, itemWidth, measure, timeline, interaction, edgeResponse, edgeDirection, gestureCommand }),
+    [position, itemWidth, measure, interaction, edgeResponse, edgeDirection, gestureCommand]);
+  const value = useMemo(() => ({ bridge, navigation, tabState, activeIndex, select, motion }),
+    [navigation, tabState, activeIndex, select, motion]);
   return (
-    <Context.Provider
-      value={{
-        bridge,
-        navigation,
-        tabState,
-        activeIndex,
-        select,
-        motion: { position, itemWidth, measure, timeline, interaction, edgeResponse, edgeDirection, gestureCommand },
-      }}
-    >
+    <Context.Provider value={value}>
       <NavbarScrollContext.Provider value={scrollController}>
         {children}
       </NavbarScrollContext.Provider>
@@ -307,6 +310,12 @@ export function MainTabBar({ interactionEnabled = true }: { interactionEnabled?:
   const insets = useSafeAreaInsets();
   const focused = useIsFocused();
   const measuredWidth = useRef(0);
+  const measure = useCallback((width: number) => {
+    if (width <= 0) return;
+    measuredWidth.current = width;
+    if (focused) motion.measure(width);
+  }, [focused, motion.measure]);
+  const indicatorMotion = useMemo(() => ({ ...motion, measure }), [motion, measure]);
   useLayoutEffect(() => {
     if (focused && measuredWidth.current > 0) motion.measure(measuredWidth.current);
   }, [focused, motion.measure]);
@@ -322,11 +331,7 @@ export function MainTabBar({ interactionEnabled = true }: { interactionEnabled?:
       insets={insets}
       activeIndex={activeIndex}
       onSelectTab={select}
-      indicatorMotion={{ ...motion, measure: width => {
-        if (width <= 0) return;
-        measuredWidth.current = width;
-        if (focused) motion.measure(width);
-      } }}
+      indicatorMotion={indicatorMotion}
     />
   );
 }

@@ -85,7 +85,7 @@ const actionMessages: Record<ProfileAction, { success?: string; error: string }>
 
 /** Focus changes update fetching and auth without rebuilding the account UI. */
 function ProfileActivity({ watchAdmission }: { watchAdmission: boolean }) {
-  const focused = useIsFocused(), auth = useAuth();
+  const focused = useIsFocused(), auth = useAuth('account');
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   useTickets(focused, watchAdmission);
   useEffect(() => {
@@ -94,10 +94,56 @@ function ProfileActivity({ watchAdmission }: { watchAdmission: boolean }) {
   return null;
 }
 
+function ProfileSavedEvents() {
+  const { copy, language, saved, savedLoading, savedError, retrySaved, actionError } = usePreferences();
+  const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
+  const explore = () => navigation.navigate('Tabs', { screen: 'Explore' });
+  return (<View style={{ gap: 12 }}>
+          <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between"}}><Text style={s.section}>{copy("userProfile.savedEvents")}</Text>{saved.length > 4 && <Pressable accessibilityRole="button" testID="profile-saved-all" onPress={() => openAccountPage(navigation, 'SavedEvents')} style={{minHeight:44,justifyContent:"center"}}><Text style={{fontSize:12,color:colors.accent}}>{copy("common.seeAll")}</Text></Pressable>}</View>
+          {actionError && <AuthMessage text={copy("feedback.actionFailed")} />}
+          {savedLoading ? <Loading /> : savedError ? <Feedback title={copy("feedback.loadFailed")} retry={retrySaved} /> : saved.length ? (
+            saved.slice(0, 4).map((event) => (
+              <Pressable
+                key={event.id}
+                accessibilityRole="button"
+                onPress={() => {
+                  seedEvent(event);
+                  navigation.navigate("Event", { id: event.id });
+                }}
+                style={s.saved}
+              >
+                <EventImage
+                  uri={event.bannerUrl}
+                  style={{ height: 48, width: 48, borderRadius: 12 }}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{ color: "white", fontWeight: "600", fontSize: 14 }}
+                  >
+                    {event.title}
+                  </Text>
+                  <Text style={s.hint}>
+                    {event.locationName} ·{" "}
+                    {formatDate(event.startTime, language)}
+                  </Text>
+                </View>
+                <Bookmark
+                  size={16}
+                  color={colors.accent}
+                  fill={colors.accent}
+                />
+              </Pressable>
+            ))
+          ) : (
+            <ProfileEmptyState testID="profile-empty-saved" icon={Bookmark} title={copy('userProfile.noSavedEvents')} onExplore={explore} />
+          )}
+        </View>);
+}
+
 export function ProfileScreen() {
   const navbarScroll = useNavbarScroll();
-  const auth = useAuth(),
-    { copy, saved, savedLoading, savedError, retrySaved, language, setLanguage, actionError } = usePreferences();
+  const auth = useAuth('account'),
+    { copy, language, setLanguage } = usePreferences('copy');
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>(),
     safe = useSafeAreaInsets(),
     link = useOpenLink();
@@ -300,46 +346,7 @@ export function ProfileScreen() {
             onPress={() => openAccountPage(navigation, 'Orders')}
           />
         </View>
-        <View style={{ gap: 12 }}>
-          <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between"}}><Text style={s.section}>{copy("userProfile.savedEvents")}</Text>{saved.length > 4 && <Pressable accessibilityRole="button" testID="profile-saved-all" onPress={() => openAccountPage(navigation, 'SavedEvents')} style={{minHeight:44,justifyContent:"center"}}><Text style={{fontSize:12,color:colors.accent}}>{copy("common.seeAll")}</Text></Pressable>}</View>
-          {actionError && <AuthMessage text={copy("feedback.actionFailed")} />}
-          {savedLoading ? <Loading /> : savedError ? <Feedback title={copy("feedback.loadFailed")} retry={retrySaved} /> : saved.length ? (
-            saved.slice(0, 4).map((event) => (
-              <Pressable
-                key={event.id}
-                accessibilityRole="button"
-                onPress={() => {
-                  seedEvent(event);
-                  navigation.navigate("Event", { id: event.id });
-                }}
-                style={s.saved}
-              >
-                <EventImage
-                  uri={event.bannerUrl}
-                  style={{ height: 48, width: 48, borderRadius: 12 }}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{ color: "white", fontWeight: "600", fontSize: 14 }}
-                  >
-                    {event.title}
-                  </Text>
-                  <Text style={s.hint}>
-                    {event.locationName} ·{" "}
-                    {formatDate(event.startTime, language)}
-                  </Text>
-                </View>
-                <Bookmark
-                  size={16}
-                  color={colors.accent}
-                  fill={colors.accent}
-                />
-              </Pressable>
-            ))
-          ) : (
-            <ProfileEmptyState testID="profile-empty-saved" icon={Bookmark} title={copy('userProfile.noSavedEvents')} onExplore={explore} />
-          )}
-        </View>
+        <ProfileSavedEvents />
         <View style={{ gap: 12 }}>
           <Text style={s.section}>{copy("userProfile.accountSecurity")}</Text>
           <View testID="profile-account-settings" style={s.panel}>

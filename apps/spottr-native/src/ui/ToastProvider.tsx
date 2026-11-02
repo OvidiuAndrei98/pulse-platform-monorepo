@@ -7,7 +7,7 @@ type ToastState = { toast: Toast | null; show: (value: ToastInput) => void; dism
 const Context = createContext<ToastState | null>(null);
 
 export function ToastProvider({ children }: React.PropsWithChildren) {
-  const { user } = useAuth();
+  const { user } = useAuth('account');
   const [toast, setToast] = useState<Toast | null>(null), sequence = useRef(0);
   const show = useCallback((value: ToastInput) => setToast({ ...value, id: ++sequence.current }), []);
   const dismiss = useCallback((id: number) => setToast(current => current?.id === id ? null : current), []);

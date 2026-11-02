@@ -1,6 +1,8 @@
 import type { NavigatorScreenParams } from "@react-navigation/native";
 export type ProfileParamList = {
   ProfileHome: undefined;
+  Dashboard: RootParamList['Dashboard'];
+  Admin: RootParamList['Admin'];
   SavedEvents: undefined;
   Tickets: undefined;
   Orders: undefined;

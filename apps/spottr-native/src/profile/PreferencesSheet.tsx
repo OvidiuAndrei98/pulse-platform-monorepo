@@ -14,7 +14,7 @@ import { queryClient } from "../data/queries";
 import { colors } from "../ui/theme";
 
 export function useHiddenCategories() {
-  const { user } = useAuth();
+  const { user } = useAuth('account');
   return useQuery({
     queryKey: ["hidden-categories", user?.id],
     enabled: !!user,

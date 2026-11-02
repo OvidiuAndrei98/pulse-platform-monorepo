@@ -132,6 +132,20 @@ function mount({ prevented = false, roleRouting = false, activeIndex = 0, indica
   };
 }
 
+test('account route reset preserves physical tab identity and uses the new navigation target', () => {
+  const ui = mount();
+  const detectors = () => ui.elements().filter(el => el.type === 'GestureDetector' && el.props.children.props.testID?.startsWith('tab-') && el.props.children.props.testID !== 'tab-hit-area');
+  const before = detectors(), tap = ui.tap(3), pan = ui.pan();
+  const routes = ['Home', 'Explore', 'Feed', 'Profile'].map(name => ({ name, key: name + '-new-account' }));
+  ui.render({ state: { index: 0, routes } });
+  assert.deepEqual(detectors().map(el => el.key), before.map(el => el.key), 'React keeps the same four physical hit targets across account changes');
+  assert.equal(ui.tap(3), tap, 'The Profile recognizer is not replaced during an in-flight gesture');
+  assert.equal(ui.pan(), pan);
+  tap.onEnd({}, true);
+  assert.equal(ui.events.at(-1).target, 'Profile-new-account', 'The retained recognizer reads the current account route');
+  assert.equal(ui.navigations.at(-1)[0], 'Profile');
+});
+
 test('hidden native navbar disables gestures and rejects a callback queued before hiding', () => {
   const ui = mount({ roleRouting: true });
   const queuedTap = ui.tap(3);

@@ -8,7 +8,7 @@ import { colors } from '../ui/theme';
 import { calendarCells, productToday, selectCalendarDay, shiftCalendarDay } from '@packages/app-core/events/discoveryFilters';
 
 export function DiscoveryCalendar({from='',to='',onChange}:{from?:string;to?:string;onChange:(from:string,to:string)=>void}) {
-  const {copy,language}=usePreferences(),locale=language==='ro'?'ro-RO':'en-GB';
+  const {copy,language}=usePreferences('copy'),locale=language==='ro'?'ro-RO':'en-GB';
   const [month,setMonth]=useState((from||productToday()).slice(0,7)+'-01');
   const date=(day:string)=>new Date(day+'T12:00:00Z'),today=productToday();
   const move=(by:number)=>{const next=date(month);next.setUTCMonth(next.getUTCMonth()+by);setMonth(next.toISOString().slice(0,10));};

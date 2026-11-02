@@ -75,7 +75,7 @@ export function DashboardOverview({
   onPromotions(): void;
   onEvents(filter: DashboardEventFilter): void;
 }) {
-  const { copy, language } = usePreferences(),
+  const { copy, language } = usePreferences('copy'),
     { width } = useWindowDimensions(),
     wide = width >= 640;
   const now = useEventClock(selectDashboardEvent(events, Date.now()));

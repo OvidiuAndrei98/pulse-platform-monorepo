@@ -5,7 +5,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { usePreferences } from '../usePreferences';
 
 export function HomeLoading({ hero = false }: { hero?: boolean }) {
-  const { copy } = usePreferences(), reduced = useReducedMotion(), focused = useIsFocused();
+  const { copy } = usePreferences('copy'), reduced = useReducedMotion(), focused = useIsFocused();
   const opacity = useSharedValue(0.65);
   useEffect(() => {
     opacity.value = reduced || !focused ? 0.8 : withRepeat(withTiming(1, { duration: 850 }), -1, true);

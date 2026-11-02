@@ -2,15 +2,16 @@ import type { ScrollViewInstance } from 'react-native';
 import { GlassPressable } from '../ui/GlassPressable';
 import { GlassButtonGroup } from '../ui/GlassButtonGroup';
 import { ActionIcon } from '../ui/ActionIcon';
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   ScrollView,
   StyleSheet,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { Search } from "lucide-react-native";
-import { useNavigation, useScrollToTop } from "@react-navigation/native";
+import { useIsFocused, useNavigation, useScrollToTop } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -54,25 +55,34 @@ function distance(lat: number, lon: number, event: Event) {
       Math.sin(rad(event.longitude - lon) / 2) ** 2;
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
+/** Focus gates network work without rebuilding the whole Home on each tab tap. */
+function HomeActivity() {
+  const focused = useIsFocused();
+  useHomeEvents(focused);
+  useQuery({ ...manualRefreshOptions, enabled: focused, queryKey: ['promotions'], queryFn: ({ signal }) => eventsApi.promotions(signal) });
+  return null;
+}
+
 export function HomeScreen() {
   const navbarScroll = useNavbarScroll();
   const reduced = useReducedMotion();
-  const { user, ready } = useAuth();
-  const { copy } = usePreferences(),
+  const { user, ready } = useAuth('account');
+  const { copy } = usePreferences('copy'),
     insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
-  const events = useHomeEvents(),
+  const events = useHomeEvents(false),
     scroll = useRef<ScrollViewInstance>(null);
   useScrollToTop(scroll);
   const promoted = useQuery({
     ...manualRefreshOptions,
+    enabled: false,
     queryKey: ["promotions"],
     queryFn: ({ signal }) => eventsApi.promotions(signal),
   });
   const [promotionSeed] = useState(() => String(Date.now()));
   const bannerPromotions = useMemo(() => (promoted.data ?? []).filter(p => p.placement === 'home_banner'), [promoted.data]);
-  const feedPromotions = (promoted.data ?? []).filter(p => p.placement === 'feed');
-  const campaigns = new Map(feedPromotions.map(p => [p.event.id, p.campaignId]));
+  const feedPromotions = useMemo(() => (promoted.data ?? []).filter(p => p.placement === 'feed'), [promoted.data]);
+  const campaigns = useMemo(() => new Map(feedPromotions.map(p => [p.event.id, p.campaignId])), [feedPromotions]);
   const [refreshing, setRefreshing] = useState(false);
   const [heroRefreshKey, setHeroRefreshKey] = useState(0);
   const refreshPending = useRef(false);
@@ -117,46 +127,50 @@ export function HomeScreen() {
       today.getMonth(),
       today.getDate() + 1,
     ).getTime();
-  const active = (events.data ?? []).filter((e) => Date.parse(e.endTime) > now);
-  const tonight = active.filter((e) => Date.parse(e.startTime) < midnight);
-  const live = active.filter((e) => isLive(e, now));
-  const upcoming = active
-    .filter((e) => Date.parse(e.startTime) > now)
-    .sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime));
-  const nearby = location
-    ? active
-        .filter(
-          (e) =>
-            distance(location.coords.latitude, location.coords.longitude, e) <=
-            25,
-        )
-        .sort(
-          (a, b) =>
-            distance(location.coords.latitude, location.coords.longitude, a) -
-            distance(location.coords.latitude, location.coords.longitude, b),
-        )
-    : [];
-  const open = (event: Event) => {
+  const { tonight, rails } = useMemo(() => {
+    const active = (events.data ?? []).filter((e) => Date.parse(e.endTime) > now);
+    const tonight = active.filter((e) => Date.parse(e.startTime) < midnight);
+    const live = active.filter((e) => isLive(e, now));
+    const upcoming = active
+      .filter((e) => Date.parse(e.startTime) > now)
+      .sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime));
+    const nearby = location
+      ? active
+          .filter(
+            (e) =>
+              distance(location.coords.latitude, location.coords.longitude, e) <=
+              25,
+          )
+          .sort(
+            (a, b) =>
+              distance(location.coords.latitude, location.coords.longitude, a) -
+              distance(location.coords.latitude, location.coords.longitude, b),
+          )
+      : [];
+    const rails = [
+      { key: "common.liveNow", items: live, date: "Tonight" },
+      {
+        key: "home.tonight",
+        items: tonight.filter((e) => !isLive(e, now)),
+        date: "Tonight",
+      },
+      { key: "home.nearYou", items: mixFeedPromotions(nearby, feedPromotions, promotionSeed + ':nearby', e => Date.parse(e.endTime) > now && !!location && distance(location.coords.latitude, location.coords.longitude, e) <= 25) },
+      { key: "home.upcoming", items: mixFeedPromotions(upcoming, feedPromotions, promotionSeed + ':upcoming', e => Date.parse(e.startTime) > now) },
+    ];
+    return { tonight, rails };
+  }, [events.data, now, midnight, location, feedPromotions, promotionSeed]);
+  const open = useCallback((event: Event) => {
     seedEvent(event);
     navigation.navigate("Event", { id: event.id });
-  };
-  const more = (date?: string) =>
+  }, [navigation]);
+  const more = useCallback((date?: string) =>
     navigation.navigate("Tabs", {
       screen: "Explore",
       params: { date: date ?? "See all" },
-    });
-  const rails = [
-    { key: "common.liveNow", items: live, date: "Tonight" },
-    {
-      key: "home.tonight",
-      items: tonight.filter((e) => !isLive(e, now)),
-      date: "Tonight",
-    },
-    { key: "home.nearYou", items: mixFeedPromotions(nearby, feedPromotions, promotionSeed + ':nearby', e => Date.parse(e.endTime) > now && !!location && distance(location.coords.latitude, location.coords.longitude, e) <= 25) },
-    { key: "home.upcoming", items: mixFeedPromotions(upcoming, feedPromotions, promotionSeed + ':upcoming', e => Date.parse(e.startTime) > now) },
-  ];
+    }), [navigation]);
   return (
     <View style={{ flex: 1 }}>
+    <HomeActivity />
     <RefreshScrollView
       {...navbarScroll}
       ref={scroll}
@@ -221,41 +235,7 @@ export function HomeScreen() {
           {rails
             .filter((rail) => rail.items.length || rail.key === "home.upcoming")
             .map((rail) => (
-              <View key={rail.key} style={{ marginTop: 16 }}>
-                <View style={s.railHeader}>
-                  <Text style={s.railTitle}>{copy(rail.key)}</Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => more(rail.date)}
-                    style={{ height: 32, justifyContent: "center" }}
-                  >
-                    <Text style={s.more}>{copy("common.seeAll")}</Text>
-                  </Pressable>
-                </View>
-                {rail.items.length ? (
-                  <FlatList
-                    horizontal
-                    data={rail.items.slice(0, 8)}
-                    keyExtractor={(e) => e.id}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{
-                      paddingHorizontal: 20,
-                      gap: 16,
-                      paddingBottom: 8,
-                      paddingTop: 8,
-                    }}
-                    renderItem={({ item }) => (
-                      <VisiblePromotion campaignId={campaigns.get(item.id)}><EventCard promoted={campaigns.has(item.id)} event={item} onOpen={() => { trackPromotion(campaigns.get(item.id), 'click'); open(item); }} /></VisiblePromotion>
-                    )}
-                  />
-                ) : (
-                  <View style={s.empty}>
-                    <Text style={{ color: colors.muted, fontSize: 14 }}>
-                      {copy("home.noUpcoming")}
-                    </Text>
-                  </View>
-                )}
-              </View>
+              <HomeEventRail key={rail.key} rail={rail} campaigns={campaigns} onOpen={open} onMore={more} />
             ))}
         </Animated.View>
       )}
@@ -263,6 +243,34 @@ export function HomeScreen() {
     </View>
   );
 }
+const HomeEventRail = memo(function HomeEventRail({ rail, campaigns, onOpen, onMore }: {
+  rail: { key: string; items: Event[]; date?: string };
+  campaigns: Map<string, string>;
+  onOpen: (event: Event) => void;
+  onMore: (date?: string) => void;
+}) {
+  const { copy } = usePreferences('copy');
+  const { width } = useWindowDimensions();
+  const items = useMemo(() => rail.items.slice(0, 8), [rail.items]);
+  return <View style={{ marginTop: 16 }}>
+    <View style={s.railHeader}>
+      <Text style={s.railTitle}>{copy(rail.key)}</Text>
+      <Pressable accessibilityRole="button" onPress={() => onMore(rail.date)} style={{ height: 32, justifyContent: 'center' }}>
+        <Text style={s.more}>{copy('common.seeAll')}</Text>
+      </Pressable>
+    </View>
+    {items.length ? <FlatList horizontal data={items}
+      initialNumToRender={Math.ceil(width / 236)} maxToRenderPerBatch={2} windowSize={3}
+      keyExtractor={event => event.id} showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: 20, gap: 16, paddingBottom: 8, paddingTop: 8 }}
+      renderItem={({ item }) => <VisiblePromotion campaignId={campaigns.get(item.id)}>
+        <EventCard promoted={campaigns.has(item.id)} event={item} onOpen={() => {
+          trackPromotion(campaigns.get(item.id), 'click'); onOpen(item);
+        }} />
+      </VisiblePromotion>}
+    /> : <View style={s.empty}><Text style={{ color: colors.muted, fontSize: 14 }}>{copy('home.noUpcoming')}</Text></View>}
+  </View>;
+});
 const s = StyleSheet.create({
   header: {
     flexDirection: "row",

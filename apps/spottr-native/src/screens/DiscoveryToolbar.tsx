@@ -28,7 +28,7 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
   onSearchActivityChange?: (active: boolean) => void;
   keyboardGestureEndRef?: React.RefObject<(() => void) | null>;
 }) {
-  const { copy } = usePreferences(), { width } = useWindowDimensions(), wide = width >= 1024 && Platform.OS === 'web';
+  const { copy } = usePreferences('copy'), { width } = useWindowDimensions(), wide = width >= 1024 && Platform.OS === 'web';
   const focused = useIsFocused();
   const [inputFocused, setInputFocused] = useState(false);
   const input = useRef<TextInputInstance>(null), trigger = useRef<ViewInstance>(null);

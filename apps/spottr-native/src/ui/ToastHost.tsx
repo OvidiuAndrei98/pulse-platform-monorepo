@@ -14,7 +14,7 @@ import { colors } from './theme';
 // Unfocused screens never duplicate or intercept feedback over a native modal.
 export function ToastHost({ bottom = 88, placement = 'screen' }: { bottom?: number; placement?: 'screen' | 'navbar' }) {
   const { toast, dismiss } = useToast(), focused = useIsFocused(), safe = useSafeAreaInsets();
-  const { copy } = usePreferences(), reduced = useReducedMotion();
+  const { copy } = usePreferences('copy'), reduced = useReducedMotion();
   if (!focused || !toast) return null;
   const Icon = toast.kind === 'error' ? CircleAlert : toast.kind === 'info' ? Info : CircleCheck;
   const color = toast.kind === 'error' ? '#ff5575' : toast.kind === 'info' ? colors.accent : '#41d996';

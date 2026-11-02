@@ -4,6 +4,7 @@ import React, { useRef, useState } from "react";
 import { ScrollView, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
+import { StackActions, useNavigation } from '@react-navigation/native';
 import { useDashboardPolling } from './useDashboardPolling';
 import { useNavbarScroll } from '../navigation/useNavbarScroll';
 import { accountApi, useAuth } from "../auth/AuthProvider";
@@ -52,13 +53,15 @@ export type DashboardScreenProps = {
   returnStatus?: "complete" | "refresh" | "cancelled";
 };
 export function DashboardScreen(props: DashboardScreenProps) {
+  const navigation = useNavigation();
   const navbarScroll = useNavbarScroll();
-  const auth = useAuth(),
-    { copy } = usePreferences(),
+  const auth = useAuth('account'),
+    { copy } = usePreferences('copy'),
     safe = useSafeAreaInsets(),
     { width } = useWindowDimensions();
   const organizer =
     auth.user?.role === "organizer" || auth.user?.role === "admin";
+  const onAdmin = auth.user?.role === 'admin' ? () => navigation.dispatch(StackActions.popTo('Admin')) : undefined;
   const [section, setSection] = useState<DashboardSection | "scanner">(
     props.organizerReturn === "promotion"
       ? "promotions"
@@ -146,6 +149,7 @@ export function DashboardScreen(props: DashboardScreenProps) {
     >
       {width >= 768 && !documentPage && (
         <DashboardSidebar
+          onAdmin={onAdmin}
           section={actualSection}
           onNavigate={go}
           validator={!organizer}
@@ -154,6 +158,7 @@ export function DashboardScreen(props: DashboardScreenProps) {
       <View style={{ flex: 1, minWidth: 0 }}>
         {!documentPage && (
           <DashboardHeader
+            onAdmin={onAdmin}
             section={actualSection}
             onNavigate={go}
             validator={!organizer}

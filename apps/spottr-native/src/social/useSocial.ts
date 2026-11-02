@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { accountApi, useAuth } from '../auth/AuthProvider';
 import { manualRefreshOptions, queryClient } from '../data/queries';
 import { parseFeed, parseFriends, type Friend } from './data';
 
 export function useSocial() {
-  const { user, controller } = useAuth();
+  const focused = useIsFocused();
+  const { user, controller } = useAuth('account');
   const id = user?.id, eligible = !!user && user.role !== 'organizer';
-  const friends = useQuery({ queryKey: ['friends', id], enabled: eligible, staleTime: 60_000,
+  const friends = useQuery({ queryKey: ['friends', id], enabled: focused && eligible, staleTime: 60_000,
     queryFn: async ({ signal }) => parseFriends(await accountApi('/friends', { signal })) });
-  const requests = useQuery({ queryKey: ['friend-requests', id], enabled: eligible, staleTime: 60_000,
+  const requests = useQuery({ queryKey: ['friend-requests', id], enabled: focused && eligible, staleTime: 60_000,
     queryFn: async ({ signal }) => parseFriends(await accountApi('/friends/requests', { signal })) });
-  const feed = useQuery({ ...manualRefreshOptions, queryKey: ['social-feed', id], enabled: !!id,
+  const feed = useQuery({ ...manualRefreshOptions, queryKey: ['social-feed', id], enabled: focused && !!id,
     queryFn: async ({ signal }) => parseFeed(await accountApi('/feed', { signal })) });
   useFocusEffect(useCallback(() => {
     if (!id) return;

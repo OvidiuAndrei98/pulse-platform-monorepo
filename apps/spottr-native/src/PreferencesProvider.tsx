@@ -1,7 +1,9 @@
 import { haptic } from "./ui/haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
+  useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -17,17 +19,18 @@ import { queryClient } from "./data/queries";
 import { translate } from "./i18n";
 import { productCopy } from "./copy";
 import { useToast } from './ui/ToastProvider';
-import { PreferencesContext as Context } from './preferencesContext';
+import { PreferencesContext as Context, CopyPreferencesContext } from './preferencesContext';
 
 const KEY = "spottr-native:preferences:v1";
+const NO_SAVED_EVENTS: Event[] = [];
 const writePreferences = serializedWriter((value) =>
   AsyncStorage.setItem(KEY, value),
 );
 export function PreferencesProvider({ children }: React.PropsWithChildren) {
-  const { user, controller } = useAuth();
+  const { user, controller } = useAuth('account');
   const { show, clear } = useToast();
   const [actionError, setActionError] = useState(false);
-  const favoritesKey = ["saved-events", user?.id] as const;
+  const favoritesKey = useMemo(() => ["saved-events", user?.id] as const, [user?.id]);
   const favorites = useQuery({
     queryKey: favoritesKey,
     enabled: !!user,
@@ -81,7 +84,7 @@ export function PreferencesProvider({ children }: React.PropsWithChildren) {
       alive = false;
     };
   }, []);
-  const update = (next: Preferences) => {
+  const update = useCallback((next: Preferences) => {
     if (!ready) return;
     stateRef.current = next;
     setState(next);
@@ -93,7 +96,7 @@ export function PreferencesProvider({ children }: React.PropsWithChildren) {
       .catch(() => {
         if (version === revision.current) setStorageError(true);
       });
-  };
+  }, [ready]);
   useEffect(() => {
     if (
       ready &&
@@ -102,8 +105,8 @@ export function PreferencesProvider({ children }: React.PropsWithChildren) {
     )
       update({ ...stateRef.current, language: user.preferredLanguage });
   }, [ready, user?.preferredLanguage]);
-  const saved = user ? (favorites.data ?? []) : [];
-  const changeSaved = (event: Event) => {
+  const saved = user ? (favorites.data ?? NO_SAVED_EVENTS) : NO_SAVED_EVENTS;
+  const changeSaved = useCallback((event: Event) => {
     const token = controller.getToken();
     if (!user || !token) { show({ key: 'toast.signInToSave', kind: 'info' }); return; }
     if (!favorites.data) { show({ key: 'toast.saveFailed', kind: 'error' }); return; }
@@ -137,25 +140,28 @@ export function PreferencesProvider({ children }: React.PropsWithChildren) {
         }
       } finally { entry.running = false; }
     })();
-  };
+  }, [controller, user, favorites.data, favoritesKey, show, clear]);
+  const savedLoading = !!user && favorites.isPending;
+  const savedError = !!user && favorites.isError;
+  const retrySaved = useCallback(() => { void favorites.refetch(); }, [favorites.refetch]);
+  const copyPreferences = useMemo(() => ({
+    language: state.language,
+    t: (key: Parameters<typeof translate>[1]) => translate(state.language, key),
+    copy: (key: string, values?: Record<string, string | number>) => productCopy(state.language, key, values),
+    setLanguage: (language: Preferences['language']) => update({ ...stateRef.current, language }),
+  }), [state.language, update]);
+  const value = useMemo(() => ({
+    ...state, saved, ready, storageError, actionError, savedLoading, savedError, retrySaved,
+    ...copyPreferences,
+    toggleSaved: changeSaved,
+  }), [state, saved, ready, storageError, actionError, savedLoading, savedError, retrySaved, copyPreferences, changeSaved]);
   return (
+    <CopyPreferencesContext.Provider value={copyPreferences}>
     <Context.Provider
-      value={{
-        ...state,
-        saved,
-        ready,
-        storageError,
-        actionError,
-        savedLoading: !!user && favorites.isPending,
-        savedError: !!user && favorites.isError,
-        retrySaved: () => { void favorites.refetch(); },
-        t: (key) => translate(state.language, key),
-        copy: (key, values) => productCopy(state.language, key, values),
-        setLanguage: (language) => update({ ...stateRef.current, language }),
-        toggleSaved: (event) => changeSaved(event),
-      }}
+      value={value}
     >
       {children}
     </Context.Provider>
+    </CopyPreferencesContext.Provider>
   );
 }

@@ -20,7 +20,7 @@ import { colors } from '../ui/theme';
 
 const Context = createContext({ status: 'unavailable' as PushStatus, enable: async () => {}, pending: null as unknown, consume: () => {} });
 export function PushProvider({ children }: React.PropsWithChildren) {
-  const { user, ready, controller } = useAuth(), { language } = usePreferences();
+  const { user, ready, controller } = useAuth('account'), { language } = usePreferences('copy');
   const [status, setStatus] = useState<PushStatus>('off'), [pending, setPending] = useState<unknown>(null);
   const sequence = useRef(0), mounted = useRef(true), token = controller.getToken();
   const lastSync = useRef(0);
@@ -73,7 +73,7 @@ export function PushProvider({ children }: React.PropsWithChildren) {
 }
 
 export function PushPreference() {
-  const { status, enable } = useContext(Context), { copy } = usePreferences();
+  const { status, enable } = useContext(Context), { copy } = usePreferences('copy');
   if (Platform.OS === 'web') return null;
   const Icon = status === 'on' ? BellRing : Bell;
   return <View style={{ margin: 12, padding: 14, gap: 10, borderRadius: 20, backgroundColor: '#ffffff08' }}>
@@ -88,7 +88,7 @@ export function PushPreference() {
 }
 
 export function PushNavigation({ navigation, state }: { navigation: NavigationContainerRefWithCurrent<RootParamList>; state?: NavigationState }) {
-  const { pending, consume } = useContext(Context), { user, ready, controller } = useAuth(), { copy } = usePreferences(), safe = useSafeAreaInsets();
+  const { pending, consume } = useContext(Context), { user, ready, controller } = useAuth(), { copy } = usePreferences('copy'), safe = useSafeAreaInsets();
   const [failed, setFailed] = useState(false), [retry, setRetry] = useState(0);
   const owner = user?.id, token = controller.getToken();
   // Only the readiness/blocked state matters. Navigating to the result must not

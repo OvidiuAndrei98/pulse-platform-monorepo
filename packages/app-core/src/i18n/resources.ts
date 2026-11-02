@@ -1552,6 +1552,7 @@ export const resources = {
       },
       error: { somethingWrong: "Something went wrong.", explanation: "We couldn't load this screen. Please try again.", tryAgain: "Try again" },
       dashboardNav: {
+        administration: "Administration",
         wardrobe: "Cloakroom",
         dashboard: "Dashboard",
         backToDashboard: "Back to dashboard",
@@ -3331,6 +3332,7 @@ export const resources = {
         tryAgain: "Încearcă din nou",
       },
       dashboardNav: {
+        administration: "Administrare",
         wardrobe: "Garderobă",
         dashboard: "Dashboard",
         backToDashboard: "Inapoi la dashboard",

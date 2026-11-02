@@ -1,0 +1,56 @@
+SPOTTR iOS navbar: login/logout frame stalls
+
+Status: app changes and native build configuration prepared. Native performance
+improvement is NOT yet verified in a rebuilt SPOTTR iPhone binary.
+
+Observed on the user's iPhone in Expo Go:
+- A real login/logout cycle with repeated physical tab taps was captured.
+- Logout: UI-runtime frame gap reached 157.53 ms while the indicator moved.
+- Other gaps during the first two seconds included 118.28 and 116.69 ms.
+- Login coincided with a React render of 110 ms. These are separate metrics:
+  React render duration does not measure native display FPS.
+- Runtime flags: IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS=false,
+  USE_COMMIT_HOOK_ONLY_FOR_REACT_COMMITS=true,
+  DISABLE_COMMIT_PAUSING_MECHANISM=false, USE_ANIMATION_BACKEND=false.
+- This confirms UI stalls. It does not alone prove how much is native mounting,
+  Fabric reconciliation, glass rendering, or development instrumentation.
+
+Changes:
+- iOS native builds opt into IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS. Transform/opacity
+  updates can use the direct native-view path instead of a shadow-tree commit.
+  No Android flag, spring constants, geometry, colors or gesture curve changed.
+- Native tap navigation uses a React transition; the UI gesture still starts
+  its spring immediately and the latest-selection queue remains cancellable.
+- A Profile route key reset no longer remounts its physical navbar hit target.
+  The navigator still resets private Profile routes when the account changes.
+- The navbar's measurement callback and motion props retain stable identities.
+
+Verification:
+- 68 targeted navigation, gesture, travel and account-route tests passed.
+- Includes an account route reset while retaining the existing tab recognizer;
+  the subsequent tap must use the NEW route target.
+- TypeScript passed (tsc --noEmit).
+- Browser account-switch regression passed: admin -> logout -> basic login ->
+  repeated Profile/Home, without a stale admin destination or navigation warning.
+- The inspector disconnected after the changes. No post-change physical-device
+  improvement is claimed. The diagnostic self-expires after 15 minutes.
+
+Native activation and remaining device validation:
+- A JS Reload, Metro restart or Expo Go update cannot enable this compile flag.
+- In a macOS checkout, install dependencies, run pod install in the generated
+  iOS project (or npx pod-install from apps/spottr-native), then rebuild SPOTTR.
+- Existing pnpm --filter @apps/spottr-native ios:release produces a release
+  build for a connected iPhone. Do not infer its performance from Expo Go.
+- Verify getStaticFeatureFlag('IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS') is true in
+  that binary. Do not import uninitialized modules by numeric Metro IDs.
+- Repeat guest/login/logout, admin-to-basic account switch, rapid taps and drag.
+- Check touch targets during navbar compaction, Discover Search morphs, sheet
+  dragging/dismissal and ticket swipes. The fast path affects hit testing of
+  transformed React Native Pressables; navbar hit targets use Gesture Handler.
+- Verify Home -> Search -> slow swipe-back still reveals the single navbar.
+- Compare UI frame gaps during actual travel; unit tests do not establish FPS.
+- Roll back only the iOS feature flag if native touch regression is observed.
+
+References:
+https://docs.swmansion.com/react-native-reanimated/docs/guides/performance/
+https://docs.swmansion.com/react-native-reanimated/docs/guides/feature-flags/

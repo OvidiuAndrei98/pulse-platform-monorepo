@@ -10,6 +10,7 @@ import { ActionIcon } from '../ui/ActionIcon';
 import { FormInput as TextInput } from '../ui/FormInput';
 import { useEffect } from 'react';
 import { Modal, RefreshControl, ScrollView, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useRoute } from '@react-navigation/native';
 
@@ -28,10 +29,10 @@ import { adminSection, adminLabel } from '@packages/app-core/admin/navigation';
 import { queryClient } from '../data/queries';
 
 export function AdminScreen() {
-  const route = useRoute<any>(), {user,controller}=useAuth(), {language}=usePreferences();
+  const route = useRoute<any>(), {user,controller}=useAuth(), {language}=usePreferences('copy');
   const section=adminSection(route.params?.section), organizerId=typeof route.params?.organizerId==='string'?route.params.organizerId:undefined;
   useEffect(()=>{if(user?.role!=='admin')queryClient.removeQueries({predicate:query=>String(query.queryKey[0]).startsWith('admin-')||query.queryKey[0]==='client-errors'});},[user?.role,user?.id]);
-  if(user?.role!=='admin'||!controller.getToken())return <Feedback title={language==='ro'?'Acces rezervat administratorilor':'Administrator access required'}/>;
+  if(user?.role!=='admin'||!controller.getToken())return <SafeAreaView edges={['top']} style={{flex:1,paddingHorizontal:20}}><Feedback title={language==='ro'?'Acces rezervat administratorilor':'Administrator access required'}/></SafeAreaView>;
   return <AdminShell section={section}>{section==='overview'?<AdminOverview/>:section==='organizers'?<OrganizerDirectory key={user.id+':'+(organizerId??'directory')} organizerId={organizerId}/>:<AdminOperationsScreen key={user.id+':'+section} section={section}/>}</AdminShell>;
 }
 function AdminOperationsScreen(props: Parameters<typeof useAdminController>[0]) {

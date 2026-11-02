@@ -250,7 +250,9 @@ async function main() {
   assert.equal(await evaluate(`document.querySelector('[data-testid="search-results"]').innerText.includes('old result')`), false);
   await input('empty'); await until(`document.querySelector('[data-testid="search-results"]').innerText.includes('No events found')`);
   assert.equal(await evaluate(`window.__qa.requests.some(r=>r.includes('q=empty')&&r.includes('startsAfter='))`), true);
-  await evaluate(`document.querySelector('[aria-label="Back"]').click()`);
+  // The native-stack web header also exposes a hidden Back accessibility node.
+  // Exercise the visible Search control, not that zero-size header element.
+  await evaluate(`document.querySelector('[data-testid="search-screen"] [role="button"][aria-label="Back"]').click()`);
   await until(`!document.querySelector('[data-testid="event-search"]')`);
   console.log('PASS async search race, empty state, date filtering and back');
   await click('tab-Explore');
@@ -372,7 +374,7 @@ async function main() {
   assert.equal(await evaluate(`document.querySelector('[data-testid="sheet-pill"]').getBoundingClientRect().height`),6);
   await dragProfileSurface('quick-connect-sheet', `Array.from(document.querySelectorAll('[data-testid="quick-connect-sheet"] svg')).sort((a,b)=>b.getBoundingClientRect().width-a.getBoundingClientRect().width)[0]`);
   await click('sheet-handle'); await until(`!document.querySelector('[data-testid="quick-connect-sheet"]')`);
-  await evaluate(`Array.from(document.querySelectorAll('[data-testid="profile-list"] [role=button]')).find(el=>el.textContent.includes('QA access ticket')).click()`);
+  await evaluate(`document.querySelector('[data-testid="profile-featured-pass-qr"]').click()`);
   await until(`document.querySelector('[data-testid="ticket-preview"]')`); await delay(600);
   await capture('ticket-mobile');
   assert.ok(await evaluate(`document.querySelector('[data-testid="ticket-preview"]').innerText.includes('Download PDF')`));

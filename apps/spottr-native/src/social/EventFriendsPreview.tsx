@@ -2,6 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { UsersRound } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
+import { useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthProvider';
 import { eventsApi } from '../data/api';
 import { Text } from '../ui/Text';
@@ -9,8 +10,9 @@ import { colors } from '../ui/theme';
 import { SocialPhoto } from './components';
 
 export function EventFriendsPreview({ eventId }: { eventId: string }) {
-  const { user } = useAuth();
-  const query = useQuery({ queryKey: ['event-social', eventId, user?.id ?? 'guest'], staleTime: 120_000, queryFn: ({ signal }) => eventsApi.social(eventId, signal) });
+  const focused = useIsFocused();
+  const { user } = useAuth('account');
+  const query = useQuery({ queryKey: ['event-social', eventId, user?.id ?? 'guest'], enabled: focused, staleTime: 120_000, queryFn: ({ signal }) => eventsApi.social(eventId, signal) });
   if (!query.data) return null;
   const friends = query.data.friends.filter(friend => friend.status !== 'interested').slice(0, 3);
   if (!query.data.goingCount && !friends.length) return null;

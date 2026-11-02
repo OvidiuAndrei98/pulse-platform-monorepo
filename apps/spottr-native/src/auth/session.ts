@@ -16,6 +16,7 @@ export type SessionState = {
   storageError: boolean;
   error: boolean;
 };
+export type AccountState = Omit<SessionState, 'busy'>;
 export type SessionStorage = {
   read: () => Promise<string | null>;
   write: (value: string | null) => Promise<void>;
@@ -52,6 +53,7 @@ export class SessionController {
     error: false,
   };
   private token: string | null = null;
+  private accountState: AccountState = this.accountSnapshot();
   private generation = 0;
   private listeners = new Set<() => void>();
   private writes: Promise<void> = Promise.resolve();
@@ -63,6 +65,9 @@ export class SessionController {
     private identityChanged: () => void = () => {},
   ) {}
   getSnapshot = () => this.state;
+  // Ordinary screens do not need to rerender when a login request starts or
+  // finishes. Identity, readiness and storage/network errors remain immediate.
+  getAccountSnapshot = () => this.accountState;
   getToken = () => this.token;
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -71,8 +76,16 @@ export class SessionController {
     };
   };
   private publish(patch: Partial<SessionState>) {
+    const changes = (Object.keys(patch) as Array<keyof SessionState>)
+      .filter(key => !Object.is(this.state[key], patch[key]));
+    if (!changes.length) return;
     this.state = { ...this.state, ...patch };
+    if (changes.some(key => key !== 'busy')) this.accountState = this.accountSnapshot();
     this.listeners.forEach((fn) => fn());
+  }
+  private accountSnapshot(): AccountState {
+    const { busy: _busy, ...account } = this.state;
+    return account;
   }
   private persist(value: string | null, generation: number) {
     const task = this.writes

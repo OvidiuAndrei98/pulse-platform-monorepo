@@ -31,7 +31,7 @@ export function FriendIdentity({ friend, open, size = 44, fallback }: { friend: 
   </Pressable>;
 }
 export function FriendsListSheet({ social, close, openProfile, manage }: { social: ReturnType<typeof useSocial>; close: () => void; openProfile: (id: string) => void; manage: () => void }) {
-  const { copy } = usePreferences(), [query, setQuery] = useState('');
+  const { copy } = usePreferences('copy'), [query, setQuery] = useState('');
   const friends = social.friends.data ?? [], requests = social.requests.data ?? [];
   const matches = friends.filter(friend => friend.username.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
   return <AppSheet open onClose={close} label={copy('common.close')} testID="friends-sheet">
@@ -60,7 +60,7 @@ export function FriendsListSheet({ social, close, openProfile, manage }: { socia
   </AppSheet>;
 }
 export function FeedCard({ item, openEvent, openProfile }: { item: FeedGroup; openEvent: (id: string) => void; openProfile: (id: string) => void }) {
-  const { copy, language } = usePreferences(), actor = item.actors[0];
+  const { copy, language } = usePreferences('copy'), actor = item.actors[0];
   if (!actor) return null;
   const name = item.kind === 'friends' ? item.actors.length > 1 ? copy('feed.andOtherFriends', { name: actor.actorUsername, count: item.actors.length - 1 }) : actor.actorUsername : item.organizerName || actor.actorUsername;
   const verb = item.kind === 'update' ? 'feed.publishedUpdate' : item.kind === 'organizer' ? 'feed.publishedEvent' : item.ticketActors.length && item.goingActors.length ? 'feed.gettingReady' : item.ticketActors.length ? 'feed.haveTickets' : 'feed.goingTo';

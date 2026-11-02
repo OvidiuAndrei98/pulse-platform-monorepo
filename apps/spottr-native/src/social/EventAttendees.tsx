@@ -17,7 +17,7 @@ import { parseEventFriends, type EventAttendee } from './eventAttendeesData';
 
 const api = createProfilesApi(accountApi);
 export function EventAttendees({ eventId, compact = false }: { eventId: string; compact?: boolean }) {
-  const { user, controller } = useAuth(), { copy } = usePreferences(), token = controller.getToken();
+  const { user, controller } = useAuth(), { copy } = usePreferences('copy'), token = controller.getToken();
   const [selected, setSelected] = useState<{ person: EventAttendee; viewer: string; event: string } | null>(null);
   const query = useQuery({ queryKey: ['event-friends', user?.id, eventId.toLowerCase()], enabled: !!user && isEventId(eventId), staleTime: 120_000,
     queryFn: async ({ signal }) => parseEventFriends(await accountApi('/events/' + eventId.toLowerCase() + '/attendees', { signal, token })) });
@@ -41,7 +41,7 @@ export function EventAttendees({ eventId, compact = false }: { eventId: string; 
 }
 
 export function EventFriendProfilePopup({ attendee, viewerId, onClose }: { attendee: EventAttendee; viewerId: string; onClose: () => void }) {
-  const { user } = useAuth(), { copy } = usePreferences();
+  const { user } = useAuth(), { copy } = usePreferences('copy');
   const query = useQuery({ queryKey: publicProfileKey(attendee.id, viewerId), enabled: user?.id === viewerId,
     queryFn: ({ signal }) => api.profile(attendee.id, signal), staleTime: 60_000 });
   const profile = query.data ?? attendee, name = profile.role === 'organizer' ? profile.organizerName || profile.username : profile.username;

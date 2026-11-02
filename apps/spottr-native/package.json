@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "main": "index.ts",
+  "reanimated": {
+    "staticFeatureFlags": {
+      "IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS": true
+    }
+  },
   "scripts": {
     "start": "node ../../tools/sync-map-assets.cjs && expo start --dev-client",
     "web": "node ../../tools/sync-map-assets.cjs && expo start --web --port 8081",

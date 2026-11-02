@@ -10,7 +10,7 @@ import { Text } from './Text';
 import { colors } from './theme';
 
 export function EventBrowseCard({ event, onOpen, fill = false, promoted = false }: { event: Event; onOpen: () => void; fill?: boolean; promoted?: boolean }) {
-  const { copy, language } = usePreferences();
+  const { copy, language } = usePreferences('copy');
   return <Pressable accessibilityRole="button" accessibilityLabel={event.title} onPress={onOpen} style={{ flex: 1, maxWidth: fill ? '100%' : '48.5%' }}>
     <View style={{ aspectRatio: 1, borderRadius: 20, overflow: 'hidden' }}>
       <EventImage uri={event.bannerUrl} style={StyleSheet.absoluteFill} />

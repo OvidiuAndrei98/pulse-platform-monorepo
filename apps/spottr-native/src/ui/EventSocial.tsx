@@ -15,7 +15,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootParamList } from '../navigation/types';
 
 export function EventSocial({ eventId, signIn }: { eventId: string; signIn: () => void }) {
-  const { user, controller } = useAuth(), { copy } = usePreferences(), navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
+  const { user, controller } = useAuth(), { copy } = usePreferences('copy'), navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const key = ['event-social', eventId, user?.id ?? 'guest'];
   const query = useQuery({ queryKey: key, queryFn: ({ signal }) => eventsApi.social(eventId, signal) });
   const [busy, setBusy] = useState(false), [error, setError] = useState(false);

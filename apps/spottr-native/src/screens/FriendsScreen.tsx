@@ -23,7 +23,7 @@ import {ActionButton as UIActionButton} from '../ui/ActionButton';
 type Navigation = CompositeNavigationProp<NativeStackNavigationProp<FeedParamList>, NativeStackNavigationProp<RootParamList>>;
 export function FriendsScreen() {
   const navbarScroll = useNavbarScroll();
-  const { copy } = usePreferences(), { user, ready } = useAuth(), safe = useSafeAreaInsets(), social = useSocial();
+  const { copy } = usePreferences('copy'), { user, ready } = useAuth('account'), safe = useSafeAreaInsets(), social = useSocial();
   const navigation = useNavigation<Navigation>(), [open, setOpen] = useState(false), [visible, setVisible] = useState(8);
   const organizer = user?.role === 'organizer';
   const [refreshing, setRefreshing] = useState(false), refreshPending = useRef(false);
@@ -64,7 +64,7 @@ export function FriendsScreen() {
 }
 export function FriendsManageScreen() {
   const navbarScroll = useNavbarScroll();
-  const { copy } = usePreferences(), { user, ready } = useAuth(), safe = useSafeAreaInsets(), social = useSocial();
+  const { copy } = usePreferences('copy'), { user, ready } = useAuth('account'), safe = useSafeAreaInsets(), social = useSocial();
   const navigation = useNavigation<Navigation>(), [query, setQuery] = useState('');
   useEffect(() => setQuery(''), [user?.id]);
   const friends = social.friends.data ?? [], matches = friends.filter(friend => friend.username.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));

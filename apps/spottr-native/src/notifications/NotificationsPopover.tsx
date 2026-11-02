@@ -24,7 +24,7 @@ import { MotionPressable } from '../ui/MotionPressable';
 import { formatDate } from '../data/events';
 
 export function NotificationsPopover() {
-  const { copy, language } = usePreferences(), query = useNotifications(), navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
+  const { copy, language } = usePreferences('copy'), query = useNotifications(), navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const anchor = useRef<ViewInstance>(null), [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const viewport = useWindowDimensions(), insets = useSafeAreaInsets();
   const width = Math.min(380, viewport.width - 32);

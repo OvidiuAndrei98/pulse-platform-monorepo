@@ -31,11 +31,32 @@ withBrowser(async ({base,call,evaluate,until,click,input,delay,errors}) => {
 
   await open();
   await input('auth-password','fixture-password'); await delay(300); assert.equal(await count(),0);
-  await input('auth-email','person@example.test'); await until('window.__loginQA.requests.length===1'); await delay(800);
-  assert.equal(await count(),1,'Password-first fill submits once and never loops after rejection');
+  await input('auth-email','person@example.test'); await delay(800);
+  assert.equal(await count(),0,'Password-first browser fill must remain editable');
+  await input('auth-email','different@example.test'); await input('auth-password','different-password'); await delay(450);
+  assert.equal(await count(),0,'Replacing both saved credentials must not log into either account automatically');
+  await enter(); await until('window.__loginQA.requests.length===1'); await delay(650);
+  assert.deepEqual(await evaluate('window.__loginQA.requests[0]'),{email:'different@example.test',password:'different-password'});
+
+  // Simulate the DOM values a browser restores before React sees a change. The
+  // autofill signal may repeat when the tab regains focus; neither is consent.
+  await open();
+  await evaluate(`{
+    const email=document.querySelector('[data-testid="auth-email"]'),password=document.querySelector('[data-testid="auth-password"]');
+    const matches=password.matches.bind(password);
+    password.matches=selector=>selector.includes('autofill')||matches(selector);
+    const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;
+    setter.call(email,'saved@example.test');setter.call(password,'saved-password');
+    password.dispatchEvent(new Event('change',{bubbles:true}));window.dispatchEvent(new Event('focus'));
+  }`);
+  await delay(800); assert.equal(await count(),0,'Passive autofill and focus do not submit');
+  await input('auth-email','chosen@example.test'); await delay(500); assert.equal(await count(),0,'Editing the email alongside an autofilled password stays editable');
+  await input('auth-password','chosen-password'); await delay(500); assert.equal(await count(),0);
+  await click('auth-submit'); await until('window.__loginQA.requests.length===1'); await delay(650);
+  assert.deepEqual(await evaluate('window.__loginQA.requests[0]'),{email:'chosen@example.test',password:'chosen-password'});
 
   await open(); await input('auth-email','person@example.test'); await input('auth-password','fixture-password'); await enter();
   await until('window.__loginQA.requests.length===1'); await delay(800); assert.equal(await count(),1,'Enter plus queued autofill is deduplicated');
   assert.ok(!errors.some(message=>!message.includes('401')),errors.join('\n'));
-  console.log('PASS login: keyboard Enter from both fields, incomplete form focus, manual typing, password-first autofill, duplicate submit and failed-login retry');
+  console.log('PASS login: Enter, incomplete form focus, editable saved credentials, password-first fill, passive autofill/focus, account replacement, duplicate submit and failed-login retry');
 }).catch(error=>{console.error(error);process.exitCode=1;});

@@ -17,6 +17,7 @@ import {
   Plus,
   QrCode,
   Shirt,
+  ShieldCheck,
   ReceiptText,
   Ticket,
   User,
@@ -60,6 +61,7 @@ type NavProps = {
   section: DashboardSection | "scanner";
   onNavigate(section: string): void;
   validator?: boolean;
+  onAdmin?(): void;
 };
 const activeSection = (section: NavProps["section"]) =>
   section === "edit"
@@ -70,8 +72,18 @@ const activeSection = (section: NavProps["section"]) =>
         ? "overview"
         : section;
 
-export function DashboardSidebar({ section, onNavigate, validator }: NavProps) {
-  const { copy } = usePreferences();
+function AdminShortcut({ onPress }: { onPress(): void }) {
+  const { copy } = usePreferences('copy');
+  return <Pressable testID="dashboard-open-admin" accessibilityRole="button" onPress={onPress}
+    style={{ minHeight: 36, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6,
+      borderRadius: 12, borderWidth: 1, borderColor: '#ffffff1a' }}>
+    <ShieldCheck size={15} color={colors.accent} />
+    <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text }}>{copy('dashboardNav.administration')}</Text>
+  </Pressable>;
+}
+
+export function DashboardSidebar({ section, onNavigate, validator, onAdmin }: NavProps) {
+  const { copy } = usePreferences('copy');
   const ids = validator
     ? ["profile", "scanner"]
     : [
@@ -138,6 +150,7 @@ export function DashboardSidebar({ section, onNavigate, validator }: NavProps) {
               )}
             </Text>
           </View>
+          {onAdmin && <AdminShortcut onPress={onAdmin} />}
           <View>
             {ids.map((id) => {
               const tab = dashboardTabs.find((t) => t[0] === id)!;
@@ -241,9 +254,9 @@ export function DashboardSidebar({ section, onNavigate, validator }: NavProps) {
   );
 }
 
-export function DashboardHeader({ section, onNavigate, validator }: NavProps) {
+export function DashboardHeader({ section, onNavigate, validator, onAdmin }: NavProps) {
   const reduced=useReducedMotionPreference();
-  const { copy } = usePreferences(),
+  const { copy } = usePreferences('copy'),
     { width } = useWindowDimensions();
   const tabs = validator
     ? dashboardTabs.filter((t) => t[0] === "profile" || t[0] === "scanner")
@@ -423,6 +436,7 @@ export function DashboardHeader({ section, onNavigate, validator }: NavProps) {
               </Pressable>
             </React.Fragment>
           ))}
+          {width < 768 && onAdmin && <><View style={{ flex: 1 }} /><AdminShortcut onPress={onAdmin} /></>}
         </View>
         {width < 768 && (
           <View

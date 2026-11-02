@@ -58,6 +58,29 @@ test('server replacement updates used state and completely removes refunded/remo
   assert.doesNotMatch([...f.disk.values()].join(''), /CaseSensitive/);
 });
 
+test('simultaneous cache readers share I/O, but writes and logout separate later reads', async () => {
+  const f = fixture(); let reads = 0, sequence = 50;
+  const cache = createTicketCache({ ...f.storage, getItem: async key => { reads++; return f.storage.getItem(key); } }, 'staging', () => id(sequence++));
+  const original = snapshot(); await cache.save(original, () => true);
+  reads = 0;
+  const first = cache.load(user), second = cache.load(user);
+  assert.equal(first, second, 'Concurrent observers share one secure-storage read');
+  assert.deepEqual(await first, original);
+  assert.equal(reads, f.disk.size, 'Each manifest/chunk is read once');
+
+  const oldRead = cache.load(user);
+  const replacement = snapshot([ticket({ isValidated: true })]);
+  const write = cache.save(replacement, () => true), newRead = cache.load(user);
+  assert.notEqual(oldRead, newRead, 'An intervening update cannot reuse stale tickets');
+  assert.deepEqual(await oldRead, original);
+  await write; assert.deepEqual(await newRead, replacement);
+
+  const beforeLogout = cache.load(user), removal = cache.remove(user), afterLogout = cache.load(user);
+  assert.notEqual(beforeLogout, afterLogout);
+  await Promise.all([beforeLogout, removal]);
+  assert.equal(await afterLogout, null);
+});
+
 test('failed refresh storage cannot revive a ticket removed by the server and does not block online tickets', async () => {
   const f = fixture(); await f.cache.save(snapshot(), () => true); f.fail(true);
   const client = new QueryClient();

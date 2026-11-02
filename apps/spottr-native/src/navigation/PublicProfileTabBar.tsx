@@ -1,4 +1,5 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { StackActions, useIsFocused, useNavigation } from '@react-navigation/native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,14 +18,14 @@ const initialTabs: BottomTabBarProps['state'] = {
 export function PublicProfileTabBar({ activeIndex = 3 }: { activeIndex?: number }) {
   const navigation = useNavigation(), insets = useSafeAreaInsets();
   const focused = useIsFocused();
-  const { user } = useAuth();
+  const { user } = useAuth('account');
   let root = navigation;
   while (root.getParent()) root = root.getParent()!;
   const tabs = root.getState()?.routes.find(route => route.name === 'Tabs')?.state;
   const select = (screen: string) => {
-    if (screen === 'Profile' && user?.role === 'organizer') { root.dispatch(StackActions.popTo('Dashboard')); return; }
-    if (screen === 'Profile' && user?.role === 'admin') { root.dispatch(StackActions.popTo('Admin')); return; }
-    const params = screen === 'Profile' ? { screen: 'ProfileHome' } : screen === 'Feed' ? { screen: 'FeedHome' } : undefined;
+    if (Platform.OS !== 'ios' && screen === 'Profile' && user?.role === 'organizer') { root.dispatch(StackActions.popTo('Dashboard')); return; }
+    if (Platform.OS !== 'ios' && screen === 'Profile' && user?.role === 'admin') { root.dispatch(StackActions.popTo('Admin')); return; }
+    const params = screen === 'Profile' && Platform.OS !== 'ios' ? { screen: 'ProfileHome' } : screen === 'Feed' ? { screen: 'FeedHome' } : undefined;
     root.dispatch(StackActions.popTo('Tabs', { screen, params }));
   };
   // onSelectTab handles all presses, including the highlighted Profile tab.

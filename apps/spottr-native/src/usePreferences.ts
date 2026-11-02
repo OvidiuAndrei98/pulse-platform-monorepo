@@ -1,8 +1,11 @@
 import { useContext } from 'react';
-import { PreferencesContext } from './preferencesContext';
+import { PreferencesContext, CopyPreferencesContext, type PreferencesState, type CopyPreferences } from './preferencesContext';
 
-export function usePreferences() {
-  const state = useContext(PreferencesContext);
+export function usePreferences(): PreferencesState;
+export function usePreferences(scope: 'copy'): CopyPreferences;
+export function usePreferences(scope?: 'copy') {
+  const context = (scope === 'copy' ? CopyPreferencesContext : PreferencesContext) as React.Context<PreferencesState | CopyPreferences | null>;
+  const state = useContext(context);
   if (!state) throw new Error('Missing PreferencesProvider');
   return state;
 }

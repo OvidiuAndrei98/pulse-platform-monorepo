@@ -34,6 +34,19 @@ for (const scenario of [
   else assert.deepEqual(probes, scenario.camera ? ['MLRNCameraModule', 'MLRNMapViewModule'] : ['MLRNCameraModule']);
 });
 
+test('evaluating an unused native renderer never initializes MapLibre TurboModules', () => {
+  const source = readFileSync(new URL('../src/map/EventMapNative.tsx', import.meta.url), 'utf8');
+  const code = transformSync(source, { loader: 'tsx', format: 'cjs' }).code;
+  const module = { exports: {} as { EventMapNative?: unknown } };
+  runInNewContext(code, { module, exports: module.exports, require(id: string) {
+    if (id === '@maplibre/maplibre-react-native') throw new Error('Native package evaluated before a compatible renderer was mounted');
+    if (id === 'react-native') return { StyleSheet: { create: (value: unknown) => value } };
+    if (id === '../ui/theme') return { colors: {} };
+    return {};
+  } });
+  assert.equal(typeof module.exports.EventMapNative, 'function');
+});
+
 test('map bridge accepts valid viewport and selection messages, rejects malformed coordinates', () => {
   assert.deepEqual(parseMapMessage('{"type":"viewport","center":{"latitude":44,"longitude":26},"zoom":18}'), {
     type: 'viewport', center: { latitude: 44, longitude: 26 }, zoom: 18,

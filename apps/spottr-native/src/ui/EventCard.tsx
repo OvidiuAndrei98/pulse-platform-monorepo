@@ -24,10 +24,9 @@ export function EventCard({
   wide?: boolean;
   promoted?: boolean;
 }) {
-  const { language, copy, saved, toggleSaved, ready } = usePreferences();
+  const { language, copy } = usePreferences('copy');
   const motion = usePressMotion();
-  const bookmarked = saved.some((e) => e.id === event.id),
-    live = isLive(event);
+  const live = isLive(event);
   const time = live
     ? new Intl.DateTimeFormat(language, {
         timeZone: "Europe/Bucharest",
@@ -94,22 +93,7 @@ export function EventCard({
               {event.title.toLowerCase()}
             </Text>
           </Pressable>
-          <MotionPressable
-            testID={'event-bookmark-' + event.id}
-            accessibilityRole="button"
-            accessibilityLabel={copy(
-              bookmarked
-                ? "eventSheet.removeFavorite"
-                : "eventSheet.addFavorite",
-            )}
-            accessibilityState={{ selected: bookmarked, disabled: !ready }}
-            disabled={!ready}
-            onPress={() => toggleSaved(event)}
-            hitSlop={10}
-            style={s.save}
-          >
-            <AnimatedBookmark selected={bookmarked} />
-          </MotionPressable>
+          <EventBookmark event={event} />
         </View>
         <Pressable
           accessibilityRole="button"
@@ -133,12 +117,26 @@ export function EventCard({
     </Animated.View>
   );
 }
+function EventBookmark({ event }: { event: Event }) {
+  const { copy, saved, toggleSaved, ready } = usePreferences();
+  const bookmarked = saved.some(item => item.id === event.id);
+  return <MotionPressable
+    testID={'event-bookmark-' + event.id}
+    accessibilityRole="button"
+    accessibilityLabel={copy(bookmarked ? 'eventSheet.removeFavorite' : 'eventSheet.addFavorite')}
+    accessibilityState={{ selected: bookmarked, disabled: !ready }}
+    disabled={!ready}
+    onPress={() => toggleSaved(event)}
+    hitSlop={10}
+    style={s.save}
+  ><AnimatedBookmark selected={bookmarked} /></MotionPressable>;
+}
 export function HeroCard({
   event,
 }: {
   event: Event;
 }) {
-  const { language } = usePreferences();
+  const { language } = usePreferences('copy');
   return (
     <View pointerEvents="none" style={s.hero}>
       <PromotionArtwork uri={event.bannerUrl} />

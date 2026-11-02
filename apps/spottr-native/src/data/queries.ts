@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   infiniteQueryOptions,
   queryOptions,
@@ -49,9 +50,10 @@ export function eventQueryOptions(filters: EventFilters = {}, api = eventsApi) {
 }
 export function useEvents(filters: EventFilters = {}, enabled = true) {
   const query = useInfiniteQuery({ ...eventQueryOptions(filters), enabled });
+  const items = useMemo(() => mergePages(query.data?.pages), [query.data?.pages]);
   return {
     ...query,
-    items: mergePages(query.data?.pages),
+    items,
     loadMore: () => {
       if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError)
         void query.fetchNextPage({ cancelRefetch: false });
@@ -101,6 +103,6 @@ export function homeEventsQueryOptions(api = eventsApi) {
   });
 }
 
-export function useHomeEvents() {
-  return useQuery(homeEventsQueryOptions());
+export function useHomeEvents(enabled = true) {
+  return useQuery({ ...homeEventsQueryOptions(), enabled });
 }

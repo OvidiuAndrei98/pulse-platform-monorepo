@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
-import { Map as MapView, Camera, Marker, type MapRef, type CameraRef, type StyleSpecification } from '@maplibre/maplibre-react-native';
+import type { MapRef, CameraRef, StyleSpecification } from '@maplibre/maplibre-react-native';
 import { MapPin } from 'lucide-react-native';
 import darkStyle from '@packages/app-core/events/map/openFreeMapDark.json';
 import { usePreferences } from '../usePreferences';
@@ -12,28 +12,41 @@ import { clusterEvents, clusterZoom, radialPositions, validCoordinate, type Coor
 import type { EventMapProps } from './types';
 
 export function EventMapNative(props: EventMapProps) {
+  // EventMap checks the binary before mounting this renderer. Keep the native
+  // package out of module evaluation too: refreshing an unused renderer must
+  // not initialize enforcing TurboModules in Expo Go.
+  const { Map: MapView, Camera, Marker } = require('@maplibre/maplibre-react-native') as typeof import('@maplibre/maplibre-react-native');
   const {copy}=usePreferences();
   const map=useRef<MapRef>(null),camera=useRef<CameraRef>(null),latest=useRef(props);latest.current=props;
   const [level,setLevel]=useState(props.zoom),[ready,setReady]=useState(false),[failed,setFailed]=useState(false),[attempt,setAttempt]=useState(0),[height,setHeight]=useState(844);
-  const reduced=useRef(false),revision=useRef(0);
+  const reduced=useRef(false),revision=useRef(0),nativeReady=useRef(false),mounted=useRef(true),activeAttempt=useRef(0);
   useEffect(()=>{
+    mounted.current=true;
     let disposed=false;
     void AccessibilityInfo.isReduceMotionEnabled().then(value=>{if(!disposed)reduced.current=value;}).catch(()=>{});
     const listener=AccessibilityInfo.addEventListener('reduceMotionChanged',value=>{reduced.current=value;});
-    return()=>{disposed=true;revision.current++;listener.remove();};
+    return()=>{disposed=true;mounted.current=false;nativeReady.current=false;revision.current++;listener.remove();};
   },[]);
   const clusters=useMemo(()=>clusterEvents(props.events,level+1),[props.events,level]);
   const rows=useMemo(()=>clusters.flatMap(cluster=>cluster.events.length===1?[{event:cluster.events[0]!,coordinate:cluster}]:level>17?radialPositions(cluster,level+1):[]),[clusters,level]);
   const selected=rows.find(row=>row.event.id===props.selected)?.coordinate;
   const selectedRef=useRef(selected);selectedRef.current=selected;
-  const updatePoint=()=>{
+  const updatePoint=async()=>{
+    if(!mounted.current||attempt!==activeAttempt.current)return;
     const version=++revision.current,coordinate=selectedRef.current;
-    if(!coordinate){latest.current.onSelectedPoint(null);return;}
-    void map.current?.project([coordinate.longitude,coordinate.latitude]).then(point=>{
-      if(version===revision.current)latest.current.onSelectedPoint({x:point[0],y:point[1]});
-    }).catch(()=>{if(version===revision.current)latest.current.onSelectedPoint(null);});
+    const view=map.current;
+    if(!nativeReady.current||!view||!coordinate){latest.current.onSelectedPoint(null);return;}
+    const current=()=>mounted.current&&nativeReady.current&&version===revision.current&&attempt===activeAttempt.current&&view===map.current;
+    // MapLibre resolves its native handle before returning a Promise. A missing
+    // handle throws synchronously, so a chained .catch() cannot protect render.
+    try {
+      const point=await view.project([coordinate.longitude,coordinate.latitude]);
+      if(current())latest.current.onSelectedPoint(Number.isFinite(point[0])&&Number.isFinite(point[1])?{x:point[0],y:point[1]}:null);
+    } catch {
+      if(current())latest.current.onSelectedPoint(null);
+    }
   };
-  useEffect(updatePoint,[selected?.latitude,selected?.longitude]);
+  useEffect(()=>{void updatePoint();},[props.selected,selected?.latitude,selected?.longitude,ready,attempt]);
   useEffect(()=>{
     if(ready)camera.current?.easeTo({center:[props.center.longitude,props.center.latitude],zoom:props.zoom,duration:reduced.current?0:250});
   },[ready,props.center.latitude,props.center.longitude,props.zoom]);
@@ -49,9 +62,10 @@ export function EventMapNative(props: EventMapProps) {
       mapStyle={darkStyle as unknown as StyleSpecification} attribution={true} attributionPosition={{left:4,bottom:props.attributionBottom??112}} logo={false}
       onLayout={event=>setHeight(event.nativeEvent.layout.height)}
       onPress={()=>props.onSelect(null)}
-      onDidFinishLoadingMap={()=>{setReady(true);setFailed(false);updatePoint();}}
-      onDidFailLoadingMap={()=>setFailed(true)} onRegionIsChanging={updatePoint}
-      onRegionDidChange={event=>{const view=event.nativeEvent;setLevel(view.zoom);props.onViewport({latitude:view.center[1],longitude:view.center[0]},view.zoom);updatePoint();}}>
+      onDidFinishLoadingMap={()=>{if(!mounted.current||attempt!==activeAttempt.current)return;nativeReady.current=true;setReady(true);setFailed(false);void updatePoint();}}
+      onDidFailLoadingMap={()=>{if(!mounted.current||attempt!==activeAttempt.current)return;nativeReady.current=false;revision.current++;setReady(false);setFailed(true);latest.current.onSelectedPoint(null);}}
+      onRegionIsChanging={()=>{void updatePoint();}}
+      onRegionDidChange={event=>{if(!mounted.current||attempt!==activeAttempt.current)return;const view=event.nativeEvent;setLevel(view.zoom);props.onViewport({latitude:view.center[1],longitude:view.center[0]},view.zoom);void updatePoint();}}>
       <Camera ref={camera} initialViewState={{center:[props.center.longitude,props.center.latitude],zoom:props.zoom,pitch:45}} minZoom={3} maxZoom={20}/>
       {validCoordinate(props.location)&&<Marker id="user-location" lngLat={[props.location.longitude,props.location.latitude]}><View style={s.location}/></Marker>}
       {level<=17&&clusters.filter(cluster=>cluster.events.length>1).map(cluster=><Marker key={'cluster:'+cluster.key} id={'cluster:'+cluster.key} lngLat={[cluster.longitude,cluster.latitude]}
@@ -63,7 +77,7 @@ export function EventMapNative(props: EventMapProps) {
         <View style={[s.pin,event.id===props.selected&&s.selected]}><MapPin size={22} color={event.id===props.selected?'white':colors.accent}/>{isLive(event)&&<View style={s.live}/>}</View>
       </Marker>)}
     </MapView>
-    {failed&&<View style={s.failure}><Feedback compact title={copy('feedback.loadFailed')} retry={()=>{setReady(false);setFailed(false);setAttempt(value=>value+1);}}/></View>}
+    {failed&&<View style={s.failure}><Feedback compact title={copy('feedback.loadFailed')} retry={()=>{nativeReady.current=false;revision.current++;setReady(false);setFailed(false);setAttempt(++activeAttempt.current);latest.current.onSelectedPoint(null);}}/></View>}
   </>;
 }
 const s=StyleSheet.create({

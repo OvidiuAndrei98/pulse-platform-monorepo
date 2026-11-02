@@ -120,6 +120,7 @@ withBrowser(async ({ base, call, evaluate, until, delay, capture, errors }) => {
   await open('/?role=organizer');
   await evaluate(`window.__navbarQA.home=document.querySelector('[data-testid="home-list"]'); true`);
   await transition('cold-organizer-profile', 'Profile', 'organizer-dashboard');
+  check(!await evaluate(`document.querySelector('[data-testid="dashboard-open-admin"]')`), 'Organizers do not see the administration shortcut');
   await evaluate(`window.__navbarQA.workspace=document.querySelector('[data-testid="organizer-dashboard"]'); true`);
   check(!(await evaluate(`window.__navbarQA.visible('profile-list')`)), 'Cold organizer Profile must not show ordinary account page');
   await transition('dashboard-restores-home', 'Home', 'home-list');
@@ -148,7 +149,17 @@ withBrowser(async ({ base, call, evaluate, until, delay, capture, errors }) => {
   await evaluate(`window.__navbarQA.workspace=document.querySelector('[data-testid="organizer-dashboard"]'); true`);
   await transition('dashboard-to-feed', 'Feed', 'feed-list');
   await transition('feed-back-to-dashboard', 'Profile', 'organizer-dashboard');
-  check(await evaluate(`window.__navbarQA.workspace===document.querySelector('[data-testid="organizer-dashboard"]')`), 'Organizer Profile round trip reuses the same mounted dashboard');
+  check(await evaluate(`window.__navbarQA.workspace!==document.querySelector('[data-testid="organizer-dashboard"]')`), 'Organizer Profile uses a fresh screen instead of demoting a previously visible native screen');
+
+  // The reported path: change event categories, then leave using the navbar.
+  await evaluate(`document.querySelector('[data-testid="dashboard-nav-events"]').click()`);
+  await until(`document.querySelector('[data-testid="dashboard-event-filters"]')`);
+  for (const filter of ['draft', 'completed']) {
+    await evaluate(`document.querySelector('[data-testid="dashboard-filter-${filter}"]').click()`);
+    await delay(80);
+  }
+  await transition('events-filters-to-home', 'Home', 'home-list');
+  await transition('events-home-back-to-dashboard', 'Profile', 'organizer-dashboard');
 
   // Interrupt the running animation in both directions; last contact wins.
   await transition('dashboard-before-interruption', 'Home', 'home-list');
@@ -201,10 +212,13 @@ withBrowser(async ({ base, call, evaluate, until, delay, capture, errors }) => {
   await evaluate(`window.__navbarQA.admin=document.querySelector('[data-testid="admin-profile"]'); true`);
   await transition('administrator-home', 'Home', 'home-list');
   await transition('administrator-profile-again', 'Profile', 'admin-profile');
-  check(await evaluate(`window.__navbarQA.admin===document.querySelector('[data-testid="admin-profile"]')`), 'Admin Profile round trip reuses the same mounted screen');
+  check(await evaluate(`window.__navbarQA.admin!==document.querySelector('[data-testid="admin-profile"]')`), 'Admin Profile prepares a fresh screen without demoting a previously visible native screen');
   await evaluate(`document.querySelector('[data-testid="admin-organizer-account"]').click()`);
   await until(`window.__navbarQA.visible('organizer-dashboard')`);
   check(await evaluate(`window.__navbarQA.bar()?.querySelector('[aria-selected="true"]')?.dataset.testid==='tab-Profile'`), 'Admin also retains access to the organizer workspace');
+  await evaluate(`document.querySelector('[data-testid="dashboard-open-admin"]').click()`);
+  await until(`window.__navbarQA.visible('admin-profile')`);
+  check(!await evaluate(`window.__navbarQA.visible('organizer-dashboard')`), 'Administration shortcut returns from Dashboard to Admin');
 
   check((await evaluate('window.__navbarQA.unexpected')).length === 0, 'Ordinary account fixtures cover all API requests');
   check((await evaluate('window.__navbarQA.writes')).length === 0, 'Ordinary navigation has no mutation side effects');

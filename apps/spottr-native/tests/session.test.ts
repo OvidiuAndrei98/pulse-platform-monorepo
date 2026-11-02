@@ -24,6 +24,48 @@ function api(overrides: Partial<SessionApi> = {}): SessionApi {
 }
 const invalidResponse = (error: unknown) => error instanceof ApiError && error.code === 'INVALID_RESPONSE';
 
+test('account subscribers ignore login busy updates but receive identity changes immediately', async () => {
+  const credentials = deferred<{token:string}>(), persist = deferred<void>();
+  const controller = new SessionController({ read: async () => null, write: () => persist.promise },
+    api({ login: () => credentials.promise }));
+  await controller.hydrate();
+  const guest = controller.getAccountSnapshot();
+  let accountUpdates = 0, snapshot = guest;
+  controller.subscribe(() => {
+    const next = controller.getAccountSnapshot();
+    if (next !== snapshot) { snapshot = next; accountUpdates++; }
+  });
+  const login = controller.login('person@example.test', 'fixture-password');
+  assert.equal(controller.getSnapshot().busy, true, 'The login form still sees in-flight state');
+  assert.equal(controller.getAccountSnapshot(), guest, 'Other pages do not rebuild when login starts');
+  credentials.resolve({token:'fixture-token'}); await flush();
+  const signedIn = controller.getAccountSnapshot();
+  assert.equal(signedIn.user?.id, id(), 'The new identity is visible before persistence completes');
+  assert.equal(accountUpdates, 1);
+  persist.resolve(); await login;
+  assert.equal(controller.getSnapshot().busy, false);
+  assert.equal(controller.getAccountSnapshot(), signedIn, 'Successful persistence and busy=false do not redraw the account UI');
+  assert.equal(accountUpdates, 1);
+  const logout = controller.logout();
+  assert.equal(controller.getAccountSnapshot().user, null, 'Logout clears identity synchronously');
+  await logout;
+  assert.equal(accountUpdates, 2, 'Logout publishes only one account update');
+});
+
+test('account subscriptions still expose storage failures and profile edits', async () => {
+  let failWrite = true;
+  const controller = new SessionController({ read:async()=>null,write:async()=>{if(failWrite)throw Error('disk');} }, api());
+  await controller.hydrate();
+  await controller.login('person@example.test','fixture-password');
+  const failed = controller.getAccountSnapshot();
+  assert.equal(failed.storageError,true);
+  failWrite = false;
+  await controller.update({ username:'Changed name' });
+  assert.equal(controller.getAccountSnapshot().storageError,false);
+  assert.equal(controller.getAccountSnapshot().user?.username,'Changed name');
+  assert.notEqual(controller.getAccountSnapshot(),failed);
+});
+
 test('account validation rejects missing identity, role and password information', () => {
   for (const value of [null, [], {}, { ...account(), id: '' }, { ...account(), role: 'owner' }, { ...account(), hasPassword: undefined }]) {
     assert.throws(() => parseAccount(value), invalidResponse);

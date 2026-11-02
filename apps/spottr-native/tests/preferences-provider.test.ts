@@ -36,8 +36,35 @@ test('a refreshed consumer can read preferences from an already mounted provider
   assert.equal(renderToStaticMarkup(React.createElement(before.PreferencesProvider, null, React.createElement(RefreshedScreen))), '<span>home</span>');
 });
 
-test('a genuinely missing preferences provider still reports an error', () => {
+test('refreshing the context module preserves both mounted provider identities', () => {
+  const runtime = {};
+  const reloadContexts = () => modules({ react: React }, { __DEV__: true, globalThis: runtime })
+    .load(path.join(source, 'preferencesContext.ts'));
+  const before = reloadContexts(), after = reloadContexts();
+  assert.equal(after.PreferencesContext, before.PreferencesContext);
+  assert.equal(after.CopyPreferencesContext, before.CopyPreferencesContext);
+  const provider = modules({ ...mocks, './preferencesContext': before }).load(path.join(source, 'PreferencesProvider.tsx'));
+  const consumer = modules({ ...mocks, './preferencesContext': after }).load(path.join(source, 'usePreferences.ts'));
+  function RefreshedScreen() {
+    const full = consumer.usePreferences(), copy = consumer.usePreferences('copy');
+    assert.equal(full.language, copy.language);
+    return React.createElement('span', null, copy.t('home'));
+  }
+  assert.equal(renderToStaticMarkup(React.createElement(provider.PreferencesProvider, null, React.createElement(RefreshedScreen))), '<span>home</span>');
+});
+
+test('production contexts do not reuse a development runtime registry', () => {
+  const runtime = {};
+  const loadContexts = (dev: boolean) => modules({ react: React }, { __DEV__: dev, globalThis: runtime })
+    .load(path.join(source, 'preferencesContext.ts'));
+  const dev = loadContexts(true), first = loadContexts(false), second = loadContexts(false);
+  assert.notEqual(first.PreferencesContext, dev.PreferencesContext);
+  assert.notEqual(first.PreferencesContext, second.PreferencesContext);
+  assert.notEqual(first.CopyPreferencesContext, second.CopyPreferencesContext);
+});
+
+for (const scope of [undefined, 'copy']) test(`a genuinely missing ${scope ?? 'full'} preferences provider still reports an error`, () => {
   const { usePreferences } = loadConsumer();
-  function UnwrappedScreen() { usePreferences(); return null; }
+  function UnwrappedScreen() { usePreferences(scope); return null; }
   assert.throws(() => renderToStaticMarkup(React.createElement(UnwrappedScreen)), /Missing PreferencesProvider/);
 });
