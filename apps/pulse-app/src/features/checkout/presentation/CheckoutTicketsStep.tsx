@@ -1,9 +1,9 @@
 "use client";
 
-import { Minus, Plus } from "lucide-react";
+import { TicketQuantityStepper } from "@/components/ui/TicketQuantityStepper";
 import { type ReactNode } from "react";
 
-import { getRemainingTicketCapacity } from "@/features/checkout/TicketTypeSelector";
+import { changeTicketQuantity,ticketQuantityLimit } from "@packages/app-core/checkout/ticketAvailability";
 import { PromoCodeField } from "@/features/events/PromoCodeField";
 import { formatRon } from "@packages/app-core/events/serviceFee";
 
@@ -26,7 +26,7 @@ export function CheckoutTicketsStep({model, prices}: {model: Pick<TicketCheckout
           >
             <div className="divide-y divide-white/10">
               {selectedTickets.map((ticket) => {
-                const maximumQuantity = Math.min(8, getRemainingTicketCapacity(ticket));
+                const maximumQuantity = ticketQuantityLimit(selectedTickets,quantities,ticket.id,Date.now());
                 return (
                 <div key={ticket.id} className="first:pt-0">
                   <p className="break-words text-lg font-bold text-primary">
@@ -44,52 +44,8 @@ export function CheckoutTicketsStep({model, prices}: {model: Pick<TicketCheckout
                     <span className="text-sm text-white/70">
                       {t("checkout.quantity")}
                     </span>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        disabled={busy || (quantities[ticket.id] ?? 0) <= 1}
-                        onClick={() =>
-                          onQuantitiesChange({
-                            ...quantities,
-                            [ticket.id]: Math.max(
-                              1,
-                              (quantities[ticket.id] ?? 0) - 1,
-                            ),
-                          })
-                        }
-                        aria-label={t("checkout.decreaseQuantity", {
-                          name: ticket.name,
-                        })}
-                        className="grid h-10 w-10 place-items-center rounded-full border border-white/40 disabled:opacity-25"
-                      >
-                        <Minus className="h-5 w-5" />
-                      </button>
-                      <span
-                        className="min-w-5 text-center text-base"
-                        aria-live="polite"
-                      >
-                        {quantities[ticket.id] ?? 0}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={busy || (quantities[ticket.id] ?? 0) >= maximumQuantity}
-                        onClick={() =>
-                          onQuantitiesChange({
-                            ...quantities,
-                            [ticket.id]: Math.min(
-                              maximumQuantity,
-                              (quantities[ticket.id] ?? 0) + 1,
-                            ),
-                          })
-                        }
-                        aria-label={t("checkout.increaseQuantity", {
-                          name: ticket.name,
-                        })}
-                        className="grid h-10 w-10 place-items-center rounded-full border border-white/70 disabled:opacity-25"
-                      >
-                        <Plus className="h-5 w-5" />
-                      </button>
-                    </div>
+                    <TicketQuantityStepper name={ticket.name} value={quantities[ticket.id]??0} maximum={maximumQuantity} disabled={busy} testIDPrefix={'checkout-ticket-'+ticket.id}
+                      onStep={delta=>onQuantitiesChange(changeTicketQuantity(selectedTickets,quantities,ticket.id,(quantities[ticket.id]??0)+delta))}/>
                   </div>
                 </div>
                 );

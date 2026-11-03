@@ -2,7 +2,7 @@ import { ApiError } from '../data/http';
 import { isEventId, type Event } from '../data/events';
 
 
-import { isTicketSelectionAvailable } from '@packages/app-core/checkout/ticketAvailability';
+import { isTicketSelectionAvailable,ticketSelectionMode } from '@packages/app-core/checkout/ticketAvailability';
 import { emptyInvoiceDetails, type InvoiceDetails } from '@packages/app-core/checkout/invoiceDetails';
 import { validCheckoutSession } from '@packages/app-core/checkout/nativeReturn';
 
@@ -22,7 +22,7 @@ export function validSelection(event: Event, quantities: Quantities, userId?: st
 }
 export function validPaidSelection(event: Event, quantities: Quantities, userId?: string, now = Date.now()) {
   return !event.externalTicketUrl && validSelection(event, quantities, userId, now) &&
-    event.ticketTypes.filter(ticket => (quantities[ticket.id] ?? 0) > 0).every(ticket => ticket.priceRon > 0);
+    ticketSelectionMode(event.ticketTypes,quantities)==='paid';
 }
 export function parsePromo(value: unknown): Promo {
   const row = value as Partial<Promo> | null;

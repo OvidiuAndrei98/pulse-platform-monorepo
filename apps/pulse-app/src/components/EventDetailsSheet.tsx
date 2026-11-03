@@ -38,7 +38,6 @@ import {
 } from "@packages/app-core/events/serviceFee";
 import { formatEventDateTime } from "@/features/events/dateFormat";
 import { useTranslation } from "react-i18next";
-import { SuggestOutingLink } from '@/features/outings/SuggestOutingLink';
 import { shareEvent } from "@/lib/native/share";
 import { routeForPlatform } from "@/lib/native/navigation";
 import { Drawer, DrawerContent, DrawerHandleOverlay, DrawerTitle } from "@/components/ui/drawer";
@@ -49,6 +48,7 @@ import {
   isTicketSelectionAvailable,
   TicketTypeSelector,
 } from "@/features/checkout/TicketTypeSelector";
+import {retainAvailableTickets,ticketSelectionMode} from '@packages/app-core/checkout/ticketAvailability';
 import { TicketCheckoutDrawer } from "@/features/checkout/TicketCheckoutDrawer";
 import { bookFreeTicket } from "@/features/checkout/freeBooking";
 import { ApiError } from "@packages/api-client/client";
@@ -398,21 +398,15 @@ export function EventDetailsSheet({
       return;
     }
     const freshTicketTypes = freshEvent.ticketTypes ?? [];
-    if (!isTicketSelectionAvailable(freshTicketTypes, selectionSnapshot)) {
-      setQty({});
+    if (Date.parse(freshEvent.endTime)<=Date.now()||!isTicketSelectionAvailable(freshTicketTypes, selectionSnapshot)) {
+      setQty(retainAvailableTickets(freshTicketTypes,selectionSnapshot,Date.now()));
       toast.error(t("checkout.selectionUnavailable"));
       setCheckingAvailability(false);
       return;
     }
-    const freshSubtotal = freshTicketTypes.reduce(
-      (sum, ticket) => sum + (selectionSnapshot[ticket.id] ?? 0) * ticket.priceRon,
-      0,
-    );
-    const freshCount = freshTicketTypes.reduce(
-      (sum, ticket) => sum + (selectionSnapshot[ticket.id] ?? 0),
-      0,
-    );
-    const freshIsFreeSelection = freshCount === 1 && freshSubtotal === 0;
+    const selectionMode=ticketSelectionMode(freshTicketTypes,selectionSnapshot);
+    if(selectionMode==='invalid'){setQty({});toast.error(t('checkout.selectionUnavailable'));setCheckingAvailability(false);return;}
+    const freshIsFreeSelection = selectionMode==='free';
     if (freshIsFreeSelection) {
       if (!user) {
         setCheckingAvailability(false);
@@ -584,7 +578,6 @@ export function EventDetailsSheet({
 
         {/* CONTINUT PRINCIPAL */}
         <div className="space-y-6 px-5 pb-8 pt-5 md:px-6">
-          <SuggestOutingLink eventId={event.id} onNavigate={onClose}/>
           <EventSocialProof eventId={event.id} />
           <EventAttendees eventId={event.id} />
 

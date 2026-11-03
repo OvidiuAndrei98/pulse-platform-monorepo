@@ -17,6 +17,7 @@ import { ApiClient, ApiError } from "@packages/api-client/client";
 import { type Event, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { isTicketSelectionAvailable } from "@/features/checkout/TicketTypeSelector";
+import {ticketSelectionMode} from '@packages/app-core/checkout/ticketAvailability';
 
 import { useEventPromoCode } from "@/features/events/useEventPromoCode";
 import { emptyInvoiceDetails, type InvoiceDetails, validateInvoiceDetails, getInvoiceFieldErrors } from "@/features/checkout/InvoiceDetailsFields";
@@ -111,7 +112,7 @@ export function useTicketCheckout({
   const promo = useEventPromoCode(event.id);
   const ticketTypes = event.ticketTypes ?? [];
   const {tickets:selectedTickets,count:ticketCount,subtotal:ticketSubtotal,discount:discountAmount,fee:serviceFee,total}=checkoutTotals(event,quantities,promo.applied?.discountPercent??0);
-  const selectionAvailable = isTicketSelectionAvailable(ticketTypes, quantities);
+  const selectionAvailable = isTicketSelectionAvailable(ticketTypes, quantities)&&ticketSelectionMode(ticketTypes,quantities)==='paid';
   const purchaseUnavailable =
     userId === event.organizerId ||
     new Date(event.endTime).getTime() <= Date.now();

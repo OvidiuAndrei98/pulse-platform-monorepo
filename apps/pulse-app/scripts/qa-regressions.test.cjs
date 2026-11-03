@@ -64,7 +64,7 @@ test('Sunday weekend includes the current Sunday, Saturday and Monday retain cor
 });
 
 test('pulled ticket availability excludes sold out, future, expired and malformed tiers at exact boundaries', () => {
-  const api = modules({ react: {}, 'react-i18next': {}, '@packages/app-core/events/serviceFee': {} }).load('features/checkout/TicketTypeSelector');
+  const api = modules({ react: {}, 'react-i18next': {}, '@packages/app-core/events/serviceFee': {}, '@/components/ui/TicketQuantityStepper':{TicketQuantityStepper:'Stepper'} }).load('features/checkout/TicketTypeSelector');
   const now = Date.parse('2026-10-03T12:00:00Z');
   const ticket = { id: 'tier', capacity: 10, ticketsSold: 9, startSales: '2026-10-03T12:00:00Z', endSales: '2026-10-04T12:00:00Z' };
   assert.equal(api.getTicketAvailability(ticket, now), 'available');

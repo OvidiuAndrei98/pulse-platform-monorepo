@@ -31,10 +31,13 @@ import { billingStyles } from '../checkout/BillingFields';
 
 import { formatRon } from '@packages/app-core/events/serviceFee';
 import { ActionButton as UIActionButton } from '../ui/ActionButton';
+import { initialTicketQuantities } from '@packages/app-core/checkout/ticketAvailability';
 
 export function CheckoutScreen(props: Props) {
   const { user } = useAuth();
-  return <CheckoutContent key={`${props.route.params.eventId}:${user?.id ?? 'guest'}`} {...props} />;
+  const selection=initialTicketQuantities(props.route.params.quantities,props.route.params.ticketTypeId);
+  const selectionKey=JSON.stringify(Object.entries(selection).sort(([left],[right])=>left.localeCompare(right)));
+  return <CheckoutContent key={`${props.route.params.eventId}:${user?.id ?? 'guest'}:${selectionKey}`} {...props} />;
 }
 function CheckoutContent(props: Parameters<typeof useCheckoutController>[0]) {
   const model = useCheckoutController(props);

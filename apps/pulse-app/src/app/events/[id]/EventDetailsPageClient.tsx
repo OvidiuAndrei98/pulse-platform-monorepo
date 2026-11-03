@@ -1,4 +1,5 @@
 "use client";
+import {retainAvailableTickets,ticketSelectionMode} from '@packages/app-core/checkout/ticketAvailability';
 
 import { LiveIndicator } from "@/components/ui/LiveIndicator";
 import Image from "next/image";
@@ -23,7 +24,6 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Event, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
-import { SuggestOutingLink } from '@/features/outings/SuggestOutingLink';
 import { EventSocialProof } from "@/components/EventSocialProof";
 import { EventAttendees } from "@/components/social/EventAttendees";
 import { EventLineup } from "@/features/events/lineup/EventLineup";
@@ -73,7 +73,7 @@ export default function EventStandalonePage() {
     return () => {
       availabilityRequestRef.current += 1;
     };
-  }, [params.id]);
+  }, [params.id,user?.properties.id]);
 
   useEffect(() => {
     setRefreshedEvent(loadedEvent);
@@ -170,21 +170,15 @@ export default function EventStandalonePage() {
       return;
     }
     const freshTicketTypes = freshEvent.ticketTypes ?? [];
-    if (!isTicketSelectionAvailable(freshTicketTypes, selectionSnapshot)) {
-      setQuantities({});
+    if (Date.parse(freshEvent.endTime)<=Date.now()||!isTicketSelectionAvailable(freshTicketTypes, selectionSnapshot)) {
+      setQuantities(retainAvailableTickets(freshTicketTypes,selectionSnapshot,Date.now()));
       toast.error(t("checkout.selectionUnavailable"));
       setCheckingAvailability(false);
       return;
     }
-    const freshSubtotal = freshTicketTypes.reduce(
-      (sum, ticket) => sum + (selectionSnapshot[ticket.id] ?? 0) * ticket.priceRon,
-      0,
-    );
-    const freshCount = freshTicketTypes.reduce(
-      (sum, ticket) => sum + (selectionSnapshot[ticket.id] ?? 0),
-      0,
-    );
-    const freshIsFreeSelection = freshCount === 1 && freshSubtotal === 0;
+    const selectionMode=ticketSelectionMode(freshTicketTypes,selectionSnapshot);
+    if(selectionMode==='invalid'){setQuantities({});toast.error(t('checkout.selectionUnavailable'));setCheckingAvailability(false);return;}
+    const freshIsFreeSelection = selectionMode==='free';
     if (freshIsFreeSelection) {
       if (!user) {
         setCheckingAvailability(false);
@@ -344,7 +338,6 @@ export default function EventStandalonePage() {
                 </div>
 
                 <div className="mt-6 max-w-xl">
-                  <SuggestOutingLink eventId={event.id}/>
                   <EventSocialProof eventId={event.id} className="border-0 py-0" />
                 </div>
 

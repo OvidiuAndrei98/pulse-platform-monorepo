@@ -39,7 +39,7 @@ export type RootParamList = {
   Wardrobe: { staff?: boolean } | undefined;
   Admin: { section?: string; organizerId?: string } | undefined;
   QuickScanner: { token?: string } | undefined;
-  Checkout: { eventId: string; ticketTypeId: string };
+  Checkout: { eventId: string; ticketTypeId?: string; quantities?: Record<string,number> };
   CheckoutReturn: { eventId: string; sessionId?: string; nativeOrderId?: string; cancelled?: string };
   Auth:
     | {

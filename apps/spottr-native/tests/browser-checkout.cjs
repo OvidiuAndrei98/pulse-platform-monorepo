@@ -60,7 +60,8 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   for (let i = 0; i < 12; i++) await click('checkout-plus');
   assert.equal(await evaluate(`document.querySelector('[data-testid="checkout-quantity"]').textContent`), '8');
   for (let i = 0; i < 10; i++) await click('checkout-minus');
-  assert.equal(await evaluate(`document.querySelector('[data-testid="checkout-quantity"]').textContent`), '1');
+  assert.equal(await evaluate(`document.querySelector('[data-testid="checkout-quantity"]').textContent`), '0');
+  await click('checkout-plus');
   await evaluate('window.__qa.promoDelay=900'); await input('checkout-promo', 'FIRST'); await click('checkout-promo-apply'); await input('checkout-promo', 'SECOND'); await delay(1000);
   assert.equal(await evaluate(`document.querySelector('[data-testid="checkout-promo"]').value`), 'SECOND');
   assert.equal(await evaluate(`document.querySelector('[data-testid="checkout-promo"]').readOnly`), false);

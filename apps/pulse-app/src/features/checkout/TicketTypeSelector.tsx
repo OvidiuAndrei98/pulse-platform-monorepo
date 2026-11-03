@@ -1,142 +1,38 @@
 "use client";
+import {useEffect,useState,type Dispatch,type SetStateAction} from 'react';
+import {useTranslation} from 'react-i18next';
+import type {TicketTier} from '@/core/DataProvider';
+import {formatRon} from '@packages/app-core/events/serviceFee';
+import {changeTicketQuantity,getTicketAvailability,retainAvailableTickets,ticketQuantityLimit} from '@packages/app-core/checkout/ticketAvailability';
+import {TicketQuantityStepper} from '@/components/ui/TicketQuantityStepper';
+export {getTicketAvailability,getRemainingTicketCapacity,isTicketSelectionAvailable} from '@packages/app-core/checkout/ticketAvailability';
+export type {TicketAvailability} from '@packages/app-core/checkout/ticketAvailability';
 
-import { useEffect, useId, useState } from "react";
-import { Check } from "lucide-react";
-import { useTranslation } from "react-i18next";
-import type { TicketTier } from "@/core/DataProvider";
-import { formatRon } from "@packages/app-core/events/serviceFee";
-
-import { getTicketAvailability, getRemainingTicketCapacity, isTicketSelectionAvailable } from "@packages/app-core/checkout/ticketAvailability";
-export { getTicketAvailability, getRemainingTicketCapacity, isTicketSelectionAvailable } from "@packages/app-core/checkout/ticketAvailability";
-export type { TicketAvailability } from "@packages/app-core/checkout/ticketAvailability";
-
-export function TicketTypeSelector({
-  tickets,
-  quantities,
-  onChange,
-  disabled,
-}: {
-  tickets: readonly TicketTier[];
-  quantities: Record<string, number>;
-  onChange: (value: Record<string, number>) => void;
-  disabled?: boolean;
-}) {
-  const name = useId();
-  const { t } = useTranslation();
-  const [nowMs, setNowMs] = useState<number | null>(null);
-
-  useEffect(() => {
-    let timeoutId: number | undefined;
-
-    const refreshAvailability = () => {
-      if (timeoutId !== undefined) {
-        window.clearTimeout(timeoutId);
-      }
-      const now = Date.now();
-      setNowMs(now);
-
-      const nextBoundary = tickets
-        .flatMap((ticket) => [Date.parse(ticket.startSales), Date.parse(ticket.endSales)])
-        .filter((boundary) => Number.isFinite(boundary) && boundary > now)
-        .sort((left, right) => left - right)[0];
-      const delay = nextBoundary === undefined
-        ? 60_000
-        : Math.min(60_000, Math.max(250, nextBoundary - now + 50));
-      timeoutId = window.setTimeout(refreshAvailability, delay);
+export function TicketTypeSelector({tickets,quantities,onChange,disabled}:{tickets:readonly TicketTier[];quantities:Record<string,number>;onChange:Dispatch<SetStateAction<Record<string,number>>>;disabled?:boolean}) {
+  const {t}=useTranslation(),[nowMs,setNowMs]=useState<number|null>(null);
+  useEffect(()=>{
+    let timeout:number|undefined;
+    const refresh=()=>{
+      if(timeout!==undefined)window.clearTimeout(timeout);
+      const now=Date.now();setNowMs(now);
+      const next=tickets.flatMap(ticket=>[Date.parse(ticket.startSales),Date.parse(ticket.endSales)]).filter(boundary=>Number.isFinite(boundary)&&boundary>now).sort((a,b)=>a-b)[0];
+      timeout=window.setTimeout(refresh,next===undefined?60_000:Math.min(60_000,Math.max(250,next-now+50)));
     };
-
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") {
-        refreshAvailability();
-      }
-    };
-
-    refreshAvailability();
-    window.addEventListener("focus", refreshAvailability);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.removeEventListener("focus", refreshAvailability);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-      if (timeoutId !== undefined) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, [tickets]);
-
-  useEffect(() => {
-    if (nowMs === null) return;
-    const ticketsById = new Map(tickets.map((ticket) => [ticket.id, ticket]));
-    const hasUnavailableSelection = Object.entries(quantities).some(([ticketId, quantity]) => {
-      if (quantity <= 0) return false;
-      const ticket = ticketsById.get(ticketId);
-      return !ticket || getTicketAvailability(ticket, nowMs) !== "available";
-    });
-    if (hasUnavailableSelection) {
-      onChange({});
-    }
-  }, [nowMs, onChange, quantities, tickets]);
-
-  return (
-    <fieldset className="space-y-2.5" disabled={disabled}>
-      <legend className="sr-only">{t("checkout.selectTickets")}</legend>
-      {tickets.map((ticket) => {
-        const availability = getTicketAvailability(ticket, nowMs);
-        const unavailable = availability !== "available";
-        const selected = !unavailable && (quantities[ticket.id] ?? 0) > 0;
-        const status =
-          availability === "sold-out"
-            ? t("checkout.soldOut")
-            : availability === "sales-ended"
-              ? t("checkout.salesEnded")
-              : availability === "sales-not-started"
-                ? t("checkout.salesNotStarted")
-                : null;
-        return (
-          <label
-            key={ticket.id}
-            aria-disabled={disabled || unavailable}
-            className={`relative flex items-center gap-3 rounded-2xl border px-4 py-4 transition-colors ${disabled || unavailable ? "cursor-not-allowed opacity-50" : "cursor-pointer"} ${selected ? "border-primary bg-primary/10" : unavailable ? "border-white/[0.07] bg-white/[0.02]" : "border-white/10 bg-white/[0.03] hover:bg-white/[0.05]"}`}
-          >
-            <input
-              type="radio"
-              name={name}
-              value={ticket.id}
-              checked={selected}
-              disabled={disabled || unavailable}
-              onChange={() => {
-                if (!disabled && !unavailable) {
-                  onChange({ [ticket.id]: 1 });
-                }
-              }}
-              className="peer sr-only"
-            />
-            <span
-              className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-primary ${selected ? "border-primary bg-primary text-white" : "border-white/30"}`}
-            >
-              {selected && <Check className="h-4 w-4" />}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block break-words text-sm font-semibold text-white">
-                {ticket.name}
-              </span>
-              {ticket.description && (
-                <span className="mt-1 block break-words text-xs leading-5 text-white/50">
-                  {ticket.description}
-                </span>
-              )}
-            </span>
-            {status ? (
-              <span className="shrink-0 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">
-                {status}
-              </span>
-            ) : (
-              <span className="shrink-0 text-sm font-bold text-primary">
-                {ticket.priceRon === 0 ? t("checkout.free") : formatRon(ticket.priceRon)}
-              </span>
-            )}
-          </label>
-        );
-      })}
-    </fieldset>
-  );
+    const visible=()=>{if(document.visibilityState==='visible')refresh();};
+    refresh();window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',visible);
+    return()=>{window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',visible);if(timeout!==undefined)window.clearTimeout(timeout);};
+  },[tickets]);
+  useEffect(()=>{if(nowMs!==null)onChange(current=>retainAvailableTickets(tickets,current,nowMs));},[tickets,quantities,nowMs,onChange]);
+  return <fieldset className="space-y-2.5" disabled={disabled}>
+    <legend className="sr-only">{t('checkout.selectTickets')}</legend>
+    {tickets.some(ticket=>ticket.priceRon===0)&&<p className="text-xs leading-5 text-muted-foreground">{t('checkout.freeIndividualBooking')}</p>}
+    {tickets.map(ticket=>{
+      const availability=getTicketAvailability(ticket,nowMs),unavailable=availability!=='available',value=quantities[ticket.id]??0;
+      const status=availability==='sold-out'?t('checkout.soldOut'):availability==='sales-ended'?t('checkout.salesEnded'):availability==='sales-not-started'?t('checkout.salesNotStarted'):null;
+      return <article key={ticket.id} data-testid={'event-ticket-'+ticket.id} className={`space-y-3 rounded-2xl border p-4 ${value>0&&!unavailable?'border-primary bg-primary/10':'border-white/10 bg-white/[0.03]'}`}>
+        <div className="flex items-start justify-between gap-3"><div className="min-w-0 flex-1"><h3 className="break-words text-sm font-semibold text-white">{ticket.name}</h3>{ticket.description&&<p className="mt-1 break-words text-xs leading-5 text-muted-foreground">{ticket.description}</p>}</div><span className="max-w-[45%] text-right text-sm font-semibold text-primary">{status??(ticket.priceRon===0?t('checkout.free'):formatRon(ticket.priceRon))}</span></div>
+        <div className="flex justify-end"><TicketQuantityStepper name={ticket.name} value={unavailable?0:value} maximum={ticketQuantityLimit(tickets,quantities,ticket.id,nowMs)} disabled={disabled||unavailable} testIDPrefix={'event-ticket-'+ticket.id} onStep={delta=>onChange(current=>changeTicketQuantity(tickets,current,ticket.id,(current[ticket.id]??0)+delta,nowMs))}/></div>
+      </article>;
+    })}
+  </fieldset>;
 }
