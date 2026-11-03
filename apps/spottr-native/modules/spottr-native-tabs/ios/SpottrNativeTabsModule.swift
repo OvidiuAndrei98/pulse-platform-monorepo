@@ -177,7 +177,7 @@ final class SpottrNativeTabsView: ExpoView, UIGestureRecognizerDelegate {
     commit(button.tag)
   }
 
-  func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+  override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
     let velocity = pan.velocity(in: track)
     return itemWidth > 0 && abs(velocity.x) > abs(velocity.y)
   }
