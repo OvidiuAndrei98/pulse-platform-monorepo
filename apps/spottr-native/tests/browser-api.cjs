@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { createChromeProfile } = require('./chrome-profile.cjs');
-const base = process.env.NATIVE_QA_URL || 'http://localhost:8081';
+const base = process.env.NATIVE_QA_URL || 'http://localhost:8083';
 const artifacts = path.resolve(__dirname, '../artifacts');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 let child, socket;

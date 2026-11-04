@@ -29,7 +29,7 @@ type ReturnStatus = 'checking' | 'invalid' | 'cancelled' | PaymentResult;
 
 export function CheckoutReturnScreen({ route, navigation }: NativeStackScreenProps<RootParamList, 'CheckoutReturn'>) {
   const { eventId = '', sessionId, nativeOrderId, cancelled } = route.params ?? {};
-  const { user, controller, ready } = useAuth(), { copy } = usePreferences(), safe = useSafeAreaInsets();
+  const { user, controller, ready } = useAuth('account'), { copy } = usePreferences(), safe = useSafeAreaInsets();
   const token = controller.getToken(), focused = useIsFocused();
   const [status, setStatus] = useState<ReturnStatus>('checking'), [attempt, setAttempt] = useState(0);
   const [manualUsed, setManualUsed] = useState(false), manualRequested = useRef(false);

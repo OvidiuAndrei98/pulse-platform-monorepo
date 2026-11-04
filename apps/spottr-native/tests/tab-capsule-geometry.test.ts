@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { containTabCapsule, getTabCapsuleFrame, getTabCapsuleGeometry, tabCapsuleEdgeMargin } from '../src/navigation/tabCapsuleGeometry';
+import { containTabCapsule, getTabCapsuleFrame, getTabCapsuleGeometry, getTabFreeCapsuleFrame, tabCapsuleEdgeMargin } from '../src/navigation/tabCapsuleGeometry';
 
 const close = (actual: number, expected: number, tolerance = 0.000001) => assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`);
 
@@ -76,4 +76,34 @@ test('edge containment is monotonic, symmetric and has no position or velocity d
     const delta = 0.00001;
     close((containTabCapsule(join + delta, lower, upper) - containTabCapsule(join - delta, lower, upper)) / (2 * delta), 1, 0.00001);
   }
+});
+
+test('travel shape stays bounded, leaves icons at their centers and returns to the exact resting geometry', () => {
+  const g = getTabCapsuleGeometry(362, 5);
+  for (const compression of [-0.1, -0.006, 0, 0.04, 0.1, 0.14, 0.3]) {
+    for (let x = 0; x <= g.limit; x += 0.25) {
+      const f = getTabCapsuleFrame(x, g.limit, g.blobWidth, 0, 0, 1, 0, compression);
+      assert.ok(f.scaleY > 0.86 && f.scaleY < 1.0061);
+      assert.ok(f.scaleX > 0.9989 && f.scaleX < 1.0253);
+      const growth = g.blobWidth * (f.scaleX - 1) / 2;
+      assert.ok(tabCapsuleEdgeMargin + f.translateX - growth >= 0.49999);
+      assert.ok(tabCapsuleEdgeMargin + f.translateX + g.blobWidth + growth <= g.width - 0.49999);
+    }
+  }
+  for (let index = 0; index < 5; index++) {
+    const frame = getTabCapsuleFrame(index * g.spacing, g.limit, g.blobWidth, 0, 0, 1, 0, 0);
+    close(frame.scaleX, 1); close(frame.scaleY, 1); close(frame.translateX, index * g.spacing);
+  }
+});
+
+test('the free indicator follows one surface without its own lateral kick or endpoint scale dance', () => {
+  const g = getTabCapsuleGeometry(362, 5);
+  let previous = -Infinity;
+  for (let x = -20; x <= g.limit + 20; x += 0.1) {
+    const frame = getTabFreeCapsuleFrame(x, g.limit, g.blobWidth, 0, 0);
+    assert.ok(frame.translateX >= previous && frame.translateX > -0.75 && frame.translateX < g.limit + 0.75);
+    close(frame.scaleX, 1); close(frame.scaleY, 1);
+    previous = frame.translateX;
+  }
+  g.tabs.forEach((_, index) => close(getTabFreeCapsuleFrame(index * g.spacing, g.limit, g.blobWidth, 0, 0).translateX, index * g.spacing));
 });

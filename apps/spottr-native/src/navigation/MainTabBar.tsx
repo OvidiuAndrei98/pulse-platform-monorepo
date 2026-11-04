@@ -121,9 +121,11 @@ export function MainTabBarProvider({
   const tabState =
     tabs?.type === "tab" ? (tabs as BottomTabBarProps["state"]) : initialTabs;
 
-  const activeIndex =
-    pendingProfile !== null || focused !== "Tabs" ? PROFILE_TAB_INDEX : tabState.index;
   const top = state?.routes[state.index];
+  const profileSignIn = Platform.OS === 'ios' && top?.name === 'Auth'
+    && (top.params as RootParamList['Auth'] | undefined)?.returnTab === 'Profile';
+  const activeIndex =
+    pendingProfile !== null || focused !== "Tabs" || profileSignIn ? PROFILE_TAB_INDEX : tabState.index;
   const accountRoute = tabState.routes[tabState.index];
   const accountScreen = accountRoute?.name === 'Profile' ? getFocusedRouteNameFromRoute(accountRoute) : undefined;
   const accountList = Platform.OS !== 'ios' && accountScreen && ['Tickets', 'Orders', 'SavedEvents'].includes(accountScreen);
@@ -136,8 +138,6 @@ export function MainTabBarProvider({
   const [acknowledged, acknowledge] = useState(0);
   const position = useTabIndicator(activeIndex, itemWidth, true, { command: gestureCommand, acknowledged });
   const interaction = useSharedValue(0);
-  const edgeResponse = useSharedValue(0);
-  const edgeDirection = useSharedValue(1);
   const compact = useSharedValue(0);
   const touchRevision = useRef(0);
   const onBarTouch = useCallback(() => { touchRevision.current++; }, []);
@@ -217,6 +217,13 @@ export function MainTabBarProvider({
         target: route.key,
         canPreventDefault: true,
       });
+      // A guest has no account page to render. Open the existing root Auth
+      // screen directly instead of committing Profile, mounting its spinner
+      // and letting its focus effect trigger a second native navigation.
+      if (Platform.OS === 'ios' && screen === 'Profile' && !user && !event.defaultPrevented) {
+        navigation.navigate('Auth', { returnTab: 'Profile' });
+        return true;
+      }
       const workspace = profileHomeScreen(user?.role);
       const returnToWorkspace = Platform.OS === 'ios' && screen === 'Profile'
         && workspace !== 'ProfileHome' && getFocusedRouteNameFromRoute(route) === 'ProfileHome';
@@ -287,8 +294,8 @@ export function MainTabBarProvider({
 
   // Acknowledging a touch updates the shared spring, not the glass hierarchy.
   // Keep this context stable until the actual route or measured geometry changes.
-  const motion = useMemo(() => ({ position, itemWidth, measure, timeline, interaction, edgeResponse, edgeDirection, gestureCommand }),
-    [position, itemWidth, measure, interaction, edgeResponse, edgeDirection, gestureCommand]);
+  const motion = useMemo(() => ({ position, itemWidth, measure, timeline, interaction, gestureCommand }),
+    [position, itemWidth, measure, interaction, gestureCommand]);
   const value = useMemo(() => ({ bridge, navigation, tabState, activeIndex, select, motion }),
     [navigation, tabState, activeIndex, select, motion]);
   return (

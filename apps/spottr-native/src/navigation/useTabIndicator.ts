@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Platform } from "react-native";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { Platform } from "react-native";
+import { useReducedMotionPreference } from '../ui/useReducedMotionPreference';
 import type { TabIndicatorTimelineRef } from "./tabIndicatorTimeline";
 import {
   cancelAnimation,
@@ -17,8 +18,6 @@ export type TabIndicatorMotion = {
   measure: (width: number) => void;
   timeline: TabIndicatorTimelineRef;
   interaction?: SharedValue<number>;
-  edgeResponse?: SharedValue<number>;
-  edgeDirection?: SharedValue<number>;
   gestureCommand?: SharedValue<TabGestureCommand>;
 };
 
@@ -35,24 +34,7 @@ export function useTabIndicator(
   const measured = useRef(false);
   const previousWidth = useRef(itemWidth);
   const command = gesture?.command, acknowledged = gesture?.acknowledged ?? 0;
-  const [reduceMotion, setReduceMotion] = useState(false);
-  useEffect(() => {
-    if (!enabled || Platform.OS === "web") return;
-    let alive = true;
-    void AccessibilityInfo.isReduceMotionEnabled()
-      .then((value) => {
-        if (alive) setReduceMotion(value);
-      })
-      .catch(() => {});
-    const listener = AccessibilityInfo.addEventListener(
-      "reduceMotionChanged",
-      setReduceMotion,
-    );
-    return () => {
-      alive = false;
-      listener.remove();
-    };
-  }, [enabled]);
+  const reduceMotion = useReducedMotionPreference();
   useEffect(() => () => cancelAnimation(position), [position]);
   useLayoutEffect(() => {
     if (Platform.OS === "web") return;

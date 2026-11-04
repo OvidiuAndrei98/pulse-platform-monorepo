@@ -33,7 +33,7 @@ export function EditorTickets({
   errors: EditorErrors;
 }) {
   const { copy } = usePreferences(),
-    { user } = useAuth(),
+    { user } = useAuth('account'),
     wide = useWindowDimensions().width >= 640;
   const profile = useDashboardQuery<OrganizerProfile>(
     `/dashboard/organizer/profile/${user?.id}`,

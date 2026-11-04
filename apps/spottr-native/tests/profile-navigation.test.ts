@@ -202,7 +202,7 @@ test('changing account resets the Profile route, including nested admin state, w
     profileHomeScreen: exports.profileHomeScreen, Platform: { OS: 'ios' }, colors: { bg: '#000' },
     Tabs: {Navigator:'Tabs', Screen:'Screen'}, Profile: {Navigator:'Profile', Screen:'Screen'},
     PersistentTabScenes:'PersistentTabScenes', MainTabBarRegistration:'Bar', Home:'Home', Explore:'Explore',
-    FriendsNavigator:'Friends', EventFeedScreen:'Feed', ProfileNavigator:'Profile', ProfileScreen:'ProfileHome', ProfileDashboardRoute:'Dashboard', ProfileAdminRoute:'Admin' });
+    FriendsNavigator:'Friends', EventFeedScreen:'Feed', ProfileNavigator:'Profile', StableProfileScreen:'ProfileHome', ProfileScreen:'ProfileHome', ProfileDashboardRoute:'Dashboard', ProfileAdminRoute:'Admin' });
   const screen = () => ui.MainTabs().props.children.props.children.find((element: any) => element.props.name === 'Profile');
   const router = TabRouter({ initialRouteName: 'Home' });
   const options = {routeNames:[...MAIN_TAB_NAMES],routeParamList:{},routeGetIdList:{}};

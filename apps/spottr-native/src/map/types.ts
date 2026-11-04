@@ -5,6 +5,8 @@ export type EventMapProps = {
   onSelect: (id: string | null) => void;
   onViewport: (center: Coordinate, zoom: number) => void;
   onSelectedPoint: (point: Point | null) => void;
+  /** The containing map screen presents one compact notice for all failures. */
+  onErrorChange?: (failed: boolean) => void;
   attributionBottom?: number;
   focus?: { id: string; revision: number } | null;
 };

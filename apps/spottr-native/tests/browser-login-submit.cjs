@@ -1,7 +1,10 @@
 const assert = require('node:assert/strict');
 const {withBrowser} = require('./browser-harness.cjs');
+const preview=process.env.NAVIGATION_TEST_URL;
+if(preview&&!['localhost','127.0.0.1'].includes(new URL(preview).hostname))throw Error('LOCAL_TEST_SERVER_REQUIRED');
 
 withBrowser(async ({base,call,evaluate,until,click,input,delay,errors}) => {
+  base=preview||base;
   await call('Page.addScriptToEvaluateOnNewDocument',{source:`(${function(){
     const original=fetch.bind(window);
     localStorage.removeItem('spottr-native.session.v1');

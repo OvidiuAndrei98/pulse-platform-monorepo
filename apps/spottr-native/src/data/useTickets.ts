@@ -3,7 +3,23 @@ import { AppState, Platform } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { accountApi, useAuth } from '../auth/AuthProvider';
 import { ticketCache } from './ticketStorage';
-import { canUseSavedTickets, ticketQueryOptions, type TicketData } from './ticketQuery';
+import { canUseSavedTickets, selectTicketList, ticketQueryOptions, type TicketData } from './ticketQuery';
+
+/** Passive wallet UI observes admissions, not every poll/storage timestamp.
+ * TicketCacheSync/ProfileActivity still own fetching and offline persistence. */
+export function useTicketList() {
+  const { user, controller } = useAuth('account');
+  const accountId = user?.id ?? '', token = controller.getToken() ?? '';
+  const current = () => controller.getToken() === token && controller.getSnapshot().user?.id === accountId;
+  const query = useQuery({
+    ...ticketQueryOptions(accountId, token, ticketCache, current,
+      (owner, signal) => accountApi('/users/me/tickets', { token: owner, signal })),
+    enabled: false,
+    select: selectTicketList,
+  });
+  const data = current() && canUseSavedTickets(query.error) ? query.data : undefined;
+  return { data, isPending: data ? false : query.isPending, isError: !data && query.isError, refetch: query.refetch };
+}
 
 export function useTickets(enabled = true, watchAdmission = false) {
   const { user, ready, controller } = useAuth('account'), client = useQueryClient();

@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BackHandler, Keyboard, Platform, Pressable, StyleSheet, View, useWindowDimensions, type TextInputInstance, type ViewInstance } from 'react-native';
-import Animated, { ReduceMotion, useAnimatedProps, useAnimatedStyle, useDerivedValue, useSharedValue, withSpring } from 'react-native-reanimated';
+import { BackHandler, Keyboard, Platform, Pressable, StyleSheet, View, useWindowDimensions, type TextInputInstance, type ViewInstance, type LayoutChangeEvent } from 'react-native';
+import Animated, { ReduceMotion, useAnimatedProps, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue, withSpring, type SharedValue } from 'react-native-reanimated';
 import { useIsFocused } from '@react-navigation/native';
-import { CalendarDays, ChevronLeft, MapPin, Search, SlidersHorizontal, X } from 'lucide-react-native';
+import { ChevronLeft, MapPin, Search, SlidersHorizontal, X } from 'lucide-react-native';
 import { usePreferences } from '../usePreferences';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
@@ -18,24 +18,41 @@ import { GlassPressable } from '../ui/GlassPressable';
 import { useDiscoverySearchMotion, type SearchRequestOrigin } from './useDiscoverySearchMotion';
 import { commitSearchFocus } from './commitSearchFocus';
 import type { EventFilters } from '@packages/app-core/events/types';
+import type { DiscoveryControlPose } from './discoveryControlsMotion';
 
 const AnimatedFormInput = Animated.createAnimatedComponent(FormInput);
 const AnimatedGlassSurface = Animated.createAnimatedComponent(GlassSurface);
 
-export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilters, onCalendar, onCity, onHeight, onSearchActivityChange, keyboardGestureEndRef }: {
+/** Navigation focus changes bookkeeping, not the native glass hierarchy. */
+function DiscoveryToolbarActivity({ onFocusChange, onBack, active }: {
+  onFocusChange: (focused: boolean) => void; onBack: () => void; active: boolean;
+}) {
+  const focused = useIsFocused(), back = useRef(onBack);
+  back.current = onBack;
+  useLayoutEffect(() => { onFocusChange(focused); }, [focused, onFocusChange]);
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !focused || !active) return;
+    const listener = BackHandler.addEventListener('hardwareBackPress', () => { back.current(); return true; });
+    return () => listener.remove();
+  }, [active, focused]);
+  return null;
+}
+
+export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilters, onCity, onHeight, onSearchActivityChange, keyboardGestureEndRef, calendar, calendarMotion, onCalendarLayout }: {
   filters: EventFilters; onChange: (value: EventFilters) => void; view: 'list' | 'map'; onViewChange: (view: 'list' | 'map') => void;
-  onFilters: () => void; onCalendar: () => void; onCity: () => void; onHeight: (height: number) => void;
+  onFilters: () => void; onCity: () => void; onHeight: (height: number) => void;
   onSearchActivityChange?: (active: boolean) => void;
   keyboardGestureEndRef?: React.RefObject<(() => void) | null>;
+  calendar?: React.ReactNode; onCalendarLayout?: (event: LayoutChangeEvent) => void;
+  calendarMotion?: SharedValue<DiscoveryControlPose>;
 }) {
   const { copy } = usePreferences('copy'), { width } = useWindowDimensions(), wide = width >= 1024 && Platform.OS === 'web';
-  const focused = useIsFocused();
   const [inputFocused, setInputFocused] = useState(false);
   const input = useRef<TextInputInstance>(null), trigger = useRef<ViewInstance>(null);
-  const pendingFocus = useRef(!!filters.q), wasFocused = useRef(focused);
+  const pendingFocus = useRef(!!filters.q);
   const prepareExpansion = useRef<(() => void) | null>(null);
-  const current = useRef({ filters, onChange, wide, focused });
-  useLayoutEffect(() => { current.current = { filters, onChange, wide, focused }; }, [filters, onChange, wide, focused]);
+  const current = useRef({ filters, onChange, wide, focused: false });
+  useLayoutEffect(() => { current.current = { filters, onChange, wide, focused: current.current.focused }; }, [filters, onChange, wide]);
   const didClose = useCallback(() => {
     const latest = current.current;
     if (latest.filters.q) latest.onChange({ ...latest.filters, q: '' });
@@ -62,7 +79,18 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
     return () => { keyboardGestureEndRef.current = null; };
   }, [keyboardGestureEndRef, releaseKeyboardGesture]);
   const searchActive = phase !== 'closed';
-  useEffect(() => { onSearchActivityChange?.(searchActive && focused); }, [searchActive, focused, onSearchActivityChange]);
+  const focusDetails = useRef({ open, searchActive, onSearchActivityChange });
+  focusDetails.current = { open, searchActive, onSearchActivityChange };
+  const focusChanged = useCallback((focused: boolean) => {
+    const previous = current.current.focused;
+    current.current.focused = focused;
+    if (previous && !focused) { pendingFocus.current = false; input.current?.blur(); detach(); }
+    focusDetails.current.onSearchActivityChange?.(focusDetails.current.searchActive && focused);
+    if (focused && Platform.OS !== 'ios' && focusDetails.current.open && pendingFocus.current) {
+      pendingFocus.current = false; input.current?.focus();
+    }
+  }, [detach]);
+  useEffect(() => { onSearchActivityChange?.(searchActive && current.current.focused); }, [searchActive, onSearchActivityChange]);
   const measured = useRef(initialSearchBounds(width - 40)), lastHeight = useRef(0);
   const bounds = useSharedValue(measured.current);
   const measureBound = useCallback((key: keyof SearchMorphBounds, layout: SearchBounds) => {
@@ -76,6 +104,8 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
     opening: intent.value.open, interactive: intent.value.interactive, reduced: reduceMotion.value,
     ios: Platform.OS === 'ios', pressExpansion: launchExpansion.value, pressProgress: pressProgress.value,
   }));
+  useAnimatedReaction(() => ({ opacity: geometry.value.controls, scale: geometry.value.controlsScale, x: 0, y: geometry.value.controlsTranslateY }),
+    pose => { if (Platform.OS !== 'ios' && calendarMotion) calendarMotion.value = pose; });
   // iOS Back shares the field's spring, including its landing and reversals.
   // A second follower would filter out that bounce and delay the button.
   const backScale = useDerivedValue(() => Platform.OS === 'ios' ? geometry.value.backScale : withSpring(geometry.value.backScale, {
@@ -109,22 +139,13 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
   // iOS prepares its native responder before starting the visible expansion.
   // Web/Android retain their existing focus activation.
   useLayoutEffect(() => {
-    if (Platform.OS !== 'ios' && open && focused && pendingFocus.current) { pendingFocus.current = false; input.current?.focus(); }
-  }, [open, focused]);
+    if (Platform.OS !== 'ios' && open && current.current.focused && pendingFocus.current) { pendingFocus.current = false; input.current?.focus(); }
+  }, [open]);
   useEffect(() => {
     if (filters.q && phase === 'closed') {
       pendingFocus.current = true; moveSearch(true);
     }
   }, [filters.q, moveSearch]);
-  useEffect(() => {
-    if (wasFocused.current && !focused) { pendingFocus.current = false; input.current?.blur(); detach(); }
-    wasFocused.current = focused;
-  }, [focused, detach]);
-  useEffect(() => {
-    if (!open || wide || !focused || Platform.OS !== 'android') return;
-    const listener = BackHandler.addEventListener('hardwareBackPress', () => { close(); return true; });
-    return () => listener.remove();
-  }, [open, wide, focused, filters, onChange]);
 
   const surfaceMotion = useAnimatedStyle(() => wide
     ? { position: 'relative', flex: 1, width: undefined, height: 44, minWidth: 180, maxWidth: 440, borderRadius: 22, transform: [{ translateX: 0 }, { translateY: 0 }] }
@@ -184,6 +205,7 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
   return <View testID="discovery-toolbar" onLayout={event => {
     if (lastHeight.current !== event.nativeEvent.layout.height) { lastHeight.current = event.nativeEvent.layout.height; onHeight(lastHeight.current); }
   }} style={[s.row, wide ? s.desktopRow : s.mobileRow]}>
+    <DiscoveryToolbarActivity onFocusChange={focusChanged} onBack={close} active={open && !wide} />
     <View pointerEvents="none" aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.measureClip}>
       <View style={s.textMeasure}><Text style={s.measureFont} onLayout={event => { measuredTextWidth.value = event.nativeEvent.layout.width; }}>
         {filters.q || copy('filters.searchEvents')}
@@ -192,7 +214,7 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
     {wide ? <DiscoveryViewSwitch view={view} onChange={onViewChange}/> : nativeLayers ?
       <DiscoveryNativeGlassGroups bounds={bounds} progress={progress} geometry={geometry} backScale={backScale} intent={intent} reduceMotion={reduceMotion}
         sourceSwitch={<DiscoveryViewSwitch view={view} onChange={onViewChange} disabled={compact} style={[s.sourceSwitch, { width: '100%' }]}/>}
-        filter={filter} field={field} compact={compact} active={active} focused={nativeInputFocused}
+        filter={filter} field={field} calendar={calendar} calendarMotion={calendarMotion} onCalendarLayout={onCalendarLayout} compact={compact} active={active} focused={nativeInputFocused}
         searchLabel={copy('filters.searchEvents')} backLabel={copy('common.back')} triggerRef={trigger}
         onOpen={openSearch} onClose={close} onSearchPressIn={searchPressIn} onSearchPressOut={searchPressOut}
         onSourceLayout={event => measureBound('source', event.nativeEvent.layout)}
@@ -215,6 +237,7 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
           <Animated.View style={[s.circleSize, controlsScale]}>{filter}</Animated.View>
           <View testID="discovery-search-source" pointerEvents="none" style={s.circleSize}
             onLayout={event => measureBound('source', event.nativeEvent.layout)}/>
+          {calendar && <Animated.View onLayout={onCalendarLayout} style={[s.circleSize, controlsScale]}>{calendar}</Animated.View>}
         </GlassButtonGroup>
       </MorphVisibility>
       <MorphVisibility testID="discovery-back-layer" opacityStyle={backMotion} style={s.backLayer}
@@ -246,17 +269,13 @@ export function DiscoveryToolbar({ filters, onChange, view, onViewChange, onFilt
       </Animated.View>
     </Animated.View>
     {wide && <>
-      <Pressable testID="discovery-calendar-toggle" accessibilityRole="button" accessibilityLabel={copy('filters.calendar')} onPress={onCalendar}
-        style={[s.desktopControl, { maxWidth: 210, paddingVertical: 10 }]}>
-        <CalendarDays size={16} color={colors.accent}/><Text style={s.desktopText}>{filters.date === 'Custom' && filters.dateFrom
-          ? filters.dateFrom + (filters.dateTo !== filters.dateFrom ? ' – ' + filters.dateTo : '') : copy('filters.calendar')}</Text>
-      </Pressable>
       <Pressable testID="discovery-city" accessibilityRole="button" accessibilityLabel={copy('filters.city')} onPress={onCity}
         style={[s.desktopControl, { maxWidth: 180 }]}>
         <MapPin size={16} color={colors.accent}/><Text style={s.desktopText}>{filters.city || copy('filters.allCities')}</Text>
       </Pressable>
     </>}
     {wide && filter}
+    {wide && calendar && <View onLayout={onCalendarLayout} style={s.circleSize}>{calendar}</View>}
   </View>;
 }
 const s = StyleSheet.create({

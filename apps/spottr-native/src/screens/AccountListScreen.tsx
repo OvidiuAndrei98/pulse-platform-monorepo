@@ -38,7 +38,7 @@ export function SavedEventsScreen() {
 }
 
 export function TicketsScreen() {
-  const focused = useIsFocused(), { user } = useAuth(), { copy } = usePreferences();
+  const focused = useIsFocused(), { user } = useAuth('account'), { copy } = usePreferences();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const [tab, setTab] = useState<'active' | 'history'>('active');
   const [selected, setSelected] = useState<string | null>(null);
@@ -91,7 +91,7 @@ export function OrdersScreen() {
 function AccountPage({ id, title: heading, subtitle, large, stickyControls, scrollKey, pane = 'active', historyContent, children }: React.PropsWithChildren<{
   id: string; title: string; subtitle?: string; large?: boolean; stickyControls?: React.ReactNode; scrollKey?: string; pane?: 'active' | 'history'; historyContent?: React.ReactNode;
 }>) {
-  const navigation = useNavigation<CompositeNavigationProp<NativeStackNavigationProp<ProfileParamList>,NativeStackNavigationProp<RootParamList>>>(), safe = useSafeAreaInsets(), { user, ready } = useAuth(), { copy } = usePreferences(), focused=useIsFocused();
+  const navigation = useNavigation<CompositeNavigationProp<NativeStackNavigationProp<ProfileParamList>,NativeStackNavigationProp<RootParamList>>>(), safe = useSafeAreaInsets(), { user, ready } = useAuth('account'), { copy } = usePreferences(), focused=useIsFocused();
   const scroll = useRef<FlatListInstance>(null), historyScroll = useRef<FlatListInstance>(null), top = Math.max(12, safe.top);
   const activeRows = useMemo(() => React.Children.toArray(children), [children]);
   const historyRows = useMemo(() => React.Children.toArray(historyContent), [historyContent]);

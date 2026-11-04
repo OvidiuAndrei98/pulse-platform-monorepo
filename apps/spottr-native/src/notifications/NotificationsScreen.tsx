@@ -58,7 +58,7 @@ function NotificationsInbox({ navigation }: Props) {
     void query.markRead(item);
     const target = notificationDestination(item);
     if (item.type === 'ticket_transfer') navigation.navigate('TicketTransfers');
-    else if (item.type === 'outing_plan_invite' || item.type === 'outing_plan_chosen') navigation.navigate('Outings');
+    else if (item.type.startsWith('outing_plan_')) navigation.navigate('Outings');
     else if (item.type === 'ticket_purchased') openAccountPage(navigation, 'Tickets');
     else if (target?.kind === 'event') navigation.navigate('Event', { id: target.id, presentation: 'page' });
     else if (target?.kind === 'profile') navigation.navigate('PublicProfile', { id: target.id });
@@ -108,10 +108,10 @@ function NotificationsInbox({ navigation }: Props) {
       onRefresh={() => void refresh()}
       ListHeaderComponent={<>
         {settings && <View testID="notifications-preferences"><PushPreference /></View>}
-        {(query.actionError || social.error) && <Feedback compact title={copy('feedback.actionFailed')} />}
-        {query.isError && !!query.data && <Feedback compact title={copy('feedback.loadFailed')} retry={() => void query.refetch()} />}
+        {(query.actionError || social.error) && <View style={s.notice}><Feedback compact kind="error" title={copy('feedback.actionFailed')} /></View>}
+        {query.isError && sections.length > 0 && <View style={s.notice}><Feedback compact title={copy('notifications.loadFailed')} busy={query.isFetching} retry={() => void query.refetch()} /></View>}
       </>}
-      ListEmptyComponent={query.isPending ? <Loading /> : query.isError ? <Feedback title={copy('feedback.loadFailed')} retry={() => void query.refetch()} />
+      ListEmptyComponent={query.isPending ? <Loading /> : query.isError ? <View style={s.notice}><Feedback title={copy('notifications.loadFailed')} busy={query.isFetching} retry={() => void query.refetch()} /></View>
         : <View testID="notifications-empty" style={s.empty}><View style={s.emptyIcon}><Bell size={28} color={colors.accent} /></View>
             <Text style={s.emptyTitle}>{copy('notifications.empty')}</Text><Text style={s.emptyHint}>{copy('notifications.emptyHint')}</Text></View>}
       renderSectionHeader={({ section }) => <Text accessibilityRole="header" testID={'notifications-section-' + section.key} style={s.sectionTitle}>{copy('notifications.section.' + section.key)}</Text>}
@@ -213,6 +213,7 @@ const s = StyleSheet.create({
   icon: { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   preview: { width: tokens.control.compact, height: tokens.control.regular, borderRadius: tokens.spacing.sm, overflow: 'hidden', flexShrink: 0 },
   unreadDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent, flexShrink: 0 },
+  notice: { paddingHorizontal: tokens.spacing.lg, paddingTop: tokens.spacing.md },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: tokens.spacing.md, paddingVertical: 80, paddingHorizontal: tokens.spacing.xxl },
   emptyIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginBottom: tokens.spacing.sm },
   emptyTitle: { color: colors.text, fontSize: 18, fontWeight: '600', textAlign: 'center' },

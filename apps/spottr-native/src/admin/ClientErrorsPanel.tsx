@@ -12,7 +12,7 @@ import { diagnosticTitle, diagnosticFailure, groupDiagnosticReports } from '@pac
 import { diagnosticsEnabled } from '../diagnostics/runtime';
 
 export function ClientErrorsPanel({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
-  const { user, controller } = useAuth(),
+  const { user, controller } = useAuth('account'),
     { language } = usePreferences(),
     ro = language === "ro";
   const [open, setOpen] = useState(initiallyOpen),

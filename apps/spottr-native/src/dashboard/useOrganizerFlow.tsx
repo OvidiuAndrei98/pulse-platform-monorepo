@@ -15,7 +15,7 @@ import {
 import { organizerClient, prepareOrganizerBrowser } from "./organizerBrowser";
 
 export function useOrganizerFlow() {
-  const { controller, user } = useAuth(),
+  const { controller, user } = useAuth('account'),
     { copy } = usePreferences(),
     cache = useQueryClient();
   const [state, setState] = useState<OrganizerFlowState>({

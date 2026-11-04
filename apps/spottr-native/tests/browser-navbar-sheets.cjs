@@ -30,7 +30,7 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
       if (route.startsWith('/profiles/')) return reply({ id: id(2), username: 'Organizer QA' });
       if (route === '/notifications') return reply({ items: [], unreadCount: 0 });
       if (route === '/users/me/billing-details') return reply({ details: null });
-      if (/^\/(users\/me\/(saved-events|hidden-categories|tickets|orders)|promotions\/active|friends|friends\/requests|feed|dashboard\/ticket-validation\/events)$/.test(route) || route.endsWith('/attendees') || route.endsWith('/updates')) return reply([]);
+      if (/^\/(users\/me\/(saved-events|hidden-categories|tickets|orders)|promotions\/active|friends|friends\/requests|feed|outings\/plans|dashboard\/ticket-validation\/events)$/.test(route) || route.endsWith('/attendees') || route.endsWith('/updates')) return reply([]);
       qa.unexpected.push({ route, method }); return reply([]);
     };
     qa.visibleBar = () => Array.from(document.querySelectorAll('[data-testid="tab-bar"]')).reverse().find(node => {
@@ -86,11 +86,11 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
   await inspect('event-dismissed', false); await finish('event-checkout-round-trip', 'Home');
   check(await evaluate(`window.__sheetNavbarQA.home === document.querySelector('[data-testid="home-list"]')`), 'Event/checkout round trip retains Home component');
 
-  await click('tab-Feed'); await until(`document.querySelector('[data-testid="feed-friends"]')`); await delay(450);
-  await evaluate('window.__sheetNavbarQA.remember()'); await click('feed-friends');
+  await click('tab-Friends'); await until(`document.querySelector('[data-testid="friends-manage"]')`); await delay(450);
+  await evaluate('window.__sheetNavbarQA.remember()'); await click('friends-manage');
   await until(`document.querySelector('[data-testid="friends-sheet"]')`); await delay(650);
   await inspect('friends-open', true); await click('sheet-handle'); await until(`!document.querySelector('[data-testid="friends-sheet"]')`); await delay(650);
-  await finish('friends-round-trip', 'Feed');
+  await finish('friends-round-trip', 'Friends');
 
   await click('tab-Profile'); await until(`document.querySelector('[data-testid="profile-list"]')`); await delay(450);
   await capture('profile-quick-connect');

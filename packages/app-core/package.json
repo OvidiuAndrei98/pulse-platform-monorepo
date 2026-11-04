@@ -44,6 +44,7 @@
     "./events/discoveryFilters": "./src/events/discoveryFilters.ts",
     "./events/promotions": "./src/events/promotions.ts",
     "./events/dateFilters": "./src/events/dateFilters.ts",
+    "./events/dateRibbon": "./src/events/dateRibbon.ts",
     "./events/types": "./src/events/types.ts",
     "./legal/publicLegalDocuments": "./src/legal/publicLegalDocuments.ts",
     "./presentation/drawerDesign": "./src/presentation/drawerDesign.ts",

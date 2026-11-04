@@ -28,41 +28,59 @@ type queryer interface {
 	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
 }
 type planMember struct {
-	UserID      string `json:"userId"`
-	Username    string `json:"username"`
-	Status      string `json:"status"`
-	VoteEventID string `json:"voteEventId,omitempty"`
-	HasTicket   *bool  `json:"hasTicket,omitempty"`
+	UserID            string     `json:"userId"`
+	Username          string     `json:"username"`
+	Status            string     `json:"status"`
+	VoteEventID       string     `json:"voteEventId,omitempty"`
+	HasTicket         *bool      `json:"hasTicket,omitempty"`
+	AvatarURL         string     `json:"avatarUrl,omitempty"`
+	HasPreviousTicket bool       `json:"hasPreviousTicket,omitempty"`
+	ArrivalStatus     string     `json:"arrivalStatus,omitempty"`
+	ArrivalUpdatedAt  *time.Time `json:"arrivalUpdatedAt,omitempty"`
 }
 type planOption struct {
-	EventID            string    `json:"eventId"`
-	Title              string    `json:"title"`
-	Location           string    `json:"location"`
-	StartTime          time.Time `json:"startTime"`
-	Available          bool      `json:"available"`
-	ProposedBy         string    `json:"proposedBy,omitempty"`
-	PriceRon           *float64  `json:"priceRon,omitempty"`
-	TicketAvailability string    `json:"ticketAvailability,omitempty"`
+	EventID            string         `json:"eventId"`
+	Title              string         `json:"title"`
+	Location           string         `json:"location"`
+	StartTime          time.Time      `json:"startTime"`
+	Available          bool           `json:"available"`
+	ProposedBy         string         `json:"proposedBy,omitempty"`
+	PriceRon           *float64       `json:"priceRon,omitempty"`
+	TicketAvailability string         `json:"ticketAvailability,omitempty"`
+	ImageURL           string         `json:"imageUrl,omitempty"`
+	TotalPriceRon      *float64       `json:"totalPriceRon,omitempty"`
+	BudgetFits         int            `json:"budgetFits"`
+	Reactions          []planReaction `json:"reactions"`
 }
 type plan struct {
-	ID            string       `json:"id"`
-	OwnerID       string       `json:"ownerId"`
-	Title         string       `json:"title"`
-	Status        string       `json:"status"`
-	OutingDate    string       `json:"outingDate,omitempty"`
-	City          string       `json:"city,omitempty"`
-	ChosenEventID string       `json:"chosenEventId,omitempty"`
-	ExpiresAt     time.Time    `json:"expiresAt"`
-	Members       []planMember `json:"members"`
-	Options       []planOption `json:"options"`
+	ID             string              `json:"id"`
+	OwnerID        string              `json:"ownerId"`
+	Title          string              `json:"title"`
+	Status         string              `json:"status"`
+	OutingDate     string              `json:"outingDate,omitempty"`
+	City           string              `json:"city,omitempty"`
+	ChosenEventID  string              `json:"chosenEventId,omitempty"`
+	ExpiresAt      time.Time           `json:"expiresAt"`
+	Members        []planMember        `json:"members"`
+	Options        []planOption        `json:"options"`
+	Revision       int64               `json:"revision"`
+	CandidateDates []planDateOption    `json:"candidateDates"`
+	DecisionAt     *time.Time          `json:"decisionAt,omitempty"`
+	MyBudgetRon    *float64            `json:"myBudgetRon,omitempty"`
+	BudgetCount    int                 `json:"budgetCount"`
+	PreviousEvents []previousPlanEvent `json:"previousEvents"`
+	MeetingPoint   string              `json:"meetingPoint,omitempty"`
+	MeetingAt      *time.Time          `json:"meetingAt,omitempty"`
 }
 type createPlanRequest struct {
-	RequestID  string   `json:"requestId"`
-	Title      string   `json:"title"`
-	OutingDate string   `json:"outingDate"`
-	City       string   `json:"city"`
-	EventIDs   []string `json:"eventIds,omitempty"`
-	FriendIDs  []string `json:"friendIds"`
+	RequestID      string     `json:"requestId"`
+	Title          string     `json:"title"`
+	OutingDate     string     `json:"outingDate"`
+	City           string     `json:"city"`
+	EventIDs       []string   `json:"eventIds,omitempty"`
+	FriendIDs      []string   `json:"friendIds"`
+	CandidateDates []string   `json:"candidateDates,omitempty"`
+	DecisionAt     *time.Time `json:"decisionAt,omitempty"`
 }
 
 var planningZone = func() *time.Location {
@@ -86,7 +104,11 @@ func validPlanningDate(value string, now time.Time) bool {
 	if err != nil || day.Format("2006-01-02") != value {
 		return false
 	}
-	today, _ := time.ParseInLocation("2006-01-02", now.In(planningZone).Format("2006-01-02"), planningZone)
+	local := now.In(planningZone)
+	if local.Hour() < 6 {
+		local = local.AddDate(0, 0, -1)
+	}
+	today, _ := time.ParseInLocation("2006-01-02", local.Format("2006-01-02"), planningZone)
 	return !day.Before(today) && !day.After(today.AddDate(0, 0, 365))
 }
 
@@ -108,6 +130,9 @@ func readPlan(ctx context.Context, q queryer, id, actor pgtype.UUID) (plan, erro
         WHERE p.id=$1 AND m.user_id=$2 AND m.status<>'declined' AND p.expires_at>CURRENT_TIMESTAMP`, id, actor).
 		Scan(&p.ID, &p.OwnerID, &p.Title, &p.Status, &chosen, &p.ExpiresAt, &p.OutingDate, &p.City)
 	if err != nil {
+		return p, err
+	}
+	if err = loadPlanContext(ctx, q, id, &p); err != nil {
 		return p, err
 	}
 	// An invitation reveals its context, never the group's members, votes or admissions.
@@ -157,7 +182,7 @@ func readPlan(ctx context.Context, q queryer, id, actor pgtype.UUID) (plan, erro
 	rows, err = q.Query(ctx, `SELECT e.id::text,e.title,e.location_name,e.start_time,
         e.status IN ('published','scheduled') AND e.end_time>CURRENT_TIMESTAMP
           AND (p.city IS NULL OR lower(e.city)=lower(p.city))
-          AND (p.outing_date IS NULL OR (e.start_time AT TIME ZONE 'Europe/Bucharest')::date=p.outing_date),
+          AND (p.outing_date IS NULL OR ((e.start_time AT TIME ZONE 'Europe/Bucharest')-interval '6 hours')::date=p.outing_date),
         COALESCE(o.proposed_by::text,''),
         pricing.price,
         CASE WHEN e.status NOT IN ('published','scheduled') OR e.end_time<=CURRENT_TIMESTAMP THEN 'unavailable'
@@ -184,7 +209,13 @@ func readPlan(ctx context.Context, q queryer, id, actor pgtype.UUID) (plan, erro
 		}
 		p.Options = append(p.Options, option)
 	}
-	return p, rows.Err()
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return p, err
+	}
+	err = loadPlanDetails(ctx, q, id, actor, &p)
+	return p, err
 }
 func (h *Handler) listPlans(w http.ResponseWriter, r *http.Request, actor pgtype.UUID) error {
 	rows, err := h.Pool.Query(r.Context(), `SELECT p.id FROM outing_plan_members m JOIN outing_plans p ON p.id=m.plan_id
@@ -226,8 +257,16 @@ func (h *Handler) getPlan(w http.ResponseWriter, r *http.Request, actor pgtype.U
 	if err != nil {
 		return err
 	}
-	p, err := readPlan(r.Context(), h.Pool, id, actor)
+	tx, err := h.Pool.BeginTx(r.Context(), pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
 	if err != nil {
+		return err
+	}
+	defer tx.Rollback(r.Context())
+	p, err := readPlan(r.Context(), tx, id, actor)
+	if err != nil {
+		return err
+	}
+	if err = tx.Commit(r.Context()); err != nil {
 		return err
 	}
 	router.RespondWithJSON(w, 200, p)
@@ -236,7 +275,7 @@ func (h *Handler) getPlan(w http.ResponseWriter, r *http.Request, actor pgtype.U
 func eventFitsPlan(ctx context.Context, q queryer, event pgtype.UUID, day, city string) (bool, error) {
 	var ok bool
 	err := q.QueryRow(ctx, `SELECT status IN ('published','scheduled') AND end_time>CURRENT_TIMESTAMP
-        AND lower(city)=lower($3::text) AND (start_time AT TIME ZONE 'Europe/Bucharest')::date=$2::date
+        AND lower(city)=lower($3::text) AND ((start_time AT TIME ZONE 'Europe/Bucharest')-interval '6 hours')::date=$2::date
         FROM events WHERE id=$1 FOR SHARE`, event, day, city).Scan(&ok)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
@@ -262,6 +301,9 @@ func (h *Handler) createPlan(w http.ResponseWriter, r *http.Request, actor pgtyp
 	var req createPlanRequest
 	if err := body(r, &req); err != nil {
 		return err
+	}
+	if len(req.CandidateDates) > 0 || req.DecisionAt != nil {
+		return h.createPlanningPlan(w, r, actor, req)
 	}
 	request, err := uuid(req.RequestID)
 	if err != nil {
@@ -390,6 +432,7 @@ func (h *Handler) changePlan(w http.ResponseWriter, r *http.Request, actor pgtyp
 	var req struct {
 		Status  string `json:"status,omitempty"`
 		EventID string `json:"eventId,omitempty"`
+		Answer  string `json:"answer,omitempty"`
 	}
 	if err = body(r, &req); err != nil {
 		return err
@@ -401,9 +444,11 @@ func (h *Handler) changePlan(w http.ResponseWriter, r *http.Request, actor pgtyp
 	defer tx.Rollback(r.Context())
 	var owner, chosen pgtype.UUID
 	var status, day, city string
+	var deadline *time.Time
 	err = tx.QueryRow(r.Context(), `SELECT p.owner_id,p.chosen_event_id,m.status,COALESCE(p.outing_date::text,''),COALESCE(p.city,'')
+        ,p.decision_at
         FROM outing_plans p JOIN outing_plan_members m ON m.plan_id=p.id JOIN users u ON u.id=m.user_id AND u.is_active
-        WHERE p.id=$1 AND m.user_id=$2 AND p.expires_at>CURRENT_TIMESTAMP FOR UPDATE OF p,m`, id, actor).Scan(&owner, &chosen, &status, &day, &city)
+        WHERE p.id=$1 AND m.user_id=$2 AND p.expires_at>CURRENT_TIMESTAMP FOR UPDATE OF p,m`, id, actor).Scan(&owner, &chosen, &status, &day, &city, &deadline)
 	if err != nil {
 		return err
 	}
@@ -430,8 +475,11 @@ func (h *Handler) changePlan(w http.ResponseWriter, r *http.Request, actor pgtyp
 			}
 			return conflict("PLAN_DECIDED")
 		}
-		if action == "propose" && (day == "" || city == "") {
+		if day == "" || city == "" {
 			return conflict("INVALID_PLAN_CONTEXT")
+		}
+		if action != "choose" && deadline != nil && !deadline.After(time.Now()) {
+			return conflict("VOTING_CLOSED")
 		}
 		ok, e := eventFitsPlan(r.Context(), tx, event, day, city)
 		if e != nil {
@@ -463,6 +511,9 @@ func (h *Handler) changePlan(w http.ResponseWriter, r *http.Request, actor pgtyp
 			if _, err = tx.Exec(r.Context(), `UPDATE outing_plans SET chosen_event_id=$2 WHERE id=$1`, id, event); err != nil {
 				return err
 			}
+			if _, err = tx.Exec(r.Context(), `INSERT INTO outing_plan_decisions(plan_id,round,event_id) SELECT id,decision_round,$2 FROM outing_plans WHERE id=$1`, id, event); err != nil {
+				return err
+			}
 			_, err = tx.Exec(r.Context(), `INSERT INTO notifications(user_id,type,title,body,event_id,actor_id,expires_at)
                 SELECT m.user_id,'outing_plan_chosen','The outing is decided','Open your outing to prepare for the event.',$2,$3,p.expires_at
                 FROM outing_plan_members m JOIN outing_plans p ON p.id=m.plan_id JOIN users u ON u.id=m.user_id AND u.is_active
@@ -470,6 +521,23 @@ func (h *Handler) changePlan(w http.ResponseWriter, r *http.Request, actor pgtyp
 		default:
 			if !exists {
 				return conflict("EVENT_UNAVAILABLE")
+			}
+			if req.Answer != "" && !validPlanAnswer(req.Answer) {
+				return invalid("INVALID_REACTION")
+			}
+			if req.Answer == "" {
+				if _, err = tx.Exec(r.Context(), `DELETE FROM outing_plan_reactions WHERE plan_id=$1 AND user_id=$2`, id, actor); err != nil {
+					return err
+				}
+				req.Answer = "yes"
+			}
+			if _, err = tx.Exec(r.Context(), `INSERT INTO outing_plan_reactions(plan_id,event_id,user_id,answer) VALUES($1,$2,$3,$4)
+              ON CONFLICT(plan_id,event_id,user_id) DO UPDATE SET answer=EXCLUDED.answer`, id, event, actor, req.Answer); err != nil {
+				return err
+			}
+			if req.Answer != "yes" {
+				_, err = tx.Exec(r.Context(), `DELETE FROM outing_plan_votes WHERE plan_id=$1 AND user_id=$2 AND event_id=$3`, id, actor, event)
+				break
 			}
 			_, err = tx.Exec(r.Context(), `INSERT INTO outing_plan_votes(plan_id,user_id,event_id) VALUES($1,$2,$3)
                 ON CONFLICT(plan_id,user_id) DO UPDATE SET event_id=EXCLUDED.event_id`, id, actor, event)

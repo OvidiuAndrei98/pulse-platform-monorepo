@@ -12,7 +12,7 @@ import { colors } from '../ui/theme';
 import { googleLoginUrl, GOOGLE_RETURN, readGoogleToken } from './google';
 WebBrowser.maybeCompleteAuthSession();
 export function GoogleButton({ organizer = false, company, cui, disabled = false, onError }: { organizer?: boolean; company?: string; cui?: string; disabled?: boolean; onError: (value: string) => void }) {
-  const { copy } = usePreferences(), { controller } = useAuth(), [busy, setBusy] = useState(false), lock = useRef(false);
+  const { copy } = usePreferences(), { controller } = useAuth('account'), [busy, setBusy] = useState(false), lock = useRef(false);
   const generation = useRef(0);
   useEffect(() => () => { generation.current++; controller.cancelPendingLogin(); if (lock.current) { try { WebBrowser.dismissAuthSession(); } catch {} } }, [controller]);
   const start = async () => {

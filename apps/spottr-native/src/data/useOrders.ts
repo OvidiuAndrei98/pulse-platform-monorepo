@@ -7,7 +7,7 @@ import { observeOperation } from '../diagnostics/handled';
 import { isVisibleTransaction } from '@packages/app-core/checkout/orderHistory';
 
 export function useOrders() {
-  const { user } = useAuth(), focused = useIsFocused();
+  const { user } = useAuth('account'), focused = useIsFocused();
   return useQuery<components['schemas']['UserOrderResponse'][]>({
     queryKey: ['orders', user?.id],
     enabled: !!user && focused,

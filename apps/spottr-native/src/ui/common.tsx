@@ -45,9 +45,9 @@ export function IconButton({ label, onPress, children, disabled }: React.PropsWi
   return <GlassPressable accessibilityLabel={label} accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
     style={styles.iconButton}>{children}</GlassPressable>;
 }
-export function Feedback({ title, detail, retry, compact = false }: { title: string; detail?: string; retry?: () => void; compact?: boolean }) {
+export function Feedback({ title, detail, retry, compact = false, kind, busy = false }: { title: string; detail?: string; retry?: () => void; compact?: boolean; kind?: 'error' | 'empty'; busy?: boolean }) {
   const { t } = usePreferences('copy');
-  return <StatusNotice kind={retry?'error':'empty'} title={title} detail={detail} onRetry={retry} retryLabel={t('retry')}/>;
+  return <StatusNotice kind={kind ?? (retry ? 'error' : 'empty')} compact={compact} busy={busy} title={title} detail={detail} onRetry={retry} retryLabel={t('retry')}/>;
 }
 export function Loading() {
   const { t } = usePreferences('copy');

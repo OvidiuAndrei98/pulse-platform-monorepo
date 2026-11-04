@@ -46,6 +46,7 @@ export function EventFriendsPreview({ eventId }: { eventId: string }) {
 const s = StyleSheet.create({
   avatar: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#18181bcc' },
   glassAvatar: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  photo: { width: 24, height: 24, borderRadius: 12 },
+  // Expose a 1pt ring of the native glass; the photo stays sharp inside it.
+  photo: { width: 22, height: 22, borderRadius: 11 },
   empty: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center', borderRadius: 12, borderWidth: 1, borderColor: '#ffffff1a', backgroundColor: '#ffffff0d' },
 });

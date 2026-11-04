@@ -1,6 +1,9 @@
 const assert=require('node:assert/strict');
 const {withBrowser}=require('./browser-harness.cjs');
+const preview=process.env.NAVIGATION_TEST_URL;
+if(preview&&!['localhost','127.0.0.1'].includes(new URL(preview).hostname))throw Error('LOCAL_TEST_SERVER_REQUIRED');
 withBrowser(async({base,call,evaluate,until,click,delay,errors})=>{
+  base=preview||base;
   await call('Page.addScriptToEvaluateOnNewDocument',{source:`(${function(){
     const original=fetch.bind(window), id=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
     const user={id:id(1),role:'organizer',username:'Account QA',email:'qa@example.test',preferredLanguage:'en',hasPassword:true,createdAt:'2026-01-01T00:00:00Z'};

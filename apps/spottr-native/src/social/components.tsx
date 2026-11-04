@@ -64,7 +64,7 @@ export function FeedCard({ item, openEvent, openProfile }: { item: FeedGroup; op
   if (!actor) return null;
   const name = item.kind === 'friends' ? item.actors.length > 1 ? copy('feed.andOtherFriends', { name: actor.actorUsername, count: item.actors.length - 1 }) : actor.actorUsername : item.organizerName || actor.actorUsername;
   const verb = item.kind === 'update' ? 'feed.publishedUpdate' : item.kind === 'organizer' ? 'feed.publishedEvent' : item.ticketActors.length && item.goingActors.length ? 'feed.gettingReady' : item.ticketActors.length ? 'feed.haveTickets' : 'feed.goingTo';
-  return <View style={{ borderBottomWidth: 1, borderBottomColor: '#ffffff14', paddingBottom: 24, marginBottom: 24 }}>
+  return <View style={{borderRadius:24,backgroundColor:colors.raised,padding:16,marginBottom:16}}>
     <View style={{ flexDirection: 'row', gap: 12, paddingBottom: 16, alignItems: 'center' }}>
       <Pressable accessibilityRole="button" accessibilityLabel={copy('feed.viewProfile', { name: actor.actorUsername })} onPress={() => openProfile(actor.actorId)}><SocialPhoto uri={actor.actorAvatarUrl} initial={actor.actorUsername} style={{ height: 40, width: 40, borderRadius: 20, borderWidth: 1, borderColor: '#ffffff26' }} /></Pressable>
       <View style={{ flex: 1, minWidth: 0 }}><Pressable accessibilityRole="button" onPress={() => openProfile(actor.actorId)}><Text numberOfLines={1} style={s.name}>{name}</Text></Pressable><Text style={[s.muted, { lineHeight: 20, marginTop: 2 }]}>{copy(verb)}</Text></View>
@@ -73,10 +73,10 @@ export function FeedCard({ item, openEvent, openProfile }: { item: FeedGroup; op
     {item.kind === 'update' && !!item.organizerUpdateCaption && <Text style={{ paddingBottom: 16, color: '#ffffffbf', fontSize: 14, lineHeight: 24 }}>{item.organizerUpdateCaption}</Text>}
     <Pressable accessibilityRole="button" accessibilityLabel={copy('feed.viewTickets') + ': ' + item.eventTitle} onPress={() => openEvent(item.eventId)}>
       {item.kind === 'update' && !!item.organizerUpdateImageUrl && <SocialPhoto uri={item.organizerUpdateImageUrl} contain style={{ aspectRatio: 4 / 3, width: '100%', borderRadius: 16, marginBottom: 16 }} />}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, backgroundColor: '#ffffff09' }}>
-        <SocialPhoto uri={item.eventBannerUrl} style={{ width: 56, height: 64, borderRadius: 8 }} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 0, borderRadius: 16, backgroundColor: 'transparent' }}>
+        <SocialPhoto uri={item.eventBannerUrl} style={{ width: 72, height: 92, borderRadius: 14 }} />
         <View style={{ flex: 1, minWidth: 0 }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}><Calendar size={12} color="#ffffff80" /><Text style={s.muted}>{formatDate(item.eventStartTime, language, false, { year: true, deviceTime: true })}</Text></View>
-          <Text style={{ color: 'white', fontSize: 16, fontWeight: '600', lineHeight: 22, letterSpacing: -0.3 }}>{item.eventTitle}</Text>
+          <Text style={{ color: 'white', fontSize: 18, fontWeight: '600', lineHeight: 24, letterSpacing: -0.3 }}>{item.eventTitle}</Text>
           {item.kind === 'friends' && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>{item.ticketActors.length > 0 && <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}><Ticket size={12} color="#ffffff80" /><Text style={{ color: '#ffffff80', fontSize: 11 }}>{copy('feed.withTicket', { count: item.ticketActors.length })}</Text></View>}{item.goingActors.length > 0 && <Text style={{ color: '#ffffff80', fontSize: 11 }}>{copy('feed.going', { count: item.goingActors.length })}</Text>}</View>}
         </View><ArrowUpRight size={16} color="#ffffff66" />
       </View>
@@ -84,10 +84,10 @@ export function FeedCard({ item, openEvent, openProfile }: { item: FeedGroup; op
   </View>;
 }
 const s = StyleSheet.create({
-  identity: { minWidth: 0, flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }, name: { color: 'white', fontSize: 14, fontWeight: '600' }, muted: { color: '#ffffff73', fontSize: 12 },
-  request: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 16, backgroundColor: '#141113', padding: 12, marginBottom: 8 },
-  action: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ffffff0d', alignItems: 'center', justifyContent: 'center' },
-  friend: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, paddingHorizontal: 8, paddingVertical: 12 },
+  identity: { minWidth: 0, flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }, name: { color: 'white', fontSize: 16, fontWeight: '600' }, muted: { color: colors.muted, fontSize: 12 },
+  request: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 20, backgroundColor: colors.raised, padding: 14, marginBottom: 8 },
+  action: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#ffffff0d', alignItems: 'center', justifyContent: 'center' },
+  friend: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 20, backgroundColor: colors.raised, paddingHorizontal: 14, paddingVertical: 14, marginBottom:6 },
   manage: { minHeight: 48, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 99, backgroundColor: '#161616', paddingHorizontal: 16, marginTop: 20 },
   skeleton: { height: 56, marginBottom: 20, borderRadius: 12, backgroundColor: '#ffffff0d' },
 });

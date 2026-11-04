@@ -13,6 +13,8 @@ function createApiProxy(apiUrl, { timeoutMs = 15000 } = {}) {
   const transport = base.protocol === 'https:' ? https : http;
   const publicPath = /^\/(?:events(?:\/[0-9a-f-]{36}(?:\/(?:social|updates))?)?|profiles(?:\/(?:search|[0-9a-f-]{36}))?|organizers\/[0-9a-f-]{36}\/updates|promotions\/active)$/i;
   const routes = [
+    [/^\/event-feed$/, ['GET']],
+    [/^\/events\/[0-9a-f-]{36}\/likes$/i, ['PUT', 'DELETE']],
     [/^\/media\/events\/[0-9a-f-]{36}\/[0-9a-f]+\.(?:jpe?g|png|webp)$/i, ['GET']],
     [/^\/events\/[0-9a-f-]{36}\/attendees$/i, ['GET']],
     [/^\/events\/[0-9a-f-]{36}\/safety-group$/i, ['GET', 'POST']],

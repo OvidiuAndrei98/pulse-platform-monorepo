@@ -9,12 +9,12 @@ const glass: typeof import('expo-glass-effect') | null =
 const NativeGlassContainer = glass?.isLiquidGlassAvailable() && glass.isGlassEffectAPIAvailable()
   ? glass.GlassContainer : null;
 
-export function GlassButtonGroup({ style, ...props }: ViewProps) {
+export function GlassButtonGroup({ style, spacing = glassButtonGroupSpacing, ...props }: ViewProps & { spacing?: number }) {
   if (!NativeGlassContainer) return <View {...props} pointerEvents="box-none" accessible={false}
     style={[glassButtonGroupStyle, style]} />;
   // One container renders both descendant GlassViews together. Their existing
   // isInteractive touch response supplies the expansion and liquid bridge;
   // do not add an overlay, another scale or a parent opacity animation.
-  return <NativeGlassContainer {...props} spacing={glassButtonGroupSpacing}
+  return <NativeGlassContainer {...props} spacing={spacing}
     pointerEvents="box-none" accessible={false} style={[glassButtonGroupStyle, style]} />;
 }

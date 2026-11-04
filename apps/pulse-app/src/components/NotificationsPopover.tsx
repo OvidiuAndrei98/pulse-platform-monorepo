@@ -67,7 +67,7 @@ export function NotificationsPopover() {
   const openNotification = (notification: AppNotification) => {
     if (!notification.isRead) markRead(notification.id);
     setOpen(false);
-    if(notification.type==='outing_plan_invite'||notification.type==='outing_plan_chosen'||notification.type==='ticket_transfer'){
+    if(notification.type.startsWith('outing_plan_')||notification.type==='ticket_transfer'){
       window.dispatchEvent(new Event('spottr:layer-navigation'));router.push(notification.type==='ticket_transfer'?'/ticket-transfers':'/outings');return;
     }
     if (notification.type === "ticket_purchased") {

@@ -55,7 +55,7 @@ function mount(project: (coordinate: number[]) => Promise<number[]>) {
   const retry=()=>{elements(tree).find(el=>el.type==='Feedback').props.retry();render();};
   const unmount=()=>{for(const slot of slots)if(typeof slot?.cleanup==='function')slot.cleanup();};
   render();
-  return{render,map,load,retry,unmount,points};
+  return{render,map,load,retry,unmount,points,hasLocalFailure:()=>elements(tree).some(el=>el.type==='Feedback')};
 }
 const flush=()=>new Promise<void>(resolve=>setImmediate(resolve));
 const latest=(points:any[])=>JSON.parse(JSON.stringify(points.at(-1)));
@@ -102,5 +102,19 @@ test('map failure and retry ignore callbacks and results from the replaced nativ
   assert.equal(pending.length,0,'A retired load event cannot mark the new map ready');
   for(const resolve of oldResults)resolve([1,2]);await flush();assert.equal(latest(ui.points),null);
   ui.load();pending.at(-1)!([50,60]);await flush();assert.deepEqual(latest(ui.points),{x:50,y:60});
+  ui.unmount();
+});
+
+test('a containing map screen owns the single notice while the native renderer stays mounted', ()=>{
+  const changes:boolean[]=[];
+  const ui=mount(async()=>[10,20]);
+  ui.render({onErrorChange:(failed:boolean)=>changes.push(failed)});
+  assert.deepEqual(changes,[false]);
+  ui.map().onDidFailLoadingMap();ui.render();
+  assert.deepEqual(changes,[false,true]);
+  assert.equal(ui.hasLocalFailure(),false,'The parent notice must not be duplicated by the renderer');
+  assert.equal(typeof ui.map().onRegionDidChange,'function','The map and its native callbacks stay present');
+  ui.load();
+  assert.deepEqual(changes,[false,true,false],'Successful loading clears the parent notice');
   ui.unmount();
 });

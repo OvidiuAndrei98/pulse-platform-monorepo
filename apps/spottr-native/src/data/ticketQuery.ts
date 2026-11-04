@@ -5,6 +5,7 @@ import type { SavedTickets, TicketCache } from './ticketCache';
 import { observeOperation } from '../diagnostics/handled';
 
 export type TicketData = SavedTickets & { source: 'saved' | 'server'; storageError: boolean };
+export const selectTicketList = (snapshot: TicketData) => snapshot.tickets;
 export function canUseSavedTickets(error: unknown): boolean {
   if (!error) return true;
   if (error instanceof ApiError) return error.code === 'TIMEOUT' || error.status >= 500 || error.status === 429;

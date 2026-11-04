@@ -13,6 +13,38 @@ async function close(server: http.Server) {
   await new Promise<void>(resolve => server.close(() => resolve()));
 }
 
+test('event Feed and independent likes pass through the preview proxy with pagination and optional auth', async () => {
+  const received: { path: string; method: string; auth?: string }[] = [];
+  const upstream = http.createServer((req, res) => {
+    received.push({ path: req.url!, method: req.method!, auth: req.headers.authorization });
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(req.method === 'GET' ? '{"items":[],"nextPage":2}' : '{"liked":true,"likeCount":9}');
+  });
+  const api = await listen(upstream), proxy = createApiProxy(api + '/api/v1');
+  const server = http.createServer((req, res) => proxy(req, res, () => res.end())), base = await listen(server);
+  const event = '/api/v1/events/12345678-abcd-4bcd-8bcd-123456789012/likes';
+  const auth = { origin: base, authorization: 'Bearer feed-test-only' };
+  try {
+    const guest = await request(base, '/api/v1/event-feed?page=1');
+    assert.equal(guest.status, 200); assert.deepEqual(JSON.parse(guest.body), { items: [], nextPage: 2 });
+    assert.equal((await request(base, '/api/v1/event-feed?page=2', auth)).status, 200);
+    for (const method of ['PUT', 'DELETE']) assert.equal((await request(base, event, auth, method)).status, 200);
+    assert.deepEqual(received, [
+      { path: '/api/v1/event-feed?page=1', method: 'GET', auth: undefined },
+      { path: '/api/v1/event-feed?page=2', method: 'GET', auth: auth.authorization },
+      { path: event, method: 'PUT', auth: auth.authorization },
+      { path: event, method: 'DELETE', auth: auth.authorization },
+    ]);
+    assert.equal((await request(base, '/api/v1/event-feed', {}, 'POST')).status, 405);
+    assert.equal((await request(base, event)).status, 405);
+    assert.equal((await request(base, event, auth, 'POST')).status, 405);
+    assert.equal((await request(base, '/api/v1/events/not-an-id/likes', auth, 'PUT')).status, 403);
+    assert.equal((await request(base, '/api/v1/event-feed/private', auth)).status, 403);
+    assert.equal((await request(base, '/api/v1/event-feed', { origin: 'https://foreign.test' })).status, 403);
+    assert.equal(received.length, 4, 'Invalid requests never reach the upstream API');
+  } finally { await close(server); await close(upstream); }
+});
+
 test('preview retains only opaque upstream correlation IDs and never forwards a caller-supplied ID', async () => {
   let value = '583f24c4-53cd-482e-a324-487a9b7c2846';
   const upstream = http.createServer((req, res) => {

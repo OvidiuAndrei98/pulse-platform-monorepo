@@ -12,12 +12,12 @@ import { commissionFormula, commissionText, parseCommissionInputs, parseCommissi
 import type { DirectoryDetail } from '@packages/app-core/admin/organizers';
 
 export function CommissionsPanel({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
-  const { user, controller } = useAuth();
+  const { user, controller } = useAuth('account');
   // Remount on identity change, so a previous account's edit cannot survive logout.
   return user?.role === 'admin' ? <Panel key={user.id + controller.getToken()} initiallyOpen={initiallyOpen} /> : null;
 }
 function Panel({ initiallyOpen }: { initiallyOpen: boolean }) {
-  const { user, controller } = useAuth(), { language } = usePreferences(), ro = language === 'ro', t = commissionText(ro);
+  const { user, controller } = useAuth('account'), { language } = usePreferences(), ro = language === 'ro', t = commissionText(ro);
   const [open, setOpen] = useState(initiallyOpen), [search, setSearch] = useState(''), [editing, setEditing] = useState<'standard' | OrganizerCommission | null>(null);
   const query = useQuery({ queryKey: ['admin-commissions', user?.id], enabled: open, retry: false, queryFn: async ({ signal }) => parseCommissionSettings(await accountApi('/admin/commissions', { token: controller.getToken(), signal })) });
   const data = query.data;
@@ -44,7 +44,7 @@ export function OrganizerCommissionSettings({ organizer, saved }: { organizer: D
   return <View style={s.card}><Text style={s.title}>{t.title}</Text><Text style={s.formula}>{commissionFormula(target.override ?? organizer.standard,ro)}</Text><Text style={s.hint}>{t.future}</Text>{editing ? <Editor key={target.organizerId + ':' + target.revision} target={target} data={{standard:organizer.standard,organizers:[target]}} close={() => setEditing(false)} saved={() => { setEditing(false); saved(); }} /> : <Button label={t.edit} onPress={() => setEditing(true)} />}</View>;
 }
 function Editor({ target, data, close, saved }: { target: 'standard' | OrganizerCommission; data: CommissionSettings; close: () => void; saved: () => void }) {
-  const { controller } = useAuth(), { language } = usePreferences(), ro = language === 'ro', t = commissionText(ro);
+  const { controller } = useAuth('account'), { language } = usePreferences(), ro = language === 'ro', t = commissionText(ro);
   const standard = target === 'standard', original = standard ? data.standard : target.override ?? data.standard;
   const [inherit, setInherit] = useState(!standard && !target.override), [rate, setRate] = useState(String(original.rateBps / 100)), [fixed, setFixed] = useState(String(original.perTicketBani / 100)), [error, setError] = useState(''), [busy, setBusy] = useState(false), lock = useRef(false);
   const revision = useRef(standard ? data.standard.revision : target.revision).current;

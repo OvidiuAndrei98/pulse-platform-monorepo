@@ -34,7 +34,7 @@ import { useNavbarScroll } from '../navigation/useNavbarScroll';
 export function PublicProfileScreen({ route, navigation }: NativeStackScreenProps<RootParamList, 'PublicProfile'>) {
   const navbarScroll = useNavbarScroll();
   const toast = useToast();
-  const id = route.params.id.toLowerCase(), { user } = useAuth(), { copy } = usePreferences(), safe = useSafeAreaInsets();
+  const id = route.params.id.toLowerCase(), { user } = useAuth('account'), { copy } = usePreferences(), safe = useSafeAreaInsets();
   const viewport = useWindowDimensions(), heroFontSize = Math.max(32, Math.min(48, viewport.width * .08));
   const query = usePublicProfile(id), profile = query.data;
   const events = useQuery({ queryKey: ['organizer-events', id, user?.id ?? 'guest'], enabled: profile?.role === 'organizer',

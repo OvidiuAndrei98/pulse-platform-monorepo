@@ -4,6 +4,7 @@ import { FormInput as TextInput } from '../ui/FormInput';
 ﻿import React, { useEffect, useRef, useState } from "react";
 import {
   Modal,
+  Keyboard,
   Platform,
   Pressable,
   ScrollView,
@@ -26,6 +27,11 @@ import { colors } from "../ui/theme";
 import { formatToDatetimeLocal } from "@packages/app-core/events/dateTimeValues";
 import { dColors } from "./common";
 import { e } from "./EditorControls";
+import { NativeDateTimePicker, useNativeDateTimePicker } from './NativeDateTimePicker';
+import { GlassSurface, supportsLiquidGlass } from '../ui/GlassSurface';
+import { GlassButtonGroup } from '../ui/GlassButtonGroup';
+import { withPickerDate, withPickerTime } from './datePickerParts';
+import { EventDatePopover, supportsEventDatePopover } from './EventDatePopover';
 
 function usePopover() {
   const [open, setOpen] = useState(false),
@@ -67,20 +73,25 @@ function Popover({
   onClose,
   anchor,
   timeOnly = false,
+  native = false,
+  dateOnly = false,
 }: React.PropsWithChildren<{
   label: string;
   open: boolean;
   onClose: () => void;
   anchor: { x: number; y: number };
   timeOnly?: boolean;
+  native?: boolean;
+  dateOnly?: boolean;
 }>) {
+  const { copy } = usePreferences('copy');
   const { width, height } = useWindowDimensions(),
     insets = useSafeAreaInsets(),
     desktop = width >= 768;
   const [measuredHeight, setMeasuredHeight] = useState(timeOnly ? 150 : 410);
   if (!open) return null;
   const panelStyle: ViewStyle = {
-    borderRadius: 16,
+    borderRadius: native ? 24 : 16,
     borderWidth: 1,
     borderColor: "#ffffff26",
     backgroundColor: "#171717",
@@ -88,12 +99,14 @@ function Popover({
     boxShadow: "0 20px 46px rgba(0,0,0,0.5)",
     maxHeight: Math.max(100, height - insets.top - (desktop ? 32 : 128)),
   };
-  const content = (
+  const nativeHeight = timeOnly ? 308 : dateOnly ? 328 : 380;
+  const content = native ? <View testID={timeOnly ? 'editor-time-popover' : 'editor-date-popover'} accessibilityLabel={label}
+    style={{height:nativeHeight,borderRadius:24,overflow:'hidden'}}>{children}</View> : (
     <ScrollView
       testID={timeOnly ? "editor-time-popover" : "editor-date-popover"}
       accessibilityLabel={label}
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ padding: timeOnly ? 16 : 12 }}
+      contentContainerStyle={{ padding: native ? 4 : timeOnly ? 16 : 12 }}
     >
       {children}
     </ScrollView>
@@ -130,6 +143,16 @@ function Popover({
         {content}
       </View>
     );
+  if (native) return <Modal transparent visible animationType="none" onRequestClose={onClose} statusBarTranslucent>
+    <View style={{flex:1}}>
+      <Pressable accessibilityRole="button" accessibilityLabel={copy('common.close')} onPress={onClose} style={{position:'absolute',top:0,left:0,right:0,bottom:0}}/>
+      <GlassSurface testID="editor-native-picker-surface" interactive={false} style={[panelStyle,{
+        position:'absolute',width:Math.min(440,width-40),height:nativeHeight,
+        left:desktop?Math.max(20,Math.min(anchor.x,width-Math.min(440,width-40)-20)):20,bottom:104+insets.bottom,
+        ...(supportsLiquidGlass ? {borderWidth:0} : {}),
+      }]}>{content}</GlassSurface>
+    </View>
+  </Modal>;
   return (
     <Modal
       transparent
@@ -256,7 +279,7 @@ function TimeStepper({
   );
 }
 
-/** Same compact calendar, immediate local-time edits and Now/Done actions as Next.js. */
+/** Preserve local values and Spottr fields; native system pickers on phones. */
 export function DateTimeField({
   label,
   value,
@@ -266,6 +289,7 @@ export function DateTimeField({
   placeholder,
   variant = "event",
   dateOnly = false,
+  triggerContent, triggerStyle, triggerHeight, hideLabel = false,
 }: {
   label: string;
   value: string;
@@ -275,9 +299,16 @@ export function DateTimeField({
   placeholder?: string;
   variant?: "event" | "scanner";
   dateOnly?: boolean;
+  triggerContent?: React.ReactNode;
+  triggerStyle?: import('react-native').StyleProp<ViewStyle>;
+  triggerHeight?: number;
+  hideLabel?: boolean;
 }) {
   const { copy, language } = usePreferences(),
     pop = usePopover();
+  const native = useNativeDateTimePicker(disabled);
+  const nativeInline = native.available && Platform.OS === 'ios';
+  const pickerWidth = Math.min(440, useWindowDimensions().width - 40);
   const parsed = new Date(dateOnly && value ? value+'T12:00:00' : value),
     selected = Number.isFinite(parsed.getTime()) ? parsed : new Date();
   const [month, setMonth] = useState(
@@ -302,7 +333,7 @@ export function DateTimeField({
   const close = () => pop.setOpen(false);
   return (
     <View ref={pop.root} style={{ gap: 6, zIndex: pop.open ? 50 : 0 }}>
-      <View
+      {!hideLabel&&<View
         style={{
           flexDirection: "row",
           flexWrap: "wrap",
@@ -321,17 +352,24 @@ export function DateTimeField({
           {label}
         </Text>
         {error && <Text style={e.error}>{error}</Text>}
-      </View>
+      </View>}
+      <EventDatePopover label={label} locale={locale} value={selected} dateOnly={dateOnly}
+        isPresented={pop.open && !disabled} onIsPresentedChange={pop.setOpen} onValueChange={emit}
+        triggerHeight={triggerHeight ?? (variant === 'scanner' ? 44 : 42)}
+        labels={{day:copy('datePicker.day'),month:copy('datePicker.month'),year:copy('datePicker.year'),
+          hours:copy('datePicker.hoursLabel'),minutes:copy('datePicker.minutesLabel'),now:copy('datePicker.now'),done:copy('datePicker.done')}}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ expanded: pop.open, disabled }}
         disabled={disabled}
         onPress={() => {
+          Keyboard.dismiss();
+          if (native.openAndroid(selected, dateOnly ? 'date' : 'datetime', emit, pop.toggle)) return;
           setMonth(new Date(selected.getFullYear(), selected.getMonth(), 1));
           pop.toggle();
         }}
-        style={{
+        style={[{
           minHeight: variant === "scanner" ? 44 : 42,
           borderRadius: variant === "scanner" ? 8 : 99,
           borderWidth: 1,
@@ -343,9 +381,9 @@ export function DateTimeField({
           alignItems: "center",
           gap: 8,
           opacity: disabled ? 0.5 : 1,
-        }}
+        },triggerStyle]}
       >
-        <CalendarDays size={16} color={colors.accent} />
+        {triggerContent??<><CalendarDays size={16} color={colors.accent} />
         <Text
           numberOfLines={1}
           style={[
@@ -360,14 +398,29 @@ export function DateTimeField({
               }).format(selected)
             : (placeholder ?? copy("datePicker.placeholder"))}
         </Text>
-        {!dateOnly && <Clock size={16} color={dColors.muted} />}
+        {!dateOnly && <Clock size={16} color={dColors.muted} />}</>}
       </Pressable>
+      </EventDatePopover>
       <Popover
+        native={nativeInline}
+        dateOnly={dateOnly}
         label={label}
-        open={pop.open}
+        open={pop.open && !supportsEventDatePopover}
         onClose={close}
         anchor={pop.anchor}
       >
+        {nativeInline ? <>
+          <Text numberOfLines={1} style={{color:colors.text,fontSize:14,lineHeight:20,fontWeight:'600',paddingHorizontal:16,paddingTop:16}}>{label}</Text>
+          <NativeDateTimePicker testID="editor-native-date-picker" accessibilityLabel={label}
+            value={selected} mode="date" display="spinner" locale={locale} themeVariant="dark"
+            textColor={colors.text} accentColor={colors.accent} onValueChange={(_event, date) => emit(withPickerDate(selected,date))} style={{height:216,width:pickerWidth}}/>
+          {!dateOnly && <View style={{height:52,paddingHorizontal:16,flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+            <Text style={{color:colors.muted,fontSize:14,fontWeight:'500'}}>{copy('datePicker.time')}</Text>
+            <NativeDateTimePicker testID="editor-native-date-time" accessibilityLabel={copy('datePicker.time')} value={selected}
+              mode="time" display="compact" themeVariant="dark" accentColor={colors.accent}
+              onValueChange={(_event,date)=>emit(withPickerTime(selected,date))} style={{width:120,height:44}}/>
+          </View>}
+        </> : <>
         <View
           style={{
             flexDirection: "row",
@@ -519,29 +572,32 @@ export function DateTimeField({
             />
           </View>
         </View>}
-        <View
+        </>}
+        <GlassButtonGroup spacing={8}
           style={{
             marginTop: 12,
             flexDirection: "row",
             justifyContent: "flex-end",
             gap: 8,
+            ...(nativeInline ? {marginTop:0,padding:16,gap:8} : {}),
           }}
         >
-          <Pressable
+          <AccentPressable fallback={Pressable} glassColor={nativeInline ? 'rgba(0,0,0,0.12)' : undefined}
             accessibilityRole="button"
             onPress={() => emit(new Date())}
             style={{
               paddingHorizontal: 12,
               paddingVertical: 6,
               borderRadius: 99,
+              ...(nativeInline ? {flex:1,height:44,paddingVertical:0,alignItems:'center',justifyContent:'center',backgroundColor:'#ffffff0a',borderWidth:1,borderColor:'#ffffff14'} as const : {}),
             }}
           >
             <Text
-              style={{ color: colors.accent, fontSize: 12, fontWeight: "500" }}
+              style={{ color: nativeInline ? colors.text : colors.accent, fontSize: nativeInline ? 14 : 12, fontWeight: "500" }}
             >
               {copy("datePicker.now")}
             </Text>
-          </Pressable>
+          </AccentPressable>
           <AccentPressable fallback={Pressable}
             testID="editor-date-done"
             accessibilityRole="button"
@@ -551,13 +607,14 @@ export function DateTimeField({
               paddingVertical: 6,
               borderRadius: 99,
               backgroundColor: colors.accent,
+              ...(nativeInline ? {flex:1,height:44,paddingVertical:0,alignItems:'center',justifyContent:'center'} as const : {}),
             }}
           >
-            <Text style={{ color: "white", fontSize: 12, fontWeight: "600" }}>
+            <Text style={{ color: "white", fontSize: nativeInline ? 14 : 12, fontWeight: "600" }}>
               {copy("datePicker.done")}
             </Text>
           </AccentPressable>
-        </View>
+        </GlassButtonGroup>
       </Popover>
     </View>
   );
@@ -576,6 +633,9 @@ export function EditorTimeField({
 }) {
   const { copy } = usePreferences(),
     pop = usePopover();
+  const native = useNativeDateTimePicker(disabled);
+  const nativeInline = native.available && Platform.OS === 'ios';
+  const pickerWidth = Math.min(440, useWindowDimensions().width - 40);
   const [hour = 20, minute = 0] = /^\d{2}:\d{2}$/.test(value)
     ? value.split(":").map(Number)
     : [20, 0];
@@ -587,7 +647,11 @@ export function EditorTimeField({
         accessibilityRole="button"
         accessibilityLabel={copy("lineup.time")}
         disabled={disabled}
-        onPress={pop.toggle}
+        onPress={() => {
+          Keyboard.dismiss();
+          const date = new Date(); date.setHours(hour, minute, 0, 0);
+          if (!native.openAndroid(date, 'time', next => emit(next.getHours(), next.getMinutes()), pop.toggle)) pop.toggle();
+        }}
         style={[
           e.input,
           { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -614,6 +678,7 @@ export function EditorTimeField({
       </Pressable>
       <Popover
         timeOnly
+        native={nativeInline}
         label={copy("datePicker.time")}
         open={pop.open}
         onClose={() => pop.setOpen(false)}
@@ -626,11 +691,14 @@ export function EditorTimeField({
             fontWeight: "600",
             textTransform: "uppercase",
             marginBottom: 12,
+            ...(nativeInline ? {paddingHorizontal:16,paddingTop:16,marginBottom:0,lineHeight:16} : {}),
           }}
         >
           {copy("datePicker.time")}
         </Text>
-        <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+        {nativeInline ? <NativeDateTimePicker testID="editor-native-time-picker" accessibilityLabel={copy('datePicker.time')}
+          value={new Date(2000,0,1,hour,minute)} mode="time" display="spinner" themeVariant="dark" locale="en-GB"
+          textColor={colors.text} accentColor={colors.accent} onValueChange={(_event, date) => emit(date.getHours(), date.getMinutes())} style={{height:216,width:pickerWidth}}/> : <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
           <TimeStepper
             value={hour}
             max={23}
@@ -643,7 +711,7 @@ export function EditorTimeField({
             step={5}
             onChange={(m) => emit(hour, m)}
           />
-        </View>
+        </View>}
         <AccentPressable fallback={Pressable}
           accessibilityRole="button"
           onPress={() => pop.setOpen(false)}
@@ -654,6 +722,7 @@ export function EditorTimeField({
             backgroundColor: colors.accent,
             alignItems: "center",
             justifyContent: "center",
+            ...(nativeInline ? {height:44,margin:16,marginTop:0} : {}),
           }}
         >
           <Text style={{ color: "white", fontWeight: "600", fontSize: 12 }}>

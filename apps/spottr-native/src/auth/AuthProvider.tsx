@@ -7,6 +7,7 @@ import React, {
 import { API_URL } from "../config";
 import { createHttp, bindSession } from "../data/http";
 import { queryClient } from "../data/queries";
+import { clearAccountQueries } from '../data/sessionQueries';
 import { SessionController, type AccountState, type SessionState } from "./session";
 import { sessionStorage } from "./storage";
 import { clearNativePayments } from "../checkout/nativePayment";
@@ -32,8 +33,7 @@ export const sessionController = new SessionController(
     if (previousAccount) void ticketCache.remove(previousAccount).catch(() => {});
     clearNativePayments();
     purchaseCompletion.clear();
-    void queryClient.cancelQueries();
-    queryClient.clear();
+    clearAccountQueries(queryClient);
   },
 );
 bindSession({

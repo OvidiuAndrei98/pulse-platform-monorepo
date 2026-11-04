@@ -4,12 +4,18 @@ import { dirname, resolve } from 'node:path';
 import { runInNewContext } from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
+import { getTabCapsuleGeometry } from '../src/navigation/tabCapsuleGeometry';
+import { advanceTabMotion, idleTabMotion, startTabMotion } from '../src/navigation/tabSynchronizedMotion';
+
+import { writeFileSync } from 'node:fs';
 
 // Run the installed Reanimated solver, rather than a second implementation of
 // spring physics. Only its native runtime/reduced-motion boundary is simulated.
 function fixture(reduced = false) {
   const library = dirname(require.resolve('react-native-reanimated/package.json'));
   const cache = new Map<string, any>();
+  let clock = 1000;
+  const frames: ((timestamp: number) => void)[] = [];
   function load(file: string): any {
     if (cache.has(file)) return cache.get(file);
     const exports: any = {};
@@ -17,21 +23,37 @@ function fixture(reduced = false) {
     const source = ts.transpileModule(readFileSync(file, 'utf8'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
     }).outputText;
-    runInNewContext(source, { exports, require(name: string): any {
-      if (name === '../../common') return { logger: { warn: (message: string) => { throw Error(message); } } };
-      if (name === '../util') return {
+    runInNewContext(source, { exports,
+      global: { _getAnimationTimestamp: () => clock },
+      requestAnimationFrame: (callback: (timestamp: number) => void) => frames.push(callback),
+      require(name: string): any {
+      if (name === '../../common' || name === '../common') return { logger: { warn: (message: string) => { throw Error(message); } } };
+      if (name === '../util' || name === './util') return {
         defineAnimation: (_: unknown, factory: () => any) => factory(),
         getReduceMotionForAnimation: () => reduced,
       };
       if (name === 'react-native-reanimated') return {
         ...load(resolve(library, 'src/animation/spring/spring.ts')),
+        ...load(resolve(library, 'src/animation/sequence.ts')),
         Easing: { out: (x: unknown) => x, quad: 'quad' }, ReduceMotion: { System: 'system' },
       };
       return load(resolve(dirname(file), name + '.ts'));
     } });
     return exports;
   }
-  return load(resolve(__dirname, '../src/navigation/tabCapsuleSpring.ts'));
+  const { valueSetter } = load(resolve(library, 'src/valueSetter.ts'));
+  return { ...load(resolve(__dirname, '../src/navigation/tabCapsuleSpring.ts')),
+    mutable(initial = 0) {
+      const mutable = { _value: initial, _animation: null };
+      Object.defineProperty(mutable, 'value', {
+        get: () => mutable._value,
+        set: value => valueSetter(mutable, value),
+      });
+      return mutable as typeof mutable & { value: any };
+    },
+    tick(dt = 1000 / 120) { clock += dt; for (const callback of frames.splice(0)) callback(clock); },
+    get pendingFrames() { return frames.length; },
+    withSpring: load(resolve(library, 'src/animation/spring/spring.ts')).withSpring };
 }
 
 test('reversing a travelling capsule preserves position and velocity, then turns smoothly', () => {
@@ -121,4 +143,80 @@ test('a long glide interrupted by a nearby tap keeps its momentum and ends at th
   assert.equal(reverse.velocity, glide.velocity);
   for (let n = 1; n <= 120; n++) reverse.onFrame(reverse, 1050 + n * 1000 / 120);
   assert.equal(reverse.current, 0);
+});
+
+test('the installed solver drives bar, icons and indicator together at 60 and 120 Hz', () => {
+  const g = getTabCapsuleGeometry(362, 5), traces: any[] = [];
+  const peaks = new Map<string, { strain: number; compression: number }>();
+  for (const hz of [60, 120]) for (const side of [-1, 1]) for (const tabs of [1, 2, 3, 4]) {
+    const { withTabTravel } = fixture();
+    const target = side < 0 ? 0 : g.limit, start = target - side * tabs * g.spacing;
+    const animation = withTabTravel(target, tabs);
+    animation.onStart(animation, start, 1000, undefined);
+    let state = startTabMotion(idleTabMotion(start, g, 1000), start, target, g, 1000);
+    let peakStrain = 0, peakCompression = 0, previousPhase = 0, descending = false;
+    let previousX = g.firstCenter + start, previousSpeed = Infinity, recoiling = false;
+    const samples: any[] = [];
+    for (let frame = 1; frame <= hz; frame++) {
+      const now = 1000 + frame * 1000 / hz;
+      animation.onFrame(animation, now);
+      state = advanceTabMotion(state, animation.current, g, now, 0, false, false);
+      const p = state.pose, strain = p.barScaleX - 1;
+      assert.ok(Object.values(p).every(Number.isFinite));
+      assert.ok(state.phase >= previousPhase);
+      assert.ok(strain >= 0 && strain <= 0.018 * tabs / 4 + 1e-9);
+      if (descending) assert.ok(strain <= peakStrain + 1e-9);
+      if (strain < peakStrain - 1e-9) descending = true;
+      peakStrain = Math.max(peakStrain, strain);
+      peakCompression = Math.max(peakCompression, 1 - p.indicatorScaleY);
+      const centers = g.tabs.map(tab => g.width / 2 + p.barX + p.barScaleX * (tab.center - g.width / 2));
+      const far = side > 0 ? 0 : 4;
+      assert.ok(Math.abs(centers[far]! - g.tabs[far]!.center) < 1e-9);
+      centers.slice(1).forEach((x, i) => assert.ok(Math.abs(x - centers[i]! - g.spacing * p.barScaleX) < 1e-9));
+      const screenX = g.width / 2 + p.barX + p.barScaleX * (g.firstCenter + p.indicatorX - g.width / 2);
+      const speed = side * (screenX - previousX) * hz;
+      if (state.phase > .55 && speed > 0 && previousSpeed > 0) {
+        assert.ok(speed <= previousSpeed + .01, 'Visible travel cannot accelerate into a separate late push');
+      }
+      if (speed < -.01) recoiling = true;
+      if (recoiling) assert.ok(speed < hz * .01, 'Arrival has one recoil, never a second outward swing beyond subpixel solver noise: ' + JSON.stringify({hz,side,tabs,now,speed,phase:state.phase,screenX}));
+      samples.push({ ms: now - 1000, x: animation.current, screenX, phase: state.phase, strain, scaleY: p.indicatorScaleY });
+      previousPhase = state.phase; previousX = screenX; previousSpeed = speed;
+    }
+    const previous = peaks.get(`${hz}:${side}`);
+    if (previous) {
+      assert.ok(peakStrain > previous.strain);
+      assert.ok(peakCompression > previous.compression);
+    }
+    peaks.set(`${hz}:${side}`, { strain: peakStrain, compression: peakCompression });
+    assert.equal(state.pose.barScaleX, 1); assert.equal(state.pose.barX, 0);
+    assert.equal(state.pose.indicatorX, target); assert.equal(state.pose.indicatorScaleX, 1);
+    assert.equal(state.pose.indicatorScaleY, 1);
+    assert.deepEqual(advanceTabMotion(state, target, g, 5000, 0, false, false).pose, state.pose, 'No separate contact animation survives arrival');
+    traces.push({ hz, side, tabs, peakStrain, peakCompression, samples });
+  }
+  writeFileSync('artifacts/navbar-synchronized-motion.json', JSON.stringify(traces, null, 2));
+});
+
+test('real rapid reversals retain the displayed pose and finish only the latest movement', () => {
+  const { withTabTravel } = fixture(), g = getTabCapsuleGeometry(362, 5);
+  let x = 0, now = 1000, animation: any, state = idleTabMotion(x, g, now);
+  for (const destination of [4, 0, 3, 1, 4, 0, 2, 4]) {
+    const pose = state.pose, target = destination * g.spacing;
+    state = startTabMotion(state, x, target, g, now);
+    assert.deepEqual(state.pose, pose);
+    const next = withTabTravel(target, Math.abs(target - x) / g.spacing);
+    next.onStart(next, x, now, animation); animation = next;
+    for (let frame = 0; frame < 8; frame++) {
+      now += 1000 / 120; animation.onFrame(animation, now); x = animation.current;
+      state = advanceTabMotion(state, x, g, now, 0, false, false);
+      assert.ok(Object.values(state.pose).every(Number.isFinite));
+    }
+  }
+  for (let frame = 0; frame < 120; frame++) {
+    now += 1000 / 120; animation.onFrame(animation, now);
+    state = advanceTabMotion(state, animation.current, g, now, 0, false, false);
+  }
+  assert.equal(state.pose.indicatorX, g.limit);
+  assert.equal(state.pose.barScaleX, 1); assert.equal(state.pose.barX, 0);
 });

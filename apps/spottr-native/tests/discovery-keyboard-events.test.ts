@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import path from 'node:path';
+import { initialSearchBounds, searchMorphGeometry } from '../src/screens/searchMorph';
 const { find, hooks, modules } = require('../../pulse-app/scripts/helpers/qaHarness.cjs');
 
 test('native keyboard subscriptions use latest callbacks and release every listener', () => {
@@ -44,18 +45,21 @@ test('gesture area links the native Search input without visible accessory heigh
 
 test('Search captures keyboard drags without scrolling or remounting native results', () => {
   const h = hooks(), navigation = { navigate() {} }, empty = () => {};
+  let inWorklet = false;
   const { DiscoveryScreen } = modules({
     react: h.react,
     'react-native': { Platform: { OS: 'ios' }, View: 'View', ScrollView: 'ScrollView', FlatList: 'FlatList',
       Modal: 'Modal', Pressable: 'Pressable', Keyboard: { dismiss: empty }, StyleSheet: { create: (x: unknown) => x, absoluteFill: {} },
       useWindowDimensions: () => ({ width: 390, height: 844 }) },
+    'react-native-reanimated': { default: { View: 'AnimatedView' }, useSharedValue: (value: unknown) => h.react.useRef({ value }).current,
+      useAnimatedStyle: (factory: () => unknown) => { inWorklet = true; try { return factory(); } finally { inWorklet = false; } } },
     'lucide-react-native': { SlidersHorizontal: 'SlidersHorizontal' },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 60, bottom: 34 }) },
     '@react-navigation/native': { useNavigation: () => navigation, useRoute: () => ({}), useScrollToTop: empty },
     '../usePreferences': { usePreferences: () => ({ copy: (s: string) => s }) },
     '../auth/AuthProvider': { useAuth: (scope: string) => { assert.equal(scope, 'account'); return {}; } },
     '../data/events': { categories: [] },
-    '../data/queries': { useEvents: () => ({ items: [], loadMore: empty }), seedEvent: empty },
+    '../data/queries': { useEvents: () => ({ query: {}, items: [], loadMore: empty }), seedEvent: empty },
     '../ui/AccentPressable': { AccentPressable: 'AccentPressable' }, '../ui/GlassPressable': { GlassPressable: 'GlassPressable' },
     '../ui/ActionButton': { ActionButton: 'ActionButton' },
     '../ui/ActionIcon': { ActionIcon: 'ActionIcon' }, '../ui/Text': { Text: 'Text' }, '../ui/theme': { colors: {} },
@@ -69,13 +73,19 @@ test('Search captures keyboard drags without scrolling or remounting native resu
     './useDebouncedDiscoverySearch': { useDebouncedDiscoverySearch: (q: string) => q },
     '@packages/app-core/events/discoveryFilters': { activeDiscoveryStart: () => '2026-10-30', eventWithinDistance: () => true },
     './DiscoveryToolbar': { DiscoveryToolbar: 'DiscoveryToolbar' }, './DiscoveryCalendar': { DiscoveryCalendar: 'DiscoveryCalendar' },
+    './DiscoveryDateRibbon': { DiscoveryDateRibbon: 'DiscoveryDateRibbon' },
+    './MorphVisibility': { MorphVisibility: 'MorphVisibility' },
+    './searchMorph': { searchMorphGeometry, initialSearchBounds: (width: number) => {
+      assert.equal(inWorklet, false, 'Bootstrap geometry must run on JS, never synchronously from a native worklet');
+      return initialSearchBounds(width);
+    } },
     './DiscoveryKeyboardArea': { DiscoveryKeyboardArea: 'DiscoveryKeyboardArea' },
     './DiscoverySearchInteraction': { DiscoverySearchInteraction: 'DiscoverySearchInteraction' },
   }).load(path.resolve(__dirname, '../src/screens/DiscoveryScreen.tsx'));
   const render = () => h.render(DiscoveryScreen), byID = (root: any, id: string) => find(root, (n: any) => n.props?.testID === id);
   const toolbar = (root: any) => find(root, (n: any) => n.type === 'DiscoveryToolbar');
   let root = render(), list = byID(root, 'events-list'), resets = 0;
-  const header = find(root, (n: any) => n.type === 'View' && n.props.children?.type === 'DiscoveryToolbar');
+  const header = find(root, (n: any) => n.type === 'View' && n.props.style?.position === 'absolute' && n.props.style?.zIndex === 10);
   assert.equal(root.props.style.paddingTop,0,'The iOS viewport extends beneath the header');
   assert.equal(header.props.style.position,'absolute');
   assert.equal(header.props.style.backgroundColor,undefined,'No opaque header backdrop');
@@ -92,6 +102,10 @@ test('Search captures keyboard drags without scrolling or remounting native resu
   let gesture=gestureRender(); const gestureRef=gesture.props.ref;
   assert.equal(gesture.props.pointerEvents,'none'); assert.equal(gesture.props.scrollEnabled,false);
   toolbar(root).props.onSearchActivityChange(true); gesture=gestureRender();
+  const duringSearch = render(), calendar = find(duringSearch, (n: any) => n.type === 'DiscoveryDateRibbon');
+  assert.equal(calendar.props.searching, true);
+  assert.equal(calendar.props.hidden, undefined, 'The calendar stays mounted and returns before the Search closing tail completes');
+  assert.equal(calendar.props.calendarMotion, toolbar(duringSearch).props.calendarMotion, 'Calendar receives exactly the Filters pose on the UI thread');
   assert.equal(scrollEnabled,false); assert.equal(gesture.props.ref,gestureRef); assert.equal(resets,0);
   assert.equal(gesture.props.pointerEvents,'auto');
   let releases=0;

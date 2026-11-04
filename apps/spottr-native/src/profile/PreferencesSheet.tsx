@@ -31,7 +31,7 @@ export function useHiddenCategories() {
 }
 export function PreferencesSheet({ onClose }: { onClose: () => void }) {
   const { copy } = usePreferences(),
-    { user, controller } = useAuth();
+    { user, controller } = useAuth('account');
   const query = useHiddenCategories();
   const [selections, setSelections] = useState<Record<string, boolean>>({}),
     [failed, setFailed] = useState(false);

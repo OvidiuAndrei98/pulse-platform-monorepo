@@ -5,6 +5,7 @@ import { FormScrollView } from "../ui/KeyboardForms";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   Platform,
   Pressable,
   StyleSheet,
@@ -41,6 +42,16 @@ export function AuthScreen({
     auth = useAuth(),
     safe = useSafeAreaInsets();
   const mode = route.params?.mode ?? "login";
+  const [keyboardVisible, setKeyboardVisible] = useState(() => Keyboard.isVisible());
+  useEffect(() => {
+    if (Platform.OS === 'web' || mode !== 'login') return;
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));
+    // Keep scrolling available throughout dismissal, including a cancelled
+    // interactive gesture; lock it only once the keyboard is fully hidden.
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    setKeyboardVisible(Keyboard.isVisible());
+    return () => { show.remove(); hide.remove(); };
+  }, [mode]);
   const activation = route.params?.activation;
   const [emailForm, setEmailForm] = useState(activation === "success");
   const [email, setEmail] = useState(""),
@@ -97,7 +108,7 @@ export function AuthScreen({
     };
   }, [mode, fill]);
   useEffect(() => {
-    if (!auth.ready || !auth.user || (mode !== "login" && mode !== "register")) return;
+    if (!focused || !auth.ready || !auth.user || (mode !== "login" && mode !== "register")) return;
     // Never back into a protected screen on close/logout; authenticated return
     // destinations are a typed tab, never a URL supplied by a third party.
     if (isEventId(route.params?.returnSafetyGroup)) navigation.popTo('SafetyGroup', { eventId: route.params.returnSafetyGroup }, { merge: true });
@@ -115,7 +126,7 @@ export function AuthScreen({
       if (screen === 'Profile') navigation.popTo('Tabs', { screen, params: { screen: 'ProfileHome' } });
       else navigation.popTo('Tabs', { screen });
     }
-  }, [auth.ready, auth.user, mode, navigation, route.params?.returnTab, route.params?.returnEvent, route.params?.returnProfile, route.params?.returnSafetyGroup, route.params?.returnOutings, route.params?.returnTicketTransfers, route.params?.returnEventNight, route.params?.returnScanner, route.params?.returnDashboard, route.params?.returnDashboardParams]);
+  }, [focused, auth.ready, auth.user, mode, navigation, route.params?.returnTab, route.params?.returnEvent, route.params?.returnProfile, route.params?.returnSafetyGroup, route.params?.returnOutings, route.params?.returnTicketTransfers, route.params?.returnEventNight, route.params?.returnScanner, route.params?.returnDashboard, route.params?.returnDashboardParams]);
   const go = (next: "login" | "register" | "forgot" | "reset") => {
     if (!pending.current && !auth.busy) navigation.setParams({ mode: next });
   };
@@ -254,6 +265,11 @@ export function AuthScreen({
         </>
       )}
       <FormScrollView
+        testID="auth-content"
+        scrollEnabled={mode !== 'login' || keyboardVisible}
+        bounces={mode !== 'login'}
+        alwaysBounceVertical={false}
+        disableScrollOnKeyboardHide={mode !== 'login'}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           flexGrow: 1,

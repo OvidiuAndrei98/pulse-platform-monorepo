@@ -21,12 +21,22 @@ export function usePressMotion(disabled = false) {
   return {
     style,
     pressIn: () => { if (!disabled&&!reduced) scale.value = withTiming(0.98, { duration: 85, easing: Easing.out(Easing.cubic) }); },
-    pressOut: () => { if(reduced)scale.value=1;else scale.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.cubic) }); },
+    pressOut: () => { if(disabled||reduced)scale.value=1;else scale.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.cubic) }); },
   };
 }
 
 /** Feedback only: Pressable still owns taps, cancellation and navigation timing. */
 export const MotionPressable = forwardRef<ViewInstance, MotionPressableProps>(function MotionPressable(
+  { static: staticPress = false, animatedStyle, ...props }, ref,
+) {
+  // Native Liquid Glass already owns this press. Do not allocate a second
+  // animation mapper/shared value, or start a redundant release animation.
+  if (staticPress) return <Pressable {...props} ref={ref}
+    style={state => [typeof props.style === 'function' ? props.style(state) : props.style, animatedStyle]} />;
+  return <AnimatedMotionPressable {...props} animatedStyle={animatedStyle} ref={ref} />;
+});
+
+const AnimatedMotionPressable = forwardRef<ViewInstance, MotionPressableProps>(function AnimatedMotionPressable(
   { style, animatedStyle, disabled, static: staticPress = false, onPressIn, onPressOut, ...props }, ref,
 ) {
   const motion = usePressMotion(Boolean(disabled) || staticPress);

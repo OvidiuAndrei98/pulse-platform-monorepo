@@ -2,21 +2,34 @@ import { MAIN_TAB_LABELS } from '@packages/app-core/navigation/mainTabs';
 import React, { useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { cancelAnimation, runOnJS, runOnUI, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue, withSequence, withSpring, withTiming, type DerivedValue, type SharedValue } from 'react-native-reanimated';
+import Animated, { cancelAnimation, runOnJS, runOnUI, useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring, type SharedValue } from 'react-native-reanimated';
 import { usePreferences } from '../usePreferences';
 import { ToastHost } from '../ui/ToastHost';
+import { useReducedMotionPreference } from '../ui/useReducedMotionPreference';
 import type { NativeTabBarProps } from './NativeTabBar';
 import { TabBarIcon } from './TabBarIcon';
 import { TabBarSurface } from './TabBarSurface';
 import { TabBarIndicatorSurface } from './TabBarIndicatorSurface';
-import { tabCapsuleFollowSpring, tabCapsuleImpactTiming, tabCapsulePickupSpring, tabCapsulePressSpring, tabCapsuleReleaseSpring, withTabTravel } from './tabCapsuleSpring';
+import { tabCapsuleFollowSpring, tabCapsulePickupSpring, tabCapsulePressSpring, tabCapsuleReleaseSpring, withTabTravel } from './tabCapsuleSpring';
 import { NavbarScrollContext, navbarCompactScale } from './useNavbarScroll';
-import { getTabCapsuleFrame, getTabCapsuleGeometry, tabBarInset, tabBarWidthFromSpacing } from './tabCapsuleGeometry';
+import { getTabCapsuleGeometry, tabBarInset, tabBarWidthFromSpacing } from './tabCapsuleGeometry';
+import { advanceTabMotion, idleTabMotion, startTabMotion, type TabMotionState } from './tabSynchronizedMotion';
 
 const labels = MAIN_TAB_LABELS;
 const edgeTravel = 8;
 const barInset = tabBarInset;
-const impactExtension = 8;
+
+const FixedTabIndicator = React.memo(function FixedTabIndicator({ motion, blobWidth, left }: {
+  motion: SharedValue<TabMotionState>; blobWidth: number; left: number;
+}) {
+  const indicatorStyle = useAnimatedStyle(() => {
+    const pose = motion.value.pose;
+    return { transform: [{ translateX: pose.indicatorX }, { scaleX: pose.indicatorScaleX }, { scaleY: pose.indicatorScaleY }] };
+  });
+  return <Animated.View testID="tab-indicator" pointerEvents="none" style={[s.indicator, { width: blobWidth, left }, indicatorStyle]}>
+    <TabBarIndicatorSurface />
+  </Animated.View>;
+});
 
 /** Increasing resistance keeps the capsule close to the glass at either end. */
 function resistedPosition(value: number, limit: number) {
@@ -26,34 +39,14 @@ function resistedPosition(value: number, limit: number) {
   return bound + excess * edgeTravel / (Math.abs(excess) + 32);
 }
 
-// Route/focus updates must not recreate the travelling indicator's mapper.
-// Background scenes follow the same position, ready for a seamless handoff.
-const FixedTabIndicator = React.memo(function FixedTabIndicator({ position, interaction, edgeResponse, edgeDirection, extension, blobWidth, left, limit }: {
-  position: SharedValue<number>; interaction: SharedValue<number>; edgeResponse: SharedValue<number>;
-  edgeDirection: SharedValue<number>; extension: DerivedValue<number>; blobWidth: number; left: number; limit: number;
-}) {
-  const motion = useAnimatedStyle(() => {
-    const frame = getTabCapsuleFrame(position.value, limit, blobWidth, interaction.value, edgeResponse.value, edgeDirection.value, extension.value);
-    return { transform: [
-      { translateX: frame.translateX },
-      { scaleX: frame.scaleX },
-      { scaleY: frame.scaleY },
-    ] };
-  });
-  return <Animated.View testID="tab-indicator" pointerEvents="none" style={[s.indicator, { width: blobWidth, left }, motion]}>
-    <TabBarIndicatorSurface />
-  </Animated.View>;
-});
-
 /** One glass navbar for Expo Go and installed builds; gestures stay on the UI thread. */
 export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = state.index, onSelectTab, indicatorMotion, interactionEnabled = true }: NativeTabBarProps) {
   const { copy } = usePreferences('copy');
+  const reducedMotion = useReducedMotionPreference();
   const [width, measure] = useState(0);
   const previousSpacing = useRef(0);
   const localPosition = useSharedValue(0);
   const localInteraction = useSharedValue(0);
-  const localEdgeResponse = useSharedValue(0);
-  const localEdgeDirection = useSharedValue(1);
   const localCompact = useSharedValue(0);
   const scrollController = useContext(NavbarScrollContext);
   const compact = scrollController?.compact ?? localCompact;
@@ -61,16 +54,13 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
   const position = indicatorMotion?.position ?? localPosition;
   const gestureCommand = indicatorMotion?.gestureCommand;
   const interaction = indicatorMotion?.interaction ?? localInteraction;
-  const edgeResponse = indicatorMotion?.edgeResponse ?? localEdgeResponse;
-  const edgeDirection = indicatorMotion?.edgeDirection ?? localEdgeDirection;
   const sharedMotion = Boolean(indicatorMotion);
   const origin = useSharedValue(0);
   const tracking = useSharedValue(false);
   const dragTarget = useSharedValue(0);
   const pickupOffset = useSharedValue(0);
-  const edgeSide = useSharedValue(0);
-  const impactOrigin = useSharedValue(0);
   const controlledIndex = useSharedValue(activeIndex);
+  const interactive = useSharedValue(interactionEnabled);
   const count = state.routes.length;
   const barWidth = width || tabBarWidthFromSpacing(indicatorMotion?.itemWidth ?? 0, count);
   const geometry = useMemo(() => getTabCapsuleGeometry(barWidth, count), [barWidth, count]);
@@ -78,6 +68,33 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
   // visual width. Route acknowledgements continue using the same coordinates.
   const itemWidth = geometry.spacing;
   const { limit, firstCenter } = geometry;
+  const motion = useSharedValue(idleTabMotion(0, geometry));
+  const begin = useCallback((target: number) => {
+    'worklet';
+    motion.value = startTabMotion(motion.value, position.value, target, geometry, performance.now());
+  }, [motion, position, geometry]);
+
+  // One raw-position sample publishes one complete pose. Route acknowledgements
+  // cannot restart a contact clock; there are no separate deformation springs.
+  useAnimatedReaction(
+    () => ({ x: position.value, held: tracking.value, grip: interaction.value, reduced: reducedMotion,
+      width: barWidth, spacing: itemWidth }),
+    current => {
+      motion.value = advanceTabMotion(motion.value, current.x, geometry, performance.now(), current.grip, current.held, current.reduced);
+    },
+  );
+
+  useLayoutEffect(() => {
+    runOnUI(() => {
+      interactive.value = interactionEnabled;
+      if (!interactionEnabled) {
+        tracking.value = false;
+        cancelAnimation(pickupOffset);
+        pickupOffset.value = 0;
+        interaction.value = withSpring(0, tabCapsuleReleaseSpring);
+      }
+    })();
+  }, [interactionEnabled, interactive, tracking, pickupOffset, interaction]);
 
   useLayoutEffect(() => {
     // Count/proportion changes need to update the shared route destinations
@@ -99,60 +116,28 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
         cancelAnimation(pickupOffset);
         pickupOffset.value = 0;
       }
+      if (resized) motion.value = idleTabMotion(position.value, geometry, performance.now());
+      else if ((!request || !request.pending) && motion.value.target !== activeIndex * itemWidth && !tracking.value) begin(activeIndex * itemWidth);
     })();
     // The provider owns a shared spring across stack scenes. A newly mounted
     // navbar joins it without resetting it or starting another animation.
     if (!sharedMotion) {
       const target = activeIndex * itemWidth;
-      position.value = resized ? target : withTabTravel(target);
+      runOnUI(() => {
+        if (resized) {
+          position.value = target;
+          motion.value = idleTabMotion(target, geometry, performance.now());
+        } else { begin(target); position.value = withTabTravel(target); }
+      })();
     }
     previousSpacing.current = itemWidth;
-  }, [activeIndex, itemWidth, width, sharedMotion, position, tracking, pickupOffset, controlledIndex, gestureCommand]);
+  }, [activeIndex, itemWidth, width, sharedMotion, position, tracking, pickupOffset, controlledIndex, gestureCommand, motion, geometry, begin]);
 
   // Ease the initial grip offset away, then keep following with a little weight.
   // Retargeting this UI-thread spring carries motion through quick reversals.
   useAnimatedReaction(
-    () => interactionEnabled && tracking.value ? dragTarget.value + pickupOffset.value : null,
+    () => interactive.value && tracking.value ? dragTarget.value + pickupOffset.value : null,
     value => { if (value !== null) position.value = withSpring(value, tabCapsuleFollowSpring); },
-  );
-
-  const bounceAtEdge = (strength: number, side: number) => {
-    'worklet';
-    edgeDirection.value = side;
-    edgeResponse.value = withSequence(
-      withTiming(strength, tabCapsuleImpactTiming),
-      withSpring(0, tabCapsuleReleaseSpring),
-    );
-  };
-
-  // Only a freely travelling capsule can impact the glass. Under a held finger
-  // the edge applies continuous resistance, without launching a recoil spring.
-  useAnimatedReaction(
-    () => interactionEnabled && itemWidth > 0 ? { position: position.value, tracking: tracking.value } : null,
-    (current, previous) => {
-      if (current === null) return;
-      const value = current.position;
-      if (current.tracking) {
-        const side = value <= 3 ? -1 : value >= limit - 3 ? 1 : 0;
-        if (side) {
-          edgeSide.value = side;
-          edgeDirection.value = side;
-        } else if (value > 9 && value < limit - 9) edgeSide.value = 0;
-        return;
-      }
-      if (previous === null) {
-        edgeSide.value = value <= 3 ? -1 : value >= limit - 3 ? 1 : 0;
-        return;
-      }
-      // Contact also happens when the spring arrives without overshooting.
-      // Ignore departure from an end and latch contact through the recoil.
-      const side = value <= 3 && value < previous.position ? -1
-        : value >= limit - 3 && value > previous.position ? 1 : 0;
-      if (side && side !== edgeSide.value) {
-        edgeSide.value = side;
-        bounceAtEdge(Math.min(1, Math.max(0.18, Math.abs(value - impactOrigin.value) / Math.max(itemWidth, limit))), side);
-      } else if (value > 9 && value < limit - 9) edgeSide.value = 0;
-    },
   );
 
   const selection = useRef({ state, navigation, onSelectTab, activeIndex, interactionEnabled });
@@ -175,22 +160,27 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
       accepted = !event.defaultPrevented;
       if (index !== activeIndex && accepted) navigation.navigate(route.name, route.params);
     }
-    if (!accepted || !animatedOnUI) position.value = withTabTravel((accepted ? index : activeIndex) * itemWidth);
-  }, [compact, onBarTouch, itemWidth, position]);
+    if (!accepted || !animatedOnUI) {
+      const target = (accepted ? index : activeIndex) * itemWidth;
+      runOnUI(() => { begin(target); position.value = withTabTravel(target); })();
+    }
+  }, [compact, onBarTouch, itemWidth, position, begin]);
 
-  const pan = useMemo(() => Gesture.Pan().enabled(interactionEnabled && itemWidth > 0).maxPointers(1)
+  // Covering Tabs with a native page only gates input. Reinstalling recognizers
+  // and animation mappers on every push/pop interrupts the same physical bar.
+  const pan = useMemo(() => Gesture.Pan().enabled(itemWidth > 0).maxPointers(1)
     .activeOffsetX([-4, 4]).failOffsetY([-8, 8])
     .onBegin(() => {
+      if (!interactive.value) return;
       compact.value = withSpring(0, tabCapsulePressSpring);
       if (onBarTouch) runOnJS(onBarTouch)();
-      impactOrigin.value = position.value;
-      interaction.value = withSpring(1, tabCapsulePressSpring);
-      edgeResponse.value = withSpring(0, tabCapsuleReleaseSpring);
     })
     .onStart(event => {
+      if (!interactive.value) return;
+      // BEGAN also runs for ordinary tab taps. Enlarge only after the pan
+      // becomes an actual drag, so tap-driven travel keeps its resting size.
+      interaction.value = withSpring(1, tabCapsulePressSpring);
       cancelAnimation(position);
-      cancelAnimation(edgeResponse);
-      edgeResponse.value = 0;
       // Read the displayed location when picking up an in-flight bounce.
       position.value = Math.min(limit + edgeTravel, Math.max(-edgeTravel, position.value));
       cancelAnimation(pickupOffset);
@@ -198,7 +188,6 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
       origin.value = physicalStart - firstCenter;
       dragTarget.value = resistedPosition(origin.value + event.translationX, limit);
       pickupOffset.value = position.value - dragTarget.value;
-      edgeSide.value = 0;
       tracking.value = true;
       if (pickupOffset.value) pickupOffset.value = withSpring(0, tabCapsulePickupSpring);
     })
@@ -211,6 +200,7 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
       tracking.value = false;
       cancelAnimation(pickupOffset);
       if (!success) {
+        begin(controlledIndex.value * itemWidth);
         position.value = withTabTravel(controlledIndex.value * itemWidth);
         return;
       }
@@ -219,6 +209,7 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
       const request = gestureCommand?.value;
       const gestureId = request ? request.id + 1 : undefined;
       if (gestureCommand && request) gestureCommand.value = { ...request, id: gestureId!, index, pending: true };
+      begin(index * itemWidth);
       position.value = withTabTravel(index * itemWidth);
       runOnJS(select)(index, true, gestureId);
     })
@@ -227,49 +218,38 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
       if (!tracking.value) return;
       tracking.value = false;
       cancelAnimation(pickupOffset);
+      begin(controlledIndex.value * itemWidth);
       position.value = withTabTravel(controlledIndex.value * itemWidth);
-    }), [interactionEnabled, itemWidth, firstCenter, limit, count, onBarTouch, select, position, compact, impactOrigin, interaction, edgeResponse, pickupOffset, tracking, origin, dragTarget, edgeSide, controlledIndex, gestureCommand]);
+    }), [interactive, itemWidth, firstCenter, limit, count, onBarTouch, select, position, compact, interaction, pickupOffset, tracking, origin, dragTarget, controlledIndex, gestureCommand, begin]);
   // Each tab owns its tap recognizer. A whole-bar Tap treats overlapping
   // contacts on different tabs as one unfinished gesture on iOS, swallowing
   // rapid alternations before they ever reach the navigation queue.
   const taps = useMemo(() => Array.from({ length: count }, (_, index) =>
-    Gesture.Tap().enabled(interactionEnabled && itemWidth > 0).maxDuration(10000)
+    Gesture.Tap().enabled(itemWidth > 0).maxDuration(10000)
     .requireExternalGestureToFail(pan)
     .onEnd((_event, success) => {
-      if (!success) return;
+      if (!success || !interactive.value) return;
       const target = index * itemWidth;
       const distanceInTabs = Math.abs(target - position.value) / itemWidth;
       const request = gestureCommand?.value;
       const gestureId = request ? request.id + 1 : undefined;
       if (gestureCommand && request) gestureCommand.value = { ...request, id: gestureId!, index, pending: true };
+      begin(target);
       position.value = withTabTravel(target, distanceInTabs);
       runOnJS(select)(index, true, gestureId);
-    })), [interactionEnabled, itemWidth, count, select, position, gestureCommand, pan]);
-  // Dragging still belongs to the whole bar. Every tap waits for that pan to
-  // fail, so releasing a drag cannot also select its starting tab.
-  // Every scene displays the same travelling position for native handoffs;
-  // only the foreground scene's reactions write the shared edge response.
-  const glassExtension = useDerivedValue(() => {
-    const overflow = Math.max(0, -position.value, position.value - limit);
-    const heldPressure = tracking.value ? Math.min(1, overflow / edgeTravel) * 3 : 0;
-    const distance = edgeDirection.value < 0 ? position.value : limit - position.value;
-    const contact = Math.max(0, 1 - Math.max(0, distance) / 12);
-    const impact = edgeResponse.value * impactExtension * contact;
-    return heldPressure > 0 ? Math.max(heldPressure, impact) : impact;
-  });
-  // Keep Fabric layout fixed throughout motion. Transform the glass toward
-  // the contacted edge and compensate its content, leaving icons stationary.
+    })), [interactive, itemWidth, count, select, position, gestureCommand, pan, begin]);
+  // All transform mappers read the exact same published frame.
   const barSize = { width: itemWidth > 0 ? barWidth : '100%' } as const;
   const barMotion = useAnimatedStyle(() => ({ transform: [
-    { translateX: edgeDirection.value * glassExtension.value / 2 },
-    { scaleX: barWidth > 0 ? 1 + glassExtension.value / barWidth : 1 },
-    { scaleY: 1 - edgeResponse.value * 0.006 },
+    { translateX: motion.value.pose.barX },
+    { scaleX: motion.value.pose.barScaleX },
+    { scaleY: motion.value.pose.barScaleY },
   ] }));
   const trackMotion = useAnimatedStyle(() => ({
     transform: [
-      { translateX: barWidth > 0 ? -edgeDirection.value * glassExtension.value / (2 * (1 + glassExtension.value / barWidth)) : 0 },
-      { scaleX: barWidth > 0 ? 1 / (1 + glassExtension.value / barWidth) : 1 },
-      { scaleY: 1 / (1 - edgeResponse.value * 0.006) },
+      { translateX: motion.value.pose.trackX },
+      { scaleX: motion.value.pose.trackScaleX },
+      { scaleY: motion.value.pose.trackScaleY },
     ],
   }));
   const compactMotion = useAnimatedStyle(() => ({ transform: [
@@ -287,8 +267,7 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
           <Animated.View testID="tab-bar-motion" style={[barSize, barMotion]}>
             <TabBarSurface testID="tab-bar" style={s.bar}>
               <Animated.View testID="tab-track" collapsable={false} style={[s.track, { width: itemWidth > 0 ? geometry.trackWidth : '100%' }, trackMotion]}>
-                {itemWidth > 0 && <FixedTabIndicator position={position} interaction={interaction} edgeResponse={edgeResponse}
-                  edgeDirection={edgeDirection} extension={glassExtension} blobWidth={geometry.blobWidth} left={geometry.blobLeft} limit={limit} />}
+                {itemWidth > 0 && <FixedTabIndicator motion={motion} blobWidth={geometry.blobWidth} left={geometry.blobLeft} />}
                 {/* Account changes reset the Profile screen's route key, not
                     its physical button or recognizer in this persistent bar. */}
                 {state.routes.map((route, index) => <GestureDetector key={route.name} gesture={taps[index]!}>

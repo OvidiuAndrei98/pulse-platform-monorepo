@@ -14,7 +14,7 @@ import styles from "./connectionSheet.module.css";
 
 type Mode = "code" | "scan";
 
-export function ProfileConnectionQr() {
+export function ProfileConnectionQr({compact=false}:{compact?:boolean}={}) {
   const { user } = useDataProvider();
   const { t } = useTranslation();
   const [showCode, setShowCode] = useState(false);
@@ -115,9 +115,10 @@ export function ProfileConnectionQr() {
   </div>;
 
   return (
-    <section className="rounded-[26px] border border-white/10 bg-white/[0.03] p-4">
+    <section className={compact?'contents':'rounded-[26px] border border-white/10 bg-white/[0.03] p-4'}>
+      {compact&&<button type="button" aria-label={t('qr.quickConnect')} onClick={openSheet} className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#19191c] text-white"><QrCode className="h-5 w-5"/></button>}
       {/* Layout adaptativ vertical (flex-col) care trece pe orizontal doar pe ecrane mari (xl:flex-row) */}
-      <div className="flex flex-col items-start gap-4 xl:flex-row xl:items-center xl:justify-between">
+      {!compact&&<div className="flex flex-col items-start gap-4 xl:flex-row xl:items-center xl:justify-between">
         {/* Container Iconita + Text */}
         <div className="flex items-start gap-3 text-left">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
@@ -141,9 +142,9 @@ export function ProfileConnectionQr() {
         >
           {t("qr.myCode")}
         </button>
-      </div>
+      </div>}
 
-      {message && <p className="mt-3 text-xs text-primary">{message}</p>}
+      {!compact&&message && <p className="mt-3 text-xs text-primary">{message}</p>}
 
       {isDesktop ? (presented && createPortal(
         <div ref={desktopViewportRef} className={styles.desktopOverlay} onClick={closeSheet}>

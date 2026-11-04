@@ -19,15 +19,17 @@ export function EventCard({
   onOpen,
   wide = false,
   promoted = false,
+  live: liveOverride,
 }: {
   event: Event;
   onOpen: () => void;
   wide?: boolean;
   promoted?: boolean;
+  live?: boolean;
 }) {
   const { language, copy } = usePreferences('copy');
   const motion = usePressMotion();
-  const live = isLive(event);
+  const live = liveOverride ?? isLive(event);
   const time = live
     ? new Intl.DateTimeFormat(language, {
         timeZone: "Europe/Bucharest",

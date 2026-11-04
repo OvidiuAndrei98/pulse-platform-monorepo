@@ -26,7 +26,7 @@ import { formatToDatetimeLocal } from "@packages/app-core/events/dateTimeValues"
 
 /** Keep bearer credentials and session-keyed remounting inside the account adapter. */
 export function AccountScannerManagement(props: Omit<Parameters<typeof ScannerManagement>[0], 'token'>) {
-  const {controller}=useAuth();
+  const {controller}=useAuth('account');
   const token=controller.getToken();
   return token?<ScannerManagement key={props.event.id+':'+token} {...props} token={token}/>:null;
 }
@@ -41,7 +41,7 @@ export function ScannerManagement({
   section: "team" | "links";
 }) {
   const { copy, language } = usePreferences(),
-    { controller, user } = useAuth(),
+    { controller, user } = useAuth('account'),
     { width } = useWindowDimensions(),
     [email, setEmail] = useState(""),
     [label, setLabel] = useState("Gate 1"),

@@ -136,7 +136,7 @@ export function WardrobeScreen({
   route?: { params?: { staff?: boolean } };
   embedded?: boolean;
 }) {
-  const {user:sessionUser}=useAuth(),operatorOnly=operatorAccount(sessionUser?.role);
+  const {user:sessionUser}=useAuth('account'),operatorOnly=operatorAccount(sessionUser?.role);
   const [staffChoice, setStaff] = useState(embedded || !!route?.params?.staff),staff=operatorOnly||staffChoice;
   const { store, state, user, active } = useWardrobe(staff),
     { language } = usePreferences(),

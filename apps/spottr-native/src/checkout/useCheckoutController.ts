@@ -38,7 +38,7 @@ import { Props } from "./useCheckoutController.contracts";
 export function useCheckoutController({ route, navigation }: Props) {
 
   const { eventId, ticketTypeId } = route.params;
-  const { user, controller, ready } = useAuth(), { copy, language } = usePreferences(), safe = useSafeAreaInsets();
+  const { user, controller, ready } = useAuth('account'), { copy, language } = usePreferences(), safe = useSafeAreaInsets();
   const query = useEvent(eventId), event = query.data, now = useEventClock(event), promo = usePromoCode(eventId);
   const [quantities, setQuantities] = useState<Quantities>({ [ticketTypeId]: 1 });
   const [step, setStep] = useState(0), [furthest, setFurthest] = useState(0);

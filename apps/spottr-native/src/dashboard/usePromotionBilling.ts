@@ -12,7 +12,7 @@ import {
 import type { OrganizerProfile } from "./data";
 
 export function usePromotionBilling(profile?: OrganizerProfile) {
-  const { user, controller } = useAuth();
+  const { user, controller } = useAuth('account');
   const [details, setDetails] = useState(emptyPromotionBillingDetails);
   const [saved, setSaved] = useState<PromotionBillingDetails | null>(null);
   const [source, setSource] = useState<"saved" | "new">("new");

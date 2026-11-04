@@ -29,7 +29,7 @@ import { adminSection, adminLabel } from '@packages/app-core/admin/navigation';
 import { queryClient } from '../data/queries';
 
 export function AdminScreen() {
-  const route = useRoute<any>(), {user,controller}=useAuth(), {language}=usePreferences('copy');
+  const route = useRoute<any>(), {user,controller}=useAuth('account'), {language}=usePreferences('copy');
   const section=adminSection(route.params?.section), organizerId=typeof route.params?.organizerId==='string'?route.params.organizerId:undefined;
   useEffect(()=>{if(user?.role!=='admin')queryClient.removeQueries({predicate:query=>String(query.queryKey[0]).startsWith('admin-')||query.queryKey[0]==='client-errors'});},[user?.role,user?.id]);
   if(user?.role!=='admin'||!controller.getToken())return <SafeAreaView edges={['top']} style={{flex:1,paddingHorizontal:20}}><Feedback title={language==='ro'?'Acces rezervat administratorilor':'Administrator access required'}/></SafeAreaView>;

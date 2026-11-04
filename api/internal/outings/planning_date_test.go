@@ -16,7 +16,7 @@ func TestEmbeddedPlanningTimezoneAndDST(t *testing.T) {
 		}
 	}
 	now := time.Date(2026, time.November, 2, 22, 30, 0, 0, time.UTC)
-	if !validPlanningDate("2026-11-03", now) || validPlanningDate("2026-11-02", now) {
-		t.Fatal("date validation must use Romania calendar day")
+	if !validPlanningDate("2026-11-03", now) || validPlanningDate("2026-11-01", now) {
+		t.Fatal("date validation must use Romania nightlife day")
 	}
 }

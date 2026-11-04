@@ -21,6 +21,7 @@ export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, 
   const [camera, setCamera] = useState({ center: cityCenter ?? DEFAULT_CENTER, zoom: 12 });
   const [selected, setSelected] = useState<string | null>(null), [point, setPoint] = useState<Point | null>(null), [previewHeight, setPreviewHeight] = useState(150);
   const [locating, setLocating] = useState(false), [locationError, setLocationError] = useState('');
+  const [mapFailed, setMapFailed] = useState(false), [mapAttempt, setMapAttempt] = useState(0);
   const viewport = useRef(camera), generation = useRef(0), pending = useRef(false);
   const dimensions = useWindowDimensions(), [width, setWidth] = useState(dimensions.width);
   const [railHeight,setRailHeight]=useState(148),[collapsed,setCollapsed]=useState(false);
@@ -66,7 +67,7 @@ export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, 
   const changeZoom = (delta: number) => setCamera({ center: viewport.current.center, zoom: Math.max(3, Math.min(20, viewport.current.zoom + delta)) });
   const event = events.find(row => row.id === selected), previewWidth = Math.min(width - 32, width >= 768 ? 320 : 304);
   return <View testID="events-map-panel" onLayout={e => setWidth(e.nativeEvent.layout.width)} style={{ flex: 1, overflow: 'hidden', backgroundColor: '#030604' }}>
-    <EventMap events={mapEvents} center={camera.center} zoom={camera.zoom} location={location} selected={carousel ? activeId : selected}
+    <EventMap key={mapAttempt} onErrorChange={setMapFailed} events={mapEvents} center={camera.center} zoom={camera.zoom} location={location} selected={carousel ? activeId : selected}
       onSelect={id => { setSelected(id); setPoint(null);setCollapsed(false); }}
       onViewport={(center, zoom) => { viewport.current = { center, zoom }; }}
       onSelectedPoint={carousel ? () => {} : setPoint}
@@ -84,8 +85,12 @@ export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, 
         <LocateFixed size={18} color="white" />
       </GlassPressable>
     </GlassButtonGroup>
-    {(loading || locating) && <ActivityIndicator color={colors.accent} style={{ position: 'absolute', top: controlTop + 56, left: 20 }} />}
-    {(error || locationError) && <View style={{ position: 'absolute', left: 16, right: 72, top: controlTop + 80, backgroundColor: '#121418f2', borderRadius: 12 }}><Feedback compact title={copy(error ? 'feedback.loadFailed' : locationError)} retry={error ? retry : () => void locate()} /></View>}
+    {(loading || locating) && !(mapFailed || error || locationError) && <ActivityIndicator color={colors.accent} style={{ position: 'absolute', top: controlTop + 56, left: 20 }} />}
+    {Boolean(mapFailed || error || locationError) && <View testID="map-status-notice" pointerEvents="box-none" style={[s.notice, { top: controlTop }]}>
+      <Feedback compact title={copy(mapFailed ? 'eventMap.loadFailed' : error ? 'eventMap.eventsUnavailable' : locationError)}
+        busy={!mapFailed && (error ? loading : locating)}
+        retry={mapFailed ? () => { setMapFailed(false); setPoint(null); setCamera({ ...viewport.current }); setMapAttempt(value => value + 1); } : error ? retry : () => void locate()} />
+    </View>}
     {!carousel && event && point && <View testID="map-event-preview" onLayout={e => setPreviewHeight(e.nativeEvent.layout.height)} style={[s.preview, { width: previewWidth, left: point.x - previewWidth / 2, top: point.y - previewHeight - 45 }]}>
       <Pressable accessibilityRole="button" accessibilityLabel={copy('common.close')} onPress={() => setSelected(null)} style={s.close}><X size={14} color="#d4d4d8" /></Pressable>
       <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -114,6 +119,7 @@ export function EventsMapPanel({ events, cityCenter, distance, onOpen, loading, 
   </View>;
 }
 const s = StyleSheet.create({
+  notice: { position: 'absolute', left: 16, right: 76, maxWidth: 420 },
   control: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#121418ed', borderWidth: 1, borderColor: '#ffffff26', alignItems: 'center', justifyContent: 'center' },
   zoomCapsule: { width: 44, height: 88, borderRadius: 22, backgroundColor: '#121418ed', borderWidth: 1, borderColor: '#ffffff26', alignItems: 'center', justifyContent: 'center' },
   zoomControl: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },

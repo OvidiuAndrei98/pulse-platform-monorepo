@@ -52,7 +52,9 @@ export function useEvents(filters: EventFilters = {}, enabled = true) {
   const query = useInfiniteQuery({ ...eventQueryOptions(filters), enabled });
   const items = useMemo(() => mergePages(query.data?.pages), [query.data?.pages]);
   return {
-    ...query,
+    // Preserve TanStack's property tracking. Spreading this result subscribes
+    // every consumer to isFetching/isStale even when it only displays rows.
+    query,
     items,
     loadMore: () => {
       if (query.hasNextPage && !query.isFetching && !query.isFetchNextPageError)

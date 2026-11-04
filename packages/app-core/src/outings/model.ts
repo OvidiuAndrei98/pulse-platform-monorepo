@@ -6,7 +6,7 @@ export type OutingPlan = components['schemas']['OutingPlan'];
 export type TicketTransfer = components['schemas']['TicketTransfer'];
 export type PlanDraft = components['schemas']['CreateOutingPlan'];
 export type PlanEvent = { id: string; title: string; startTime: string; endTime: string; locationName: string; city: string };
-export type PlanFriend = { id: string; username: string };
+export type PlanFriend = { id: string; username: string; avatarUrl?:string };
 export type OutingsRequest = <T>(path: string, method: 'GET' | 'POST', body?: unknown, signal?: AbortSignal) => Promise<T>;
 export type OutingsState = {
   plans: OutingPlan[]; transfers: TicketTransfer[];
@@ -18,16 +18,28 @@ export const isOutingId = (value: unknown): value is string => typeof value === 
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 const date = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value));
 function invalid(): never { throw new Error('INVALID_RESPONSE'); }
+const answers=['yes','maybe','no'];
+function validReactions(value:unknown):boolean {
+  return Array.isArray(value)&&value.length<=8&&value.every(r=>record(r)&&isOutingId(r.userId)&&answers.includes(String(r.answer)))&&new Set(value.map(r=>r.userId)).size===value.length;
+}
+function validPlanningData(p:Record<string,unknown>) {
+  if(p.revision!==undefined&&(!Number.isSafeInteger(p.revision)||Number(p.revision)<1)||p.decisionAt!==undefined&&!date(p.decisionAt)||p.meetingAt!==undefined&&!date(p.meetingAt)||p.meetingPoint!==undefined&&(typeof p.meetingPoint!=='string'||p.meetingPoint.length>160))return false;
+  if(p.myBudgetRon!==undefined&&(typeof p.myBudgetRon!=='number'||!Number.isFinite(p.myBudgetRon)||p.myBudgetRon<0)||p.budgetCount!==undefined&&(!Number.isInteger(p.budgetCount)||Number(p.budgetCount)<0||Number(p.budgetCount)>8))return false;
+  if(p.candidateDates!==undefined&&(!Array.isArray(p.candidateDates)||p.candidateDates.length>3||!p.candidateDates.every(d=>record(d)&&validCalendarDay(d.date)&&validReactions(d.responses))))return false;
+  if(p.previousEvents!==undefined&&(!Array.isArray(p.previousEvents)||!p.previousEvents.every(e=>record(e)&&isOutingId(e.eventId)&&typeof e.title==='string'&&date(e.changedAt))))return false;
+  return true;
+}
 export function parsePlans(value: unknown): OutingPlan[] {
   if (!Array.isArray(value)) return invalid();
   for (const p of value) {
     if (!record(p) || !isOutingId(p.id) || !isOutingId(p.ownerId) || typeof p.title !== 'string' || !date(p.expiresAt) || !['pending', 'accepted'].includes(String(p.status)) ||
       p.chosenEventId !== undefined && !isOutingId(p.chosenEventId) || !Array.isArray(p.members) || !Array.isArray(p.options)) return invalid();
-    if(p.outingDate!==undefined&&!validCalendarDay(p.outingDate)||p.city!==undefined&&(typeof p.city!=='string'||p.city.length>80))return invalid();
-    for (const m of p.members) if (!record(m) || !isOutingId(m.userId) || typeof m.username !== 'string' || !['pending', 'accepted'].includes(String(m.status)) || m.voteEventId !== undefined && !isOutingId(m.voteEventId) || m.hasTicket!==undefined&&typeof m.hasTicket!=='boolean') return invalid();
+    if(!validPlanningData(p)||p.outingDate!==undefined&&!validCalendarDay(p.outingDate)||p.city!==undefined&&(typeof p.city!=='string'||p.city.length>80))return invalid();
+    for (const m of p.members) if (!record(m) || !isOutingId(m.userId) || typeof m.username !== 'string' || !['pending', 'accepted'].includes(String(m.status)) || m.voteEventId !== undefined && !isOutingId(m.voteEventId) || m.hasTicket!==undefined&&typeof m.hasTicket!=='boolean' ||
+      m.hasPreviousTicket!==undefined&&typeof m.hasPreviousTicket!=='boolean'||m.avatarUrl!==undefined&&typeof m.avatarUrl!=='string'||m.arrivalStatus!==undefined&&!['not_set','leaving_soon','on_way','arrived','not_coming'].includes(String(m.arrivalStatus))) return invalid();
     for (const o of p.options) if (!record(o) || !isOutingId(o.eventId) || typeof o.title !== 'string' || typeof o.location !== 'string' || !date(o.startTime) || typeof o.available !== 'boolean' ||
       o.proposedBy!==undefined&&!isOutingId(o.proposedBy)||o.priceRon!==undefined&&(typeof o.priceRon!=='number'||!Number.isFinite(o.priceRon)||o.priceRon<0)||
-      o.ticketAvailability!==undefined&&!['on_sale','upcoming','sold_out','sales_ended','external','unavailable'].includes(String(o.ticketAvailability))) return invalid();
+      o.ticketAvailability!==undefined&&!['on_sale','upcoming','sold_out','sales_ended','external','unavailable'].includes(String(o.ticketAvailability))||o.reactions!==undefined&&!validReactions(o.reactions)||o.totalPriceRon!==undefined&&(typeof o.totalPriceRon!=='number'||!Number.isFinite(o.totalPriceRon)||o.totalPriceRon<0)) return invalid();
   }
   return value as OutingPlan[];
 }
@@ -39,11 +51,22 @@ export function parseTransfers(value: unknown): TicketTransfer[] {
   return value as TicketTransfer[];
 }
 export function planVoteCount(plan: OutingPlan, eventId: string): number {
-  return plan.members.filter(m => m.status === 'accepted' && m.voteEventId === eventId).length;
+  const reactions=plan.options.find(option=>option.eventId===eventId)?.reactions;
+  return plan.members.filter(m => m.status === 'accepted' && (reactions?reactions.some(r=>r.userId===m.userId&&r.answer==='yes'):m.voteEventId===eventId)).length;
 }
-export { productToday as planningToday };
+export function planningToday(now=new Date()) {
+  const day=productToday(now),hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Bucharest',hour:'2-digit',hourCycle:'h23'}).format(now));
+  return hour<6?shiftCalendarDay(day,-1):day;
+}
+export function planningBoundary(day:string) {
+  // Six o'clock is outside the Romanian DST transition. Determine the offset at noon.
+  const probe=new Date(day+'T12:00:00Z');
+  const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Bucharest',hour:'2-digit',hourCycle:'h23'}).format(probe));
+  const offset=hour-12;
+  return new Date(Date.parse(day+'T06:00:00Z')-offset*3600000).toISOString();
+}
 export function validPlanningDate(value: string, now=new Date()): boolean {
-  const today=productToday(now);
+  const today=planningToday(now);
   return validCalendarDay(value)&&value>=today&&value<=shiftCalendarDay(today,365);
 }
 export function canCreatePlan(title:string,day:string,city:string,friends:readonly string[]):boolean {
@@ -51,7 +74,7 @@ export function canCreatePlan(title:string,day:string,city:string,friends:readon
     friends.length>=1&&friends.length<=7&&new Set(friends).size===friends.length&&friends.every(isOutingId);
 }
 export function matchesPlanningContext(event:PlanEvent,context:{outingDate?:string;city?:string}) {
-  return !!context.outingDate&&event.city.toLowerCase()===context.city?.toLowerCase()&&productToday(new Date(event.startTime))===context.outingDate;
+  return !!context.outingDate&&event.city.toLowerCase()===context.city?.toLowerCase()&&planningToday(new Date(event.startTime))===context.outingDate;
 }
 export function canOfferTransfer(ticket: {isValidated: boolean; startTime: string; endTime: string}, now = Date.now()): boolean {
   return !ticket.isValidated && Date.parse(ticket.startTime) > now && Date.parse(ticket.endTime) > now;
@@ -63,6 +86,7 @@ export function outingFailure(cause: unknown): string {
   const value = cause as {code?: string; message?: string; status?: number};
   if (value?.status === 401 || value?.status === 403) return 'outings.sessionEnded';
   const code = `${value?.code ?? ''} ${value?.message ?? ''}`;
+  for (const [code,key] of Object.entries({VOTING_CLOSED:'closed',INVALID_DEADLINE:'invalidDeadline',DATE_DECIDED:'dateLocked',PLAN_CHANGED:'stale',INVALID_BUDGET:'invalidBudget',INVALID_MEETING:'invalidMeeting'})) if(`${value?.code??''} ${value?.message??''}`.includes(code))return 'outings.plan.'+key;
   for (const key of ['TRANSFER_WINDOW_CLOSED','TRANSFER_PENDING','TRANSFER_CLOSED','TICKET_NOT_TRANSFERABLE','RECIPIENT_UNAVAILABLE','REQUEST_REUSED','EVENT_UNAVAILABLE','PLAN_DECIDED','INVITATION_CLOSED','FRIEND_UNAVAILABLE','INVALID_PLAN_CONTEXT','PROPOSAL_LIMIT']) {
     if (code.includes(key)) return 'outings.errors.' + key;
   }
@@ -85,14 +109,23 @@ export class OutingsStore {
   private publish(patch: Partial<OutingsState>) { if(this.disposed || !this.current())return;this.state={...this.state,...patch};this.listeners.forEach(fn=>fn()); }
   private active = () => !this.disposed && this.current();
   activate() {this.disposed=false;this.publish({working:false,refreshing:false,catalogPending:false});}
+  async loadFriends() {
+    if(!this.active())return;
+    this.catalog?.abort();const request=this.catalog=new AbortController();this.publish({catalogPending:true});
+    try{const friends=await this.request<unknown>('/friends','GET',undefined,request.signal);
+      if(!Array.isArray(friends))invalid();
+      if(this.active()&&!request.signal.aborted)this.publish({friends:friends.filter((f):f is PlanFriend=>record(f)&&isOutingId(f.id)&&typeof f.username==='string'),error:null});
+    }catch(cause){if(this.active()&&!request.signal.aborted)this.publish({error:outingFailure(cause)});}
+    finally{if(this.catalog===request){this.catalog=undefined;this.publish({catalogPending:false});}}
+  }
   async searchEvents(query='',page=1,context?:{outingDate?:string;city?:string}) {
     if(!this.active())return;
     this.catalog?.abort();const request=this.catalog=new AbortController();this.publish({catalogPending:true});
     const params=new URLSearchParams({q:query.trim().slice(0,120),page:String(page)});
     if(context?.city)params.set('city',context.city);
     if(context?.outingDate&&validCalendarDay(context.outingDate)){
-      params.set('startsAfter',productMidnight(context.outingDate));
-      params.set('startsBefore',productMidnight(shiftCalendarDay(context.outingDate,1)));
+      params.set('startsAfter',planningBoundary(context.outingDate));
+      params.set('startsBefore',planningBoundary(shiftCalendarDay(context.outingDate,1)));
     }
     try {
       const [events,friends]=await Promise.all([
@@ -126,7 +159,8 @@ export class OutingsStore {
     if(!id){id=this.newId();this.keys.set(fingerprint,id);}return id;
   }
   createPlan(draft: Omit<PlanDraft,'requestId'>) {
-    if(!canCreatePlan(draft.title,draft.outingDate,draft.city,draft.friendIds))return Promise.resolve(undefined);
+    const days=draft.candidateDates??[draft.outingDate??''];
+    if(days.length<1||days.length>3||new Set(days).size!==days.length||!days.every(day=>canCreatePlan(draft.title,day,draft.city,draft.friendIds)))return Promise.resolve(undefined);
     return this.mutate<OutingPlan>('/outings/plans',{...draft,requestId:this.requestId('plan',draft)});
   }
   propose(id:string,eventId:string) {return isOutingId(id)&&isOutingId(eventId)?this.mutate('/outings/plans/'+id+'/proposals',{eventId}):Promise.resolve(undefined);}
@@ -139,7 +173,21 @@ export class OutingsStore {
     }catch(cause){if(this.active()&&version===this.revision)this.publish({error:outingFailure(cause)});}
   }
   respondPlan(id:string,status:'accepted'|'declined') {return isOutingId(id)?this.mutate('/outings/plans/'+id+'/respond',{status}):Promise.resolve(undefined);}
-  vote(id:string,eventId:string) {return isOutingId(id)&&isOutingId(eventId)?this.mutate('/outings/plans/'+id+'/vote',{eventId}):Promise.resolve(undefined);}
+  vote(id:string,eventId:string,answer?:'yes'|'maybe'|'no') {return isOutingId(id)&&isOutingId(eventId)?this.mutate('/outings/plans/'+id+'/vote',{eventId,answer}):Promise.resolve(undefined);}
+  updatePlan(id:string,action:'availability'|'date'|'preferences'|'deadline'|'reopen'|'meeting'|'arrival',body:unknown) {return isOutingId(id)?this.mutate('/outings/plans/'+id+'/'+action,body):Promise.resolve(undefined);}
+  watchPlan(id:string) {
+    const request=new AbortController();let stopped=false;
+    const run=async()=>{while(!stopped&&this.active()){
+      const revision=this.state.plans.find(plan=>plan.id===id)?.revision??0;
+      try{const change=await this.request<{changed:boolean}>('/outings/plans/'+id+'/changes?revision='+revision,'GET',undefined,request.signal);
+        if(!record(change)||typeof change.changed!=='boolean')invalid();
+        if(stopped||request.signal.aborted)return;
+        // Refresh ticket/price data on timeout too; financial changes are independent of the group vote.
+        if(change.changed||!this.write)await this.loadPlan(id);
+      }catch{if(stopped||request.signal.aborted)return;await new Promise<void>(resolve=>setTimeout(resolve,5000));}
+    }};
+    void run();return()=>{stopped=true;request.abort();};
+  }
   choose(id:string,eventId:string) {return isOutingId(id)&&isOutingId(eventId)?this.mutate('/outings/plans/'+id+'/choose',{eventId}):Promise.resolve(undefined);}
   createTransfer(ticketId:string,recipientEmail:string) {
     if(!isOutingId(ticketId))return Promise.resolve(undefined);

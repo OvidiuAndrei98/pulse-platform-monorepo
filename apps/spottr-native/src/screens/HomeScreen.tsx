@@ -59,6 +59,7 @@ function distance(lat: number, lon: number, event: Event) {
 /** Focus gates network work without rebuilding the whole Home on each tab tap. */
 function HomeActivity() {
   const focused = useIsFocused();
+  const { user, ready } = useAuth('account');
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   // Prepare native inputs, recent searches and image views before the push.
   // A visited screen is never demoted to preloaded (RNScreens forbids 2 → 0).
@@ -68,12 +69,17 @@ function HomeActivity() {
       let root = navigation;
       for (let parent = root.getParent<typeof navigation>(); parent; parent = root.getParent<typeof navigation>()) root = parent;
       const state = root.getState();
-      if (!state.routeNames.includes('Search') || state.routes.some(route => route.name === 'Search')
-        || state.preloadedRoutes.some(route => route.name === 'Search')) return;
-      root.preload('Search');
+      for (const name of ready && !user ? ['Search', 'Auth'] as const : ['Search'] as const) {
+        if (!state.routeNames.includes(name) || state.routes.some(route => route.name === name)
+          || state.preloadedRoutes.some(route => route.name === name)) continue;
+        // The actual opening supplies its own destination (Profile, tickets,
+        // safety, etc.); preparation must not leak a default return route.
+        if (name === 'Auth') root.preload('Auth');
+        else root.preload('Search');
+      }
     });
     return () => cancelIdleCallback(idle);
-  }, [focused, navigation]);
+  }, [focused, navigation, ready, user?.id]);
   useHomeEvents(focused);
   useQuery({ ...manualRefreshOptions, enabled: focused, queryKey: ['promotions'], queryFn: ({ signal }) => eventsApi.promotions(signal) });
   return null;
@@ -82,7 +88,6 @@ function HomeActivity() {
 export function HomeScreen() {
   const navbarScroll = useNavbarScroll();
   const reduced = useReducedMotion();
-  const { user, ready } = useAuth('account');
   const { copy } = usePreferences('copy'),
     insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
@@ -204,7 +209,7 @@ export function HomeScreen() {
         <View style={s.header}>
           <Logo size={32} />
           <GlassButtonGroup testID="home-header-actions">
-          {user && <NotificationsBell key={user.id} />}
+          <HomeNotifications />
           <GlassPressable fallback={Pressable}
             testID="home-search"
             accessibilityLabel={copy("search.open")}
@@ -216,14 +221,12 @@ export function HomeScreen() {
           </GlassPressable>
           </GlassButtonGroup>
         </View>
-        <Text style={s.greeting}>
-          {ready ? copy("home.hello", { name: user?.username || guests[today.getDate() % 4]! }) : copy('common.loading')}
-        </Text>
-        <Text style={s.tonight}>
+        <HomeGreeting day={today.getDate()} />
+        {!(events.isError && !events.data) && <Text style={s.tonight}>
           {events.isPending
             ? copy("common.loading")
             : copy("home.exploreTonight", { count: tonight.length })}
-        </Text>
+        </Text>}
       </View>
       <View style={{ paddingHorizontal: 20 }}><WardrobeCard /></View>
       {promoted.isPending && !promoted.data ? <HomeLoading hero /> : <PromotionHero
@@ -235,23 +238,25 @@ export function HomeScreen() {
       {events.isPending ? (
         <HomeLoading />
       ) : events.isError && !events.data ? (
-        <Feedback
+        <View style={{ paddingHorizontal: 20 }}><Feedback
           title={copy("home.eventsUnavailable")}
+          busy={events.isFetching}
           retry={() => void events.refetch()}
-        />
+        /></View>
       ) : (
         <Animated.View entering={reduced ? undefined : FadeIn.duration(180)}>
           {events.isError && (
-            <Feedback
+            <View style={{ paddingHorizontal: 20 }}><Feedback
               compact
               title={copy("home.eventsUnavailable")}
+              busy={events.isFetching}
               retry={() => void events.refetch()}
-            />
+            /></View>
           )}
           {rails
             .filter((rail) => rail.items.length || rail.key === "home.upcoming")
             .map((rail) => (
-              <HomeEventRail key={rail.key} rail={rail} campaigns={campaigns} onOpen={open} onMore={more} />
+              <HomeEventRail key={rail.key} rail={rail} campaigns={campaigns} now={now} onOpen={open} onMore={more} />
             ))}
         </Animated.View>
       )}
@@ -259,9 +264,28 @@ export function HomeScreen() {
     </View>
   );
 }
-const HomeEventRail = memo(function HomeEventRail({ rail, campaigns, onOpen, onMore }: {
+function HomeGreeting({day}:{day:number}) {
+  const {user,ready}=useAuth('account'),{copy}=usePreferences('copy');
+  return <Text style={s.greeting}>{ready?copy('home.hello',{name:user?.username||guests[day%4]!}):copy('common.loading')}</Text>;
+}
+function HomeNotifications() {
+  const {user}=useAuth('account');
+  return user?<NotificationsBell key={user.id}/>:null;
+}
+// The minute clock can change rail membership without rebuilding artwork,
+// glass, gestures and SVGs for every unchanged event in the other rails.
+const HomeRailItem = memo(function HomeRailItem({ event, campaignId, live, onOpen }: {
+  event: Event; campaignId?: string; live: boolean; onOpen: (event: Event) => void;
+}) {
+  const open = useCallback(() => { trackPromotion(campaignId, 'click'); onOpen(event); }, [campaignId, onOpen, event]);
+  return <VisiblePromotion campaignId={campaignId}>
+    <EventCard promoted={!!campaignId} event={event} live={live} onOpen={open} />
+  </VisiblePromotion>;
+});
+const HomeEventRail = memo(function HomeEventRail({ rail, campaigns, now, onOpen, onMore }: {
   rail: { key: string; items: Event[]; date?: string };
   campaigns: Map<string, string>;
+  now: number;
   onOpen: (event: Event) => void;
   onMore: (date?: string) => void;
 }) {
@@ -279,11 +303,7 @@ const HomeEventRail = memo(function HomeEventRail({ rail, campaigns, onOpen, onM
       initialNumToRender={Math.ceil(width / 236)} maxToRenderPerBatch={2} windowSize={3}
       keyExtractor={event => event.id} showsHorizontalScrollIndicator={false}
       contentContainerStyle={{ paddingHorizontal: 20, gap: 16, paddingBottom: 8, paddingTop: 8 }}
-      renderItem={({ item }) => <VisiblePromotion campaignId={campaigns.get(item.id)}>
-        <EventCard promoted={campaigns.has(item.id)} event={item} onOpen={() => {
-          trackPromotion(campaigns.get(item.id), 'click'); onOpen(item);
-        }} />
-      </VisiblePromotion>}
+      renderItem={({ item }) => <HomeRailItem campaignId={campaigns.get(item.id)} event={item} live={isLive(item, now)} onOpen={onOpen} />}
     /> : <View style={s.empty}><Text style={{ color: colors.muted, fontSize: 14 }}>{copy('home.noUpcoming')}</Text></View>}
   </View>;
 });

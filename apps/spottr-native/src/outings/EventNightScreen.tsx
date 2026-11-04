@@ -20,12 +20,12 @@ import { usePreferences } from '../usePreferences';
 import { MeetingPoint } from './MeetingPoint';
 
 export function EventNightScreen({eventId}:{eventId:string}) {
-  const {user}=useAuth();
+  const {user}=useAuth('account');
   return <EventNight key={eventId+':'+(user?.id??'guest')} eventId={eventId}/>;
 }
 function EventNight({eventId}:{eventId:string}) {
   const {copy,language}=usePreferences(),navigation=useNavigation<any>(),safe=useSafeAreaInsets(),focused=useIsFocused();
-  const auth=useAuth(),tickets=useTickets(focused,true),safety=useSafetyGroup(eventId),wardrobe=useWardrobe(false,10_000);
+  const auth=useAuth('account'),tickets=useTickets(focused,true),safety=useSafetyGroup(eventId),wardrobe=useWardrobe(false,10_000);
   const event=useQuery({queryKey:['event-night',eventId,auth.user?.id],enabled:focused&&!!auth.user,retry:false,queryFn:({signal})=>eventsApi.event(eventId,signal)});
   const owned=eventNightTickets(tickets.data??[],eventId),group=safety.data?.group,[selected,setSelected]=useState('');
   const updates=useQuery({queryKey:['event-night-updates',eventId,auth.user?.id],enabled:focused&&!!owned.length,retry:false,queryFn:({signal})=>accountApi<Array<{id:string;caption?:string}>>('/events/'+eventId+'/updates',{signal})});
@@ -68,7 +68,7 @@ function EventNight({eventId}:{eventId:string}) {
         <ActionButton title={copy('eventNight.details')} tone="secondary" onPress={()=>navigation.navigate('Event',{id:eventId})}/>
       </>}
     </ScrollView>
-    {selected&&owned.some(t=>t.id===selected)&&<TicketSheet tickets={owned} initialId={selected} onClose={()=>setSelected('')}/>}
+    {!!selected&&owned.some(t=>t.id===selected)&&<TicketSheet tickets={owned} initialId={selected} onClose={()=>setSelected('')}/>}
   </View>;
 }
 export function NightSection({title,children}:{title:string;children:React.ReactNode}) {

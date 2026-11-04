@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Easing, View } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { Animated, Easing, View } from "react-native";
+import { useReducedMotionPreference } from './useReducedMotionPreference';
 import {
   RefreshSpotlightBeam,
   type RefreshSpotlightProps,
@@ -13,24 +14,8 @@ export function RefreshSpotlight({
 }: RefreshSpotlightProps) {
   const sweep = useRef(new Animated.Value(-1)).current;
   const opacity = useRef(new Animated.Value(0)).current;
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const reduceMotion = useReducedMotionPreference();
   const fraction = Math.min(1, Math.max(0, progress));
-  useEffect(() => {
-    let alive = true;
-    void AccessibilityInfo.isReduceMotionEnabled()
-      .then((value) => {
-        if (alive) setReduceMotion(value);
-      })
-      .catch(() => {});
-    const listener = AccessibilityInfo.addEventListener(
-      "reduceMotionChanged",
-      setReduceMotion,
-    );
-    return () => {
-      alive = false;
-      listener.remove();
-    };
-  }, []);
   useEffect(() => {
     if (!active || reduceMotion) return;
     const animation = Animated.loop(

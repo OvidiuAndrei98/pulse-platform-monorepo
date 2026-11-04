@@ -169,7 +169,7 @@ function EventsPageContent() {
 
         {view === "list" ? (
           <>
-            <div ref={listRef} data-nav-scroll="events-list" className="mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+            <div ref={listRef} data-nav-scroll="events-list" className="mt-3.5 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
               <div className="app-page-gutter mx-auto w-full max-w-7xl pb-28">
                 {eventsError && <RequestError onRetry={retry} className="mb-5" />}
                 <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:gap-4 lg:grid-cols-3">

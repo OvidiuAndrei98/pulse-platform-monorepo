@@ -25,14 +25,14 @@ import {ActionButton as UIActionButton} from '../ui/ActionButton';
 
 /** Render inside the original event, after checkout leaves the native stack. */
 export function PurchaseSuccessHost({ eventId }: { eventId: string }) {
-  const { controller } = useAuth(), focused = useIsFocused();
+  const { controller } = useAuth('account'), focused = useIsFocused();
   const receipt = useSyncExternalStore(purchaseCompletion.subscribe, purchaseCompletion.getSnapshot, () => null);
   if (!focused || !receipt || receipt.eventId !== eventId || receipt.owner !== controller.getToken()) return null;
   return <PurchaseSuccessSheet key={receipt.orderId ?? eventId} receipt={receipt} />;
 }
 
 function PurchaseSuccessSheet({ receipt }: { receipt: PurchaseCompletion }) {
-  const { user, controller } = useAuth(), { copy } = usePreferences();
+  const { user, controller } = useAuth('account'), { copy } = usePreferences();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   const safe = useSafeAreaInsets(), { height, fontScale } = useWindowDimensions();
   const [group, setGroup] = useState<UserTicket[] | null>(null);

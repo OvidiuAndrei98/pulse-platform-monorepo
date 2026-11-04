@@ -29,10 +29,11 @@ import {Input as UIInput} from '@/components/ui/Field';
 
 interface SearchPopoverProps {
   events?: Event[];
+  triggerLabel?: string;
 }
 type PublicProfile = ReadableSchema<"PublicProfileResponse">;
 
-export function SearchPopover({ events }: SearchPopoverProps) {
+export function SearchPopover({ events,triggerLabel }: SearchPopoverProps) {
   const [open, setOpen] = useState(false);
   const viewportRef = useDrawerViewport(open, "panel", true, true);
   const [historyDismissed, setHistoryDismissed] = useState(false);
@@ -315,13 +316,13 @@ export function SearchPopover({ events }: SearchPopoverProps) {
     <>
       <button
         type="button"
-        aria-label={t("search.open")}
+        aria-label={triggerLabel??t("search.open")}
         aria-expanded={open}
         onClick={() => { setHistoryDismissed(false); setOpen(true); }}
-        className="group flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-[11px] text-sm  transition hover:border-white/20 hover:bg-white/[0.08] text-foreground active:scale-95 md:px-4"
+        className={triggerLabel?"group flex h-12 w-full items-center gap-3 rounded-full bg-[#19191c] px-4 text-sm text-foreground":"group flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-[11px] text-sm transition hover:border-white/20 hover:bg-white/[0.08] text-foreground active:scale-95 md:px-4"}
       >
         <Search className="h-4 w-4 transition-colors text-primary" />
-        <span className="hidden sm:inline">{t("search.open")}</span>
+        <span className={triggerLabel?'':'hidden sm:inline'}>{triggerLabel??t("search.open")}</span>
       </button>
       {typeof document !== "undefined" && createPortal(drawer, document.body)}
     </>

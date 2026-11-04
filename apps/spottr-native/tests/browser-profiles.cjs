@@ -127,7 +127,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await click('public-profile-back'); await until(`!document.querySelector('[data-testid="public-profile-screen"]')`);
   await open('/users/' + id(2) + '?fixture=failure');
   await until(`document.body.innerText.includes("couldn't load")`);
-  await evaluate(`window.__qa.failProfile=false;Array.from(document.querySelectorAll('${screen} [role=button]')).find(el=>el.textContent==='Try again').click()`);
+  await evaluate(`window.__qa.failProfile=false;document.querySelector('${screen} [data-testid="status-notice-retry"]').click()`);
   await until(`document.querySelector('[data-testid="organizer-info"]')`);
   await open('/users/' + id(2) + '?fixture=empty'); await until(`document.body.innerText.includes('No upcoming')`);
   assert.ok(await evaluate(`document.querySelector('[data-testid="organizer-stats"]').textContent.includes('2,460')`), 'Stats must not be derived from empty event rails');

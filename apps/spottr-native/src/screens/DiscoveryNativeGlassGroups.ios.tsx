@@ -18,17 +18,21 @@ const AnimatedGlassSurface = Animated.createAnimatedComponent(GlassSurface);
 /** The same native controls as Home, in permanently mounted, fixed layouts.
  * UIKit owns the materials/merging. Search alone shares its small press extent
  * with the morph, so its release cannot finish before the expansion starts. */
-export function DiscoveryNativeGlassGroups({ bounds, progress, geometry, backScale, intent, reduceMotion, sourceSwitch, filter, field, compact, active, focused,
-  searchLabel, backLabel, triggerRef, onOpen, onClose, onSearchPressIn, onSearchPressOut, onSourceLayout, onDestinationLayout }: DiscoveryNativeGlassGroupsProps) {
+export function DiscoveryNativeGlassGroups({ bounds, progress, geometry, backScale, intent, reduceMotion, sourceSwitch, filter, field, calendar, calendarMotion, compact, active, focused,
+  searchLabel, backLabel, triggerRef, onOpen, onClose, onSearchPressIn, onSearchPressOut, onSourceLayout, onCalendarLayout, onDestinationLayout }: DiscoveryNativeGlassGroupsProps) {
   const controls = useSharedValue(initialDiscoveryControlsState(active));
   useAnimatedReaction(() => ({ progress: progress.value, opening: intent.value.open, interactive: intent.value.interactive,
     reduced: reduceMotion.value, sourceX: bounds.value.source.x, opacity: geometry.value.controls,
     scale: geometry.value.controlsScale, y: geometry.value.controlsTranslateY }),
-    frame => { controls.value = advanceDiscoveryControls(controls.value, frame); });
+    frame => {
+      controls.value = advanceDiscoveryControls(controls.value, frame);
+      if (calendarMotion) calendarMotion.value = controls.value.filter;
+    });
   const sourceSwitchMask = useAnimatedProps(() => ({ width: bounds.value.source.x - 48, opacity: controls.value.switch.opacity }));
   const sourceFilterMask = useAnimatedProps(() => ({ x: bounds.value.source.x - 48, opacity: controls.value.filter.opacity }));
   const sourceClearance = useAnimatedProps(() => geometry.value.controlsCutout);
   const sourceSearch = useAnimatedProps(() => ({ x: bounds.value.source.x + 4, opacity: 1 - smoothMorphPhase(progress.value, 0, iosSearchSourceHandoff) }));
+  const sourceCalendar = useAnimatedProps(() => ({ x: bounds.value.source.x + 52, opacity: controls.value.filter.opacity }));
   const back = useAnimatedProps(() => ({ width: bounds.value.destination.x + 4, opacity: geometry.value.back }));
   const destination = useAnimatedProps(() => {
     const rest = progress.value >= .999;
@@ -75,7 +79,8 @@ export function DiscoveryNativeGlassGroups({ bounds, progress, geometry, backSca
         </Mask></Defs>
         <AnimatedRect animatedProps={sourceSwitchMask} x={0} y={0} height={60} fill="black" mask="url(#discovery-controls-clearance)"/>
         <AnimatedRect animatedProps={sourceFilterMask} width={52} y={0} height={60} fill="black" mask="url(#discovery-controls-clearance)"/>
-        <AnimatedRect animatedProps={sourceSearch} y={0} width="100%" height={60} fill="black"/>
+        <AnimatedRect animatedProps={sourceSearch} y={0} width={52} height={60} fill="black"/>
+        {calendar && <AnimatedRect animatedProps={sourceCalendar} y={0} width={60} height={60} fill="black" mask="url(#discovery-controls-clearance)"/>}
       </Svg>}>
         <View style={s.content}><GlassButtonGroup style={s.row}>
           {/* Permanent slots in one native glass container. The whole switch
@@ -93,6 +98,7 @@ export function DiscoveryNativeGlassGroups({ bounds, progress, geometry, backSca
             </GlassPressable>
             </Animated.View>
           </View>
+          {calendar && <Animated.View onLayout={onCalendarLayout} style={[s.circleSize, filterMotion]}>{calendar}</Animated.View>}
         </GlassButtonGroup></View>
       </MaskedView>
     </View>

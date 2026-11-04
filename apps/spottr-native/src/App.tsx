@@ -149,16 +149,22 @@ const linking: LinkingOptions<RootParamList> = {
     },
   },
 };
+// Navigation still updates its scene/focus providers, but unchanged screen
+// props must not rebuild whole lists/forms during the indicator's travel.
+// Context subscriptions and query updates inside each screen remain live.
+const StableHomeScreen = React.memo(HomeScreen);
+const StableDiscoveryScreen = React.memo(DiscoveryScreen);
+const StableProfileScreen = React.memo(ProfileScreen);
 function Home() {
-  return <HomeScreen />;
+  return <StableHomeScreen />;
 }
 function Explore() {
-  return <DiscoveryScreen />;
+  return <StableDiscoveryScreen />;
 }
 function ProfileNavigator() {
   if (Platform.OS === 'ios') return <NativeProfileNavigator />;
   return <Profile.Navigator initialRouteName="ProfileHome" screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-    <Profile.Screen name="ProfileHome" component={ProfileScreen} />
+    <Profile.Screen name="ProfileHome" component={StableProfileScreen} />
     <Profile.Screen name="SavedEvents" component={SavedEventsScreen} />
     <Profile.Screen name="Tickets" component={TicketsScreen} />
     <Profile.Screen name="Orders" component={OrdersScreen} />
@@ -172,7 +178,7 @@ function NativeProfileNavigator() {
   return <Profile.Navigator
     initialRouteName={profileHomeScreen(user?.role)}
     screenOptions={{ headerShown: false, animation: 'none', contentStyle: { backgroundColor: colors.bg } }}>
-    <Profile.Screen name="ProfileHome" component={ProfileScreen} />
+    <Profile.Screen name="ProfileHome" component={StableProfileScreen} />
     <Profile.Screen name="Dashboard" component={ProfileDashboardRoute} />
     <Profile.Screen name="Admin" component={ProfileAdminRoute} />
   </Profile.Navigator>;
@@ -189,11 +195,10 @@ function MainTabs() {
   return (
     <PersistentTabScenes>
     <Tabs.Navigator
-      // Keep tab state mounted, but let native screens remove hidden pages from
-      // the view hierarchy. Leaving every iOS page attached makes its glass and
-      // lists compete with the capsule while the destination becomes visible.
-      // Pushing Search/Tickets keeps the selected tab attached beneath the stack.
-      detachInactiveScreens
+      // PersistentTabScenes parks inactive iOS pages without removing their
+      // native glass or reordering the hierarchy while the capsule travels.
+      // Pushed pages still use the native root stack above the complete tab.
+      detachInactiveScreens={Platform.OS !== 'ios'}
       tabBar={(props) => <MainTabBarRegistration {...props} />}
       screenOptions={{
         headerShown: false,
@@ -221,7 +226,11 @@ function MainTabs() {
       <Tabs.Screen name="Feed" component={EventFeedScreen} options={{ title: "Feed" }} />
       <Tabs.Screen
         name="Profile"
-        navigationKey={`${user?.id ?? 'guest'}:${user?.role ?? ''}`}
+        // Only the native Profile stack contains role-specific workspaces.
+        // On web this key would discard a cold Tickets/Orders deep link when
+        // hydration changes guest into the saved account. Private queries and
+        // preloaded admin routes still reset at every account change.
+        navigationKey={Platform.OS === 'web' ? undefined : `${user?.id ?? 'guest'}:${user?.role ?? ''}`}
         component={ProfileNavigator}
         options={{ title: t("profile") }}
       />
@@ -359,7 +368,13 @@ function Navigator() {
   const navigator = useNavigationContainerRef<RootParamList>();
   const [dashboardWorkspace, setDashboardWorkspace] = useState(false);
   const [rootState, setRootState] = useState<NavigationState>();
-  const syncWorkspace = () => { const state=navigator.getRootState(); setRootState(state); diagnosticScreen(navigator.getCurrentRoute()?.name); const name=state?.routes[state.index]?.name; setDashboardWorkspace(name==='Dashboard'||name==='Scanner'||name==='ScannerHistory'); };
+  const syncWorkspace = () => {
+    const state = navigator.getRootState();
+    setRootState(state);
+    diagnosticScreen(navigator.getCurrentRoute()?.name);
+    const name = state?.routes[state.index]?.name;
+    setDashboardWorkspace(name === 'Dashboard' || name === 'Scanner' || name === 'ScannerHistory');
+  };
 
   useEffect(() => {
     if (Platform.OS === "web") return;
@@ -375,10 +390,10 @@ function Navigator() {
   return (
     <View style={{ flex:1, width:'100%', alignSelf:'center', maxWidth:Platform.OS==='web'&&!dashboardWorkspace?600:undefined }}><NavigationContainer ref={navigator} onReady={syncWorkspace} onStateChange={syncWorkspace} theme={theme} linking={linking}>
       <MainTabBarProvider navigation={navigator} state={rootState}>
-      <MainNavigationScreens />
-      <PaymentRecovery navigation={navigator} state={rootState} />
-      <PushNavigation navigation={navigator} state={rootState} />
-      <TicketCacheSync />
+        <MainNavigationScreens />
+        <PaymentRecovery navigation={navigator} state={rootState} />
+        <PushNavigation navigation={navigator} state={rootState} />
+        <TicketCacheSync />
       </MainTabBarProvider>
     </NavigationContainer></View>
   );

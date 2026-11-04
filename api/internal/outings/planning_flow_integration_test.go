@@ -14,7 +14,7 @@ import (
 func planningDraft(t *testing.T, f fixture) createPlanRequest {
 	t.Helper()
 	var day string
-	if err := f.pool.QueryRow(context.Background(), `SELECT (start_time AT TIME ZONE 'Europe/Bucharest')::date::text FROM events WHERE id=$1`, f.event).Scan(&day); err != nil {
+	if err := f.pool.QueryRow(context.Background(), `SELECT ((start_time AT TIME ZONE 'Europe/Bucharest')-interval '6 hours')::date::text FROM events WHERE id=$1`, f.event).Scan(&day); err != nil {
 		t.Fatal(err)
 	}
 	return createPlanRequest{RequestID: key(t, f), Title: "Saturday together", OutingDate: day, City: "Bucuresti", FriendIDs: []string{sid(f.users[1])}}

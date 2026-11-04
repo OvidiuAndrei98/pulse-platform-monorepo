@@ -16,7 +16,7 @@ import { purchaseCompletion } from './purchaseCompletion';
 export function PaymentRecovery({ navigation, state }: {
   navigation: NavigationContainerRefWithCurrent<RootParamList>; state?: NavigationState;
 }) {
-  const { ready, user, controller } = useAuth();
+  const { ready, user, controller } = useAuth('account');
   const token = controller.getToken(), accountId = user?.id ?? null;
   const [completed, setCompleted] = useState<PendingNativePayment[]>([]);
   const latest = useRef(state), check = useRef(() => {}), announced = useRef(new Set<PendingNativePayment>());

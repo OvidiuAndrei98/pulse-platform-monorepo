@@ -18,11 +18,11 @@ test('plans start with a date, city and friends without requiring event choices'
 test('planning uses Romania calendar days and rejects past or beyond one-year dates',()=>{
   const now=new Date('2026-11-02T22:30:00Z');
   assert.equal(validPlanningDate('2026-11-03',now),true);
-  assert.equal(validPlanningDate('2026-11-02',now),false);
+  assert.equal(validPlanningDate('2026-11-01',now),false);
   assert.equal(validPlanningDate('2027-11-04',now),false);
   const event={id:id(4),title:'Night',startTime:'2026-11-02T22:30:00Z',endTime:'2026-11-03T05:00:00Z',locationName:'Venue',city:'Bucuresti'};
-  assert.equal(matchesPlanningContext(event,{outingDate:'2026-11-03',city:'Bucuresti'}),true);
-  assert.equal(matchesPlanningContext(event,{outingDate:'2026-11-02',city:'Bucuresti'}),false);
+  assert.equal(matchesPlanningContext(event,{outingDate:'2026-11-03',city:'Bucuresti'}),false);
+  assert.equal(matchesPlanningContext(event,{outingDate:'2026-11-02',city:'Bucuresti'}),true);
   assert.equal(matchesPlanningContext(event,{outingDate:'2026-11-03',city:'Iasi'}),false);
 });
 test('transfer presentation excludes used, started, ended and malformed tickets',()=>{

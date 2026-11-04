@@ -33,7 +33,7 @@ import { formatRon } from '@packages/app-core/events/serviceFee';
 import { ActionButton as UIActionButton } from '../ui/ActionButton';
 
 export function CheckoutScreen(props: Props) {
-  const { user } = useAuth();
+  const { user } = useAuth('account');
   return <CheckoutContent key={`${props.route.params.eventId}:${user?.id ?? 'guest'}`} {...props} />;
 }
 function CheckoutContent(props: Parameters<typeof useCheckoutController>[0]) {

@@ -8,14 +8,14 @@ import { createProfilesApi, profileAction, type PublicProfile } from './data';
 export const profilesApi = createProfilesApi(accountApi);
 export const publicProfileKey = (id: string, viewer?: string) => ['public-profile', viewer ?? 'guest', id.toLowerCase()] as const;
 export function usePublicProfile(id: string) {
-  const { user, ready } = useAuth(), focused = useIsFocused();
+  const { user, ready } = useAuth('account'), focused = useIsFocused();
   const query = useQuery({ queryKey: publicProfileKey(id, user?.id), enabled: ready,
     queryFn: ({ signal }) => profilesApi.profile(id, signal) });
   useEffect(() => { if (focused && ready) void query.refetch({ cancelRefetch: false }); }, [focused, ready, id, user?.id, query.refetch]);
   return query;
 }
 export function useProfileAction(profile: PublicProfile) {
-  const { user, controller } = useAuth();
+  const { user, controller } = useAuth('account');
   const action = profileAction(profile, user), key = publicProfileKey(profile.id, user?.id);
   const [busy, setBusy] = useState(false), [error, setError] = useState(false);
   const lock = useRef(false), revision = useRef(0);

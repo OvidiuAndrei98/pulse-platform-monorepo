@@ -1,59 +1,60 @@
 "use client";
-import { useEffect,useRef,useState } from 'react';
-import { CalendarDays,Search,UsersRound } from 'lucide-react';
+import { useEffect,useState } from 'react';
+import { ArrowRight,Check,ChevronRight,Clock,Info,Plus,X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { canCreatePlan,planningToday,validPlanningDate } from '@packages/app-core/outings/model';
+import { defaultDecisionAt,outingDate } from '@packages/app-core/outings/presentation';
 import { eventCities } from '@packages/app-core/events/constants';
 import { shiftCalendarDay } from '@packages/app-core/events/discoveryFilters';
 import { Field,Input } from '@/components/ui/Field';
 import { ActionButton } from '@/components/ui/ActionButton';
+import { ModalFrame,ModalHeader } from '@/components/ui/ModalFrame';
 import { ThemedSelect } from '@/features/events/form/ThemedSelect';
-import { MemberAvatar } from './OutingPrimitives';
+import { DateBlock,MemberAvatar } from './OutingPrimitives';
 import type { useOutings } from './useOutings';
 import s from './outings.module.css';
 export { PlanChoice } from './PlanChoice';
 
 export function OutingPlanBuilder({model,onCreated,onCancel}:{model:ReturnType<typeof useOutings>;onCreated:(id:string)=>void;onCancel:()=>void}) {
-  const {t}=useTranslation(),form=useRef<HTMLFormElement>(null);
-  const [title,setTitle]=useState(()=>t('outings.defaultName')),[day,setDay]=useState(planningToday),[city,setCity]=useState('Bucuresti');
-  const [friends,setFriends]=useState<string[]>([]),[search,setSearch]=useState(''),[submitted,setSubmitted]=useState(false);
-  useEffect(()=>{void model.store.searchEvents();},[model.store]);
-  const errors={title:submitted&&!title.trim(),date:submitted&&!validPlanningDate(day),city:submitted&&!eventCities.includes(city),friends:submitted&&(friends.length<1||friends.length>7)};
-  const create=async(event:React.FormEvent)=>{
-    event.preventDefault();if(model.working)return;setSubmitted(true);
-    if(!canCreatePlan(title,day,city,friends)){requestAnimationFrame(()=>form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());return;}
-    const result=await model.store.createPlan({title:title.trim(),outingDate:day,city,friendIds:friends});if(result)onCreated(result.id);
-  };
-  const visible=model.friends.filter(friend=>friend.username.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
-  return <form ref={form} onSubmit={event=>void create(event)} noValidate>
-    <div className={s.layout}>
-      <section className={s.section}>
-        <div className={s.sectionHeader}><h2 className={s.meta}><CalendarDays size={20} aria-hidden/>{t('outings.ui.detailTitle')}</h2></div>
-        <div className={s.formFields}>
-          <Field label={t('outings.planName')} error={errors.title?t('outings.ui.invalidTitle'):undefined}><Input data-testid="outing-title" name="outing-title" autoComplete="off" value={title} maxLength={80} disabled={model.working} onChange={event=>setTitle(event.target.value)}/></Field>
-          <div className={s.twoFields}>
-            <Field label={t('outings.date')} error={errors.date?t('outings.ui.invalidDate'):undefined}><Input data-testid="outing-date" name="outing-date" type="date" min={planningToday()} max={shiftCalendarDay(planningToday(),365)} value={day} disabled={model.working} onChange={event=>setDay(event.target.value)}/></Field>
-            <Field label={t('outings.city')} error={errors.city?t('outings.ui.invalidCity'):undefined}><ThemedSelect testId="outing-city" value={city} onChange={setCity} placeholder={t('outings.city')} disabled={model.working} options={eventCities.map(value=>({value,label:value}))}/></Field>
-          </div>
-          <p className={s.muted}>{t('outings.contextHint')}</p>
-        </div>
-      </section>
-      <fieldset className={s.section} aria-invalid={errors.friends||undefined} aria-describedby="outing-friends-hint" tabIndex={-1}>
-        <legend className="sr-only">{t('outings.ui.friendsTitle')}</legend>
-        <div className={s.sectionHeader}><h2 className={s.meta}><UsersRound size={20} aria-hidden/>{t('outings.ui.friendsTitle')}</h2><span className={s.pill}>{friends.length}/7</span></div>
-        <p id="outing-friends-hint" className={errors.friends?s.error:s.muted}>{t(errors.friends?'outings.ui.invalidFriends':'outings.ui.friendsHint')}</p>
-        <div className={s.search}><Search size={17} aria-hidden/><Input data-testid="outing-friend-search" type="search" aria-label={t('outings.ui.searchFriends')} placeholder={t('outings.ui.searchFriends')} value={search} onChange={event=>setSearch(event.target.value)}/></div>
-        <div className={s.friendList}>
-          {visible.map(friend=><label key={friend.id} className={s.friend} data-selected={friends.includes(friend.id)}>
-            <MemberAvatar name={friend.username}/><span>{friend.username}</span>
-            <input type="checkbox" aria-label={friend.username} checked={friends.includes(friend.id)} disabled={model.working||friends.length>=7&&!friends.includes(friend.id)}
-              onChange={()=>setFriends(rows=>rows.includes(friend.id)?rows.filter(id=>id!==friend.id):[...rows,friend.id])}/>
-          </label>)}
-          {!model.catalogPending&&!visible.length&&<p className={s.muted}>{t(model.friends.length?'outings.ui.noFriendResults':'outings.noFriends')}</p>}
-        </div>
-        <p className={s.muted} role="status">{t('outings.ui.selected',{count:friends.length})}</p>
-      </fieldset>
+ const {t,i18n}=useTranslation(),[step,setStep]=useState(1),[title,setTitle]=useState(()=>t('outings.defaultName')),[city,setCity]=useState('Bucuresti');
+ const [days,setDays]=useState<string[]>(()=>[planningToday()]),[friends,setFriends]=useState<string[]>([]),[search,setSearch]=useState(''),[submitted,setSubmitted]=useState(false);
+ const [deadline,setDeadline]=useState(()=>defaultDecisionAt([planningToday()])),[deadlineOpen,setDeadlineOpen]=useState(false),[infoOpen,setInfoOpen]=useState(false);
+ useEffect(()=>{void model.store.loadFriends();},[model.store]);
+ const dayInvalid=days.some(day=>!validPlanningDate(day))||new Set(days).size!==days.length;
+ const setupValid=title.trim().length>0&&Array.from(title.trim()).length<=80&&!dayInvalid&&eventCities.includes(city)&&Date.parse(deadline)>Date.now();
+ const next=()=>{setSubmitted(true);if(setupValid){setSubmitted(false);setStep(2);}};
+ const create=async()=>{if(model.working)return;setSubmitted(true);if(!setupValid||!days.every(day=>canCreatePlan(title,day,city,friends))){if(!setupValid)setStep(1);return;}const p=await model.store.createPlan({title:title.trim(),candidateDates:days,decisionAt:deadline,city,friendIds:friends});if(p)onCreated(p.id);};
+ const visible=model.friends.filter(f=>f.username.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
+ return <form className={s.builder} onSubmit={event=>{event.preventDefault();if(step===1)next();else void create();}} noValidate>
+  <div className={s.split}><span className={s.muted}>{t('outings.plan.step',{step})}</span><span className={s.builderProgress} aria-hidden>{[1,2].map(n=><span key={n} data-active={n<=step}/>)}</span></div>
+  {step===1?<>
+   <div className={s.stackCompact}><h2>{t('outings.plan.setup')}</h2><p className={s.muted}>{t('outings.plan.setupHint')}</p></div>
+   <Field label={t('outings.planName')} error={submitted&&!title.trim()?t('outings.ui.invalidTitle'):undefined}><Input data-testid="outing-title" value={title} maxLength={80} autoComplete="off" placeholder={t('outings.plan.nameHint')} onChange={event=>setTitle(event.target.value)}/></Field>
+   <Field label={t('outings.city')}><ThemedSelect testId="outing-city" value={city} onChange={setCity} placeholder={t('outings.city')} options={eventCities.map(value=>({value,label:value}))}/></Field>
+   <div className={s.stackCompact}><div className={s.split}><span className={s.builderLabel}>{t('outings.plan.selectedNights')}</span><span className={s.nightTools}><span className={s.muted}>{days.length}/3</span><button type="button" className={s.builderInfo} aria-label={t('outings.plan.moreInfo')} onClick={()=>setInfoOpen(true)}><Info size={17}/></button></span></div>
+    <div className={s.dayCards}>{days.map((day,index)=><div key={index} className={s.dayCardColumn}><label className={s.dayCard}>
+     <strong>{outingDate(day,i18n.language,'day')}</strong><span>{new Intl.DateTimeFormat(i18n.language,{weekday:'short',timeZone:'UTC'}).format(new Date(day+'T12:00Z'))} · {outingDate(day,i18n.language,'month')}</span>
+     <input type="date" aria-label={t('outings.plan.nightLabel',{number:index+1})} min={planningToday()} max={shiftCalendarDay(planningToday(),365)} value={day} onChange={event=>{if(event.target.value)setDays(rows=>rows.map((old,i)=>i===index?event.target.value:old));}}/>
+    </label>{days.length>1&&<button className={s.removeDay} type="button" aria-label={t('outings.plan.removeNight')+' '+outingDate(day,i18n.language)} onClick={()=>setDays(rows=>rows.filter((_,i)=>i!==index))}><X size={15}/></button>}</div>)}
+    {days.length<3&&<button type="button" className={s.addDay} aria-label={t('outings.plan.addNight')} onClick={()=>setDays(rows=>[...rows,shiftCalendarDay([...rows].sort().at(-1)!,1)])}><Plus size={22}/></button>}
     </div>
-    <div className={s.formActions}><ActionButton tone="secondary" disabled={model.working} onClick={onCancel}>{t('common.cancel')}</ActionButton><ActionButton data-testid="outing-create" type="submit" busy={model.working}>{t('outings.create')}</ActionButton></div>
-  </form>;
+    {submitted&&dayInvalid&&<p className={s.error} role="alert">{t('outings.ui.invalidDate')}</p>}
+   </div>
+   <button type="button" className={s.deadlineButton} onClick={()=>setDeadlineOpen(true)}><Clock size={17}/><span><small>{t('outings.plan.deadlineShort')}</small><strong>{new Intl.DateTimeFormat(i18n.language,{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(deadline))}</strong></span><ChevronRight size={17}/></button>
+   {submitted&&Date.parse(deadline)<=Date.now()&&<p className={s.error} role="alert">{t('outings.plan.invalidDeadline')}</p>}
+   <ActionButton data-testid="outing-next" type="submit" className="w-full">{t('outings.plan.next')}<ArrowRight size={17}/></ActionButton>
+  </>:<>
+   <div className={s.stackCompact}><h2>{t('outings.plan.people')}</h2><p className={s.muted}>{t('outings.plan.peopleHint')}</p></div><div className={s.draftSummary}><DateBlock day={days[0]}/><div><strong>{title}</strong><p className={s.meta}>{city} · {days.map(day=>outingDate(day,i18n.language)).join(' / ')}</p></div></div>
+   <Input data-testid="outing-friend-search" type="search" aria-label={t('outings.ui.searchFriends')} placeholder={t('outings.ui.searchFriends')} value={search} onChange={event=>setSearch(event.target.value)}/>
+   <div className={s.builderFriends}>{visible.map(friend=>{const checked=friends.includes(friend.id);return <label className={s.builderFriend} data-selected={checked} key={friend.id}><MemberAvatar name={friend.username} userId={friend.id} uri={friend.avatarUrl}/><strong>{friend.username}</strong><input type="checkbox" aria-label={friend.username} checked={checked} disabled={model.working||friends.length>=7&&!checked} onChange={()=>setFriends(rows=>checked?rows.filter(id=>id!==friend.id):[...rows,friend.id])}/><span className={s.friendCheck} aria-hidden>{checked&&<Check size={15}/>}</span></label>;})}
+    {!model.catalogPending&&!visible.length&&<p className={s.muted}>{t(model.friends.length?'outings.ui.noFriendResults':'outings.noFriends')}</p>}
+   </div>
+   {model.catalogPending&&<p role="status" className={s.muted}>{t('common.loading')}</p>}{!!model.error&&<ActionButton tone="secondary" busy={model.catalogPending} onClick={()=>void model.store.loadFriends()}>{t('common.retry')}</ActionButton>}
+   <p role={submitted&&!friends.length?'alert':'status'} className={submitted&&!friends.length?s.error:s.muted}>{t(submitted&&!friends.length?'outings.ui.invalidFriends':'outings.ui.selected',{count:friends.length})}</p>
+   <ActionButton data-testid="outing-create" type="submit" busy={model.working} className="w-full">{t('outings.create')}</ActionButton>
+  </>}
+  <ActionButton tone="ghost" disabled={model.working} onClick={()=>step===1?onCancel():setStep(1)}>{t(step===1?'common.cancel':'common.back')}</ActionButton>
+  <ModalFrame open={deadlineOpen} onClose={()=>setDeadlineOpen(false)} label={t('outings.plan.deadlineShort')}><ModalHeader title={t('outings.plan.deadlineShort')} onClose={()=>setDeadlineOpen(false)}/><div className="space-y-5 p-6"><Field label={t('outings.plan.deadline')}><Input type="datetime-local" value={new Date(Date.parse(deadline)-new Date(deadline).getTimezoneOffset()*60000).toISOString().slice(0,16)} onChange={event=>{if(event.target.value)setDeadline(new Date(event.target.value).toISOString());}}/></Field><p className={s.muted}>{t('outings.plan.deadlineHint')}</p><ActionButton onClick={()=>setDeadlineOpen(false)}>{t('datePicker.done')}</ActionButton></div></ModalFrame>
+  <ModalFrame open={infoOpen} onClose={()=>setInfoOpen(false)} label={t('outings.plan.moreInfo')}><ModalHeader title={t('outings.plan.moreInfo')} onClose={()=>setInfoOpen(false)}/><p className="p-6">{t('outings.plan.nightHint')}</p></ModalFrame>
+ </form>;
 }

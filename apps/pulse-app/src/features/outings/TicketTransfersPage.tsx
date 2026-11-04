@@ -1,7 +1,7 @@
 "use client";
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
+import { useHydratedTranslation as useTranslation } from '@/lib/useHydratedTranslation';
 import { isOutingId } from '@packages/app-core/outings/model';
 import { useDataProvider } from '@/core/DataProviderContext';
 import { ActionButton } from '@/components/ui/ActionButton';

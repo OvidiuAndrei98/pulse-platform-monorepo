@@ -7,6 +7,7 @@ import React from 'react';
 import ts from 'typescript';
 import * as mainTabs from '@packages/app-core/navigation/mainTabs';
 import * as geometry from '../src/navigation/tabCapsuleGeometry';
+import * as synchronized from '../src/navigation/tabSynchronizedMotion';
 
 // Keep the gesture fixture's 88-point center spacing, independently of the
 // visual capsule width. Reference proportions have their own measured tests.
@@ -17,19 +18,26 @@ const firstCenter = fixtureGeometry.firstCenter;
 const elements = (node: any): any[] => Array.isArray(node) ? node.flatMap(elements) : React.isValidElement(node) ? [node, ...elements((node.type as any)?.type?.name === 'FixedTabIndicator' ? (node.type as any).type(node.props) : (node.props as any).children)] : [];
 type Motion = { position: { value: number }; interaction: { value: number }; edgeResponse?: { value: number }; edgeDirection?: { value: number }; gestureCommand?: { value: { id: number; index: number; pending: boolean; acknowledgedId: number } }; itemWidth: number; measure: (value: number) => void; timeline: { current: null } };
 
-function mount({ prevented = false, roleRouting = false, activeIndex = 0, indicatorMotion, deferPickup = false, deferFollow = false, deferSelection = false, scrollCompact = 0 }: { prevented?: boolean; roleRouting?: boolean; activeIndex?: number; indicatorMotion?: Motion; deferPickup?: boolean; deferFollow?: boolean; deferSelection?: boolean; scrollCompact?: number } = {}) {
+function mount({ prevented = false, roleRouting = false, activeIndex = 0, indicatorMotion, deferPickup = false, deferFollow = false, deferSelection = false, deferJS = false, scrollCompact = 0, reducedMotion = false }: { prevented?: boolean; roleRouting?: boolean; activeIndex?: number; indicatorMotion?: Motion; deferPickup?: boolean; deferFollow?: boolean; deferSelection?: boolean; deferJS?: boolean; scrollCompact?: number; reducedMotion?: boolean } = {}) {
   const slots: any[] = [], effects: (() => void)[] = [], shared: { value: any }[] = [];
   const events: any[] = [], navigations: any[] = [], selections: string[] = [], springs: any[] = [];
   const impacts: number[] = [];
+  const pendingJS: (() => void)[] = [];
   const scrollController = { compact: { value: scrollCompact }, touches: 0, onTouch() { this.touches++; } };
   scrollController.onTouch = () => { scrollController.touches++; };
   const reactions: { prepare: () => any; react: (value: any, previous: any) => void; previous: any }[] = [];
   const pending = new Map<any, { from: number; target: number }>();
   const flushReactions = () => {
-    for (const reaction of reactions) {
-      const value = reaction.prepare(), previous = reaction.previous;
-      if (Object.is(value, previous)) continue;
-      reaction.previous = value; reaction.react(value, previous);
+    for (let round = 0; round < 8; round++) {
+      let changed = false;
+      for (const reaction of reactions) {
+        const value = reaction.prepare(), previous = reaction.previous;
+        const equal = Object.is(value, previous) || value && previous && typeof value === 'object' && typeof previous === 'object'
+          && Object.keys(value).every(key => Object.is(value[key], previous[key]));
+        if (equal) continue;
+        reaction.previous = value; reaction.react(value, previous); changed = true;
+      }
+      if (!changed) break;
     }
   };
   const sharedValue = (initial: any) => {
@@ -43,7 +51,7 @@ function mount({ prevented = false, roleRouting = false, activeIndex = 0, indica
     };
     return value;
   };
-  let cursor = 0, tree: any, pan: any;
+  let cursor = 0, tree: any, pan: any, clock = 0;
   const memo = (factory: () => any, deps: unknown[]) => {
     const index = cursor++, previous = slots[index];
     if (!previous || deps.some((value, n) => !Object.is(value, previous.deps[n]))) slots[index] = { deps, value: factory() };
@@ -71,7 +79,7 @@ function mount({ prevented = false, roleRouting = false, activeIndex = 0, indica
   const buildGesture = (type: string) => {
     const handlers: Record<string, any> = {};
     const builder: any = new Proxy({}, { get: (_, key: string) => key === 'testHandlers' ? handlers : (...args: any[]) => {
-      handlers[key] = typeof args[0] === 'function' ? (...event: any[]) => { args[0](...event); flushReactions(); } : args[0];
+      handlers[key] = typeof args[0] === 'function' ? (...event: any[]) => { clock += 1000 / 120; args[0](...event); flushReactions(); } : args[0];
       return builder;
     } });
     if (type === 'pan') pan = handlers;
@@ -99,24 +107,27 @@ function mount({ prevented = false, roleRouting = false, activeIndex = 0, indica
       withTiming: (target: number) => { if (target !== 0) impacts.push(target); return target; },
       // Hold an impact at its peak so its deformation can be inspected.
       withSequence: (...values: any[]) => values[0],
-      cancelAnimation: (value: any) => { pending.delete(value); }, runOnJS: (fn: any) => fn, runOnUI: (fn: any) => fn,
+      cancelAnimation: (value: any) => { pending.delete(value); }, runOnJS: (fn: any) => (...args: any[]) => { if (deferJS) pendingJS.push(() => fn(...args)); else fn(...args); }, runOnUI: (fn: any) => fn,
     },
     '@packages/app-core/navigation/mainTabs': mainTabs,
     '../usePreferences': { usePreferences: () => ({ copy: (key: string) => key }) },
     '../ui/theme': { colors: { accent: '#ff0044' } },
     '../ui/ToastHost': { ToastHost: 'ToastHost' }, './TabBarIcon': { TabBarIcon: 'Icon' }, './TabBarSurface': { TabBarSurface: 'Surface' },
+    '../ui/useReducedMotionPreference': { useReducedMotionPreference: () => reducedMotion },
     './TabBarIndicatorSurface': { TabBarIndicatorSurface: 'IndicatorSurface' },
     './useNavbarScroll': { NavbarScrollContext: {}, navbarCompactScale: 0.83 },
     './tabCapsuleGeometry': geometry,
-    './tabCapsuleSpring': { withTabTravel: (target: number) => deps['react-native-reanimated'].withSpring(target, { kind: 'selection' }), tabCapsuleFollowSpring: { kind: 'follow' }, tabCapsuleImpactTiming: {}, tabCapsulePickupSpring: { kind: 'pickup' }, tabCapsulePressSpring: { kind: 'press' }, tabCapsuleReleaseSpring: { kind: 'release' } },
+    './tabSynchronizedMotion': synchronized,
+    './tabCapsuleSpring': { withTabTravel: (target: number) => deps['react-native-reanimated'].withSpring(target, { kind: 'selection' }),
+      tabCapsuleFollowSpring: { kind: 'follow' }, tabCapsulePickupSpring: { kind: 'pickup' }, tabCapsulePressSpring: { kind: 'press' }, tabCapsuleReleaseSpring: { kind: 'release' } },
   };
   const exports: any = {};
   const js = ts.transpileModule(readFileSync(resolve(__dirname, '../src/navigation/FixedCapsuleTabBar.tsx'), 'utf8'), {
     compilerOptions: { jsx: ts.JsxEmit.React, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
   }).outputText;
-  runInNewContext(js, { exports, require: (name: string) => { assert.ok(name in deps, name); return deps[name]; } });
+  runInNewContext(js, { exports, performance: { now: () => clock }, require: (name: string) => { assert.ok(name in deps, name); return deps[name]; } });
   const render = (next: Record<string, unknown> = {}) => { Object.assign(props, next); cursor = 0; tree = exports.FixedCapsuleTabBar(props); while (effects.length) effects.shift()!(); flushReactions(); };
-  const find = (id: string) => elements(tree).find(element => element.props.testID === id);
+  const find = (id: string) => { flushReactions(); return elements(tree).find(element => element.props.testID === id); };
   render();
   elements(tree).find(element => element.props.onLayout)?.props.onLayout({ nativeEvent: { layout: { width: fixtureWidth } } });
   render();
@@ -128,9 +139,11 @@ function mount({ prevented = false, roleRouting = false, activeIndex = 0, indica
     flushReactions();
   };
   return { render, find, events, navigations, selections, springs, impacts, scrollController,
+    tick: (milliseconds = 1000 / 120) => { clock += milliseconds; }, flushReactions,
     position: indicatorMotion?.position ?? shared[0]!, interaction: indicatorMotion?.interaction ?? shared[1]!,
-    edgeResponse: indicatorMotion?.edgeResponse ?? shared[2]!,
-    advancePickup: advanceSprings, advanceSprings,
+    edgeResponse: indicatorMotion?.edgeResponse ?? { value: 0 },
+    motion: () => elements(tree).find(el => (el.type as any)?.type?.name === 'FixedTabIndicator')?.props.motion,
+    advancePickup: advanceSprings, advanceSprings, flushJS: () => { while (pendingJS.length) pendingJS.shift()!(); },
     pan: () => pan, tap: (index = 0) => elements(tree).find(element => element.type === 'GestureDetector' && element.props.children.props.testID === `tab-${props.state.routes[index].name}`).props.gesture.testHandlers, elements: () => elements(tree),
     transform: () => find('tab-indicator').props.style[2].transform,
     barTransform: () => find('tab-bar-motion').props.style[1].transform,
@@ -154,6 +167,39 @@ test('account route reset preserves physical tab identity and uses the new navig
   tap.onEnd({}, true);
   assert.equal(ui.events.at(-1).target, 'Profile-new-account', 'The retained recognizer reads the current account route');
   assert.equal(ui.navigations.at(-1)[0], 'Profile');
+});
+
+test('tap travel thins the blob more over a longer trip, without changing its position spring or icons', () => {
+  const short = mount({ deferSelection: true, roleRouting: true });
+  const long = mount({ deferSelection: true, roleRouting: true });
+  short.tap(1).onEnd({}, true); long.tap(3).onEnd({}, true);
+  short.tick(30); long.tick(30);
+  short.advanceSprings(0.3); long.advanceSprings(0.3);
+  assert.ok(short.transform()[2].scaleY < 1);
+  assert.ok(long.transform()[2].scaleY < 1);
+  assert.ok(long.transform()[1].scaleX < 1.026, 'Only a small lateral yield, not pickup enlargement');
+  assert.equal(short.position.value, 88 * 0.3); assert.equal(long.position.value, 264 * 0.3);
+  const before = long.position.value;
+  long.tap(0).onEnd({}, true);
+  assert.equal(long.position.value, before, 'Retargeting keeps the displayed position');
+  long.tick(20); long.advanceSprings(1); long.tick(); long.flushReactions();
+  // The fixture holds the existing edge impact at its peak for other tests;
+  // complete that independent, pre-existing recoil before checking resting size.
+  long.edgeResponse.value = 0;
+  assert.equal(long.position.value, 0);
+  assert.equal(long.transform()[2].scaleY, 1); assert.equal(long.transform()[1].scaleX, 1);
+  assert.equal(long.selections.at(-1), 'Home', 'The newest page command wins during recoil');
+});
+
+test('dragging retains pickup enlargement and reduced motion never starts a travel deformation', () => {
+  const ui = mount({ deferSelection: true, reducedMotion: true });
+  ui.tap(3).onEnd({}, true); ui.tick(30); ui.advanceSprings(0.4);
+  assert.equal(ui.transform()[2].scaleY, 1); assert.equal(ui.transform()[1].scaleX, 1);
+  const drag = mount();
+  drag.pan().onBegin(); drag.pan().onStart({ x: firstCenter, translationX: 0 });
+  drag.tick(); drag.pan().onUpdate({ translationX: 100 });
+  assert.ok(drag.transform()[2].scaleY >= 1.04);
+  assert.ok(drag.transform()[1].scaleX >= 1.08);
 });
 
 test('five destinations retain distinct accessibility names, targets and the Profile edge', () => {
@@ -186,15 +232,18 @@ test('the endpoint capsule inset matches the existing top and bottom inset', () 
 
 test('hidden native navbar disables gestures and rejects a callback queued before hiding', () => {
   const ui = mount({ roleRouting: true });
-  const queuedTap = ui.tap(3);
+  const queuedTap = ui.tap(3), pan = ui.pan();
   assert.equal(queuedTap.enabled, true);
   ui.render({ interactionEnabled: false });
-  assert.equal(ui.pan().enabled, false);
-  assert.equal(ui.tap().enabled, false);
+  assert.equal(ui.pan(), pan, 'Covering a scene must not reinstall the pan recognizer');
+  assert.equal(ui.tap(3), queuedTap, 'Covering a scene must not reinstall its tab recognizers');
+  ui.pan().onBegin(); ui.pan().onStart({ x: 142, translationX: 10 });
+  ui.pan().onUpdate({ translationX: 88 }); ui.pan().onEnd({}, true); ui.pan().onFinalize();
   queuedTap.onEnd({ x: 314 }, true);
   ui.find('tab-Profile').props.onAccessibilityTap();
   assert.deepEqual(ui.selections, []);
   assert.deepEqual(ui.events, []);
+  assert.equal(ui.x(), 0, 'Neither taps nor drags can move the hidden bar');
   ui.render({ interactionEnabled: true });
   assert.equal(ui.pan().enabled, true);
   assert.equal(ui.tap().enabled, true);
@@ -218,10 +267,11 @@ test('a background navbar follows the shared blob without restarting the foregro
 
 test('an already accepted UI tap survives a rapid scene handoff before its JS callback runs', () => {
   const motion: Motion = { position: { value: 0 }, interaction: { value: 0 }, gestureCommand: { value: { id: 0, index: 0, pending: false, acknowledgedId: 0 } }, itemWidth: 88, measure() {}, timeline: { current: null } };
-  const ui = mount({ roleRouting: true, indicatorMotion: motion });
+  const ui = mount({ roleRouting: true, indicatorMotion: motion, deferJS: true });
   const acceptedTap = ui.tap(1);
-  ui.render({ interactionEnabled: false });
   acceptedTap.onEnd({ x: 132 }, true);
+  ui.render({ interactionEnabled: false });
+  ui.flushJS();
   assert.deepEqual(ui.selections, ['Explore'], 'Route eligibility is checked by the current provider, not the old scene');
   ui.find('tab-Profile').props.onAccessibilityTap();
   assert.deepEqual(ui.selections, ['Explore'], 'New touches on a hidden bar remain blocked');
@@ -340,7 +390,12 @@ test('picking up an in-flight capsule centers smoothly and resists travel past b
   ui.pan().onEnd({}, true);
   assert.equal(ui.events.length, 1); assert.equal(ui.navigations.length, 0);
   ui.edgeResponse.value = 0;
-  ui.position.value = -6; assert.ok(ui.x() < 0 && ui.x() >= -6, 'An edge overrun stays inside the wider capsule clearance');
+  ui.position.value = -6;
+  const edge = ui.barTransform();
+  // Contact compensates the indicator's local center for the parent stretch.
+  // Check its displayed position rather than the compensated local coordinate.
+  const visible = fixtureWidth / 2 + edge[0].translateX + edge[1].scaleX * (firstCenter + ui.x() - fixtureWidth / 2) - firstCenter;
+  assert.ok(visible < 0 && visible >= -6, 'An edge overrun stays inside the wider capsule clearance');
   ui.pan().onStart({ x: firstCenter - 3, translationX: 1 });
   const heldX = ui.x();
   ui.pan().onUpdate({ translationX: 3 });
@@ -469,32 +524,58 @@ test('a held pickup reaches the end without an impact and pressure stays continu
   assert.equal(ui.barTransform()[2].scaleY, 1);
 });
 
-test('a distant tap has more impact than a nearby tap at the same edge', () => {
-  const far = mount({ activeIndex: 3 });
-  far.pan().onBegin(); far.pan().onFinalize(); far.tap().onEnd({ x: 44 }, true);
-  const near = mount({ activeIndex: 1 });
-  near.pan().onBegin(); near.pan().onFinalize(); near.tap().onEnd({ x: 44 }, true);
-  assert.ok(far.glassWidth() > near.glassWidth());
-  assert.ok(far.impacts[0]! > near.impacts[0]!);
+test('every style reads one atomic frame, including the stretched icon row and blob', () => {
+  const ui = mount();
+  const shared = ui.motion();
+  shared.value = { ...shared.value, pose: { barX: 2, barScaleX: 1.015, barScaleY: .9985,
+    trackX: 0, trackScaleX: 1, trackScaleY: 1 / .9985,
+    indicatorX: 120, indicatorScaleX: 1.005, indicatorScaleY: .975 } };
+  assert.deepEqual(Array.from(ui.barTransform(), (v:any)=>Object.values(v)[0]), [2,1.015,.9985]);
+  assert.deepEqual(Array.from(ui.trackTransform(), (v:any)=>Object.values(v)[0]), [0,1,1/.9985]);
+  assert.deepEqual(Array.from(ui.transform(), (v:any)=>Object.values(v)[0]), [120,1.005,.975]);
+  assert.equal(ui.find('tab-bar-motion').props.style[0].width, fixtureWidth);
+  assert.equal(ui.trackWidth(), fixtureWidth - 8);
+  assert.equal(ui.find('tab-indicator').props.style[1].width, fixtureGeometry.blobWidth);
 });
 
-test('impact stretches toward the contacted end while the opposite edge and icons stay fixed', () => {
-  for (const direction of [-1, 1]) {
-    const ui = mount({ activeIndex: 1 });
-    ui.pan().onBegin(); ui.pan().onFinalize();
-    ui.tap(direction < 0 ? 0 : 3).onEnd({ x: direction < 0 ? 44 : 314 }, true);
-    const outer = ui.barTransform(), inner = ui.trackTransform();
-    const shift = outer[0].translateX;
-    const width = fixtureWidth;
-    const extension = ui.glassWidth() - width;
-    const fixedEdgeMovement = direction < 0 ? shift + extension / 2 : shift - extension / 2;
-    assert.ok(Math.abs(fixedEdgeMovement) < 1e-9, 'The far end stays anchored');
-    assert.equal(ui.trackWidth(), fixtureWidth - 8, 'The controls retain their measured width');
-    assert.ok(Math.abs(shift + outer[1].scaleX * inner[0].translateX) < 1e-9, 'Controls retain their position');
-    assert.ok(Math.abs(outer[1].scaleX * inner[1].scaleX - 1) < 1e-9, 'Controls retain their scale');
-    assert.equal(ui.find('tab-bar-motion').props.style[0].width, width, 'No per-frame layout width update');
-    assert.ok(direction < 0 ? shift < 0 : ui.glassWidth() > width);
+test('retapping captures remaining distance and a late route acknowledgement cannot replace it', () => {
+  const ui = mount({ activeIndex: 3, deferSelection: true, roleRouting: true });
+  const motion: Motion = { position: ui.position, interaction: ui.interaction,
+    gestureCommand: { value: { id: 0, index: 3, pending: false, acknowledgedId: 0 } },
+    itemWidth: 88, measure() {}, timeline: { current: null } };
+  ui.render({ indicatorMotion: motion });
+  ui.tap(0).onEnd({}, true); ui.tick(80); ui.advanceSprings(.75);
+  const pose = ui.motion().value.pose;
+  ui.tap(0).onEnd({}, true);
+  assert.equal(ui.motion().value.from, 66); assert.equal(ui.motion().value.target, 0);
+  assert.deepEqual(ui.motion().value.pose, pose);
+  ui.render({ activeIndex: 3 });
+  assert.equal(ui.motion().value.target, 0, 'The old route cannot retarget the newest touch');
+  ui.tick(100); ui.advanceSprings(1);
+  assert.equal(ui.x(), 0); assert.equal(ui.glassWidth(), fixtureWidth);
+});
+
+test('a long held drag followed by a short release only uses the remaining free distance', () => {
+  const ui = mount({ deferSelection: true });
+  ui.pan().onBegin(); ui.pan().onStart({ x: firstCenter, translationX: 0 });
+  ui.pan().onUpdate({ translationX: 240 });
+  ui.pan().onEnd({}, true); ui.pan().onFinalize();
+  assert.equal(ui.motion().value.from, 240); assert.equal(ui.motion().value.target, 264);
+  assert.equal(ui.impacts.length, 0, 'There is no separate impact driver');
+  ui.tick(100); ui.advanceSprings(1);
+  assert.equal(ui.x(), 264); assert.equal(ui.glassWidth(), fixtureWidth);
+});
+
+test('position samples never start another spring when crossing an endpoint', () => {
+  const ui = mount({ deferSelection: true });
+  ui.tap(3).onEnd({}, true);
+  const springCount = ui.springs.length;
+  for (const position of [230, 250, 260, 264.5, 264]) {
+    ui.tick(20); ui.position.value = position; ui.flushReactions();
+    assert.equal(ui.springs.length, springCount);
   }
+  assert.equal(ui.glassWidth(), fixtureWidth);
+  assert.equal(ui.impacts.length, 0);
 });
 
 test('holding and reversing between both edges never launches a collision', () => {
@@ -515,55 +596,29 @@ test('holding and reversing between both edges never launches a collision', () =
   assert.equal(ui.glassWidth(), fixtureWidth);
 });
 
-test('grabbing an active edge recoil cancels it before following the finger', () => {
-  const ui = mount({ activeIndex: 3 });
-  ui.pan().onBegin(); ui.pan().onFinalize(); ui.tap().onEnd({ x: 44 }, true);
-  assert.equal(ui.impacts.length, 1);
-  assert.ok(ui.edgeResponse.value > 0);
-  ui.pan().onBegin(); ui.pan().onStart({ x: 44, translationX: 5 });
-  assert.equal(ui.edgeResponse.value, 0);
-  ui.pan().onUpdate({ translationX: 1000 });
-  assert.equal(ui.impacts.length, 1, 'The new held arrival adds no collision');
-});
-
-test('releasing before an edge preserves the free arrival impact in both directions', () => {
+test('free releases reach either endpoint with no delayed independent animation', () => {
   for (const [translationX, target] of [[-60, 'Home'], [150, 'Profile']] as const) {
     const ui = mount({ activeIndex: 1 });
     ui.pan().onBegin(); ui.pan().onStart({ x: firstCenter + 84, translationX: 5 });
     ui.pan().onUpdate({ translationX });
-    assert.equal(ui.impacts.length, 0);
-    assert.ok(ui.position.value > 9 && ui.position.value < 255);
     ui.pan().onEnd({}, true); ui.pan().onFinalize();
-    assert.equal(ui.impacts.length, 1, 'Only the released capsule can impact the edge');
-    assert.ok(ui.glassWidth() > fixtureWidth);
     assert.equal(ui.events[0].target, target + '-key');
-  }
-});
-
-test('a tap that reaches an end without overshooting still pushes the glass on both sides', () => {
-  for (const [start, x, target, direction] of [[3, 44, 0, -1], [0, 314, 264, 1]] as const) {
-    const ui = mount({ activeIndex: start! });
-    assert.equal(ui.impacts.length, 0, 'Initial layout is not an impact');
-    ui.pan().onBegin(); ui.pan().onFinalize(); ui.tap(target / 88).onEnd({ x }, true);
-    assert.equal(ui.position.value, target, 'The mocked spring arrives exactly at the slot');
-    assert.equal(ui.impacts.length, 1);
-    assert.ok(ui.glassWidth() >= fixtureWidth + 7.5, 'A full-width approach visibly extends the material');
-    assert.ok(direction! < 0 ? ui.x() < 0 : ui.x() > 264, 'The capsule presses into the extended end');
-    ui.edgeResponse.value = 0;
+    assert.equal(ui.motion().value.phase, 1);
     assert.equal(ui.glassWidth(), fixtureWidth);
-    assert.equal(ui.x(), target);
+    assert.equal(ui.impacts.length, 0);
   }
 });
 
-test('the expanding glass cannot feed a larger width back into tab and gesture measurements', () => {
+test('the expanding glass cannot feed a larger width back into measurements', () => {
   const ui = mount({ activeIndex: 3 });
-  ui.pan().onBegin(); ui.pan().onFinalize(); ui.tap().onEnd({ x: 44 }, true);
+  const frame = ui.motion();
+  frame.value = { ...frame.value, pose: { ...frame.value.pose, barScaleX: 1.018, barX: -2 } };
   assert.ok(ui.glassWidth() > fixtureWidth);
-  assert.equal(ui.find('tab-track').props.onLayout, undefined, 'The deforming glass does not measure the track');
+  assert.equal(ui.find('tab-track').props.onLayout, undefined);
   ui.find('tab-hit-area').props.onLayout({ nativeEvent: { layout: { width: fixtureWidth } } }); ui.render();
   assert.equal(ui.trackWidth(), fixtureWidth - 8);
   assert.equal(ui.find('tab-indicator').props.style[1].width, fixtureGeometry.blobWidth);
-  assert.equal(ui.impacts.length, 1);
+  assert.equal(ui.impacts.length, 0);
 });
 
 test('a hidden profile reporting zero width cannot remove the shared indicator or cancel its animation', () => {
@@ -622,9 +677,28 @@ test('a new navbar joins the shared animation without resetting position or its 
   assert.equal(atEdge.edgeResponse.value, 0.6);
 });
 
-test('press briefly expands the capsule and releases through the bounce spring', () => {
+test('tab taps travel without the drag enlargement, including interrupted travel', () => {
+  const ui = mount({deferSelection:true});
+  for(const index of [2,1,2]) {
+    ui.pan().onBegin();
+    assert.equal(ui.interaction.value,0,'A touch awaiting pan recognition does not enlarge the blob');
+    const before = [ui.transform()[1].scaleX, ui.transform()[2].scaleY];
+    ui.pan().onFinalize();
+    ui.tap(index).onEnd({},true);
+    assert.deepEqual([ui.transform()[1].scaleX, ui.transform()[2].scaleY], before, 'Retargeting captures the current shape without pickup enlargement');
+    ui.tick(30); ui.advanceSprings(.4);
+    assert.ok(ui.transform()[1].scaleX < 1.02);
+    assert.ok(ui.transform()[2].scaleY <= 1);
+  }
+  assert.equal(ui.springs.some(spring=>spring.target===1&&spring.config.kind==='press'),false);
+  assert.deepEqual(ui.navigations.map(row=>row[0]),['Feed','Explore','Feed']);
+});
+
+test('an active drag expands the capsule and releases through the existing bounce spring', () => {
   const ui = mount();
   ui.pan().onBegin();
+  assert.equal(ui.interaction.value,0);
+  ui.pan().onStart({x:firstCenter,translationX:5});
   assert.equal(ui.transform()[1].scaleX, 1.08); assert.equal(ui.transform()[2].scaleY, 1.04);
   assert.ok(ui.springs.some(spring => spring.target === 1 && spring.config.kind === 'press'));
   ui.pan().onFinalize();

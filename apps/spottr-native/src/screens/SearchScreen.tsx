@@ -61,7 +61,7 @@ const SearchContent = React.memo(function SearchContent({ navigationRef }: {
   const showEvents = !value.trim() || scope === 'all' || scope === 'events';
   const showProfiles = !!value.trim() && scope !== 'events';
   const profileKind = scope === 'people' ? 'people' : scope === 'organizers' ? 'organizers' : undefined;
-  const events = useEvents(filters, query.length > 0 && showEvents),
+  const { query: events, items: eventItems, loadMore } = useEvents(filters, query.length > 0 && showEvents),
     home = useHomeEvents();
   const profiles = useQuery({ queryKey: ['profile-search', user?.id ?? 'guest', query, profileKind], enabled: ready && query.length >= 2 && showProfiles,
     queryFn: ({ signal }) => profilesApi.search(query, signal, profileKind) });
@@ -71,7 +71,7 @@ const SearchContent = React.memo(function SearchContent({ navigationRef }: {
     .filter((e) => Date.parse(e.endTime) > now)
     .sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime))
     .slice(0, 6), [home.data, now]);
-  const data = !showEvents ? [] : query ? events.items : recommended,
+  const data = !showEvents ? [] : query ? eventItems : recommended,
     pending =
       value.trim() !== query || (query ? events.isPending : home.isPending);
   return (
@@ -171,11 +171,11 @@ const SearchContent = React.memo(function SearchContent({ navigationRef }: {
           )
         }
         onEndReached={() => {
-          if (query && !pending && showEvents) events.loadMore();
+          if (query && !pending && showEvents) loadMore();
         }}
         onEndReachedThreshold={0.5}
         {...webListScrollProps(() => {
-          if (query && !pending && showEvents) events.loadMore();
+          if (query && !pending && showEvents) loadMore();
         }, 0.5)}
         ListFooterComponent={<>
           {

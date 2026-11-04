@@ -1,0 +1,26 @@
+.root { position:absolute; inset:0 auto auto 0; width:100%; max-width:620px; height:54px; pointer-events:none; z-index:20; }
+.surface { position:absolute; top:0; left:0; overflow:hidden; border:1px solid #ffffff1a; border-radius:22px; background:#121418ed; transform-origin:top left; pointer-events:auto; }
+.morphIcon { position:absolute; right:14px; width:16px; height:16px; pointer-events:none; color:var(--foreground); z-index:1; }
+.iconLayer { position:absolute; inset:0; }
+.toggle { position:absolute; inset:0; border-radius:22px; z-index:2; }
+.headerAction { width:44px; height:54px; flex:0 0 44px; display:grid; place-items:center; color:var(--muted-foreground); font-size:12px; font-weight:600; }
+.calendarAction { display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.year { font-size:9px; line-height:12px; font-weight:600; font-variant-numeric:tabular-nums; }
+.row { position:absolute; top:0; left:0; height:54px; display:flex; align-items:center; }
+.month { white-space:nowrap; font-size:8px; line-height:10px; font-weight:500; color:var(--muted-foreground); }
+.track { position:relative; height:54px; overflow:hidden; }
+.center { pointer-events:none; position:absolute; top:2px; left:calc(50% - 22px); width:44px; height:48px; border-radius:13px; background:var(--primary); }
+.scroll { display:flex; height:54px; overflow-x:auto; overflow-y:hidden; padding-inline:calc((100% - 44px) / 2); scrollbar-width:none; scroll-snap-type:x mandatory; overscroll-behavior-x:contain; touch-action:pan-x; mask-image:linear-gradient(to right,transparent,#000 8%,#000 92%,transparent); }
+.scroll::-webkit-scrollbar { display:none; }
+.day { position:relative; flex:0 0 44px; height:54px; display:flex; flex-direction:column; gap:1px; justify-content:center; align-items:center; color:var(--foreground); scroll-snap-align:center; }
+.day:disabled { opacity:0.35; }
+.pastDay { opacity:0.35; }
+.pastContext { position:absolute; right:100%; top:0; height:54px; overflow:hidden; pointer-events:none; }
+.contextRow { position:absolute; right:0; top:0; height:54px; display:flex; }
+.weekday { color:var(--muted-foreground); text-transform:uppercase; font-size:9px; font-weight:500; }
+.number { font-size:21px; line-height:23px; font-weight:700; font-variant-numeric:tabular-nums; }
+.day[data-centered="true"] { color:white; }
+.day[data-centered="true"] .weekday { color:white; }
+.day[data-centered="true"] .month { color:white; }
+.root button:focus-visible,.scroll:focus-visible { outline:2px solid var(--ui-focus); outline-offset:-3px; }
+@supports(corner-shape:squircle) { .center { corner-shape:squircle; } }

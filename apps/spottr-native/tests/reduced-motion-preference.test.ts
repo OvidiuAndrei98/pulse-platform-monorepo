@@ -8,9 +8,14 @@ function fixture(initial: boolean) {
   let change!: (value: boolean) => void, resolve!: (value: boolean) => void, reject!: (error: Error) => void;
   let removed = 0;
   const snapshot = new Promise<boolean>((yes, no) => { resolve = yes; reject = no; });
+  const react = { ...h.react, useSyncExternalStore: (subscribe: (fn: () => void) => () => void, getSnapshot: () => boolean) => {
+    const [, update] = h.react.useState(0);
+    h.react.useEffect(() => subscribe(() => update((version: number) => version + 1)), [subscribe]);
+    return getSnapshot();
+  } };
   const reanimated = { useReducedMotion: () => initial, ReduceMotion: { Always: 'always', Never: 'never' }, ReducedMotionConfig: 'ReducedMotionConfig' };
   const { useReducedMotionPreference } = modules({
-    react: h.react,
+    react,
     'react-native-reanimated': reanimated,
     'react-native': { AccessibilityInfo: {
       isReduceMotionEnabled: () => snapshot,

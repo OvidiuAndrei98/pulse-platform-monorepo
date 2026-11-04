@@ -1,6 +1,7 @@
 import { morphPhase, smoothMorphPhase } from './searchMorph';
 
-type Pose = { opacity: number; scale: number; x: number; y: number };
+export type DiscoveryControlPose = { opacity: number; scale: number; x: number; y: number };
+type Pose = DiscoveryControlPose;
 type Controls = { switch: Pose; filter: Pose };
 type Mode = 'opening' | 'return' | 'gesture' | 'reverse';
 export type DiscoveryControlsState = Controls & {

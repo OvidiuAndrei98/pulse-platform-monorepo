@@ -29,7 +29,7 @@ export function connectionId(value: string, own: string) {
   return match[1].toLowerCase();
 }
 export function QuickConnectSheet({ onClose }: { onClose: () => void }) {
-  const { user, controller } = useAuth(),
+  const { user, controller } = useAuth('account'),
     { copy } = usePreferences(),
     viewport = useWindowDimensions();
   const [mode, setMode] = useState<"code" | "scan">("code"),

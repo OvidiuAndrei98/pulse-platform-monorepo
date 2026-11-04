@@ -4,5 +4,5 @@ import { usePreferences } from '../usePreferences';
 import type { EventMapProps } from './types';
 export function EventMap(props: EventMapProps) {
   const { copy } = usePreferences();
-  return <VectorEventMap {...props} clusterLabel={count=>copy('eventMap.cluster',{count})} label={copy('eventMap.map')} errorLabel={copy('feedback.loadFailed')} retryLabel={copy('common.retry')} />;
+  return <VectorEventMap {...props} clusterLabel={count=>copy('eventMap.cluster',{count})} label={copy('eventMap.map')} errorLabel={copy('eventMap.loadFailed')} retryLabel={copy('common.retry')} />;
 }

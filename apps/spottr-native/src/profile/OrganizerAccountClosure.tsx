@@ -14,7 +14,7 @@ import {ActionButton as UIActionButton} from '../ui/ActionButton';
 const supportEmail = 'contact@code-lab.ro';
 
 export function OrganizerAccountClosure() {
-  const { user } = useAuth(), { copy } = usePreferences();
+  const { user } = useAuth('account'), { copy } = usePreferences();
   const [open, setOpen] = useState(false);
   if (!user || user.role === 'user') return null;
   return <>
@@ -28,7 +28,7 @@ export function OrganizerAccountClosure() {
 }
 
 export function OrganizerAccountClosureSheet({ onClose }: { onClose(): void }) {
-  const { user } = useAuth(), { copy } = usePreferences();
+  const { user } = useAuth('account'), { copy } = usePreferences();
   const [error, setError] = useState(false);
   if (!user || user.role === 'user') return null;
   const write = async () => {

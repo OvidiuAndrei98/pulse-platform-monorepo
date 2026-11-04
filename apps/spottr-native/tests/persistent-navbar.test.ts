@@ -11,10 +11,11 @@ function host(os = 'ios', role = 'user', ready = true) {
   const context = { bridge: { current: null as any } };
   const auth: { ready: boolean; user: { id: string; role: string } | null } = { ready, user: { id: 'account', role } };
   const preloads: string[] = [], preloadedRoutes: any[] = [];
-  const refs: any[] = [], resets: any[] = [];
+  const refs: any[] = [], resets: any[] = [], navigations: any[] = [];
   let cursor = 0, navigationReady = true;
   let root: any;
   const navigation = { isReady: () => navigationReady, getRootState: () => { assert.ok(navigationReady, 'Root state is unavailable before navigator initialization'); return root; },
+    navigate: (...args: any[]) => navigations.push(args),
     preload: (name: string) => { preloads.push(name); preloadedRoutes.push({ name, key: name }); },
     dispatch: (action: any) => { resets.push(action); preloadedRoutes.splice(0, preloadedRoutes.length, ...action.payload.preloadedRoutes); root = action.payload; },
   };
@@ -44,12 +45,12 @@ function host(os = 'ios', role = 'user', ready = true) {
     compilerOptions: { jsx: ts.JsxEmit.React, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
   }).outputText, { exports, require: (name: string) => { assert.ok(name in deps, name); return deps[name]; } });
   const elements = (node: any): any[] => Array.isArray(node) ? node.flatMap(elements) : React.isValidElement(node) ? [node, ...elements((node.props as any).children)] : [];
-  const render = (name: string, accountScreen = 'ProfileHome', presentation?: string) => {
-    const tabs = { name: 'Tabs', key: 'tabs', state: { type: 'tab', index: 4, routes: [
+  const render = (name: string, accountScreen = 'ProfileHome', presentation?: string, tabIndex = 4, params = {}) => {
+    const tabs = { name: 'Tabs', key: 'tabs', state: { type: 'tab', index: tabIndex, routes: [
       { name: 'Home' }, { name: 'Explore' }, { name: 'Friends' }, { name: 'Feed' },
       { name: 'Profile', state: { index: 0, routes: [{ name: accountScreen }] } },
     ] } };
-    const routes = name === 'Tabs' ? [tabs] : [tabs, { name, key: name, params: { presentation } }];
+    const routes = name === 'Tabs' ? [tabs] : [tabs, { name, key: name, params: { presentation, ...params } }];
     root = { index: routes.length - 1, routes, preloadedRoutes };
     cursor = 0;
     const tree = exports.MainTabBarProvider({ state: root, navigation, children: React.createElement('RootNavigator') });
@@ -59,7 +60,7 @@ function host(os = 'ios', role = 'user', ready = true) {
       select: nodes.find(element => element.type === 'MainContext').props.value.select,
       bridge: nodes.find(element => element.type === 'MainContext').props.value.bridge };
   };
-  return { exports, context, render, auth, preloads, preloadedRoutes, resets, setNavigationReady: (value: boolean) => { navigationReady = value; } };
+  return { exports, context, render, auth, preloads, preloadedRoutes, resets, navigations, setNavigationReady: (value: boolean) => { navigationReady = value; } };
 }
 
 test('iOS keeps shared navbar state outside scenes without drawing over the native stack', () => {
@@ -161,4 +162,39 @@ test('session hydration before navigator initialization waits before clearing an
   assert.equal(ui.resets.length, 1);
   assert.deepEqual(ui.preloads, []);
   assert.deepEqual(ui.preloadedRoutes, [], 'The previous account workspace is removed, without mounting a duplicate');
+});
+
+test('after logout iOS Profile opens Auth once without committing a guest Profile tab first', () => {
+  const ui = host();
+  ui.auth.user = null;
+  const page = ui.render('Tabs', 'ProfileHome', undefined, 0);
+  const tabCommands: any[] = [], events: any[] = [];
+  page.bridge.current = { navigation: {
+    getState: () => ({ index: 0, routes: mainTabs.MAIN_TAB_NAMES.map(name => ({ name, key: name })) }),
+    emit: (event: any) => { events.push(event); return { defaultPrevented: false }; },
+    navigate: (...args: any[]) => tabCommands.push(args),
+  } };
+  assert.equal(page.select('Profile'), true);
+  assert.equal(events.length, 1, 'The real tabPress event is preserved');
+  assert.equal(tabCommands.length, 0, 'No intermediate Profile scene mounts during travel');
+  assert.equal(ui.navigations.length, 1);
+  assert.equal(ui.navigations[0][0], 'Auth');
+  assert.equal(ui.navigations[0][1].returnTab, 'Profile');
+  assert.equal(ui.render('Auth', 'ProfileHome', undefined, 0, { returnTab: 'Profile' }).activeIndex, mainTabs.PROFILE_TAB_INDEX,
+    'The root Auth acknowledgement keeps the selected indicator destination');
+  assert.equal(ui.render('Tabs', 'ProfileHome', undefined, 0).activeIndex, 0, 'Closing Auth restores the underlying Home selection');
+});
+
+test('guest Profile respects prevented selections and waits for verified session hydration', () => {
+  const ui = host(); ui.auth.user = null;
+  const page = ui.render('Tabs', 'ProfileHome', undefined, 0);
+  page.bridge.current = { navigation: {
+    getState: () => ({ index: 0, routes: mainTabs.MAIN_TAB_NAMES.map(name => ({ name, key: name })) }),
+    emit: () => ({ defaultPrevented: true }), navigate: () => { throw Error('A prevented tab cannot navigate'); },
+  } };
+  assert.equal(page.select('Profile'), false);
+  assert.equal(ui.navigations.length, 0);
+  ui.auth.ready = false;
+  assert.equal(ui.render('Tabs').select('Profile'), true);
+  assert.equal(ui.navigations.length, 0, 'A not-yet-restored organizer cannot be mistaken for a guest');
 });

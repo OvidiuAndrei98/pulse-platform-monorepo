@@ -67,7 +67,7 @@ import { formatDate } from "../data/events";
 import { WEB_URL } from "../config";
 import type { RootParamList } from "../navigation/types";
 import { AuthButton, AuthMessage } from "./AuthScreen";
-import { useTickets } from "../data/useTickets";
+import { useTicketList, useTickets } from "../data/useTickets";
 import { FeaturedEventPass } from "../profile/WalletEvent";
 import { profileTicketGroups } from "../profile/ticketGroups";
 import { useEventClock } from "../data/useEventClock";
@@ -88,10 +88,19 @@ function ProfileActivity({ watchAdmission }: { watchAdmission: boolean }) {
   const focused = useIsFocused(), auth = useAuth('account');
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
   useTickets(focused, watchAdmission);
+  useQuery({...validationAccessOptions(auth.user?.id),enabled:focused&&!!auth.user});
   useEffect(() => {
     if (focused && auth.ready && !auth.user) navigation.navigate('Auth', { returnTab: 'Profile' });
   }, [focused, auth.ready, auth.user, navigation]);
   return null;
+}
+function validationAccessOptions(accountId?:string) {
+  return {queryKey:['validation-access',accountId],queryFn:async({signal}:{signal:AbortSignal})=>{
+    const result=await accountApi<unknown>('/dashboard/ticket-validation/events',{signal});
+    if(result===null)return [];
+    if(!Array.isArray(result))throw new Error('Invalid validation events');
+    return result;
+  }};
 }
 
 function ProfileSavedEvents() {
@@ -157,11 +166,11 @@ export function ProfileScreen() {
   const busy = activeAction !== null;
   const [username, setUsername] = useState(""),
     [bio, setBio] = useState("");
-  const tickets = useTickets(false),
+  const tickets = useTicketList(),
     hidden = useHiddenCategories(),
     pending = useRef(false);
   const now = useEventClock();
-  const validationEvents = useQuery({ queryKey: ['validation-access', auth.user?.id], enabled: !!auth.user, queryFn: async ({ signal }) => { const result = await accountApi<unknown>('/dashboard/ticket-validation/events', { signal }); if (result === null) return []; if (!Array.isArray(result)) throw new Error('Invalid validation events'); return result; } });
+  const validationEvents = useQuery({...validationAccessOptions(auth.user?.id),enabled:false});
   const activeSafety = tickets.data?.find(ticket => ticket.isValidated && Date.parse(ticket.endTime) + 86400000 >= Date.now());
   useEffect(() => {
     setUsername(auth.user?.username ?? "");

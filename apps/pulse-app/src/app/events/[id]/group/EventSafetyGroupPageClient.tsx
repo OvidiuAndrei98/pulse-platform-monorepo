@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { PointerEvent, useCallback, useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useHydratedTranslation as useTranslation } from '@/lib/useHydratedTranslation';
 import { toast } from "sonner";
 import { lockPage } from "@/components/ui/useDrawerViewport";
 import { startVisiblePolling } from "@/lib/visiblePolling";
@@ -302,7 +302,7 @@ export default function EventSafetyGroupPageClient() {
           </p>
         )}
 
-        <section data-chat-event className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 pb-3">
+        <section data-chat-event className="flex shrink-0 items-center justify-between gap-3 rounded-3xl bg-[#19191c] p-3.5">
           <div className="min-w-0">
             <h2 className="truncate text-base font-semibold">{group.eventTitle}</h2>
             <p data-chat-event-meta className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
@@ -337,7 +337,7 @@ export default function EventSafetyGroupPageClient() {
         </section>
 
         {showInviteFriends && group.ownerId === user?.properties.id && remainingInviteSlots > 0 && data.eligibleFriends.length > 0 && (
-          <section className="absolute inset-x-0 top-16 z-30 flex max-h-[55dvh] flex-col rounded-[24px] border border-white/10 bg-[#080a09] p-3 shadow-2xl">
+          <section className="absolute inset-x-0 top-16 z-30 flex max-h-[55dvh] flex-col rounded-[24px] border-0 bg-[#19191c] p-3 shadow-2xl">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("safetyGroup.inviteMore")}</p>
               <button type="button" onClick={() => setShowInviteFriends(false)} aria-label={t("common.close")} className="grid h-8 w-8 place-items-center rounded-full bg-white/5"><X className="h-4 w-4" /></button>
@@ -376,7 +376,7 @@ export default function EventSafetyGroupPageClient() {
           {!group.canSendHelp && <p data-chat-help-hint className="mt-1.5 text-center text-[11px] text-muted-foreground">{t("safetyGroup.helpAfterValidation")}</p>}
         </section>
 
-        <section data-chat-panel className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.035] px-3 pt-3">
+        <section data-chat-panel className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border-0 bg-[#101012] px-3 pt-3">
           <div data-chat-messages-header className="flex shrink-0 items-center gap-2 border-b border-white/10 px-1 pb-2.5 text-sm font-semibold"><MessageCircle className="h-4 w-4 text-primary" />{t("safetyGroup.messages")}</div>
           <div ref={messagesListRef} className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain py-3 pr-1 [scrollbar-gutter:stable]">
             <RetentionNote compact />
@@ -395,6 +395,8 @@ export default function EventSafetyGroupPageClient() {
           </div>
           <div className="flex shrink-0 items-end gap-2 border-t border-white/10 bg-black/20 py-2.5">
             <UITextArea
+              data-testid="safety-message-input"
+              aria-label={t("safetyGroup.messagePlaceholder")}
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               onFocus={() => setShowInviteFriends(false)}
@@ -406,7 +408,7 @@ export default function EventSafetyGroupPageClient() {
               placeholder={t("safetyGroup.messagePlaceholder")}
               className="min-h-11 max-h-24 flex-1 resize-none overflow-y-auto"
             />
-            <UIActionButton disabled={!message.trim() || working} onClick={sendMessage} aria-label={t("safetyGroup.send")} className="grid h-11 w-11 shrink-0 place-items-center disabled:opacity-40" type="submit"><Send className="h-5 w-5" /></UIActionButton>
+            <UIActionButton data-testid="safety-send" disabled={!message.trim() || working} onClick={sendMessage} aria-label={t("safetyGroup.send")} className="grid h-11 w-11 shrink-0 place-items-center disabled:opacity-40" type="submit"><Send className="h-5 w-5" /></UIActionButton>
           </div>
         </section>
       </div>
@@ -524,7 +526,7 @@ function GroupShell({ children, onBack, chat = false, contained = false }: { chi
     <main ref={setChatViewport} data-chat-viewport={chat || undefined} className={`${shellClass} bg-black text-foreground`}>
       <div data-chat-inner={chat || undefined} className={`app-page-gutter mx-auto max-w-2xl pt-3 ${chat || contained ? "relative flex h-full min-h-0 flex-col" : ""}`}>
         <header data-chat-header={chat || undefined} className="flex shrink-0 items-center gap-3 py-2.5">
-          <button data-chat-back={chat || undefined} type="button" onClick={onBack} aria-label={t("common.back")} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/5"><ArrowLeft /></button>
+          <button data-chat-back={chat || undefined} type="button" onClick={onBack} aria-label={t("common.back")} className="grid h-11 w-11 place-items-center rounded-full border-0 bg-[#19191c]"><ArrowLeft /></button>
           <div><h1 data-chat-header-title={chat || undefined} className="text-xl font-semibold">{t("safetyGroup.title")}</h1><p data-chat-header-subtitle={chat || undefined} className="text-xs text-muted-foreground">{t("safetyGroup.private")}</p></div>
         </header>
         {children}
@@ -535,7 +537,7 @@ function GroupShell({ children, onBack, chat = false, contained = false }: { chi
 
 function FriendChoice({ friend, selected, onToggle }: { friend: SafetyFriend; selected: boolean; onToggle: () => void }) {
   return (
-    <button type="button" aria-pressed={selected} onClick={onToggle} className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left ${selected ? "border-primary/50 bg-primary/10" : "border-white/10 bg-white/[0.025]"}`}>
+    <button type="button" aria-pressed={selected} onClick={onToggle} className={`flex w-full items-center gap-3 rounded-3xl border-0 p-3.5 text-left ${selected ? "border-primary/50 bg-primary/10" : "border-transparent bg-[#19191c]"}`}>
       {friend.avatarUrl ? <img src={friend.avatarUrl} alt="" className="h-10 w-10 rounded-full object-cover" /> : <span className="grid h-10 w-10 place-items-center rounded-full bg-white/10 font-semibold">{friend.username.slice(0, 1).toUpperCase()}</span>}
       <span className="flex-1 font-medium">{friend.username}</span>
       <span className={`grid h-6 w-6 place-items-center rounded-full border ${selected ? "border-primary bg-primary text-primary-foreground" : "border-white/20"}`}>{selected && <Check className="h-4 w-4" />}</span>

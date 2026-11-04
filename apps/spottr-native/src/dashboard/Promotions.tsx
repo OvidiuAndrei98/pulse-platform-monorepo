@@ -50,7 +50,7 @@ export function Promotions({
   returnCampaignId?: string;
 }) {
   const { copy, language } = usePreferences(),
-    { controller } = useAuth(),
+    { controller } = useAuth('account'),
     plans = useDashboardQuery<Plan[] | null>("/dashboard/promotions/plans"),
     campaigns = useDashboardQuery<Campaign[] | null>(
       "/dashboard/promotions",

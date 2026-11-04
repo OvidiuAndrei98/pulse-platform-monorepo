@@ -3,7 +3,12 @@
 ## Entry points
 
 - Profile → “Where are we going?” / “Unde ieșim?” opens private plans (`/outings`). Ticket transfers live separately in Profile → Account and security → Ticket transfers (`/ticket-transfers`). Legacy transfer links under `/outings` redirect to that page with only a validated ticket UUID.
-- Create a plan with a name, a Romania calendar date (today through 365 days ahead), a supported city and 1–7 existing friends. No initial events are required. Accepted participants propose up to 8 events from the plan search or the event page/map sheet. Every proposal must match the date and city on the server. Friends accept before proposing or voting. Each accepted member has one changeable vote; only the creator can make the final choice. Choosing an event atomically notifies accepted participants and closes proposals/voting; retries do not duplicate notifications. It does not reserve or purchase tickets.
+- Create a plan with a name, supported city, 1–3 candidate nights and 1–7 existing friends. The creator starts as available on each proposed night. Accepted members answer yes/maybe/no per night; only the creator confirms the night. Then participants propose up to 8 events in the same city and nightlife night. Each member can independently answer yes/maybe/no for multiple events. Only the creator confirms the destination; neither dates, deadlines nor votes reserve or buy tickets.
+- A nightlife night runs from 06:00 to 06:00 in Europe/Bucharest, including the real 23/25-hour DST nights. After-midnight events belong to the previous night. New planning dates use the current nightlife night through 365 calendar days ahead.
+- An optional personal budget is visible only to its owner. Others receive aggregate budget-fit counts, based on the cheapest currently available ticket including the effective customer service fee. Discounts can change checkout prices. Planning never creates a checkout or a payment.
+- The response deadline closes availability, proposals and event votes. It does not select a winner automatically. The creator can confirm or extend it. Notifications are recorded once before the deadline and once to the creator after it. Foreground screens use bounded, abortable long polling for current revisions, not a persistent socket.
+- After confirmation, the plan shows existing ticket access, a creator-editable meeting place/time and manual arrival states. Manual arrival never substitutes an admission scan. The creator may reopen the event vote (Plan B) within the same night/city: prior choices and ticket ownership remain visible; no ticket is bought, exchanged, cancelled or refunded. Meeting/arrival data resets for the new round.
+- Member photos use real avatarUrl values from the API. Initials are a fallback only. Native planner avatars share the Home photo component and native glass rim where available. Friends deliberately has no additional Find friends search or Quick Connect QR row.
 - A ticket opens “Your event night” (`/events/{eventId}/night`): admission QR, private group/help, meeting point, cloakroom pickup confirmation, lineup and event updates. The existing private group can be created before the event; help requires a validated admission. This is an in-app alert to friends, not an emergency service.
 - The ticket viewer also opens the transfer form. Enter the recipient’s account email and confirm. An active account with that verified email accepts from its transfer inbox. Pending invitations generate in-app notifications; this feature does not send transfer invitation emails. Addresses not registered yet get the same creation response and can register/activate before accepting.
 
@@ -30,7 +35,7 @@ Pending invitees receive only the plan context, never members, proposals, votes 
 
 ## Deployment
 
-1. Apply migrations through `20261102180000_outing_planning_flow.sql` using the maintenance migration task before starting the new API version (including `20261102160000_outing_plans_and_ticket_transfers.sql` if not applied yet). The new migration backfills existing plans; its Down refuses a lossy rollback when more than four proposals exist.
+1. Apply migrations through `20261103180000_outing_nights_and_group_decisions.sql` before starting the new API, including both older outing migrations if missing. New dates, reactions, deadline markers and decision history are backfilled. Read the guarded Down migrations before any rollback; prefer a compatible roll-forward once plans/transfers exist.
 2. Deploy the API and verify health checks, then publish Web and the Native build.
 3. Check on staging: create/accept/vote/choose; transfer/accept/old QR rejection; buyer invoice/refund ownership; offline package creation followed by transfer rejection; event-night help and pickup approval.
 
@@ -38,13 +43,19 @@ The migration deliberately rejects old snapshot writers and old validators for r
 
 No cloud deployment, production data change or real email/payment was performed while implementing this feature.
 
-## Validation performed
+## Earlier validation (before the 3 November group-decision redesign)
 
 - Shared core, Web and Native TypeScript checks and unit suites passed.
 - Full Go suite passed against isolated migrated PostgreSQL test databases. Integration cases cover QR rotation, concurrent cancel/accept, financial ownership, buyer email retries, stale validators, snapshot/transfer races, revoked scanner access, refunds, inactive accounts and invitation eligibility.
 - Production Next build, Expo Web export and iOS Hermes bundle export passed. A bundle export is not a signed iOS install.
 - Browser flows run against both built applications with isolated simulated APIs at 320, 390 and 1024 pixels. They cover plan creation/voting/decision, invitation acceptance, incoming/outgoing transfers, meeting point editing, hold-for-help/resolve and pickup approval.
-- Independent security review: initial transfers 9.1/10; this planning iteration ACCEPT at 9.4/10, with no remaining critical/high/medium findings. Planning adds fingerprint binding for creation retries, minimal pending-invitation responses and explicit server-side date/city checks. A stale in-app transfer notification can briefly arrive after eligibility changes; it grants no access.
+- The earlier transfer/planning implementation had an independent review. Its ratings do not certify the newer group-decision migration or redesigned screens. A stale in-app transfer notification grants no admission rights.
 - Physical iPhone/Android checks for keyboard, native gestures, camera and Liquid Glass remain necessary before release.
 
 Run the browser suite from `apps/spottr-native` with `node tests/browser-outings.cjs`. For Next, start a local production preview and set `OUTINGS_TEST_PLATFORM=web` and `NAVIGATION_TEST_URL=http://127.0.0.1:49188` before running the same script. All integration DSNs must point to isolated local test databases.
+
+## 3 November 2026 local validation
+
+The current group-decision implementation is tested separately from the earlier transfer work. Shared-core tests include multi-option preferences, legacy vote compatibility, Romanian night boundaries, budget parsing and read-only finished nights. PostgreSQL integration tests verify invitation privacy, real member avatar delivery, permissions, deadlines, reactions, budgets including the buyer fee, meetup, arrival and Plan B preserving ticket ownership.
+
+UI verification uses only simulated APIs in local agent previews (Expo 8083 and Next 8084). Fixtures also cover photos, narrow layouts, plan creation, voting, private-group messages and ticket-transfer regressions. Browser success is not design approval or proof of native iPhone gestures/glass. No cloud deployment or signed native build was performed.

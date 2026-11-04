@@ -74,3 +74,21 @@ test('a shared Search morph can own pressing without disabling taps or changing 
     }
   }
 });
+
+test('morph visibility keeps UIKit ancestors opaque, leaves press-halo room and passes blank touches through', () => {
+  const { MorphVisibility } = modules({
+    react: {},
+    'react-native': { View: 'View', StyleSheet: { create: (style: unknown) => style } },
+    '@react-native-masked-view/masked-view': { default: 'MaskedView' },
+    'react-native-reanimated': { default: { View: 'AnimatedView' } },
+  }).load(path.resolve(__dirname, '../src/screens/MorphVisibility.ios.tsx'));
+  const opacityStyle = { opacity: 0 }, children = { type: 'GlassSurface' };
+  const root = MorphVisibility({ pointerEvents: 'box-none', opacityStyle, children });
+  const compositor = root.props.children, content = compositor.props.children;
+  assert.equal(root.props.opacity, undefined, 'No alpha fade on a glass ancestor');
+  assert.equal(compositor.props.pointerEvents, 'box-none');
+  assert.equal(content.props.pointerEvents, 'box-none', 'An empty material stage cannot block other toolbar buttons');
+  assert.ok(['top', 'right', 'bottom', 'left'].every(edge => compositor.props.style[edge] === -8), 'The native press halo must not be cut at the capsule bounds');
+  assert.equal(compositor.props.maskElement.props.style[1], opacityStyle, 'Only the independent mask fades');
+  assert.equal(content.props.children, children);
+});

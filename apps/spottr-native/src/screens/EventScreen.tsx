@@ -55,7 +55,7 @@ export function EventScreen({
   const isSheet = route.params.presentation !== "page";
   const ContentScroll = isSheet ? AppSheetScrollView : ScrollView;
   const safe = useSafeAreaInsets();
-  const { user, controller } = useAuth();
+  const { user, controller } = useAuth('account');
   const [buying, setBuying] = useState(false), [purchaseError, setPurchaseError] = useState<string | null>(null);
   const pending = useRef(false), revision = useRef(0);
   useEffect(() => { revision.current++; pending.current = false; setBuying(false); setPurchaseError(null); return () => { revision.current++; }; }, [route.params.id, user?.id]);
@@ -140,7 +140,7 @@ export function EventScreen({
   };
   const nativeSheet = isSheet && Platform.OS !== "web";
   const footer = event && !missing ? (
-    <GlassButtonGroup testID="event-actions" style={s.footer}>
+    <GlassButtonGroup testID="event-actions" style={[s.footer, !isSheet && { paddingBottom: Math.max(12, safe.bottom) }]}>
       <GlassPressable fallback={Pressable}
         testID="event-sheet-bookmark"
         disabled={!ready}
@@ -200,18 +200,17 @@ export function EventScreen({
       testID="event-sheet"
       style={[
         s.sheet,
-        !isSheet && { borderTopLeftRadius: 0, borderTopRightRadius: 0 },
+        !isSheet && s.page,
       ]}
     >
       {!isSheet && (
         <View
           style={{
-            paddingTop: safe.top + 12,
-            paddingHorizontal: 20,
-            paddingBottom: 12,
+            position:'absolute', top:safe.top+12, left:20, zIndex:10,
           }}
         >
           <GlassPressable fallback={Pressable}
+            testID="event-page-back"
             accessibilityRole="button"
             accessibilityLabel={copy("common.back")}
             onPress={close}
@@ -243,8 +242,8 @@ export function EventScreen({
             contentContainerStyle={{ paddingBottom: 32 }}
             showsVerticalScrollIndicator={false}
           >
-            <View style={s.hero}>
-              {event.bannerUrl && (
+            <View testID="event-hero" style={[s.hero, !isSheet && { height: Math.max(340, Math.min(440, height * 0.48)) }]}>
+              {(!isSheet || event.bannerUrl) && (
                 <EventImage
                   uri={event.bannerUrl}
                   style={StyleSheet.absoluteFill}
@@ -258,7 +257,7 @@ export function EventScreen({
                 colors={["transparent", "#00000066", "#000000f2"]}
                 style={StyleSheet.absoluteFill}
               />
-              <View style={s.badges}>
+              <View style={[s.badges, !isSheet && {top:safe.top+18,left:80,justifyContent:'flex-end'}]}>
                 <View
                   style={[
                     s.badge,
@@ -288,7 +287,7 @@ export function EventScreen({
               </View>
               <View style={s.heroText}>
                 <Text style={s.category}>{event.category}</Text>
-                <Text style={s.title}>{event.title}</Text>
+                <Text style={[s.title,!isSheet && s.pageTitle]}>{event.title}</Text>
                 <Pressable
                   accessibilityRole="button"
                   onPress={() =>
@@ -333,6 +332,11 @@ export function EventScreen({
               </View>
             </View>
             <View style={s.content}>
+              {!isSheet && <Pressable testID="event-page-location" accessibilityRole="link"
+                onPress={() => void link.open('https://maps.google.com/?q=' + encodeURIComponent(event.latitude !== null && event.longitude !== null ? `${event.latitude},${event.longitude}` : `${event.locationName} ${event.city}`))}
+                style={{flexDirection:'row',gap:10,alignItems:'center',minHeight:44}}>
+                <MapPin color={colors.accent} size={18}/><Text style={{flex:1,color:colors.text,fontSize:14,lineHeight:21}}>{event.locationName} · {event.city}</Text>
+              </Pressable>}
               {query.isError && (
                 <Feedback
                   compact
@@ -465,7 +469,6 @@ export function EventScreen({
                     })}
                 </View>
               )}
-              {!isSheet && <Pressable accessibilityRole="link" onPress={() => void link.open('https://maps.google.com/?q=' + encodeURIComponent(event.latitude !== null && event.longitude !== null ? `${event.latitude},${event.longitude}` : `${event.locationName} ${event.city}`))} style={{ flexDirection: 'row', gap: 10, alignItems: 'center', paddingVertical: 16, borderTopWidth: 1, borderColor: '#ffffff1a' }}><MapPin color={colors.accent} size={20}/><Text style={{ flex: 1, color: colors.text }}>{event.locationName} · {event.city}</Text></Pressable>}
               {purchaseError && <Feedback compact title={copy(purchaseError)} />}
               {(shareError || link.error) && (
                 <Feedback
@@ -493,6 +496,8 @@ export function EventScreen({
   )}<ToastHost bottom={92} />{storyOpen && event && <EventStory key={event.id} event={event} onClose={() => setStoryOpen(false)} />}<PurchaseSuccessHost eventId={route.params.id} /></View>;
 }
 const s = StyleSheet.create({
+  page: { borderTopLeftRadius:0,borderTopRightRadius:0,width:'100%',maxWidth:760,alignSelf:'center' },
+  pageTitle: {fontSize:30,lineHeight:36,letterSpacing:-0.8},
   sheet: {
     flex: 1,
     backgroundColor: "#000",

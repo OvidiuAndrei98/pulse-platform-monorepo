@@ -670,7 +670,7 @@ function InvitationPreview({
   onClose: () => void;
 }) {
   const { copy, language } = usePreferences(),
-    { controller } = useAuth(),
+    { controller } = useAuth('account'),
     action = useAction(),
     qr = useRef<{
       toDataURL: (callback: (data: string) => void) => void;
@@ -753,7 +753,7 @@ function Updates({
   readOnly: boolean;
 }) {
   const { copy, language } = usePreferences(),
-    { user } = useAuth(),
+    { user } = useAuth('account'),
     width = useWindowDimensions().width,
     client = useQueryClient();
   const query = useDashboardQuery<S["OrganizerEventUpdateResponse"][] | null>(
@@ -979,7 +979,7 @@ function Updates({
 }
 function Cancellation({ event }: { event: DashboardEvent }) {
   const { copy } = usePreferences(),
-    { user } = useAuth(),
+    { user } = useAuth('account'),
     path = eventPath(event.id) + "/cancellation-request",
     query = useQuery({
       queryKey: ["dashboard", user?.id, path],

@@ -19,7 +19,7 @@ export function PlacesField({ value, onChange, onSelect, disabled = false, error
   disabled?: boolean;
   error?: string;
 }) {
-  const { copy, language } = usePreferences(), { user } = useAuth();
+  const { copy, language } = usePreferences(), { user } = useAuth('account');
   const [state, setState] = useState(initial);
   const [focused, setFocused] = useState(false);
   const selected = useRef(onSelect); selected.current = onSelect;

@@ -308,6 +308,9 @@ async function main() {
   };
   const pointFor = selector => evaluate(`{const r=(${selector}).getBoundingClientRect();({x:r.left+r.width/2,y:r.top+r.height/2})}`);
   const activate = async (selector, input) => {
+    // A long tier list can place a control under the fixed purchase footer.
+    // Bring the actual target into the scroll viewport before tapping it.
+    await evaluate(`{const el=(${selector}),r=el.getBoundingClientRect(),content=document.querySelector('[data-testid="event-content"]'),viewport=content.getBoundingClientRect(),footer=document.querySelector('[data-testid="event-actions"]').getBoundingClientRect();if(!el.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)))content.scrollTop+=r.top+r.height/2-(viewport.top+Math.min(viewport.bottom,footer.top))/2;}`);
     if (input === 'keyboard') {
       await evaluate(`(${selector}).focus()`);
       assert.equal(await evaluate(`document.activeElement===(${selector})`), true, 'Control must receive keyboard focus');
@@ -359,6 +362,7 @@ async function main() {
     console.log(`PASS stationary ${input} organizer, tier and footer activation`);
   }
   for (const mouse of [true, false]) {
+    await evaluate(`document.querySelector('[data-testid="event-content"]').scrollTop=0`);
     const point = await pointFor(interactionTargets.organizer);
     if (mouse) await call('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', buttons: 1, clickCount: 1 });
     else await call('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...point, id: 1 }] });
@@ -378,6 +382,7 @@ async function main() {
     console.log(`PASS ${mouse ? 'mouse' : 'touch'} drag returning to origin prevents click and preserves next activation`);
   }
   for (const input of ['mouse', 'touch', 'keyboard']) {
+    await evaluate(`document.querySelector('[data-testid="event-content"]').scrollTop=0`);
     const point = await pointFor(interactionTargets.organizer);
     await swipe(point, 70, { mouse: input !== 'touch', follow: true });
     assert.deepEqual(await evaluate('window.__unexpectedLinks'), [], 'Short drag must not activate the organizer');

@@ -6,7 +6,8 @@ import { OutingsStore, type OutingsRequest } from '@packages/app-core/outings/mo
 import { accountApi, useAuth } from '../auth/AuthProvider';
 
 export function useOutings(scope:'plans'|'transfers'='plans') {
-  const auth=useAuth(), focused=useIsFocused(), actor=auth.user?.id, token=auth.controller.getToken();
+  const focused=useIsFocused();
+  const auth=useAuth('account'), actor=auth.user?.id, token=auth.controller.getToken();
   const store=useMemo(()=> {
     const request: OutingsRequest=(path,method,body,signal)=>accountApi(path,{method,body,signal,token:token??null});
     return new OutingsStore(request,()=>!!actor&&!!token&&auth.controller.getToken()===token&&auth.controller.getSnapshot().user?.id===actor,randomUUID,scope);

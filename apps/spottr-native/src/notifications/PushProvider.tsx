@@ -88,7 +88,7 @@ export function PushPreference() {
 }
 
 export function PushNavigation({ navigation, state }: { navigation: NavigationContainerRefWithCurrent<RootParamList>; state?: NavigationState }) {
-  const { pending, consume } = useContext(Context), { user, ready, controller } = useAuth(), { copy } = usePreferences('copy'), safe = useSafeAreaInsets();
+  const { pending, consume } = useContext(Context), { user, ready, controller } = useAuth('account'), { copy } = usePreferences('copy'), safe = useSafeAreaInsets();
   const [failed, setFailed] = useState(false), [retry, setRetry] = useState(0);
   const owner = user?.id, token = controller.getToken();
   // Only the readiness/blocked state matters. Navigating to the result must not

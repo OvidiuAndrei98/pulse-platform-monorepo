@@ -121,7 +121,7 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
   assert.equal(await evaluate(`!!${pass}`), false);
   await click('profile-tickets-all'); await click('tickets-tab-history'); await until(`document.body.innerText.includes('No tickets in this category yet.')`);
   await open('?fail=1'); await until(`document.body.innerText.includes("We couldn't load this information.")`);
-  await evaluate(`window.__qa.fail=false;Array.from(document.querySelectorAll('[role="button"]')).find(el=>el.textContent.trim()==='Try again').click()`);
+  await evaluate(`window.__qa.fail=false;document.querySelector('[data-testid="status-notice-retry"]').click()`);
   await until(pass);
   assert.deepEqual(await evaluate('window.__qa.unexpected'), []);
   assert.deepEqual(errors, []);

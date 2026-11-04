@@ -4,11 +4,12 @@ import { Check,Plus } from 'lucide-react-native';
 import { matchesPlanningContext,type OutingPlan } from '@packages/app-core/outings/model';
 import { outingDate } from '@packages/app-core/outings/presentation';
 import { FormInput } from '../ui/FormInput';
-import { ActionButton } from '../ui/ActionButton';
+import { OutingAction as ActionButton } from './OutingPrimitives';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
 import { usePreferences } from '../usePreferences';
 import { o } from './outingsStyles';
+import { j } from './journeyStyles';
 import type { useOutings } from './useOutings';
 
 export function PlanProposals({plan,model,onProposed}:{plan:OutingPlan;model:ReturnType<typeof useOutings>;onProposed?:()=>void}) {
@@ -17,7 +18,7 @@ export function PlanProposals({plan,model,onProposed}:{plan:OutingPlan;model:Ret
   const events=model.events.filter(event=>matchesPlanningContext(event,plan));
   return <View style={o.section}>
     <View style={{gap:8}}><Text style={o.heading}>{copy('outings.propose')}</Text><Text style={o.muted}>{copy('outings.proposeHint')}</Text></View>
-    <FormInput testID="outing-search" accessibilityLabel={copy('outings.search')} placeholder={copy('outings.search')} value={search} onChangeText={setSearch}/>
+    <FormInput variant="bare" style={j.input} testID="outing-search" accessibilityLabel={copy('outings.search')} placeholder={copy('outings.search')} value={search} onChangeText={setSearch}/>
     {events.map(event=>{const added=plan.options.some(option=>option.eventId===event.id);return <View key={event.id} style={[o.friend,{justifyContent:'space-between'}]}>
       <View style={{flex:1,minWidth:0,gap:4}}><Text style={o.label}>{event.title}</Text><Text style={o.caption}>{outingDate(plan.outingDate,language)} · {event.locationName}</Text></View>
       <ActionButton testID={'outing-propose-'+event.id} accessibilityLabel={copy(added?'outings.ui.proposed':'outings.ui.add')+': '+event.title} tone="secondary" style={{width:44,paddingHorizontal:10}}

@@ -48,8 +48,8 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
     };
   }.toString()})();` });
   const press = async text => {
-    await until(`Array.from(document.querySelectorAll('[role="button"]')).some(el=>el.textContent.trim()===${JSON.stringify(text)})`);
-    await evaluate(`Array.from(document.querySelectorAll('[role="button"]')).find(el=>el.textContent.trim()===${JSON.stringify(text)}).click()`);
+    await until(`Array.from(document.querySelectorAll('[role="button"]')).some(el=>el.textContent.trim()===${JSON.stringify(text)}||el.getAttribute('aria-label')===${JSON.stringify(text)})`);
+    await evaluate(`Array.from(document.querySelectorAll('[role="button"]')).find(el=>el.textContent.trim()===${JSON.stringify(text)}||el.getAttribute('aria-label')===${JSON.stringify(text)}).click()`);
   };
   await call('Page.navigate', { url: base + '/organizers/agreement' });
   await until(`document.body.innerText.includes('Organizer agreement') && document.body.innerText.includes('Commission and settlement')`);

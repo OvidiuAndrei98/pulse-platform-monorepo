@@ -1,3 +1,4 @@
+import { planningCopy } from '../outings/planningCopy';
 const discoveryTranslations = {
   en: {
     title: 'Feed', hint: 'Find your next night out', like: 'Like {{event}}', unlike: 'Unlike {{event}}',
@@ -5,6 +6,7 @@ const discoveryTranslations = {
     propose: 'Suggest to friends', from: 'From {{price}}', free: 'Free tickets', external: 'Tickets',
     share: 'Share event', copied: 'Event link copied', swipe: 'Scroll to discover', previous: 'Previous event', next: 'Next event',
     empty: 'More nights are on the way', emptyHint: 'New events will appear here as organizers publish them.',
+    loadFailed: "The Feed couldn't be loaded.", moreFailed: "We couldn't load more events.",
     likeFailed: 'Your like could not be updated. Try again.', loadMore: 'More events', end: 'You’re all caught up',
   },
   ro: {
@@ -13,6 +15,7 @@ const discoveryTranslations = {
     propose: 'Propune prietenilor', from: 'De la {{price}}', free: 'Bilete gratuite', external: 'Bilete',
     share: 'Distribuie evenimentul', copied: 'Linkul evenimentului a fost copiat', swipe: 'Derulează pentru a descoperi', previous: 'Evenimentul anterior', next: 'Evenimentul următor',
     empty: 'Se pregătesc noi ieșiri', emptyHint: 'Evenimentele noi vor apărea aici când sunt publicate de organizatori.',
+    loadFailed: 'Nu am putut încărca Feed-ul.', moreFailed: 'Nu am putut încărca alte evenimente.',
     likeFailed: 'Aprecierea nu a putut fi actualizată. Încearcă din nou.', loadMore: 'Mai multe evenimente', end: 'Ai văzut toate evenimentele',
   },
 };
@@ -23,6 +26,7 @@ const friendsHubTranslations = {
 
 const outingsTranslations = {
   "en": {
+    plan: planningCopy.en,
     "title": "Where are we going?",
     "hint": "Pick a night, bring your friends and decide where to go together.",
     "plans": "Plans",
@@ -178,6 +182,7 @@ const outingsTranslations = {
     }
   },
   "ro": {
+    plan: planningCopy.ro,
     "title": "Unde ieșim?",
     "hint": "Alege o seară, invită prietenii și decideți împreună unde mergeți.",
     "plans": "Planuri",
@@ -814,6 +819,11 @@ export const resources = {
         previousMonth: "Previous month",
         nextMonth: "Next month",
         calendar: "Calendar",
+        anyDate: "Any date",
+        chooseDay: "Choose a day",
+        today: "Today",
+        chooseDates: "Date range",
+        dateRibbonHint: "Swipe to choose a day. Events update when you stop.",
         singleDay: "Single date",
         dateRange: "Date range",
         chooseRangeEnd: "Choose the last day of the range.",
@@ -1210,6 +1220,7 @@ export const resources = {
       },
       notifications: {
         title: "Notifications",
+        loadFailed: "Notifications couldn't be loaded.",
         settings: "Notification settings",
         accept: "Accept", delete: "Delete",
         acceptRequest: "Accept {{name}}'s friend request", deleteRequest: "Delete {{name}}'s friend request",
@@ -1327,7 +1338,7 @@ export const resources = {
         attendeesGoing: "{{count}} going",
         interestedCount: "{{count}} interested",
       },
-      eventMap: { list: "List", map: "Map", loading: "Loading map...", cluster_one: "{{count}} nearby event", cluster_other: "{{count}} nearby events", showEvents:"Show events", hideEvents:"Hide events", selectEvent:"Select event" },
+      eventMap: { list: "List", map: "Map", loading: "Loading map...", loadFailed: "The map couldn't be loaded.", eventsUnavailable: "Events couldn't be loaded.", cluster_one: "{{count}} nearby event", cluster_other: "{{count}} nearby events", showEvents:"Show events", hideEvents:"Hide events", selectEvent:"Select event" },
       lineup: {
         aria: "Lineup",
         title: "The lineup",
@@ -1400,6 +1411,7 @@ export const resources = {
       },
       datePicker: {
         placeholder: "Choose date and time",
+        day: "Day", month: "Month", year: "Year",
         hoursLabel: "Hours", minutesLabel: "Minutes",
         previousMonth: "Previous month",
         nextMonth: "Next month",
@@ -2597,6 +2609,11 @@ export const resources = {
         previousMonth: "Luna precedentă",
         nextMonth: "Luna următoare",
         calendar: "Calendar",
+        anyDate: "Oricând",
+        chooseDay: "Alege o zi",
+        today: "Azi",
+        chooseDates: "Interval",
+        dateRibbonHint: "Glisează pentru a alege ziua. Evenimentele se actualizează când te oprești.",
         singleDay: "O singură zi",
         dateRange: "Interval",
         chooseRangeEnd: "Alege ultima zi a intervalului.",
@@ -2994,6 +3011,7 @@ export const resources = {
       },
       notifications: {
         title: "Notificari",
+        loadFailed: "Nu am putut încărca notificările.",
         settings: "Setări notificări",
         accept: "Acceptă", delete: "Șterge",
         acceptRequest: "Acceptă cererea de prietenie de la {{name}}", deleteRequest: "Șterge cererea de prietenie de la {{name}}",
@@ -3111,7 +3129,7 @@ export const resources = {
         attendeesGoing: "{{count}} merg",
         interestedCount: "{{count}} interesati",
       },
-      eventMap: { list: "Lista", map: "Harta", loading: "Se incarca harta...", cluster_one: "{{count}} eveniment apropiat", cluster_other: "{{count}} evenimente apropiate", showEvents:"Arată evenimentele", hideEvents:"Ascunde evenimentele", selectEvent:"Selectează evenimentul" },
+      eventMap: { list: "Lista", map: "Harta", loading: "Se incarca harta...", loadFailed: "Nu am putut încărca harta.", eventsUnavailable: "Nu am putut încărca evenimentele.", cluster_one: "{{count}} eveniment apropiat", cluster_other: "{{count}} evenimente apropiate", showEvents:"Arată evenimentele", hideEvents:"Ascunde evenimentele", selectEvent:"Selectează evenimentul" },
       lineup: {
         aria: "Lineup",
         title: "Lineup",
@@ -3184,6 +3202,7 @@ export const resources = {
       },
       datePicker: {
         placeholder: "Alege data si ora",
+        day: "Zi", month: "Lună", year: "An",
         hoursLabel: "Ore", minutesLabel: "Minute",
         previousMonth: "Luna anterioara",
         nextMonth: "Luna urmatoare",

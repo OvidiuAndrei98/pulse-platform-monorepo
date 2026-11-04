@@ -14,7 +14,7 @@ function scenes() {
     useContext: (context: any) => context.value,
   };
   const deps: Record<string, unknown> = {
-    react, 'react-native': { View: 'View' },
+    react, 'react-native': { View: 'View', useWindowDimensions: () => ({ width: 393, height: 852 }) },
     'react-native-screens': { InnerScreen: NativeScreen, Screen: NativeScreen, ScreenContext },
   };
   const exports: any = {};
@@ -34,7 +34,8 @@ test('inactive iOS tab scenes keep their geometry while hiding content, touch an
   assert.equal(hidden.props.ref, ref);
   assert.equal(hidden.props.style[0], style);
   assert.equal(hidden.props.style[1].opacity, undefined, 'An inactive scene cannot hide native glass beneath zero alpha');
-  assert.equal(hidden.props.style[1].zIndex, -1);
+  assert.equal(hidden.props.style[1].zIndex, 0, 'Native siblings keep their order instead of removing/reinserting glass subtrees');
+  assert.equal(hidden.props.style[1].transform[0].translateX, 786, 'Inactive content and its shadows stay outside the viewport');
   assert.equal(hidden.props.style[1].display, undefined, 'Inactive scenes keep their initial layout');
   assert.equal(hidden.props.pointerEvents, 'none');
   assert.equal(hidden.props.accessibilityElementsHidden, true);
@@ -44,6 +45,7 @@ test('inactive iOS tab scenes keep their geometry while hiding content, touch an
   assert.equal(visible.props.style[0], style);
   assert.equal(visible.props.style[1].opacity, undefined);
   assert.equal(visible.props.style[1].zIndex, 0);
+  assert.equal(visible.props.style[1].transform[0].translateX, 0);
   assert.equal(visible.props.pointerEvents, 'box-none');
   assert.equal(visible.props.accessibilityElementsHidden, false);
 });

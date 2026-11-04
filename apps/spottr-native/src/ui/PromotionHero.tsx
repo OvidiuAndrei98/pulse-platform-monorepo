@@ -7,6 +7,7 @@ import { HeroCard } from './EventCard';
 import { VisiblePromotion, trackPromotion } from './VisiblePromotion';
 
 type Promotion = { campaignId: string; event: Event };
+const StableHeroCard = React.memo(HeroCard);
 
 export function PromotionHero({ items, onOpen, refreshKey = 0, refreshing = false }: {
   items: Promotion[];
@@ -84,7 +85,7 @@ export function PromotionHero({ items, onOpen, refreshKey = 0, refreshing = fals
             onOpen(active.event);
           }}
         >
-          <HeroCard event={active.event} />
+          <StableHeroCard event={active.event} />
         </Pressable>
       </GestureDetector>
     </VisiblePromotion>

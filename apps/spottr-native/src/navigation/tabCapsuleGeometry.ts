@@ -1,5 +1,5 @@
-// Horizontal proportions only; the spring and glass deformation remain in
-// tabCapsuleSpring / FixedCapsuleTabBar. Insets match the existing bar chrome.
+// Resting proportions and bounded visual deformation. Position springs remain
+// in tabCapsuleSpring / FixedCapsuleTabBar; neither travel nor hit areas resize.
 export const tabBarInset = 4;
 export const tabCapsuleEdgeMargin = tabBarInset + 1;
 export const tabCapsuleSpacingRatio = 1.15;
@@ -41,12 +41,28 @@ export function containTabCapsule(value: number, lower: number, upper: number, s
   return value;
 }
 
-export function getTabCapsuleFrame(position: number, limit: number, blobWidth: number, interaction: number, response: number, direction: number, extension: number) {
+/** Free travel rides the same elastic surface as the icons. Only a sub-point
+ * visual overrun is allowed; there is no extra lateral contact spring on it. */
+export function getTabFreeCapsuleFrame(position: number, limit: number, blobWidth: number, interaction: number, travelCompression: number) {
+  'worklet';
+  const squeeze = containTabCapsule(travelCompression, -0.006, 0.14, 0.002);
+  const scaleX = 1 + interaction * 0.08 + squeeze * 0.18;
+  const scaleY = 1 + interaction * 0.04 - squeeze;
+  const growth = blobWidth * (scaleX - 1) / 2;
+  const lower = Math.max(-0.25, -tabCapsuleEdgeMargin + growth + 0.5);
+  const upper = Math.min(limit + 0.25, limit + tabCapsuleEdgeMargin - growth - 0.5);
+  return { translateX: containTabCapsule(position, lower, upper, 0.1), scaleX, scaleY };
+}
+
+export function getTabCapsuleFrame(position: number, limit: number, blobWidth: number, interaction: number, response: number, direction: number, extension: number, travelCompression = 0) {
   'worklet';
   const pressure = Math.min(1, Math.max(0, -position, position - limit) / 8);
   const contact = Math.max(0, 1 - Math.max(0, Math.min(position, limit - position)) / 12);
-  const scaleX = 1 + interaction * 0.08 * (1 - pressure) - pressure * 0.05 + response * 0.045;
-  const scaleY = 1 + interaction * 0.04 + pressure * 0.025 - response * 0.015;
+  // This spring retains a tiny recoil when speed falls, rather than starting
+  // a second bounce at arrival. The resting shape is exactly unchanged at 0.
+  const squeeze = containTabCapsule(travelCompression, -0.006, 0.14, 0.002);
+  const scaleX = 1 + interaction * 0.08 * (1 - pressure) - pressure * 0.05 + response * 0.045 + squeeze * 0.18;
+  const scaleY = 1 + interaction * 0.04 + pressure * 0.025 - response * 0.015 - squeeze;
   const growth = blobWidth * (scaleX - 1) / 2;
   // Account for the existing glass edge extension and center-origin scale.
   // Leave a sub-point clearance even under a held, extreme edge pull.

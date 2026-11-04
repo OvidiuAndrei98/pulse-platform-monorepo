@@ -72,7 +72,9 @@ withBrowser(async({base,call,evaluate,until,click,input,delay,capture,errors})=>
     await key('Enter');await key('Tab');assert.equal(await evaluate(`!!document.querySelector('[role="listbox"]')`),false,'Tab dismisses the custom menu');
     await click('discovery-city');await click('discovery-search');assert.equal(await evaluate(`!!document.querySelector('[role="listbox"]')`),false,'Outside pointer dismisses the custom menu');
   }
-  await click('discovery-calendar-toggle');await until(`document.querySelector('[data-testid="discovery-calendar"]')`);
+  // Monthly ranges remain an advanced filter; the ribbon's undo only clears.
+  await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(250);
+  await click('event-filters');await click('filters-calendar-toggle');await until(`document.querySelector('[data-testid="discovery-calendar"]')`);
   const days=await evaluate(`[...document.querySelectorAll('[data-testid^="discovery-day-"]')].filter(el=>el.getAttribute('aria-disabled')!=='true'&&!el.disabled).map(el=>el.dataset.testid.slice(14)).slice(-5)`);
   const day=days[0];assert.match(day,/^\d{4}-\d{2}-\d{2}$/);
   await click('discovery-day-'+day);
@@ -80,6 +82,7 @@ withBrowser(async({base,call,evaluate,until,click,input,delay,capture,errors})=>
   await click('discovery-day-'+day);
   if(next){const selected=await evaluate(`(()=>{const s=getComputedStyle(document.querySelector('[data-testid="discovery-day-${day}"]'));return{size:parseFloat(s.fontSize),weight:Number(s.fontWeight),color:s.color,background:s.backgroundColor};})()`);assert.ok(selected.size>=18.67&&selected.weight>=700);assert.equal(selected.color,'rgb(255, 255, 255)');}
   await pressText('Apply filters');await until(`window.__discovery.requests.some(q=>q.startsBefore&&q.startsAfter)`);
+  await call('Emulation.setDeviceMetricsOverride',{width:1152,height:900,deviceScaleFactor:1,mobile:false});
   await delay(350);
   await click('event-filters');await delay(350);
   assert.equal(await evaluate(`!!(document.querySelector('dialog[open]')||document.querySelector('[aria-modal="true"]'))?.querySelector('[data-testid="discovery-calendar"]')`),false,'Desktop filters exclude city/calendar');

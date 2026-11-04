@@ -17,12 +17,12 @@ const card = {padding:20,borderRadius:16,borderWidth:1,borderColor:colors.line,g
 const body = {fontSize:14,lineHeight:22,color:colors.muted};
 const heading = {fontSize:26,fontWeight:'700',color:colors.text} as const;
 const contents = {padding:20,gap:20,maxWidth:1100,width:'100%',alignSelf:'center',paddingBottom:50} as const;
-function useApi() { const {controller}=useAuth();return useMemo(()=>createAdminApi(accountApi,()=>({token:controller.getToken(),role:controller.getSnapshot().user?.role})),[controller]); }
+function useApi() { const {controller}=useAuth('account');return useMemo(()=>createAdminApi(accountApi,()=>({token:controller.getToken(),role:controller.getSnapshot().user?.role})),[controller]); }
 const status = (value:string,ro:boolean) => ({all:ro?'Toate':'All',pending:ro?'În verificare':'Pending',approved:ro?'Aprobat':'Approved',rejected:ro?'Respins':'Rejected',active:ro?'Activ':'Active',attention:ro?'De verificat':'Needs attention',onboarding:ro?'În configurare':'Onboarding',notConnected:ro?'Neconectat':'Not connected'}[value]??value);
 
 export function OrganizerDirectory({organizerId}: {organizerId?:string}) { return organizerId ? <OrganizerDetail key={organizerId} id={organizerId}/> : <Directory />; }
 function Directory() {
-  const {user,controller}=useAuth(), {language}=usePreferences(), ro=language==='ro', api=useApi(),navigation=useNavigation<any>();
+  const {user,controller}=useAuth('account'), {language}=usePreferences(), ro=language==='ro', api=useApi(),navigation=useNavigation<any>();
   const [draft,setDraft]=useState(''),[search,setSearch]=useState(''),[filter,setFilter]=useState('all'),[cursors,setCursors]=useState(['']);
   const after=cursors[cursors.length-1]!,allowed=user?.role==='admin'&&!!controller.getToken();
   const query=useQuery({queryKey:['admin-directory',user?.id,search,filter,after],enabled:allowed,retry:false,queryFn:({signal})=>api.directory({search,status:filter,after},signal)});
@@ -38,7 +38,7 @@ function Directory() {
   </ScrollView>;
 }
 function OrganizerDetail({id}:{id:string}) {
-  const {user,controller}=useAuth(),{language}=usePreferences(),ro=language==='ro',api=useApi(),navigation=useNavigation<any>(),[tab,setTab]=useState('profile');
+  const {user,controller}=useAuth('account'),{language}=usePreferences(),ro=language==='ro',api=useApi(),navigation=useNavigation<any>(),[tab,setTab]=useState('profile');
   const allowed=user?.role==='admin'&&!!controller.getToken();
   const query=useQuery({queryKey:['admin-organizer-detail',user?.id,id],enabled:allowed&&isOrganizerId(id),retry:false,queryFn:({signal})=>api.detail(id,signal)});
   if(!allowed)return null;

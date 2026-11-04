@@ -32,7 +32,7 @@ export function useScannerController({
 
   const { width } = useWindowDimensions();
   const queryClient = useQueryClient();
-  const { user, controller } = useAuth(),
+  const { user, controller } = useAuth('account'),
     { copy, language } = usePreferences(),
     navigation = useNavigation<any>(),
     insets = useSafeAreaInsets(),

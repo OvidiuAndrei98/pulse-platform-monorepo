@@ -61,7 +61,7 @@ export function FriendsSheet({
           {friend.username}
         </span>
         {friend.bio && (
-          <span className="mt-1 block truncate text-xs text-white/45">
+          <span className="mt-1 block truncate text-xs text-[#a1a1aa]">
             {friend.bio}
           </span>
         )}
@@ -104,13 +104,13 @@ export function FriendsSheet({
           ) : requestsError ? <RequestError onRetry={onRetryRequests} className="mb-5" /> : (
             requests.length > 0 && (
               <section className="mb-6">
-                <h3 className="mb-2 text-xs font-medium text-white/45">
+                <h3 className="mb-2 text-xs font-medium text-[#a1a1aa]">
                   {t("feed.friendRequests")}
                 </h3>
                 {requests.map((request) => (
                   <div
                     key={request.id}
-                    className="mb-2 flex items-center gap-2 rounded-2xl bg-[#141113] p-3"
+                    className="mb-2 flex items-center gap-2 rounded-2xl bg-[#19191c] p-3"
                   >
                     {profile(request)}
                     <UIActionButton
@@ -121,7 +121,7 @@ export function FriendsSheet({
                       aria-label={t("feed.acceptRequest", {
                         name: request.username,
                       })}
-                      className="grid h-10 w-10 shrink-0 place-items-center disabled:opacity-40"
+                      className="grid h-11 w-11 shrink-0 place-items-center disabled:opacity-40"
                     >
                       {respondingId === request.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                     </UIActionButton>
@@ -133,7 +133,7 @@ export function FriendsSheet({
                       aria-label={t("feed.declineRequest", {
                         name: request.username,
                       })}
-                      className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/5 disabled:opacity-40"
+                      className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/5 disabled:opacity-40"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -148,14 +148,14 @@ export function FriendsSheet({
             matches.map((friend) => (
               <div
                 key={friend.id}
-                className="flex items-center gap-3 rounded-2xl px-2 py-3 transition-colors hover:bg-white/[0.04]"
+                className="mb-1.5 flex items-center gap-3 rounded-3xl bg-[#19191c] p-3.5 transition-colors hover:bg-white/[0.04]"
               >
                 {profile(friend)}
                 <ArrowUpRight aria-hidden="true" className="pointer-events-none h-4 w-4 shrink-0 text-white/25" />
               </div>
             ))
           ) : (
-            <p className="py-8 text-center text-sm leading-6 text-white/45">
+            <p className="py-8 text-center text-sm leading-6 text-[#a1a1aa]">
               {t(friends.length ? "friends.noMatch" : "friends.emptyHint")}
             </p>
           )}

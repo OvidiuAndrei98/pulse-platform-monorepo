@@ -6,7 +6,7 @@ export const o=StyleSheet.create({
   heading:{fontSize:tokens.type.section.size,lineHeight:26,fontWeight:'700',color:colors.text},
   body:{fontSize:16,lineHeight:24,color:colors.text},muted:{fontSize:14,lineHeight:21,color:colors.muted},
   caption:{fontSize:12,lineHeight:18,color:colors.muted},label:{fontSize:14,lineHeight:21,fontWeight:'600',color:colors.text},
-  section:{gap:20,padding:20,borderWidth:1,borderColor:colors.line,borderRadius:tokens.radius.surface,backgroundColor:colors.surface,minWidth:0},
+  section:{gap:20,padding:18,borderRadius:24,backgroundColor:colors.raised,minWidth:0},
   avatar:{width:36,height:36,borderRadius:999,borderWidth:1,borderColor:colors.line,backgroundColor:colors.raised,alignItems:'center',justifyContent:'center'},
   pill:{alignSelf:'flex-start',flexDirection:'row',alignItems:'center',gap:6,paddingVertical:5,paddingHorizontal:10,borderRadius:999,borderWidth:1,borderColor:colors.line,backgroundColor:colors.raised},
   dateBlock:{minWidth:56,minHeight:64,backgroundColor:colors.raised,borderRadius:tokens.radius.field,justifyContent:'center',alignItems:'center'},
@@ -19,7 +19,7 @@ export const o=StyleSheet.create({
   stepNumber:{width:24,height:24,borderRadius:999,backgroundColor:colors.raised,alignItems:'center',justifyContent:'center'},
   member:{flexDirection:'row',alignItems:'center',gap:12,paddingVertical:12},
   voteTrack:{height:4,borderRadius:999,backgroundColor:colors.raised,overflow:'hidden'},
-  friend:{flexDirection:'row',alignItems:'center',gap:12,padding:12,minHeight:60,borderWidth:1,borderColor:colors.line,borderRadius:tokens.radius.field,backgroundColor:colors.bg},
+  friend:{flexDirection:'row',alignItems:'center',gap:12,padding:14,minHeight:64,borderRadius:18,backgroundColor:colors.surface},
   error:{fontSize:14,lineHeight:21,color:colors.danger},
   notice:{flexDirection:'row',gap:10,padding:16,borderWidth:1,borderColor:colors.line,borderRadius:tokens.radius.field,backgroundColor:colors.surface},
 });

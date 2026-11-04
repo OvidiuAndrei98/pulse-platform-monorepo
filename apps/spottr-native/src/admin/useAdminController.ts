@@ -19,7 +19,7 @@ import { Confirmation } from "./useAdminController.contracts";
 
 export function useAdminController({ section }: { section: AdminSection }) {
 
-  const { user, controller } = useAuth(), { copy, language } = usePreferences(), navigation = useNavigation<any>(), insets = useSafeAreaInsets(), viewport = useWindowDimensions(), link = useOpenLink();
+  const { user, controller } = useAuth('account'), { copy, language } = usePreferences(), navigation = useNavigation<any>(), insets = useSafeAreaInsets(), viewport = useWindowDimensions(), link = useOpenLink();
   const allowed = user?.role === 'admin' && !!controller.getToken(), [filter, setFilter] = useState<'all' | ReviewStatus>('pending'), [target, setTarget] = useState<Confirmation>(), [note, setNote] = useState(''), [busy, setBusy] = useState(false), [reconciling, setReconciling] = useState(''), [notice, setNotice] = useState(''), [error, setError] = useState('');
   const locked = useRef(false), epoch = useRef(0), identity = controller.getToken();
   useEffect(() => { epoch.current++; setTarget(undefined); setError(''); setNotice(''); setBusy(false); locked.current = false; return () => { epoch.current++; }; }, [user?.id, identity]);

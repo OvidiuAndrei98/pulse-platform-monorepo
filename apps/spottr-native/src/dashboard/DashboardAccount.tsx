@@ -53,7 +53,7 @@ export function DashboardProfile({
   retry(): void;
   onCompany(): void;
 }) {
-  const auth = useAuth(),
+  const auth = useAuth('account'),
     { copy, language, setLanguage } = usePreferences(),
     { width } = useWindowDimensions();
   const edit = useAction(),
@@ -485,7 +485,7 @@ export function DashboardProfile({
 export function DashboardPurchases() {
   const [tab, setTab] = useState<"tickets" | "orders">("tickets"),
     [ticket, setTicket] = useState<UserTicket | null>(null);
-  const { user } = useAuth(),
+  const { user } = useAuth('account'),
     { copy, language } = usePreferences(),
     { width } = useWindowDimensions(),
     tickets = useTickets(true, !!ticket);

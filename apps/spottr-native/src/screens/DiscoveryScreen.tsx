@@ -27,7 +27,6 @@ import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { categories, type Event, type EventFilters } from "../data/events";
 import { useEvents, seedEvent } from "../data/queries";
 import { usePreferences } from "../usePreferences";
-import { useAuth } from '../auth/AuthProvider';
 import { EventBrowseCard } from "../ui/EventBrowseCard";
 import {
   Feedback,
@@ -50,6 +49,7 @@ import { DiscoveryToolbar } from './DiscoveryToolbar';
 import { DiscoveryKeyboardArea } from './DiscoveryKeyboardArea';
 import { DiscoverySearchInteraction } from './DiscoverySearchInteraction';
 import { DiscoveryCalendar } from './DiscoveryCalendar';
+import { DiscoveryDateRibbon } from './DiscoveryDateRibbon';
 import { DashboardDropdown } from '../dashboard/DashboardDropdown';
 import {
   defaultEventFilters,
@@ -59,6 +59,10 @@ import {
   eventVibes,
 } from "@packages/app-core/events/constants";
 import {ActionButton as UIActionButton} from '../ui/ActionButton';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { MorphVisibility } from './MorphVisibility';
+import { initialSearchBounds, searchMorphGeometry } from './searchMorph';
+import { initialDiscoveryControlsState } from './discoveryControlsMotion';
 
 const dateKeys = [
   "filters.seeAll",
@@ -70,17 +74,15 @@ const dateKeys = [
 /** Focus changes fetch eligibility without rebuilding the glass search header. */
 function DiscoveryActivity({ query, view }: { query: EventFilters; view: string }) {
   const focused = useIsFocused();
-  const events = useEvents(query, focused);
+  const { query: events, loadMore } = useEvents(query, focused);
   useQuery({ queryKey: ['promotions'], enabled: focused, queryFn: ({ signal }) => eventsApi.promotions(signal) });
-  useEffect(() => { if (focused && view === 'map') events.loadMore(); }, [focused, view, events.data, events.isFetching, events.hasNextPage]);
+  useEffect(() => { if (focused && view === 'map') loadMore(); }, [focused, view, events.data, events.isFetching, events.hasNextPage]);
   return null;
 }
 
 export function DiscoveryScreen() {
-  // Identity changes clear the query cache. Rebind these passive observers to
-  // the replacement queries, even when this persistent screen stays mounted.
-  // Request busy state stays excluded so login typing does not rebuild Search.
-  useAuth('account');
+  // Public event queries survive identity changes. This screen does not need
+  // to rebuild its glass header when another account signs in or out.
   const { copy } = usePreferences('copy'),
     insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootParamList>>();
@@ -90,14 +92,27 @@ export function DiscoveryScreen() {
     [draft, setDraft] = useState(defaultEventFilters),
     [open, setOpen] = useState(false);
   const [view, setView] = useState<'list' | 'map'>('list');
+  const viewportWidth = useWindowDimensions().width;
+  const dateControlBounds = useMemo(() => initialSearchBounds(viewportWidth - 40), [viewportWidth]);
   const overlayToolbar = Platform.OS === 'ios' || view === 'map';
   const searchActivityRef = useRef<((active: boolean) => void) | null>(null);
-  const setSearchActive = useCallback((active: boolean) => searchActivityRef.current?.(active), []);
+  const [searching, setSearching] = useState(false), [dateExpanded, setDateExpanded] = useState(false);
+  const dateProgress = useSharedValue(0);
+  const calendarMotion = useSharedValue(initialDiscoveryControlsState(false).filter);
+  const [dateSource, setDateSource] = useState({ x: 264, y: 0 });
+  const toolbarDateOpacity = useAnimatedStyle(() => ({ opacity: searchMorphGeometry(dateControlBounds, dateProgress.value).controls }));
+  const toolbarDateMotion = useAnimatedStyle(() => {
+    const shape = searchMorphGeometry(dateControlBounds, dateProgress.value, 144,
+      { opening: dateExpanded, interactive: false, reduced: false, ios: Platform.OS === 'ios' });
+    return { transform: [{ translateY: shape.controlsTranslateY }, { scale: shape.controlsScale }] };
+  });
+  const setSearchActive = useCallback((active: boolean) => { searchActivityRef.current?.(active); setSearching(active); }, []);
   const keyboardGestureEndRef = useRef<(() => void) | null>(null);
   const [calendarOpen,setCalendarOpen]=useState(false),calendarId=useId();
   const navbarScroll = useNavbarScroll(view === 'list');
-  const wide=useWindowDimensions().width>=1024&&Platform.OS==='web';
-  const [panel,setPanel]=useState<'all'|'more'|'date'|'city'>('all'),[filterError,setFilterError]=useState(''),[toolbarHeight,setToolbarHeight]=useState(44);
+  const wide=viewportWidth>=1024&&Platform.OS==='web';
+  const [panel,setPanel]=useState<'all'|'more'|'date'|'city'>('all'),[filterError,setFilterError]=useState(''),[baseToolbarHeight,setToolbarHeight]=useState(44);
+  const toolbarHeight = Math.max(54, baseToolbarHeight + 10);
   const [userLocation,setUserLocation]=useState<readonly[number,number]|null>(null);
   const search=useDebouncedDiscoverySearch(filters.q);
   const openPanel=(kind:typeof panel)=>{Keyboard.dismiss();setDraft(filters);setPanel(kind);setCalendarOpen(kind==='date');setFilterError('');setOpen(true);};
@@ -118,14 +133,14 @@ export function DiscoveryScreen() {
       startsAfter: activeDiscoveryStart(range.startsAfter),
     };
   }, [filters.categories,filters.vibes,filters.city,filters.date,filters.dateFrom,filters.dateTo,search]);
-  const events = useEvents(query, false);
+  const { query: events, items: eventItems, loadMore } = useEvents(query, false);
   const promotions = useQuery({ queryKey: ['promotions'], enabled: false, queryFn: ({ signal }) => eventsApi.promotions(signal) });
   const [promotionSeed] = useState(() => String(Date.now()));
   const feedPromotions = useMemo(() => (promotions.data ?? []).filter(p => p.placement === 'feed'), [promotions.data]);
   const campaigns = useMemo(() => new Map(feedPromotions.map(p => [p.event.id, p.campaignId])), [feedPromotions]);
   const center=cityCenters[filters.city]??userLocation;
-  const displayed = useMemo(() => mixFeedPromotions(events.items, feedPromotions, promotionSeed, event => eventMatchesSearch(event,search) && (!filters.categories.length || filters.categories.includes(event.category)) && (!filters.vibes.length || filters.vibes.includes(event.vibe)) && (!filters.city || filters.city === event.city) && (!query.startsAfter || Date.parse(event.endTime) > Date.parse(query.startsAfter)) && (!query.startsBefore || Date.parse(event.startTime) < Date.parse(query.startsBefore)), 3).filter(event=>eventWithinDistance(event,center,filters.distance)), [events.items, feedPromotions, promotionSeed, search, filters.categories, filters.vibes, filters.city, query.startsAfter, query.startsBefore, center, filters.distance]);
-  const mapEvents = useMemo(() => events.items.filter(event=>eventWithinDistance(event,center,filters.distance)), [events.items, center, filters.distance]);
+  const displayed = useMemo(() => mixFeedPromotions(eventItems, feedPromotions, promotionSeed, event => eventMatchesSearch(event,search) && (!filters.categories.length || filters.categories.includes(event.category)) && (!filters.vibes.length || filters.vibes.includes(event.vibe)) && (!filters.city || filters.city === event.city) && (!query.startsAfter || Date.parse(event.endTime) > Date.parse(query.startsAfter)) && (!query.startsBefore || Date.parse(event.startTime) < Date.parse(query.startsBefore)), 3).filter(event=>eventWithinDistance(event,center,filters.distance)), [eventItems, feedPromotions, promotionSeed, search, filters.categories, filters.vibes, filters.city, query.startsAfter, query.startsBefore, center, filters.distance]);
+  const mapEvents = useMemo(() => eventItems.filter(event=>eventWithinDistance(event,center,filters.distance)), [eventItems, center, filters.distance]);
   const renderEvent = useCallback(({ item }: { item: Event }) => <VisiblePromotion campaignId={campaigns.get(item.id)} style={{ flex: 1, maxWidth: '48.5%' }}><EventBrowseCard fill promoted={campaigns.has(item.id)}
     event={item} onOpen={() => { seedEvent(item); trackPromotion(campaigns.get(item.id), 'click'); navigation.navigate('Event', { id: item.id }); }}
   /></VisiblePromotion>, [campaigns, navigation]);
@@ -152,12 +167,22 @@ export function DiscoveryScreen() {
         pointerEvents="box-none"
         style={{
           paddingHorizontal: 20,
-          paddingBottom: 20,
+          paddingBottom: 10,
           zIndex: 10,
           ...(overlayToolbar ? { position: 'absolute', left: 0, right: 0, top: Math.max(24, insets.top) } as const : {}),
         }}
       >
-        <DiscoveryToolbar filters={filters} onChange={setFilters} view={view} onViewChange={setView} onFilters={()=>openPanel(wide?'more':'all')} onCalendar={()=>openPanel('date')} onCity={()=>openPanel('city')} onHeight={setToolbarHeight} onSearchActivityChange={setSearchActive} keyboardGestureEndRef={keyboardGestureEndRef}/>
+        <View style={{ height: toolbarHeight }}>
+          <MorphVisibility opacityStyle={toolbarDateOpacity} style={{height:baseToolbarHeight}} pointerEvents={dateExpanded ? 'none' : 'auto'} aria-hidden={dateExpanded} accessibilityElementsHidden={dateExpanded}>
+          <Animated.View style={toolbarDateMotion}>
+            <DiscoveryToolbar filters={filters} onChange={setFilters} view={view} onViewChange={setView} onFilters={()=>openPanel(wide?'more':'all')} onCity={()=>openPanel('city')} onHeight={setToolbarHeight} onSearchActivityChange={setSearchActive} keyboardGestureEndRef={keyboardGestureEndRef}
+              calendarMotion={calendarMotion}
+              onCalendarLayout={event=>{const {x,y}=event.nativeEvent.layout;setDateSource(current=>current.x===x&&current.y===y?current:{x,y});}}
+              calendar={<View testID="discovery-calendar-anchor" pointerEvents="none" style={{width:44,height:44}}/>}/>
+          </Animated.View>
+          </MorphVisibility>
+          <DiscoveryDateRibbon filters={filters} onChange={setFilters} onOpenChange={setDateExpanded} expanded={dateExpanded} progress={dateProgress} source={dateSource} calendarMotion={calendarMotion} searching={searching && !wide}/>
+        </View>
       </View>
       {view === 'map' ? <EventsMapPanel events={mapEvents} toolbarHeight={toolbarHeight} onLocationChange={setUserLocation} distance={filters.distance} cityCenter={cityCenters[filters.city] ? { latitude: cityCenters[filters.city]![0], longitude: cityCenters[filters.city]![1] } : null} onOpen={event => { seedEvent(event); navigation.navigate('Event', { id: event.id }); }} loading={events.isFetching} error={events.isError} retry={() => void (events.isFetchNextPageError ? events.fetchNextPage() : events.refetch())} /> : <FlatList
         ref={list}
@@ -175,7 +200,7 @@ export function DiscoveryScreen() {
         contentContainerStyle={{
           // The list scrolls beneath the glass. Only its initial content is
           // inset; a padded parent would clip every card below an opaque strip.
-          paddingTop: Platform.OS === 'ios' ? Math.max(24, insets.top) + toolbarHeight + 20 : 0,
+          paddingTop: Platform.OS === 'ios' ? Math.max(24, insets.top) + toolbarHeight + 10 : 0,
           paddingHorizontal: 20,
           paddingBottom: 110,
           gap: 20,
@@ -187,6 +212,7 @@ export function DiscoveryScreen() {
           ) : events.isError ? (
             <Feedback
               title={copy("feedback.loadFailed")}
+              busy={events.isFetching}
               retry={() => void events.refetch()}
             />
           ) : (
@@ -218,15 +244,16 @@ export function DiscoveryScreen() {
             </View>
           )
         }
-        {...webListScrollProps(events.loadMore)}
-        onEndReached={events.loadMore}
+        {...webListScrollProps(loadMore)}
+        onEndReached={loadMore}
         onEndReachedThreshold={0.6}
         ListFooterComponent={
           events.isFetchingNextPage ? (
             <ActivityIndicator color={colors.accent} style={{ padding: 20 }} />
-          ) : events.isError && events.items.length > 0 ? (
+          ) : events.isError && displayed.length > 0 ? (
             <Feedback
               title={copy("feedback.loadFailed")}
+              busy={events.isFetching}
               retry={() =>
                 void (events.isFetchNextPageError
                   ? events.fetchNextPage()

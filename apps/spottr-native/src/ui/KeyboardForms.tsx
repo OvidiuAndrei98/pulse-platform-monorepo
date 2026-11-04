@@ -9,7 +9,7 @@ export function FormKeyboardProvider({ children }: React.PropsWithChildren) {
   return <KeyboardProvider preload={false}>{children}</KeyboardProvider>;
 }
 
-export type FormScrollViewProps = ScrollViewProps & { bottomOffset?: number };
+export type FormScrollViewProps = ScrollViewProps & { bottomOffset?: number; disableScrollOnKeyboardHide?: boolean };
 export const FormScrollView = forwardRef<ScrollViewInstance, FormScrollViewProps>(function FormScrollView(props, ref) {
   const attach = useCallback((instance: KeyboardAwareScrollViewRef | null) => {
     if (typeof ref === 'function') ref(instance);

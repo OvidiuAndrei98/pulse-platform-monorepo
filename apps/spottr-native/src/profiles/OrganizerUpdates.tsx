@@ -11,7 +11,7 @@ import { colors } from '../ui/theme';
 import { usePreferences } from '../usePreferences';
 
 export function OrganizerUpdates({ id, kind, openEvent }: { id: string; kind: 'events' | 'organizers'; openEvent: (id: string) => void }) {
-  const { user } = useAuth(), { copy, language } = usePreferences();
+  const { user } = useAuth('account'), { copy, language } = usePreferences();
   const query = useQuery({ queryKey: ['organizer-updates', kind, id, user?.id ?? 'guest'], queryFn: ({ signal }) => profilesApi.updates(kind, id, signal) });
   const [now, setNow] = useState(Date.now);
   useEffect(() => {

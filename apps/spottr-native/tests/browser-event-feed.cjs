@@ -54,7 +54,7 @@ withBrowser(async ({base,call,evaluate,until,click,capture,errors,delay}) => {
   await open('/friends'); await until(`document.body.innerText.includes('Friday with friends')`); assert.equal(await evaluate(`document.body.innerText.includes('Organizer-only content')`),false,'Friends shows friend participation only');
   await capture('friends-hub-'+(web?'web':'native'));
   if (web) {assert.equal(await evaluate(`['Home','Map','Friends','Feed','Profile'].filter(name=>document.querySelector('button[aria-label="'+name+'"]')).length`),5);} else {for(const tab of ['Home','Explore','Friends','Feed','Profile'])await until(`document.querySelector('[data-testid="tab-${tab}"]')`);}
-  await evaluate(`{const el=[...document.querySelectorAll('button,a,[role="button"]')].find(el=>el.textContent.trim()==='Make a plan');if(!el)throw Error('Missing plan action');el.click();}`);
+  await evaluate(`{const el=[...document.querySelectorAll('button,a,[role="button"]')].find(el=>el.textContent.trim()==='Make a plan'||el.getAttribute('aria-label')==='Make a plan');if(!el)throw Error('Missing plan action');el.click();}`);
   await until(`document.body.innerText.includes('New plan')`);
   assert.ok(await evaluate(`location.pathname==='/outings'`),'Friends can open the existing plan builder directly');
   // Guest discovery stays public; a like requires signing in.

@@ -23,7 +23,7 @@ import { useTranslation } from "react-i18next";
 import { ApiError } from "@packages/api-client/client";
 import {ActionButton as UIActionButton} from '@/components/ui/ActionButton';
 import {Input as UIInput} from '@/components/ui/Field';
-import { completeCredentials, createCredentialFillSubmitter, watchBrowserCredentialFill } from '@packages/browser-core/auth/credentialFill';
+import { completeCredentials, watchBrowserCredentialFill } from '@packages/browser-core/auth/credentialFill';
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -48,20 +48,15 @@ export default function LoginPage() {
     return safeInternalPath(value, "");
   });
   const emailInput = useRef<HTMLInputElement>(null), passwordInput = useRef<HTMLInputElement>(null);
-  const pending = useRef(false), submitRef = useRef<() => void>(() => {}), fillEnabled = useRef(false);
-  fillEnabled.current = showEmailForm && !loading && !user;
-  const fillRef = useRef<ReturnType<typeof createCredentialFillSubmitter> | null>(null);
-  if (!fillRef.current) fillRef.current = createCredentialFillSubmitter({ enabled: () => fillEnabled.current && !pending.current, submit: () => submitRef.current() });
-  const fill = fillRef.current;
-  useEffect(() => () => { fill.reset(); }, [fill]);
+  const pending = useRef(false);
   useEffect(() => {
-    if (!showEmailForm) { fill.cancel(); return; }
-    if (!emailInput.current || !passwordInput.current) return;
+    if (!showEmailForm || !emailInput.current || !passwordInput.current) return;
+    // Autofill and page restoration only populate an editable draft.
+    // Login requires an explicit form submission (button or keyboard).
     return watchBrowserCredentialFill(emailInput.current, passwordInput.current, value => {
       setEmail(value.email); setPassword(value.password);
-      fill.update('email', value.email, true); fill.update('password', value.password, true);
     });
-  }, [showEmailForm, fill]);
+  }, [showEmailForm]);
 
   useEffect(() => {
     if (!loading && user) {
@@ -80,12 +75,9 @@ export default function LoginPage() {
   const handleSubmit = async (event?: React.FormEvent) => {
     event?.preventDefault();
     if (pending.current || loading || user || !showEmailForm) return;
-    fill.cancel();
     // Read actual values too: some password managers fill without React events.
     const credentials = { email: (emailInput.current?.value ?? email).trim(), password: passwordInput.current?.value ?? password };
     if (!completeCredentials(credentials)) return;
-    fill.update('email', credentials.email); fill.update('password', credentials.password);
-    fill.markAttempt();
     pending.current = true;
     setLoginError("");
     try {
@@ -102,7 +94,6 @@ export default function LoginPage() {
       pending.current = false;
     }
   };
-  submitRef.current = () => { void handleSubmit(); };
 
   return (
     <main className="relative min-h-dvh overflow-hidden bg-black text-white">
@@ -220,7 +211,7 @@ export default function LoginPage() {
                   enterKeyHint={password ? 'go' : 'next'}
                   required
                   value={email}
-                  onChange={(inputEvent) => { const value = inputEvent.target.value; fill.update('email', value); setEmail(value); }}
+                  onChange={(inputEvent) => { const value = inputEvent.target.value; setEmail(value); }}
                   onKeyDown={event => {
                     if (event.key === 'Enter' && !event.nativeEvent.isComposing && !passwordInput.current?.value) { event.preventDefault(); passwordInput.current?.focus(); }
                   }}
@@ -245,7 +236,7 @@ export default function LoginPage() {
                   enterKeyHint="go"
                   required
                   value={password}
-                  onChange={(inputEvent) => { const value = inputEvent.target.value; fill.update('password', value); setPassword(value); }}
+                  onChange={(inputEvent) => { const value = inputEvent.target.value; setPassword(value); }}
                   className="h-full min-w-0 flex-1 bg-transparent text-base font-medium text-white  placeholder:text-white/45"
                   placeholder={t("auth.passwordPlaceholder")} bare
                 />

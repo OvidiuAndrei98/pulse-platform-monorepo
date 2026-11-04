@@ -70,7 +70,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, delay, capture, 
   await until(`document.body.innerText.includes('No locations found')`);
   await evaluate('window.__places.fail=true'); await input('event-venue-input', 'failure');
   await until(`document.body.innerText.includes("We couldn't load this information")`);
-  await evaluate(`window.__places.fail=false;Array.from(document.querySelectorAll('[role=button]')).find(el=>el.textContent==='Try again').click()`);
+  await evaluate(`window.__places.fail=false;document.querySelector('[data-testid="status-notice-retry"]').click()`);
   await until(`document.querySelector('[data-testid="event-venue-ChIJ-qa-club"]')`);
   await evaluate('window.__places.detailDelay=800'); await click('event-venue-ChIJ-qa-club');
   await input('event-venue-input', 'Other venue'); await delay(1000);

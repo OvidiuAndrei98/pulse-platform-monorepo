@@ -14,7 +14,7 @@ import { OrganizerAccountClosureSheet } from './OrganizerAccountClosure';
 
 // Only participant accounts have an automatic deletion endpoint.
 export function DeleteAccountSheet({ onClose }: { onClose(): void }) {
-  const { user } = useAuth();
+  const { user } = useAuth('account');
   if (!user) return null;
   return user.role === 'user'
     ? <ParticipantDeletionSheet key={user.id} onClose={onClose} />
@@ -22,7 +22,7 @@ export function DeleteAccountSheet({ onClose }: { onClose(): void }) {
 }
 
 function ParticipantDeletionSheet({ onClose }: { onClose(): void }) {
-  const { user, controller } = useAuth(), { copy } = usePreferences();
+  const { user, controller } = useAuth('account'), { copy } = usePreferences();
   const [confirmation, setConfirmation] = useState(''), [password, setPassword] = useState('');
   const [error, setError] = useState(''), [busy, setBusy] = useState(false);
   const pending = useRef(false);

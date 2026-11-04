@@ -48,7 +48,7 @@ export function TicketSheet({
   onClose: () => void;
   preferUnused?: boolean;
 }) {
-  const { controller } = useAuth();
+  const { controller } = useAuth('account');
   const navigation=useNavigation<any>();
   const alive = useRef(true);
   useEffect(() => {

@@ -75,7 +75,11 @@ func (h *Handler) endpoint(scope string, write bool, f operation) http.HandlerFu
 			router.RespondWithError(w, 401, "UNAUTHORIZED")
 			return
 		}
-		if err == nil && write && h.Abuse != nil && !h.Abuse.Enforce(r.Context(), w, "outings_"+scope, sid(actor), 30, time.Hour) {
+		limit := 30
+		if scope == "availability" || scope == "vote" || scope == "preferences" || scope == "arrival" {
+			limit = 120
+		}
+		if err == nil && write && h.Abuse != nil && !h.Abuse.Enforce(r.Context(), w, "outings_"+scope, sid(actor), limit, time.Hour) {
 			return
 		}
 		if err == nil {
@@ -108,6 +112,13 @@ func (h *Handler) Routes() http.Handler {
 	r.Post("/plans/{planID}/proposals", h.endpoint("propose", true, h.propose))
 	r.Post("/plans/{planID}/vote", h.endpoint("vote", true, h.vote))
 	r.Post("/plans/{planID}/choose", h.endpoint("choose", true, h.choose))
+	for _, action := range []string{"availability", "date", "preferences", "deadline", "reopen", "meeting", "arrival"} {
+		action := action
+		r.Post("/plans/{planID}/"+action, h.endpoint(action, true, func(w http.ResponseWriter, r *http.Request, actor pgtype.UUID) error {
+			return h.planningMutation(w, r, actor, action)
+		}))
+	}
+	r.Get("/plans/{planID}/changes", h.endpoint("changes", false, h.planChanges))
 	r.Get("/transfers", h.endpoint("transfers", false, h.listTransfers))
 	r.Post("/transfers", h.endpoint("create_transfer", true, h.createTransfer))
 	r.Post("/transfers/{transferID}/respond", h.endpoint("respond_transfer", true, h.respondTransfer))
@@ -138,6 +149,9 @@ func (h *Handler) StartCleanupWorker(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				if err := h.notifyPlanDeadlines(ctx); err != nil {
+					log.Print("outing deadline notification delivery failed")
+				}
 				if err := expireTransfers(ctx, h.Pool, pgtype.UUID{}); err != nil {
 					log.Print("ticket transfer expiry failed")
 				}

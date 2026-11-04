@@ -6,7 +6,7 @@ import { usePreferences } from "../usePreferences";
 import type { PrintableTicket } from "@packages/app-core/tickets/design";
 import { exportInvitationBatch } from "./invitationPdf";
 export function useInvitationExport() {
-  const { controller } = useAuth(),
+  const { controller } = useAuth('account'),
     { copy, language } = usePreferences(),
     mounted = useRef(true),
     pending = useRef<(() => void) | null>(null);

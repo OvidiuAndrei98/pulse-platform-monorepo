@@ -36,6 +36,7 @@ function fixture(reduced = false, platform = 'ios', deferredFrames = false) {
   };
   const { useDiscoverySearchMotion } = modules({
     react,
+    '../ui/useReducedMotionPreference': { useReducedMotionPreference: () => { const [value, update] = react.useState(reduced); listener = update; return value; } },
     'react-native': { Platform: { OS: platform }, AccessibilityInfo: { addEventListener: (_: string, fn: any) => { listener = fn; return { remove: () => {} }; } } },
     'react-native-reanimated': {
       useReducedMotion: () => reduced,

@@ -55,7 +55,7 @@ export function FeedActivityCard({ item }: { item: FeedGroup }) {
   };
 
   return (
-    <article className="border-b border-white/[0.08] pb-6 last:border-b-0">
+    <article className="rounded-3xl bg-[#19191c] p-4">
       <header className="flex items-center gap-3 pb-4">
         <Link
           href={routeForPlatform(`/users/${actor.actorId}`)}
@@ -77,7 +77,7 @@ export function FeedActivityCard({ item }: { item: FeedGroup }) {
           >
             {actorName}
           </Link>
-          <p className="mt-0.5 text-xs leading-5 text-white/45">{copy}</p>
+          <p className="mt-0.5 text-xs leading-5 text-[#a1a1aa]">{copy}</p>
         </div>
         <time
           dateTime={item.occurredAt}
@@ -110,17 +110,17 @@ export function FeedActivityCard({ item }: { item: FeedGroup }) {
             contain
           />
         )}
-        <div className="flex items-center gap-3 rounded-xl bg-white/[0.035] p-3">
+        <div className="flex items-center gap-3.5 rounded-2xl">
           <FeedImage
             src={item.eventBannerUrl}
-            className="h-16 w-14 shrink-0 overflow-hidden rounded-lg bg-white/[0.035]"
+            className="h-24 w-[72px] shrink-0 overflow-hidden rounded-2xl bg-white/[0.035]"
           />
           <div className="min-w-0 flex-1">
             <span className="mb-2 flex items-center gap-1.5 text-xs font-medium text-white/50">
               <Calendar className="h-3 w-3 shrink-0" />
               {formatEventDate(item.eventStartTime)}
             </span>
-            <span className="block break-words text-base font-semibold leading-snug tracking-tight text-white transition group-hover:text-primary">
+            <span className="block break-words text-lg font-semibold leading-snug tracking-tight text-white transition group-hover:text-primary">
               {item.eventTitle}
             </span>
             {item.kind === "friends" && (

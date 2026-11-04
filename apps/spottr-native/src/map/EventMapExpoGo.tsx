@@ -27,6 +27,7 @@ export function EventMapExpoGo(props: EventMapProps) {
   const web = useRef<WebView<{}>>(null), latest = useRef(props), ready = useRef(false);
   latest.current = props;
   const [html, setHtml] = useState<string>(), [failed, setFailed] = useState(false), [attempt, setAttempt] = useState(0);
+  useEffect(() => { props.onErrorChange?.(failed); }, [failed, props.onErrorChange]);
   const [reducedMotion, setReducedMotion] = useState(false);
   useEffect(() => {
     let disposed = false;
@@ -77,10 +78,10 @@ export function EventMapExpoGo(props: EventMapProps) {
         }
       }}
       onError={() => setFailed(true)} onContentProcessDidTerminate={retry} onRenderProcessGone={retry}/>}
-    {failed && <View style={s.failure}><Feedback compact title={copy('feedback.loadFailed')} retry={retry}/></View>}
+    {failed && !props.onErrorChange && <View style={s.failure}><Feedback compact title={copy('eventMap.loadFailed')} retry={retry}/></View>}
   </>;
 }
 const s = StyleSheet.create({
   map: { ...StyleSheet.absoluteFill, backgroundColor: '#101012' },
-  failure: { position: 'absolute', top: 90, left: 16, right: 70, backgroundColor: '#19191cf5', borderRadius: 8, padding: 8 },
+  failure: { position: 'absolute', top: 90, left: 16, right: 76, maxWidth: 420 },
 });

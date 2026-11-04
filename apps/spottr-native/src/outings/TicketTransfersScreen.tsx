@@ -12,7 +12,7 @@ import { useOutings } from './useOutings';
 import { TicketTransfers } from './TicketTransfers';
 
 export function TicketTransfersScreen({ticketId}:{ticketId?:string}) {
-  const {user}=useAuth();return <Transfers key={user?.id??'guest'} ticketId={ticketId}/>;
+  const {user}=useAuth('account');return <Transfers key={user?.id??'guest'} ticketId={ticketId}/>;
 }
 function Transfers({ticketId}:{ticketId?:string}) {
   const model=useOutings('transfers'),{copy}=usePreferences(),navigation=useNavigation<any>(),safe=useSafeAreaInsets();

@@ -3852,6 +3852,117 @@
         }
       }
     },
+    "/outings/plans/{planID}/arrival": {
+      "post": {
+        "operationId": "Outings_arrival",
+        "parameters": [
+          {
+            "name": "planID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingMutationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutingArrivalUpdate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/outings/plans/{planID}/availability": {
+      "post": {
+        "operationId": "Outings_availability",
+        "parameters": [
+          {
+            "name": "planID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingMutationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutingAvailability"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/outings/plans/{planID}/changes": {
+      "get": {
+        "operationId": "Outings_changes",
+        "parameters": [
+          {
+            "name": "planID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingChanges"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/outings/plans/{planID}/choose": {
       "post": {
         "operationId": "Outings_choose",
@@ -3889,6 +4000,154 @@
         }
       }
     },
+    "/outings/plans/{planID}/date": {
+      "post": {
+        "operationId": "Outings_chooseDate",
+        "parameters": [
+          {
+            "name": "planID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingMutationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutingDateChoice"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/outings/plans/{planID}/deadline": {
+      "post": {
+        "operationId": "Outings_deadline",
+        "parameters": [
+          {
+            "name": "planID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingMutationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutingDeadline"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/outings/plans/{planID}/meeting": {
+      "post": {
+        "operationId": "Outings_meeting",
+        "parameters": [
+          {
+            "name": "planID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingMutationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutingMeeting"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/outings/plans/{planID}/preferences": {
+      "post": {
+        "operationId": "Outings_preferences",
+        "parameters": [
+          {
+            "name": "planID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingMutationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutingPreferences"
+              }
+            }
+          }
+        }
+      }
+    },
     "/outings/plans/{planID}/proposals": {
       "post": {
         "operationId": "Outings_propose",
@@ -3920,6 +4179,43 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/OutingEventChoice"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/outings/plans/{planID}/reopen": {
+      "post": {
+        "operationId": "Outings_reopen",
+        "parameters": [
+          {
+            "name": "planID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingMutationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutingReopen"
               }
             }
           }
@@ -3993,7 +4289,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OutingEventChoice"
+                "$ref": "#/components/schemas/OutingEventVote"
               }
             }
           }
@@ -6199,7 +6495,6 @@
         "required": [
           "requestId",
           "title",
-          "outingDate",
           "city",
           "friendIds"
         ],
@@ -6212,6 +6507,16 @@
           },
           "outingDate": {
             "type": "string"
+          },
+          "candidateDates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "decisionAt": {
+            "type": "string",
+            "format": "date-time"
           },
           "city": {
             "type": "string"
@@ -7961,6 +8266,101 @@
           }
         }
       },
+      "OutingArrivalUpdate": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_set",
+              "leaving_soon",
+              "on_way",
+              "arrived",
+              "not_coming"
+            ]
+          }
+        }
+      },
+      "OutingAvailability": {
+        "type": "object",
+        "required": [
+          "date",
+          "answer"
+        ],
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string",
+            "enum": [
+              "yes",
+              "maybe",
+              "no"
+            ]
+          }
+        }
+      },
+      "OutingChanges": {
+        "type": "object",
+        "required": [
+          "revision",
+          "changed"
+        ],
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "changed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "OutingDateChoice": {
+        "type": "object",
+        "required": [
+          "date"
+        ],
+        "properties": {
+          "date": {
+            "type": "string"
+          }
+        }
+      },
+      "OutingDateOption": {
+        "type": "object",
+        "required": [
+          "date",
+          "responses"
+        ],
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "responses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OutingReaction"
+            }
+          }
+        }
+      },
+      "OutingDeadline": {
+        "type": "object",
+        "required": [
+          "decisionAt"
+        ],
+        "properties": {
+          "decisionAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "OutingEventChoice": {
         "type": "object",
         "required": [
@@ -7969,6 +8369,40 @@
         "properties": {
           "eventId": {
             "type": "string"
+          }
+        }
+      },
+      "OutingEventVote": {
+        "type": "object",
+        "required": [
+          "eventId"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string",
+            "enum": [
+              "yes",
+              "maybe",
+              "no"
+            ]
+          }
+        }
+      },
+      "OutingMeeting": {
+        "type": "object",
+        "required": [
+          "place"
+        ],
+        "properties": {
+          "place": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -7986,6 +8420,9 @@
           "username": {
             "type": "string"
           },
+          "avatarUrl": {
+            "type": "string"
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -7999,6 +8436,23 @@
           },
           "hasTicket": {
             "type": "boolean"
+          },
+          "hasPreviousTicket": {
+            "type": "boolean"
+          },
+          "arrivalStatus": {
+            "type": "string",
+            "enum": [
+              "not_set",
+              "leaving_soon",
+              "on_way",
+              "arrived",
+              "not_coming"
+            ]
+          },
+          "arrivalUpdatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -8032,6 +8486,9 @@
           "location": {
             "type": "string"
           },
+          "imageUrl": {
+            "type": "string"
+          },
           "startTime": {
             "type": "string",
             "format": "date-time"
@@ -8045,6 +8502,20 @@
           "priceRon": {
             "type": "number",
             "format": "double"
+          },
+          "totalPriceRon": {
+            "type": "number",
+            "format": "double"
+          },
+          "budgetFits": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OutingReaction"
+            }
           },
           "ticketAvailability": {
             "type": "string",
@@ -8112,6 +8583,111 @@
             "items": {
               "$ref": "#/components/schemas/OutingOption"
             }
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "candidateDates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OutingDateOption"
+            }
+          },
+          "decisionAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "myBudgetRon": {
+            "type": "number",
+            "format": "double"
+          },
+          "budgetCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "previousEvents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OutingPreviousEvent"
+            }
+          },
+          "meetingPoint": {
+            "type": "string"
+          },
+          "meetingAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OutingPreferences": {
+        "type": "object",
+        "properties": {
+          "budgetRon": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "OutingPreviousEvent": {
+        "type": "object",
+        "required": [
+          "eventId",
+          "title",
+          "changedAt"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "changedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OutingReaction": {
+        "type": "object",
+        "required": [
+          "userId",
+          "answer"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string",
+            "enum": [
+              "yes",
+              "maybe",
+              "no"
+            ]
+          }
+        }
+      },
+      "OutingReopen": {
+        "type": "object",
+        "required": [
+          "revision",
+          "reason"
+        ],
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "sold_out",
+              "cancelled",
+              "other"
+            ]
           }
         }
       },

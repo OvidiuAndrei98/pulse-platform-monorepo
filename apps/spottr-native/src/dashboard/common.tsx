@@ -41,7 +41,7 @@ export function useDashboardQuery<T>(
   enabled = true,
   interval?: number,
 ) {
-  const { user } = useAuth();
+  const { user } = useAuth('account');
   const query = useQuery({
     queryKey: ["dashboard", user?.id, path],
     enabled: !!user && enabled,
@@ -52,7 +52,7 @@ export function useDashboardQuery<T>(
 }
 /** A synchronous lock prevents duplicate taps; no completion updates a later session. */
 export function useAction() {
-  const { controller, user } = useAuth(),
+  const { controller, user } = useAuth('account'),
     client = useQueryClient(),
     { copy } = usePreferences();
   const [busy, setBusy] = useState(false),
@@ -125,8 +125,8 @@ export function useAction() {
 }
 export function Heading({title,subtitle}:{title:string;subtitle?:string}) {return <PageHeader title={title} description={subtitle}/>;}
 export function Card({children,style,testID}:React.PropsWithChildren<{style?:StyleProp<ViewStyle>;testID?:string}>) {return <Surface testID={testID} style={[{gap:16},style]}>{children}</Surface>;}
-export function Action({title,onPress,disabled=false,secondary=false,danger=false,icon:Icon,style,textStyle,testID}:{title:string;onPress:()=>void;disabled?:boolean;secondary?:boolean;danger?:boolean;icon?:LucideIcon;style?:StyleProp<ViewStyle>;textStyle?:StyleProp<TextStyle>;testID?:string}) {
-  return <ActionButton testID={testID} tone={danger?'danger':secondary?'secondary':'primary'} icon={Icon?<Icon size={16}/>:undefined} disabled={disabled} onPress={onPress} style={style}><Text style={[{fontSize:14,fontWeight:'600'},textStyle]}>{title}</Text></ActionButton>;
+export function Action({title,onPress,disabled=false,secondary=false,light=false,danger=false,icon:Icon,style,textStyle,testID}:{title:string;onPress:()=>void;disabled?:boolean;secondary?:boolean;light?:boolean;danger?:boolean;icon?:LucideIcon;style?:StyleProp<ViewStyle>;textStyle?:StyleProp<TextStyle>;testID?:string}) {
+  return <ActionButton testID={testID} tone={danger?'danger':light?'light':secondary?'secondary':'primary'} icon={Icon?<Icon size={16}/>:undefined} disabled={disabled} onPress={onPress} style={style}><Text style={[{fontSize:14,fontWeight:'600'},textStyle]}>{title}</Text></ActionButton>;
 }
 export function Field({
   label,

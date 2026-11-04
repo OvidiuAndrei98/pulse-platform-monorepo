@@ -1609,6 +1609,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/outings/plans/{planID}/arrival": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["Outings_arrival"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outings/plans/{planID}/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["Outings_availability"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outings/plans/{planID}/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["Outings_changes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/outings/plans/{planID}/choose": {
         parameters: {
             query?: never;
@@ -1625,6 +1673,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/outings/plans/{planID}/date": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["Outings_chooseDate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outings/plans/{planID}/deadline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["Outings_deadline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outings/plans/{planID}/meeting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["Outings_meeting"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outings/plans/{planID}/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["Outings_preferences"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/outings/plans/{planID}/proposals": {
         parameters: {
             query?: never;
@@ -1635,6 +1747,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["Outings_propose"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outings/plans/{planID}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["Outings_reopen"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2243,7 +2371,10 @@ export interface components {
         CreateOutingPlan: {
             requestId: string;
             title: string;
-            outingDate: string;
+            outingDate?: string;
+            candidateDates?: string[];
+            /** Format: date-time */
+            decisionAt?: string;
             city: string;
             eventIds?: string[];
             friendIds: string[];
@@ -2754,16 +2885,57 @@ export interface components {
             stripeDetailsSubmitted: boolean;
             stripeChargeType?: string;
         };
+        OutingArrivalUpdate: {
+            /** @enum {string} */
+            status: "not_set" | "leaving_soon" | "on_way" | "arrived" | "not_coming";
+        };
+        OutingAvailability: {
+            date: string;
+            /** @enum {string} */
+            answer: "yes" | "maybe" | "no";
+        };
+        OutingChanges: {
+            /** Format: int64 */
+            revision: number;
+            changed: boolean;
+        };
+        OutingDateChoice: {
+            date: string;
+        };
+        OutingDateOption: {
+            date: string;
+            responses: components["schemas"]["OutingReaction"][];
+        };
+        OutingDeadline: {
+            /** Format: date-time */
+            decisionAt: string;
+        };
         OutingEventChoice: {
             eventId: string;
+        };
+        OutingEventVote: {
+            eventId: string;
+            /** @enum {string} */
+            answer?: "yes" | "maybe" | "no";
+        };
+        OutingMeeting: {
+            place: string;
+            /** Format: date-time */
+            at?: string;
         };
         OutingMember: {
             userId: string;
             username: string;
+            avatarUrl?: string;
             /** @enum {string} */
             status: "pending" | "accepted" | "declined";
             voteEventId?: string;
             hasTicket?: boolean;
+            hasPreviousTicket?: boolean;
+            /** @enum {string} */
+            arrivalStatus?: "not_set" | "leaving_soon" | "on_way" | "arrived" | "not_coming";
+            /** Format: date-time */
+            arrivalUpdatedAt?: string;
         };
         OutingMutationResult: {
             ok: boolean;
@@ -2772,12 +2944,18 @@ export interface components {
             eventId: string;
             title: string;
             location: string;
+            imageUrl?: string;
             /** Format: date-time */
             startTime: string;
             available: boolean;
             proposedBy?: string;
             /** Format: double */
             priceRon?: number;
+            /** Format: double */
+            totalPriceRon?: number;
+            /** Format: int32 */
+            budgetFits?: number;
+            reactions?: components["schemas"]["OutingReaction"][];
             /** @enum {string} */
             ticketAvailability?: "on_sale" | "upcoming" | "sold_out" | "sales_ended" | "external" | "unavailable";
         };
@@ -2794,6 +2972,40 @@ export interface components {
             expiresAt: string;
             members: components["schemas"]["OutingMember"][];
             options: components["schemas"]["OutingOption"][];
+            /** Format: int64 */
+            revision?: number;
+            candidateDates?: components["schemas"]["OutingDateOption"][];
+            /** Format: date-time */
+            decisionAt?: string;
+            /** Format: double */
+            myBudgetRon?: number;
+            /** Format: int32 */
+            budgetCount?: number;
+            previousEvents?: components["schemas"]["OutingPreviousEvent"][];
+            meetingPoint?: string;
+            /** Format: date-time */
+            meetingAt?: string;
+        };
+        OutingPreferences: {
+            /** Format: double */
+            budgetRon?: number;
+        };
+        OutingPreviousEvent: {
+            eventId: string;
+            title: string;
+            /** Format: date-time */
+            changedAt: string;
+        };
+        OutingReaction: {
+            userId: string;
+            /** @enum {string} */
+            answer: "yes" | "maybe" | "no";
+        };
+        OutingReopen: {
+            /** Format: int64 */
+            revision: number;
+            /** @enum {string} */
+            reason: "sold_out" | "cancelled" | "other";
         };
         OutingResponse: {
             /** @enum {string} */
@@ -6395,6 +6607,82 @@ export interface operations {
             };
         };
     };
+    Outings_arrival: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutingArrivalUpdate"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingMutationResult"];
+                };
+            };
+        };
+    };
+    Outings_availability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutingAvailability"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingMutationResult"];
+                };
+            };
+        };
+    };
+    Outings_changes: {
+        parameters: {
+            query: {
+                revision: number;
+            };
+            header?: never;
+            path: {
+                planID: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingChanges"];
+                };
+            };
+        };
+    };
     Outings_choose: {
         parameters: {
             query?: never;
@@ -6421,6 +6709,110 @@ export interface operations {
             };
         };
     };
+    Outings_chooseDate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutingDateChoice"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingMutationResult"];
+                };
+            };
+        };
+    };
+    Outings_deadline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutingDeadline"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingMutationResult"];
+                };
+            };
+        };
+    };
+    Outings_meeting: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutingMeeting"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingMutationResult"];
+                };
+            };
+        };
+    };
+    Outings_preferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutingPreferences"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingMutationResult"];
+                };
+            };
+        };
+    };
     Outings_propose: {
         parameters: {
             query?: never;
@@ -6433,6 +6825,32 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["OutingEventChoice"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingMutationResult"];
+                };
+            };
+        };
+    };
+    Outings_reopen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutingReopen"];
             };
         };
         responses: {
@@ -6484,7 +6902,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["OutingEventChoice"];
+                "application/json": components["schemas"]["OutingEventVote"];
             };
         };
         responses: {

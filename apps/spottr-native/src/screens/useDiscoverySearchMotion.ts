@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Platform } from 'react-native';
-import { cancelAnimation, ReduceMotion, runOnJS, runOnUI, useAnimatedReaction, useReducedMotion, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
+import { Platform } from 'react-native';
+import { cancelAnimation, ReduceMotion, runOnJS, runOnUI, useAnimatedReaction, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
+import { useReducedMotionPreference } from '../ui/useReducedMotionPreference';
 import { keyboardMorphProgress, searchDismissSpring, searchMorphSpring, iosSearchOpenSpring, iosSearchCloseSpring, iosSearchPressSpring, iosSearchPressExpansion, iosSearchFocusFallbackMs } from './searchMorph';
 import { useSearchKeyboardEvents, type SearchKeyboardEvent } from './useSearchKeyboardEvents';
 
@@ -10,7 +11,7 @@ const openSpring = Platform.OS === 'ios' ? iosSearchOpenSpring : searchMorphSpri
 const closeSpring = Platform.OS === 'ios' ? iosSearchCloseSpring : searchDismissSpring;
 
 export function useDiscoverySearchMotion(initialOpen: boolean, onClosed: () => void, onRequested?: (open: boolean, origin: SearchRequestOrigin) => void, onFocusReady?: () => void) {
-  const initialReduced = useReducedMotion(), [reduced, setReduced] = useState(initialReduced);
+  const reduced = useReducedMotionPreference();
   const [phase, setPhase] = useState<SearchPhase>(initialOpen ? 'open' : 'closed');
   const [controlsReady, setControlsReady] = useState(!initialOpen);
   const progress = useSharedValue(initialOpen ? 1 : 0), reduce = useSharedValue(reduced), keyboard = useSharedValue(0);
@@ -29,8 +30,7 @@ export function useDiscoverySearchMotion(initialOpen: boolean, onClosed: () => v
   useLayoutEffect(() => { closed.current = onClosed; requested.current = onRequested; focusReady.current = onFocusReady; }, [onClosed, onRequested, onFocusReady]);
   useEffect(() => {
     alive.current = true;
-    const listener = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduced);
-    return () => { alive.current = false; revision.current++; listener.remove(); };
+    return () => { alive.current = false; revision.current++; };
   }, []);
   const finish = useCallback((id: number) => {
     if (!alive.current || id !== revision.current || desired.current || completed.current === id) return;

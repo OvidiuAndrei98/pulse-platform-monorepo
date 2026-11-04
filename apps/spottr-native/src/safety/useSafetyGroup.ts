@@ -7,7 +7,7 @@ import { SafetyController } from './controller';
 
 const api = createSafetyApi(accountApi);
 export function useSafetyGroup(eventId: string) {
-  const auth = useAuth(), focused = useIsFocused(), token = auth.controller.getToken(), viewer = auth.user?.id;
+  const auth = useAuth('account'), focused = useIsFocused(), token = auth.controller.getToken(), viewer = auth.user?.id;
   const [foreground, setForeground] = useState(AppState.currentState !== 'background' && (Platform.OS !== 'web' || document.visibilityState !== 'hidden'));
   const controller = useMemo(() => new SafetyController(eventId.toLowerCase(), viewer ?? '', token ?? '', api,
     () => !!viewer && !!token && auth.controller.getToken() === token && auth.controller.getSnapshot().user?.id === viewer), [eventId, viewer, token, auth.controller]);

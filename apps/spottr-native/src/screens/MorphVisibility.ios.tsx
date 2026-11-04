@@ -10,10 +10,11 @@ const MaskedView = NativeMaskedView as unknown as React.ComponentType<ViewProps 
 /** Fade the compositing mask, never GlassView or its UIView ancestors. The
  * material stays mounted at alpha=1, even when this independent layer is hidden. */
 export function MorphVisibility({ opacityStyle, children, ...props }: MorphVisibilityProps) {
+  const passThrough = props.pointerEvents === 'box-none' ? 'box-none' : undefined;
   return <View {...props}>
-    <MaskedView style={s.compositor} maskElement={
+    <MaskedView pointerEvents={passThrough} style={s.compositor} maskElement={
       <Animated.View pointerEvents="none" style={[s.mask, opacityStyle]}/>
-    }><View style={s.content}>{children}</View></MaskedView>
+    }><View pointerEvents={passThrough} style={s.content}>{children}</View></MaskedView>
   </View>;
 }
 const s = StyleSheet.create({

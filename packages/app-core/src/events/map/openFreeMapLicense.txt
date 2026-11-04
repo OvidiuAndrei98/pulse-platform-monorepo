@@ -1,5 +1,5 @@
 SPOTTR Dark 3D derives from OpenFreeMap Dark.
-Changes: extruded building layer; removed missing sprite references.
+Changes: extruded building layer; ground/building/label draw order; softer 3D lighting; progressive zoom-based building height and opacity; removed missing sprite references.
 Source: https://github.com/hyperknot/openfreemap-styles/tree/main/styles/dark
 
 Copyright (c) 2024, MapTiler.com & OpenMapTiles contributors.  

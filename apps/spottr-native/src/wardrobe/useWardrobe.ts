@@ -8,7 +8,7 @@ import {
   type Request,
 } from "@packages/app-core/wardrobe/model";
 export function useWardrobe(staff = false, interval = 5000) {
-  const auth = useAuth(),
+  const auth = useAuth('account'),
     focused = useIsFocused();
   const [foreground, setForeground] = useState(
     AppState.currentState === "active",

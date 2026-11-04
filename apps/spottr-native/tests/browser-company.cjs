@@ -83,7 +83,7 @@ withBrowser(async ({ base, call, evaluate, until, click, input, capture, errors 
   await call('Page.navigate', { url: base + '/dashboard/company?mode=error' });
   await until(`document.body.innerText.includes("We couldn't load this information")`);
   assert.equal(await evaluate(`!!${node('company-submit')}`), false, 'Profile errors cannot masquerade as a new company');
-  await evaluate(`window.__company.failProfile=false; Array.from(document.querySelectorAll('[role=button]')).find(el=>el.textContent==='Try again').click()`);
+  await evaluate(`window.__company.failProfile=false; document.querySelector('[data-testid="status-notice-retry"]').click()`);
   await until(node('company-verified'));
 
   for (const width of [390, 1024]) {

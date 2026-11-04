@@ -16,6 +16,7 @@ import { formatDate } from "../data/events";
 import { Action, dColors as colors } from "./common";
 import type { DashboardEvent } from "./data";
 import { Grid } from "./managementUi";
+import { GlassButtonGroup } from '../ui/GlassButtonGroup';
 import {
   dashboardTicketCounts,
   isDashboardEventLive,
@@ -347,7 +348,7 @@ export function DashboardOverview({
           </Pressable>
         )
       )}
-      <View style={{ flexDirection: "row", gap: 12 }}>
+      <GlassButtonGroup spacing={8} style={{ flexDirection: "row", gap: 10 }}>
         <Action
           title={copy("dashboardNav.newEvent")}
           icon={Plus}
@@ -356,12 +357,12 @@ export function DashboardOverview({
         />
         <Action
           title={copy("dashboardNav.newPromotion")}
+          light
           icon={Megaphone}
           onPress={onPromotions}
-          style={{ flex: 1, paddingHorizontal: 10, backgroundColor: "#ffffff" }}
-          textStyle={{ color: colors.accent }}
+          style={{ flex: 1, paddingHorizontal: 10 }}
         />
-      </View>
+      </GlassButtonGroup>
       {eventGroup(
         "dashboard.nextEvents",
         "dashboard.nextEventsHint",

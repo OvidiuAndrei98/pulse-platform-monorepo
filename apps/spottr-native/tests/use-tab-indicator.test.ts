@@ -22,6 +22,7 @@ function mount(platform = 'ios') {
   react.useLayoutEffect = react.useEffect;
   const deps: Record<string, any> = {
     react,
+    '../ui/useReducedMotionPreference': { useReducedMotionPreference: () => { const [value, update] = react.useState(false); reduceMotion = update; return value; } },
     'react-native': { Platform: { OS: platform }, AccessibilityInfo: {
       isReduceMotionEnabled: async () => false,
       addEventListener: (_: string, fn: (value: boolean) => void) => { reduceMotion = fn; return { remove() {} }; },

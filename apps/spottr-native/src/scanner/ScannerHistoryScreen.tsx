@@ -43,7 +43,7 @@ function ScanRow({ scan }: { scan: HistoryScan }) {
 
 export function ScannerHistoryScreen({ route, navigation }: NativeStackScreenProps<RootParamList, 'ScannerHistory'>) {
   const { eventId, eventTitle } = route.params;
-  const { user, controller } = useAuth(), { copy } = usePreferences();
+  const { user, controller } = useAuth('account'), { copy } = usePreferences();
   const token = controller.getToken(), insets = useSafeAreaInsets(), focused = useIsFocused();
   const [scope, setScope] = useState<ScanScope>('all');
   const [connected, setConnected] = useState<boolean | null>(null);

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import { useTranslation } from 'react-i18next';
+import { useHydratedTranslation as useTranslation } from '@/lib/useHydratedTranslation';
 import { useEventNight } from './useEventNight';
 import { HoldForHelp } from './HoldForHelp';
 import { ActionButton } from '@/components/ui/ActionButton';

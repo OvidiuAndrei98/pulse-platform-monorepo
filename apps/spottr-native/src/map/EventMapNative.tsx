@@ -19,6 +19,7 @@ export function EventMapNative(props: EventMapProps) {
   const {copy}=usePreferences();
   const map=useRef<MapRef>(null),camera=useRef<CameraRef>(null),latest=useRef(props);latest.current=props;
   const [level,setLevel]=useState(props.zoom),[ready,setReady]=useState(false),[failed,setFailed]=useState(false),[attempt,setAttempt]=useState(0),[height,setHeight]=useState(844);
+  useEffect(()=>{props.onErrorChange?.(failed);},[failed,props.onErrorChange]);
   const reduced=useRef(false),revision=useRef(0),nativeReady=useRef(false),mounted=useRef(true),activeAttempt=useRef(0);
   useEffect(()=>{
     mounted.current=true;
@@ -77,7 +78,7 @@ export function EventMapNative(props: EventMapProps) {
         <View style={[s.pin,event.id===props.selected&&s.selected]}><MapPin size={22} color={event.id===props.selected?'white':colors.accent}/>{isLive(event)&&<View style={s.live}/>}</View>
       </Marker>)}
     </MapView>
-    {failed&&<View style={s.failure}><Feedback compact title={copy('feedback.loadFailed')} retry={()=>{nativeReady.current=false;revision.current++;setReady(false);setFailed(false);setAttempt(++activeAttempt.current);latest.current.onSelectedPoint(null);}}/></View>}
+    {failed&&!props.onErrorChange&&<View style={s.failure}><Feedback compact title={copy('eventMap.loadFailed')} retry={()=>{nativeReady.current=false;revision.current++;setReady(false);setFailed(false);setAttempt(++activeAttempt.current);latest.current.onSelectedPoint(null);}}/></View>}
   </>;
 }
 const s=StyleSheet.create({
@@ -86,5 +87,5 @@ const s=StyleSheet.create({
   live:{position:'absolute',top:0,right:0,width:8,height:8,borderRadius:4,borderWidth:2,borderColor:'white',backgroundColor:colors.accent},
   cluster:{width:44,height:44,borderRadius:22,borderWidth:2,borderColor:colors.accent,backgroundColor:'#19191c',alignItems:'center',justifyContent:'center'},
   location:{width:14,height:14,borderRadius:7,borderWidth:2,borderColor:'white',backgroundColor:colors.accent},
-  failure:{position:'absolute',top:90,left:16,right:70,backgroundColor:'#19191cf5',borderRadius:8,padding:8},
+  failure:{position:'absolute',top:90,left:16,right:76,maxWidth:420},
 });
