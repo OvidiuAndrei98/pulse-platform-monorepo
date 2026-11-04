@@ -104,8 +104,8 @@ async function run() {
   for (const width of [390, 1280]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: width < 768 });
     await navigate('/events/test-event');
-    await until("document.querySelector('main input[type=radio]')");
-    await evaluate("document.querySelector('main input[type=radio]').click()");
+    await until("document.querySelector('main button[data-testid$=-plus]')");
+    await evaluate("document.querySelector('main button[data-testid$=-plus]').click()");
     await delay(700);
     assert.equal(await evaluate("Boolean(document.querySelector('[data-bottom-nav]'))"), false, 'No navbar on the standalone event page');
     for (const offset of [600, 0, 1400]) {

@@ -16,7 +16,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { BadgeCheck, CalendarDays, Check, Share2, Ticket as TicketIcon, UserRound, Music2, MapPin } from "lucide-react-native";
+import { BadgeCheck, CalendarDays, Share2, Ticket as TicketIcon, UserRound, Music2, MapPin } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -30,11 +30,9 @@ import { EventImage, Feedback, Loading, useOpenLink } from "../ui/common";
 import { Text } from "../ui/Text";
 import { MotionPressable as Pressable } from "../ui/MotionPressable";
 import { AnimatedBookmark } from "../ui/AnimatedBookmark";
-import { SelectionPressable, StateSurface } from "../ui/StateMotion";
 import { colors } from "../ui/theme";
 import type { RootParamList } from "../navigation/types";
 import {
-  calculateServiceFeeRon,
   formatRon,
 } from "@packages/app-core/events/serviceFee";
 import { AppSheetScrollView } from "../ui/AppSheetScrollView";
@@ -42,7 +40,9 @@ import { AppSheet } from "../ui/AppSheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { accountApi, useAuth } from "../auth/AuthProvider";
 import { EventSocial } from "../ui/EventSocial";
-import { validSelection, parseBooking } from "../checkout/data";
+import { checkoutTotals, validSelection, parseBooking, type Quantities } from "../checkout/data";
+import { changeTicketQuantity, retainAvailableTickets,ticketSelectionMode } from '@packages/app-core/checkout/ticketAvailability';
+import { EventTicketPicker } from '../checkout/EventTicketPicker';
 import { OrganizerUpdates } from '../profiles/OrganizerUpdates';
 import { EventAttendees } from '../social/EventAttendees';
 import { PurchaseSuccessHost } from '../checkout/PurchaseSuccessSheet';
@@ -73,26 +73,29 @@ export function EventScreen({
   });
   const link = useOpenLink(),
     [shareError, setShareError] = useState(false),
-    [selected, setSelected] = useState<string>();
-  const available = event ? availableTickets(event, now) : [],
-    ticket = available.find((t) => t.id === selected);
+    [quantities, setQuantities] = useState<Quantities>({});
+  const selectionOwner=useRef<string|undefined>(undefined);
   useEffect(() => {
-    if (!selected && available[0]) setSelected(available[0].id);
-    else if (selected && !available.some((t) => t.id === selected))
-      setSelected(undefined);
-  }, [available.map((t) => t.id).join(","), selected]);
+    if(!event)return;
+    const owner=event.id+':'+(user?.id??'guest');
+    if(selectionOwner.current!==owner){selectionOwner.current=owner;const first=availableTickets(event,now)[0];setQuantities(first?{[first.id]:1}:{});return;}
+    setQuantities(current=>retainAvailableTickets(event.ticketTypes,current,now));
+  }, [event,now,user?.id]);
+  const totals=event?checkoutTotals(event,quantities):null;
+  const freeSelection=totals?.count===1&&totals.subtotal===0;
   const missing = query.error instanceof ApiError && query.error.status === 404;
   const close = () => navigation.goBack();
   const ended = !!event && Date.parse(event.endTime) <= now;
   const external = event?.externalTicketUrl;
   const ownEvent = !!user && event?.organizerId === user.id;
-  const canBuy = !ended && !ownEvent && (!!ticket || !!external);
+  const canBuy = !ended && !ownEvent && (!!external || !!event&&validSelection(event,quantities,user?.id,now));
   const signIn = () => navigation.navigate("Auth", { mode: "login", returnEvent: route.params.id });
   const purchase = async () => {
     if (!event || !canBuy || pending.current) return;
     if (external) { void link.open(external); return; }
-    if (!ticket) return;
-    if (ticket.priceRon === 0 && !user) { signIn(); return; }
+    if (!totals?.count) return;
+    if (freeSelection && !user) { signIn(); return; }
+    const selectionSnapshot={...quantities};
     pending.current = true; setBuying(true); setPurchaseError(null);
     const version = revision.current, token = controller.getToken();
     let verified = false;
@@ -101,11 +104,14 @@ export function EventScreen({
       if (version !== revision.current || controller.getToken() !== token) return;
       queryClient.setQueryData(["event", event.id], fresh);
       verified = true;
-      if (!validSelection(fresh, { [ticket.id]: 1 }, user?.id)) { setPurchaseError("checkout.selectionUnavailable"); return; }
-      const freshTicket = fresh.ticketTypes.find(t => t.id === ticket.id)!;
-      if (freshTicket.priceRon > 0) { navigation.navigate("Checkout", { eventId: event.id, ticketTypeId: ticket.id }); return; }
+      if (!validSelection(fresh, selectionSnapshot, user?.id)) { setPurchaseError("checkout.selectionUnavailable"); return; }
+      const freshTotals=checkoutTotals(fresh,selectionSnapshot);
+      const mode=ticketSelectionMode(fresh.ticketTypes,selectionSnapshot);
+      if (mode==='paid') { navigation.navigate("Checkout", { eventId: event.id, quantities: selectionSnapshot }); return; }
+      if(mode!=='free'){setQuantities({});setPurchaseError('checkout.selectionUnavailable');return;}
+      const freshTicket=freshTotals.tickets[0]!;
       if (!user) { signIn(); return; }
-      parseBooking(await accountApi('/events/' + event.id + '/tickets/book', { token, method: 'POST', body: { items: [{ ticketTypeId: ticket.id, quantity: 1 }] } }));
+      parseBooking(await accountApi('/events/' + event.id + '/tickets/book', { token, method: 'POST', body: { items: [{ ticketTypeId: freshTicket.id, quantity: 1 }] } }));
       if (version !== revision.current || controller.getToken() !== token) return;
       for (const key of ['tickets', 'orders', 'event', 'event-social', 'event-friends', 'social-feed']) void queryClient.invalidateQueries({ queryKey: [key] });
       openAccountPage(navigation, 'Tickets', true);
@@ -115,12 +121,7 @@ export function EventScreen({
       if (cause instanceof ApiError && cause.status === 409) void query.refetch();
     } finally { if (version === revision.current) { pending.current = false; setBuying(false); } }
   };
-  const total = ticket
-    ? ticket.priceRon +
-      (event?.organizerAbsorbsServiceFee
-        ? 0
-        : calculateServiceFeeRon(ticket.priceRon, 1, event))
-    : 0;
+  const total = totals?.total??0;
   const share = async () => {
     if (!event) return;
     setShareError(false);
@@ -185,9 +186,9 @@ export function EventScreen({
             ? copy("eventSheet.eventCompleted")
             : external
               ? copy("eventSheet.externalTickets")
-              : ticket
-                ? ticket.priceRon === 0 ? copy("checkout.bookFree") : copy("eventSheet.continue", {
-                    count: 1,
+              : totals?.count
+                ? freeSelection ? copy("checkout.bookFree") : copy("eventSheet.continue", {
+                    count: totals.count,
                     total: formatRon(total),
                   })
                 : copy("eventSheet.selectTickets")}
@@ -344,7 +345,6 @@ export function EventScreen({
                   retry={() => void query.refetch()}
                 />
               )}
-              <UIActionButton testID="event-outing" title={copy('outings.addToPlan')} tone="secondary" onPress={()=>navigation.navigate('Outings',{event:event.id})}/>
               <EventSocial eventId={event.id} signIn={signIn} />
               <EventAttendees eventId={event.id} compact={isSheet}/>
               <View>
@@ -399,74 +399,7 @@ export function EventScreen({
                   <Text style={[s.heading, { marginBottom: 2 }]}>
                     {copy("eventSheet.tickets")}
                   </Text>
-                  {[...event.ticketTypes]
-                    .sort((a, b) => a.priceRon - b.priceRon)
-                    .map((tier) => {
-                      const enabled =
-                          !ended && available.some((t) => t.id === tier.id),
-                        checked = enabled && tier.id === selected;
-                      return (
-                        <SelectionPressable
-                          key={tier.id}
-                          testID={'event-ticket-' + tier.id}
-                          background={checked ? '#ff00441a' : '#ffffff08'}
-                          border={checked ? colors.accent : '#ffffff1a'}
-                          accessibilityRole="radio"
-                          accessibilityState={{ checked, disabled: !enabled || buying }}
-                          disabled={!enabled || buying}
-                          onPress={() => { if (!pending.current && selected !== tier.id) { haptic("selection"); setSelected(tier.id); } }}
-                          style={[
-                            s.tier,
-                            !enabled && { opacity: 0.5 },
-                          ]}
-                        >
-                          <StateSurface style={s.radio} background={checked ? colors.accent : '#00000000'} border={checked ? colors.accent : '#ffffff4d'}>
-                            {checked && <Check size={16} color="white" />}
-                          </StateSurface>
-                          <View style={{ flex: 1, gap: 4 }}>
-                            <Text
-                              style={{
-                                fontSize: 14,
-                                fontWeight: "600",
-                                color: "white",
-                              }}
-                            >
-                              {tier.name}
-                            </Text>
-                            {!!tier.description && (
-                              <Text
-                                style={{
-                                  fontSize: 12,
-                                  lineHeight: 20,
-                                  color: "#ffffff80",
-                                }}
-                              >
-                                {tier.description}
-                              </Text>
-                            )}
-                          </View>
-                          <Text
-                            style={{
-                              fontSize: 14,
-                              fontWeight: "700",
-                              color: colors.accent,
-                            }}
-                          >
-                            {enabled
-                              ? tier.priceRon === 0
-                                ? copy("checkout.free")
-                                : formatRon(tier.priceRon)
-                              : copy(
-                                  (tier.ticketsSold ?? 0) >= tier.capacity
-                                    ? "checkout.soldOut"
-                                    : Date.parse(tier.startSales) > now
-                                      ? "checkout.salesNotStarted"
-                                      : "checkout.salesEnded",
-                                )}
-                          </Text>
-                        </SelectionPressable>
-                      );
-                    })}
+                  <EventTicketPicker event={event} quantities={quantities} now={now} disabled={buying||ownEvent} onStep={(id,delta)=>{if(!pending.current){haptic('selection');setQuantities(current=>changeTicketQuantity(event.ticketTypes,current,id,(current[id]??0)+delta,now));}}}/>
                 </View>
               )}
               {purchaseError && <Feedback compact title={copy(purchaseError)} />}

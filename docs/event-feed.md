@@ -20,6 +20,20 @@ organizers that have not ended are returned, respecting an authenticated user's
 hidden categories. The initial order is chronological, not personalized or
 ranked by likes. Each API page contains up to ten events (up to 500 pages).
 
+The friends action opens an event-first outing form. The event's Romania
+calendar day and canonical city are prefilled; its ID is included as the first
+proposal only when the user selects friends and confirms creation. This uses
+the existing atomic `POST /outings/plans` contract, with no automatic RSVP,
+ticket reservation, vote or final event choice. The secondary action lists
+compatible accepted, undecided outings. Events already present open their plan
+without another mutation. Switching between new/existing modes keeps the draft.
+Source-event and friend loading have separate retry states, and authentication
+preserves the event intent on both platforms. This frontend change needs no
+additional database migration. Its browser regression suite is
+`apps/spottr-native/tests/browser-event-outing.cjs` (EN/RO via
+`OUTINGS_TEST_LANGUAGE`; web via `OUTINGS_TEST_PLATFORM=web` and a local
+`NAVIGATION_TEST_URL`).
+
 Likes are independent of saved events, RSVP, tickets and outing votes. Public
 responses expose a count and the current viewer's own liked flag, without a
 liker list. Authenticated `PUT /events/{id}/likes` and `DELETE` are idempotent;

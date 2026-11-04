@@ -289,3 +289,23 @@ not an exact snapshot of all earlier uncommitted session fixes.
 Resume with a physical comparison of current versus the previous gain. Preserve
 guest Profile and authentication/navigation performance fixes. Do not copy the
 whole old navigator over those fixes. No source files were reverted.
+
+## Staging sync before push
+
+Saved the accumulated work in `eacf5c0`, then merged five newer remote commits
+from `origin/staging` (`8d03f98`). Integrated multi-ticket selection and starting
+an outing from an event while retaining the current two-step plan design, friend
+photos, night-based date semantics, scoped authentication subscriptions, and
+focused-only login return handling. The navbar motion files match `eacf5c0`
+exactly; only navigation parameter types came from the remote changes.
+
+Next and Vaul now declare an optional React-types peer so their web declarations
+resolve React 19.2 types rather than the React 19.3 types hoisted for Expo. No
+runtime package versions changed for this correction. The restored-credentials
+test now renders the new Suspense content boundary before checking the form.
+
+After integration: native **712/712**, web **136/136**, shared core **122/122**,
+both app TypeScript checks and architecture checks passed. API outings unit
+tests/compilation passed with `ISOLATION_TEST_DATABASE_URL` explicitly empty;
+database integration tests were not executed. Temporary public QR images and
+the local comparison backup remain excluded from the commit.

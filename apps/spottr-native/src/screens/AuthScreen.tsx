@@ -113,7 +113,7 @@ export function AuthScreen({
     // destinations are a typed tab, never a URL supplied by a third party.
     if (isEventId(route.params?.returnSafetyGroup)) navigation.popTo('SafetyGroup', { eventId: route.params.returnSafetyGroup }, { merge: true });
     else if (route.params?.returnTicketTransfers) navigation.popTo('TicketTransfers', undefined);
-    else if (route.params?.returnOutings) navigation.popTo('Outings', undefined);
+    else if (route.params?.returnOutings) navigation.popTo('Outings', isEventId(route.params.returnOutingsEvent)?{event:route.params.returnOutingsEvent}:undefined, {merge:true});
     else if (isEventId(route.params?.returnEventNight)) navigation.popTo('EventNight',{eventId:route.params.returnEventNight});
     else if (route.params?.returnScanner) navigation.popTo('Scanner', undefined);
     else if (isEventId(route.params?.returnProfile)) navigation.popTo('PublicProfile', { id: route.params.returnProfile }, { merge: true });
@@ -126,7 +126,7 @@ export function AuthScreen({
       if (screen === 'Profile') navigation.popTo('Tabs', { screen, params: { screen: 'ProfileHome' } });
       else navigation.popTo('Tabs', { screen });
     }
-  }, [focused, auth.ready, auth.user, mode, navigation, route.params?.returnTab, route.params?.returnEvent, route.params?.returnProfile, route.params?.returnSafetyGroup, route.params?.returnOutings, route.params?.returnTicketTransfers, route.params?.returnEventNight, route.params?.returnScanner, route.params?.returnDashboard, route.params?.returnDashboardParams]);
+  }, [focused, auth.ready, auth.user, mode, navigation, route.params?.returnTab, route.params?.returnEvent, route.params?.returnProfile, route.params?.returnSafetyGroup, route.params?.returnOutings, route.params?.returnOutingsEvent, route.params?.returnTicketTransfers, route.params?.returnEventNight, route.params?.returnScanner, route.params?.returnDashboard, route.params?.returnDashboardParams]);
   const go = (next: "login" | "register" | "forgot" | "reset") => {
     if (!pending.current && !auth.busy) navigation.setParams({ mode: next });
   };

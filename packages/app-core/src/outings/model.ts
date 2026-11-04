@@ -10,8 +10,9 @@ export type PlanFriend = { id: string; username: string; avatarUrl?:string };
 export type OutingsRequest = <T>(path: string, method: 'GET' | 'POST', body?: unknown, signal?: AbortSignal) => Promise<T>;
 export type OutingsState = {
   plans: OutingPlan[]; transfers: TicketTransfer[];
-  events: PlanEvent[]; friends: PlanFriend[]; catalogPending: boolean; moreEvents: boolean;
+  events: PlanEvent[]; friends: PlanFriend[]; friendsError: string | null; catalogPending: boolean; moreEvents: boolean;
   pending: boolean; refreshing: boolean; working: boolean; error: string | null; notice: string | null;
+  sourceEvent: PlanEvent | null; sourcePending: boolean; sourceError: string | null;
 };
 const idPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export const isOutingId = (value: unknown): value is string => typeof value === 'string' && idPattern.test(value);
@@ -69,12 +70,32 @@ export function validPlanningDate(value: string, now=new Date()): boolean {
   const today=planningToday(now);
   return validCalendarDay(value)&&value>=today&&value<=shiftCalendarDay(today,365);
 }
-export function canCreatePlan(title:string,day:string,city:string,friends:readonly string[]):boolean {
-  return !!title.trim()&&Array.from(title.trim()).length<=80&&validPlanningDate(day)&&eventCities.includes(city)&&
+export function canCreatePlan(title:string,day:string,city:string,friends:readonly string[],now=new Date()):boolean {
+  return !!title.trim()&&Array.from(title.trim()).length<=80&&validPlanningDate(day,now)&&eventCities.includes(city)&&
     friends.length>=1&&friends.length<=7&&new Set(friends).size===friends.length&&friends.every(isOutingId);
 }
 export function matchesPlanningContext(event:PlanEvent,context:{outingDate?:string;city?:string}) {
   return !!context.outingDate&&event.city.toLowerCase()===context.city?.toLowerCase()&&planningToday(new Date(event.startTime))===context.outingDate;
+}
+export function eventPlanningContext(event: PlanEvent, now = new Date()) {
+  if (!isOutingId(event.id) || !date(event.startTime) || !date(event.endTime) || Date.parse(event.endTime) <= now.getTime()) return undefined;
+  const outingDate = planningToday(new Date(event.startTime));
+  const city = eventCities.find(city => city.toLowerCase() === event.city.trim().toLowerCase());
+  return city && validPlanningDate(outingDate, now) ? {outingDate, city} : undefined;
+}
+export function parsePlanSourceEvent(value: unknown): PlanEvent {
+  if (!record(value) || !isOutingId(value.id) || !['title','city','locationName'].every(key => typeof value[key] === 'string') ||
+    !date(value.startTime) || !date(value.endTime) || value.status !== 'published') return invalid();
+  // Keep public planning fields only; do not retain a full event/account response.
+  return {id: value.id, title: value.title as string, city: value.city as string, locationName: value.locationName as string, startTime: value.startTime as string, endTime: value.endTime as string};
+}
+export function eventPlanDraft(event: PlanEvent, title: string, friendIds: string[], now = new Date()): Omit<PlanDraft, 'requestId'> | undefined {
+  const context = eventPlanningContext(event, now);
+  return context && canCreatePlan(title, context.outingDate, context.city, friendIds, now) ? {...context, title: title.trim(), friendIds, eventIds: [event.id]} : undefined;
+}
+export function matchingOutingPlans(plans: readonly OutingPlan[], event: PlanEvent) {
+  return plans.filter(plan => plan.status === 'accepted' && !plan.chosenEventId &&
+    (plan.options.length < 8 || plan.options.some(option => option.eventId === event.id)) && matchesPlanningContext(event, plan));
 }
 export function canOfferTransfer(ticket: {isValidated: boolean; startTime: string; endTime: string}, now = Date.now()): boolean {
   return !ticket.isValidated && Date.parse(ticket.startTime) > now && Date.parse(ticket.endTime) > now;
@@ -95,11 +116,12 @@ export function outingFailure(cause: unknown): string {
 
 /** Account-scoped, request-injected coordinator. Platform hooks own visibility. */
 export class OutingsStore {
-  private state: OutingsState = {plans:[],transfers:[],events:[],friends:[],catalogPending:false,moreEvents:false,pending:true,refreshing:false,working:false,error:null,notice:null};
+  private state: OutingsState = {plans:[],transfers:[],events:[],friends:[],friendsError:null,catalogPending:false,moreEvents:false,pending:true,refreshing:false,working:false,error:null,notice:null,sourceEvent:null,sourcePending:false,sourceError:null};
   private listeners = new Set<() => void>();
   private read?: AbortController;
   private write?: AbortController;
   private catalog?: AbortController;
+  private source?: AbortController;
   private disposed = false;
   private revision = 0;
   private keys = new Map<string,string>();
@@ -109,14 +131,28 @@ export class OutingsStore {
   private publish(patch: Partial<OutingsState>) { if(this.disposed || !this.current())return;this.state={...this.state,...patch};this.listeners.forEach(fn=>fn()); }
   private active = () => !this.disposed && this.current();
   activate() {this.disposed=false;this.publish({working:false,refreshing:false,catalogPending:false});}
+  async loadSourceEvent(id: string) {
+    if (!this.active() || !isOutingId(id)) return;
+    this.source?.abort(); const request = this.source = new AbortController();
+    this.publish({sourceEvent:null, sourcePending:true, sourceError:null});
+    try {
+      const event = parsePlanSourceEvent(await this.request<unknown>('/events/' + id, 'GET', undefined, request.signal));
+      if (!this.active() || request.signal.aborted || this.source !== request) return;
+      if (event.id !== id || !eventPlanningContext(event)) { this.publish({sourceError:'outings.eventStart.unavailable'}); return; }
+      this.publish({sourceEvent:event});
+    } catch { if (this.active() && !request.signal.aborted && this.source === request) this.publish({sourceError:'outings.eventStart.loadFailed'}); }
+    finally { if (this.source === request) { this.source = undefined; this.publish({sourcePending:false}); } }
+  }
   async loadFriends() {
-    if(!this.active())return;
-    this.catalog?.abort();const request=this.catalog=new AbortController();this.publish({catalogPending:true});
-    try{const friends=await this.request<unknown>('/friends','GET',undefined,request.signal);
-      if(!Array.isArray(friends))invalid();
-      if(this.active()&&!request.signal.aborted)this.publish({friends:friends.filter((f):f is PlanFriend=>record(f)&&isOutingId(f.id)&&typeof f.username==='string'),error:null});
-    }catch(cause){if(this.active()&&!request.signal.aborted)this.publish({error:outingFailure(cause)});}
-    finally{if(this.catalog===request){this.catalog=undefined;this.publish({catalogPending:false});}}
+    if (!this.active()) return;
+    this.catalog?.abort(); const request = this.catalog = new AbortController(); this.publish({catalogPending:true,friendsError:null});
+    try {
+      const friends = await this.request<unknown>('/friends','GET',undefined,request.signal);
+      if (!this.active() || request.signal.aborted || this.catalog !== request) return;
+      if (!Array.isArray(friends)) return invalid();
+      this.publish({friends:friends.filter((friend):friend is PlanFriend => record(friend) && isOutingId(friend.id) && typeof friend.username === 'string')});
+    } catch(cause) { if (this.active() && !request.signal.aborted && this.catalog === request) this.publish({friendsError:outingFailure(cause)}); }
+    finally { if (this.catalog === request) { this.catalog=undefined; this.publish({catalogPending:false}); } }
   }
   async searchEvents(query='',page=1,context?:{outingDate?:string;city?:string}) {
     if(!this.active())return;
@@ -208,5 +244,5 @@ export class OutingsStore {
     } catch(cause){if(this.active()&&!request.signal.aborted)this.publish({error:outingFailure(cause)});return undefined;}
     finally{if(this.write===request){this.write=undefined;this.publish({working:false});}}
   }
-  dispose() {this.disposed=true;this.revision++;this.read?.abort();this.write?.abort();this.catalog?.abort();this.read=undefined;this.write=undefined;this.catalog=undefined;this.keys.clear();this.listeners.clear();}
+  dispose() {this.disposed=true;this.revision++;this.read?.abort();this.write?.abort();this.catalog?.abort();this.source?.abort();this.read=undefined;this.write=undefined;this.catalog=undefined;this.source=undefined;this.keys.clear();this.listeners.clear();}
 }

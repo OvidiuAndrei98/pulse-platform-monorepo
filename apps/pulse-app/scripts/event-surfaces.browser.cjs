@@ -109,7 +109,7 @@ async function run() {
     await delay(300);
     await evaluate("window.__homeLogo=document.querySelector('img[src=\"/spottr-logo.svg\"]');window.__homeSearch=document.querySelector('button[aria-label=Search]');void 0");
     await evaluate("Array.from(document.querySelectorAll('[role=button]')).find(b=>b.textContent.toLowerCase().includes('test event')).click()");
-    await until("document.querySelector('[data-vaul-drawer] input[type=radio]')");
+    await until("document.querySelector('[data-vaul-drawer] button[data-testid$=-plus]')");
     await delay(650);
     await evaluate("window.__backdrop=document.querySelector('[data-event-sheet-backdrop]');void 0");
     for (let cycle=0; cycle<2; cycle++) {
@@ -121,7 +121,7 @@ async function run() {
       // Sampling over the return catches repeated fade-in and backdrop removal.
       await evaluate("window.__backdropSamples=[];(() => {let count=55;const sample=()=>{const b=document.querySelector('[data-event-sheet-backdrop]');window.__backdropSamples.push({same:b===window.__backdrop,opacity:b?getComputedStyle(b).opacity:null,scroll:scrollY});if(--count)requestAnimationFrame(sample);};requestAnimationFrame(sample);})()");
       await evaluate('history.back()');
-      await until("!document.querySelector('aside[role=dialog]') && document.querySelector('[data-vaul-drawer] input[type=radio]')");
+      await until("!document.querySelector('aside[role=dialog]') && document.querySelector('[data-vaul-drawer] button[data-testid$=-plus]')");
       await delay(1000);
       const samples=await evaluate('window.__backdropSamples');
       assert.ok(samples.length>20 && samples.every(s=>s.same && Number(s.opacity)===1 && s.scroll===offset),'Backdrop and scroll stay stable through checkout Back: '+JSON.stringify(samples));
@@ -158,7 +158,7 @@ async function run() {
     assert.notEqual(await evaluate('document.body.style.position'),'fixed','Search does not fix the body');
     await evaluate("window.__routeCommit=[];for(const method of ['pushState','replaceState']){const original=history[method];history[method]=function(state,unused,target){if(String(target).includes('/events/test-event'))window.__routeCommit.push({position:document.body.style.position,overflow:document.documentElement.style.overflow,search:Boolean(document.querySelector('[role=dialog] input[type=search]'))});return original.apply(this,arguments)}}");
     await evaluate("Array.from(document.querySelectorAll('[role=dialog] button')).find(b=>b.textContent.toLowerCase().includes('test event')).click()");
-    await until("location.pathname==='/events/test-event' && document.querySelector('main input[type=radio]')");
+    await until("location.pathname==='/events/test-event' && document.querySelector('main button[data-testid$=-plus]')");
     const commits=await evaluate('window.__routeCommit');
     assert.ok(commits.length && commits.every(c=>c.position!=='fixed' && c.overflow!=='hidden' && !c.search),'The route commits after Search releases its surface and scroll lock');
     await delay(600);

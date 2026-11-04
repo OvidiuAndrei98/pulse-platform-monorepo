@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {checkoutTotals} from '@packages/app-core/checkout/totals';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { runInNewContext } from 'node:vm';
@@ -165,6 +166,7 @@ test('long native event sheets expose fixed actions and reserve scroll space for
   const event = { id: 'event', organizerId: 'other', title: 'Long event', description: 'Description. '.repeat(300), endTime: '2099-01-01', ticketTypes: [], lineup: [] };
   const dependencies = {
     '../data/queries': { useEvent: () => ({ data: event }) },
+    '../checkout/data': {checkoutTotals,validSelection:()=>false},
     '../data/api': { ApiError: class extends Error {} },
     '../data/useEventClock': { useEventClock: () => 0 },
     '../data/events': { availableTickets: () => [], isLive: () => false, formatDate: () => 'Date' },

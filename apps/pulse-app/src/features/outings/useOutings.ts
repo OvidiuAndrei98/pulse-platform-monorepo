@@ -14,6 +14,8 @@ export function useOutings(scope:'plans'|'transfers'='plans') {
       const params:{path?:Record<string,string>;query?:Record<string,string>}={query:Object.fromEntries(url.searchParams)};
       let route=url.pathname;
       const plan=route.match(/^\/outings\/plans\/([^/]+)(\/.*)?$/),transfer=route.match(/^\/outings\/transfers\/([^/]+)\/respond$/);
+      const event=route.match(/^\/events\/([^/]+)$/);
+      if(event){params.path={id:event[1]};route='/events/{id}';}
       if(plan){params.path={planID:plan[1]};route='/outings/plans/{planID}'+(plan[2]??'');}
       if(transfer){params.path={transferID:transfer[1]};route='/outings/transfers/{transferID}/respond';}
       const options={params,body,signal,cache:'no-store' as const};

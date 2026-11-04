@@ -34,13 +34,15 @@ import { checkoutEmailError } from '@packages/app-core/checkout/validateEmail';
 import { emptyInvoiceDetails, getInvoiceFieldErrors, validateInvoiceDetails, type InvoiceDetails } from '@packages/app-core/checkout/invoiceDetails';
 
 import { Props } from "./useCheckoutController.contracts";
+import { initialTicketQuantities,retainAvailableTickets } from '@packages/app-core/checkout/ticketAvailability';
 
 export function useCheckoutController({ route, navigation }: Props) {
 
   const { eventId, ticketTypeId } = route.params;
   const { user, controller, ready } = useAuth('account'), { copy, language } = usePreferences(), safe = useSafeAreaInsets();
   const query = useEvent(eventId), event = query.data, now = useEventClock(event), promo = usePromoCode(eventId);
-  const [quantities, setQuantities] = useState<Quantities>({ [ticketTypeId]: 1 });
+  const [quantities, setQuantities] = useState<Quantities>(()=>initialTicketQuantities(route.params.quantities,ticketTypeId));
+  useEffect(()=>{if(event)setQuantities(current=>retainAvailableTickets(event.ticketTypes,current,now));},[event,now]);
   const [step, setStep] = useState(0), [furthest, setFurthest] = useState(0);
   const [email, setEmail] = useState(user?.email ?? ''), [details, setDetails] = useState(() => emptyInvoiceDetails(user?.username ?? ''));
   const [saved, setSaved] = useState<InvoiceDetails | null>(null), [source, setSource] = useState<'new' | 'saved'>('new'), [remember, setRemember] = useState(false);
@@ -219,6 +221,7 @@ export function useCheckoutController({ route, navigation }: Props) {
     error,
     event,
     eventId,
+    now,
     fields,
     footerHeight,
     forget,

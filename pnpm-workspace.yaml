@@ -9,6 +9,20 @@ overrides:
 # The resolver imports Zod without declaring it as a peer. Bind that import to
 # the app's Zod instead of whichever version another workspace package hoists.
 packageExtensions:
+  # Web libraries must resolve the web app's React declarations rather than
+  # the newer React types hoisted for Expo.
+  'next@16.4.3':
+    peerDependencies:
+      '@types/react': '*'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+  'vaul@1.1.2':
+    peerDependencies:
+      '@types/react': '*'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
   '@hookform/resolvers@5.9.2':
     peerDependencies:
       zod: '^3.25.0 || ^4.0.0'
