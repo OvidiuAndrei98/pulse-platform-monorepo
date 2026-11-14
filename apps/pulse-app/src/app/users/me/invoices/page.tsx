@@ -70,7 +70,7 @@ export default function InvoicesPage() {
                   <Receipt className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{order.eventTitle}</p>
+                  <p className="truncate text-sm font-semibold">{order.eventTitle}</p>{order.ticketRecipients?.map((recipient,index)=><p key={index} className="text-xs text-muted-foreground">{t('outings.v2.'+(recipient.status==='self'?'self':recipient.status==='pending'?'pendingTicket':recipient.status==='accepted'?'acceptedTicket':recipient.status==='processing'?'processing':'returnedTicket'),{name:recipient.name})}</p>)}
                   <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1">
                       <Calendar className="h-3.5 w-3.5" />

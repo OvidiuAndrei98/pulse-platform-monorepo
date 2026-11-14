@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "test": "pnpm -w run check:architecture && pnpm --filter @packages/app-core test && node --test scripts/*.test.cjs",
-    "dev": "node ../../tools/sync-design-tokens.cjs --check && node ../../tools/sync-map-assets.cjs && cross-env NODE_ENV=development next dev -p 3000",
+    "dev": "node ../../tools/dev-next.cjs",
     "build": "node ../../tools/sync-design-tokens.cjs --check && node ../../tools/sync-map-assets.cjs && cross-env NODE_ENV=production next build",
     "build:mobile": "node ../../tools/sync-design-tokens.cjs --check && node ../../tools/sync-map-assets.cjs && cross-env NODE_ENV=production CAPACITOR_BUILD=true next build",
     "cap:sync": "cap sync",

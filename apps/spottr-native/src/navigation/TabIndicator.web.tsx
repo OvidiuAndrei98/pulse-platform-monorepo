@@ -4,7 +4,7 @@ import { View } from "react-native";
 import type { TabIndicatorProps } from "./TabIndicator";
 import { retargetTabIndicator, tabIndicatorEasing } from "./tabIndicatorTimeline";
 
-export function TabIndicator({ target, timeline, style }: TabIndicatorProps) {
+export function TabIndicator({ target, timeline, style, children }: TabIndicatorProps) {
   const element = useRef<ViewInstance>(null);
   const [reduceMotion, setReduceMotion] = useState(() =>
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -33,5 +33,5 @@ export function TabIndicator({ target, timeline, style }: TabIndicatorProps) {
     animation.startTime = motion.startedAt;
     return () => animation.cancel();
   }, [target, timeline, reduceMotion]);
-  return <View ref={element} testID="tab-indicator" pointerEvents="none" style={style} />;
+  return <View ref={element} testID="tab-indicator" pointerEvents="none" style={style}>{children}</View>;
 }

@@ -12,7 +12,7 @@ import s from './discoveryToolbar.module.css';
 import {Input as UIInput} from '@/components/ui/Field';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 
-export function DiscoveryToolbar({filters,onChange,view,onViewChange,distanceReady}:{filters:EventFilters;onChange:(value:EventFilters)=>void;view:'list'|'map';onViewChange:(view:'list'|'map')=>void;distanceReady:boolean}) {
+export function DiscoveryToolbar({filters,onChange,view,onViewChange,distanceReady,center}:{filters:EventFilters;onChange:(value:EventFilters)=>void;view:'list'|'map';onViewChange:(view:'list'|'map')=>void;distanceReady:boolean;center?:readonly[number,number]|null}) {
   const {t}=useTranslation(),[searchOpen,setSearchOpen]=useState(!!filters.q),[wide,setWide]=useState(false);
   const [dateExpanded,setDateExpanded]=useState(false), dateProgress=useMotionValue(0), toolbarOpacity=useTransform(dateProgress,[0,0.2],[1,0]);
   const dateAnchor=useRef<HTMLSpanElement>(null);
@@ -33,5 +33,5 @@ export function DiscoveryToolbar({filters,onChange,view,onViewChange,distanceRea
     <div className={s.city}><ThemedSelect label={t('filters.city')} testId="discovery-city" variant="toolbar" icon={MapPin} placeholder={t('filters.allCities')} value={filters.city} onChange={city=>onChange({...filters,city})} options={[{value:'',label:t('filters.allCities')},...eventCities.map(city=>({value:city,label:city}))]}/></div>
     <FiltersSheet value={filters} onChange={onChange} desktopCompact distanceReady={distanceReady}/>
     <span ref={dateAnchor} data-testid="discovery-calendar-anchor" className={`${s.pill} ${s.round}`} style={{visibility:'hidden'}} aria-hidden/>
-  </motion.div><DiscoveryDateRibbon filters={filters} onChange={onChange} hidden={!wide&&searchOpen} expanded={dateExpanded} sourceRef={dateAnchor} progress={dateProgress} onOpenChange={setDateExpanded}/></div>;
+  </motion.div><DiscoveryDateRibbon filters={filters} onChange={onChange} hidden={!wide&&searchOpen} expanded={dateExpanded} sourceRef={dateAnchor} progress={dateProgress} onOpenChange={setDateExpanded} center={center}/></div>;
 }

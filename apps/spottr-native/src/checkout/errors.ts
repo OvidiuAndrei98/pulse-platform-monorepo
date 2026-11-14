@@ -13,6 +13,8 @@ const unavailableSelections = new Set([
   'Evenimentul nu a fost gasit',
 ]);
 const apiMessages = new Map([
+  ['TICKET_GIFT_WINDOW_CLOSED','outings.v2.giftWindowClosed'],
+  ['OUTING_RECIPIENTS_CHANGED','outings.v2.recipientChanged'],
   ['Adresa de revenire la plata nu este configurata', 'checkout.paymentNotConfigured'],
   ['Clientul de plata este invalid', 'checkout.paymentNotConfigured'],
   ['Platile nu sunt configurate', 'checkout.paymentNotConfigured'],

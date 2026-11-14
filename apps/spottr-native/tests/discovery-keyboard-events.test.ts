@@ -46,6 +46,7 @@ test('gesture area links the native Search input without visible accessory heigh
 test('Search captures keyboard drags without scrolling or remounting native results', () => {
   const h = hooks(), navigation = { navigate() {} }, empty = () => {};
   let inWorklet = false;
+  let paginationCalls = 0, scrollTarget: any;
   const { DiscoveryScreen } = modules({
     react: h.react,
     'react-native': { Platform: { OS: 'ios' }, View: 'View', ScrollView: 'ScrollView', FlatList: 'FlatList',
@@ -55,11 +56,11 @@ test('Search captures keyboard drags without scrolling or remounting native resu
       useAnimatedStyle: (factory: () => unknown) => { inWorklet = true; try { return factory(); } finally { inWorklet = false; } } },
     'lucide-react-native': { SlidersHorizontal: 'SlidersHorizontal' },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 60, bottom: 34 }) },
-    '@react-navigation/native': { useNavigation: () => navigation, useRoute: () => ({}), useScrollToTop: empty },
+    '@react-navigation/native': { useNavigation: () => navigation, useRoute: () => ({}), useScrollToTop: (target: any) => { scrollTarget = target; } },
     '../usePreferences': { usePreferences: () => ({ copy: (s: string) => s }) },
     '../auth/AuthProvider': { useAuth: (scope: string) => { assert.equal(scope, 'account'); return {}; } },
     '../data/events': { categories: [] },
-    '../data/queries': { useEvents: () => ({ query: {}, items: [], loadMore: empty }), seedEvent: empty },
+    '../data/queries': { useEvents: () => ({ query: {}, items: [], loadMore: () => { paginationCalls++; } }), seedEvent: empty },
     '../ui/AccentPressable': { AccentPressable: 'AccentPressable' }, '../ui/GlassPressable': { GlassPressable: 'GlassPressable' },
     '../ui/ActionButton': { ActionButton: 'ActionButton' },
     '../ui/ActionIcon': { ActionIcon: 'ActionIcon' }, '../ui/Text': { Text: 'Text' }, '../ui/theme': { colors: {} },
@@ -73,6 +74,7 @@ test('Search captures keyboard drags without scrolling or remounting native resu
     './useDebouncedDiscoverySearch': { useDebouncedDiscoverySearch: (q: string) => q },
     '@packages/app-core/events/discoveryFilters': { activeDiscoveryStart: () => '2026-10-30', eventWithinDistance: () => true },
     './DiscoveryToolbar': { DiscoveryToolbar: 'DiscoveryToolbar' }, './DiscoveryCalendar': { DiscoveryCalendar: 'DiscoveryCalendar' },
+    './DiscoveryScenes': { DiscoveryScenes: h.react.forwardRef((props: any) => ({ type: 'View', props: { children: [props.list, props.view === 'map' ? props.map : null] } })) },
     './DiscoveryDateRibbon': { DiscoveryDateRibbon: 'DiscoveryDateRibbon' },
     './MorphVisibility': { MorphVisibility: 'MorphVisibility' },
     './searchMorph': { searchMorphGeometry, initialSearchBounds: (width: number) => {
@@ -119,5 +121,11 @@ test('Search captures keyboard drags without scrolling or remounting native resu
   assert.equal(gesture.props.ref,gestureRef,'Closing keeps the recognizer ready for the next opening');
   toolbar(root).props.onViewChange('map'); root=render();
   assert.ok(find(root,(n:any)=>n.type==='EventsMapPanel'));
+  assert.equal(scrollTarget.current, null, 'A repeated tab press cannot scroll the retained hidden list');
+  list.props.onEndReached();
+  assert.equal(paginationCalls, 0, 'A retained list cannot fetch pages while Map is visible');
+  toolbar(root).props.onViewChange('list'); root=render();
+  list.props.onEndReached();
+  assert.equal(paginationCalls, 1, 'The same stable pagination callback resumes for the visible list');
   ih.unmount(); assert.equal(interaction.props.activityRef.current,null);
 });

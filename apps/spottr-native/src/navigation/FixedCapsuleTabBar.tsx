@@ -31,6 +31,24 @@ const FixedTabIndicator = React.memo(function FixedTabIndicator({ motion, blobWi
   </Animated.View>;
 });
 
+const FixedTabIcon = React.memo(function FixedTabIcon({ motion, name, index, active, center, width, offset }: {
+  motion: SharedValue<TabMotionState>; name: string; index: number; active: boolean;
+  center: number; width: number; offset: number;
+}) {
+  const impactStyle = useAnimatedStyle(() => {
+    const pose = motion.value.pose;
+    const scale = pose.barScaleX * pose.trackScaleX;
+    // Amplify only the displacement the icon already inherits from the same
+    // atomic surface frame. Drag compensation and reduced motion yield zero;
+    // retargeting keeps the displayed pose, without another spring or clock.
+    const displacement = pose.barX + pose.barScaleX * pose.trackX + (scale - 1) * (center - width / 2);
+    return { transform: [{ translateX: offset + 0.15 * displacement / scale }] };
+  });
+  return <Animated.View testID={`tab-icon-${name}`} pointerEvents="none" style={impactStyle}>
+    <TabBarIcon index={index} active={active} size={26} color="white" strokeWidth={2} />
+  </Animated.View>;
+});
+
 /** Increasing resistance keeps the capsule close to the glass at either end. */
 function resistedPosition(value: number, limit: number) {
   'worklet';
@@ -277,9 +295,9 @@ export function FixedCapsuleTabBar({ state, navigation, insets, activeIndex = st
                   onAccessibilityTap={() => select(index)}
                   accessibilityActions={[{ name: 'activate' }]}
                   onAccessibilityAction={event => { if (event.nativeEvent.actionName === 'activate') select(index); }}>
-                  <View testID={`tab-icon-${route.name}`} pointerEvents="none" style={itemWidth > 0 ? { transform: [{ translateX: geometry.tabs[index]!.iconOffset }] } : undefined}>
-                    <TabBarIcon index={index} active={index === activeIndex} size={26} color="white" strokeWidth={2} />
-                  </View>
+                  <FixedTabIcon motion={motion} name={route.name} index={index} active={index === activeIndex}
+                    center={itemWidth > 0 ? geometry.tabs[index]!.center : 0} width={barWidth}
+                    offset={itemWidth > 0 ? geometry.tabs[index]!.iconOffset : 0} />
                   </View>
                 </GestureDetector>)}
               </Animated.View>

@@ -129,7 +129,7 @@ WHERE id=$1 AND status='pending' AND stripe_checkout_session_id IS NULL
 		if err != nil {
 			canceled, cancelErr := h.cancelNativePaymentIntent(ctx, intent.ID, accountID)
 			if cancelErr == nil && canceled != nil && canceled.ID == intent.ID && canceled.Status == stripe.PaymentIntentStatusCanceled && h.validateNativePaymentIntent(boundOrder, canceled, accountID) == nil {
-				_ = h.failOrder(ctx, order.ID, intent.ID, accountID)
+				_ = h.failOrder(ctx, order.ID, intent.ID, accountID, true)
 			} else {
 				h.markCheckoutReservationForReview(order.ID, "native_payment_binding_outcome_unknown")
 			}
@@ -342,7 +342,7 @@ func (h *CheckoutHandler) reconcileNativePaymentIntent(ctx context.Context, orde
 		// Binding and provider state have been verified before this row-locked,
 		// pending-only release; racing successful/duplicate callbacks cannot double
 		// decrement stock or revoke tickets already committed.
-		if err := h.failOrder(ctx, order.ID, intent.ID, accountID); err != nil {
+		if err := h.failOrder(ctx, order.ID, intent.ID, accountID, true); err != nil {
 			return "", err
 		}
 	}

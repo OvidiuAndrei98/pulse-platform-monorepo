@@ -178,12 +178,13 @@ func (p *PushService) HandleNotification(w http.ResponseWriter, r *http.Request)
 	var item NotificationResponse
 	var createdAt time.Time
 	err := p.Pool.QueryRow(r.Context(), `SELECT n.id::text,n.type,n.title,n.body,coalesce(n.event_id::text,''),
-        coalesce(n.actor_id::text,''),coalesce(u.username,''),coalesce(u.avatar_url,''),n.read_at IS NOT NULL,n.created_at
+        coalesce(n.actor_id::text,''),coalesce(u.username,''),coalesce(u.avatar_url,''),n.read_at IS NOT NULL,n.created_at,
+        coalesce(n.friend_group_id::text,''),coalesce(n.outing_plan_id::text,'')
         FROM notifications n LEFT JOIN users u ON u.id=n.actor_id
         WHERE n.id=$1 AND n.user_id=$2 AND (n.expires_at IS NULL OR n.expires_at>clock_timestamp())
-        AND (n.type NOT LIKE 'safety_%' OR EXISTS(SELECT 1 FROM tickets t JOIN orders o ON o.id=t.order_id
-            WHERE o.event_id=n.event_id AND o.status='completed' AND (t.user_id=n.user_id OR (t.user_id IS NULL AND o.user_id=n.user_id))))`,
-		id, common.UUIDToString(userID)).Scan(&item.ID, &item.Type, &item.Title, &item.Body, &item.EventID, &item.ActorID, &item.ActorUsername, &item.ActorAvatarURL, &item.IsRead, &createdAt)
+        AND n.type NOT LIKE 'safety_%'
+        AND (n.friend_group_id IS NULL OR EXISTS(SELECT 1 FROM friend_group_members gm WHERE gm.group_id=n.friend_group_id AND gm.user_id=n.user_id AND (gm.status='accepted' OR gm.status='pending' AND n.type='friend_group_invite')))`,
+		id, common.UUIDToString(userID)).Scan(&item.ID, &item.Type, &item.Title, &item.Body, &item.EventID, &item.ActorID, &item.ActorUsername, &item.ActorAvatarURL, &item.IsRead, &createdAt, &item.GroupID, &item.OutingPlanID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		router.RespondWithError(w, 404, "Notificarea nu mai este disponibila")
 		return

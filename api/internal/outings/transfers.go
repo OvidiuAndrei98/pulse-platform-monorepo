@@ -27,22 +27,25 @@ type transfer struct {
 	RecipientName string    `json:"recipientName"`
 	Status        string    `json:"status"`
 	ExpiresAt     time.Time `json:"expiresAt"`
+	BlockedReason string    `json:"blockedReason,omitempty"`
 }
 
 const transferSelect = `SELECT x.id::text,x.ticket_id::text,o.event_id::text,e.title,x.sender_id::text,s.username,
-    CASE WHEN x.status='accepted' OR u.id=$1 THEN COALESCE(x.recipient_id::text,'') ELSE '' END,
-    CASE WHEN x.status='accepted' OR u.id=$1 THEN COALESCE(u.username,'') ELSE '' END,
-    CASE WHEN x.status='pending' AND (x.expires_at<=CURRENT_TIMESTAMP OR e.ticket_transfers_locked OR e.start_time<=CURRENT_TIMESTAMP
+    CASE WHEN x.status='accepted' OR u.id=$1 OR x.sender_id=$1 AND EXISTS(SELECT 1 FROM outing_ticket_recipients a WHERE a.ticket_id=x.ticket_id AND a.recipient_id=x.recipient_id) THEN COALESCE(x.recipient_id::text,'') ELSE '' END,
+    CASE WHEN x.status='accepted' OR u.id=$1 OR x.sender_id=$1 AND EXISTS(SELECT 1 FROM outing_ticket_recipients a WHERE a.ticket_id=x.ticket_id AND a.recipient_id=x.recipient_id) THEN COALESCE(u.username,'') ELSE '' END,
+    CASE WHEN x.status='pending' AND (x.expires_at<=CURRENT_TIMESTAMP OR t.offline_credential_exposed OR e.start_time<=CURRENT_TIMESTAMP
         OR NOT s.is_active
         OR e.status NOT IN ('published','scheduled') OR o.status<>'completed' OR o.stripe_refund_status<>'none'
         OR o.stripe_amount_refunded_bani>0 OR o.stripe_refund_needs_attention OR t.is_validated OR t.user_id IS DISTINCT FROM x.sender_id
-        OR EXISTS(SELECT 1 FROM order_refund_operations rf WHERE rf.order_id=o.id)) THEN 'expired' ELSE x.status END,x.expires_at
+        OR EXISTS(SELECT 1 FROM order_refund_operations rf WHERE rf.order_id=o.id)) THEN 'expired' ELSE x.status END,x.expires_at,
+    CASE WHEN x.status IN ('pending','expired') AND t.offline_credential_exposed THEN 'offline_snapshot'
+      WHEN x.status IN ('pending','expired') AND e.start_time<=CURRENT_TIMESTAMP THEN 'event_started' ELSE '' END
     FROM ticket_transfers x JOIN tickets t ON t.id=x.ticket_id JOIN orders o ON o.id=t.order_id JOIN events e ON e.id=o.event_id
     JOIN users s ON s.id=x.sender_id LEFT JOIN users u ON u.id=x.recipient_id `
 
 func scanTransfer(row pgx.Row) (transfer, error) {
 	var x transfer
-	err := row.Scan(&x.ID, &x.TicketID, &x.EventID, &x.EventTitle, &x.SenderID, &x.SenderName, &x.RecipientID, &x.RecipientName, &x.Status, &x.ExpiresAt)
+	err := row.Scan(&x.ID, &x.TicketID, &x.EventID, &x.EventTitle, &x.SenderID, &x.SenderName, &x.RecipientID, &x.RecipientName, &x.Status, &x.ExpiresAt, &x.BlockedReason)
 	return x, err
 }
 func (h *Handler) listTransfers(w http.ResponseWriter, r *http.Request, actor pgtype.UUID) error {
@@ -74,7 +77,7 @@ func expireTransfers(ctx context.Context, q queryer, actor pgtype.UUID) error {
         FROM tickets t,orders o,events e
         WHERE x.status='pending' AND t.id=x.ticket_id AND o.id=t.order_id AND e.id=o.event_id
         AND ($1::uuid IS NULL OR x.sender_id=$1 OR x.recipient_id=$1 OR x.recipient_id IS NULL AND x.recipient_email=(SELECT lower(email) FROM users WHERE id=$1))
-        AND (x.expires_at<=CURRENT_TIMESTAMP OR e.ticket_transfers_locked OR e.start_time<=CURRENT_TIMESTAMP
+        AND (x.expires_at<=CURRENT_TIMESTAMP OR t.offline_credential_exposed OR e.start_time<=CURRENT_TIMESTAMP
           OR NOT EXISTS(SELECT 1 FROM users sender WHERE sender.id=x.sender_id AND sender.is_active)
           OR e.status NOT IN ('published','scheduled') OR o.status<>'completed' OR o.stripe_refund_status<>'none'
           OR o.stripe_amount_refunded_bani>0 OR o.stripe_refund_needs_attention OR t.is_validated OR t.user_id IS DISTINCT FROM x.sender_id
@@ -86,14 +89,18 @@ func expireTransfers(ctx context.Context, q queryer, actor pgtype.UUID) error {
 // never part of the create response, and runs only for unambiguous active emails.
 func deliverTransferNotifications(ctx context.Context, q queryer) error {
 	_, err := q.Exec(ctx, `WITH target AS MATERIALIZED (
-      SELECT x.id,x.sender_id,x.expires_at,u.id AS recipient FROM ticket_transfers x JOIN users u ON lower(u.email)=x.recipient_email AND u.is_active
+      SELECT x.id,x.sender_id,x.expires_at,u.id AS recipient,
+       CASE WHEN EXISTS(SELECT 1 FROM outing_ticket_recipients a WHERE a.ticket_id=x.ticket_id AND a.recipient_id=u.id)
+         THEN sender.username||' got you a ticket for '||e.title||'.' ELSE 'You have a ticket transfer invitation.' END AS message
+      FROM ticket_transfers x JOIN users u ON (x.recipient_id=u.id OR x.recipient_id IS NULL AND lower(u.email)=x.recipient_email) AND u.is_active
       JOIN users sender ON sender.id=x.sender_id AND sender.is_active
-      WHERE x.status='pending' AND x.notified_at IS NULL AND x.expires_at>CURRENT_TIMESTAMP
-        AND NOT EXISTS(SELECT 1 FROM users other WHERE lower(other.email)=lower(u.email) AND other.is_active AND other.id<>u.id)
+      JOIN tickets t ON t.id=x.ticket_id JOIN orders o ON o.id=t.order_id JOIN events e ON e.id=o.event_id
+      WHERE x.status='pending' AND x.notified_at IS NULL AND x.expires_at>CURRENT_TIMESTAMP AND NOT t.offline_credential_exposed AND e.start_time>CURRENT_TIMESTAMP
+        AND (x.recipient_id IS NOT NULL OR NOT EXISTS(SELECT 1 FROM users other WHERE lower(other.email)=lower(u.email) AND other.is_active AND other.id<>u.id))
       ORDER BY x.created_at FOR UPDATE OF x SKIP LOCKED LIMIT 50
     ), sent AS (
       INSERT INTO notifications(user_id,type,title,body,actor_id,expires_at)
-      SELECT recipient,'ticket_transfer','Ticket transfer','You have a ticket transfer invitation.',sender_id,expires_at FROM target RETURNING id
+      SELECT recipient,'ticket_transfer','Ticket transfer',message,sender_id,expires_at FROM target RETURNING id
     ) UPDATE ticket_transfers SET notified_at=CURRENT_TIMESTAMP WHERE id IN(SELECT id FROM target) AND EXISTS(SELECT 1 FROM sent)`)
 	return err
 }
@@ -144,18 +151,11 @@ func lockTransferTicket(ctx context.Context, tx pgx.Tx, ticketID pgtype.UUID, re
 	if err != nil {
 		return t, err
 	}
-	err = tx.QueryRow(ctx, `SELECT start_time,status,ticket_transfers_locked FROM events WHERE id=$1 FOR UPDATE`, t.eventID).Scan(&t.start, &t.eventStatus, &t.locked)
+	err = tx.QueryRow(ctx, `SELECT start_time,status FROM events WHERE id=$1 FOR UPDATE`, t.eventID).Scan(&t.start, &t.eventStatus)
 	if err != nil {
 		return t, err
 	}
-	if requireEligible && (t.locked || !time.Now().Before(t.start) || t.eventStatus != "published" && t.eventStatus != "scheduled") {
-		return t, conflict("TRANSFER_WINDOW_CLOSED")
-	}
-	var snapshotExists bool
-	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM offline_validation_snapshots WHERE event_id=$1)`, t.eventID).Scan(&snapshotExists); err != nil {
-		return t, err
-	}
-	if requireEligible && snapshotExists {
+	if requireEligible && (!time.Now().Before(t.start) || t.eventStatus != "published" && t.eventStatus != "scheduled") {
 		return t, conflict("TRANSFER_WINDOW_CLOSED")
 	}
 	err = tx.QueryRow(ctx, `SELECT status,stripe_refund_status,stripe_amount_refunded_bani,stripe_refund_needs_attention FROM orders WHERE id=$1 FOR UPDATE`, t.orderID).
@@ -163,9 +163,12 @@ func lockTransferTicket(ctx context.Context, tx pgx.Tx, ticketID pgtype.UUID, re
 	if err != nil {
 		return t, err
 	}
-	err = tx.QueryRow(ctx, `SELECT user_id,is_validated FROM tickets WHERE id=$1 FOR UPDATE`, ticketID).Scan(&t.owner, &t.used)
+	err = tx.QueryRow(ctx, `SELECT user_id,is_validated,offline_credential_exposed FROM tickets WHERE id=$1 FOR UPDATE`, ticketID).Scan(&t.owner, &t.used, &t.locked)
 	if err != nil {
 		return t, err
+	}
+	if requireEligible && t.locked {
+		return t, conflict("TRANSFER_WINDOW_CLOSED")
 	}
 	err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM order_refund_operations WHERE order_id=$1)`, t.orderID).Scan(&t.refundOperation)
 	return t, err
@@ -342,7 +345,10 @@ func (h *Handler) respondTransfer(w http.ResponseWriter, r *http.Request, actor 
 			return err
 		}
 		var active bool
-		if err = tx.QueryRow(r.Context(), `SELECT is_active AND lower(email)=$2 AND (SELECT count(*) FROM users WHERE lower(email)=$2 AND is_active)=1 FROM users WHERE id=$1 FOR SHARE`, actor, recipientEmail).Scan(&active); err != nil {
+		if err = tx.QueryRow(r.Context(), `SELECT is_active AND (
+             EXISTS(SELECT 1 FROM outing_ticket_recipients a WHERE a.ticket_id=$3 AND a.recipient_id=$1)
+             OR lower(email)=$2 AND (SELECT count(*) FROM users WHERE lower(email)=$2 AND is_active)=1)
+             FROM users WHERE id=$1 FOR SHARE`, actor, recipientEmail, ticketID).Scan(&active); err != nil {
 			return err
 		}
 		if !active {

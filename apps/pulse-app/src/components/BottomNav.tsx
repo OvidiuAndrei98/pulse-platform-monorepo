@@ -1,24 +1,38 @@
 "use client";
 
 import { scrollClientPageToTop } from "@/components/ClientNavigation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useId, useLayoutEffect, useMemo, useRef, type CSSProperties } from "react";
 import { mainTabs, mainTabIndex, navigateMainTab, TAB_VISUAL_STATE, type TabVisualState } from "@/lib/navigation/tabs";
-import { Home, Map, UsersRound, UserRound, GalleryVerticalEnd } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { useTranslation } from "react-i18next";
+import styles from "./BottomNav.module.css";
+import { continuousCornerPath } from '@packages/app-core/navigation/continuousCornerPath';
 
-type NavItem = {
-  icon: typeof Home;
-  url: string;
-  label: string;
-};
+// Match the current iPhone artwork, including its filled selected icons.
+const iconPaths = [
+  "M3 11 13 3 23 11V23H17V15H9V23H3Z",
+  "M3 6 10 3 17 6 23 3V20L17 23 10 20 3 23ZM10 3V20M17 6V23",
+  "M13 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0M23 9a3 3 0 1 1-6 0 3 3 0 0 1 6 0M2 23C2 13 16 13 16 23M19 16C23 16 24 19 24 23",
+  "M7 3H19M5 6H21M3 10H23V23H3ZM7 19L11 15L14 18L18 13L21 17",
+  "M18 8a5 5 0 1 1-10 0 5 5 0 0 1 10 0M3 23C3 12 23 12 23 23",
+];
+
+function NavIcon({ index, active }: { index: number; active: boolean }) {
+  return <svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="white"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d={iconPaths[index]} fill={active && index !== 1 && index !== 3 ? "white" : "none"} />
+  </svg>;
+}
 
 export function BottomNavGate() {
   const pathname = usePathname();
 
   if (pathname === "/login" || pathname === "/register") return null;
   if (pathname === "/wardrobe") return null;
+  // Conversation/detail routes use the existing full-screen detail stack;
+  // the persistent tab bar itself and its animation remain untouched.
+  if (pathname?.startsWith('/groups/')) return null;
   if (pathname === "/admin" || pathname?.startsWith("/admin/")) return null;
   if (pathname === "/checkout/success" || pathname === "/checkout/success/") return null;
   if (/^\/events\/[^/]+\/?$/.test(pathname ?? "")) return null;
@@ -26,19 +40,51 @@ export function BottomNavGate() {
   return <BottomNav />;
 }
 
+function ContinuousShape({ clipId }: { clipId?: string }) {
+  const element = useRef<SVGSVGElement>(null);
+  const [size, setSize] = useState({ width: clipId ? 350 : 76, height: clipId ? 62 : 52 });
+  const d = useMemo(() => continuousCornerPath(size.width, size.height, size.height / 2), [size]);
+  const edge = useMemo(() => continuousCornerPath(size.width - 1, size.height - 1, (size.height - 1) / 2), [size]);
+
+  useLayoutEffect(() => {
+    const node = element.current;
+    if (!node) return;
+    const measure = () => {
+      const { width, height } = node.getBoundingClientRect();
+      if (width > 0 && height > 0) {
+        setSize(previous => previous.width === width && previous.height === height ? previous : { width, height });
+      }
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return <svg ref={element} viewBox={`0 0 ${size.width} ${size.height}`} preserveAspectRatio="none"
+    aria-hidden="true" focusable="false" className={styles.indicatorShape}>
+    {clipId && <defs>
+      <clipPath id={clipId} clipPathUnits="objectBoundingBox">
+        <path d={d} transform={`scale(${1 / size.width} ${1 / size.height})`} />
+      </clipPath>
+    </defs>}
+    {clipId
+      ? <path d={edge} transform="translate(0.5 0.5)" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+      : <path d={d} fill="currentColor" />}
+  </svg>;
+}
+
 function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { isOrganizer } = useDataProvider();
   const { t } = useTranslation();
-  const icons = { home: Home, map: Map, friends: UsersRound, feed: GalleryVerticalEnd, profile: UserRound };
-  const items: NavItem[] = mainTabs(isOrganizer).map(tab => ({ icon: icons[tab.id], label: t(tab.label), url: tab.path }));
+  const clipId=useId();
+  const items = mainTabs(isOrganizer).map(tab => ({ label: t(tab.label), url: tab.path }));
   const getCurrentIndexFromPath = () => Math.max(0, mainTabIndex(pathname ?? "/"));
 
   const [activeIndex, setActiveIndex] = useState(getCurrentIndexFromPath);
   const [indicatorIndex, setIndicatorIndex] = useState(getCurrentIndexFromPath);
-  const navbar = useRef<HTMLDivElement>(null);
-  const indicator = useRef<HTMLDivElement>(null);
   const pendingVisual = useRef<string | null>(null);
 
   useEffect(() => {
@@ -86,26 +132,18 @@ function BottomNav() {
   };
 
   return (
-    <div ref={navbar} data-bottom-nav onDragStart={(event) => event.preventDefault()} className="pointer-events-none fixed inset-x-0 bottom-5 z-50 flex justify-center px-4">
-      {/* 
-        Trecere insesizabilă (Smooth Gradient):
-        - `from-[#18181f]/40` sus
-        - `via-[#141419]/52` la mijloc (tranziție extrem de lină)
-        - `to-[#0d0d12]/65` jos
-        - `shadow-[inset_0_-8px_16px_rgba(0,0,0,0.35)]`: creează umbră naturală în bază
-      */}
-      {/* A slightly denser mobile tint compensates for the smaller blur radius. */}
-      <div data-bottom-nav-glass className="pointer-events-auto relative w-[min(100%,360px)] rounded-full border border-white/10 bg-gradient-to-b from-[#1F1F1F]/48 via-[#1A1A1A]/58 to-[#121212]/70 p-2 shadow-[0_12px_32px_rgba(0,0,0,0.6),inset_0_-8px_16px_rgba(0,0,0,0.35)] md:from-[#1F1F1F]/40 md:via-[#1A1A1A]/52 md:to-[#121212]/65">
-        <div className="relative flex h-12 w-full items-center justify-between">
+    <div data-bottom-nav onDragStart={(event) => event.preventDefault()} className={styles.position}>
+      <div data-bottom-nav-glass className={styles.glass}
+        style={{ "--nav-span": items.length - 1 + 1.15,clipPath:`url("#${clipId}")` } as CSSProperties}>
+        <ContinuousShape clipId={clipId}/>
+        <div className={styles.track}>
           <div
-            ref={indicator}
             data-nav-indicator
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 left-0 rounded-full border border-primary/60 bg-primary/38 shadow-[0_0_12px_rgba(225,29,72,0.4)] backdrop-blur-none transition-transform duration-[320ms] ease-[cubic-bezier(.4,0,.2,1)] motion-reduce:transition-none md:backdrop-blur-sm"
-            style={{ width: `${100 / items.length}%`, transform: `translateX(${indicatorIndex * 100}%)` }}
-          />
+            className={styles.indicator}
+            style={{ transform: `translateX(calc(var(--nav-spacing) * ${indicatorIndex}))` }}
+          ><ContinuousShape/></div>
           {items.map((item, idx) => {
-            const Icon = item.icon;
             const isActive = activeIndex === idx;
 
             return (
@@ -129,20 +167,9 @@ function BottomNav() {
                   // path for keyboard, assistive technology and programmatic use.
                   if (event.detail === 0) handleTabClick(idx, item.url);
                 }}
-                className="relative flex h-full flex-1 touch-manipulation flex-col items-center justify-center gap-[2px]"
+                className={styles.tab}
               >
-                {/* Capsula roz magenta care îmbracă ICONIȚA + TEXTUL */}
-
-                {/* Iconița */}
-                <Icon
-                  strokeWidth={isActive ? 2.2 : 1.6}
-                  className={
-                    "pointer-events-none relative z-10 h-5 w-5 transition-colors duration-150 " +
-                    (isActive ? "text-primary" : "text-zinc-400")
-                  }
-                />
-
-                {/* Textul de sub iconiță */}
+                <NavIcon index={idx} active={isActive} />
               </button>
             );
           })}

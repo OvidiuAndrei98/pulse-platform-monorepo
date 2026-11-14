@@ -43,10 +43,10 @@ func TestPushValidation(t *testing.T) {
 
 func TestPushMessagesAndBoundedRetry(t *testing.T) {
 	now := time.Now()
-	job := pushJob{ID: "id", UserID: "owner", Type: "safety_help", Token: "opaque", Language: "ro", Expires: now.Add(time.Hour)}
+	job := pushJob{ID: "id", UserID: "owner", Type: "friend_group_invite", Token: "opaque", Language: "ro", Expires: now.Add(time.Hour)}
 	message := pushMessage(job, now)
-	if message["ttl"] != 300 || message["title"] != "Grupul tău are nevoie de tine" {
-		t.Fatal("safety alert must expire promptly")
+	if message["ttl"] != 3600 || message["title"] != "Invitație în grup" {
+		t.Fatal("group invitation should have a bounded private preview")
 	}
 	data := message["data"].(map[string]string)
 	if data["notificationId"] != "id" || data["userId"] != "owner" || len(data) != 3 {

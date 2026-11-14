@@ -75,13 +75,14 @@ type CheckoutItemRequest struct {
 type expectedCheckoutTotalKey struct{}
 
 type CreateCheckoutRequest struct {
-	ExpectedTotalBani *int64                `json:"expectedTotalBani,omitempty"`
-	Email             string                `json:"email"`
-	Items             []CheckoutItemRequest `json:"items"`
-	PromoCode         string                `json:"promoCode"`
-	BillingDetails    BillingDetailsRequest `json:"billingDetails"`
-	Client            string                `json:"client,omitempty"`
-	ReturnOrigin      string                `json:"returnOrigin,omitempty"`
+	Outing            *OutingRecipientsRequest `json:"outing,omitempty"`
+	ExpectedTotalBani *int64                   `json:"expectedTotalBani,omitempty"`
+	Email             string                   `json:"email"`
+	Items             []CheckoutItemRequest    `json:"items"`
+	PromoCode         string                   `json:"promoCode"`
+	BillingDetails    BillingDetailsRequest    `json:"billingDetails"`
+	Client            string                   `json:"client,omitempty"`
+	ReturnOrigin      string                   `json:"returnOrigin,omitempty"`
 }
 
 type BillingDetailsRequest struct {
@@ -103,7 +104,8 @@ type CreateCheckoutResponse struct {
 }
 
 type BookFreeTicketRequest struct {
-	Items []CheckoutItemRequest `json:"items"`
+	Items  []CheckoutItemRequest    `json:"items"`
+	Outing *OutingRecipientsRequest `json:"outing,omitempty"`
 }
 
 type BookFreeTicketResponse struct {
@@ -258,6 +260,9 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	}
 
 	r = r.WithContext(context.WithValue(r.Context(), expectedCheckoutTotalKey{}, req.ExpectedTotalBani))
+	if req.Outing != nil {
+		r = r.WithContext(context.WithValue(r.Context(), outingPurchaseKey{}, req.Outing))
+	}
 	order, checkoutItems, eventTitle, eventIDString, organizerStripeAccount, organizerAbsorbsServiceFee, err := h.reserveOrder(r.Context(), eventID, userID, req.Email, reservationIPHash, items, totalTicketCount, req.PromoCode, billingDetails)
 	if err != nil {
 		var requestError *checkoutRequestError
@@ -439,7 +444,7 @@ func (h *CheckoutHandler) HandleBookFreeTicket(w http.ResponseWriter, r *http.Re
 	}
 	// Free reservations are personal. Friends reserve their own ticket from
 	// their account, which prevents one account from exhausting free capacity.
-	if totalTicketCount != 1 || len(requested) != 1 {
+	if len(requested) != 1 || req.Outing == nil && totalTicketCount != 1 {
 		router.RespondWithError(w, http.StatusBadRequest, "Selecteaza un singur tip de bilet gratuit odata")
 		return
 	}
@@ -461,6 +466,10 @@ func (h *CheckoutHandler) HandleBookFreeTicket(w http.ResponseWriter, r *http.Re
 	}
 	if err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Rezervarea nu a putut fi pregatita")
+		return
+	}
+	if req.Outing != nil {
+		h.handleFreeRecipients(w, r, eventID, userID, user.Email, req, requested, totalTicketCount)
 		return
 	}
 
@@ -522,6 +531,9 @@ func (h *CheckoutHandler) bookFreeTicket(ctx context.Context, eventID, userID pg
 	// lookup then makes retries and double taps idempotent without mistaking a
 	// paid ticket (or another free tier) for the requested booking.
 	lockKey := "free-booking:" + common.UUIDToString(eventID) + ":" + common.UUIDToString(userID)
+	if _, err := lockCheckoutRecipients(ctx, tx, eventID, userID, 1); err != nil {
+		return pgtype.UUID{}, false, err
+	}
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, lockKey); err != nil {
 		return pgtype.UUID{}, false, err
 	}
@@ -729,6 +741,9 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 		return db.Orders{}, nil, "", "", "", false, err
 	}
 	defer tx.Rollback(ctx)
+	if err := lockPurchaseGroup(ctx, tx, userID); err != nil {
+		return db.Orders{}, nil, "", "", "", false, err
+	}
 
 	qtx := h.queries.WithTx(tx)
 	if _, err := qtx.LockPublishedEventForCheckout(ctx, eventID); err != nil {
@@ -774,6 +789,13 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 	}
 
 	keys := make([]string, 0, len(requested))
+	recipients, recipientErr := lockCheckoutRecipients(ctx, tx, eventID, userID, totalTicketCount)
+	if recipientErr != nil {
+		return db.Orders{}, nil, "", "", "", false, recipientErr
+	}
+	if len(recipients) > 0 && len(requested) != 1 {
+		return db.Orders{}, nil, "", "", "", false, recipientConflict()
+	}
 	for id := range requested {
 		keys = append(keys, id)
 	}
@@ -908,6 +930,9 @@ func (h *CheckoutHandler) reserveOrder(ctx context.Context, eventID, userID pgty
 		if _, err := tx.Exec(ctx, `INSERT INTO native_payment_sheet_orders (order_id, expires_at) VALUES ($1,$2)`, order.ID, order.CreatedAt.Time.Add(checkoutExpiration)); err != nil {
 			return db.Orders{}, nil, "", "", "", false, err
 		}
+	}
+	if err := saveCheckoutRecipients(ctx, tx, order.ID, eventID, recipients); err != nil {
+		return db.Orders{}, nil, "", "", "", false, err
 	}
 
 	for _, item := range items {
@@ -1173,20 +1198,26 @@ func (h *CheckoutHandler) fulfillPaidOrder(ctx context.Context, sessionID, payme
 			return err
 		}
 	}
+	ordinal := 0
 	for _, item := range items {
 		for range item.Quantity {
 			validationHash, err := generateValidationHash()
 			if err != nil {
 				return err
 			}
-			if _, err := qtx.CreateTicket(ctx, db.CreateTicketParams{
+			ticket, err := qtx.CreateTicket(ctx, db.CreateTicketParams{
 				OrderID:        order.ID,
 				TicketTypeID:   item.TicketTypeID,
 				UserID:         order.UserID,
 				ValidationHash: validationHash,
-			}); err != nil {
+			})
+			if err != nil {
 				return err
 			}
+			if err := bindCheckoutRecipient(ctx, tx, order.ID, ticket.ID, order.UserID, ordinal); err != nil {
+				return err
+			}
+			ordinal++
 		}
 	}
 
@@ -1305,6 +1336,11 @@ func (h *CheckoutHandler) ReleaseExpiredCheckout(ctx context.Context, session st
 	}
 	if order.StripeLivemode.Valid && order.StripeLivemode.Bool != session.Livemode {
 		return errors.New("mediul Stripe din sesiunea expirata nu corespunde comenzii")
+	}
+	if order.Status == db.OrderStatusPending || order.Status == db.OrderStatusFailed {
+		if err := closeCheckoutPayment(ctx, tx, order.ID); err != nil {
+			return err
+		}
 	}
 	if order.Status != db.OrderStatusPending {
 		return tx.Commit(ctx)
@@ -1833,7 +1869,7 @@ func stripeChargeID(charge *stripe.Charge) string {
 	return charge.ID
 }
 
-func (h *CheckoutHandler) failOrder(ctx context.Context, orderID pgtype.UUID, paymentIntentID, connectedAccountID string) error {
+func (h *CheckoutHandler) failOrder(ctx context.Context, orderID pgtype.UUID, paymentIntentID, connectedAccountID string, terminal ...bool) error {
 	tx, err := h.db.Begin(ctx)
 	if err != nil {
 		return err
@@ -1847,6 +1883,11 @@ func (h *CheckoutHandler) failOrder(ctx context.Context, orderID pgtype.UUID, pa
 	}
 	if !stripeOrderContextMatches(order, connectedAccountID) {
 		return errors.New("contextul contului Stripe nu corespunde comenzii")
+	}
+	if (len(terminal) > 0 && terminal[0] || !order.StripePaymentIntentID.Valid && !order.StripeCheckoutSessionID.Valid && paymentIntentID == "") && (order.Status == db.OrderStatusPending || order.Status == db.OrderStatusFailed) {
+		if err := closeCheckoutPayment(ctx, tx, order.ID); err != nil {
+			return err
+		}
 	}
 	if order.Status != db.OrderStatusPending {
 		return tx.Commit(ctx)

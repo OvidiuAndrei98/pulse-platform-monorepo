@@ -31,7 +31,10 @@ function checkSource(file, source) {
       const subpath = specifier === name ? '.' : './' + specifier.slice(name.length + 1);
       if (!(subpath in manifest.exports)) fail(node, 'Use a declared public export: ' + specifier);
     }
-    if (core && !specifier.startsWith('.') && !(typeOnly && ['@packages/api-client/schema','@packages/api-client/schema-types'].includes(specifier))) fail(node, 'app-core may only import local rules and API contract types: ' + specifier);
+    // This existing, deterministic geometry helper has no platform runtime.
+    // Keep the exception file-scoped; it must not open core to framework/I/O deps.
+    const pureGeometry = relative === 'packages/app-core/src/navigation/continuousCornerPath.ts' && specifier === 'figma-squircle';
+    if (core && !pureGeometry && !specifier.startsWith('.') && !(typeOnly && ['@packages/api-client/schema','@packages/api-client/schema-types'].includes(specifier))) fail(node, 'app-core may only import local rules and API contract types: ' + specifier);
     if(relative.startsWith('packages/browser-core/src/')&&/^(react|react-dom|react-native|next)(\/|$)/.test(specifier))fail(node,'browser-core is a DOM adapter, not a React/framework package: '+specifier);
   }
   function visit(node) {

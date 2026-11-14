@@ -163,7 +163,7 @@ function EventsPageContent() {
         {/* Keep the toolbar in the same page flow, including native safe-area spacing. */}
         <div className="app-page-gutter pointer-events-none relative z-30 mx-auto flex w-full max-w-7xl shrink-0 flex-wrap items-start justify-between gap-3 pt-[max(1.5rem,var(--native-safe-top))] sm:items-center md:pt-8">
           <div className="pointer-events-auto w-full min-w-0">
-            <DiscoveryToolbar filters={filters} onChange={setFilters} view={view} onViewChange={setView} distanceReady={!!userLocation}/>
+            <DiscoveryToolbar filters={filters} onChange={setFilters} view={view} onViewChange={setView} distanceReady={!!userLocation} center={selectedCityCenter??userLocation}/>
           </div>
         </div>
 

@@ -87,6 +87,7 @@ function CheckoutContent(props: Parameters<typeof useCheckoutController>[0]) {
         {query.isError && <Feedback compact title={copy('checkout.availabilityCheckFailed')} retry={() => void query.refetch()} />}
         {!available && !query.isFetching && <Feedback compact title={copy(isOwnEvent ? 'eventPage.cannotBuyOwn' : 'checkout.selectionUnavailable')} />}
         {!available && !busy && <Pressable testID="checkout-reselect" accessibilityRole="button" onPress={() => returnToEvent(navigation, eventId)} style={s.billingChoice}><Text style={s.category}>{copy('checkout.backToTickets')}</Text></Pressable>}
+        {props.route.params.outing&&<View testID="checkout-recipients" style={{gap:6}}><Text style={s.title}>{copy('outings.v2.reviewRecipients')}</Text><Text style={s.subtitle}>{props.route.params.recipientNames?.join(', ')}</Text><Text style={s.subtitle}>{copy('outings.v2.recipientsHint')}</Text></View>}
         <CheckoutTicketsStep model={model} prices={prices}/>
         <CheckoutBillingStep model={model} />
         <CheckoutSummaryStep model={model} prices={prices}/>

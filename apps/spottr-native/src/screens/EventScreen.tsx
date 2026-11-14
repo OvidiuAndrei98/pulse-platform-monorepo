@@ -16,7 +16,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { BadgeCheck, CalendarDays, Share2, Ticket as TicketIcon, UserRound, Music2, MapPin } from "lucide-react-native";
+import { BadgeCheck, CalendarDays, Share2, Ticket as TicketIcon, UserRound, Music2, MapPin,UsersRound } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -47,6 +47,7 @@ import { OrganizerUpdates } from '../profiles/OrganizerUpdates';
 import { EventAttendees } from '../social/EventAttendees';
 import { PurchaseSuccessHost } from '../checkout/PurchaseSuccessSheet';
 import {ActionButton as UIActionButton} from '../ui/ActionButton';
+import {PlanTicketRecipients} from '../outings/PlanTicketRecipients';
 
 export function EventScreen({
   route,
@@ -62,6 +63,7 @@ export function EventScreen({
   const { copy, language, saved, toggleSaved, ready } = usePreferences();
   const toast = useToast();
   const [storyOpen, setStoryOpen] = useState(false);
+  const [friendPurchase,setFriendPurchase]=useState(false);
   const query = useEvent(route.params.id),
     event = query.data,
     now = useEventClock(event),
@@ -347,6 +349,8 @@ export function EventScreen({
               )}
               <EventSocial eventId={event.id} signIn={signIn} />
               <EventAttendees eventId={event.id} compact={isSheet}/>
+              <Pressable testID="event-outing" accessibilityRole="button" onPress={()=>navigation.navigate('Groups',{eventId:event.id})} style={{minHeight:44,flexDirection:'row',alignItems:'center',gap:10,alignSelf:'flex-start'}}><UsersRound size={18} color={colors.accent}/><Text style={{color:colors.accent,fontSize:14,fontWeight:'600'}}>{copy('groups.sendTo')}</Text></Pressable>
+              {user&&<UIActionButton title={copy('outings.v2.friendsTickets')} tone="ghost" onPress={()=>setFriendPurchase(true)}/>}
               <View>
                 <Text style={s.heading}>{copy("eventSheet.about")}</Text>
                 <Text style={s.description}>
@@ -426,7 +430,7 @@ export function EventScreen({
     </AppSheet>
   ) : (
     content
-  )}<ToastHost bottom={92} />{storyOpen && event && <EventStory key={event.id} event={event} onClose={() => setStoryOpen(false)} />}<PurchaseSuccessHost eventId={route.params.id} /></View>;
+  )}<ToastHost bottom={92} />{storyOpen && event && <EventStory key={event.id} event={event} onClose={() => setStoryOpen(false)} />}{friendPurchase&&event&&user&&<PlanTicketRecipients eventId={event.id} friendsOnly actor={user.id} onClose={()=>setFriendPurchase(false)}/>}<PurchaseSuccessHost eventId={route.params.id} /></View>;
 }
 const s = StyleSheet.create({
   page: { borderTopLeftRadius:0,borderTopRightRadius:0,width:'100%',maxWidth:760,alignSelf:'center' },

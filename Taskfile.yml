@@ -31,7 +31,7 @@ tasks:
     desc: "Pornește aplicația Next.js"
     dir: "{{.NEXT_APP_DIR}}"
     cmds:
-      - pnpm dev
+      - node ../../tools/dev-next.cjs {{.CLI_ARGS}}
 
   dev:
     desc: "Pornește întreaga platformă în mod paralel (Frontend + Backend)"

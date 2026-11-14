@@ -487,7 +487,6 @@ func (app *Application) StartAbuseProtectionWorker(ctx context.Context) {
 }
 
 func (app *Application) StartSafetyGroupCleanupWorker(ctx context.Context) {
-	safetygroups.NewHandler(app.Pool, app.Abuse).StartCleanupWorker(ctx)
 }
 
 func (app *Application) StartDiagnosticsCleanupWorker(ctx context.Context) {

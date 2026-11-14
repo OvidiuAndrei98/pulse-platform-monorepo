@@ -125,10 +125,19 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
   await click('map-zoom-in'); await delay(350);
   await until(`document.querySelectorAll('.spottr-map-pin').length>=1`);
   console.log('PASS zoom controls remain consistent after map gesture zoom');
-  await evaluate(`document.querySelector('[data-testid="events-list-toggle"]').click()`);await until(`!document.querySelector('[data-testid="event-map"]')`);
-  await evaluate(`document.querySelector('[data-testid="events-map-toggle"]').click()`);await until(`document.querySelector('[data-testid="map-events-carousel"]')`);
+  if(!next)await evaluate(`window.__retainedMap=document.querySelector('[data-testid="event-map"]');window.__retainedCanvas=document.querySelector('.maplibregl-canvas');window.__locationReads=window.__qa.positions;`);
+  await evaluate(`document.querySelector('[data-testid="events-list-toggle"]').click()`);
+  await until(next?`!document.querySelector('[data-testid="event-map"]')`:`document.querySelector('[data-testid="discovery-map-scene"]').getAttribute('aria-hidden')==='true'`);
+  await evaluate(`document.querySelector('[data-testid="events-map-toggle"]').click()`);
+  await until(next?`document.querySelector('[data-testid="map-events-carousel"]')`:`document.querySelector('[data-testid="discovery-map-scene"]').getAttribute('aria-hidden')!=='true'`);
+  if(!next){
+    assert.equal(await evaluate(`window.__retainedMap===document.querySelector('[data-testid="event-map"]')&&window.__retainedCanvas===document.querySelector('.maplibregl-canvas')`),true,'Switching List/Map preserves the same renderer and canvas');
+    assert.equal(await evaluate(`window.__qa.positions`),await evaluate(`window.__locationReads`),'Returning to map does not initialize location again');
+    assert.equal(await evaluate(`document.querySelector('[data-testid="map-pin-00000000-0000-4000-8000-000000000003"]').getAttribute('aria-pressed')`),'true','Returning preserves the selected event rather than resetting to the first');
+  }
   await call('Emulation.setDeviceMetricsOverride',{width:320,height:740,deviceScaleFactor:1,mobile:true});
-  await until(`(()=>{const r=document.querySelector('[data-testid="${first}"]')?.getBoundingClientRect();return r&&r.left>=0&&r.right<=320})()`);
+  const retainedCard=next?first:'map-event-card-00000000-0000-4000-8000-000000000003';
+  await until(`(()=>{const r=document.querySelector('[data-testid="${retainedCard}"]')?.getBoundingClientRect();return r&&r.left>=0&&r.right<=320})()`);
   assert.equal(await evaluate(`document.documentElement.scrollWidth<=320`),true,'A 320px viewport has no horizontal page overflow');
   assert.equal(await evaluate(`document.querySelector('.maplibregl-ctrl-attrib').getBoundingClientRect().bottom<=document.querySelector('[data-testid="map-events-carousel"]').getBoundingClientRect().top-4`),true,'Attribution remains above cards at 320px');
   await capture((next?'next-':'')+'map-narrow-carousel');
@@ -136,6 +145,6 @@ withBrowser(async ({ base, call, evaluate, until, click, delay, capture, errors 
   assert.equal(await evaluate(`{const e=document.querySelector('[data-testid="map-events-carousel"]');!!e&&e.getBoundingClientRect().height>0}`),false,'Desktop retains its existing map layout');
   if(!next)assert.equal(await evaluate(`Math.round(document.querySelector('[data-testid="event-map"]').getBoundingClientRect().top)`),0);
   await capture((next?'next-':'')+'map-desktop');
-  console.log('PASS map/list remount and desktop responsive viewport');
+  console.log('PASS map/list lifecycle and desktop responsive viewport');
   assert.deepEqual(errors, [], 'No unhandled browser exceptions');
 }).catch(error => { console.error(error); process.exitCode = 1; });

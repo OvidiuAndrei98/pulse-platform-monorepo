@@ -48,7 +48,7 @@ export function TicketsScreen() {
   useEffect(() => { setSelected(null); setTab('active'); }, [user?.id]);
   const all = tickets.data ?? [];
   const openTicket = useCallback((ticket: UserTicket) => setSelected(ticket.id), []);
-  const openGroup = useCallback((eventId: string) => navigation.navigate('SafetyGroup', { eventId }), [navigation]);
+  const openGroup = useCallback((_eventId: string) => navigation.navigate('Groups'), [navigation]);
   const explore = useCallback(() => navigation.navigate('Tabs', { screen: 'Home' }), [navigation]);
   const { activeNodes, historyNodes, activeCount, historyFilter } = useWalletLists({
     all, now, owner: user?.id, pending: tickets.isPending, error: tickets.isError,
@@ -74,7 +74,7 @@ export function OrdersScreen() {
       const refunded = order.status==='refunded' || order.refundedAmountBani>0;
       return <View key={order.id} testID={`invoice-${order.id}`} style={{paddingVertical:16,borderBottomWidth:1,borderColor:'#ffffff1a',gap:12,flexDirection:'row',alignItems:'flex-start'}}>
         <View style={{width:40,height:40,backgroundColor:'#ff00441a',alignItems:'center',justifyContent:'center'}}><Receipt size={16} color={colors.accent}/></View>
-        <View style={{flex:1,gap:4}}><Text numberOfLines={1} style={title}>{order.eventTitle}</Text><View style={{flexDirection:'row',gap:4,alignItems:'center'}}><Calendar size={14} color={colors.muted}/><Text style={muted}>{formatDate(order.createdAt,language)}</Text></View><View style={{flexDirection:'row',gap:4}}><MapPin size={14} color={colors.muted}/><Text style={[muted,{flex:1}]}>{order.locationName}</Text></View><Text style={[muted,{fontSize:10}]}>{copy('orders.order',{id:order.id})}</Text></View>
+        <View style={{flex:1,gap:4}}><Text numberOfLines={1} style={title}>{order.eventTitle}</Text>{order.ticketRecipients?.map((recipient,index)=><Text key={index} style={muted}>{copy('outings.v2.'+(recipient.status==='self'?'self':recipient.status==='pending'?'pendingTicket':recipient.status==='accepted'?'acceptedTicket':recipient.status==='processing'?'processing':'returnedTicket'),{name:recipient.name})}</Text>)}<View style={{flexDirection:'row',gap:4,alignItems:'center'}}><Calendar size={14} color={colors.muted}/><Text style={muted}>{formatDate(order.createdAt,language)}</Text></View><View style={{flexDirection:'row',gap:4}}><MapPin size={14} color={colors.muted}/><Text style={[muted,{flex:1}]}>{order.locationName}</Text></View><Text style={[muted,{fontSize:10}]}>{copy('orders.order',{id:order.id})}</Text></View>
         <View style={{maxWidth:'46%',alignItems:'flex-end',gap:4}}><Text style={title}>{formatRon(orderTotalBani(order)/100)}</Text><Text style={[muted,{fontSize:10}]}>{copy(paid?'orders.paidTotal':'orders.orderTotal')}</Text>
           {!paid && <Text style={[muted,{fontSize:11,textAlign:'right'}]}>{copy(orderStatusKey(order.status))}</Text>}
           {refunded && <Text style={invoiceText}>{copy('orders.refunded')}</Text>}

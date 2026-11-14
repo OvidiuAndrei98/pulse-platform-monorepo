@@ -74,9 +74,12 @@ test('notification read count includes unread rows outside the current page and 
     assert.equal(safe.unreadCount, 1); assert.equal(markNotificationRead(safe, 'notice-1')!.unreadCount, 0);
   }
 });
-test('safety notifications keep their group destination and event/profile fallback matches the web app', () => {
+test('retired event chat is excluded; permanent groups have canonical private destinations', () => {
   const parse = (extra: Record<string, unknown>) => parseNotifications({ items: [notification(extra)] }).items[0]!;
-  for (const type of ['safety_group_invite', 'safety_help', 'safety_help_resolved']) assert.deepEqual(notificationDestination(parse({ type, eventId: 'event-1', actorId: 'actor-1' })), { kind: 'safety', id: 'event-1' });
+  for (const type of ['safety_group_invite', 'safety_help', 'safety_help_resolved']) assert.equal(parseNotifications({items:[notification({type,eventId:'event-1'})]}).items.length,0);
+  const groupId='11111111-1111-4111-8111-111111111111',outingPlanId='22222222-2222-4222-8222-222222222222';
+  assert.deepEqual(notificationDestination(parse({type:'friend_group_invite',groupId})),{kind:'group',id:groupId});
+  assert.deepEqual(notificationDestination(parse({type:'friend_group_outing',groupId,outingPlanId})),{kind:'outing',id:outingPlanId,groupId});
   assert.deepEqual(notificationDestination(parse({ type: 'ticket_purchased', eventId: 'event-1', actorId: 'actor-1' })), { kind: 'event', id: 'event-1' });
   assert.deepEqual(notificationDestination(parse({ actorId: 'actor-1' })), { kind: 'profile', id: 'actor-1' });
   assert.equal(notificationDestination(parse({ actorId: null, eventId: [] })), null);

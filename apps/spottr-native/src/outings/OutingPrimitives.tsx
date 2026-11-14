@@ -11,6 +11,7 @@ import { usePreferences } from '../usePreferences';
 import { o } from './outingsStyles';
 import { j } from './journeyStyles';
 import { GlassSurface,supportsLiquidGlass } from '../ui/GlassSurface';
+import { EventImage } from '../ui/common';
 import { SocialPhoto } from '../social/components';
 import { useQuery } from '@tanstack/react-query';
 import { useIsFocused } from '@react-navigation/native';
@@ -71,11 +72,11 @@ export function PlanCard({plan,onOpen,disabled}:{plan:OutingPlan;onOpen:()=>void
  const {copy,language}=usePreferences('copy'),stage=outingStage(plan),members=plan.members.filter(m=>m.status==='accepted'),answered=responseCount(plan),chosen=plan.options.find(option=>option.eventId===plan.chosenEventId);
  const status=stage==='invited'?'invited':stage==='ready'?'statusReady':stage==='voting'?'statusVoting':'statusDates';
  return <OutingPressable testID={'outing-card-'+plan.id} onPress={onOpen} disabled={disabled} style={{padding:16,gap:16,borderRadius:24,backgroundColor:colors.raised,flexDirection:'row',alignItems:'center',minWidth:0,minHeight:112}}>
-  <View style={{width:50,alignItems:'center',gap:2}}>{plan.outingDate?<><Text style={j.dateNumber}>{outingDate(plan.outingDate,language,'day')}</Text><Text style={j.dateMonth}>{outingDate(plan.outingDate,language,'month')}</Text></>:<CalendarDays size={30} color={colors.muted}/>}</View>
+  {chosen?.imageUrl?<EventImage uri={chosen.imageUrl} style={{width:64,height:76,borderRadius:14}}/>:<View style={{width:50,alignItems:'center',gap:2}}>{plan.outingDate?<><Text style={j.dateNumber}>{outingDate(plan.outingDate,language,'day')}</Text><Text style={j.dateMonth}>{outingDate(plan.outingDate,language,'month')}</Text></>:<CalendarDays size={30} color={colors.muted}/>}</View>}
   <View style={{flex:1,minWidth:0,gap:5}}>
    <View style={{flexDirection:'row',alignItems:'center',gap:5}}><View style={{width:5,height:5,borderRadius:3,backgroundColor:stage==='ready'?colors.success:colors.accent}}/><Text style={[o.caption,{fontSize:11,color:stage==='ready'?colors.success:colors.muted}]}>{copy('outings.plan.'+status)}</Text></View>
    <Text numberOfLines={2} style={[o.heading,{fontSize:17,lineHeight:22}]}>{plan.title}</Text>
-   <Text numberOfLines={1} style={o.caption}>{plan.city}{chosen?' · '+chosen.title:''}</Text>
+   <Text numberOfLines={1} style={o.caption}>{plan.city} · {plan.outingDate?outingDate(plan.outingDate,language):copy('outings.plan.statusDates')}</Text>
    {plan.status==='accepted'&&<View style={{flexDirection:'row',alignItems:'center',gap:9,marginTop:3}}><View style={{flexDirection:'row'}}>{members.slice(0,3).map((m,i)=><View key={m.userId} style={{marginLeft:i?-8:0}}><MemberAvatar name={m.username} userId={m.userId} uri={m.avatarUrl} size={24}/></View>)}</View><Text style={[o.caption,{fontSize:11}]}>{stage==='ready'?copy('outings.ui.people',{count:members.length}):copy('outings.plan.replies',{answered,total:members.length})}</Text></View>}
   </View><View style={{width:28,height:28,borderRadius:14,backgroundColor:'#ffffff08',alignItems:'center',justifyContent:'center'}}><ChevronRight size={15} color={colors.muted}/></View>
  </OutingPressable>;

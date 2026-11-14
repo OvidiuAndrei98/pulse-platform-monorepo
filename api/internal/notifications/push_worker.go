@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -71,8 +70,12 @@ func pushCopy(kind, language string) (string, string) {
 			return "Biletele tale sunt pregătite", "Le găsești în contul tău SPOTTR."
 		case "organizer_event":
 			return "Un eveniment nou", "Un organizator pe care îl urmărești a publicat un eveniment."
-		case "safety_help":
-			return "Grupul tău are nevoie de tine", "Deschide SPOTTR pentru a vedea mesajul din grup."
+		case "friend_group_invite":
+			return "Invitație în grup", "Un prieten te-a invitat într-un grup privat."
+		case "friend_group_message":
+			return "Un mesaj nou", "Deschide grupul tău privat pentru a citi conversația."
+		case "friend_group_outing", "friend_group_chosen", "friend_group_changed", "friend_group_cancelled":
+			return "Ieșirea voastră", "Deschide grupul pentru noutățile serii."
 		default:
 			return "SPOTTR", "Ai o notificare nouă. Deschide aplicația pentru detalii."
 		}
@@ -86,8 +89,12 @@ func pushCopy(kind, language string) (string, string) {
 		return "Your tickets are ready", "Find them in your SPOTTR account."
 	case "organizer_event":
 		return "A new event", "An organizer you follow published an event."
-	case "safety_help":
-		return "Your group needs you", "Open SPOTTR to see the message from your group."
+	case "friend_group_invite":
+		return "Group invitation", "A friend invited you to a private group."
+	case "friend_group_message":
+		return "A new message", "Open your private group to read the conversation."
+	case "friend_group_outing", "friend_group_chosen", "friend_group_changed", "friend_group_cancelled":
+		return "Your night out", "Open your group for the latest outing details."
 	default:
 		return "SPOTTR", "You have a new notification. Open the app for details."
 	}
@@ -96,9 +103,6 @@ func pushCopy(kind, language string) (string, string) {
 func pushMessage(job pushJob, now time.Time) map[string]any {
 	title, body := pushCopy(job.Type, job.Language)
 	ttl := max(0, min(3600, int(job.Expires.Sub(now).Seconds())))
-	if strings.HasPrefix(job.Type, "safety_") {
-		ttl = min(ttl, 300)
-	}
 	return map[string]any{"to": job.Token, "title": title, "body": body, "sound": "default", "channelId": "spottr",
 		"ttl": ttl, "data": map[string]string{"kind": "spottr_notification", "notificationId": job.ID, "userId": job.UserID}}
 }
@@ -119,8 +123,8 @@ func (p *PushService) claim(ctx context.Context, state string) ([]pushJob, error
          AND d.updated_at>clock_timestamp()-interval '30 days' AND n.read_at IS NULL
          AND c.created_at>clock_timestamp()-interval '24 hours'
          AND (n.expires_at IS NULL OR n.expires_at>clock_timestamp())
-         AND (n.type NOT LIKE 'safety_%' OR EXISTS(SELECT 1 FROM tickets t JOIN orders o ON o.id=t.order_id
-              WHERE o.event_id=n.event_id AND o.status='completed' AND (t.user_id=n.user_id OR (t.user_id IS NULL AND o.user_id=n.user_id))))),
+         AND n.type NOT LIKE 'safety_%'
+         AND (n.friend_group_id IS NULL OR EXISTS(SELECT 1 FROM friend_group_members gm WHERE gm.group_id=n.friend_group_id AND gm.user_id=n.user_id AND NOT gm.muted AND (gm.status='accepted' OR gm.status='pending' AND n.type='friend_group_invite')))),
         least(coalesce(n.expires_at,c.created_at+interval '24 hours'),c.created_at+interval '24 hours')
     FROM claimed c JOIN notification_push_devices d ON d.id=c.device_id JOIN notifications n ON n.id=c.notification_id`, state)
 	if err != nil {

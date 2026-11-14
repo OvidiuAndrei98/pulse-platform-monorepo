@@ -113,7 +113,8 @@ export function PushNavigation({ navigation, state }: { navigation: NavigationCo
         const target = notificationDestination(item);
         if (target?.kind === 'event') navigation.navigate('Event', { id: target.id, presentation: 'page' });
         else if (target?.kind === 'profile') navigation.navigate('PublicProfile', { id: target.id });
-        else if (target?.kind === 'safety') navigation.navigate('SafetyGroup', { eventId: target.id });
+        else if (target?.kind === 'group') navigation.navigate('FriendGroup', { id: target.id });
+        else if (target?.kind === 'outing') navigation.navigate('GroupOuting', { groupId:target.groupId,planId: target.id });
         else navigation.navigate('Tabs', { screen: 'Home' });
       }
       await accountApi('/notifications/' + id + '/read', { method: 'POST', token }).catch(() => {});

@@ -33,6 +33,8 @@ export function useTicketCheckout({
   historyBack = true,
   preservePageScroll = false,
   onBusyChange,
+  outing,
+  recipientNames,
 }: {
   event: Event;
   quantities: Record<string, number>;
@@ -43,6 +45,8 @@ export function useTicketCheckout({
   historyBack?: boolean;
   preservePageScroll?: boolean;
   onBusyChange?: (busy: boolean) => void;
+  outing?: {planId?:string;decisionRound:number;recipientIds:string[];extraConfirmed?:boolean};
+  recipientNames?: string[];
 }) {
 
   const { t, i18n } = useTranslation();
@@ -413,6 +417,7 @@ export function useTicketCheckout({
     setIsCheckingOut(true);
     try {
       const body = {
+        ...(outing?{outing}:{}),
         expectedTotalBani: Math.round(total * 100),
         email,
         items: selectedTickets.map((ticket) => ({ticketTypeId: ticket.id, quantity: quantities[ticket.id] ?? 0})),
@@ -447,7 +452,7 @@ export function useTicketCheckout({
         error instanceof ApiError
           ? error.detail || error.title
           : t("eventSheet.purchaseError");
-      toast.error(message === 'CHECKOUT_PRICE_CHANGED' ? t('checkout.priceChanged') : message);
+      toast.error(message === 'CHECKOUT_PRICE_CHANGED' ? t('checkout.priceChanged') : message === 'OUTING_RECIPIENTS_CHANGED' ? t('outings.v2.recipientChanged') : message === 'TICKET_GIFT_WINDOW_CLOSED' ? t('outings.v2.giftWindowClosed') : message);
       resetCheckoutPending();
     }
   };
@@ -484,6 +489,7 @@ export function useTicketCheckout({
     nativeSwipeEnabled,
     onClose,
     onQuantitiesChange,
+    selectionLocked: !!outing,
     open,
     panelRef,
     promo,

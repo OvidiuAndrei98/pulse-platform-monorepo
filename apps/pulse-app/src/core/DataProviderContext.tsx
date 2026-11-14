@@ -14,6 +14,7 @@ import { ApiClient, ApiError } from "@packages/api-client/client";
 import { clearSessionCaches, User, UserData } from "./DataProvider";
 import { apiRoot } from "./apiRoot";
 import { apiFetch } from "@/lib/native/apiFetch";
+import {clearGroupSession} from '@/lib/groupsSession';
 import { useTranslation } from "react-i18next";
 import { PageLoadingState } from "@/components/ui/loading";
 import {
@@ -89,6 +90,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const token = await hydrateAccessToken();
       if (!isCurrent()) return;
       if (!token) {
+        clearGroupSession();
         currentUser.current = undefined;
         setUser(undefined);
         return;
@@ -123,6 +125,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           : new Error(t("common.sessionFailed")),
       );
       if (invalidSession) {
+        clearGroupSession();
         currentUser.current = undefined;
         setUser(undefined);
         await Promise.allSettled([clearAccessToken(), clearOfflineSession()]);
@@ -158,6 +161,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         await clearOfflineSession();
         if (request !== generation.current) return;
         await saveAccessToken(response.token);
+        clearGroupSession();
         if (request !== generation.current) return;
         await initializeSession();
       } catch (err) {
@@ -174,6 +178,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     generation.current++;
+    clearGroupSession();
     if (currentUser.current) clearSessionCaches(currentUser.current.properties.id);
     currentUser.current = undefined;
     // Offline admissions remain scoped to their original user until synchronized.

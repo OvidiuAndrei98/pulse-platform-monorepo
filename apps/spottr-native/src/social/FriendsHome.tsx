@@ -5,8 +5,8 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Plus, UsersRound} from 'lucide-react-native';
 import {useAuth} from '../auth/AuthProvider';
 import {usePreferences} from '../usePreferences';
-import {useOutings} from '../outings/useOutings';
-import {PlanCard} from '../outings/OutingPrimitives';
+import {useGroups} from '../groups/useGroups';
+import {GroupRow} from '../groups/GroupsScreen';
 import { OutingAction as ActionButton } from '../outings/OutingPrimitives';
 import {Text} from '../ui/Text';
 import {Feedback, Loading} from '../ui/common';
@@ -21,11 +21,11 @@ export function FriendsHome() {
 }
 function FriendsContent() {
   const {user, ready} = useAuth('account'), {copy} = usePreferences('copy'), safe = useSafeAreaInsets(), navigation = useNavigation<any>();
-  const social = useSocial(), plans = useOutings(), scroll = useNavbarScroll();
+  const social = useSocial(), plans = useGroups(), scroll = useNavbarScroll();
   const [sheet, setSheet] = useState<'friends' | null>(null), [visible, setVisible] = useState(6);
   const groups = useMemo(() => groupFeedItems((social.feed.data ?? []).filter(item => item.activityType === 'friend_ticket' || item.activityType === 'friend_going')), [social.feed.data]);
-  const planCards = useMemo(() => [...plans.plans].sort((a,b) => Number(b.status === 'pending') - Number(a.status === 'pending')).slice(0,3)
-    .map(plan => <PlanCard key={plan.id} plan={plan} onOpen={() => navigation.navigate('Outings', {planId: plan.id})} />), [plans.plans, navigation]);
+  const planCards = useMemo(() => plans.groups.slice(0,3)
+    .map(group => <GroupRow key={group.id} group={group} onPress={() => navigation.navigate('FriendGroup', {id: group.id})} />), [plans.groups, navigation]);
   const eventCards = useMemo(() => groups.slice(0,visible).map(item => <FeedCard key={item.eventId} item={item}
     openProfile={id => navigation.navigate('PublicProfile', {id})} openEvent={id => navigation.navigate('Event', {id, presentation: 'sheet'})} />), [groups, visible, navigation]);
   const organizer = user?.role === 'organizer', signIn = () => navigation.navigate('Auth', {returnTab: 'Friends'});
@@ -33,11 +33,11 @@ function FriendsContent() {
     <ScrollView {...scroll} contentContainerStyle={[s.page, {paddingTop: Math.max(28, safe.top), paddingBottom: safe.bottom + 128}]}>
       <View style={s.header}><View style={{gap: 8, flex: 1}}><Text accessibilityRole="header" style={s.title}>{copy('friendsHub.title')}</Text><Text style={s.muted}>{copy('friendsHub.hint')}</Text></View>{user && !organizer && <ActionButton testID="friends-manage" tone="secondary" accessibilityLabel={copy('friendsHub.manage')} onPress={() => setSheet('friends')} style={{width: 48, paddingHorizontal: 0}}><UsersRound size={21} color="white" />{!!social.requests.data?.length && <Text style={s.badge}>{social.requests.data.length}</Text>}</ActionButton>}</View>
       {!ready ? <Loading /> : !user ? <View style={s.section}><Text style={s.muted}>{copy('friendsHub.guestHint')}</Text><ActionButton title={copy('social.signIn')} onPress={signIn} /></View> : organizer ? <View style={s.section}><Text style={s.muted}>{copy('friendsHub.organizer')}</Text><ActionButton title={copy('nav.feed')} onPress={() => navigation.navigate('Tabs', {screen: 'Feed'})} /></View> : <>
-        <View style={{gap:16}}><View style={{flexDirection:'row',alignItems:'center',gap:12}}><Text accessibilityRole="header" style={[s.heading,{flex:1}]}>{copy('friendsHub.plans')}</Text><ActionButton testID="friends-new-plan" accessibilityLabel={copy('friendsHub.newPlan')} icon={<Plus size={20}/>} style={{width:44,paddingHorizontal:0}} onPress={()=>navigation.navigate('Outings',{new:true})}/></View>
-          {plans.pending ? <Loading /> : plans.error ? <Feedback title={copy(plans.error)} retry={() => void plans.store.load()} /> : <>
-            {plans.plans.some(plan => plan.status === 'pending') && <Text style={{color: colors.accent, fontSize: 13}}>{copy('friendsHub.invitations', {count: plans.plans.filter(plan => plan.status === 'pending').length})}</Text>}
+        <View style={{gap:8}}><View style={{flexDirection:'row',alignItems:'center',gap:12}}><Text accessibilityRole="header" style={[s.heading,{flex:1}]}>{copy('groups.title')}</Text><ActionButton testID="friends-new-plan" accessibilityLabel={copy('groups.create')} icon={<Plus size={20}/>} style={{width:44,paddingHorizontal:0}} onPress={()=>navigation.navigate('Groups',{new:true})}/></View>
+          {plans.loading ? <Loading /> : plans.error ? <Feedback title={copy(plans.error)} retry={() => void plans.store.load()} /> : <>
             {planCards}
-            {!!plans.plans.length && <ActionButton title={copy('friendsHub.allPlans')} style={{alignSelf:'flex-end'}} tone="ghost" onPress={() => navigation.navigate('Outings')} />}
+            {plans.groups.length>3&&<ActionButton title={copy('friendsHub.allPlans')} style={{alignSelf:'flex-end'}} tone="ghost" onPress={() => navigation.navigate('Groups')} />}
+            {!plans.groups.length&&<View style={{gap:12,paddingVertical:16}}><Text style={s.heading}>{copy('groups.newGroup')}</Text><Text style={s.muted}>{copy('groups.empty')}</Text><ActionButton title={copy('groups.create')} tone="secondary" onPress={()=>navigation.navigate('Groups',{new:true})}/></View>}
           </>}
         </View>
 

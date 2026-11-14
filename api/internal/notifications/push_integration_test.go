@@ -45,8 +45,9 @@ func TestPushPostgresLifecycle(t *testing.T) {
         CREATE TABLE orders(id uuid PRIMARY KEY,event_id uuid,user_id uuid,status text);
         CREATE TABLE tickets(order_id uuid,user_id uuid);
         CREATE TABLE notifications(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),user_id uuid REFERENCES users(id),
-        type text,title text,body text,event_id uuid,actor_id uuid,read_at timestamptz,created_at timestamptz DEFAULT now(),expires_at timestamptz);`)
-	defer pool.Exec(context.Background(), `DROP TABLE IF EXISTS notification_push_revocations,notification_push_deliveries,notification_push_devices,notifications,tickets,orders,events,users CASCADE; DROP FUNCTION IF EXISTS enqueue_notification_push()`)
+        type text,title text,body text,event_id uuid,actor_id uuid,read_at timestamptz,created_at timestamptz DEFAULT now(),expires_at timestamptz,friend_group_id uuid,outing_plan_id uuid);
+        CREATE TABLE friend_group_members(group_id uuid,user_id uuid,status text,muted boolean DEFAULT false);`)
+	defer pool.Exec(context.Background(), `DROP TABLE IF EXISTS friend_group_members,notification_push_revocations,notification_push_deliveries,notification_push_devices,notifications,tickets,orders,events,users CASCADE; DROP FUNCTION IF EXISTS enqueue_notification_push()`)
 	migration, err := os.ReadFile("../database/migrations/20261013120000_notification_push.sql")
 	if err != nil {
 		t.Fatal(err)

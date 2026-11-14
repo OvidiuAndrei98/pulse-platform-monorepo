@@ -196,6 +196,11 @@ async function run() {
     assert.equal(await evaluate("document.querySelector('[data-nav-indicator]') === window.__indicator"), true);
     assert.equal(await evaluate("document.querySelector('[data-tab-page]') === window.__pageSurface && window.__pageSurface.getAnimations().length === 0 && getComputedStyle(window.__pageSurface).transform === 'none'"), true, 'Persistent content surface must not slide or fade');
   };
+  if (process.env.NAVIGATION_TEST_NAVBAR_ONLY === '1') {
+    // Next's development toolbar can cover Profile at narrow widths. Hide only
+    // that tooling in this isolated browser; the application stays unmodified.
+    await evaluate(`{const style=document.createElement('style');style.textContent='nextjs-portal{display:none!important}';document.head.appendChild(style);}`);
+  }
   await evaluate(`(() => {
     window.__coldCommits = [];
     window.addEventListener('spottr:navigation', () => window.__coldCommits.push(location.pathname));
@@ -213,6 +218,82 @@ async function run() {
   assert.equal(await evaluate('location.pathname'), '/');
   assert.equal(await evaluate("window.__coldCommits.includes('/events')"), false);
   console.log('PASS immediate capsule movement, real touch cancellation and ignored late route');
+
+  if (process.env.NAVIGATION_TEST_NAVBAR_ONLY === '1') {
+    const directory = path.resolve(__dirname, '../.next/qa-navbar');
+    fs.mkdirSync(directory, { recursive: true });
+    const results = [];
+    for (const width of [320, 390, 430, 1024]) {
+      await call('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: width < 768 });
+      for (const [label, route] of [['Home', '/'], ['Map', '/events'], ['Friends', '/friends'], ['Feed', '/feed'], ['Profile', '/users/me']]) {
+        await tab(label, route);
+        await delay(250);
+        const geometry = await evaluate(`(() => {
+          const rect = element => {const r=element.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};};
+          const bar = document.querySelector('[data-bottom-nav-glass]'), blob = document.querySelector('[data-nav-indicator]');
+          const buttons = [...document.querySelectorAll('[data-bottom-nav] button')];
+          return {bar:rect(bar),blob:rect(blob),icons:buttons.map(b=>rect(b.querySelector('svg'))),targets:buttons.map(rect),
+            active:buttons.findIndex(b=>b.getAttribute('aria-current')==='page'),
+            color:getComputedStyle(blob).backgroundColor,blur:getComputedStyle(bar).backdropFilter};
+        })()`);
+        assert.equal(geometry.bar.height, 62, 'iPhone resting navbar height');
+        assert.equal(geometry.blob.height, 52, 'Equal 5px top/bottom clearance');
+        assert.equal(geometry.targets.length, 5);
+        const centers = geometry.icons.map(icon => icon.x + icon.width / 2), spacing = centers[1] - centers[0];
+        for (let i = 0; i < centers.length; i++) {
+          assert.ok(Math.abs(centers[i] - centers[0] - i * spacing) < .1, 'Even icon centers');
+          assert.ok(Math.abs(geometry.icons[i].width - 26) < .01);
+          assert.ok(Math.abs(geometry.icons[i].height - 26) < .01);
+          assert.ok(geometry.targets[i].width >= 44 && geometry.targets[i].height >= 44, 'Accessible tap targets');
+          if (i) assert.ok(Math.abs(geometry.targets[i].x - geometry.targets[i-1].x - geometry.targets[i-1].width) < .1, 'Touch regions meet without overlap');
+        }
+        assert.ok(Math.abs(geometry.blob.width / spacing - 1.15) < .002, 'Blob overlaps the visual neighboring regions');
+        assert.ok(Math.abs(geometry.blob.x + geometry.blob.width / 2 - centers[geometry.active]) < .1, 'Selected icon centered inside blob');
+        const left = geometry.blob.x - geometry.bar.x, right = geometry.bar.x + geometry.bar.width - geometry.blob.x - geometry.blob.width;
+        assert.ok(left >= 4.9 && right >= 4.9, 'Blob stays inside the bar');
+        if (label === 'Home') assert.ok(Math.abs(left - 5) < .1);
+        if (label === 'Profile') assert.ok(Math.abs(right - 5) < .1);
+        assert.notEqual(geometry.blur, 'none');
+        results.push({viewport:width,label,...geometry});
+        const screenshot = await call('Page.captureScreenshot', { format: 'png' });
+        fs.writeFileSync(path.join(directory, `navbar-${width}-${label.toLowerCase()}.png`), Buffer.from(screenshot.data, 'base64'));
+      }
+    }
+    await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    await tab('Home', '/'); await delay(250);
+    const travel = await evaluate(`new Promise(resolve=>{
+      const blob=document.querySelector('[data-nav-indicator]'),bar=document.querySelector('[data-bottom-nav-glass]');
+      const start=performance.now(),samples=[];
+      document.querySelector('[data-bottom-nav] button[aria-label="Profile"]').click();
+      setTimeout(()=>document.querySelector('[data-bottom-nav] button[aria-label="Map"]').click(),70);
+      function frame(){const r=blob.getBoundingClientRect(),b=bar.getBoundingClientRect();samples.push({t:performance.now()-start,x:r.x,width:r.width,height:r.height,barX:b.x,barWidth:b.width});
+        if(performance.now()-start<450)requestAnimationFrame(frame);else resolve(samples);}
+      requestAnimationFrame(frame);
+    })`);
+    assert.ok(new Set(travel.map(frame=>Math.round(frame.x))).size>=5, 'Interruptible slide has intermediate positions');
+    for(const frame of travel){
+      assert.ok(Math.abs(frame.width-travel[0].width)<.1&&frame.height===52,'No bounce or jelly scaling');
+      assert.ok(Math.abs(frame.barX-travel[0].barX)<.1&&Math.abs(frame.barWidth-travel[0].barWidth)<.1,'Navbar stays still');
+      assert.ok(frame.x>=frame.barX+4.9&&frame.x+frame.width<=frame.barX+frame.barWidth-4.9,'Travel never escapes the bar');
+    }
+    await until("location.pathname === '/events'");
+    for(let i=0;i<20;i++)await tapTab(['Home','Friends','Feed','Profile','Map'][i%5]);
+    await until("location.pathname === '/events'");
+    assert.equal(await evaluate("document.querySelectorAll('[data-bottom-nav]').length"),1);
+    await evaluate("document.querySelector('[data-bottom-nav] button[aria-label=Home]').focus()");
+    await call('Input.dispatchKeyEvent', { type:'keyDown',key:'Enter',code:'Enter',text:'\r',windowsVirtualKeyCode:13 });
+    await call('Input.dispatchKeyEvent', { type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13 });
+    await until("location.pathname === '/'");
+    await call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+    await tab('Map','/events');
+    assert.equal(await evaluate("document.querySelector('[data-nav-indicator]').getAnimations().length"),0);
+    assert.deepEqual(errors,[],'No uncaught rendering errors');
+    assert.deepEqual(lifecycleWarnings,[]);
+    fs.writeFileSync(path.join(directory,'measurements.json'),JSON.stringify({results,travel},null,2));
+    console.log('PASS native navbar proportions at 320/390/430/1024, all five states, bounded slide/reversal without bounce, rapid touches, keyboard and reduced motion');
+    await send('Target.closeTarget',{targetId});await send('Browser.close');await delay(500);
+    return;
+  }
 
   await tab('Map', '/events');
   await until("document.querySelector('[data-nav-scroll=events-list] button') && document.body.innerText.includes('Cached event')");
@@ -261,7 +342,10 @@ async function run() {
     const frame = () => {
       samples.push({ time: performance.now() - started, x: position() });
       if (performance.now() - started < 450) requestAnimationFrame(frame);
-      else resolve({ samples, start, target: document.querySelector('[data-bottom-nav] button[aria-label="Map"]').getBoundingClientRect().x });
+      else {
+        const icon = document.querySelector('[data-bottom-nav] button[aria-label="Map"] svg').getBoundingClientRect();
+        resolve({ samples, start, target: icon.x + icon.width / 2 - window.__indicator.getBoundingClientRect().width / 2 });
+      }
     };
     requestAnimationFrame(frame);
   })`);
@@ -389,6 +473,11 @@ async function run() {
 const deadline = setTimeout(() => { child.kill(); console.error("Browser test exceeded 120s"); process.exitCode = 1; }, 120000);
 run().catch((error) => { console.error(error); process.exitCode = 1; }).finally(async () => {
   clearTimeout(deadline);
+  if (child.exitCode === null && socket?.readyState === 1) {
+    // Flush renderer/profile handles even when an assertion failed.
+    socket.send(JSON.stringify({ id: -1, method: 'Browser.close' }));
+    await Promise.race([once(child, 'exit'), delay(2000)]);
+  }
   socket?.close();
   exportServer?.close();
   if (child.exitCode === null) { const exited = once(child, "exit"); child.kill(); await Promise.race([exited, delay(2000)]); }

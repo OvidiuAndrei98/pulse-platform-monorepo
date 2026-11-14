@@ -61,7 +61,7 @@ export default function EventFeed() {
           </div><div className={s.actions}>
             <div className={s.like}><IconButton label={t(event.liked ? 'discovery.unlike' : 'discovery.like', {event: event.title})} tone="secondary" aria-pressed={event.liked} disabled={model.working.includes(event.id)} data-testid={'feed-like-' + event.id} onClick={() => like(event)}><Heart size={25} fill={event.liked ? 'currentColor' : 'none'} className={event.liked ? s.liked : ''} /></IconButton><span aria-label={t('discovery.likes', {count: event.likeCount})} title={t('discovery.publicLikes')} aria-live="polite">{event.likeCount}</span></div>
             <IconButton label={t('discovery.share')} tone="secondary" onClick={() => void share(event)}><Share2 size={22} /></IconButton>
-            <ActionLink href={'/outings?event=' + event.id} tone="secondary" className={s.propose} aria-label={t('discovery.propose')}><UsersRound size={23} /></ActionLink>
+            <ActionLink href={'/groups?event=' + event.id} tone="secondary" className={s.propose} aria-label={t('groups.sendTo')}><UsersRound size={23} /></ActionLink>
           </div></div>
           {model.likeErrors.includes(event.id) && <p className={s.likeError} role="alert">{t('discovery.likeFailed')}</p>}
           {index === count - 1 && <div className={s.more}>{model.loadingMore ? <span role="status">{t('common.loading')}</span> : model.error ? <ActionButton tone="secondary" onClick={() => void model.store.load(true)}>{t('common.retry')}</ActionButton> : model.nextPage ? <ActionButton tone="secondary" onClick={() => void model.store.load(true)}>{t('discovery.loadMore')}</ActionButton> : <span>{t('discovery.end')}</span>}</div>}

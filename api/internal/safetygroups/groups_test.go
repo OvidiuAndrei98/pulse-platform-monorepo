@@ -1,19 +1,18 @@
 package safetygroups
 
-import "testing"
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
 
-func TestParseUniqueUUIDsRejectsInvalidAndEnforcesLimit(t *testing.T) {
-	valid := "123e4567-e89b-12d3-a456-426614174000"
-	other := "123e4567-e89b-12d3-a456-426614174001"
-
-	ids, ok := parseUniqueUUIDs([]string{valid, valid, other})
-	if !ok || len(ids) != 2 {
-		t.Fatalf("expected two unique UUIDs, got ok=%v len=%d", ok, len(ids))
-	}
-	if _, ok := parseUniqueUUIDs([]string{"not-a-uuid"}); ok {
-		t.Fatal("expected invalid UUID to be rejected")
-	}
-	if _, ok := parseUniqueUUIDs([]string{valid, valid, valid, valid, valid, valid, valid, valid}); ok {
-		t.Fatal("expected more than seven invitations to be rejected")
+func TestRetiredEventConversationNeverUsesDatabase(t *testing.T) {
+	h := NewHandler(nil, nil)
+	for _, handler := range []http.HandlerFunc{h.HandleGet, h.HandleCreate, h.HandleInvite, h.HandleRespond, h.HandleMessage, h.HandleHelp, h.HandleHelpResolved} {
+		w := httptest.NewRecorder()
+		handler(w, httptest.NewRequest("POST", "/events/any/safety-group", nil))
+		if w.Code != 410 || w.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("retired endpoint: %d %s", w.Code, w.Body.String())
+		}
 	}
 }

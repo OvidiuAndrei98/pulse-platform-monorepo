@@ -12,6 +12,14 @@ const React = webRequire('react');
 const { renderToStaticMarkup } = webRequire('react-dom/server');
 const sharp = createRequire(webRequire.resolve('next/package.json'))('sharp');
 const artifacts = path.resolve(__dirname, '../artifacts');
+const postcss = webRequire('postcss');
+const moduleStyles = {}, moduleRoot = postcss.parse(fs.readFileSync(path.join(webApp, 'src/components/BottomNav.module.css'), 'utf8'));
+moduleRoot.walkRules(rule => {
+  rule.selector = rule.selector.replace(/\.([a-zA-Z_][\w-]*)/g, (_, name) => {
+    moduleStyles[name] = 'next-navbar-' + name;
+    return '.' + moduleStyles[name];
+  });
+});
 
 function compileModule(relativePath, resolve = webRequire) {
   const source = fs.readFileSync(path.join(webApp, relativePath), 'utf8');
@@ -28,12 +36,14 @@ const { BottomNavGate } = compileModule('src/components/BottomNav.tsx', name => 
   if (name === 'next/navigation') return { usePathname: () => pathname, useRouter: () => ({ prefetch() {} }) };
   if (name === '@/core/DataProviderContext') return { useDataProvider: () => ({ isOrganizer: false }) };
   if (name === 'react-i18next') return { useTranslation: () => ({ t: key => key }) };
+  if (name === './BottomNav.module.css') return moduleStyles;
   return webRequire(name);
 });
 
 async function main() {
   const stylesheet = path.join(webApp, 'src/app/globals.css');
-  const { css } = await webRequire('postcss')([webRequire('@tailwindcss/postcss')({ base: webApp })]).process(fs.readFileSync(stylesheet, 'utf8'), { from: stylesheet });
+  const compiled = await postcss([webRequire('@tailwindcss/postcss')({ base: webApp })]).process(fs.readFileSync(stylesheet, 'utf8'), { from: stylesheet });
+  const css = compiled.css + '\n' + moduleRoot.toString();
   await withBrowser(async ({ base, call, evaluate, until, delay, click, errors }) => {
     await call('Page.addScriptToEvaluateOnNewDocument', { source: `const originalFetch=window.fetch.bind(window);window.fetch=(url,options)=>String(url).includes('/api/v1/')?Promise.resolve(new Response('[]',{headers:{'content-type':'application/json'}})):originalFetch(url,options);` });
     const results = [];
@@ -45,6 +55,11 @@ async function main() {
           await call('Page.navigate', { url: process.env.NAVBAR_PREVIEW_URL || base });
           await until(`document.querySelector('[data-testid="tab-indicator"]')`, process.env.NAVBAR_PREVIEW_URL ? 60000 : 14000);
           if (pattern) await click('tab-Feed');
+        } else if (process.env.NAVBAR_NEXT_URL) {
+          await call('Page.navigate', { url: process.env.NAVBAR_NEXT_URL + (pattern ? '/feed' : '/') });
+          await until(`document.querySelector('[data-nav-indicator]')&&history.state?.__spottrNavigation&&document.readyState==='complete'`, 60000);
+          await delay(300);
+          await evaluate(`{const style=document.createElement('style');style.textContent='nextjs-portal{display:none!important}';document.head.appendChild(style);}`);
         } else {
           pathname = pattern ? '/feed' : '/';
           await call('Page.navigate', { url: 'about:blank' });

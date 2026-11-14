@@ -4,6 +4,9 @@ type Notification = components["schemas"]["NotificationResponse"];
 type Copy = (key: string, values?: Record<string, string | number>) => string;
 
 export function notificationText(notification: Notification, t: Copy) {
+  if(notification.type==='friend_group_invite')return {title:t('groups.invited'),body:t('groups.inviteBody',{name:notification.actorUsername||t('notifications.someone')})};
+  if(notification.type==='friend_group_outing')return {title:t('groups.propose'),body:t('groups.proposedBody')};
+  if(notification.type==='friend_group_message')return {title:t('groups.title'),body:t('groups.messageBody')};
   if(notification.type==='outing_plan_invite')return {title:t('outings.title'),body:t('outings.hint')};
   if(notification.type==='outing_plan_chosen')return {title:t('outings.chosen'),body:t('outings.chosenNotification')};
   if(notification.type==='outing_plan_reopened')return {title:t('outings.plan.planB'),body:t('outings.plan.compare')};

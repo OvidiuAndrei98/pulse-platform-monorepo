@@ -2923,7 +2923,7 @@
     "/events/{id}/safety-group": {
       "get": {
         "operationId": "EventOperations_getSafetyGroup",
-        "summary": "Obtine grupul privat si starea de siguranta pentru participant",
+        "summary": "Retired event conversation: always returns 410",
         "parameters": [
           {
             "name": "id",
@@ -2935,21 +2935,22 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "The request has succeeded.",
+          "410": {
+            "description": "Client error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EventSafetyGroupEnvelopeResponse"
+                  "$ref": "#/components/schemas/RetiredFeatureResponse"
                 }
               }
             }
           }
-        }
+        },
+        "deprecated": true
       },
       "post": {
         "operationId": "EventOperations_createSafetyGroup",
-        "summary": "Creeaza grupul privat al participantului pentru eveniment",
+        "summary": "Retired event conversation: always returns 410",
         "parameters": [
           {
             "name": "id",
@@ -2961,12 +2962,12 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "The request has succeeded.",
+          "410": {
+            "description": "Client error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreatedResourceResponse"
+                  "$ref": "#/components/schemas/RetiredFeatureResponse"
                 }
               }
             }
@@ -2981,13 +2982,14 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/events/{id}/safety-group/help": {
       "post": {
         "operationId": "EventOperations_sendSafetyGroupHelp",
-        "summary": "Trimite o alerta de ajutor prietenilor din grup",
+        "summary": "Retired event conversation: always returns 410",
         "parameters": [
           {
             "name": "id",
@@ -2999,12 +3001,12 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "The request has succeeded.",
+          "410": {
+            "description": "Client error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreatedResourceResponse"
+                  "$ref": "#/components/schemas/RetiredFeatureResponse"
                 }
               }
             }
@@ -3019,13 +3021,14 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/events/{id}/safety-group/help-resolved": {
       "post": {
         "operationId": "EventOperations_resolveSafetyGroupHelp",
-        "summary": "Anunta grupul ca alerta de ajutor este rezolvata",
+        "summary": "Retired event conversation: always returns 410",
         "parameters": [
           {
             "name": "id",
@@ -3037,12 +3040,12 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "The request has succeeded.",
+          "410": {
+            "description": "Client error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreatedResourceResponse"
+                  "$ref": "#/components/schemas/RetiredFeatureResponse"
                 }
               }
             }
@@ -3057,13 +3060,14 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/events/{id}/safety-group/invite": {
       "post": {
         "operationId": "EventOperations_inviteSafetyGroup",
-        "summary": "Invita alti prieteni in grupul existent",
+        "summary": "Retired event conversation: always returns 410",
         "parameters": [
           {
             "name": "id",
@@ -3075,12 +3079,12 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "The request has succeeded.",
+          "410": {
+            "description": "Client error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/RetiredFeatureResponse"
                 }
               }
             }
@@ -3095,13 +3099,14 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/events/{id}/safety-group/messages": {
       "post": {
         "operationId": "EventOperations_sendSafetyGroupMessage",
-        "summary": "Trimite un mesaj efemer in grup",
+        "summary": "Retired event conversation: always returns 410",
         "parameters": [
           {
             "name": "id",
@@ -3113,12 +3118,12 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "The request has succeeded.",
+          "410": {
+            "description": "Client error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreatedResourceResponse"
+                  "$ref": "#/components/schemas/RetiredFeatureResponse"
                 }
               }
             }
@@ -3133,13 +3138,14 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/events/{id}/safety-group/respond": {
       "post": {
         "operationId": "EventOperations_respondSafetyGroup",
-        "summary": "Accepta sau refuza invitatia in grup",
+        "summary": "Retired event conversation: always returns 410",
         "parameters": [
           {
             "name": "id",
@@ -3151,12 +3157,12 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "The request has succeeded.",
+          "410": {
+            "description": "Client error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
+                  "$ref": "#/components/schemas/RetiredFeatureResponse"
                 }
               }
             }
@@ -3171,7 +3177,8 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/events/{id}/social": {
@@ -3733,12 +3740,86 @@
         }
       }
     },
-    "/outings/meeting-point/{eventID}": {
+    "/outings/groups": {
+      "get": {
+        "operationId": "FriendGroups_groups",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FriendGroup"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
-        "operationId": "Outings_meetingPoint",
+        "operationId": "FriendGroups_create",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendGroup"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFriendGroup"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/outings/groups/{groupID}": {
+      "get": {
+        "operationId": "FriendGroups_group",
         "parameters": [
           {
-            "name": "eventID",
+            "name": "groupID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendGroup"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/outings/groups/{groupID}/actions": {
+      "post": {
+        "operationId": "FriendGroups_action",
+        "parameters": [
+          {
+            "name": "groupID",
             "in": "path",
             "required": true,
             "schema": {
@@ -3763,6 +3844,198 @@
           "content": {
             "application/json": {
               "schema": {
+                "$ref": "#/components/schemas/FriendGroupAction"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/outings/groups/{groupID}/messages": {
+      "get": {
+        "operationId": "FriendGroups_messages",
+        "parameters": [
+          {
+            "name": "groupID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "explode": false
+          },
+          {
+            "name": "collection",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "events"
+              ]
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupMessages"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "FriendGroups_send",
+        "parameters": [
+          {
+            "name": "groupID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingMutationResult"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendGroupMessage"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/outings/groups/{groupID}/outings": {
+      "post": {
+        "operationId": "FriendGroups_outing",
+        "parameters": [
+          {
+            "name": "groupID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingPlan"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGroupOuting"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "FriendGroups_history",
+        "parameters": [
+          {
+            "name": "groupID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupOutingsPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/outings/meeting-point/{eventID}": {
+      "post": {
+        "operationId": "Outings_meetingPoint",
+        "parameters": [
+          {
+            "name": "eventID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "410": {
+            "description": "Client error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetiredFeatureResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
                 "type": "object",
                 "properties": {
                   "content": {
@@ -3775,7 +4048,8 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/outings/plans": {
@@ -3802,12 +4076,12 @@
         "operationId": "Outings_createPlan",
         "parameters": [],
         "responses": {
-          "200": {
-            "description": "The request has succeeded.",
+          "410": {
+            "description": "Client error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutingPlan"
+                  "$ref": "#/components/schemas/RetiredFeatureResponse"
                 }
               }
             }
@@ -3822,7 +4096,8 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/outings/plans/{planID}": {
@@ -3866,6 +4141,44 @@
           }
         ],
         "responses": {
+          "410": {
+            "description": "Client error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetiredFeatureResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutingArrivalUpdate"
+              }
+            }
+          }
+        },
+        "deprecated": true
+      }
+    },
+    "/outings/plans/{planID}/attendance": {
+      "post": {
+        "operationId": "FriendGroups_attendance",
+        "parameters": [
+          {
+            "name": "planID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
           "200": {
             "description": "The request has succeeded.",
             "content": {
@@ -3882,7 +4195,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OutingArrivalUpdate"
+                "$ref": "#/components/schemas/OutingAttendance"
               }
             }
           }
@@ -4088,12 +4401,12 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "The request has succeeded.",
+          "410": {
+            "description": "Client error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutingMutationResult"
+                  "$ref": "#/components/schemas/RetiredFeatureResponse"
                 }
               }
             }
@@ -4108,12 +4421,51 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/outings/plans/{planID}/preferences": {
       "post": {
         "operationId": "Outings_preferences",
+        "parameters": [
+          {
+            "name": "planID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "410": {
+            "description": "Client error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetiredFeatureResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutingPreferences"
+              }
+            }
+          }
+        },
+        "deprecated": true
+      }
+    },
+    "/outings/plans/{planID}/proposals": {
+      "post": {
+        "operationId": "Outings_propose",
         "parameters": [
           {
             "name": "planID",
@@ -4141,16 +4493,16 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OutingPreferences"
+                "$ref": "#/components/schemas/OutingEventChoice"
               }
             }
           }
         }
       }
     },
-    "/outings/plans/{planID}/proposals": {
+    "/outings/plans/{planID}/remove-proposal": {
       "post": {
-        "operationId": "Outings_propose",
+        "operationId": "Outings_removeProposal",
         "parameters": [
           {
             "name": "planID",
@@ -4236,12 +4588,12 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "The request has succeeded.",
+          "410": {
+            "description": "Client error",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutingMutationResult"
+                  "$ref": "#/components/schemas/RetiredFeatureResponse"
                 }
               }
             }
@@ -4256,7 +4608,46 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
+      }
+    },
+    "/outings/plans/{planID}/ticket-status": {
+      "post": {
+        "operationId": "Outings_ticketStatus",
+        "parameters": [
+          {
+            "name": "planID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "410": {
+            "description": "Client error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetiredFeatureResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutingTicketStatus"
+              }
+            }
+          }
+        },
+        "deprecated": true
       }
     },
     "/outings/plans/{planID}/vote": {
@@ -6120,6 +6511,9 @@
           "items"
         ],
         "properties": {
+          "outing": {
+            "$ref": "#/components/schemas/OutingPurchase"
+          },
           "items": {
             "type": "array",
             "items": {
@@ -6304,6 +6698,9 @@
           "billingDetails"
         ],
         "properties": {
+          "outing": {
+            "$ref": "#/components/schemas/OutingPurchase"
+          },
           "expectedTotalBani": {
             "type": "integer",
             "format": "int64"
@@ -6457,6 +6854,60 @@
           }
         }
       },
+      "CreateFriendGroup": {
+        "type": "object",
+        "required": [
+          "requestId",
+          "name",
+          "friendIds"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "friendIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "eventId": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateGroupOuting": {
+        "type": "object",
+        "required": [
+          "requestId"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          },
+          "dates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "eventId": {
+            "type": "string"
+          }
+        }
+      },
       "CreateInvitationPayload": {
         "type": "object",
         "required": [
@@ -6532,6 +6983,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "confirmEvent": {
+            "type": "boolean"
           }
         }
       },
@@ -7004,6 +7458,9 @@
           "stats"
         ],
         "properties": {
+          "giftPurchasesAvailable": {
+            "type": "boolean"
+          },
           "commissionRateBps": {
             "type": "integer",
             "format": "int32"
@@ -7314,6 +7771,243 @@
               "going",
               "has_ticket"
             ]
+          }
+        }
+      },
+      "FriendGroup": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "ownerId",
+          "status",
+          "revision",
+          "lastSeq",
+          "visibleAfterSeq",
+          "unread",
+          "muted",
+          "preview",
+          "members",
+          "outings",
+          "outingsHasMore"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted"
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "lastSeq": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "visibleAfterSeq": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "joinedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "unread": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "muted": {
+            "type": "boolean"
+          },
+          "preview": {
+            "type": "string"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FriendGroupMember"
+            }
+          },
+          "outings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OutingPlan"
+            }
+          },
+          "outingsHasMore": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FriendGroupAction": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "accept",
+              "decline",
+              "rename",
+              "invite",
+              "transfer-admin",
+              "leave",
+              "remove",
+              "mute",
+              "read"
+            ]
+          },
+          "userId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "muted": {
+            "type": "boolean"
+          },
+          "seq": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "FriendGroupMember": {
+        "type": "object",
+        "required": [
+          "userId",
+          "username",
+          "status"
+        ],
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted"
+            ]
+          }
+        }
+      },
+      "FriendGroupMessage": {
+        "type": "object",
+        "required": [
+          "id",
+          "requestId",
+          "seq",
+          "senderId",
+          "username",
+          "kind",
+          "content",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "senderId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "text",
+              "event",
+              "outing"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "outingId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "event": {
+            "$ref": "#/components/schemas/SharedGroupEvent"
+          }
+        }
+      },
+      "GroupMessages": {
+        "type": "object",
+        "required": [
+          "items",
+          "hasMore",
+          "revision"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FriendGroupMessage"
+            }
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "GroupOutingsPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "hasMore"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OutingPlan"
+            }
+          },
+          "hasMore": {
+            "type": "boolean"
           }
         }
       },
@@ -7649,6 +8343,12 @@
           "createdAt"
         ],
         "properties": {
+          "groupId": {
+            "type": "string"
+          },
+          "outingPlanId": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },
@@ -7793,6 +8493,33 @@
             "items": {
               "$ref": "#/components/schemas/OfflineTicketSnapshot"
             }
+          }
+        }
+      },
+      "OrderTicketRecipient": {
+        "type": "object",
+        "required": [
+          "name",
+          "status"
+        ],
+        "properties": {
+          "ticketId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "self",
+              "processing",
+              "pending",
+              "accepted",
+              "declined",
+              "cancelled",
+              "expired"
+            ]
           }
         }
       },
@@ -8284,6 +9011,27 @@
           }
         }
       },
+      "OutingAttendance": {
+        "type": "object",
+        "required": [
+          "answer",
+          "decisionRound"
+        ],
+        "properties": {
+          "answer": {
+            "type": "string",
+            "enum": [
+              "yes",
+              "maybe",
+              "no"
+            ]
+          },
+          "decisionRound": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "OutingAvailability": {
         "type": "object",
         "required": [
@@ -8437,6 +9185,12 @@
           "hasTicket": {
             "type": "boolean"
           },
+          "needsTicket": {
+            "type": "boolean"
+          },
+          "ticketStatusShared": {
+            "type": "boolean"
+          },
           "hasPreviousTicket": {
             "type": "boolean"
           },
@@ -8453,6 +9207,27 @@
           "arrivalUpdatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "attendance": {
+            "type": "string",
+            "enum": [
+              "yes",
+              "maybe",
+              "no",
+              "unanswered"
+            ]
+          },
+          "ticketState": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "none",
+              "processing",
+              "offered",
+              "valid",
+              "used",
+              "expired"
+            ]
           }
         }
       },
@@ -8478,6 +9253,9 @@
         ],
         "properties": {
           "eventId": {
+            "type": "string"
+          },
+          "eventStatus": {
             "type": "string"
           },
           "title": {
@@ -8530,6 +9308,20 @@
           }
         }
       },
+      "OutingPendingPayment": {
+        "type": "object",
+        "required": [
+          "orderId"
+        ],
+        "properties": {
+          "orderId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        }
+      },
       "OutingPlan": {
         "type": "object",
         "required": [
@@ -8542,6 +9334,50 @@
           "options"
         ],
         "properties": {
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "groupId": {
+            "type": "string"
+          },
+          "lifecycle": {
+            "type": "string",
+            "enum": [
+              "choosing_date",
+              "choosing_event",
+              "event_selected",
+              "completed",
+              "cancelled"
+            ]
+          },
+          "confirmedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "readyCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "allConfirmedReady": {
+            "type": "boolean"
+          },
+          "giftPurchasesAvailable": {
+            "type": "boolean"
+          },
+          "myPendingPayment": {
+            "$ref": "#/components/schemas/OutingPendingPayment"
+          },
+          "inviterName": {
+            "type": "string"
+          },
+          "inviterAvatar": {
+            "type": "string"
+          },
+          "decisionRound": {
+            "type": "integer",
+            "format": "int32"
+          },
           "id": {
             "type": "string"
           },
@@ -8650,6 +9486,31 @@
           }
         }
       },
+      "OutingPurchase": {
+        "type": "object",
+        "required": [
+          "decisionRound",
+          "recipientIds"
+        ],
+        "properties": {
+          "planId": {
+            "type": "string"
+          },
+          "decisionRound": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "recipientIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "extraConfirmed": {
+            "type": "boolean"
+          }
+        }
+      },
       "OutingReaction": {
         "type": "object",
         "required": [
@@ -8703,6 +9564,21 @@
               "accepted",
               "declined"
             ]
+          }
+        }
+      },
+      "OutingTicketStatus": {
+        "type": "object",
+        "required": [
+          "shareStatus",
+          "needsTicket"
+        ],
+        "properties": {
+          "shareStatus": {
+            "type": "boolean"
+          },
+          "needsTicket": {
+            "type": "boolean"
           }
         }
       },
@@ -9480,6 +10356,20 @@
           }
         }
       },
+      "RetiredFeatureResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "destination": {
+            "type": "string"
+          }
+        }
+      },
       "ReviewEventCancellationPayload": {
         "type": "object",
         "properties": {
@@ -9673,6 +10563,24 @@
           }
         }
       },
+      "SendGroupMessage": {
+        "type": "object",
+        "required": [
+          "requestId",
+          "content"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          }
+        }
+      },
       "SetOrganizerCommissionPayload": {
         "type": "object",
         "required": [
@@ -9692,6 +10600,47 @@
           "revision": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "SharedGroupEvent": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "imageUrl",
+          "location",
+          "city",
+          "startTime",
+          "endTime",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
           }
         }
       },
@@ -9878,6 +10827,13 @@
           "expiresAt"
         ],
         "properties": {
+          "blockedReason": {
+            "type": "string",
+            "enum": [
+              "offline_snapshot",
+              "event_started"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -10261,6 +11217,12 @@
           "invoiceRequested"
         ],
         "properties": {
+          "ticketRecipients": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderTicketRecipient"
+            }
+          },
           "paymentAttemptedAt": {
             "type": "string",
             "format": "date-time",
@@ -10399,6 +11361,9 @@
           "organizerFiscalAddress"
         ],
         "properties": {
+          "assignedRecipientId": {
+            "type": "string"
+          },
           "ticketPriceBani": {
             "type": "integer",
             "format": "int64"

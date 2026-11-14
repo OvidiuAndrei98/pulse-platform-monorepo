@@ -15,7 +15,7 @@ const fixtureWidth = geometry.tabBarWidthFromSpacing(88, 4);
 const fixtureGeometry = geometry.getTabCapsuleGeometry(fixtureWidth, 4);
 const firstCenter = fixtureGeometry.firstCenter;
 
-const elements = (node: any): any[] => Array.isArray(node) ? node.flatMap(elements) : React.isValidElement(node) ? [node, ...elements((node.type as any)?.type?.name === 'FixedTabIndicator' ? (node.type as any).type(node.props) : (node.props as any).children)] : [];
+const elements = (node: any): any[] => Array.isArray(node) ? node.flatMap(elements) : React.isValidElement(node) ? [node, ...elements(['FixedTabIndicator', 'FixedTabIcon'].includes((node.type as any)?.type?.name) ? (node.type as any).type(node.props) : (node.props as any).children)] : [];
 type Motion = { position: { value: number }; interaction: { value: number }; edgeResponse?: { value: number }; edgeDirection?: { value: number }; gestureCommand?: { value: { id: number; index: number; pending: boolean; acknowledgedId: number } }; itemWidth: number; measure: (value: number) => void; timeline: { current: null } };
 
 function mount({ prevented = false, roleRouting = false, activeIndex = 0, indicatorMotion, deferPickup = false, deferFollow = false, deferSelection = false, deferJS = false, scrollCompact = 0, reducedMotion = false }: { prevented?: boolean; roleRouting?: boolean; activeIndex?: number; indicatorMotion?: Motion; deferPickup?: boolean; deferFollow?: boolean; deferSelection?: boolean; deferJS?: boolean; scrollCompact?: number; reducedMotion?: boolean } = {}) {
@@ -536,6 +536,20 @@ test('every style reads one atomic frame, including the stretched icon row and b
   assert.equal(ui.find('tab-bar-motion').props.style[0].width, fixtureWidth);
   assert.equal(ui.trackWidth(), fixtureWidth - 8);
   assert.equal(ui.find('tab-indicator').props.style[1].width, fixtureGeometry.blobWidth);
+  fixtureGeometry.tabs.forEach((tab, index) => {
+    const name = ['Home', 'Explore', 'Feed', 'Profile'][index];
+    const localOffset = ui.find(`tab-icon-${name}`).props.style.transform[0].translateX - tab.iconOffset;
+    const inheritedMovement = 2 + .015 * (tab.center - fixtureWidth / 2);
+    assert.ok(Math.abs(inheritedMovement + 1.015 * localOffset - inheritedMovement * 1.15) < 1e-9,
+      'Icons yield 15% farther in the same frame, leaving the bar and capsule unchanged');
+  });
+  shared.value = { ...shared.value, pose: { ...shared.value.pose,
+    barX: 1, barScaleX: 1.01, trackX: -1 / 1.01, trackScaleX: 1 / 1.01 } };
+  fixtureGeometry.tabs.forEach((tab, index) => {
+    const name = ['Home', 'Explore', 'Feed', 'Profile'][index];
+    assert.ok(Math.abs(ui.find(`tab-icon-${name}`).props.style.transform[0].translateX - tab.iconOffset) < 1e-9,
+      'Held-drag compensation never adds an artificial impact to the icons');
+  });
 });
 
 test('retapping captures remaining distance and a late route acknowledgement cannot replace it', () => {

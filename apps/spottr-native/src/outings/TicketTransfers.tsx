@@ -9,7 +9,7 @@ import { FormInput } from '../ui/FormInput';
 import { Text } from '../ui/Text';
 import { colors } from '../ui/theme';
 import { usePreferences } from '../usePreferences';
-import { Choice } from './PlanBuilder';
+import { Choice } from './TicketChoice';
 import type { useOutings } from './useOutings';
 
 export function TicketTransfers({model,initialTicketId,onTickets}:{model:ReturnType<typeof useOutings>;initialTicketId?:string;onTickets:()=>void}) {
@@ -34,6 +34,7 @@ export function TicketTransfers({model,initialTicketId,onTickets}:{model:ReturnT
       <Text style={{color:colors.text,fontSize:18,fontWeight:'600'}}>{x.eventTitle}</Text>
       <Text style={{color:colors.muted}}>{x.senderId===model.user?.id?x.recipientName||copy('outings.to'):copy('outings.from',{name:x.senderName})}</Text>
       <Text style={{color:colors.muted}}>{copy('outings.'+x.status)}</Text>
+      {x.blockedReason&&<Text style={{color:colors.muted,fontSize:13}}>{copy(x.blockedReason==='offline_snapshot'?'outings.v2.offlineTransferClosed':'outings.v2.eventTransferClosed')}</Text>}
       {x.status==='pending'&&(x.senderId===model.user?.id
         ?<ActionButton title={copy('outings.cancel')} tone="secondary" disabled={model.working} onPress={()=>void respond(x.id,'cancelled')}/>
         :<><ActionButton testID={'transfer-accept-'+x.id} title={copy('outings.acceptTransfer')} disabled={model.working} onPress={()=>void respond(x.id,'accepted')}/><ActionButton title={copy('outings.decline')} tone="secondary" disabled={model.working} onPress={()=>void respond(x.id,'declined')}/></>)}

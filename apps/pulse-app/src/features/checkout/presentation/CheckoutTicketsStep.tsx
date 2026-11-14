@@ -11,7 +11,7 @@ import { formatRon } from "@packages/app-core/events/serviceFee";
 import type { TicketCheckoutDrawerModel } from "../useTicketCheckout";
 import { StepCard } from "./primitives";
 
-export function CheckoutTicketsStep({model, prices}: {model: Pick<TicketCheckoutDrawerModel, "busy" | "changeStep" | "furthestStep" | "onQuantitiesChange" | "promo" | "quantities" | "selectedTickets" | "step" | "t" | "ticketSummary">; prices: ReactNode}) {
+export function CheckoutTicketsStep({model, prices}: {model: Pick<TicketCheckoutDrawerModel, "busy" | "selectionLocked" | "changeStep" | "furthestStep" | "onQuantitiesChange" | "promo" | "quantities" | "selectedTickets" | "step" | "t" | "ticketSummary">; prices: ReactNode}) {
  const { busy, changeStep, furthestStep, onQuantitiesChange, promo, quantities, selectedTickets, step, t, ticketSummary }=model;
 
  return (<StepCard
@@ -22,7 +22,7 @@ export function CheckoutTicketsStep({model, prices}: {model: Pick<TicketCheckout
             completed={furthestStep > 0}
             summary={ticketSummary}
             onEdit={() => changeStep("tickets")}
-            disabled={busy}
+            disabled={busy||model.selectionLocked}
           >
             <div className="divide-y divide-white/10">
               {selectedTickets.map((ticket) => {
@@ -44,7 +44,7 @@ export function CheckoutTicketsStep({model, prices}: {model: Pick<TicketCheckout
                     <span className="text-sm text-white/70">
                       {t("checkout.quantity")}
                     </span>
-                    <TicketQuantityStepper name={ticket.name} value={quantities[ticket.id]??0} maximum={maximumQuantity} disabled={busy} testIDPrefix={'checkout-ticket-'+ticket.id}
+                    <TicketQuantityStepper name={ticket.name} value={quantities[ticket.id]??0} maximum={maximumQuantity} disabled={busy||model.selectionLocked} testIDPrefix={'checkout-ticket-'+ticket.id}
                       onStep={delta=>onQuantitiesChange(changeTicketQuantity(selectedTickets,quantities,ticket.id,(quantities[ticket.id]??0)+delta))}/>
                   </div>
                 </div>

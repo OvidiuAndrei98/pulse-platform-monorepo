@@ -3,6 +3,7 @@ import "@typespec/rest";
 import "@typespec/openapi3";
 import "./wardrobe.tsp";
 import "./outings.tsp";
+import "./groups.tsp";
 import "./event-feed.tsp";
 
 using TypeSpec.Http;
@@ -14,6 +15,12 @@ namespace Pulse;
 
 model ApiError {
   message: string;
+}
+@error
+model RetiredFeatureResponse {
+  @statusCode statusCode:410;
+  error:string;
+  destination?:string;
 }
 
 model User {
@@ -188,6 +195,8 @@ model CreateOrganizerEventUpdatePayload {
 }
 
 model NotificationResponse {
+  groupId?:string;
+  outingPlanId?:string;
   id: string;
   type: string;
   title: string;
@@ -286,6 +295,7 @@ model SuccessResponse {
 }
 
 model EventResponse {
+  giftPurchasesAvailable?:boolean;
   commissionRateBps?: int32;
   commissionPerTicketBani?: int32;
   id: string;
@@ -357,6 +367,7 @@ model StripeAccountLinkResponse {
 }
 
 model UserTicketResponse {
+  assignedRecipientId?: string;
   ticketPriceBani: int64;
   ticketingFeeBani: int64;
   paidTotalBani: int64;
@@ -663,6 +674,7 @@ model UpdateTicketTypePayload {
 }
 
 model UserOrderResponse {
+  ticketRecipients?: OrderTicketRecipient[];
   @doc("Present only after Stripe reports a submitted payment attempt, never just from opening checkout.")
   paymentAttemptedAt?: utcDateTime;
   id: string;
@@ -692,6 +704,7 @@ model UserOrderResponse {
   refundInvoiceDocumentUrl?: string;
   refundInvoiceIssuedAt?: utcDateTime;
 }
+model OrderTicketRecipient { ticketId?: string; name: string; status: "self" | "processing" | "pending" | "accepted" | "declined" | "cancelled" | "expired"; }
 
 model CheckoutTicketItemPayload {
   ticketTypeId: string;
@@ -711,6 +724,7 @@ model BillingDetailsPayload {
 }
 
 model CreateCheckoutSessionPayload {
+  outing?: OutingPurchase;
   expectedTotalBani?: int64;
   email: string;
   items: CheckoutTicketItemPayload[];
@@ -754,6 +768,7 @@ model NativePaymentSheetPayload {
 }
 
 model BookFreeTicketPayload {
+  outing?:OutingPurchase;
   items: CheckoutTicketItemPayload[];
 }
 
@@ -1213,58 +1228,65 @@ interface EventOperations {
   @route("/{id}/attendees")
   getAttendees(@path id: string): EventAttendeeResponse[];
 
-  @summary("Obtine grupul privat si starea de siguranta pentru participant")
+  @summary("Retired event conversation: always returns 410")
+  #deprecated "Event conversations are retired. Use explicitly accepted permanent friend groups."
   @get
   @route("/{id}/safety-group")
-  getSafetyGroup(@path id: string): EventSafetyGroupEnvelopeResponse;
+  getSafetyGroup(@path id: string): RetiredFeatureResponse;
 
-  @summary("Creeaza grupul privat al participantului pentru eveniment")
+  @summary("Retired event conversation: always returns 410")
+  #deprecated "Event conversations are retired; this endpoint never creates a group."
   @post
   @route("/{id}/safety-group")
   createSafetyGroup(
     @path id: string,
     @body payload: CreateEventSafetyGroupPayload,
-  ): CreatedResourceResponse;
+  ): RetiredFeatureResponse;
 
-  @summary("Invita alti prieteni in grupul existent")
+  @summary("Retired event conversation: always returns 410")
+  #deprecated "Event conversations are retired."
   @post
   @route("/{id}/safety-group/invite")
   inviteSafetyGroup(
     @path id: string,
     @body payload: CreateEventSafetyGroupPayload,
-  ): SuccessResponse;
+  ): RetiredFeatureResponse;
 
-  @summary("Accepta sau refuza invitatia in grup")
+  @summary("Retired event conversation: always returns 410")
+  #deprecated "Event conversations are retired."
   @post
   @route("/{id}/safety-group/respond")
   respondSafetyGroup(
     @path id: string,
     @body payload: SafetyGroupInviteResponsePayload,
-  ): SuccessResponse;
+  ): RetiredFeatureResponse;
 
-  @summary("Trimite un mesaj efemer in grup")
+  @summary("Retired event conversation: always returns 410")
+  #deprecated "Event conversations are retired."
   @post
   @route("/{id}/safety-group/messages")
   sendSafetyGroupMessage(
     @path id: string,
     @body payload: SafetyGroupMessagePayload,
-  ): CreatedResourceResponse;
+  ): RetiredFeatureResponse;
 
-  @summary("Trimite o alerta de ajutor prietenilor din grup")
+  @summary("Retired event conversation: always returns 410")
+  #deprecated "Event conversations are retired."
   @post
   @route("/{id}/safety-group/help")
   sendSafetyGroupHelp(
     @path id: string,
     @body payload: SafetyGroupMessagePayload,
-  ): CreatedResourceResponse;
+  ): RetiredFeatureResponse;
 
-  @summary("Anunta grupul ca alerta de ajutor este rezolvata")
+  @summary("Retired event conversation: always returns 410")
+  #deprecated "Event conversations are retired."
   @post
   @route("/{id}/safety-group/help-resolved")
   resolveSafetyGroupHelp(
     @path id: string,
     @body payload: SafetyGroupMessagePayload,
-  ): CreatedResourceResponse;
+  ): RetiredFeatureResponse;
 
   @summary("Detalii eveniment public după ID (folosește în spate clauza unificată ListEvents din DB)")
   @get

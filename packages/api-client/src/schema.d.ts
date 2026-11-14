@@ -1217,10 +1217,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Obtine grupul privat si starea de siguranta pentru participant */
+        /**
+         * Retired event conversation: always returns 410
+         * @deprecated
+         */
         get: operations["EventOperations_getSafetyGroup"];
         put?: never;
-        /** Creeaza grupul privat al participantului pentru eveniment */
+        /**
+         * Retired event conversation: always returns 410
+         * @deprecated
+         */
         post: operations["EventOperations_createSafetyGroup"];
         delete?: never;
         options?: never;
@@ -1237,7 +1243,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Trimite o alerta de ajutor prietenilor din grup */
+        /**
+         * Retired event conversation: always returns 410
+         * @deprecated
+         */
         post: operations["EventOperations_sendSafetyGroupHelp"];
         delete?: never;
         options?: never;
@@ -1254,7 +1263,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Anunta grupul ca alerta de ajutor este rezolvata */
+        /**
+         * Retired event conversation: always returns 410
+         * @deprecated
+         */
         post: operations["EventOperations_resolveSafetyGroupHelp"];
         delete?: never;
         options?: never;
@@ -1271,7 +1283,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Invita alti prieteni in grupul existent */
+        /**
+         * Retired event conversation: always returns 410
+         * @deprecated
+         */
         post: operations["EventOperations_inviteSafetyGroup"];
         delete?: never;
         options?: never;
@@ -1288,7 +1303,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Trimite un mesaj efemer in grup */
+        /**
+         * Retired event conversation: always returns 410
+         * @deprecated
+         */
         post: operations["EventOperations_sendSafetyGroupMessage"];
         delete?: never;
         options?: never;
@@ -1305,7 +1323,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Accepta sau refuza invitatia in grup */
+        /**
+         * Retired event conversation: always returns 410
+         * @deprecated
+         */
         post: operations["EventOperations_respondSafetyGroup"];
         delete?: never;
         options?: never;
@@ -1561,6 +1582,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/outings/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["FriendGroups_groups"];
+        put?: never;
+        post: operations["FriendGroups_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outings/groups/{groupID}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["FriendGroups_group"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outings/groups/{groupID}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["FriendGroups_action"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outings/groups/{groupID}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["FriendGroups_messages"];
+        put?: never;
+        post: operations["FriendGroups_send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outings/groups/{groupID}/outings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["FriendGroups_history"];
+        put?: never;
+        post: operations["FriendGroups_outing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/outings/meeting-point/{eventID}": {
         parameters: {
             query?: never;
@@ -1570,6 +1671,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** @deprecated */
         post: operations["Outings_meetingPoint"];
         delete?: never;
         options?: never;
@@ -1586,6 +1688,7 @@ export interface paths {
         };
         get: operations["Outings_plans"];
         put?: never;
+        /** @deprecated */
         post: operations["Outings_createPlan"];
         delete?: never;
         options?: never;
@@ -1618,7 +1721,24 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** @deprecated */
         post: operations["Outings_arrival"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outings/plans/{planID}/attendance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["FriendGroups_attendance"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1714,6 +1834,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** @deprecated */
         post: operations["Outings_meeting"];
         delete?: never;
         options?: never;
@@ -1730,6 +1851,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** @deprecated */
         post: operations["Outings_preferences"];
         delete?: never;
         options?: never;
@@ -1747,6 +1869,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["Outings_propose"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outings/plans/{planID}/remove-proposal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["Outings_removeProposal"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1778,7 +1916,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** @deprecated */
         post: operations["Outings_respond"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outings/plans/{planID}/ticket-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @deprecated */
+        post: operations["Outings_ticketStatus"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2262,6 +2418,7 @@ export interface components {
             refundErrorMessage?: string;
         };
         BookFreeTicketPayload: {
+            outing?: components["schemas"]["OutingPurchase"];
             items: components["schemas"]["CheckoutTicketItemPayload"][];
         };
         BookFreeTicketResponse: {
@@ -2311,6 +2468,7 @@ export interface components {
             perTicketBani: number;
         };
         CreateCheckoutSessionPayload: {
+            outing?: components["schemas"]["OutingPurchase"];
             /** Format: int64 */
             expectedTotalBani?: number;
             email: string;
@@ -2358,6 +2516,20 @@ export interface components {
         CreateEventSafetyGroupPayload: {
             friendIds: string[];
         };
+        CreateFriendGroup: {
+            requestId: string;
+            name: string;
+            friendIds: string[];
+            eventId?: string;
+        };
+        CreateGroupOuting: {
+            requestId: string;
+            title?: string;
+            city?: string;
+            date?: string;
+            dates?: string[];
+            eventId?: string;
+        };
         CreateInvitationPayload: {
             label: string;
             ticketTypeId: string;
@@ -2378,6 +2550,7 @@ export interface components {
             city: string;
             eventIds?: string[];
             friendIds: string[];
+            confirmEvent?: boolean;
         };
         CreatePromoCodePayload: {
             code: string;
@@ -2516,6 +2689,7 @@ export interface components {
             liked: boolean;
         };
         EventResponse: {
+            giftPurchasesAvailable?: boolean;
             /** Format: int32 */
             commissionRateBps?: number;
             /** Format: int32 */
@@ -2618,6 +2792,71 @@ export interface components {
             /** @enum {string} */
             status: "interested" | "going" | "has_ticket";
         };
+        FriendGroup: {
+            id: string;
+            name: string;
+            ownerId: string;
+            /** @enum {string} */
+            status: "pending" | "accepted";
+            /** Format: int64 */
+            revision: number;
+            /** Format: int64 */
+            lastSeq: number;
+            /** Format: int64 */
+            visibleAfterSeq: number;
+            /** Format: date-time */
+            joinedAt?: string;
+            /** Format: int32 */
+            unread: number;
+            muted: boolean;
+            preview: string;
+            members: components["schemas"]["FriendGroupMember"][];
+            outings: components["schemas"]["OutingPlan"][];
+            outingsHasMore: boolean;
+        };
+        FriendGroupAction: {
+            /** @enum {string} */
+            action: "accept" | "decline" | "rename" | "invite" | "transfer-admin" | "leave" | "remove" | "mute" | "read";
+            userId?: string;
+            name?: string;
+            muted?: boolean;
+            /** Format: int64 */
+            seq?: number;
+        };
+        FriendGroupMember: {
+            userId: string;
+            username: string;
+            avatarUrl?: string;
+            /** @enum {string} */
+            status: "pending" | "accepted";
+        };
+        FriendGroupMessage: {
+            id: string;
+            requestId: string;
+            /** Format: int64 */
+            seq: number;
+            senderId: string;
+            username: string;
+            avatarUrl?: string;
+            /** @enum {string} */
+            kind: "text" | "event" | "outing";
+            content: string;
+            eventId?: string;
+            outingId?: string;
+            /** Format: date-time */
+            createdAt: string;
+            event?: components["schemas"]["SharedGroupEvent"];
+        };
+        GroupMessages: {
+            items: components["schemas"]["FriendGroupMessage"][];
+            hasMore: boolean;
+            /** Format: int64 */
+            revision: number;
+        };
+        GroupOutingsPage: {
+            items: components["schemas"]["OutingPlan"][];
+            hasMore: boolean;
+        };
         InvitationTicketResponse: {
             id: string;
             label: string;
@@ -2708,6 +2947,8 @@ export interface components {
             unreadCount: number;
         };
         NotificationResponse: {
+            groupId?: string;
+            outingPlanId?: string;
             id: string;
             type: string;
             title: string;
@@ -2752,6 +2993,12 @@ export interface components {
             /** Format: int32 */
             ticketCount: number;
             tickets: components["schemas"]["OfflineTicketSnapshot"][];
+        };
+        OrderTicketRecipient: {
+            ticketId?: string;
+            name: string;
+            /** @enum {string} */
+            status: "self" | "processing" | "pending" | "accepted" | "declined" | "cancelled" | "expired";
         };
         OrganizerCommission: {
             organizerId: string;
@@ -2889,6 +3136,12 @@ export interface components {
             /** @enum {string} */
             status: "not_set" | "leaving_soon" | "on_way" | "arrived" | "not_coming";
         };
+        OutingAttendance: {
+            /** @enum {string} */
+            answer: "yes" | "maybe" | "no";
+            /** Format: int32 */
+            decisionRound: number;
+        };
         OutingAvailability: {
             date: string;
             /** @enum {string} */
@@ -2931,17 +3184,24 @@ export interface components {
             status: "pending" | "accepted" | "declined";
             voteEventId?: string;
             hasTicket?: boolean;
+            needsTicket?: boolean;
+            ticketStatusShared?: boolean;
             hasPreviousTicket?: boolean;
             /** @enum {string} */
             arrivalStatus?: "not_set" | "leaving_soon" | "on_way" | "arrived" | "not_coming";
             /** Format: date-time */
             arrivalUpdatedAt?: string;
+            /** @enum {string} */
+            attendance?: "yes" | "maybe" | "no" | "unanswered";
+            /** @enum {string} */
+            ticketState?: "unknown" | "none" | "processing" | "offered" | "valid" | "used" | "expired";
         };
         OutingMutationResult: {
             ok: boolean;
         };
         OutingOption: {
             eventId: string;
+            eventStatus?: string;
             title: string;
             location: string;
             imageUrl?: string;
@@ -2959,7 +3219,27 @@ export interface components {
             /** @enum {string} */
             ticketAvailability?: "on_sale" | "upcoming" | "sold_out" | "sales_ended" | "external" | "unavailable";
         };
+        OutingPendingPayment: {
+            orderId: string;
+            sessionId?: string;
+        };
         OutingPlan: {
+            /** Format: date-time */
+            createdAt?: string;
+            groupId?: string;
+            /** @enum {string} */
+            lifecycle?: "choosing_date" | "choosing_event" | "event_selected" | "completed" | "cancelled";
+            /** Format: int32 */
+            confirmedCount?: number;
+            /** Format: int32 */
+            readyCount?: number;
+            allConfirmedReady?: boolean;
+            giftPurchasesAvailable?: boolean;
+            myPendingPayment?: components["schemas"]["OutingPendingPayment"];
+            inviterName?: string;
+            inviterAvatar?: string;
+            /** Format: int32 */
+            decisionRound?: number;
             id: string;
             ownerId: string;
             title: string;
@@ -2996,6 +3276,13 @@ export interface components {
             /** Format: date-time */
             changedAt: string;
         };
+        OutingPurchase: {
+            planId?: string;
+            /** Format: int32 */
+            decisionRound: number;
+            recipientIds: string[];
+            extraConfirmed?: boolean;
+        };
         OutingReaction: {
             userId: string;
             /** @enum {string} */
@@ -3010,6 +3297,10 @@ export interface components {
         OutingResponse: {
             /** @enum {string} */
             status: "accepted" | "declined";
+        };
+        OutingTicketStatus: {
+            shareStatus: boolean;
+            needsTicket: boolean;
         };
         PasswordResetPayload: {
             token: string;
@@ -3237,6 +3528,10 @@ export interface components {
             /** @enum {string} */
             status: "accepted" | "declined" | "cancelled";
         };
+        RetiredFeatureResponse: {
+            error: string;
+            destination?: string;
+        };
         ReviewEventCancellationPayload: {
             /** @enum {string} */
             feePolicy?: "retain" | "refund";
@@ -3294,10 +3589,27 @@ export interface components {
             /** Format: date-time */
             expiresAt: string;
         };
+        SendGroupMessage: {
+            requestId: string;
+            content: string;
+            eventId?: string;
+        };
         SetOrganizerCommissionPayload: {
             override: components["schemas"]["CommissionTerms"] | null;
             /** Format: int64 */
             revision: number;
+        };
+        SharedGroupEvent: {
+            id: string;
+            title: string;
+            imageUrl: string;
+            location: string;
+            city: string;
+            /** Format: date-time */
+            startTime: string;
+            /** Format: date-time */
+            endTime: string;
+            status: string;
         };
         SocialFeedItemResponse: {
             /** @enum {string} */
@@ -3344,6 +3656,8 @@ export interface components {
             results: components["schemas"]["OfflineTicketSyncResult"][];
         };
         TicketTransfer: {
+            /** @enum {string} */
+            blockedReason?: "offline_snapshot" | "event_started";
             id: string;
             ticketId: string;
             eventId: string;
@@ -3455,6 +3769,7 @@ export interface components {
             avatarUrl?: string;
         };
         UserOrderResponse: {
+            ticketRecipients?: components["schemas"]["OrderTicketRecipient"][];
             /**
              * Format: date-time
              * @description Present only after Stripe reports a submitted payment attempt, never just from opening checkout.
@@ -3508,6 +3823,7 @@ export interface components {
             cui?: string;
         };
         UserTicketResponse: {
+            assignedRecipientId?: string;
             /** Format: int64 */
             ticketPriceBani: number;
             /** Format: int64 */
@@ -5948,13 +6264,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The request has succeeded. */
-            200: {
+            /** @description Client error */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EventSafetyGroupEnvelopeResponse"];
+                    "application/json": components["schemas"]["RetiredFeatureResponse"];
                 };
             };
         };
@@ -5974,13 +6290,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The request has succeeded. */
-            200: {
+            /** @description Client error */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CreatedResourceResponse"];
+                    "application/json": components["schemas"]["RetiredFeatureResponse"];
                 };
             };
         };
@@ -6000,13 +6316,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The request has succeeded. */
-            200: {
+            /** @description Client error */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CreatedResourceResponse"];
+                    "application/json": components["schemas"]["RetiredFeatureResponse"];
                 };
             };
         };
@@ -6026,13 +6342,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The request has succeeded. */
-            200: {
+            /** @description Client error */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CreatedResourceResponse"];
+                    "application/json": components["schemas"]["RetiredFeatureResponse"];
                 };
             };
         };
@@ -6052,13 +6368,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The request has succeeded. */
-            200: {
+            /** @description Client error */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["RetiredFeatureResponse"];
                 };
             };
         };
@@ -6078,13 +6394,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The request has succeeded. */
-            200: {
+            /** @description Client error */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CreatedResourceResponse"];
+                    "application/json": components["schemas"]["RetiredFeatureResponse"];
                 };
             };
         };
@@ -6104,13 +6420,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The request has succeeded. */
-            200: {
+            /** @description Client error */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SuccessResponse"];
+                    "application/json": components["schemas"]["RetiredFeatureResponse"];
                 };
             };
         };
@@ -6513,6 +6829,199 @@ export interface operations {
             };
         };
     };
+    FriendGroups_groups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FriendGroup"][];
+                };
+            };
+        };
+    };
+    FriendGroups_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFriendGroup"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FriendGroup"];
+                };
+            };
+        };
+    };
+    FriendGroups_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                groupID: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FriendGroup"];
+                };
+            };
+        };
+    };
+    FriendGroups_action: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                groupID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FriendGroupAction"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingMutationResult"];
+                };
+            };
+        };
+    };
+    FriendGroups_messages: {
+        parameters: {
+            query?: {
+                before?: number;
+                collection?: "events";
+            };
+            header?: never;
+            path: {
+                groupID: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupMessages"];
+                };
+            };
+        };
+    };
+    FriendGroups_send: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                groupID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendGroupMessage"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingMutationResult"];
+                };
+            };
+        };
+    };
+    FriendGroups_history: {
+        parameters: {
+            query?: {
+                before?: string;
+            };
+            header?: never;
+            path: {
+                groupID: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupOutingsPage"];
+                };
+            };
+        };
+    };
+    FriendGroups_outing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                groupID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGroupOuting"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingPlan"];
+                };
+            };
+        };
+    };
     Outings_meetingPoint: {
         parameters: {
             query?: never;
@@ -6530,13 +7039,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The request has succeeded. */
-            200: {
+            /** @description Client error */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OutingMutationResult"];
+                    "application/json": components["schemas"]["RetiredFeatureResponse"];
                 };
             };
         };
@@ -6574,13 +7083,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The request has succeeded. */
-            200: {
+            /** @description Client error */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OutingPlan"];
+                    "application/json": components["schemas"]["RetiredFeatureResponse"];
                 };
             };
         };
@@ -6619,6 +7128,32 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["OutingArrivalUpdate"];
+            };
+        };
+        responses: {
+            /** @description Client error */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetiredFeatureResponse"];
+                };
+            };
+        };
+    };
+    FriendGroups_attendance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutingAttendance"];
             };
         };
         responses: {
@@ -6776,13 +7311,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The request has succeeded. */
-            200: {
+            /** @description Client error */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OutingMutationResult"];
+                    "application/json": components["schemas"]["RetiredFeatureResponse"];
                 };
             };
         };
@@ -6802,6 +7337,32 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Client error */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetiredFeatureResponse"];
+                };
+            };
+        };
+    };
+    Outings_propose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutingEventChoice"];
+            };
+        };
+        responses: {
             /** @description The request has succeeded. */
             200: {
                 headers: {
@@ -6813,7 +7374,7 @@ export interface operations {
             };
         };
     };
-    Outings_propose: {
+    Outings_removeProposal: {
         parameters: {
             query?: never;
             header?: never;
@@ -6880,13 +7441,39 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The request has succeeded. */
-            200: {
+            /** @description Client error */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OutingMutationResult"];
+                    "application/json": components["schemas"]["RetiredFeatureResponse"];
+                };
+            };
+        };
+    };
+    Outings_ticketStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutingTicketStatus"];
+            };
+        };
+        responses: {
+            /** @description Client error */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetiredFeatureResponse"];
                 };
             };
         };

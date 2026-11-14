@@ -38,6 +38,7 @@
     "test:map": "node tests/browser-map.cjs",
     "test:map:expo-go": "node ../../tools/sync-map-assets.cjs && node tests/browser-map-expo-go.cjs",
     "test:discovery": "node tests/browser-discovery.cjs",
+    "test:discovery-lifecycle": "node tests/browser-discovery-lifecycle.cjs",
     "test:discovery-motion": "node tests/browser-discovery-motion.cjs",
     "test:organizer": "node tests/browser-organizer.cjs",
     "test:places": "node tests/browser-places.cjs",

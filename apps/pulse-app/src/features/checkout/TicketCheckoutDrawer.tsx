@@ -195,7 +195,7 @@ export function TicketCheckoutDrawer(props: Parameters<typeof useTicketCheckout>
               </p>
             </div>
           </div>
-          <CheckoutTicketsStep model={model} prices={prices}/>
+          {props.outing&&<section className="space-y-2"><h3>{model.t('outings.v2.reviewRecipients')}</h3><p>{props.recipientNames?.join(', ')}</p><p>{model.t('outings.v2.recipientsHint')}</p></section>}<CheckoutTicketsStep model={model} prices={prices}/>
           <CheckoutBillingStep model={model} />
           <CheckoutSummaryStep model={model} prices={prices}/>
         </div>
@@ -205,6 +205,7 @@ export function TicketCheckoutDrawer(props: Parameters<typeof useTicketCheckout>
         className="relative z-10 flex shrink-0 items-center gap-2.5 bg-linear-to-b from-black/10 via-black/70 to-black px-4 pt-3 pb-7"
       >
         <UIActionButton
+          data-testid="checkout-next"
           type="button"
           onClick={() =>
             step === "summary" ? void handleCheckout() : void continueStep()

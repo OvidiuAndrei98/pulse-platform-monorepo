@@ -5,19 +5,33 @@ import { useTranslation } from 'react-i18next';
 import { animate, motion, useMotionValue, useReducedMotion, useTransform, type MotionValue } from 'framer-motion';
 import type { EventFilters } from '@packages/app-core/events/types';
 import { productToday, shiftCalendarDay } from '@packages/app-core/events/discoveryFilters';
-import { DATE_RIBBON_CONTEXT_DAYS, DATE_RIBBON_DAY_WIDTH as STEP, dateRibbonIndex, dateRibbonSelection, dateRibbonWindow, withRibbonDay, withoutRibbonDay } from '@packages/app-core/events/dateRibbon';
+import { DATE_RIBBON_CONTEXT_DAYS, DATE_RIBBON_DAY_WIDTH as STEP, dateRibbonDaysInRanges, dateRibbonEventRanges, dateRibbonIndex, dateRibbonSelection, dateRibbonWindow, withRibbonDay, withoutRibbonDay } from '@packages/app-core/events/dateRibbon';
+import { User } from '@/core/DataProvider';
+import { useDataProvider } from '@/core/DataProviderContext';
 import { useBackLayer } from '@/lib/navigation/useBackLayer';
 import s from './dateRibbon.module.css';
 
-export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress, sourceRef, expanded, hidden = false }: {
+export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress, sourceRef, expanded, hidden = false, center = null, minimumDay, maximumDay }: {
   filters: EventFilters; onChange: (filters: EventFilters) => void; hidden?: boolean;
   onOpenChange: (open: boolean) => void; progress: MotionValue<number>; sourceRef: RefObject<HTMLElement | null>; expanded: boolean;
+  center?: readonly [number, number] | null;
+  minimumDay?: string; maximumDay?: string;
 }) {
-  const { t, i18n } = useTranslation(), id = useId(), today = productToday(), reduced = useReducedMotion();
+  const { t, i18n } = useTranslation(), id = useId(), today = minimumDay??productToday(), lastDay=maximumDay??'2100-12-31', reduced = useReducedMotion();
+  const windowFor=useMemo(()=>(day:string)=>dateRibbonWindow(day,today).filter(value=>value<=lastDay),[today,lastDay]);
   const selection = dateRibbonSelection(filters, today), locale = i18n.language.startsWith('ro') ? 'ro-RO' : 'en-GB';
   const contextDays = useMemo(() => Array.from({ length: DATE_RIBBON_CONTEXT_DAYS }, (_, index) => shiftCalendarDay(today, index - DATE_RIBBON_CONTEXT_DAYS)), [today]);
   const setExpanded = onOpenChange;
-  const [days, setDays] = useState(() => dateRibbonWindow(selection || today, today));
+  const [days, setDays] = useState(() => windowFor(selection || today));
+  const { user, loading: authLoading } = useDataProvider();
+  const [availabilityRequested, setAvailabilityRequested] = useState(false);
+  useEffect(() => { if (expanded) setAvailabilityRequested(true); }, [expanded]);
+  const catalogue = User.useEvents(user, authLoading || !availabilityRequested);
+  const eventRanges = useMemo(() => availabilityRequested && !catalogue.eventsLoading && !catalogue.eventsError
+    ? dateRibbonEventRanges(catalogue.events, filters, center) : undefined,
+    [availabilityRequested, catalogue.events, catalogue.eventsLoading, catalogue.eventsError,
+      filters.categories, filters.vibes, filters.city, filters.q, filters.distance, center?.[0], center?.[1], today]);
+  const eventDays = useMemo(() => eventRanges && dateRibbonDaysInRanges(eventRanges, days), [eventRanges, days]);
   const [preview, setPreview] = useState(selection || today);
   const scroll = useRef<HTMLDivElement>(null), trigger = useRef<HTMLButtonElement>(null);
   const root = useRef<HTMLDivElement>(null), programmatic = useRef(false);
@@ -41,12 +55,17 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
     year: new Intl.DateTimeFormat(locale, { year: 'numeric', timeZone: 'UTC' }),
   }), [locale]);
   const date = (day: string) => new Date(day + 'T12:00:00Z');
+  const labels = useMemo(() => new Map([...contextDays, ...days].map(day => {
+    const value = new Date(day + 'T12:00:00Z');
+    return [day, { weekday: formatters.weekday.format(value).replace(/\.$/, ''), number: Number(day.slice(-2)),
+      month: formatters.month.format(value), full: formatters.full.format(value) }] as const;
+  })), [contextDays, days, formatters]);
   const clearTimer = () => { clearTimeout(timer.current); timer.current = undefined; };
   const setDayPreview = (day: string) => { previewRef.current = day; setPreview(value => value === day ? value : day); };
   const settle = () => {
     clearTimer(); const current = latest.current;
     if (!current.expanded || initializing.current || programmatic.current) return;
-    const day = previewRef.current < current.today ? current.today : previewRef.current;
+    const day = previewRef.current < current.today ? current.today : previewRef.current>lastDay?lastDay:previewRef.current;
     if (day !== previewRef.current) {
       programmatic.current = true; setDayPreview(day);
       scroll.current?.scrollTo({ left: current.days.indexOf(day) * STEP, behavior: reduced ? 'instant' : 'smooth' });
@@ -56,7 +75,7 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
     if (next !== current.filters) current.onChange(next);
     const index = current.days.indexOf(day);
     if (index < 12 || index > current.days.length - 13) {
-      const window = dateRibbonWindow(day, current.today);
+      const window = windowFor(day);
       if (window[0] !== current.days[0]) setDays(window);
     }
   };
@@ -64,7 +83,7 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
     if (expanded && !wasExpanded.current) {
       const day = selection && selection >= today ? selection : today;
       setDayPreview(day);
-      const window = dateRibbonWindow(day, today);
+      const window = windowFor(day);
       if (window[0] !== days[0]) setDays(window);
     }
     wasExpanded.current = expanded;
@@ -90,7 +109,7 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
     if (selection === committed.current) return;
     clearTimer(); committed.current = selection;
     const day = selection && selection >= today ? selection : today;
-    setDayPreview(day); setDays(dateRibbonWindow(day, today));
+    setDayPreview(day); setDays(windowFor(day));
   }, [selection, today]);
   useEffect(() => { if (hidden) { clearTimer(); setExpanded(false); } }, [hidden]);
   useEffect(() => () => { clearTimeout(timer.current); }, []);
@@ -105,12 +124,12 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
     return () => node.removeEventListener('wheel', wheel);
   }, [expanded]);
   const pick = (day: string) => {
-    if (day < today || day > '2100-12-31') return;
+    if (day < today || day > lastDay) return;
     clearTimer(); programmatic.current = true; setDayPreview(day); committed.current = day;
     const next = withRibbonDay(filters, day, today);
     if (next !== filters) onChange(next);
     const index = days.indexOf(day);
-    if (index < 0) setDays(dateRibbonWindow(day, today));
+    if (index < 0) setDays(windowFor(day));
     else scroll.current?.scrollTo({ left: index * STEP, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   };
   if (hidden) return null;
@@ -148,18 +167,18 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
               }
               if (!initializing.current) { clearTimer(); timer.current = setTimeout(settle, 160); }
             }}>
-            {days.map(day => <button key={day} type="button" tabIndex={-1} data-testid={'ribbon-day-' + day} className={s.day} data-centered={preview === day} aria-label={formatters.full.format(date(day))} aria-pressed={selection === day} disabled={day < today} onClick={() => pick(day)}>
+            {days.map(day => <button key={day} type="button" tabIndex={-1} data-testid={'ribbon-day-' + day} className={s.day} data-centered={preview === day} data-event-availability={eventDays ? eventDays.has(day) ? 'available' : 'empty' : 'unknown'} aria-label={labels.get(day)!.full} aria-pressed={selection === day} disabled={day < today} onClick={() => pick(day)}>
               {day === today && <span className={s.pastContext} aria-hidden style={{ width: paddingLeft }}>
                 <span className={s.contextRow} style={{ width: contextDays.length * STEP }}>{contextDays.map(contextDay => <span key={contextDay} data-testid={'ribbon-context-day-' + contextDay} className={`${s.day} ${s.pastDay}`}>
-                  <span className={s.weekday}>{formatters.weekday.format(date(contextDay)).replace(/\.$/, '')}</span><span className={s.number}>{Number(contextDay.slice(-2))}</span><span className={s.month}>{formatters.month.format(date(contextDay))}</span>
+                  <span className={s.weekday}>{labels.get(contextDay)!.weekday}</span><span className={s.number}>{labels.get(contextDay)!.number}</span><span className={s.month}>{labels.get(contextDay)!.month}</span>
                 </span>)}</span>
               </span>}
-              <span className={s.weekday}>{formatters.weekday.format(date(day)).replace(/\.$/, '')}</span><span className={s.number}>{Number(day.slice(-2))}</span><span className={s.month}>{formatters.month.format(date(day))}</span>
+              <span className={s.weekday}>{labels.get(day)!.weekday}</span><span className={s.number}>{labels.get(day)!.number}</span><span className={s.month}>{labels.get(day)!.month}</span>
             </button>)}
           </div>
         </div>
         <button type="button" data-testid="discovery-calendar-reset" aria-label={t('filters.clearDates')} className={`${s.headerAction} ${s.calendarAction}`}
-          onClick={()=>{clearTimer();programmatic.current=true;setDayPreview(today);setDays(dateRibbonWindow(today,today));onChange(withoutRibbonDay(filters));}}>
+          onClick={()=>{clearTimer();programmatic.current=true;setDayPreview(today);setDays(windowFor(today));onChange(withoutRibbonDay(filters));}}>
           <span style={{width:16,height:17}} aria-hidden/><span className={s.year}>{formatters.year.format(date(preview))}</span>
         </button>
         <p id={id + '-hint'} className="sr-only">{t('filters.dateRibbonHint')}</p>

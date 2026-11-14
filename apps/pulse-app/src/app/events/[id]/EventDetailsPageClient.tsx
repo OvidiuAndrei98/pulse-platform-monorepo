@@ -25,6 +25,7 @@ import { useEffect, useRef, useState } from "react";
 import { Event, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { EventSocialProof } from "@/components/EventSocialProof";
+import { SuggestOutingLink } from '@/features/outings/SuggestOutingLink';
 import { EventAttendees } from "@/components/social/EventAttendees";
 import { EventLineup } from "@/features/events/lineup/EventLineup";
 import { EventOrganizerProfile } from "@/components/EventOrganizerProfile";
@@ -343,6 +344,7 @@ export default function EventStandalonePage() {
 
                 <div className="mt-4 max-w-xl">
                   <EventAttendees eventId={event.id} compact />
+                  <SuggestOutingLink eventId={event.id}/>
                 </div>
               </div>
             </section>

@@ -5,7 +5,7 @@ import type { components } from '@packages/api-client/schema';
 export type OutingPlan = components['schemas']['OutingPlan'];
 export type TicketTransfer = components['schemas']['TicketTransfer'];
 export type PlanDraft = components['schemas']['CreateOutingPlan'];
-export type PlanEvent = { id: string; title: string; startTime: string; endTime: string; locationName: string; city: string };
+export type PlanEvent = { id: string; title: string; startTime: string; endTime: string; locationName: string; city: string; bannerUrl?:string };
 export type PlanFriend = { id: string; username: string; avatarUrl?:string };
 export type OutingsRequest = <T>(path: string, method: 'GET' | 'POST', body?: unknown, signal?: AbortSignal) => Promise<T>;
 export type OutingsState = {
@@ -87,11 +87,11 @@ export function parsePlanSourceEvent(value: unknown): PlanEvent {
   if (!record(value) || !isOutingId(value.id) || !['title','city','locationName'].every(key => typeof value[key] === 'string') ||
     !date(value.startTime) || !date(value.endTime) || value.status !== 'published') return invalid();
   // Keep public planning fields only; do not retain a full event/account response.
-  return {id: value.id, title: value.title as string, city: value.city as string, locationName: value.locationName as string, startTime: value.startTime as string, endTime: value.endTime as string};
+  return {id: value.id, title: value.title as string, city: value.city as string, locationName: value.locationName as string, startTime: value.startTime as string, endTime: value.endTime as string,...(typeof value.bannerUrl==='string'?{bannerUrl:value.bannerUrl}:{})};
 }
 export function eventPlanDraft(event: PlanEvent, title: string, friendIds: string[], now = new Date()): Omit<PlanDraft, 'requestId'> | undefined {
   const context = eventPlanningContext(event, now);
-  return context && canCreatePlan(title, context.outingDate, context.city, friendIds, now) ? {...context, title: title.trim(), friendIds, eventIds: [event.id]} : undefined;
+  return context && canCreatePlan(title, context.outingDate, context.city, friendIds, now) ? {...context, title: title.trim(), friendIds, eventIds: [event.id],confirmEvent:true} : undefined;
 }
 export function matchingOutingPlans(plans: readonly OutingPlan[], event: PlanEvent) {
   return plans.filter(plan => plan.status === 'accepted' && !plan.chosenEventId &&
@@ -210,7 +210,7 @@ export class OutingsStore {
   }
   respondPlan(id:string,status:'accepted'|'declined') {return isOutingId(id)?this.mutate('/outings/plans/'+id+'/respond',{status}):Promise.resolve(undefined);}
   vote(id:string,eventId:string,answer?:'yes'|'maybe'|'no') {return isOutingId(id)&&isOutingId(eventId)?this.mutate('/outings/plans/'+id+'/vote',{eventId,answer}):Promise.resolve(undefined);}
-  updatePlan(id:string,action:'availability'|'date'|'preferences'|'deadline'|'reopen'|'meeting'|'arrival',body:unknown) {return isOutingId(id)?this.mutate('/outings/plans/'+id+'/'+action,body):Promise.resolve(undefined);}
+  updatePlan(id:string,action:'availability'|'date'|'preferences'|'deadline'|'reopen'|'meeting'|'arrival'|'ticket-status',body:unknown) {return isOutingId(id)?this.mutate('/outings/plans/'+id+'/'+action,body):Promise.resolve(undefined);}
   watchPlan(id:string) {
     const request=new AbortController();let stopped=false;
     const run=async()=>{while(!stopped&&this.active()){

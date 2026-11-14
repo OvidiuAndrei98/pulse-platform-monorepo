@@ -600,3 +600,22 @@ WHERE id = $1 AND event_id = $2 AND revoked_at IS NULL AND validated_at IS NULL;
 -- name: DeleteRevokedInvitationTicket :execrows
 DELETE FROM invitation_tickets
 WHERE id = $1 AND event_id = $2 AND revoked_at IS NOT NULL;
+
+-- name: ListUserAssignedTicketRecipients :many
+SELECT a.ticket_id::text AS ticket_id, a.recipient_id::text AS recipient_id
+FROM outing_ticket_recipients a
+JOIN tickets t ON t.id=a.ticket_id
+JOIN ticket_transfers x ON x.ticket_id=a.ticket_id AND x.recipient_id=a.recipient_id
+WHERE t.user_id=$1 AND a.recipient_id<>$1 AND NOT t.offline_credential_exposed
+  AND x.status='pending' AND x.expires_at>CURRENT_TIMESTAMP;
+
+-- name: ListUserOrderTicketRecipients :many
+SELECT a.order_id::text AS order_id, COALESCE(a.ticket_id::text,'')::text AS ticket_id, a.recipient_name,
+  CASE WHEN a.recipient_id=$1 THEN 'self'
+    WHEN x.status='pending' AND (x.expires_at<=CURRENT_TIMESTAMP OR t.offline_credential_exposed) THEN 'expired'
+    ELSE COALESCE(x.status,'processing') END::text AS status
+FROM outing_ticket_recipients a JOIN orders o ON o.id=a.order_id
+LEFT JOIN tickets t ON t.id=a.ticket_id
+LEFT JOIN LATERAL (SELECT status,expires_at FROM ticket_transfers
+  WHERE ticket_id=a.ticket_id AND recipient_id=a.recipient_id ORDER BY created_at DESC LIMIT 1) x ON TRUE
+WHERE o.user_id=$1 ORDER BY a.order_id,a.ordinal;

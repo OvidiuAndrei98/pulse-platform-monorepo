@@ -61,7 +61,7 @@ export const FeaturedEventPass = React.memo(function FeaturedEventPass({ group, 
       </View>
       <Text numberOfLines={2} style={s.types}>{pass.types}</Text>
       <View style={s.between}><Text style={s.ready}>{pass.states}</Text>
-        {onGroup && <GroupAction event={event} now={now} onGroup={onGroup}/>}</View>
+        </View>
     </View>
     <View pointerEvents="none" style={s.tear}><View style={[s.cutout, { left: -8 }]}/><View style={[s.cutout, { right: -8 }]}/></View>
     <View style={s.footer}>
@@ -93,7 +93,6 @@ export const WalletEventRow = React.memo(function WalletEventRow({ group, now, o
       {expanded ? <ChevronUp size={14} color={colors.muted}/> : <ChevronDown size={14} color={colors.muted}/>}
     </Pressable>
     <View style={s.rowActions}>
-      {onGroup && <GroupAction event={event} now={now} onGroup={onGroup}/>}
       <Pressable testID={`tickets-qr-${event.eventId}`} accessibilityRole="button" accessibilityLabel={`${copy('tickets.showQr')} · ${event.eventTitle}`}
         onPress={() => onOpen(pass.first)} style={[s.qrButton, pass.ready > 0 && { backgroundColor: '#ff004412' }]}>
         <QrCode size={19} color={pass.ready > 0 ? colors.accent : colors.muted}/>
@@ -102,11 +101,6 @@ export const WalletEventRow = React.memo(function WalletEventRow({ group, now, o
   </View>;
 });
 
-function GroupAction({ event, now, onGroup }: { event: UserTicket; now: number; onGroup: (id: string) => void }) {
-  const { copy } = usePreferences('copy');
-  if (Date.parse(event.endTime) + 86400000 < now) return null;
-  return <Pressable accessibilityRole="button" accessibilityLabel={copy('safetyGroup.openOrCreate')} onPress={() => onGroup(event.eventId)} style={s.groupButton}><UsersRound size={17} color={colors.success}/></Pressable>;
-}
 
 export const WalletTicketRow = React.memo(function WalletTicketRow({ ticket, index, now, onOpen, selected, testID }: {
   ticket: UserTicket; index: number; now: number; onOpen: (ticket: UserTicket) => void; selected?: boolean; testID?: string;

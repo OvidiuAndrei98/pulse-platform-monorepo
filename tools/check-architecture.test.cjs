@@ -16,3 +16,9 @@ test('contracts cannot pull in a transport and browser adapters cannot own a Rea
   assert.ok(checkSource(file('packages/app-core/src/example.ts'),"import type {ApiClient} from '@packages/api-client/client'").length);
   assert.ok(checkSource(file('packages/browser-core/src/example.ts'),"import {useEffect} from 'react'").length);
 });
+test('pure corner geometry exception does not allow platform dependencies in core',()=>{
+  const geometry=file('packages/app-core/src/navigation/continuousCornerPath.ts');
+  assert.deepEqual(checkSource(geometry,"import {getSvgPath} from 'figma-squircle'"),[]);
+  assert.ok(checkSource(geometry,"import {useState} from 'react'").length);
+  assert.ok(checkSource(file('packages/app-core/src/example.ts'),"import {getSvgPath} from 'figma-squircle'").length);
+});

@@ -82,6 +82,7 @@ type ValidationScanHistoryResponse struct {
 }
 
 type UserTicketResponse struct {
+	AssignedRecipientID    string   `json:"assignedRecipientId,omitempty"`
 	TicketPriceBani        int64    `json:"ticketPriceBani"`
 	TicketingFeeBani       int64    `json:"ticketingFeeBani"`
 	PaidTotalBani          int64    `json:"paidTotalBani"`
@@ -105,31 +106,38 @@ type UserTicketResponse struct {
 }
 
 type UserOrderResponse struct {
-	PaymentAttemptedAt       string `json:"paymentAttemptedAt,omitempty"`
-	ID                       string `json:"id"`
-	Status                   string `json:"status"`
-	TotalAmountRon           int32  `json:"totalAmountRon"`
-	OrderTotalBani           int64  `json:"orderTotalBani"`
-	PaidTotalBani            int64  `json:"paidTotalBani"`
-	RefundedAmountBani       int64  `json:"refundedAmountBani"`
-	StripeRefundStatus       string `json:"stripeRefundStatus"`
-	CreatedAt                string `json:"createdAt"`
-	StripePaymentIntentID    string `json:"stripePaymentIntentId,omitempty"`
-	EventID                  string `json:"eventId"`
-	EventTitle               string `json:"eventTitle"`
-	LocationName             string `json:"locationName"`
-	StartTime                string `json:"startTime"`
-	InvoiceRequested         bool   `json:"invoiceRequested"`
-	InvoiceStatus            string `json:"invoiceStatus,omitempty"`
-	InvoiceSeries            string `json:"invoiceSeries,omitempty"`
-	InvoiceNumber            string `json:"invoiceNumber,omitempty"`
-	InvoiceDocumentURL       string `json:"invoiceDocumentUrl,omitempty"`
-	InvoiceIssuedAt          string `json:"invoiceIssuedAt,omitempty"`
-	RefundInvoiceStatus      string `json:"refundInvoiceStatus,omitempty"`
-	RefundInvoiceSeries      string `json:"refundInvoiceSeries,omitempty"`
-	RefundInvoiceNumber      string `json:"refundInvoiceNumber,omitempty"`
-	RefundInvoiceDocumentURL string `json:"refundInvoiceDocumentUrl,omitempty"`
-	RefundInvoiceIssuedAt    string `json:"refundInvoiceIssuedAt,omitempty"`
+	TicketRecipients         []OrderTicketRecipient `json:"ticketRecipients,omitempty"`
+	PaymentAttemptedAt       string                 `json:"paymentAttemptedAt,omitempty"`
+	ID                       string                 `json:"id"`
+	Status                   string                 `json:"status"`
+	TotalAmountRon           int32                  `json:"totalAmountRon"`
+	OrderTotalBani           int64                  `json:"orderTotalBani"`
+	PaidTotalBani            int64                  `json:"paidTotalBani"`
+	RefundedAmountBani       int64                  `json:"refundedAmountBani"`
+	StripeRefundStatus       string                 `json:"stripeRefundStatus"`
+	CreatedAt                string                 `json:"createdAt"`
+	StripePaymentIntentID    string                 `json:"stripePaymentIntentId,omitempty"`
+	EventID                  string                 `json:"eventId"`
+	EventTitle               string                 `json:"eventTitle"`
+	LocationName             string                 `json:"locationName"`
+	StartTime                string                 `json:"startTime"`
+	InvoiceRequested         bool                   `json:"invoiceRequested"`
+	InvoiceStatus            string                 `json:"invoiceStatus,omitempty"`
+	InvoiceSeries            string                 `json:"invoiceSeries,omitempty"`
+	InvoiceNumber            string                 `json:"invoiceNumber,omitempty"`
+	InvoiceDocumentURL       string                 `json:"invoiceDocumentUrl,omitempty"`
+	InvoiceIssuedAt          string                 `json:"invoiceIssuedAt,omitempty"`
+	RefundInvoiceStatus      string                 `json:"refundInvoiceStatus,omitempty"`
+	RefundInvoiceSeries      string                 `json:"refundInvoiceSeries,omitempty"`
+	RefundInvoiceNumber      string                 `json:"refundInvoiceNumber,omitempty"`
+	RefundInvoiceDocumentURL string                 `json:"refundInvoiceDocumentUrl,omitempty"`
+	RefundInvoiceIssuedAt    string                 `json:"refundInvoiceIssuedAt,omitempty"`
+}
+
+type OrderTicketRecipient struct {
+	TicketID string `json:"ticketId,omitempty"`
+	Name     string `json:"name"`
+	Status   string `json:"status"`
 }
 
 type ValidationEventResponse struct {
@@ -262,10 +270,10 @@ func MapUserTicket(ticket db.GetUserTicketsRow) UserTicketResponse {
 func MapUserOrder(order db.ListUserOrdersRow) UserOrderResponse {
 	return UserOrderResponse{
 		PaymentAttemptedAt: common.TimestampToString(order.PaymentAttemptedAt),
-		ID:             common.UUIDToString(order.ID),
-		Status:         string(order.Status),
-		TotalAmountRon: order.TotalAmount,
-		OrderTotalBani: order.PaidTotalBani,
+		ID:                 common.UUIDToString(order.ID),
+		Status:             string(order.Status),
+		TotalAmountRon:     order.TotalAmount,
+		OrderTotalBani:     order.PaidTotalBani,
 		// Legacy alias: this is the checkout quote, not proof of payment.
 		// Keep it for installed clients; new displays use OrderTotalBani + Status.
 		PaidTotalBani:            order.PaidTotalBani,

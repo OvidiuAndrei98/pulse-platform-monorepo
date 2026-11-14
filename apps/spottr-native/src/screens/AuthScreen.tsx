@@ -111,7 +111,7 @@ export function AuthScreen({
     if (!focused || !auth.ready || !auth.user || (mode !== "login" && mode !== "register")) return;
     // Never back into a protected screen on close/logout; authenticated return
     // destinations are a typed tab, never a URL supplied by a third party.
-    if (isEventId(route.params?.returnSafetyGroup)) navigation.popTo('SafetyGroup', { eventId: route.params.returnSafetyGroup }, { merge: true });
+    if (isEventId(route.params?.returnSafetyGroup)) navigation.replace('Groups');
     else if (route.params?.returnTicketTransfers) navigation.popTo('TicketTransfers', undefined);
     else if (route.params?.returnOutings) navigation.popTo('Outings', isEventId(route.params.returnOutingsEvent)?{event:route.params.returnOutingsEvent}:undefined, {merge:true});
     else if (isEventId(route.params?.returnEventNight)) navigation.popTo('EventNight',{eventId:route.params.returnEventNight});

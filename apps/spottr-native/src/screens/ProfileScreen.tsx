@@ -171,7 +171,7 @@ export function ProfileScreen() {
     pending = useRef(false);
   const now = useEventClock();
   const validationEvents = useQuery({...validationAccessOptions(auth.user?.id),enabled:false});
-  const activeSafety = tickets.data?.find(ticket => ticket.isValidated && Date.parse(ticket.endTime) + 86400000 >= Date.now());
+  const activeEventNight = tickets.data?.find(ticket => ticket.isValidated && Date.parse(ticket.endTime) + 86400000 >= Date.now());
   useEffect(() => {
     setUsername(auth.user?.username ?? "");
     setBio(auth.user?.bio ?? "");
@@ -315,7 +315,7 @@ export function ProfileScreen() {
             onPress={() => user.role === 'admin' ? navigation.navigate('Admin') : navigation.navigate('Dashboard', { section: 'profile' })}
           />
         )}
-        {user.role !== 'organizer' && activeSafety && <Pressable accessibilityRole="button" testID="profile-safety-group" onPress={() => navigation.navigate('EventNight', { eventId: activeSafety.eventId })} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 26, borderWidth: 1, borderColor: '#34d3994d', backgroundColor: '#34d39917' }}><ShieldCheck size={26} color="#34d399"/><View style={{ flex: 1 }}><Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>{copy('safetyGroup.activeEvent', { event: activeSafety.eventTitle })}</Text><Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>{copy('outings.night')}</Text></View><ChevronRight size={16} color="#6ee7b7"/></Pressable>}
+        {user.role !== 'organizer' && activeEventNight && <Pressable accessibilityRole="button" testID="profile-event-night" onPress={() => navigation.navigate('EventNight', { eventId: activeEventNight.eventId })} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 26, borderWidth: 1, borderColor: '#34d3994d', backgroundColor: '#34d39917' }}><ShieldCheck size={26} color="#34d399"/><View style={{ flex: 1 }}><Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }}>{copy('eventNight.activeEvent', { event: activeEventNight.eventTitle })}</Text><Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>{copy('outings.night')}</Text></View><ChevronRight size={16} color="#6ee7b7"/></Pressable>}
         <WardrobeCard />
         <Row icon={UsersRound} title={copy('outings.title')} hint={copy('outings.hint')} onPress={()=>navigation.navigate('Outings')}/>
         {user.role !== 'organizer' && !!validationEvents.data?.length && <Row icon={QrCode} title={copy('userProfile.ticketValidation')} hint={copy('userProfile.validationAccess', { count: validationEvents.data.length })} onPress={() => navigation.navigate('Scanner')}/>}

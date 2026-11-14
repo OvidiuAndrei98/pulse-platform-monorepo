@@ -2,6 +2,7 @@ const { getDefaultConfig } = require('expo/metro-config');
 const path = require('node:path');
 const { createApiProxy } = require('./scripts/api-proxy.cjs');
 const { limitCacheIO } = require('./scripts/metro-cache.cjs');
+const { withNormalizedProxyHeaders } = require('./scripts/metro-proxy-headers.cjs');
 require('../../tools/sync-map-assets.cjs').syncMapAssets(__dirname);
 
 const config = getDefaultConfig(__dirname);
@@ -31,7 +32,7 @@ const enhance = config.server.enhanceMiddleware;
 config.server.enhanceMiddleware = (middleware, server) => {
   const next = enhance ? enhance(middleware, server) : middleware;
   const proxy = createApiProxy(process.env.EXPO_PUBLIC_API_URL || 'https://api.spottr.ro/api/v1');
-  return (req, res, fallback) => proxy(req, res, () => next(req, res, fallback));
+  return withNormalizedProxyHeaders((req, res, fallback) => proxy(req, res, () => next(req, res, fallback)));
 };
 
 module.exports = config;

@@ -43,8 +43,8 @@ export function PlanCard({plan,onOpen,disabled}:{plan:OutingPlan;onOpen:()=>void
  const {t,i18n}=useTranslation(),stage=outingStage(plan),members=plan.members.filter(m=>m.status==='accepted'),answered=responseCount(plan),chosen=plan.options.find(option=>option.eventId===plan.chosenEventId);
  const status=stage==='invited'?'invited':stage==='ready'?'statusReady':stage==='voting'?'statusVoting':'statusDates';
  return <button type="button" className={s.planRow} onClick={onOpen} disabled={disabled} data-testid={'outing-card-'+plan.id}>
-  {plan.outingDate?<span className={s.planDate}><strong>{outingDate(plan.outingDate,i18n.language,'day')}</strong><span>{outingDate(plan.outingDate,i18n.language,'month')}</span></span>:<span className={s.planDate}><CalendarDays size={30}/></span>}
-  <span className={s.planRowContent}><span className={s.planStatus} data-ready={stage==='ready'}><i/>{t('outings.plan.'+status)}</span><strong>{plan.title}</strong><span className={s.muted}>{plan.city}{chosen?' · '+chosen.title:''}</span>
+  {chosen?.imageUrl?<img src={chosen.imageUrl} alt="" className={s.planRowThumb}/>:plan.outingDate?<span className={s.planDate}><strong>{outingDate(plan.outingDate,i18n.language,'day')}</strong><span>{outingDate(plan.outingDate,i18n.language,'month')}</span></span>:<span className={s.planDate}><CalendarDays size={30}/></span>}
+  <span className={s.planRowContent}><span className={s.planStatus} data-ready={stage==='ready'}><i/>{t('outings.plan.'+status)}</span><strong>{plan.title}</strong><span className={s.muted}>{plan.city} · {plan.outingDate?outingDate(plan.outingDate,i18n.language):t('outings.plan.statusDates')}</span>
    {plan.status==='accepted'&&<span className={s.planParticipants}><span className={s.people}>{members.slice(0,3).map(member=><MemberAvatar key={member.userId} name={member.username} userId={member.userId} uri={member.avatarUrl}/>)}</span><span>{stage==='ready'?t('outings.ui.people',{count:members.length}):t('outings.plan.replies',{answered,total:members.length})}</span></span>}
   </span><span className={s.cardChevron} aria-hidden><ChevronRight size={15}/></span>
  </button>;

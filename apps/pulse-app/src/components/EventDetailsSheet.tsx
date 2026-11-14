@@ -28,6 +28,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Event, User } from "@/core/DataProvider";
 import { useDataProvider } from "@/core/DataProviderContext";
 import { EventSocialProof } from "@/components/EventSocialProof";
+import { SuggestOutingLink } from '@/features/outings/SuggestOutingLink';
 import { EventAttendees } from "@/components/social/EventAttendees";
 import { EventLineup } from "@/features/events/lineup/EventLineup";
 import { EventOrganizerProfile } from "@/components/EventOrganizerProfile";
@@ -580,6 +581,7 @@ export function EventDetailsSheet({
         <div className="space-y-6 px-5 pb-8 pt-5 md:px-6">
           <EventSocialProof eventId={event.id} />
           <EventAttendees eventId={event.id} />
+          <SuggestOutingLink eventId={event.id} onNavigate={onClose}/>
 
           {/* DESPRE EVENIMENT (Formatat corect) */}
           <section>

@@ -36,7 +36,8 @@ export function defaultDecisionAt(days:readonly string[],now=Date.now(),hours=2)
   const end=Date.parse(planningBoundary(shiftCalendarDay(last,1)))-60000;
   return new Date(Math.min(now+hours*3600000,end)).toISOString();
 }
-export function planNightEnded(plan:Pick<OutingPlan,'outingDate'|'expiresAt'>,now=Date.now()) {
-  return Date.parse(plan.expiresAt)<=now||!!plan.outingDate&&Date.parse(planningBoundary(shiftCalendarDay(plan.outingDate,1)))<=now;
+export function planNightEnded(plan:Pick<OutingPlan,'outingDate'|'expiresAt'|'candidateDates'>,now=Date.now()) {
+  const last=plan.outingDate??plan.candidateDates?.map(day=>day.date).sort().at(-1);
+  return Date.parse(plan.expiresAt)<=now||!!last&&Date.parse(planningBoundary(shiftCalendarDay(last,1)))<=now;
 }
 export function validBudget(value:string) {return value.trim()===''||/^\d+(?:[.,]\d{1,2})?$/.test(value.trim())&&Number(value.replace(',','.'))<=1_000_000;}

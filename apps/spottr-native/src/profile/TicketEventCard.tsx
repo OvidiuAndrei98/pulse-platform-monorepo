@@ -55,8 +55,6 @@ export function TicketEventCard({ tickets, active, featured, now, onOpen, onGrou
       </View>
       <View style={s.footerHeading}>
         <View style={s.count}><Ticket size={13} color={colors.muted}/><Text style={s.countText}>{copy('userProfile.ticketCount', { count: tickets.length })}</Text></View>
-        {canOpenGroup && <Pressable accessibilityRole="button" accessibilityLabel={copy('safetyGroup.openOrCreate')}
-          onPress={() => onGroup(event.eventId)} style={s.groupButton}><UsersRound size={16} color={colors.success}/><ChevronRight size={12} color={colors.success}/></Pressable>}
       </View>
     </View>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.ticketStrip}

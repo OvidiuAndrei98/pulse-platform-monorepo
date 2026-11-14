@@ -13,6 +13,53 @@ async function close(server: http.Server) {
   await new Promise<void>(resolve => server.close(() => resolve()));
 }
 
+test('outing plans and ticket transfers use the same authenticated API through Expo web', async () => {
+  const received: { path?: string; method?: string; auth?: string; body: string }[] = [];
+  const upstream = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      received.push({ path: req.url, method: req.method, auth: req.headers.authorization, body });
+      assert.equal(req.headers.cookie, undefined);
+      assert.equal(req.headers.origin, undefined);
+      res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{}');
+    });
+  });
+  const api = await listen(upstream), proxy = createApiProxy(api + '/api/v1');
+  const server = http.createServer((req, res) => proxy(req, res, () => res.end())), base = await listen(server);
+  const id = '12345678-abcd-4bcd-8bcd-123456789012';
+  const headers = { origin: base, authorization: 'Bearer outings-test-only', cookie: 'never-forward', 'content-type': 'application/json' };
+  const routes = [
+    ['GET','/outings/groups'],['POST','/outings/groups'],['GET',`/outings/groups/${id}`],
+    ['GET',`/outings/groups/${id}/messages?before=52`],['POST',`/outings/groups/${id}/messages`],
+    ['GET',`/outings/groups/${id}/messages?collection=events`],
+    ['GET',`/outings/groups/${id}/outings?before=${id}`],['POST',`/outings/groups/${id}/outings`],
+    ['POST',`/outings/groups/${id}/actions`],['POST',`/outings/plans/${id}/attendance`],['POST',`/outings/plans/${id}/remove-proposal`],
+    ['GET', '/outings/plans'], ['POST', '/outings/plans'], ['GET', `/outings/plans/${id}`],
+    ['GET', `/outings/plans/${id}/changes?after=4`],
+    ...['respond', 'proposals', 'vote', 'choose', 'ticket-status', 'availability', 'date', 'preferences', 'deadline', 'reopen', 'meeting', 'arrival']
+      .map(action => ['POST', `/outings/plans/${id}/${action}`]),
+    ['GET', '/outings/transfers'], ['POST', '/outings/transfers'],
+    ['POST', `/outings/transfers/${id}/respond`], ['POST', `/outings/meeting-point/${id}`],
+  ];
+  try {
+    for (const [method, path] of routes) {
+      const body = method === 'POST' ? '{"qa":true}' : undefined;
+      assert.equal((await request(base, '/api/v1' + path, headers, method, body)).status, 200, `${method} ${path}`);
+      assert.deepEqual(received.at(-1), { path: '/api/v1' + path, method, auth: headers.authorization, body: body || '' });
+    }
+    for (const path of ['/outings/private', '/outings/plans/not-an-id', `/outings/plans/${id}/delete`, `/outings/transfers/${id}`,
+      '/outings/plans/' + '-'.repeat(36), `/outings/plans/${id}/changes/private`]) {
+      assert.equal((await request(base, '/api/v1' + path, headers)).status, 403);
+    }
+    assert.equal((await request(base, `/api/v1/outings/plans/${id}/vote`, headers)).status, 405);
+    assert.equal((await request(base, '/api/v1/outings/plans', headers, 'DELETE')).status, 405);
+    assert.equal((await request(base, `/api/v1/outings/plans/${id}/changes`, headers, 'POST')).status, 405);
+    assert.equal((await request(base, '/api/v1/outings/plans', { ...headers, origin: 'https://foreign.test' })).status, 403);
+    assert.equal(received.length, routes.length, 'Rejected requests never reach the real API');
+  } finally { await close(server); await close(upstream); }
+});
+
 test('event Feed and independent likes pass through the preview proxy with pagination and optional auth', async () => {
   const received: { path: string; method: string; auth?: string }[] = [];
   const upstream = http.createServer((req, res) => {

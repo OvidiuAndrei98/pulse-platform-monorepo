@@ -24,6 +24,9 @@ export type RootParamList = {
   EventDetails: { id: string; presentation?: "sheet" | "page" };
   Search: undefined;
   Notifications: undefined;
+  Groups: {eventId?:string;new?:boolean}|undefined;
+  FriendGroup: {id:string};
+  GroupOuting: {groupId:string;planId:string};
   Tickets: undefined;
   Orders: undefined;
   SavedEvents: undefined;
@@ -39,7 +42,7 @@ export type RootParamList = {
   Wardrobe: { staff?: boolean } | undefined;
   Admin: { section?: string; organizerId?: string } | undefined;
   QuickScanner: { token?: string } | undefined;
-  Checkout: { eventId: string; ticketTypeId?: string; quantities?: Record<string,number> };
+  Checkout: { eventId: string; ticketTypeId?: string; quantities?: Record<string,number>; outing?: {planId?:string;decisionRound:number;recipientIds:string[];extraConfirmed?:boolean}; recipientNames?:string[] };
   CheckoutReturn: { eventId: string; sessionId?: string; nativeOrderId?: string; cancelled?: string };
   Auth:
     | {

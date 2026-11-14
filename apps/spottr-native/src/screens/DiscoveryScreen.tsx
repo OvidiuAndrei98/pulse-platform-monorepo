@@ -46,6 +46,7 @@ import { getEventDateRange } from "@packages/app-core/events/dateFilters";
 import { useDebouncedDiscoverySearch } from './useDebouncedDiscoverySearch';
 import { activeDiscoveryStart, eventMatchesSearch, eventWithinDistance } from '@packages/app-core/events/discoveryFilters';
 import { DiscoveryToolbar } from './DiscoveryToolbar';
+import { DiscoveryScenes } from './DiscoveryScenes';
 import { DiscoveryKeyboardArea } from './DiscoveryKeyboardArea';
 import { DiscoverySearchInteraction } from './DiscoverySearchInteraction';
 import { DiscoveryCalendar } from './DiscoveryCalendar';
@@ -117,7 +118,8 @@ export function DiscoveryScreen() {
   const search=useDebouncedDiscoverySearch(filters.q);
   const openPanel=(kind:typeof panel)=>{Keyboard.dismiss();setDraft(filters);setPanel(kind);setCalendarOpen(kind==='date');setFilterError('');setOpen(true);};
   const list = useRef<FlatList<Event>>(null);
-  useScrollToTop(list);
+  const visibleList = useMemo(() => ({ get current() { return view === 'list' ? list.current : null; } }), [view]);
+  useScrollToTop(visibleList);
   useEffect(() => {
     if (route.params?.date)
       setFilters((current) => ({ ...current, date: route.params!.date!,dateFrom:'',dateTo:'' }));
@@ -134,6 +136,11 @@ export function DiscoveryScreen() {
     };
   }, [filters.categories,filters.vibes,filters.city,filters.date,filters.dateFrom,filters.dateTo,search]);
   const { query: events, items: eventItems, loadMore } = useEvents(query, false);
+  const pagination = useRef({ view, loadMore });
+  pagination.current = { view, loadMore };
+  const loadVisibleList = useCallback(() => {
+    if (pagination.current.view === 'list') pagination.current.loadMore();
+  }, []);
   const promotions = useQuery({ queryKey: ['promotions'], enabled: false, queryFn: ({ signal }) => eventsApi.promotions(signal) });
   const [promotionSeed] = useState(() => String(Date.now()));
   const feedPromotions = useMemo(() => (promotions.data ?? []).filter(p => p.placement === 'feed'), [promotions.data]);
@@ -181,10 +188,12 @@ export function DiscoveryScreen() {
               calendar={<View testID="discovery-calendar-anchor" pointerEvents="none" style={{width:44,height:44}}/>}/>
           </Animated.View>
           </MorphVisibility>
-          <DiscoveryDateRibbon filters={filters} onChange={setFilters} onOpenChange={setDateExpanded} expanded={dateExpanded} progress={dateProgress} source={dateSource} calendarMotion={calendarMotion} searching={searching && !wide}/>
+          <DiscoveryDateRibbon filters={filters} onChange={setFilters} onOpenChange={setDateExpanded} expanded={dateExpanded} progress={dateProgress} source={dateSource} calendarMotion={calendarMotion} searching={searching && !wide} center={center}/>
         </View>
       </View>
-      {view === 'map' ? <EventsMapPanel events={mapEvents} toolbarHeight={toolbarHeight} onLocationChange={setUserLocation} distance={filters.distance} cityCenter={cityCenters[filters.city] ? { latitude: cityCenters[filters.city]![0], longitude: cityCenters[filters.city]![1] } : null} onOpen={event => { seedEvent(event); navigation.navigate('Event', { id: event.id }); }} loading={events.isFetching} error={events.isError} retry={() => void (events.isFetchNextPageError ? events.fetchNextPage() : events.refetch())} /> : <FlatList
+      <DiscoveryScenes view={view}
+        map={<EventsMapPanel events={mapEvents} toolbarHeight={toolbarHeight} onLocationChange={setUserLocation} distance={filters.distance} cityCenter={cityCenters[filters.city] ? { latitude: cityCenters[filters.city]![0], longitude: cityCenters[filters.city]![1] } : null} onOpen={event => { seedEvent(event); navigation.navigate('Event', { id: event.id }); }} loading={events.isFetching} error={events.isError} retry={() => void (events.isFetchNextPageError ? events.fetchNextPage() : events.refetch())} />}
+        list={<FlatList
         ref={list}
         {...navbarScroll}
         style={{ flex: 1 }}
@@ -244,8 +253,8 @@ export function DiscoveryScreen() {
             </View>
           )
         }
-        {...webListScrollProps(loadMore)}
-        onEndReached={loadMore}
+        {...webListScrollProps(loadVisibleList)}
+        onEndReached={loadVisibleList}
         onEndReachedThreshold={0.6}
         ListFooterComponent={
           events.isFetchingNextPage ? (
@@ -262,7 +271,7 @@ export function DiscoveryScreen() {
             />
           ) : undefined
         }
-      />}
+      />}/>
       {Platform.OS !== 'web' && <DiscoverySearchInteraction activityRef={searchActivityRef}
         gestureEndRef={keyboardGestureEndRef} listRef={list} />}
       <Modal

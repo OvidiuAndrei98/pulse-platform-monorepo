@@ -43,6 +43,7 @@ type EventStatsResponse struct {
 }
 
 type EventResponse struct {
+	GiftPurchasesAvailable     *bool                `json:"giftPurchasesAvailable,omitempty"`
 	CommissionRateBps          int32                `json:"commissionRateBps"`
 	CommissionPerTicketBani    int32                `json:"commissionPerTicketBani"`
 	VATPercentage              *float64             `json:"vatPercentage,omitempty"`

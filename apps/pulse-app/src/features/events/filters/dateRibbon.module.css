@@ -19,6 +19,8 @@
 .contextRow { position:absolute; right:0; top:0; height:54px; display:flex; }
 .weekday { color:var(--muted-foreground); text-transform:uppercase; font-size:9px; font-weight:500; }
 .number { font-size:21px; line-height:23px; font-weight:700; font-variant-numeric:tabular-nums; }
+.day[data-event-availability="empty"] .number { color:var(--muted-foreground); }
+.day[data-centered="true"] .number { color:white; }
 .day[data-centered="true"] { color:white; }
 .day[data-centered="true"] .weekday { color:white; }
 .day[data-centered="true"] .month { color:white; }

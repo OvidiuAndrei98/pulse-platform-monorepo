@@ -511,31 +511,6 @@ func (h *Handler) HandleEditEvent(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusInternalServerError, "Bannerul evenimentului nu a putut fi actualizat")
 		return
 	}
-	// Safety-group retention follows the canonical event end time. Keep this in
-	// the same transaction so postponing an event cannot leave an older cleanup
-	// deadline visible to another API task.
-	if _, err := tx.Exec(r.Context(), `
-		UPDATE event_safety_groups
-		SET expires_at = $2::timestamptz + interval '24 hours'
-		WHERE event_id = $1`, eventUUID, endTime); err != nil {
-		router.RespondWithError(w, http.StatusInternalServerError, "Perioada grupului de siguranta nu a putut fi actualizata")
-		return
-	}
-	if _, err := tx.Exec(r.Context(), `
-		UPDATE event_safety_messages message
-		SET expires_at = $2::timestamptz + interval '24 hours'
-		FROM event_safety_groups group_row
-		WHERE message.group_id = group_row.id AND group_row.event_id = $1`, eventUUID, endTime); err != nil {
-		router.RespondWithError(w, http.StatusInternalServerError, "Retentia mesajelor nu a putut fi actualizata")
-		return
-	}
-	if _, err := tx.Exec(r.Context(), `
-		UPDATE notifications
-		SET expires_at = $2::timestamptz + interval '24 hours'
-		WHERE event_id = $1 AND type LIKE 'safety_%'`, eventUUID, endTime); err != nil {
-		router.RespondWithError(w, http.StatusInternalServerError, "Retentia notificarilor nu a putut fi actualizata")
-		return
-	}
 
 	// 5. Procesare Bilete (Upsert: Update dacă are ID, Insert dacă nu are ID)
 	for _, t := range req.TicketTypes {
@@ -922,7 +897,16 @@ func (h *Handler) HandleGetEventByID(w http.ResponseWriter, r *http.Request) {
 	dbRow.CommissionPerTicketBani = commission.PerTicketBani
 
 	// Returnăm structura curată, cu bilete incluse și fără date financiare secrete
-	router.RespondWithJSON(w, http.StatusOK, MapFromDBGetEvent(dbRow))
+	response := MapFromDBGetEvent(dbRow)
+	if h.DB != nil {
+		var gifts bool
+		if err := h.DB.QueryRow(r.Context(), `SELECT status='published' AND start_time>CURRENT_TIMESTAMP AND NOT ticket_transfers_locked AND external_ticket_url IS NULL FROM events WHERE id=$1`, eventUUID).Scan(&gifts); err != nil {
+			router.RespondWithError(w, 503, "EVENT_ACCESS_UNAVAILABLE")
+			return
+		}
+		response.GiftPurchasesAvailable = &gifts
+	}
+	router.RespondWithJSON(w, http.StatusOK, response)
 }
 
 // HandleListEventsWithStats se ocupă strict de Dashboard-ul organizatorului

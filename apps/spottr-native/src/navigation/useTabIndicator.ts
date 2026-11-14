@@ -61,7 +61,7 @@ export function useTabIndicator(
       })();
       return;
     }
-    if (snap) {
+    if (snap || (Platform.OS === 'android' && resized)) {
       position.value = target;
       return;
     }
@@ -69,8 +69,8 @@ export function useTabIndicator(
     // Retarget the current shared position, including across stack scenes,
     // without reading it back onto JS or restarting at a tab's old position.
     position.value = Platform.OS === 'ios' ? withTabTravel(target) : withTiming(target, {
-      duration: 320,
-      easing: Easing.bezier(0.4, 0, 0.2, 1),
+      duration: Platform.OS === 'android' ? 200 : 320,
+      easing: Platform.OS === 'android' ? Easing.bezier(0.2, 0, 0.2, 1) : Easing.bezier(0.4, 0, 0.2, 1),
     });
     // Retargeting keeps the current spring velocity. Cancelling in this effect's
     // cleanup made the route acknowledgement interrupt the finger's release.

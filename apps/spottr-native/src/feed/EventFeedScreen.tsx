@@ -73,7 +73,7 @@ const FeedContent = React.memo(function FeedContent({model}: {model: ReturnType<
       windowSize={3} initialNumToRender={2} maxToRenderPerBatch={2} getItemLayout={(_, index) => ({length: height, offset: height * index, index})}
       onViewableItemsChanged={viewable.current} viewabilityConfig={{itemVisiblePercentThreshold: 65}}
       extraData={{working: model.working, errors: model.likeErrors, footer, height}}
-      renderItem={({item, index}) => <FeedSlide event={item} height={height} working={model.working.includes(item.id)} onLike={() => like(item)} onOpen={() => navigation.navigate('Event', {id: item.id, presentation: 'sheet'})} onPropose={() => navigation.navigate('Outings', {event: item.id})} footer={index === model.items.length - 1 ? footer : undefined} />} />}
+      renderItem={({item, index}) => <FeedSlide event={item} height={height} working={model.working.includes(item.id)} onLike={() => like(item)} onOpen={() => navigation.navigate('Event', {id: item.id, presentation: 'sheet'})} onPropose={() => navigation.navigate('Groups', {eventId: item.id})} footer={index === model.items.length - 1 ? footer : undefined} />} />}
     <View pointerEvents="none" style={[s.header, {top: Math.max(22, safe.top)}]}><Text accessibilityRole="header" style={s.heading}>{copy('discovery.title')}</Text><Text style={s.headerHint}>{copy('discovery.hint')}</Text></View>
     {model.ready && !model.pending && (model.error || likeFailed) && <View testID="feed-status-notice" pointerEvents="box-none" style={[s.notice, {top: Math.max(22, safe.top) + 64}]}>
       <Feedback compact title={copy(model.error ? model.items.length ? 'discovery.moreFailed' : 'discovery.loadFailed' : 'discovery.likeFailed')}

@@ -1,4 +1,5 @@
 import type { components } from '@packages/api-client/schema';
+import {isOutingId} from '@packages/app-core/outings/model';
 export type Notification = components['schemas']['NotificationResponse'];
 export type NotificationList = components['schemas']['NotificationListResponse'];
 export type NotificationPeriod = 'today' | 'yesterday' | 'week' | 'month' | 'earlier';
@@ -38,10 +39,11 @@ export function parseNotifications(value: unknown): NotificationList {
   for (const item of (row.items ?? []) as unknown[]) {
     if (!item || typeof item !== 'object') continue;
     const entry = item as Notification;
+    if (entry.type?.startsWith('safety_')) continue;
     if (typeof entry.id !== 'string' || !entry.id || typeof entry.type !== 'string' || typeof entry.title !== 'string' || typeof entry.body !== 'string' || typeof entry.createdAt !== 'string' || !Number.isFinite(Date.parse(entry.createdAt)) || typeof entry.isRead !== 'boolean') continue;
     const text = (value: unknown) => typeof value === 'string' && value ? value : undefined;
     unique.set(entry.id, { id: entry.id, type: entry.type, title: entry.title, body: entry.body, createdAt: entry.createdAt, isRead: entry.isRead,
-      actorId: text(entry.actorId), actorUsername: text(entry.actorUsername), actorAvatarUrl: text(entry.actorAvatarUrl), eventId: text(entry.eventId) });
+      actorId: text(entry.actorId), actorUsername: text(entry.actorUsername), actorAvatarUrl: text(entry.actorAvatarUrl), eventId: text(entry.eventId),groupId:isOutingId(entry.groupId)?entry.groupId:undefined,outingPlanId:isOutingId(entry.outingPlanId)?entry.outingPlanId:undefined });
   }
   const items = [...unique.values()];
   const visibleUnread = items.filter(item => !item.isRead).length;
@@ -61,6 +63,8 @@ export function removeNotifications(current: NotificationList | undefined, ids: 
 }
 
 export function notificationDestination(item: Notification) {
-  if (item.eventId) return { kind: item.type === 'safety_group_invite' || item.type === 'safety_help' || item.type === 'safety_help_resolved' ? 'safety' as const : 'event' as const, id: item.eventId };
+  if (item.groupId) return item.outingPlanId?{kind:'outing' as const,id:item.outingPlanId,groupId:item.groupId}:{kind:'group' as const,id:item.groupId};
+  if (item.type.startsWith('safety_')) return null;
+  if (item.eventId) return { kind:'event' as const,id:item.eventId };
   return item.actorId ? { kind: 'profile' as const, id: item.actorId } : null;
 }

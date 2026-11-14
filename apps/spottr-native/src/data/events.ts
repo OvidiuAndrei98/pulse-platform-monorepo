@@ -34,6 +34,7 @@ export type Event = Pick<
   | "commissionPerTicketBani"
   | "externalTicketUrl"
 > & {
+  giftPurchasesAvailable?:boolean;
   ticketTypes: Ticket[];
   lineup: Artist[];
   latitude: number | null;
@@ -109,6 +110,7 @@ export function normalizeEvent(value: unknown): Event | null {
     description: string(data.description),
     bannerUrl: httpUrl(data.bannerUrl),
     externalTicketUrl: httpUrl(data.externalTicketUrl),
+    ...(typeof data.giftPurchasesAvailable==='boolean'?{giftPurchasesAvailable:data.giftPurchasesAvailable}:{}),
     startTime: string(data.startTime),
     endTime: string(data.endTime),
     organizerAbsorbsServiceFee: data.organizerAbsorbsServiceFee === true,

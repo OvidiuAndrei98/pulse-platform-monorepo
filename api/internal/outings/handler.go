@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"pulse-api/internal/abuse"
@@ -76,11 +77,37 @@ func (h *Handler) endpoint(scope string, write bool, f operation) http.HandlerFu
 			return
 		}
 		limit := 30
+		window := time.Hour
+		if scope == "send_message" {
+			limit = 60
+			window = time.Minute
+		}
+		if scope == "group_action" {
+			limit = 240
+			window = time.Minute
+		}
 		if scope == "availability" || scope == "vote" || scope == "preferences" || scope == "arrival" {
 			limit = 120
 		}
-		if err == nil && write && h.Abuse != nil && !h.Abuse.Enforce(r.Context(), w, "outings_"+scope, sid(actor), limit, time.Hour) {
+		if err == nil && write && h.Abuse != nil && !h.Abuse.Enforce(r.Context(), w, "outings_"+scope, sid(actor), limit, window) {
 			return
+		}
+		if err == nil {
+			if raw := chi.URLParam(r, "planID"); raw != "" {
+				id, e := uuid(raw)
+				if e != nil {
+					err = e
+				} else {
+					err = groupPlanAccess(r.Context(), h.Pool, id, actor)
+				}
+				if err == nil && write {
+					var group pgtype.UUID
+					err = h.Pool.QueryRow(r.Context(), `SELECT group_id FROM outing_plans WHERE id=$1`, id).Scan(&group)
+					if err == nil && (!group.Valid || scope == "respond_plan" || scope == "arrival" || scope == "meeting" || scope == "preferences" || scope == "ticket_status") {
+						err = fault{410, "LEGACY_PLAN_READ_ONLY"}
+					}
+				}
+			}
 		}
 		if err == nil {
 			err = f(w, r, actor)
@@ -97,6 +124,17 @@ func (h *Handler) endpoint(scope string, write bool, f operation) http.HandlerFu
 			router.RespondWithError(w, 404, "NOT_FOUND")
 			return
 		}
+		var duplicate *pgconn.PgError
+		if errors.As(err, &duplicate) && duplicate.Code == "23505" {
+			if duplicate.ConstraintName == "friend_group_night_idx" {
+				router.RespondWithError(w, 409, "OUTING_EXISTS")
+				return
+			}
+			if duplicate.ConstraintName == "friend_group_outing_request_idx" || duplicate.ConstraintName == "outing_plans_owner_id_request_id_key" || duplicate.ConstraintName == "friend_groups_created_by_request_id_key" {
+				router.RespondWithError(w, 409, "REQUEST_REUSED")
+				return
+			}
+		}
 		// Deliberately exclude SQL parameters, recipient addresses and QR values.
 		log.Printf("outings operation failed: scope=%s type=%T", scope, err)
 		router.RespondWithError(w, 503, "TEMPORARILY_UNAVAILABLE")
@@ -104,14 +142,33 @@ func (h *Handler) endpoint(scope string, write bool, f operation) http.HandlerFu
 }
 func (h *Handler) Routes() http.Handler {
 	r := chi.NewRouter()
-	r.Post("/meeting-point/{eventID}", h.endpoint("meeting_point", true, h.meetingPoint))
+	r.Get("/groups", h.endpoint("groups", false, h.listGroups))
+	r.Post("/groups", h.endpoint("create_group", true, h.createGroup))
+	r.Get("/groups/{groupID}", h.endpoint("group", false, h.getGroup))
+	r.Post("/groups/{groupID}/actions", h.endpoint("group_action", true, h.groupAction))
+	r.Get("/groups/{groupID}/messages", h.endpoint("messages", false, h.messages))
+	r.Post("/groups/{groupID}/messages", h.endpoint("send_message", true, h.sendGroupMessage))
+	r.Post("/groups/{groupID}/outings", h.endpoint("group_outing", true, h.createGroupOuting))
+	r.Get("/groups/{groupID}/outings", h.endpoint("group_outings", false, h.groupOutings))
+	r.Post("/plans/{planID}/attendance", h.endpoint("attendance", true, h.attendance))
+	r.Post("/meeting-point/{eventID}", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		router.RespondWithError(w, 410, "EVENT_CHAT_RETIRED")
+	})
 	r.Get("/plans", h.endpoint("plans", false, h.listPlans))
-	r.Post("/plans", h.endpoint("create_plan", true, h.createPlan))
+	r.Post("/plans", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		router.RespondWithError(w, 410, "CREATE_PERMANENT_GROUP_FIRST")
+	})
 	r.Get("/plans/{planID}", h.endpoint("plan", false, h.getPlan))
 	r.Post("/plans/{planID}/respond", h.endpoint("respond_plan", true, h.respondPlan))
 	r.Post("/plans/{planID}/proposals", h.endpoint("propose", true, h.propose))
+	r.Post("/plans/{planID}/remove-proposal", h.endpoint("remove_proposal", true, func(w http.ResponseWriter, r *http.Request, actor pgtype.UUID) error {
+		return h.changePlan(w, r, actor, "remove_proposal")
+	}))
 	r.Post("/plans/{planID}/vote", h.endpoint("vote", true, h.vote))
 	r.Post("/plans/{planID}/choose", h.endpoint("choose", true, h.choose))
+	r.Post("/plans/{planID}/ticket-status", h.endpoint("ticket_status", true, h.ticketStatus))
 	for _, action := range []string{"availability", "date", "preferences", "deadline", "reopen", "meeting", "arrival"} {
 		action := action
 		r.Post("/plans/{planID}/"+action, h.endpoint(action, true, func(w http.ResponseWriter, r *http.Request, actor pgtype.UUID) error {
@@ -158,9 +215,8 @@ func (h *Handler) StartCleanupWorker(ctx context.Context) {
 				if err := deliverTransferNotifications(ctx, h.Pool); err != nil {
 					log.Print("ticket transfer notification delivery failed")
 				}
-				if _, err := h.Pool.Exec(ctx, `DELETE FROM outing_plans WHERE expires_at<=CURRENT_TIMESTAMP`); err != nil {
-					log.Print("outing plan retention failed")
-				}
+				// Outings remain history. In particular they never delete a group's
+				// conversation or the immutable purchase context.
 				if _, err := h.Pool.Exec(ctx, `DELETE FROM ticket_transfers WHERE status<>'pending' AND COALESCE(responded_at,created_at)<CURRENT_TIMESTAMP-interval '90 days'`); err != nil {
 					log.Print("ticket transfer retention failed")
 				}

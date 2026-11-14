@@ -264,7 +264,7 @@ export default function MePage() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold">
-                    {t("safetyGroup.activeEvent", { event: activeValidatedEvent.event })}
+                    {t("eventNight.activeEvent", { event: activeValidatedEvent.event })}
                   </span>
                   <span className="mt-0.5 block text-xs text-muted-foreground">
                     {t("outings.night")}
@@ -298,7 +298,7 @@ export default function MePage() {
 
             {!isOrganizer && <ProfileConnectionQr />}
             <WardrobeCard />
-            <Link href="/outings" className="flex min-h-14 items-center justify-between rounded-3xl border border-white/10 p-5"><span>{t('outings.title')}</span><ChevronRight aria-hidden="true" size={18}/></Link>
+            <Link href="/groups" className="flex min-h-14 items-center justify-between rounded-3xl border border-white/10 p-5"><span>{t('groups.title')}</span><ChevronRight aria-hidden="true" size={18}/></Link>
 
             {/* Securitatea pe Desktop */}
             <section className="hidden md:block">
@@ -842,16 +842,6 @@ function TicketEventStack({
           </button>
         ))}
       </div>
-      <Link
-        href={routeForPlatform(`/events/${event.eventId}/group`)}
-        className="flex min-h-12 items-center gap-3 border-t border-white/10 px-4 py-3 text-left text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/[0.08]"
-      >
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-emerald-400/[0.12]">
-          <ShieldCheck className="h-4 w-4" />
-        </span>
-        <span className="min-w-0 flex-1">{t("safetyGroup.openOrCreate")}</span>
-        <ChevronRight className="h-4 w-4 shrink-0" />
-      </Link>
     </div>
   );
 }

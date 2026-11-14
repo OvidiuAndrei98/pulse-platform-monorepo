@@ -88,14 +88,6 @@ export function EventSocialProof({
             <span className="inline-flex h-9 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/15 px-3 text-xs font-semibold text-primary">
               <Ticket className="h-3.5 w-3.5" /> {t("social.ticketHolder")}
             </span>
-            <Link
-              href={routeForPlatform(`/events/${eventId}/group`)}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-emerald-400/35 bg-emerald-400/[0.1] px-3 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-400/[0.16]"
-            >
-              <UsersRound className="h-3.5 w-3.5" />
-              {t("safetyGroup.openOrCreate")}
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
           </div>
         ) : user ? (
           <div className="flex h-9 items-center rounded-full border border-white/15 bg-white/[0.04] p-0.5">

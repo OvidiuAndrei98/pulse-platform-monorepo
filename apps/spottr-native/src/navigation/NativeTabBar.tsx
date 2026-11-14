@@ -10,5 +10,6 @@ export type NativeTabBarProps = BottomTabBarProps & {
   interactionEnabled?: boolean;
 };
 
-// Android and browser navigation retain their current rendering and gestures.
+// Metro selects explicit .android / .web / .ios adapters. Keep the generic
+// fallback available without probing for Liquid Glass here.
 export const NativeTabBar: ComponentType<NativeTabBarProps> | null = null;

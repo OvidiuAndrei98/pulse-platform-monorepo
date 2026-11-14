@@ -7,8 +7,8 @@ export type TabIndicatorTimeline = {
 
 export type TabIndicatorTimelineRef = { current: TabIndicatorTimeline | null };
 
-export const tabIndicatorDuration = 320;
-export const tabIndicatorEasing = "cubic-bezier(0.4, 0, 0.2, 1)";
+export const tabIndicatorDuration = 200;
+export const tabIndicatorEasing = "cubic-bezier(0.2, 0, 0.2, 1)";
 
 // Sample the same easing as the browser, only when a new tap interrupts it.
 // No JavaScript frame loop is needed to keep separate stack scenes in sync.
@@ -19,7 +19,7 @@ export function tabIndicatorPosition(timeline: TabIndicatorTimeline, now: number
   let low = 0, high = 1;
   for (let i = 0; i < 24; i++) {
     const t = (low + high) / 2;
-    const x = 1.2 * (1 - t) ** 2 * t + 0.6 * (1 - t) * t ** 2 + t ** 3;
+    const x = 0.6 * (1 - t) ** 2 * t + 0.6 * (1 - t) * t ** 2 + t ** 3;
     if (x < progress) low = t; else high = t;
   }
   const t = (low + high) / 2;

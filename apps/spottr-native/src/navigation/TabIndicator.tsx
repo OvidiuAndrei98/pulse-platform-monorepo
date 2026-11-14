@@ -8,9 +8,10 @@ export type TabIndicatorProps = {
   target: number;
   timeline: TabIndicatorTimelineRef;
   style: StyleProp<ViewStyle>;
+  children?: React.ReactNode;
 };
 
-export function TabIndicator({ position, style }: TabIndicatorProps) {
+export function TabIndicator({ position, style, children }: TabIndicatorProps) {
   const motion = useAnimatedStyle(() => ({ transform: [{ translateX: position.value }] }));
-  return <Animated.View testID="tab-indicator" pointerEvents="none" style={[style, motion]} />;
+  return <Animated.View testID="tab-indicator" pointerEvents="none" style={[style, motion]}>{children}</Animated.View>;
 }

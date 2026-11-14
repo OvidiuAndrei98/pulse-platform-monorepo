@@ -47,6 +47,17 @@ withBrowser(async ({ call, evaluate, until, click, delay, capture, errors }) => 
   assert.equal(await evaluate(`document.querySelector('[data-testid="discovery-date-surface"]').dataset.qaIdentity`), 'same', 'One material morphs instead of remounting');
   assert.equal(await evaluate(`document.querySelector('[data-testid="events-list"]')?.getBoundingClientRect().top??document.querySelector('[data-nav-scroll="events-list"]')?.getBoundingClientRect().top`), listTop, 'Opening does not push events down');
   assert.equal(await evaluate(`window.__ribbonQA.requests.some(q=>q.startsBefore)`), false, 'Opening does not silently select today');
+  const preparedDays = await evaluate(`document.querySelectorAll('[data-testid^="ribbon-day-"]').length`);
+  assert.ok(preparedDays >= 91 && preparedDays < 400,
+    'An overscan window is ready without mounting the entire calendar: ' + preparedDays);
+  const farDay = await evaluate('__ribbonQA.day(80)');
+  assert.ok(await evaluate(`!!document.querySelector('[data-testid="ribbon-day-${farDay}"]')`),
+    'Distant dates are already prepared, without waiting for another render batch');
+  const emptyDay = await evaluate('__ribbonQA.day(1)'), availableDay = await evaluate('__ribbonQA.day(2)'), otherDay = await evaluate('__ribbonQA.day(3)');
+  await until(`document.querySelector('[data-testid="ribbon-day-${emptyDay}"]')?.dataset.eventAvailability==='empty'&&document.querySelector('[data-testid="ribbon-day-${availableDay}"]')?.dataset.eventAvailability==='available'`);
+  const dayColor = day => evaluate(`(() => { const button=document.querySelector('[data-testid="ribbon-day-${day}"]');return getComputedStyle([...button.children].find(node=>node.textContent===String(Number('${day}'.slice(-2))))).color; })()`);
+  assert.notEqual(await dayColor(emptyDay), await dayColor(availableDay), 'Empty days have a muted date number');
+  assert.equal(await evaluate(`document.querySelector('[data-testid="ribbon-day-${emptyDay}"]').disabled===true||document.querySelector('[data-testid="ribbon-day-${emptyDay}"]').getAttribute('aria-disabled')==='true'`), false, 'Empty dates remain selectable');
   const yesterday=await evaluate('__ribbonQA.day(-1)');
   assert.equal(await evaluate(`(()=>{const node=document.querySelector('[data-testid="ribbon-context-day-${yesterday}"]');return !!node&&node.tagName!=='BUTTON'&&node.getAttribute('role')!=='button';})()`),true,'Previous days are decoration outside the selectable dates');
   await evaluate(`document.querySelector('[data-testid="discovery-date-scroll"]').scrollLeft=-500`);
@@ -58,6 +69,7 @@ withBrowser(async ({ call, evaluate, until, click, delay, capture, errors }) => 
   await evaluate(`document.querySelector('[data-testid="ribbon-day-${day}"]').click()`);
   await until(`__ribbonQA.requests.some(q=>q.startsBefore)`);
   await delay(350);
+  assert.equal(await evaluate(`document.querySelector('[data-testid="ribbon-day-${otherDay}"]').dataset.eventAvailability`), 'available', 'Selecting one date never marks the other event dates empty');
   if(!next)assert.equal(await evaluate('__ribbonQA.haptics'),beforeTap+1,'An intentional day tap produces one immediate tick, without replaying its animated scroll');
   let selectedRange = await evaluate('({...__ribbonQA.requests.at(-1)})');
   assert.ok(selectedRange.startsAfter && selectedRange.startsBefore);
@@ -113,6 +125,25 @@ withBrowser(async ({ call, evaluate, until, click, delay, capture, errors }) => 
   assert.ok(await evaluate(`document.querySelector('[data-testid="discovery-calendar-reset"]').textContent.includes(__ribbonQA.day(80).slice(0,4))`),'Year is shown once, outside the narrow day cells');
   await click('discovery-calendar-reset');
   await until(`!__ribbonQA.requests.at(-1).startsBefore`);
+  if (!next) {
+    assert.ok(await evaluate(`document.querySelector('[data-testid="discovery-date-scroll"]').scrollWidth>730*44`),
+      'The scroll range spans years instead of stopping after 91 days');
+    await evaluate(`(async()=>{const scroll=document.querySelector('[data-testid="discovery-date-scroll"]');scroll.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:1,pointerType:'touch'}));for(const index of [80,180,400,730]){scroll.scrollLeft=index*44;await new Promise(resolve=>setTimeout(resolve,40));}})()`);
+    const distant = await evaluate('__ribbonQA.day(730)');
+    await until(`document.querySelector('[data-testid="ribbon-day-${distant}"]')?.getAttribute('aria-pressed')==='true'`);
+    await delay(250);
+    assert.ok(await evaluate(`Math.abs(document.querySelector('[data-testid="discovery-date-scroll"]').scrollLeft-730*44)<1`),
+      'Multi-year travel never recenters the scroll offset after settling');
+    assert.ok(await evaluate(`document.querySelectorAll('[data-testid^="ribbon-day-"]').length<400`),
+      'Only nearby dates and the initial overscan remain mounted after travelling years');
+    await evaluate(`(()=>{const scroll=document.querySelector('[data-testid="discovery-date-scroll"]');scroll.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:2,pointerType:'touch'}));scroll.scrollLeft=2*44;})()`);
+    const back = await evaluate('__ribbonQA.day(2)');
+    await until(`document.querySelector('[data-testid="ribbon-day-${back}"]')?.getAttribute('aria-pressed')==='true'`);
+    assert.ok(await evaluate(`Math.abs(document.querySelector('[data-testid="discovery-date-scroll"]').scrollLeft-2*44)<1`),
+      'Fast reversal returns to the original date coordinates');
+    await click('discovery-calendar-reset');
+    await until(`!__ribbonQA.requests.at(-1).startsBefore`);
+  }
   assert.deepEqual(errors, [], 'No browser exceptions');
   console.log('PASS ' + (next ? 'Next' : 'Native web') + ': single material, continuous icon, 44px dates, centered selection, map/list continuity, 320px layout, direct undo');
 }).catch(error => { console.error(error); process.exitCode = 1; });

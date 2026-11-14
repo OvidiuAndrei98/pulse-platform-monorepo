@@ -38,6 +38,8 @@ SELECT
     notification.body,
     notification.event_id,
     notification.actor_id,
+    notification.friend_group_id,
+    notification.outing_plan_id,
     notification.read_at,
     notification.created_at,
     COALESCE(actor.username, '') AS actor_username,
@@ -46,18 +48,8 @@ FROM notifications notification
 LEFT JOIN users actor ON actor.id = notification.actor_id
 WHERE notification.user_id = $1
   AND (notification.expires_at IS NULL OR notification.expires_at > CURRENT_TIMESTAMP)
-  AND (
-    notification.type NOT LIKE 'safety_%'
-    OR EXISTS (
-      SELECT 1
-      FROM tickets ticket
-      JOIN orders order_row ON order_row.id = ticket.order_id
-      WHERE order_row.event_id = notification.event_id
-        AND order_row.status = 'completed'
-        AND (ticket.user_id = notification.user_id
-          OR (ticket.user_id IS NULL AND order_row.user_id = notification.user_id))
-    )
-  )
+  AND notification.type NOT LIKE 'safety_%'
+  AND (notification.friend_group_id IS NULL OR EXISTS(SELECT 1 FROM friend_group_members gm WHERE gm.group_id=notification.friend_group_id AND gm.user_id=notification.user_id AND (gm.status='accepted' OR gm.status='pending' AND notification.type='friend_group_invite')))
 ORDER BY notification.created_at DESC
 LIMIT $2;
 
@@ -67,18 +59,8 @@ FROM notifications
 WHERE notifications.user_id = $1
   AND notifications.read_at IS NULL
   AND (notifications.expires_at IS NULL OR notifications.expires_at > CURRENT_TIMESTAMP)
-  AND (
-    notifications.type NOT LIKE 'safety_%'
-    OR EXISTS (
-      SELECT 1
-      FROM tickets ticket
-      JOIN orders order_row ON order_row.id = ticket.order_id
-      WHERE order_row.event_id = notifications.event_id
-        AND order_row.status = 'completed'
-        AND (ticket.user_id = notifications.user_id
-          OR (ticket.user_id IS NULL AND order_row.user_id = notifications.user_id))
-    )
-  );
+  AND notifications.type NOT LIKE 'safety_%'
+  AND (notifications.friend_group_id IS NULL OR EXISTS(SELECT 1 FROM friend_group_members gm WHERE gm.group_id=notifications.friend_group_id AND gm.user_id=notifications.user_id AND (gm.status='accepted' OR gm.status='pending' AND notifications.type='friend_group_invite')));
 
 -- name: MarkAllNotificationsRead :exec
 UPDATE notifications

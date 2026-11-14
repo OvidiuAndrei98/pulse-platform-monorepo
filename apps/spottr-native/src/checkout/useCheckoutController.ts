@@ -39,6 +39,7 @@ import { initialTicketQuantities,retainAvailableTickets } from '@packages/app-co
 export function useCheckoutController({ route, navigation }: Props) {
 
   const { eventId, ticketTypeId } = route.params;
+  const setQuantitiesLocked:React.Dispatch<React.SetStateAction<Quantities>>=()=>{};
   const { user, controller, ready } = useAuth('account'), { copy, language } = usePreferences(), safe = useSafeAreaInsets();
   const query = useEvent(eventId), event = query.data, now = useEventClock(event), promo = usePromoCode(eventId);
   const [quantities, setQuantities] = useState<Quantities>(()=>initialTicketQuantities(route.params.quantities,ticketTypeId));
@@ -156,7 +157,7 @@ export function useCheckoutController({ route, navigation }: Props) {
         }
         // Web popup creation stays synchronous with the press to avoid blockers.
         if (Platform.OS === 'web') browser.current = preparePaymentBrowser(token);
-        const body = { expectedTotalBani: Math.round(totals.total * 100), email: email.trim(), items: totals.tickets.map(ticket => ({ ticketTypeId: ticket.id, quantity: quantities[ticket.id] })), promoCode: promo.applied?.code, billingDetails: details, ...(Platform.OS !== 'web' ? { client: 'native_sheet' } : { client: 'native_web', returnOrigin: paymentReturnOrigin() }) };
+        const body = { ...(route.params.outing?{outing:route.params.outing}:{}), expectedTotalBani: Math.round(totals.total * 100), email: email.trim(), items: totals.tickets.map(ticket => ({ ticketTypeId: ticket.id, quantity: quantities[ticket.id] })), promoCode: promo.applied?.code, billingDetails: details, ...(Platform.OS !== 'web' ? { client: 'native_sheet' } : { client: 'native_web', returnOrigin: paymentReturnOrigin() }) };
         intent.current = checkoutRequestKey(intent.current, JSON.stringify({ eventId, userId: user?.id, body }), () => Crypto.getRandomBytes(16));
         const raw = await accountApi('/events/' + eventId + '/tickets/purchase', { method: 'POST', body, token, idempotencyKey: intent.current.key });
         if (Platform.OS === 'web') {
@@ -248,6 +249,7 @@ export function useCheckoutController({ route, navigation }: Props) {
     step,
     totals,
     signedIn: !!user,
+    selectionLocked: !!route.params.outing,
     isOwnEvent: event?.organizerId === user?.id,
   };
 }

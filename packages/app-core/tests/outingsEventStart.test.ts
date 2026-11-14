@@ -15,9 +15,9 @@ test('source response retains only public planning fields and rejects draft or i
   assert.deepEqual(parsePlanSourceEvent({...event,email:'secret@example.invalid',validationHash:'secret'}),{id:event.id,title:event.title,city:event.city,locationName:event.locationName,startTime:event.startTime,endTime:event.endTime});
   for(const value of [{...event,status:'draft'},{...event,id:'broken'},{...event,city:undefined},{...event,startTime:'bad'}])assert.throws(()=>parsePlanSourceEvent(value));
 });
-test('event creation is one explicit draft with one proposal and no automatic destination or vote',()=>{
+test('event invitation explicitly confirms one destination without inventing votes',()=>{
   const draft=eventPlanDraft(event,'  Our night  ',[id(2)],now);
-  assert.deepEqual(draft,{title:'Our night',outingDate:'2026-11-03',city:'Bucuresti',friendIds:[id(2)],eventIds:[id(1)]});
+  assert.deepEqual(draft,{title:'Our night',outingDate:'2026-11-03',city:'Bucuresti',friendIds:[id(2)],eventIds:[id(1)],confirmEvent:true});
   for(const people of [[],[id(2),id(2)],Array.from({length:8},(_,i)=>id(i+2))])assert.equal(eventPlanDraft(event,'Our night',people,now),undefined);
   assert.equal(eventPlanDraft({...event,endTime:now.toISOString()},'Night',[id(2)],now),undefined);
 });

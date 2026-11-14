@@ -7,7 +7,7 @@ import { canOfferTransfer, type TicketTransfer } from '@packages/app-core/outing
 import { useCachedClientQuery } from '@/lib/useCachedClientQuery';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { Input } from '@/components/ui/Field';
-import { PlanChoice } from './OutingPlanBuilder';
+import { PlanChoice } from './PlanChoice';
 import type { useOutings } from './useOutings';
 
 export function TicketTransfers({model,initialTicketId}:{model:ReturnType<typeof useOutings>;initialTicketId?:string}) {
@@ -26,6 +26,7 @@ export function TicketTransfers({model,initialTicketId}:{model:ReturnType<typeof
     <p className="text-sm text-muted-foreground">{t('outings.financialHint')}</p>
     {model.transfers.map(x=><article key={x.id} data-testid={'transfer-'+x.id} className="space-y-3 rounded-3xl border border-white/10 p-5">
       <h2 className="text-xl font-semibold">{x.eventTitle}</h2><p className="text-sm text-muted-foreground">{x.senderId===actor?x.recipientName||t('outings.to'):t('outings.from',{name:x.senderName})} · {t('outings.'+x.status)}</p>
+      {x.blockedReason&&<p className="text-sm text-muted-foreground">{t(x.blockedReason==='offline_snapshot'?'outings.v2.offlineTransferClosed':'outings.v2.eventTransferClosed')}</p>}
       {x.status==='pending'&&<div className="flex flex-wrap gap-3">{x.senderId===actor?<ActionButton tone="secondary" disabled={model.working} onClick={()=>void respond(x.id,'cancelled')}>{t('outings.cancel')}</ActionButton>:<><ActionButton data-testid={'transfer-accept-'+x.id} disabled={model.working} onClick={()=>void respond(x.id,'accepted')}>{t('outings.acceptTransfer')}</ActionButton><ActionButton tone="secondary" disabled={model.working} onClick={()=>void respond(x.id,'declined')}>{t('outings.decline')}</ActionButton></>}</div>}
     </article>)}
     {!model.transfers.length&&<p className="text-muted-foreground">{t('outings.emptyTransfers')}</p>}

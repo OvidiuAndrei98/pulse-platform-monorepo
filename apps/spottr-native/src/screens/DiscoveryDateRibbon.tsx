@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Platform, Pressable, StyleSheet, View, useWindowDimensions, type ViewProps, type ViewInstance } from 'react-native';
+import { VirtualizedList, Platform, Pressable, StyleSheet, View, useWindowDimensions, type ViewProps, type ViewInstance, type VirtualizedListInstance } from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useDerivedValue, useReducedMotion, useSharedValue, withSpring, type SharedValue } from 'react-native-reanimated';
 import { CalendarDays, ChevronLeft, RotateCcw } from 'lucide-react-native';
 import type { EventFilters } from '@packages/app-core/events/types';
 import { productToday, shiftCalendarDay } from '@packages/app-core/events/discoveryFilters';
-import { DATE_RIBBON_CONTEXT_DAYS, DATE_RIBBON_DAY_WIDTH as STEP, dateRibbonIndex, dateRibbonSelection, dateRibbonWindow, withRibbonDay, withoutRibbonDay } from '@packages/app-core/events/dateRibbon';
+import { DATE_RIBBON_CONTEXT_DAYS, DATE_RIBBON_DAY_WIDTH as STEP, dateRibbonCalendar, dateRibbonDayAt, dateRibbonDayIndex, dateRibbonEventRanges, dateRibbonIndex, dateRibbonSelection, withRibbonDay, withoutRibbonDay, type DateRibbonCalendar } from '@packages/app-core/events/dateRibbon';
+import { useHomeEvents } from '../data/queries';
 import { usePreferences } from '../usePreferences';
 import { GlassSurface, supportsLiquidGlass } from '../ui/GlassSurface';
 import { Text } from '../ui/Text';
@@ -18,15 +19,17 @@ import { useDateRibbonHaptics } from './useDateRibbonHaptics';
 import { DateRibbonHaptics, hasNativeDateRibbonHaptics } from './DateRibbonHaptics';
 
 const AnimatedGlassSurface = Animated.createAnimatedComponent(GlassSurface);
+const calendarItemCount = (calendar: DateRibbonCalendar) => calendar.count;
 type RibbonKeyEvent = Parameters<NonNullable<ViewProps['onKeyDown']>>[0];
 
 type RibbonDayLabel = { day: string; weekday: string; number: number; month: string; full: string };
-const RibbonDay = React.memo(function RibbonDay({ label, selected, preview, today, onPick, context, contextWidth }: {
+const RibbonDay = React.memo(function RibbonDay({ label, selected, preview, today, onPick, context, contextWidth, hasEvents }: {
   label: RibbonDayLabel; selected: boolean; preview: boolean; today: string; onPick: (day: string) => void;
-  context: RibbonDayLabel[]; contextWidth: number;
+  context: RibbonDayLabel[]; contextWidth: number; hasEvents?: boolean;
 }) {
   const past = label.day < today;
   return <Pressable testID={'ribbon-day-' + label.day} accessibilityRole="button" tabIndex={Platform.OS === 'web' ? -1 : undefined}
+    {...(Platform.OS === 'web' ? { dataSet: { eventAvailability: hasEvents === undefined ? 'unknown' : hasEvents ? 'available' : 'empty' } } : {})}
     accessibilityLabel={label.full} accessibilityState={{ selected, disabled: past }} aria-pressed={selected}
     disabled={past} onPress={() => onPick(label.day)} style={[s.day, past && s.pastDay]}>
     {label.day === today && <View pointerEvents="none" accessibilityElementsHidden aria-hidden style={[s.pastContext, { width: contextWidth }]}>
@@ -37,33 +40,53 @@ const RibbonDay = React.memo(function RibbonDay({ label, selected, preview, toda
       </View>
     </View>}
     <Text style={[s.weekday, preview && s.centerText]}>{label.weekday}</Text>
-    <Text style={[s.number, preview && s.centerText]}>{label.number}</Text>
+    <Text style={[s.number, hasEvents === false && s.emptyNumber, preview && s.centerText]}>{label.number}</Text>
     <Text style={[s.month, preview && s.centerText]}>{label.month}</Text>
   </Pressable>;
 });
 
-export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress, source, expanded, calendarMotion, searching = false }: {
+export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress, source, expanded, calendarMotion, searching = false, center = null, minimumDay, maximumDay }: {
   filters: EventFilters; onChange: (filters: EventFilters) => void;
   onOpenChange: (open: boolean) => void; progress: SharedValue<number>; source: { x: number; y: number }; expanded: boolean;
-  calendarMotion: SharedValue<DiscoveryControlPose>; searching?: boolean;
+  calendarMotion: SharedValue<DiscoveryControlPose>; searching?: boolean; center?: readonly [number, number] | null;
+  /** Planning may start before 06:00 on the previous nightlife date. Discover keeps its defaults. */
+  minimumDay?: string; maximumDay?: string;
 }) {
   const { copy, language } = usePreferences('copy'), reduced = useReducedMotion(), id = useId();
-  const locale = language === 'ro' ? 'ro-RO' : 'en-GB', today = productToday();
+  const locale = language === 'ro' ? 'ro-RO' : 'en-GB', today = minimumDay ?? productToday();
   const selection = dateRibbonSelection(filters, today);
   const playTick = useDateRibbonSound(expanded && !searching);
   const vibrate = useDateRibbonHaptics(expanded && !searching);
   const contextDays = useMemo(() => Array.from({ length: DATE_RIBBON_CONTEXT_DAYS }, (_, index) => shiftCalendarDay(today, index - DATE_RIBBON_CONTEXT_DAYS)), [today]);
   const setExpanded = onOpenChange;
-  const [days, setDays] = useState(() => dateRibbonWindow(selection || today, today));
+  const calendar = useMemo(() => {const base=dateRibbonCalendar(today);return maximumDay?{...base,count:Math.max(1,Math.min(base.count,dateRibbonDayIndex(base,maximumDay)+1))}:base}, [today,maximumDay]);
+  // Reuse Home's fully paginated catalogue; a date-filtered list cannot prove
+  // that another day is empty. Unknown/error states keep their normal colors.
+  const catalogue = useHomeEvents(expanded && !searching);
+  const eventRanges = useMemo(() => catalogue.data && !catalogue.isError
+    ? dateRibbonEventRanges(catalogue.data, filters, center) : undefined,
+    [catalogue.data, catalogue.isError, filters.categories, filters.vibes, filters.city, filters.q,
+      filters.distance, center?.[0], center?.[1], today]);
+  const availability = useMemo(() => {
+    const cache = new Map<string, boolean>();
+    return (day: string) => {
+      if (!eventRanges) return undefined;
+      if (!cache.has(day)) {
+        if (cache.size >= 512) cache.delete(cache.keys().next().value!);
+        cache.set(day, eventRanges.some(range => day >= range.first && day <= range.last));
+      }
+      return cache.get(day);
+    };
+  }, [eventRanges]);
   const [preview, setPreview] = useState(selection || today), [width, setWidth] = useState(useWindowDimensions().width - 40);
-  const list = useRef<FlatList<string>>(null), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const list = useRef<VirtualizedListInstance>(null), timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const track = useRef<ViewInstance>(null);
   const previewRef = useRef(preview), committed = useRef(selection), dragging = useRef(false), momentum = useRef(false), interacted = useRef(false);
   const programmatic = useRef(false);
   const wasExpanded = useRef(false);
   const fullWidth = useSharedValue(width), sourcePoint = useSharedValue(source);
-  const latest = useRef({ filters, onChange, days, today, expanded });
-  latest.current = { filters, onChange, days, today, expanded };
+  const latest = useRef({ filters, onChange, calendar, today, expanded });
+  latest.current = { filters, onChange, calendar, today, expanded };
   const formatters = useMemo(() => ({
     weekday: new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }),
     full: new Intl.DateTimeFormat(locale, { dateStyle: 'full', timeZone: 'UTC' }),
@@ -80,16 +103,19 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
     const cache = new Map<string, RibbonDayLabel>();
     return { day: (day: string) => {
       let label = cache.get(day);
-      if (!label) { label = format(day); cache.set(day, label); }
+      if (!label) {
+        if (cache.size >= 512) cache.delete(cache.keys().next().value!);
+        label = format(day); cache.set(day, label);
+      } else { cache.delete(day); cache.set(day, label); }
       return label;
     }, context: contextDays.map(format) };
-  }, [days, contextDays, formatters]);
+  }, [contextDays, formatters]);
   const date = (day: string) => new Date(day + 'T12:00:00Z');
   const clearTimer = () => { clearTimeout(timer.current); timer.current = undefined; };
   const setDayPreview = (day: string) => { previewRef.current = day; setPreview(current => current === day ? current : day); };
   const updateScroll = (offset: number) => {
     if (!expanded) return;
-    const index = dateRibbonIndex(offset, days.length), day = days[index];
+    const index = dateRibbonIndex(offset, calendar.count), day = dateRibbonDayAt(calendar, index);
     if (!day) return;
     if (expanded && day !== previewRef.current && interacted.current && !programmatic.current) {
       if (!hasNativeDateRibbonHaptics) vibrate();
@@ -104,28 +130,21 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
     const day = previewRef.current < current.today ? current.today : previewRef.current;
     if (day !== previewRef.current) {
       programmatic.current = true; setDayPreview(day);
-      list.current?.scrollToOffset({ offset: current.days.indexOf(day) * STEP, animated: !reduced });
+      list.current?.scrollToOffset({ offset: Math.max(0, dateRibbonDayIndex(current.calendar, day)) * STEP, animated: !reduced });
     }
     const next = withRibbonDay(current.filters, day, current.today);
     committed.current = day;
     if (next !== current.filters) current.onChange(next);
-    const index = current.days.indexOf(day);
-    if (index < 12 || index > current.days.length - 13) {
-      const window = dateRibbonWindow(day, current.today);
-      if (window[0] !== current.days[0]) setDays(window);
-    }
   };
   useLayoutEffect(() => {
     interacted.current = false;
     if (expanded && !wasExpanded.current) {
       const day = selection && selection >= today ? selection : today;
       setDayPreview(day);
-      const window = dateRibbonWindow(day, today);
-      if (window[0] !== days[0]) setDays(window);
     }
     wasExpanded.current = expanded;
-    if (expanded) list.current?.scrollToOffset({ offset: Math.max(0, days.indexOf(previewRef.current)) * STEP, animated: false });
-  }, [days, width, expanded]);
+    if (expanded) list.current?.scrollToOffset({ offset: Math.max(0, dateRibbonDayIndex(calendar, previewRef.current)) * STEP, animated: false });
+  }, [calendar, width, expanded]);
   useEffect(() => { fullWidth.value = width; }, [width, fullWidth]);
   useEffect(() => { if (expanded && Platform.OS === 'web') { const frame = requestAnimationFrame(() => track.current?.focus()); return () => cancelAnimationFrame(frame); } }, [expanded]);
   useEffect(() => { sourcePoint.value = source; }, [source, sourcePoint]);
@@ -137,8 +156,9 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
     if (selection === committed.current) return;
     clearTimer(); committed.current = selection;
     const day = selection && selection >= today ? selection : today;
-    setDayPreview(day); setDays(dateRibbonWindow(day, today));
-  }, [selection, today]);
+    setDayPreview(day);
+    if (expanded) list.current?.scrollToOffset({ offset: Math.max(0, dateRibbonDayIndex(calendar, day)) * STEP, animated: false });
+  }, [selection, today, calendar, expanded]);
   useEffect(() => { if (searching) { clearTimer(); setExpanded(false); } }, [searching]);
   useEffect(() => () => { clearTimeout(timer.current); }, []);
   const geometry = useDerivedValue(() => {
@@ -168,18 +188,17 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
   const resetIconMotion = useAnimatedStyle(() => ({ opacity: smoothMorphPhase(progress.value, 0.12, 0.7) }));
   const reset = () => {
     clearTimer(); interacted.current = false; programmatic.current = true;
-    setDayPreview(today); setDays(dateRibbonWindow(today, today));
+    setDayPreview(today); list.current?.scrollToOffset({ offset: 0, animated: false });
     onChange(withoutRibbonDay(filters));
   };
   const pick = (day: string) => {
-    if (day < today || day > '2100-12-31') return;
+    if (day < today || day > (maximumDay ?? '2100-12-31')) return;
     if (day !== committed.current) { vibrate(); playTick(); }
     clearTimer(); programmatic.current = true; setDayPreview(day); committed.current = day;
     const next = withRibbonDay(filters, day, today);
     if (next !== filters) onChange(next);
-    const index = days.indexOf(day);
-    if (index < 0) setDays(dateRibbonWindow(day, today));
-    else list.current?.scrollToOffset({ offset: index * STEP, animated: !reduced });
+    const index = dateRibbonDayIndex(calendar, day);
+    if (index >= 0) list.current?.scrollToOffset({ offset: index * STEP, animated: !reduced });
   };
   const latestPick = useRef(pick);
   useLayoutEffect(() => { latestPick.current = pick; });
@@ -214,10 +233,13 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
             <DateRibbonHaptics enabled={expanded && !searching} stepWidth={STEP}/>
             <View pointerEvents="none" style={[s.center, { left: trackCenter - 22 }]} />
             <DateRibbonMask>
-            <FlatList ref={list} horizontal data={days} keyExtractor={day => day} testID="discovery-date-scroll"
+            <VirtualizedList ref={list} horizontal data={calendar} getItem={dateRibbonDayAt} getItemCount={calendarItemCount}
+              extraData={availability} keyExtractor={day => day} testID="discovery-date-scroll"
               showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft, paddingRight }}
               getItemLayout={(_, index) => ({ index, length: STEP, offset: index * STEP })}
-              initialNumToRender={13} maxToRenderPerBatch={13} windowSize={5}
+              // Coordinates stay fixed across months/years. Overscan prepares
+              // nearby dates without mounting the entire calendar or rebasing.
+              initialNumToRender={91} maxToRenderPerBatch={32} windowSize={31} updateCellsBatchingPeriod={16}
               snapToInterval={STEP} decelerationRate="fast" bounces={false} keyboardShouldPersistTaps="handled" scrollEventThrottle={1}
               onTouchStart={() => { interacted.current = true; programmatic.current = false; }}
               onPointerDown={() => { interacted.current = true; programmatic.current = false; }}
@@ -230,7 +252,7 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
                 if (!dragging.current && !momentum.current) { clearTimer(); timer.current = setTimeout(settle, 160); }
               }}
               renderItem={({ item: day }) => <RibbonDay label={labels.day(day)} selected={selection === day} preview={preview === day}
-                today={today} onPick={pickDay} context={labels.context} contextWidth={paddingLeft}/>}/>
+                today={today} onPick={pickDay} context={labels.context} contextWidth={paddingLeft} hasEvents={availability(day)}/>}/>
             </DateRibbonMask>
           </View>
           <Pressable testID="discovery-calendar-reset" accessibilityRole="button" accessibilityLabel={copy('filters.clearDates')} onPress={reset} style={s.action}>
@@ -259,6 +281,7 @@ const s = StyleSheet.create({
   contextRow: { position: 'absolute', right: 0, top: 0, height: 54, flexDirection: 'row' },
   weekday: { color: colors.muted, fontSize: 9, fontWeight: '500', textTransform: 'uppercase' },
   number: { color: colors.text, fontSize: 21, fontWeight: '700', lineHeight: 23, fontVariant: ['tabular-nums'] },
+  emptyNumber: { color: colors.muted },
   month: { color: colors.muted, fontSize: 8, lineHeight: 10, fontWeight: '500' },
   year: { color: colors.muted, fontSize: 9, lineHeight: 12, fontWeight: '600', fontVariant: ['tabular-nums'] },
   centerText: { color: 'white' },

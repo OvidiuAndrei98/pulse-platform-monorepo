@@ -13,6 +13,7 @@ import { sessionStorage } from "./storage";
 import { clearNativePayments } from "../checkout/nativePayment";
 import { purchaseCompletion } from "../checkout/purchaseCompletion";
 import { ticketCache } from "../data/ticketStorage";
+import {clearGroupSession} from '../groups/session';
 
 export const accountApi = createHttp(API_URL);
 export const sessionController = new SessionController(
@@ -32,6 +33,7 @@ export const sessionController = new SessionController(
     const previousAccount = sessionController.getSnapshot().user?.id;
     if (previousAccount) void ticketCache.remove(previousAccount).catch(() => {});
     clearNativePayments();
+    clearGroupSession();
     purchaseCompletion.clear();
     clearAccountQueries(queryClient);
   },

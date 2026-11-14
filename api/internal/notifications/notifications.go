@@ -28,6 +28,8 @@ type NotificationResponse struct {
 	Title          string `json:"title"`
 	Body           string `json:"body"`
 	EventID        string `json:"eventId,omitempty"`
+	GroupID        string `json:"groupId,omitempty"`
+	OutingPlanID   string `json:"outingPlanId,omitempty"`
 	ActorID        string `json:"actorId,omitempty"`
 	ActorUsername  string `json:"actorUsername,omitempty"`
 	ActorAvatarURL string `json:"actorAvatarUrl,omitempty"`
@@ -82,6 +84,8 @@ func (h *Handler) HandleList(w http.ResponseWriter, r *http.Request) {
 			Title:          row.Title,
 			Body:           row.Body,
 			EventID:        common.UUIDToString(row.EventID),
+			GroupID:        common.UUIDToString(row.FriendGroupID),
+			OutingPlanID:   common.UUIDToString(row.OutingPlanID),
 			ActorID:        common.UUIDToString(row.ActorID),
 			ActorUsername:  row.ActorUsername,
 			ActorAvatarURL: row.ActorAvatarUrl.String,

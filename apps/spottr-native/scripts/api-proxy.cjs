@@ -13,6 +13,17 @@ function createApiProxy(apiUrl, { timeoutMs = 15000 } = {}) {
   const transport = base.protocol === 'https:' ? https : http;
   const publicPath = /^\/(?:events(?:\/[0-9a-f-]{36}(?:\/(?:social|updates))?)?|profiles(?:\/(?:search|[0-9a-f-]{36}))?|organizers\/[0-9a-f-]{36}\/updates|promotions\/active)$/i;
   const routes = [
+    [/^\/outings\/groups$/, ['GET', 'POST']],
+    [/^\/outings\/groups\/[0-9a-f-]{36}$/i, ['GET']],
+    [/^\/outings\/groups\/[0-9a-f-]{36}\/messages$/i, ['GET', 'POST']],
+    [/^\/outings\/groups\/[0-9a-f-]{36}\/outings$/i, ['GET', 'POST']],
+    [/^\/outings\/groups\/[0-9a-f-]{36}\/actions$/i, ['POST']],
+    [/^\/outings\/plans\/[0-9a-f-]{36}\/(?:attendance|remove-proposal)$/i, ['POST']],
+    [/^\/outings\/(?:plans|transfers)$/, ['GET', 'POST']],
+    [/^\/outings\/plans\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}(?:\/changes)?$/i, ['GET']],
+    [/^\/outings\/plans\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\/(?:respond|proposals|vote|choose|ticket-status|availability|date|preferences|deadline|reopen|meeting|arrival)$/i, ['POST']],
+    [/^\/outings\/transfers\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\/respond$/i, ['POST']],
+    [/^\/outings\/meeting-point\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i, ['POST']],
     [/^\/event-feed$/, ['GET']],
     [/^\/events\/[0-9a-f-]{36}\/likes$/i, ['PUT', 'DELETE']],
     [/^\/media\/events\/[0-9a-f-]{36}\/[0-9a-f]+\.(?:jpe?g|png|webp)$/i, ['GET']],

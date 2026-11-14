@@ -193,7 +193,7 @@ func (h *Handler) HandleGetTicketTypesForEvent(w http.ResponseWriter, r *http.Re
 }
 
 func (h *Handler) HandleGetUserTickets(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control","no-store")
+	w.Header().Set("Cache-Control", "no-store")
 	ctx := r.Context()
 	userIDStr, err := auth.GetUserIDFromContext(ctx)
 	if err != nil || userIDStr == "" {
@@ -212,8 +212,19 @@ func (h *Handler) HandleGetUserTickets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result := make([]UserTicketResponse, 0, len(tickets))
+	assigned := map[string]string{}
+	assignments, e := h.Queries.ListUserAssignedTicketRecipients(ctx, userID)
+	if e != nil {
+		router.RespondWithError(w, 503, "Biletele nu au putut fi incarcate")
+		return
+	}
+	for _, assignment := range assignments {
+		assigned[assignment.TicketID] = assignment.RecipientID
+	}
 	for _, ticket := range tickets {
-		result = append(result, MapUserTicket(ticket))
+		item := MapUserTicket(ticket)
+		item.AssignedRecipientID = assigned[item.ID]
+		result = append(result, item)
 	}
 	router.RespondWithJSON(w, http.StatusOK, result)
 }
@@ -235,9 +246,22 @@ func (h *Handler) HandleGetUserOrders(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusInternalServerError, "Facturile nu au putut fi incarcate")
 		return
 	}
+	// Fetch the payer's recipient summaries once, including only the latest
+	// matching offer. Historical transfers must not duplicate an order row.
+	recipients := map[string][]OrderTicketRecipient{}
+	rows, e := h.Queries.ListUserOrderTicketRecipients(ctx, userID)
+	if e != nil {
+		router.RespondWithError(w, 503, "Comenzile nu au putut fi incarcate")
+		return
+	}
+	for _, recipient := range rows {
+		recipients[recipient.OrderID] = append(recipients[recipient.OrderID], OrderTicketRecipient{TicketID: recipient.TicketID, Name: recipient.RecipientName, Status: recipient.Status})
+	}
 	result := make([]UserOrderResponse, 0, len(orders))
 	for _, order := range orders {
-		result = append(result, MapUserOrder(order))
+		item := MapUserOrder(order)
+		item.TicketRecipients = recipients[common.UUIDToString(order.ID)]
+		result = append(result, item)
 	}
 	router.RespondWithJSON(w, http.StatusOK, result)
 }
@@ -799,8 +823,9 @@ func (h *Handler) HandleCreateOfflineSnapshot(w http.ResponseWriter, r *http.Req
 		return
 	}
 	defer tx.Rollback(ctx)
-	// Serialize snapshot issuance with transfers. This permanent gate survives
-	// snapshot cleanup and ensures no downloaded admission code is later rotated.
+	// Serialize snapshot issuance with transfers. The event gate stops new gift
+	// checkouts; the capture trigger permanently freezes each included credential.
+	// A pending payment may still issue a new, unexposed ticket after this pack.
 	var lockedID pgtype.UUID
 	err = tx.QueryRow(ctx, `UPDATE events SET ticket_transfers_locked=TRUE
 	    WHERE id=$1 AND status IN ('published','scheduled') AND end_time>CURRENT_TIMESTAMP RETURNING id`, eventID).Scan(&lockedID)
@@ -945,7 +970,7 @@ func (h *Handler) syncOfflineTicketScan(ctx context.Context, eventID, userID, sn
 		}
 		return result, nil
 	}
-	if invitation, handled, invitationErr := validateInvitation(ctx, qtx, eventID, strings.TrimSpace(scan.ValidationHash),scannedAt); invitationErr != nil {
+	if invitation, handled, invitationErr := validateInvitation(ctx, qtx, eventID, strings.TrimSpace(scan.ValidationHash), scannedAt); invitationErr != nil {
 		return OfflineTicketSyncResult{}, invitationErr
 	} else if handled {
 		result.Status, _ = invitation["status"].(string)
@@ -1235,7 +1260,7 @@ func (h *Handler) HandleValidateTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if invitation, handled, err := validateInvitation(ctx, h.Queries, eventID, req.ValidationHash,time.Now()); err != nil {
+	if invitation, handled, err := validateInvitation(ctx, h.Queries, eventID, req.ValidationHash, time.Now()); err != nil {
 		router.RespondWithError(w, http.StatusInternalServerError, "Invitatia nu a putut fi validata")
 		return
 	} else if handled {

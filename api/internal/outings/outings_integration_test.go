@@ -301,29 +301,6 @@ func TestSnapshotMembershipAndPermanentTransferCutoff(t *testing.T) {
 		t.Fatal("legacy writer issued a pack")
 	}
 }
-func TestPrivatePlanInvitationsVotesAndOwnerDecision(t *testing.T) {
-	f := seed(t)
-	payload := createPlanRequest{RequestID: key(t, f), Title: "Our night", EventIDs: []string{sid(f.event), sid(f.otherEvent)}, FriendIDs: []string{sid(f.users[1])}}
-	w := f.call("POST", "/plans", payload, f.users[0])
-	want(t, w, 201)
-	var p plan
-	_ = json.Unmarshal(w.Body.Bytes(), &p)
-	want(t, f.call("GET", "/plans/"+p.ID, nil, f.users[2]), 404)
-	want(t, f.call("POST", "/plans/"+p.ID+"/vote", map[string]string{"eventId": sid(f.event)}, f.users[1]), 404)
-	want(t, f.call("POST", "/plans/"+p.ID+"/respond", map[string]string{"status": "accepted"}, f.users[1]), 200)
-	for range 2 {
-		want(t, f.call("POST", "/plans/"+p.ID+"/vote", map[string]string{"eventId": sid(f.event)}, f.users[1]), 200)
-	}
-	var votes int
-	if e := f.pool.QueryRow(context.Background(), `SELECT count(*) FROM outing_plan_votes WHERE plan_id=$1`, p.ID).Scan(&votes); e != nil || votes != 1 {
-		t.Fatal("duplicate vote")
-	}
-	want(t, f.call("POST", "/plans/"+p.ID+"/choose", map[string]string{"eventId": sid(f.event)}, f.users[1]), 404)
-	want(t, f.call("POST", "/plans/"+p.ID+"/choose", map[string]string{"eventId": sid(f.event)}, f.users[0]), 200)
-	want(t, f.call("POST", "/plans/"+p.ID+"/vote", map[string]string{"eventId": sid(f.otherEvent)}, f.users[1]), 409)
-	want(t, f.call("POST", "/plans", payload, f.users[0]), 200)
-}
-
 func TestLegacyScanWinsBeforeAcceptanceAndCannotWinAfterIt(t *testing.T) {
 	f := seed(t)
 	x := createInvitation(t, f)
@@ -532,7 +509,7 @@ func TestNewSnapshotRejectsAnUnlistedTicketWithBackdatedScan(t *testing.T) {
 		t.Fatal("unlisted ticket accepted")
 	}
 }
-func TestNotificationsAreDurableOnceAndMeetingPointIsOwnerOnly(t *testing.T) {
+func TestTransferNotificationsAreDurableOnce(t *testing.T) {
 	f := seed(t)
 	x := createInvitation(t, f)
 	ctx := context.Background()
@@ -549,14 +526,5 @@ func TestNotificationsAreDurableOnceAndMeetingPointIsOwnerOnly(t *testing.T) {
 	if err := f.pool.QueryRow(ctx, `SELECT recipient_id FROM ticket_transfers WHERE id=$1`, x.ID).Scan(&recipient); err != nil || recipient.Valid {
 		t.Fatal("notification bound recipient before acceptance")
 	}
-	group := rowID(t, f.pool, `INSERT INTO event_safety_groups(event_id,owner_id,expires_at) SELECT id,$2,end_time+interval '24 hours' FROM events WHERE id=$1 RETURNING id`, f.event, f.users[0])
-	mustExec(t, f.pool, `INSERT INTO event_safety_group_members(group_id,event_id,user_id,status,invited_by) VALUES($1,$2,$3,'accepted',$3)`, group, f.event, f.users[0])
-	want(t, f.call("POST", "/meeting-point/"+sid(f.event), map[string]string{"content": "By the main entrance"}, f.users[1]), 404)
-	want(t, f.call("POST", "/meeting-point/"+sid(f.event), map[string]string{"content": "By the main entrance"}, f.users[0]), 200)
-	var point string
-	if err := f.pool.QueryRow(ctx, `SELECT meeting_point FROM event_safety_groups WHERE id=$1`, group).Scan(&point); err != nil || point != "By the main entrance" {
-		t.Fatal("meeting point not saved")
-	}
-	mustExec(t, f.pool, `UPDATE orders SET stripe_refund_status='partial',stripe_amount_refunded_bani=1 WHERE id=$1`, f.order)
-	want(t, f.call("POST", "/meeting-point/"+sid(f.event), map[string]string{"content": "No longer entitled"}, f.users[0]), 404)
+	want(t, f.call("POST", "/meeting-point/"+sid(f.event), map[string]string{"content": "retired"}, f.users[0]), 410)
 }

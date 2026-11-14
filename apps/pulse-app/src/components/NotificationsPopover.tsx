@@ -67,6 +67,11 @@ export function NotificationsPopover() {
   const openNotification = (notification: AppNotification) => {
     if (!notification.isRead) markRead(notification.id);
     setOpen(false);
+    if(notification.type.startsWith('friend_group_')){
+      window.dispatchEvent(new Event('spottr:layer-navigation'));
+      router.push(notification.groupId?'/groups/'+notification.groupId+(notification.outingPlanId?'/outings/'+notification.outingPlanId:''):'/friends');return;
+    }
+    if(notification.type.startsWith('safety_')){router.push('/friends');return;}
     if(notification.type.startsWith('outing_plan_')||notification.type==='ticket_transfer'){
       window.dispatchEvent(new Event('spottr:layer-navigation'));router.push(notification.type==='ticket_transfer'?'/ticket-transfers':'/outings');return;
     }
@@ -77,11 +82,7 @@ export function NotificationsPopover() {
     }
     if (notification.eventId) {
       window.dispatchEvent(new Event("spottr:layer-navigation"));
-      const isSafetyNotification = notification.type === "safety_group_invite" ||
-        notification.type === "safety_help" || notification.type === "safety_help_resolved";
-      router.push(routeForPlatform(isSafetyNotification
-        ? `/events/${notification.eventId}/group`
-        : `/events/${notification.eventId}`));
+      router.push(routeForPlatform(`/events/${notification.eventId}`));
     } else if (notification.actorId) {
       window.dispatchEvent(new Event("spottr:layer-navigation"));
       router.push(routeForPlatform(`/users/${notification.actorId}`));
@@ -224,8 +225,8 @@ function NotificationIcon({ notification }: { notification: AppNotification }) {
   }
 
   const Icon =
-    notification.type.startsWith("safety_")
-      ? ShieldAlert
+    notification.type.startsWith("friend_group_")
+      ? UsersRound
       : notification.type === "ticket_purchased"
       ? Ticket
       : notification.type === "organizer_event"

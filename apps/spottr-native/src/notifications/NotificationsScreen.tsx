@@ -58,11 +58,12 @@ function NotificationsInbox({ navigation }: Props) {
     void query.markRead(item);
     const target = notificationDestination(item);
     if (item.type === 'ticket_transfer') navigation.navigate('TicketTransfers');
-    else if (item.type.startsWith('outing_plan_')) navigation.navigate('Outings');
+    else if (target?.kind === 'group') navigation.navigate('FriendGroup',{id:target.id});
+    else if (target?.kind === 'outing') navigation.navigate('GroupOuting',{groupId:target.groupId,planId:target.id});
+    else if (item.type.startsWith('outing_plan_')) navigation.navigate('Groups');
     else if (item.type === 'ticket_purchased') openAccountPage(navigation, 'Tickets');
     else if (target?.kind === 'event') navigation.navigate('Event', { id: target.id, presentation: 'page' });
     else if (target?.kind === 'profile') navigation.navigate('PublicProfile', { id: target.id });
-    else if (target) navigation.navigate('SafetyGroup', { eventId: target.id });
   };
   const respond = async (item: Notification, status: 'accepted' | 'declined') => {
     if (item.actorId && await social.respond(item.actorId, status, item.id) && status === 'accepted') await query.markRead(item);

@@ -2,6 +2,8 @@ package outings
 
 import (
 	"context"
+	"errors"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -60,6 +62,22 @@ func loadPlanContext(ctx context.Context, q queryer, id pgtype.UUID, p *plan) er
 }
 
 func loadPlanDetails(ctx context.Context, q queryer, id, actor pgtype.UUID, p *plan) error {
+	if p.ChosenEventID != "" {
+		gift := false
+		if err := q.QueryRow(ctx, `SELECT status='published' AND start_time>CURRENT_TIMESTAMP AND NOT ticket_transfers_locked FROM events WHERE id=$1::uuid`, p.ChosenEventID).Scan(&gift); err != nil {
+			return err
+		}
+		p.GiftPurchasesAvailable = &gift
+		payment := pendingPlanPayment{}
+		err := q.QueryRow(ctx, `SELECT o.id::text,COALESCE(o.stripe_checkout_session_id,'') FROM orders o JOIN checkout_payment_attempts attempt ON attempt.order_id=o.id WHERE o.user_id=$1 AND o.event_id=$2::uuid
+       AND o.status IN ('pending','failed') AND NOT EXISTS(SELECT 1 FROM checkout_closed_payments c WHERE c.order_id=o.id) ORDER BY o.created_at DESC LIMIT 1`, actor, p.ChosenEventID).Scan(&payment.OrderID, &payment.SessionID)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if err == nil {
+			p.MyPendingPayment = &payment
+		}
+	}
 	var budget *int
 	if err := q.QueryRow(ctx, `SELECT budget_bani FROM outing_plan_members WHERE plan_id=$1 AND user_id=$2`, id, actor).Scan(&budget); err != nil {
 		return err
@@ -81,6 +99,9 @@ func loadPlanDetails(ctx context.Context, q queryer, id, actor pgtype.UUID, p *p
     FROM outing_plan_members m JOIN users u ON u.id=m.user_id WHERE m.plan_id=$1 AND m.user_id=$2`, id, m.UserID).
 			Scan(&m.AvatarURL, &m.ArrivalStatus, &m.ArrivalUpdatedAt, &m.HasPreviousTicket); err != nil {
 			return err
+		}
+		if m.UserID != sid(actor) {
+			m.HasPreviousTicket = false
 		}
 	}
 	for i := range p.Options {

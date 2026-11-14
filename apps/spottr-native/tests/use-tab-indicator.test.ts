@@ -7,6 +7,7 @@ import ts from 'typescript';
 
 function mount(platform = 'ios') {
   const slots: any[] = [], effects: (() => void)[] = [], springs: number[] = [], timings: number[] = [];
+  const timingOptions: { duration: number; easing: unknown }[] = [];
   let cursor = 0, cancellations = 0, position: any, reduceMotion: ((value: boolean) => void) | undefined;
   const react = {
     useRef(initial: any) { const i = cursor++; return slots[i] ??= { current: initial }; },
@@ -32,8 +33,8 @@ function mount(platform = 'ios') {
       cancelAnimation() { cancellations++; },
       runOnUI: (callback: any) => callback,
       withSpring(target: number) { springs.push(target); return target; },
-      withTiming(target: number) { timings.push(target); return target; },
-      Easing: { bezier: () => 'easing' },
+      withTiming(target: number, options: { duration: number; easing: unknown }) { timings.push(target); timingOptions.push(options); return target; },
+      Easing: { bezier: (...points: number[]) => points },
     },
     './tabCapsuleSpring': { withTabTravel: (target: number) => deps['react-native-reanimated'].withSpring(target) },
   };
@@ -41,7 +42,7 @@ function mount(platform = 'ios') {
   const output = ts.transpileModule(readFileSync(resolve(__dirname, '../src/navigation/useTabIndicator.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
   runInNewContext(output, { exports, require: (name: string) => { assert.ok(name in deps, name); return deps[name]; } });
   const render = (index: number, width = 88, enabled = true, gesture?: any) => { cursor = 0; position = exports.useTabIndicator(index, width, enabled, gesture); while (effects.length) effects.shift()!(); return position; };
-  return { render, springs, timings, cancellations: () => cancellations,
+  return { render, springs, timings, timingOptions, cancellations: () => cancellations,
     reduceMotion: (value: boolean) => reduceMotion?.(value),
     unmount: () => slots.forEach(slot => slot?.cleanup?.()),
   };
@@ -71,7 +72,16 @@ test('reduced motion resolves directly and disabling the animation cancels it', 
 
 test('Android keeps timed movement and browser movement remains owned by its timeline', () => {
   const android = mount('android'); android.render(0); android.render(1);
-  assert.deepEqual(android.timings, [88]); assert.deepEqual(android.springs, []); android.unmount();
+  assert.deepEqual(android.timings, [88]); assert.deepEqual(android.springs, []);
+  const timing = android.timingOptions[0]; assert.ok(timing);
+  assert.equal(timing.duration, 200);
+  assert.deepEqual(timing.easing, [.2, 0, .2, 1]);
+  android.reduceMotion(true); android.render(3);
+  assert.equal(android.timings.length, 1, 'Reduced motion snaps directly without another animation');
+  android.reduceMotion(false);
+  assert.equal(android.render(3, 100).value, 300, 'Rotation updates Android geometry directly without travelling outside the resized bar');
+  assert.equal(android.timings.length, 1);
+  android.unmount();
   const browser = mount('web'); browser.render(0); browser.render(1);
   assert.deepEqual(browser.timings, []); assert.deepEqual(browser.springs, []); browser.unmount();
 });
