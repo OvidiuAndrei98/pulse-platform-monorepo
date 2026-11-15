@@ -1793,6 +1793,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/outings/plans/{planID}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["FriendGroups_updateContext"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/outings/plans/{planID}/date": {
         parameters: {
             query?: never;
@@ -2806,10 +2822,16 @@ export interface components {
             visibleAfterSeq: number;
             /** Format: date-time */
             joinedAt?: string;
+            /** Format: date-time */
+            activityAt?: string;
             /** Format: int32 */
             unread: number;
             muted: boolean;
             preview: string;
+            /** @enum {string} */
+            previewKind?: "text" | "event" | "outing";
+            previewAuthor?: string;
+            previewDate?: string;
             members: components["schemas"]["FriendGroupMember"][];
             outings: components["schemas"]["OutingPlan"][];
             outingsHasMore: boolean;
@@ -2846,12 +2868,22 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             event?: components["schemas"]["SharedGroupEvent"];
+            outingContext?: components["schemas"]["GroupOutingMessageContext"];
         };
         GroupMessages: {
             items: components["schemas"]["FriendGroupMessage"][];
             hasMore: boolean;
             /** Format: int64 */
             revision: number;
+        };
+        GroupOutingMessageContext: {
+            /** Format: int32 */
+            decisionRound: number;
+            title: string;
+            city: string;
+            outingDate?: string;
+            candidateDates: string[];
+            chosenEventId?: string;
         };
         GroupOutingsPage: {
             items: components["schemas"]["OutingPlan"][];
@@ -3146,14 +3178,37 @@ export interface components {
             date: string;
             /** @enum {string} */
             answer: "yes" | "maybe" | "no";
+            /** Format: int64 */
+            revision?: number;
         };
         OutingChanges: {
             /** Format: int64 */
             revision: number;
             changed: boolean;
         };
+        OutingContextError: {
+            error: string;
+            existingPlanId?: string;
+            impact?: components["schemas"]["OutingContextImpact"];
+        };
+        OutingContextImpact: {
+            /** Format: int32 */
+            availabilityResponses: number;
+            /** Format: int32 */
+            eventPreferences: number;
+            /** Format: int32 */
+            attendanceResponses: number;
+            /** Format: int32 */
+            proposalsKept: number;
+            /** Format: int32 */
+            proposalsIncompatible: number;
+            destinationCleared: boolean;
+            ticketsUnaffected: boolean;
+        };
         OutingDateChoice: {
             date: string;
+            /** Format: int64 */
+            revision?: number;
         };
         OutingDateOption: {
             date: string;
@@ -3162,14 +3217,21 @@ export interface components {
         OutingDeadline: {
             /** Format: date-time */
             decisionAt: string;
+            /** Format: int64 */
+            revision?: number;
         };
         OutingEventChoice: {
             eventId: string;
+            /** Format: int64 */
+            revision?: number;
         };
         OutingEventVote: {
             eventId: string;
             /** @enum {string} */
             answer?: "yes" | "maybe" | "no";
+            remove?: boolean;
+            /** Format: int64 */
+            revision?: number;
         };
         OutingMeeting: {
             place: string;
@@ -3624,6 +3686,10 @@ export interface components {
             eventBannerUrl?: string;
             /** Format: date-time */
             eventStartTime: string;
+            /** Format: date-time */
+            eventEndTime?: string;
+            eventLocation?: string;
+            eventCity?: string;
             organizerName?: string;
             organizerUpdateId?: string;
             organizerUpdateImageUrl?: string;
@@ -3732,6 +3798,15 @@ export interface components {
         UpdateEventRsvpPayload: {
             /** @enum {string} */
             status: "interested" | "going";
+        };
+        UpdateOutingContext: {
+            /** Format: int64 */
+            revision: number;
+            city: string;
+            date?: string;
+            dates?: string[];
+            title?: string;
+            confirmImpact?: boolean;
         };
         UpdateTicketTypePayload: {
             id: string;
@@ -5885,6 +5960,8 @@ export interface operations {
                 city?: string;
                 vibe?: string;
                 startsAfter?: string;
+                /** @description Selected outing night in Europe/Bucharest, using [06:00, next local 06:00), applied before pagination. */
+                nightDate?: string;
                 startsBefore?: string;
                 isLive?: boolean;
                 latMin?: number;
@@ -7240,6 +7317,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OutingMutationResult"];
+                };
+            };
+        };
+    };
+    FriendGroups_updateContext: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planID: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOutingContext"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingPlan"];
+                };
+            };
+            /** @description The server could not understand the request due to invalid syntax. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingContextError"];
+                };
+            };
+            /** @description Access is unauthorized. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingContextError"];
+                };
+            };
+            /** @description Access is forbidden. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingContextError"];
+                };
+            };
+            /** @description The server cannot find the requested resource. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingContextError"];
+                };
+            };
+            /** @description The request conflicts with the current state of the server. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingContextError"];
+                };
+            };
+            /** @description Client error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingContextError"];
+                };
+            };
+            /** @description Server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutingContextError"];
                 };
             };
         };

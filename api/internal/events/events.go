@@ -758,6 +758,21 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 		router.RespondWithError(w, http.StatusBadRequest, "Intervalul de timp este invalid")
 		return
 	}
+	var occurrenceStartsAfter pgtype.Timestamptz
+	if night := r.URL.Query().Get("nightDate"); night != "" {
+		start, end, err := common.NightBounds(night)
+		if err != nil {
+			router.RespondWithError(w, http.StatusBadRequest, "INVALID_NIGHT_DATE")
+			return
+		}
+		if startsAfter.Valid || startsBefore.Valid {
+			router.RespondWithError(w, http.StatusBadRequest, "AMBIGUOUS_NIGHT_INTERVAL")
+			return
+		}
+		startsAfter = pgtype.Timestamptz{Time: start, Valid: true}
+		startsBefore = pgtype.Timestamptz{Time: end, Valid: true}
+		occurrenceStartsAfter = startsAfter
+	}
 	pageStr := r.URL.Query().Get("page")
 	organizerID := pgtype.UUID{}
 	if organizerIDValue := r.URL.Query().Get("organizerId"); organizerIDValue != "" {
@@ -785,15 +800,16 @@ func (h *Handler) HandleListEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	params := db.ListEventsParams{
-		Category:      category,
-		City:          city,
-		Vibe:          vibe,
-		SearchPattern: searchPattern,
-		StartsAfter:   startsAfter,
-		StartsBefore:  startsBefore,
-		ReqLimit:      pageSize,
-		ReqOffset:     offset,
-		OrganizerID:   organizerID,
+		Category:              category,
+		City:                  city,
+		Vibe:                  vibe,
+		SearchPattern:         searchPattern,
+		StartsAfter:           startsAfter,
+		StartsBefore:          startsBefore,
+		OccurrenceStartsAfter: occurrenceStartsAfter,
+		ReqLimit:              pageSize,
+		ReqOffset:             offset,
+		OrganizerID:           organizerID,
 	}
 
 	// Setăm valoarea pentru starea Check-In a utilizatorului curent

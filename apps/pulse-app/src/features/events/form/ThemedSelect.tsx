@@ -63,14 +63,14 @@ export function ThemedSelect({value,onChange,options,placeholder,icon:Icon,id,in
   };
   return <div ref={root} className={s.root} data-variant={variant}>
     {name&&<input type="hidden" name={name} value={value} disabled={disabled||!options.length}/>}
-    <button ref={button} id={id} type="button" role="combobox" data-testid={testId} className={s.trigger}
+    <button ref={button} id={id} type="button" role="combobox" data-testid={testId} data-value={value} className={s.trigger}
       aria-label={label??placeholder} aria-invalid={invalid} aria-describedby={describedBy} disabled={disabled||!options.length}
       aria-haspopup="listbox" aria-expanded={open} aria-controls={open?listId:undefined} aria-activedescendant={open?uid+'-'+active:undefined}
       onKeyDown={keyboard} onClick={()=>open?close():show()}>
       {Icon&&<Icon aria-hidden className={s.icon}/>}<span className={s.value}>{selected?.label||placeholder}</span><ChevronDown aria-hidden className={s.chevron} data-open={open}/>
     </button>
     {open&&<div ref={menu} id={listId} popover="manual" role="listbox" aria-label={label??placeholder} className={s.menu} style={position} data-testid={testId?testId+'-options':undefined}>
-      {options.map((option,index)=><div id={uid+'-'+index} key={option.value} role="option" aria-selected={value===option.value} data-index={index} data-active={active===index}
+      {options.map((option,index)=><div id={uid+'-'+index} key={option.value} role="option" aria-selected={value===option.value} data-value={option.value} data-index={index} data-active={active===index}
         className={s.option} onPointerMove={()=>setActive(index)} onClick={event=>{event.preventDefault();select(index);}}>
         <span>{option.label}</span>{value===option.value&&<Check aria-hidden size={16}/>}</div>)}
     </div>}

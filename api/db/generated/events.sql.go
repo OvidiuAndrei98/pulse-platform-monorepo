@@ -892,17 +892,21 @@ SELECT
     ) AS lineup
 FROM events e
 WHERE ($2::VARCHAR = '' OR $2 IS NULL OR e.category = ANY(string_to_array($2::VARCHAR, ',')))
-  AND ($3::VARCHAR = '' OR $3 IS NULL OR e.city = $3)
+  AND ($3::VARCHAR = '' OR $3 IS NULL OR
+       translate(lower(btrim(normalize(e.city,NFC))), 'ăâîșşțţ', 'aaisstt') = translate(lower(btrim(normalize($3::text,NFC))), 'ăâîșşțţ', 'aaisstt'))
   AND ($4::VARCHAR = '' OR $4 IS NULL OR e.vibe = ANY(string_to_array($4::VARCHAR, ',')))
   AND ($5::TIMESTAMPTZ IS NULL OR e.end_time > $5)
   AND ($6::TIMESTAMPTZ IS NULL OR e.start_time < $6)
+  -- An outing night is occurrence-start eligibility, unlike the generic
+  -- Discover overlap interval. Filter before LIMIT/OFFSET, not after a page.
+  AND ($7::TIMESTAMPTZ IS NULL OR e.start_time >= $7)
   -- Filtre geolocație cu nume clare
-  AND ($7::FLOAT IS NULL OR e.latitude BETWEEN $7 AND $8)
-  AND ($9::FLOAT IS NULL OR e.longitude BETWEEN $9 AND $10)
+  AND ($8::FLOAT IS NULL OR e.latitude BETWEEN $8 AND $9)
+  AND ($10::FLOAT IS NULL OR e.longitude BETWEEN $10 AND $11)
   -- Filtru ID specific
-  AND ($11::UUID IS NULL OR e.id = $11)
+  AND ($12::UUID IS NULL OR e.id = $12)
   -- Filtru organizator pentru profilul public
-  AND ($12::UUID IS NULL OR e.organizer_id = $12)
+  AND ($13::UUID IS NULL OR e.organizer_id = $13)
   AND NOT EXISTS (
       SELECT 1 FROM user_hidden_event_categories hidden
       WHERE hidden.user_id = $1 AND hidden.category = UPPER(e.category)
@@ -910,33 +914,34 @@ WHERE ($2::VARCHAR = '' OR $2 IS NULL OR e.category = ANY(string_to_array($2::VA
   AND (
       e.status = 'published'
       OR (
-          $12::UUID IS NOT NULL
+          $13::UUID IS NOT NULL
           AND e.status = 'completed'
           AND e.was_published = TRUE
       )
   )
-  AND ($13::TEXT = '' OR
-      lower(e.title || ' ' || e.location_name || ' ' || e.city || ' ' || e.category || ' ' || e.id::text) LIKE $13)
+  AND ($14::TEXT = '' OR
+      lower(e.title || ' ' || e.location_name || ' ' || e.city || ' ' || e.category || ' ' || e.id::text) LIKE $14)
 ORDER BY e.start_time DESC, e.id ASC
-LIMIT $15 OFFSET $14
+LIMIT $16 OFFSET $15
 `
 
 type ListEventsParams struct {
-	UserID        pgtype.UUID        `json:"user_id"`
-	Category      string             `json:"category"`
-	City          string             `json:"city"`
-	Vibe          string             `json:"vibe"`
-	StartsAfter   pgtype.Timestamptz `json:"starts_after"`
-	StartsBefore  pgtype.Timestamptz `json:"starts_before"`
-	LatMin        pgtype.Float8      `json:"lat_min"`
-	LatMax        pgtype.Float8      `json:"lat_max"`
-	LonMin        pgtype.Float8      `json:"lon_min"`
-	LonMax        pgtype.Float8      `json:"lon_max"`
-	EventID       pgtype.UUID        `json:"event_id"`
-	OrganizerID   pgtype.UUID        `json:"organizer_id"`
-	SearchPattern string             `json:"search_pattern"`
-	ReqOffset     int32              `json:"req_offset"`
-	ReqLimit      int32              `json:"req_limit"`
+	UserID                pgtype.UUID        `json:"user_id"`
+	Category              string             `json:"category"`
+	City                  string             `json:"city"`
+	Vibe                  string             `json:"vibe"`
+	StartsAfter           pgtype.Timestamptz `json:"starts_after"`
+	StartsBefore          pgtype.Timestamptz `json:"starts_before"`
+	OccurrenceStartsAfter pgtype.Timestamptz `json:"occurrence_starts_after"`
+	LatMin                pgtype.Float8      `json:"lat_min"`
+	LatMax                pgtype.Float8      `json:"lat_max"`
+	LonMin                pgtype.Float8      `json:"lon_min"`
+	LonMax                pgtype.Float8      `json:"lon_max"`
+	EventID               pgtype.UUID        `json:"event_id"`
+	OrganizerID           pgtype.UUID        `json:"organizer_id"`
+	SearchPattern         string             `json:"search_pattern"`
+	ReqOffset             int32              `json:"req_offset"`
+	ReqLimit              int32              `json:"req_limit"`
 }
 
 type ListEventsRow struct {
@@ -977,6 +982,7 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]ListE
 		arg.Vibe,
 		arg.StartsAfter,
 		arg.StartsBefore,
+		arg.OccurrenceStartsAfter,
 		arg.LatMin,
 		arg.LatMax,
 		arg.LonMin,

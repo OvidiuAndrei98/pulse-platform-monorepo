@@ -111,3 +111,12 @@ export function keyboardMorphProgress(value: number, keyboardFrom: number, targe
   const travel = Math.abs(distance) < .001 ? 1 : morphPhase((value - keyboardFrom) / distance);
   return morphFrom + (target - morphFrom) * travel;
 }
+
+/** Keep the permanently mounted native input at its previous screen-space pose
+ * while its glass parent carries the existing destination spring. */
+export function nativeSearchInputCompensation(bounds:SearchMorphBounds,geometry:ReturnType<typeof searchMorphGeometry>){
+ 'worklet';
+ const sx=geometry.destinationScaleX,sy=geometry.fieldScaleY;
+ return {left:(geometry.searchX-bounds.destination.x-geometry.destinationOffsetX)/sx,
+  top:bounds.destination.height*(sy-1)/(2*sy),width:geometry.searchWidth,scaleX:1/sx,scaleY:1/sy};
+}

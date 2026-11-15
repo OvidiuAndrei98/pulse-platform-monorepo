@@ -1,6 +1,9 @@
 import { planningCopy } from '../outings/planningCopy';
 import { outingExperienceCopy } from '../outings/experience';
 import {groupsCopy} from '../social/groupsCopy';
+import {groupCorrectionsCopy} from '../social/groupCorrectionsCopy';
+import {groupSettingsCopy} from '../social/groupSettingsCopy';
+import {groupDecisionCopy} from '../social/groupDecisionCopy';
 const groupNotices={en:{inviteBody:'{{name}} invited you to a private friend group.',proposedBody:'A new night is being planned in your group.',messageBody:'There are new messages in your group.'},ro:{inviteBody:'{{name}} te-a invitat într-un grup privat de prieteni.',proposedBody:'Se pregătește o nouă ieșire în grupul tău.',messageBody:'Ai mesaje noi în grup.'}};
 const discoveryTranslations = {
   en: {
@@ -751,7 +754,7 @@ const wardrobeTranslations = {
 export const resources = {
   en: {
     translation: {
-      groups:{...groupsCopy.en,...groupNotices.en,retired:'Event conversations have been retired',retiredHint:'Continue with a private friend group in Social. No group is created automatically.',legacyPlans:'Previous plans',legacyHint:'This earlier plan is available to read. Your tickets and orders remain in your account.'},
+      groups:{...groupsCopy.en,...groupCorrectionsCopy.en,...groupSettingsCopy.en,...groupDecisionCopy.en,...groupNotices.en,retired:'Event conversations have been retired',retiredHint:'Continue with a private friend group in Social. No group is created automatically.',legacyPlans:'Previous plans',legacyHint:'This earlier plan is available to read. Your tickets and orders remain in your account.'},
       wardrobe: wardrobeTranslations.en,
       outings: outingsTranslations.en,
       discovery: discoveryTranslations.en,
@@ -2497,7 +2500,7 @@ export const resources = {
   },
   ro: {
     translation: {
-      groups:{...groupsCopy.ro,...groupNotices.ro,retired:'Conversațiile automate ale evenimentelor au fost retrase',retiredHint:'Continuă într-un grup privat de prieteni din Social. Niciun grup nu este creat automat.',legacyPlans:'Planuri anterioare',legacyHint:'Acest plan anterior poate fi consultat. Biletele și comenzile tale rămân în cont.'},
+      groups:{...groupsCopy.ro,...groupCorrectionsCopy.ro,...groupSettingsCopy.ro,...groupDecisionCopy.ro,...groupNotices.ro,retired:'Conversațiile automate ale evenimentelor au fost retrase',retiredHint:'Continuă într-un grup privat de prieteni din Social. Niciun grup nu este creat automat.',legacyPlans:'Planuri anterioare',legacyHint:'Acest plan anterior poate fi consultat. Biletele și comenzile tale rămân în cont.'},
       wardrobe: wardrobeTranslations.ro,
       outings: outingsTranslations.ro,
       discovery: discoveryTranslations.ro,

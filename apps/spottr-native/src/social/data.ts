@@ -23,7 +23,7 @@ export function parseFeed(value: unknown): SocialFeedItem[] {
     const optional = (key: string) => text(row[key]) ? row[key] : undefined;
     return [{ activityType: row.activityType as SocialFeedItem['activityType'], actorId: row.actorId, actorUsername: row.actorUsername,
       eventId: row.eventId, eventTitle: row.eventTitle, occurredAt: row.occurredAt, eventStartTime: row.eventStartTime,
-      actorAvatarUrl: optional('actorAvatarUrl'), eventBannerUrl: optional('eventBannerUrl'), organizerName: optional('organizerName'),
+      actorAvatarUrl: optional('actorAvatarUrl'), eventBannerUrl: optional('eventBannerUrl'), eventEndTime: optional('eventEndTime'), eventLocation: optional('eventLocation'), eventCity: optional('eventCity'), organizerName: optional('organizerName'),
       organizerUpdateId: optional('organizerUpdateId'), organizerUpdateImageUrl: optional('organizerUpdateImageUrl'), organizerUpdateCaption: optional('organizerUpdateCaption') }];
   });
 }

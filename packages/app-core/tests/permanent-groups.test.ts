@@ -30,7 +30,7 @@ test('sharing an event preserves an unrelated unsent draft',async()=>{
  await store.load(gid);store.draft(gid,'Private unsent draft');await store.send(gid,id(40));assert.equal(body.content,'');assert.equal(body.eventId,id(40));assert.equal(store.getSnapshot().drafts[gid],'Private unsent draft');
 });
 test('revoked membership invalidates an older in-flight messages response',async()=>{
- let deny=false,wait=false;const old=deferred<any>();const {store}=setup(async(path)=>{if(path.endsWith('/messages'))return wait?old.promise:{items:[message(1)],hasMore:false,revision:1};if(deny)throw {status:404};return group({lastSeq:1})});
+ let deny=false,wait=false;const old=deferred<any>();const {store}=setup(async(path)=>{if(path.endsWith('/messages'))return wait?old.promise:{items:[message(1)],hasMore:false,revision:1};if(deny)throw {status:404,code:'GROUP_ACCESS_LOST'};return group({lastSeq:1})});
  await store.load(gid);wait=true;const pending=store.loadMessages(gid);deny=true;await store.load(gid);assert.equal(store.getSnapshot().messages[gid],undefined);old.resolve({items:[message(2)],hasMore:false,revision:1});await pending;assert.equal(store.getSnapshot().messages[gid],undefined);assert.equal(store.getSnapshot().groups.length,0);
 });
 test('accepted→pending→reaccepted purges old private caches and lifts the local access-lost state',async()=>{
@@ -76,7 +76,7 @@ test('fresh group detail overrides hydrated outing fields without dropping older
 });
 
 test('opening an old outing never changes the paginated history cursor',async()=>{
- const pages:string[]=[];const {store}=setup(async path=>{if(path.endsWith('/messages'))return{items:[],hasMore:false};if(path.startsWith('/outings/plans/'))return outing(90,{createdAt:'2020-01-01T00:00:00Z'});if(path.includes('/outings/groups/')&&path.includes('/outings')){pages.push(path);return{items:[outing(31)],hasMore:true}}return group()});
+ const pages:string[]=[];const {store}=setup(async path=>{if(path.endsWith('/messages'))return{items:[],hasMore:false};if(path.startsWith('/outings/plans/'))return outing(90,{createdAt:'2020-01-01T00:00:00Z'});if(path.startsWith('/outings/groups/'+gid+'/outings')){pages.push(path);return{items:[outing(31)],hasMore:true}}return group()});
  await store.load(gid);await store.loadHistory(gid);await store.loadPlan(gid,id(90));await store.loadHistory(gid,true);assert.equal(pages.at(-1),'/outings/groups/'+gid+'/outings?before='+id(31));
 });
 

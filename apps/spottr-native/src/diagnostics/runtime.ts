@@ -9,6 +9,7 @@ import { safeVersion } from "@packages/app-core/diagnostics/report";
 import { createErrorReporter } from "./reporter";
 import { bindHandledReporting } from './handled';
 import { diagnosticVersions } from './metadata';
+import { installBrowserErrorReporting } from './browserErrors';
 
 const enabled =
   process.env.EXPO_PUBLIC_DIAGNOSTICS_ENABLED === "true" ||
@@ -75,12 +76,7 @@ export function installErrorReporting() {
   if (installed || !reporter) return;
   installed = true;
   if (Platform.OS === "web") {
-    window.addEventListener("error", (event) =>
-      captureAppError(event.error, true),
-    );
-    window.addEventListener("unhandledrejection", (event) =>
-      captureAppError(event.reason),
-    );
+    installBrowserErrorReporting(window, captureAppError);
   } else {
     const utils = (globalThis as unknown as { ErrorUtils?: ErrorUtils })
       .ErrorUtils;

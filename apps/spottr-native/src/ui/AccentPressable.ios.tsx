@@ -11,7 +11,7 @@ const glass: typeof import('expo-glass-effect') | null =
 const NativeGlassView = glass?.isLiquidGlassAvailable() && glass.isGlassEffectAPIAvailable() ? glass.GlassView : null;
 
 export const AccentPressable = forwardRef<ViewInstance, AccentPressableProps>(function AccentPressable(
-  { style, disabled = false, accessibilityState, fallback, onLayout, glassColor, ...props }, ref,
+  { style, disabled = false, accessibilityState, fallback, onLayout, glassColor, nativePressEffect=true, ...props }, ref,
 ) {
   const flat = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style) ?? {};
   if (!NativeGlassView) return <AccentPressableFallback {...props}
@@ -21,7 +21,7 @@ export const AccentPressable = forwardRef<ViewInstance, AccentPressableProps>(fu
   const motionProps = Control === MotionPressable ? { static: accent } : {};
   return <NativeGlassView style={styles.surface} onLayout={onLayout} {...liquidGlassAppearance}
     glassEffectStyle={accent ? liquidGlassAppearance.glassEffectStyle : 'none'} tintColor={accent ? glassColor ?? flat.backgroundColor : undefined}
-    isInteractive={accent} pointerEvents={disabled ? 'none' : 'auto'}>
+    isInteractive={accent&&nativePressEffect} pointerEvents={disabled ? 'none' : 'auto'}>
     <Control {...props} {...motionProps} ref={ref} disabled={disabled}
       accessibilityRole={props.accessibilityRole ?? 'button'} accessibilityState={{ ...accessibilityState, disabled }}
       style={state => typeof style === 'function'

@@ -2,18 +2,21 @@ import React from 'react';
 import { Pressable, StyleSheet, View, type ViewProps } from 'react-native';
 import NativeMaskedView from '@react-native-masked-view/masked-view';
 import Svg, { Defs, Mask, Rect } from 'react-native-svg';
-import Animated, { useAnimatedProps, useAnimatedReaction, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedProps, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import { ChevronLeft, Search } from 'lucide-react-native';
 import { GlassButtonGroup } from '../ui/GlassButtonGroup';
 import { GlassPressable } from '../ui/GlassPressable';
-import { GlassSurface } from '../ui/GlassSurface';
-import { smoothMorphPhase, iosSearchSourceHandoff } from './searchMorph';
+import { supportsLiquidGlass } from '../ui/GlassSurface';
+import { GlassInputSurface } from '../ui/GlassInputSurface';
+import type { GlassSurfaceProps } from '../ui/glassSurfaceTypes';
+import { useReducedTransparencyPreference } from '../ui/useReducedTransparencyPreference';
+import { nativeSearchInputCompensation, smoothMorphPhase, iosSearchSourceHandoff } from './searchMorph';
 import type { DiscoveryNativeGlassGroupsProps } from './DiscoveryNativeGlassGroups';
 import { advanceDiscoveryControls, initialDiscoveryControlsState } from './discoveryControlsMotion';
 
 const MaskedView = NativeMaskedView as unknown as React.ComponentType<ViewProps & { maskElement: React.ReactElement }>;
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
-const AnimatedGlassSurface = Animated.createAnimatedComponent(GlassSurface);
+const AnimatedGlassInputSurface = Animated.createAnimatedComponent(GlassInputSurface);
 
 /** The same native controls as Home, in permanently mounted, fixed layouts.
  * UIKit owns the materials/merging. Search alone shares its small press extent
@@ -21,6 +24,7 @@ const AnimatedGlassSurface = Animated.createAnimatedComponent(GlassSurface);
 export function DiscoveryNativeGlassGroups({ bounds, progress, geometry, backScale, intent, reduceMotion, sourceSwitch, filter, field, calendar, calendarMotion, compact, active, focused,
   searchLabel, backLabel, triggerRef, onOpen, onClose, onSearchPressIn, onSearchPressOut, onSourceLayout, onCalendarLayout, onDestinationLayout }: DiscoveryNativeGlassGroupsProps) {
   const controls = useSharedValue(initialDiscoveryControlsState(active));
+  const reducedTransparency=useReducedTransparencyPreference();
   useAnimatedReaction(() => ({ progress: progress.value, opening: intent.value.open, interactive: intent.value.interactive,
     reduced: reduceMotion.value, sourceX: bounds.value.source.x, opacity: geometry.value.controls,
     scale: geometry.value.controlsScale, y: geometry.value.controlsTranslateY }),
@@ -34,17 +38,16 @@ export function DiscoveryNativeGlassGroups({ bounds, progress, geometry, backSca
   const sourceSearch = useAnimatedProps(() => ({ x: bounds.value.source.x + 4, opacity: 1 - smoothMorphPhase(progress.value, 0, iosSearchSourceHandoff) }));
   const sourceCalendar = useAnimatedProps(() => ({ x: bounds.value.source.x + 52, opacity: controls.value.filter.opacity }));
   const back = useAnimatedProps(() => ({ width: bounds.value.destination.x + 4, opacity: geometry.value.back }));
-  const destination = useAnimatedProps(() => {
-    const rest = progress.value >= .999;
-    return {
-      x: rest ? bounds.value.destination.x + 4 : geometry.value.searchX + 8,
-      y: rest ? 0 : 8, width: rest ? bounds.value.destination.width + 12 : geometry.value.searchWidth,
-      height: rest ? 60 : 44, rx: rest ? 0 : 22,
-      opacity: smoothMorphPhase(progress.value, .88, 1),
-    };
+  // Only the effect hands off late. Its input child keeps its independent fade
+  // and one responder for the whole morph, including interrupted keyboard drags.
+  const materialShown=useDerivedValue(()=>progress.value>=.88);
+  const materialProps=useAnimatedProps<GlassSurfaceProps>(()=>({glassEffectStyle:{style:materialShown.value?'regular':'none',
+    animate:!intent.value.interactive&&!reduceMotion.value,animationDuration:.07}}));
+  const materialVisibility=useAnimatedStyle(()=>({opacity:smoothMorphPhase(progress.value,.88,1)}));
+  const inputPosition = useAnimatedStyle(() => {
+    const pose=nativeSearchInputCompensation(bounds.value,geometry.value);
+    return {left:pose.left,top:pose.top,width:pose.width,transform:[{scaleX:pose.scaleX},{scaleY:pose.scaleY}]};
   });
-  const inputPosition = useAnimatedStyle(() => ({ left: geometry.value.searchX,
-    top: bounds.value.destination.y, width: geometry.value.searchWidth }));
   const iconPosition = useAnimatedStyle(() => ({ transform: [{ translateX:
     geometry.value.searchX - bounds.value.destination.x - geometry.value.destinationOffsetX + geometry.value.iconX + 4,
   }] }));
@@ -103,11 +106,10 @@ export function DiscoveryNativeGlassGroups({ bounds, progress, geometry, backSca
       </MaskedView>
     </View>
     <View style={s.expanded} pointerEvents={compact ? 'box-none' : 'none'}>
-      <MaskedView style={s.maskFrame} maskElement={<Svg style={StyleSheet.absoluteFill}>
-        <AnimatedRect animatedProps={back} x={0} y={0} height={60} fill="black"/>
-        <AnimatedRect animatedProps={destination} fill="black"/>
-      </Svg>}>
-        <View style={s.content}><GlassButtonGroup style={s.row}>
+        <GlassButtonGroup style={s.row}>
+          <View style={s.circleSize}><MaskedView style={s.maskFrame} maskElement={<Svg style={StyleSheet.absoluteFill}>
+            <AnimatedRect animatedProps={back} x={0} y={0} height={60} fill="black"/>
+          </Svg>}><View style={s.content}>
           <Animated.View testID="discovery-back-surface" style={[s.circleSize, backEntrance]}>
             <GlassPressable testID="discovery-search-back" style={s.circle} accessibilityLabel={backLabel}
               tabIndex={compact ? 0 : -1} onPress={compact ? onClose : undefined}
@@ -115,18 +117,16 @@ export function DiscoveryNativeGlassGroups({ bounds, progress, geometry, backSca
               <ChevronLeft size={20} color="white"/>
             </GlassPressable>
           </Animated.View>
-          <AnimatedGlassSurface testID="discovery-search-destination" onLayout={onDestinationLayout} style={[s.field, fieldSettle]}
-            pointerEvents={active ? 'box-none' : 'none'} aria-hidden={!active} accessibilityElementsHidden={!active}>
-            <Animated.View pointerEvents="none" style={[s.fieldIcon, iconPosition]}><Search size={16} color="white"/></Animated.View>
-            <Animated.View pointerEvents="none" style={[s.border, focusBorder]}/>
-          </AnimatedGlassSurface>
-        </GlassButtonGroup></View>
-      </MaskedView>
+          </View></MaskedView></View>
+          <AnimatedGlassInputSurface testID="discovery-search-destination" onLayout={onDestinationLayout} style={[s.field, fieldSettle]}
+            glassEffectStyle="none" animatedProps={supportsLiquidGlass&&!reducedTransparency?materialProps:undefined} fallbackMaterialStyle={materialVisibility}
+            pointerEvents={active ? 'auto' : 'none'} onTouchEnd={()=>{if(active)onOpen()}} aria-hidden={!active} accessibilityElementsHidden={!active}>
+            <Animated.View pointerEvents="none" style={materialVisibility}><Animated.View style={[s.fieldIcon, iconPosition]}><Search size={16} color="white"/></Animated.View></Animated.View>
+            <Animated.View pointerEvents="none" style={[s.border, focusBorder, materialVisibility]}/>
+            <Animated.View testID="discovery-search-content" pointerEvents={active?'box-none':'none'} style={[s.inputOverlay,inputPosition]}>{field}</Animated.View>
+          </AnimatedGlassInputSurface>
+        </GlassButtonGroup>
     </View>
-    {/* Text fades independently of the destination material's late handoff.
-        Its fixed inner viewport prevents reflow while the capsule stretches. */}
-    <Animated.View testID="discovery-search-content" pointerEvents={active ? 'box-none' : 'none'}
-      style={[s.inputOverlay, inputPosition]}>{field}</Animated.View>
   </>;
 }
 const s = StyleSheet.create({
@@ -139,7 +139,7 @@ const s = StyleSheet.create({
   circleSize: { width: 44, height: 44, borderRadius: 22, flexShrink: 0 },
   circle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#121418ed', borderWidth: StyleSheet.hairlineWidth, borderColor: '#ffffff1a' },
   field: { flex: 1, height: 44, borderRadius: 22, backgroundColor: '#121418ed' },
-  inputOverlay: { position: 'absolute', height: 44, zIndex: 4, overflow: 'hidden' },
+  inputOverlay: { position: 'absolute', height: 44, zIndex: 4, overflow: 'hidden', transformOrigin:'top left' },
   fieldIcon: { position: 'absolute', left: 10, top: 14, opacity: .8 },
   border: { ...StyleSheet.absoluteFill, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ffffff1a' },
 });

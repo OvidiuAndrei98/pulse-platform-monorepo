@@ -2377,6 +2377,16 @@
             "explode": false
           },
           {
+            "name": "nightDate",
+            "in": "query",
+            "required": false,
+            "description": "Selected outing night in Europe/Bucharest, using [06:00, next local 06:00), applied before pagination.",
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          },
+          {
             "name": "startsBefore",
             "in": "query",
             "required": false,
@@ -4307,6 +4317,113 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/OutingEventChoice"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/outings/plans/{planID}/context": {
+      "post": {
+        "operationId": "FriendGroups_updateContext",
+        "parameters": [
+          {
+            "name": "planID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingPlan"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingContextError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access is unauthorized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingContextError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Access is forbidden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingContextError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingContextError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the current state of the server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingContextError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Client error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingContextError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutingContextError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOutingContext"
               }
             }
           }
@@ -7824,6 +7941,10 @@
             "type": "string",
             "format": "date-time"
           },
+          "activityAt": {
+            "type": "string",
+            "format": "date-time"
+          },
           "unread": {
             "type": "integer",
             "format": "int32"
@@ -7832,6 +7953,20 @@
             "type": "boolean"
           },
           "preview": {
+            "type": "string"
+          },
+          "previewKind": {
+            "type": "string",
+            "enum": [
+              "text",
+              "event",
+              "outing"
+            ]
+          },
+          "previewAuthor": {
+            "type": "string"
+          },
+          "previewDate": {
             "type": "string"
           },
           "members": {
@@ -7967,6 +8102,9 @@
           },
           "event": {
             "$ref": "#/components/schemas/SharedGroupEvent"
+          },
+          "outingContext": {
+            "$ref": "#/components/schemas/GroupOutingMessageContext"
           }
         }
       },
@@ -7990,6 +8128,39 @@
           "revision": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "GroupOutingMessageContext": {
+        "type": "object",
+        "required": [
+          "decisionRound",
+          "title",
+          "city",
+          "candidateDates"
+        ],
+        "properties": {
+          "decisionRound": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "title": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "outingDate": {
+            "type": "string"
+          },
+          "candidateDates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "chosenEventId": {
+            "type": "string"
           }
         }
       },
@@ -9049,6 +9220,10 @@
               "maybe",
               "no"
             ]
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -9068,6 +9243,63 @@
           }
         }
       },
+      "OutingContextError": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "existingPlanId": {
+            "type": "string"
+          },
+          "impact": {
+            "$ref": "#/components/schemas/OutingContextImpact"
+          }
+        }
+      },
+      "OutingContextImpact": {
+        "type": "object",
+        "required": [
+          "availabilityResponses",
+          "eventPreferences",
+          "attendanceResponses",
+          "proposalsKept",
+          "proposalsIncompatible",
+          "destinationCleared",
+          "ticketsUnaffected"
+        ],
+        "properties": {
+          "availabilityResponses": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "eventPreferences": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attendanceResponses": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "proposalsKept": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "proposalsIncompatible": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "destinationCleared": {
+            "type": "boolean"
+          },
+          "ticketsUnaffected": {
+            "type": "boolean"
+          }
+        }
+      },
       "OutingDateChoice": {
         "type": "object",
         "required": [
@@ -9076,6 +9308,10 @@
         "properties": {
           "date": {
             "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -9106,6 +9342,10 @@
           "decisionAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -9117,6 +9357,10 @@
         "properties": {
           "eventId": {
             "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -9136,6 +9380,13 @@
               "maybe",
               "no"
             ]
+          },
+          "remove": {
+            "type": "boolean"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -10691,6 +10942,16 @@
             "type": "string",
             "format": "date-time"
           },
+          "eventEndTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "eventLocation": {
+            "type": "string"
+          },
+          "eventCity": {
+            "type": "string"
+          },
           "organizerName": {
             "type": "string"
           },
@@ -11079,6 +11340,37 @@
               "interested",
               "going"
             ]
+          }
+        }
+      },
+      "UpdateOutingContext": {
+        "type": "object",
+        "required": [
+          "revision",
+          "city"
+        ],
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "city": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          },
+          "dates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "title": {
+            "type": "string"
+          },
+          "confirmImpact": {
+            "type": "boolean"
           }
         }
       },

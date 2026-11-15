@@ -53,6 +53,7 @@
     "./social/feedTypes": "./src/social/feedTypes.ts",
     "./social/groupFeedItems": "./src/social/groupFeedItems.ts",
     "./social/groups": "./src/social/groups.ts",
+    "./social/groupPresentation": "./src/social/groupPresentation.ts",
     "./wardrobe/flow": "./src/wardrobe/flow.ts",
     "./wardrobe/model": "./src/wardrobe/model.ts",
     "./wardrobe/tabNavigation": "./src/wardrobe/tabNavigation.ts",

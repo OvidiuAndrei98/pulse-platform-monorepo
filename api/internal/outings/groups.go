@@ -21,6 +21,11 @@ import (
 // One rule for invitations and the permanent group's total membership.
 const maxGroupMembers = 8
 
+// Do not reveal activity from before a person's current history boundary, or
+// conversation activity to a still-pending invitee. Both ordering and the DTO
+// use this same actor-visible timestamp.
+const groupActivityExpression = `CASE WHEN m.status='accepted' AND g.last_message_seq>m.visible_after_seq THEN g.activity_at ELSE COALESCE(m.joined_at,g.created_at) END`
+
 type groupMember struct {
 	UserID    string `json:"userId"`
 	Username  string `json:"username"`
@@ -38,24 +43,37 @@ type friendGroup struct {
 	Muted           bool          `json:"muted"`
 	VisibleAfterSeq int64         `json:"visibleAfterSeq"`
 	JoinedAt        *time.Time    `json:"joinedAt,omitempty"`
+	ActivityAt      time.Time     `json:"activityAt"`
 	Members         []groupMember `json:"members"`
 	Preview         string        `json:"preview"`
+	PreviewKind     string        `json:"previewKind,omitempty"`
+	PreviewAuthor   string        `json:"previewAuthor,omitempty"`
+	PreviewDate     string        `json:"previewDate,omitempty"`
 	Outings         []plan        `json:"outings"`
 	OutingsHasMore  bool          `json:"outingsHasMore"`
 }
 type groupMessage struct {
-	ID        string       `json:"id"`
-	RequestID string       `json:"requestId"`
-	Seq       int64        `json:"seq"`
-	SenderID  string       `json:"senderId"`
-	Username  string       `json:"username"`
-	AvatarURL string       `json:"avatarUrl,omitempty"`
-	Kind      string       `json:"kind"`
-	Content   string       `json:"content"`
-	EventID   string       `json:"eventId,omitempty"`
-	OutingID  string       `json:"outingId,omitempty"`
-	CreatedAt time.Time    `json:"createdAt"`
-	Event     *sharedEvent `json:"event,omitempty"`
+	ID            string                     `json:"id"`
+	RequestID     string                     `json:"requestId"`
+	Seq           int64                      `json:"seq"`
+	SenderID      string                     `json:"senderId"`
+	Username      string                     `json:"username"`
+	AvatarURL     string                     `json:"avatarUrl,omitempty"`
+	Kind          string                     `json:"kind"`
+	Content       string                     `json:"content"`
+	EventID       string                     `json:"eventId,omitempty"`
+	OutingID      string                     `json:"outingId,omitempty"`
+	CreatedAt     time.Time                  `json:"createdAt"`
+	Event         *sharedEvent               `json:"event,omitempty"`
+	OutingContext *groupOutingMessageContext `json:"outingContext,omitempty"`
+}
+type groupOutingMessageContext struct {
+	DecisionRound  int32    `json:"decisionRound"`
+	Title          string   `json:"title"`
+	City           string   `json:"city"`
+	OutingDate     string   `json:"outingDate,omitempty"`
+	CandidateDates []string `json:"candidateDates"`
+	ChosenEventID  string   `json:"chosenEventId,omitempty"`
 }
 type sharedEvent struct {
 	ID        string    `json:"id"`
@@ -74,11 +92,11 @@ func groupAccess(ctx context.Context, q queryer, id, actor pgtype.UUID, lock boo
 	if lock {
 		suffix = " FOR UPDATE OF g,m"
 	}
-	err := q.QueryRow(ctx, `SELECT g.id::text,g.name,COALESCE(g.owner_id::text,''),m.status,g.revision,g.last_message_seq,m.muted,m.visible_after_seq,m.joined_at
+	err := q.QueryRow(ctx, `SELECT g.id::text,g.name,COALESCE(g.owner_id::text,''),m.status,g.revision,g.last_message_seq,m.muted,m.visible_after_seq,m.joined_at,`+groupActivityExpression+`
  FROM friend_groups g JOIN friend_group_members m ON m.group_id=g.id
  JOIN users active_user ON active_user.id=m.user_id AND active_user.is_active
  WHERE g.id=$1 AND g.owner_id IS NOT NULL AND m.user_id=$2 AND m.status IN ('pending','accepted')`+suffix, id, actor).
-		Scan(&g.ID, &g.Name, &g.OwnerID, &g.Status, &g.Revision, &g.LastSeq, &g.Muted, &g.VisibleAfterSeq, &g.JoinedAt)
+		Scan(&g.ID, &g.Name, &g.OwnerID, &g.Status, &g.Revision, &g.LastSeq, &g.Muted, &g.VisibleAfterSeq, &g.JoinedAt, &g.ActivityAt)
 	return g, err
 }
 func readGroup(ctx context.Context, q queryer, id, actor pgtype.UUID, includeOutings ...bool) (friendGroup, error) {
@@ -115,7 +133,12 @@ func readGroup(ctx context.Context, q queryer, id, actor pgtype.UUID, includeOut
 		return g, err
 	}
 	// A new/rejoined member's preview obeys the same history boundary as messages.
-	err = q.QueryRow(ctx, `SELECT COALESCE((SELECT CASE msg.kind WHEN 'text' THEN msg.content WHEN 'event' THEN COALESCE(e.title,'Event unavailable') ELSE p.title END FROM friend_group_messages msg LEFT JOIN events e ON e.id=msg.event_id LEFT JOIN outing_plans p ON p.id=msg.outing_id JOIN friend_group_members m ON m.group_id=msg.group_id AND m.user_id=$2 WHERE msg.group_id=$1 AND msg.seq>m.visible_after_seq ORDER BY msg.seq DESC LIMIT 1),'')`, id, actor).Scan(&g.Preview)
+	err = q.QueryRow(ctx, `SELECT COALESCE(latest.preview,''),COALESCE(latest.kind,''),COALESCE(latest.author,''),COALESCE(latest.outing_date,'') FROM (SELECT 1) root LEFT JOIN LATERAL (
+ SELECT CASE msg.kind WHEN 'text' THEN msg.content WHEN 'event' THEN COALESCE(e.title,'') ELSE COALESCE(msg.outing_context->>'title',p.title,'') END AS preview,
+ msg.kind,COALESCE(u.username,'') AS author,COALESCE(msg.outing_context->>'outingDate',p.outing_date::text,'') AS outing_date
+ FROM friend_group_messages msg LEFT JOIN events e ON e.id=msg.event_id LEFT JOIN outing_plans p ON p.id=msg.outing_id LEFT JOIN users u ON u.id=msg.sender_id
+ JOIN friend_group_members m ON m.group_id=msg.group_id AND m.user_id=$2 WHERE msg.group_id=$1 AND msg.seq>m.visible_after_seq ORDER BY msg.seq DESC LIMIT 1
+ ) latest ON TRUE`, id, actor).Scan(&g.Preview, &g.PreviewKind, &g.PreviewAuthor, &g.PreviewDate)
 	if err != nil {
 		return g, err
 	}
@@ -160,7 +183,7 @@ func (h *Handler) listGroups(w http.ResponseWriter, r *http.Request, actor pgtyp
 		return err
 	}
 	defer tx.Rollback(r.Context())
-	rows, err := tx.Query(r.Context(), `SELECT g.id FROM friend_groups g JOIN friend_group_members m ON m.group_id=g.id WHERE m.user_id=$1 AND m.status IN ('pending','accepted') ORDER BY g.activity_at DESC,g.id LIMIT 100`, actor)
+	rows, err := tx.Query(r.Context(), `SELECT g.id FROM friend_groups g JOIN friend_group_members m ON m.group_id=g.id WHERE m.user_id=$1 AND m.status IN ('pending','accepted') ORDER BY `+groupActivityExpression+` DESC,g.id LIMIT 100`, actor)
 	if err != nil {
 		return err
 	}
@@ -207,6 +230,9 @@ func (h *Handler) getGroup(w http.ResponseWriter, r *http.Request, actor pgtype.
 	}
 	defer tx.Rollback(r.Context())
 	g, err := readGroup(r.Context(), tx, id, actor)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return fault{404, "GROUP_ACCESS_LOST"}
+	}
 	if err != nil {
 		return err
 	}
@@ -241,7 +267,7 @@ func (h *Handler) createGroup(w http.ResponseWriter, r *http.Request, actor pgty
 		return err
 	}
 	req.Name = strings.TrimSpace(req.Name)
-	if utf8.RuneCountInString(req.Name) < 1 || utf8.RuneCountInString(req.Name) > 80 {
+	if utf8.RuneCountInString(req.Name) > 80 {
 		return invalid("INVALID_TITLE")
 	}
 	friends, err := uniqueIDs(req.FriendIDs, 1, maxGroupMembers-1)
@@ -393,16 +419,16 @@ func (h *Handler) groupAction(w http.ResponseWriter, r *http.Request, actor pgty
 		_, err = tx.Exec(r.Context(), `UPDATE friend_group_members SET status='declined' WHERE group_id=$1 AND user_id=$2`, id, actor)
 	case "rename":
 		if !owner {
-			return missing()
+			return fault{403, "GROUP_ADMIN_REQUIRED"}
 		}
 		name := strings.TrimSpace(req.Name)
-		if utf8.RuneCountInString(name) < 1 || utf8.RuneCountInString(name) > 80 {
+		if utf8.RuneCountInString(name) > 80 {
 			return invalid("INVALID_TITLE")
 		}
 		_, err = tx.Exec(r.Context(), `UPDATE friend_groups SET name=$2 WHERE id=$1`, id, name)
 	case "invite":
 		if !owner {
-			return missing()
+			return fault{403, "GROUP_ADMIN_REQUIRED"}
 		}
 		friend, e := uuid(req.UserID)
 		if e != nil {
@@ -433,7 +459,7 @@ func (h *Handler) groupAction(w http.ResponseWriter, r *http.Request, actor pgty
 		err = inviteGroupMember(r.Context(), tx, id, actor, friend)
 	case "transfer-admin":
 		if !owner {
-			return missing()
+			return fault{403, "GROUP_ADMIN_REQUIRED"}
 		}
 		target, e := uuid(req.UserID)
 		if e != nil {
@@ -450,7 +476,7 @@ func (h *Handler) groupAction(w http.ResponseWriter, r *http.Request, actor pgty
 		target := actor
 		if req.Action == "remove" {
 			if !owner {
-				return missing()
+				return fault{403, "GROUP_ADMIN_REQUIRED"}
 			}
 			target, err = uuid(req.UserID)
 			if err != nil {
@@ -540,7 +566,7 @@ func (h *Handler) messages(w http.ResponseWriter, r *http.Request, actor pgtype.
 		}
 	}
 	collection := r.URL.Query().Get("collection") == "events"
-	rows, err := tx.Query(r.Context(), `SELECT msg.id::text,msg.request_id::text,msg.seq,COALESCE(msg.sender_id::text,'00000000-0000-4000-8000-000000000000'),COALESCE(u.username,''),COALESCE(u.avatar_url,''),msg.kind,msg.content,COALESCE(msg.event_id::text,''),COALESCE(msg.outing_id::text,''),msg.created_at,
+	rows, err := tx.Query(r.Context(), `SELECT msg.id::text,msg.request_id::text,msg.seq,COALESCE(msg.sender_id::text,'00000000-0000-4000-8000-000000000000'),COALESCE(u.username,''),COALESCE(u.avatar_url,''),msg.kind,msg.content,COALESCE(msg.event_id::text,''),COALESCE(msg.outing_id::text,''),msg.created_at,msg.outing_context,
  e.id::text,COALESCE(e.title,''),COALESCE(e.banner_url,''),COALESCE(e.location_name,''),COALESCE(e.city,''),e.start_time,e.end_time,COALESCE(e.status::text,'')
  FROM friend_group_messages msg LEFT JOIN users u ON u.id=msg.sender_id LEFT JOIN events e ON e.id=msg.event_id JOIN friend_group_members member ON member.group_id=msg.group_id AND member.user_id=$2
  WHERE msg.group_id=$1 AND msg.seq>member.visible_after_seq AND ($3::bigint=0 OR msg.seq<$3) AND (NOT $4::boolean OR msg.kind='event')
@@ -555,7 +581,7 @@ func (h *Handler) messages(w http.ResponseWriter, r *http.Request, actor pgtype.
 		var event sharedEvent
 		var eventID *string
 		var start, end *time.Time
-		if err = rows.Scan(&m.ID, &m.RequestID, &m.Seq, &m.SenderID, &m.Username, &m.AvatarURL, &m.Kind, &m.Content, &m.EventID, &m.OutingID, &m.CreatedAt,
+		if err = rows.Scan(&m.ID, &m.RequestID, &m.Seq, &m.SenderID, &m.Username, &m.AvatarURL, &m.Kind, &m.Content, &m.EventID, &m.OutingID, &m.CreatedAt, &m.OutingContext,
 			&eventID, &event.Title, &event.ImageURL, &event.Location, &event.City, &start, &end, &event.Status); err != nil {
 			break
 		}
@@ -587,7 +613,9 @@ func appendGroupMessage(ctx context.Context, q queryer, group, actor, key pgtype
 	if err := q.QueryRow(ctx, `UPDATE friend_groups SET last_message_seq=last_message_seq+1,revision=revision+1,activity_at=clock_timestamp() WHERE id=$1 RETURNING last_message_seq`, group).Scan(&seq); err != nil {
 		return err
 	}
-	_, err := q.Exec(ctx, `INSERT INTO friend_group_messages(group_id,sender_id,request_id,seq,kind,content,event_id,outing_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, group, actor, key, seq, kind, content, event, outing)
+	_, err := q.Exec(ctx, `INSERT INTO friend_group_messages(group_id,sender_id,request_id,seq,kind,content,event_id,outing_id,outing_context) VALUES($1,$2,$3,$4,$5,$6,$7,$8,
+ (SELECT jsonb_strip_nulls(jsonb_build_object('decisionRound',p.decision_round,'title',p.title,'city',p.city,'outingDate',p.outing_date::text,'chosenEventId',p.chosen_event_id::text,
+ 'candidateDates',COALESCE((SELECT jsonb_agg(d.outing_date::text ORDER BY d.outing_date) FROM outing_plan_dates d WHERE d.plan_id=p.id),'[]'::jsonb))) FROM outing_plans p WHERE p.id=$8))`, group, actor, key, seq, kind, content, event, outing)
 	return err
 }
 func (h *Handler) sendGroupMessage(w http.ResponseWriter, r *http.Request, actor pgtype.UUID) error {

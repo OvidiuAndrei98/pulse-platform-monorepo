@@ -68,6 +68,9 @@ type SocialFeedItemResponse struct {
 	EventTitle              string `json:"eventTitle"`
 	EventBannerURL          string `json:"eventBannerUrl,omitempty"`
 	EventStartTime          string `json:"eventStartTime"`
+	EventEndTime            string `json:"eventEndTime,omitempty"`
+	EventLocation           string `json:"eventLocation,omitempty"`
+	EventCity               string `json:"eventCity,omitempty"`
 	OrganizerName           string `json:"organizerName,omitempty"`
 	OrganizerUpdateID       string `json:"organizerUpdateId,omitempty"`
 	OrganizerUpdateImageURL string `json:"organizerUpdateImageUrl,omitempty"`
@@ -840,6 +843,7 @@ func (h *Handler) HandleGetSocialFeed(w http.ResponseWriter, r *http.Request) {
 			ActorID: item.ActorID.String(), ActorUsername: item.ActorUsername, ActorAvatarURL: item.ActorAvatarUrl.String,
 			EventID: item.EventID.String(), EventTitle: item.EventTitle, EventBannerURL: item.EventBannerUrl.String,
 			EventStartTime: common.TimestampToString(item.EventStartTime), OrganizerName: item.OrganizerName,
+			EventEndTime: common.TimestampToString(item.EventEndTime), EventLocation: item.EventLocation, EventCity: item.EventCity,
 			OrganizerUpdateID: item.OrganizerUpdateID.String(), OrganizerUpdateImageURL: item.OrganizerUpdateImageUrl,
 			OrganizerUpdateCaption: item.OrganizerUpdateCaption,
 		})

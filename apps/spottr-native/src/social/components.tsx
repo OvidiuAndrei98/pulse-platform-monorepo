@@ -13,6 +13,7 @@ import { AppSheet } from '../ui/AppSheet';
 import { AppSheetScrollView } from '../ui/AppSheetScrollView';
 import { Feedback } from '../ui/common';
 import { colors } from '../ui/theme';
+import {GroupSearchField} from '../groups/GroupGlassControls';
 import { formatDate } from '../data/events';
 
 export function SocialPhoto({ uri, style, contain, initial, initialSize = 12 }: { uri?: string; style: StyleProp<ViewStyle>; contain?: boolean; initial?: string; initialSize?: number }) {
@@ -37,8 +38,7 @@ export function FriendsListSheet({ social, close, openProfile, manage }: { socia
   return <AppSheet open onClose={close} label={copy('common.close')} testID="friends-sheet">
     <View style={{ paddingHorizontal: 20, paddingBottom: 20, paddingTop: 4 }}><Text style={{ color: 'white', fontSize: 24, fontWeight: '700', letterSpacing: -0.8 }}>{copy('friends.title')}</Text>
       <Text style={[s.muted, { marginTop: 8 }]}>{social.friends.isPending ? copy('common.loading') : social.friends.isError && !social.friends.data ? '—' : copy('friends.count', { count: friends.length })}</Text></View>
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 20, marginBottom: 16, borderRadius: 16, backgroundColor: '#161616', paddingHorizontal: 16 }}>
-      <Search color="#ffffff66" size={16} /><FormInput inSheet variant="bare" testID="friends-sheet-search" value={query} onChangeText={setQuery} placeholder={copy('friends.searchPlaceholder')} accessibilityLabel={copy('friends.searchPlaceholder')} placeholderTextColor="#ffffff59" style={{ flex: 1, minWidth: 0, height: 48, fontSize: 16, color: 'white' }} /></View>
+    <View style={{marginHorizontal:20,marginBottom:16}}><GroupSearchField testID="friends-sheet-search" value={query} onChangeText={setQuery} label={copy('friends.searchPlaceholder')} inSheet/></View>
     <AppSheetScrollView testID="friends-sheet-list" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }}>
       {social.requests.isError && !!social.requests.data && <Feedback compact title={copy('feedback.actionFailed')} retry={() => void social.requests.refetch()} />}
       {social.requests.isPending ? <View style={s.skeleton} /> : social.requests.isError && !social.requests.data ? <Feedback compact title={copy('feedback.actionFailed')} retry={() => void social.requests.refetch()} /> : requests.length > 0 && <View style={{ marginBottom: 24 }}>
@@ -87,7 +87,7 @@ const s = StyleSheet.create({
   identity: { minWidth: 0, flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }, name: { color: 'white', fontSize: 16, fontWeight: '600' }, muted: { color: colors.muted, fontSize: 12 },
   request: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 20, backgroundColor: colors.raised, padding: 14, marginBottom: 8 },
   action: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#ffffff0d', alignItems: 'center', justifyContent: 'center' },
-  friend: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 20, backgroundColor: colors.raised, paddingHorizontal: 14, paddingVertical: 14, marginBottom:6 },
+  friend: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight:68, paddingVertical:12 },
   manage: { minHeight: 48, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 99, backgroundColor: '#161616', paddingHorizontal: 16, marginTop: 20 },
   skeleton: { height: 56, marginBottom: 20, borderRadius: 12, backgroundColor: '#ffffff0d' },
 });

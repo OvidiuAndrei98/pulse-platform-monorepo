@@ -3,7 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { UsersRound } from 'lucide-react';
 import { useHydratedTranslation as useTranslation } from '@/lib/useHydratedTranslation';
 import { useRouter } from 'next/navigation';
-import { groupFeedItems } from '@packages/app-core/social/groupFeedItems';
+import { friendsEventGroups } from '@packages/app-core/social/groupPresentation';
 import { User, type PublicProfile } from '@/core/DataProvider';
 import { useDataProvider } from '@/core/DataProviderContext';
 import { useCachedClientQuery } from '@/lib/useCachedClientQuery';
@@ -12,7 +12,7 @@ import {GroupsSection} from '@/features/groups/GroupRows';
 import { ActionButton, ActionLink } from '@/components/ui/ActionButton';
 import { StatusNotice } from '@/components/ui/StatusNotice';
 import { FriendsSheet } from '@/components/social/FriendsSheet';
-import { FeedActivityCard } from '@/components/social/FeedActivityCard';
+import {FriendsEvent} from './FriendsEvent';
 import s from './friends.module.css';
 
 export default function FriendsHub() {
@@ -25,7 +25,7 @@ function FriendsContent() {
   const requests = useCachedClientQuery<PublicProfile[]>(user && !isOrganizer ? 'friend-requests:' + user.properties.id : null, () => user!.getFriendRequests(), []);
   const [open, setOpen] = useState(false), [responding, setResponding] = useState<string | null>(null), [visible, setVisible] = useState(6);
   const feedback = useFeedbackAction(), busy = useRef(false), current = useRef({user, getToken}); current.current = {user, getToken};
-  const groups = useMemo(() => groupFeedItems(social.items.filter(item => item.activityType === 'friend_ticket' || item.activityType === 'friend_going')), [social.items]);
+  const groups = useMemo(() => friendsEventGroups(social.items), [social.items]);
   const respond = async (id: string, status: 'accepted' | 'declined') => {
     if (!user || busy.current) return;
     const actor = user.properties.id, token = getToken(); busy.current = true; setResponding(id);
@@ -38,11 +38,11 @@ function FriendsContent() {
     });
   };
   return <main className={s.page} data-testid="friends-hub">
-    <header className={s.header}><div><h1>{t('friendsHub.title')}</h1><p>{t('friendsHub.hint')}</p></div>{user && !isOrganizer && <ActionButton tone="secondary" onClick={() => setOpen(true)} data-testid="friends-manage" aria-label={t('friendsHub.manage')}><UsersRound size={20} />{requests.data.length > 0 && <span className={s.count}>{requests.data.length}</span>}</ActionButton>}</header>
+    <header className={s.header}><div><h1>{t('friendsHub.title')}</h1></div>{user && !isOrganizer && <ActionButton tone="secondary" onClick={() => setOpen(true)} data-testid="friends-manage" aria-label={t('friendsHub.manage')}><UsersRound size={20} />{requests.data.length > 0 && <span className={s.count}>{requests.data.length}</span>}</ActionButton>}</header>
     {loading ? <StatusNotice kind="loading" title={t('common.loading')} /> : !user ? <StatusNotice title={t('friendsHub.title')} detail={t('friendsHub.guestHint')}><ActionLink href="/login?returnTo=%2Ffriends">{t('social.signIn')}</ActionLink></StatusNotice> : isOrganizer ? <StatusNotice title={t('friendsHub.title')} detail={t('friendsHub.organizer')}><ActionLink href="/feed">{t('nav.feed')}</ActionLink></StatusNotice> : <>
       <GroupsSection/>
       <section aria-labelledby="friends-events-title"><div className={s.sectionHead}><div><h2 id="friends-events-title">{t('friendsHub.events')}</h2><p>{t('friendsHub.eventsHint')}</p></div></div>
-        {social.feedLoading ? <StatusNotice kind="loading" title={t('common.loading')} /> : social.feedError && !groups.length ? <StatusNotice kind="error" title={t('feedback.loadFailed')} action={social.refresh} actionLabel={t('common.retry')} /> : !groups.length ? <StatusNotice title={t('friendsHub.noEvents')} detail={t('friendsHub.noEventsHint')}><ActionLink href="/feed" tone="secondary">{t('nav.feed')}</ActionLink></StatusNotice> : <div className={s.events}>{groups.slice(0, visible).map(item => <FeedActivityCard key={item.eventId} item={item} />)}{visible < groups.length && <ActionButton tone="secondary" onClick={() => setVisible(count => count + 6)}>{t('feed.loadMore')}</ActionButton>}</div>}
+        {social.feedLoading ? <StatusNotice kind="loading" title={t('common.loading')} /> : social.feedError && !groups.length ? <StatusNotice kind="error" title={t('feedback.loadFailed')} action={social.refresh} actionLabel={t('common.retry')} /> : !groups.length ? <div className={s.emptyEvents}><p>{t('friendsHub.noEventsHint')}</p><ActionLink href="/feed" tone="ghost">{t('nav.feed')}</ActionLink></div> : <div className={s.events}>{groups.slice(0, visible).map(item => <FriendsEvent key={item.eventId} item={item} />)}{visible < groups.length && <ActionButton tone="secondary" onClick={() => setVisible(count => count + 6)}>{t('feed.loadMore')}</ActionButton>}</div>}
       </section>
       <FriendsSheet open={open} onOpenChange={setOpen} friends={friends.friends} loading={friends.friendsLoading} error={!!friends.friendsError} onRetry={friends.refresh} requests={requests.data} requestsLoading={requests.pending} requestsError={!!requests.error} onRetryRequests={requests.retry} respondingId={responding} onRespond={respond} />
     </>}

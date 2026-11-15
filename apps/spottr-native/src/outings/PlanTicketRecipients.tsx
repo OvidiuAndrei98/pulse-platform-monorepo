@@ -20,6 +20,7 @@ import {DashboardDropdown} from '../dashboard/DashboardDropdown';
 import {MemberAvatar,OutingPressable,OutingAction} from './OutingPrimitives';
 import {o} from './outingsStyles';
 import {colors} from '../ui/theme';
+import {openAccountPage} from '../navigation/accountNavigation';
 
 type Props={plan?:OutingPlan;eventId?:string;actor:string;onClose:()=>void;friendsOnly?:boolean};
 export function PlanTicketRecipients({plan,eventId,actor,onClose,friendsOnly=false}:Props){
@@ -30,7 +31,7 @@ export function PlanTicketRecipients({plan,eventId,actor,onClose,friendsOnly=fal
   {userId:actor,username:auth.user?.username??'',status:'accepted',ticketState:'unknown'},
   ...(people.data??[]).map(friend=>({userId:friend.id,username:friend.username,avatarUrl:friend.avatarUrl,status:'accepted' as const,ticketState:'unknown' as const})),
  ];
- const [ids,setIds]=useState<string[]>(()=>!friendsOnly&&plan?.members.some(m=>m.userId===actor&&m.hasTicket===false&&!recipientHasPendingAccess(m))?[actor]:[]);
+ const [ids,setIds]=useState<string[]>(()=>!friendsOnly&&plan?.members.some(m=>m.userId===actor&&m.ticketState==='none'&&m.hasTicket===false&&!recipientHasPendingAccess(m))?[actor]:[]);
  const [tier,setTier]=useState(''),[extra,setExtra]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const freeKey=useRef<{fingerprint:string;key:string}|null>(null),alive=useRef(true);
  useEffect(()=>{alive.current=true;return()=>{alive.current=false}},[]);
@@ -39,8 +40,9 @@ export function PlanTicketRecipients({plan,eventId,actor,onClose,friendsOnly=fal
  const total=event&&selected&&ids.length?checkoutTotals(event,{[selected.id]:ids.length}):undefined;
  const transferable=plan?plan.giftPurchasesAvailable!==false:!!event&&event.giftPurchasesAvailable!==false&&Date.parse(event.startTime)>Date.now();
  const selectable=(member:OutingPlan['members'][number])=>!recipientHasPendingAccess(member)&&(member.userId===actor||transferable);
- const warning=ids.some(id=>eligible.some(m=>m.userId===id&&m.hasTicket));
- const valid=!!selected&&ids.length>0&&ids.length<=8&&getRemainingTicketCapacity(selected)>=ids.length&&ids.every(id=>eligible.some(m=>m.userId===id&&selectable(m)))&&(!warning||extra)&&(!plan||!!plan.decisionRound);
+ const warning=ids.some(id=>eligible.some(m=>m.userId===id&&(m.ticketState==='valid'||m.hasTicket===true)));
+ const unknown=ids.some(id=>eligible.some(m=>m.userId===id&&(m.ticketState===undefined||m.ticketState==='unknown')));
+ const valid=!!selected&&ids.length>0&&ids.length<=8&&getRemainingTicketCapacity(selected)>=ids.length&&ids.every(id=>eligible.some(m=>m.userId===id&&selectable(m)))&&(!(warning||unknown)||extra)&&(!plan||!!plan.decisionRound);
  const selection={...(plan?{planId:plan.id}:{}),decisionRound:plan?.decisionRound??0,recipientIds:ids,...(extra?{extraConfirmed:true}:{})};
  const continuePurchase=async()=>{
   if(!valid||!selected||busy)return;
@@ -48,20 +50,20 @@ export function PlanTicketRecipients({plan,eventId,actor,onClose,friendsOnly=fal
   setBusy(true);setError('');const token=auth.controller.getToken(),body={items:[{ticketTypeId:selected.id,quantity:ids.length}],outing:selection},fingerprint=JSON.stringify(body);
   if(freeKey.current?.fingerprint!==fingerprint)freeKey.current={fingerprint,key:randomUUID()};
   try{await accountApi('/events/'+id+'/tickets/book',{method:'POST',body,token,idempotencyKey:freeKey.current.key});if(!alive.current||auth.controller.getToken()!==token)return;
-   void queryClient.invalidateQueries({queryKey:['tickets']});void queryClient.invalidateQueries({queryKey:['ticket-transfers']});onClose();navigation.navigate(ids.every(person=>person!==actor)?'TicketTransfers':'Tickets');
+   void queryClient.invalidateQueries({queryKey:['tickets']});void queryClient.invalidateQueries({queryKey:['ticket-transfers']});onClose();if(ids.every(person=>person!==actor))navigation.navigate('TicketTransfers');else openAccountPage(navigation,'Tickets');
   }catch(cause){if(alive.current)setError((cause as {code?:string}).code==='TICKET_GIFT_WINDOW_CLOSED'?'outings.v2.giftWindowClosed':'outings.v2.recipientChanged')}finally{if(alive.current)setBusy(false)}
  };
  return <AppSheet open onClose={onClose} label={copy('outings.v2.recipients')} height={0.8}><AppSheetScrollView contentContainerStyle={{padding:20,paddingBottom:40,gap:18}}>
   <Text style={o.heading}>{copy('outings.v2.recipients')}</Text><Text style={o.caption}>{event?.title}</Text><Text style={o.caption}>{copy('outings.v2.recipientsHint')}</Text>
   {!transferable&&<Text style={o.caption}>{copy('outings.v2.giftWindowClosed')}</Text>}
-  {eligible.map(member=>{const disabled=busy||!selectable(member),checked=ids.includes(member.userId);return <OutingPressable key={member.userId} testID={'outing-recipient-'+member.userId} accessibilityRole="checkbox" accessibilityLabel={member.username} accessibilityState={{checked,disabled}} disabled={disabled} style={[o.row,{minHeight:60,opacity:disabled?.5:1}]} onPress={()=>{setExtra(false);setIds(rows=>rows.includes(member.userId)?rows.filter(id=>id!==member.userId):[...rows,member.userId])}}>
+  {eligible.map(member=>{const disabled=busy||!selectable(member),checked=ids.includes(member.userId);return <OutingPressable key={member.userId} testID={'outing-recipient-'+member.userId} accessibilityRole="checkbox" accessibilityLabel={member.username} aria-checked={checked} accessibilityState={{checked,disabled}} disabled={disabled} style={[o.row,{minHeight:60,opacity:disabled?.5:1}]} onPress={()=>{setExtra(false);setIds(rows=>rows.includes(member.userId)?rows.filter(id=>id!==member.userId):[...rows,member.userId])}}>
    <MemberAvatar name={member.username} uri={member.avatarUrl} userId={member.userId}/><View style={{flex:1,gap:4}}><Text style={o.label}>{member.username}</Text><Text style={o.caption}>{copy(groupTicketLabel(member.ticketState??(member.hasTicket?'valid':member.hasTicket===false?'none':'unknown')))}</Text>{member.attendance==='no'&&<Text style={o.caption}>{copy('groups.no')}</Text>}</View><View style={{width:24,height:24,borderRadius:12,borderWidth:1,borderColor:checked?colors.accent:colors.line,alignItems:'center',justifyContent:'center'}}>{checked&&<Check size={16} color={colors.accent}/>}</View>
   </OutingPressable>})}
-  {!!plan&&<OutingAction title={copy('outings.v2.selectNeeds')} tone="ghost" onPress={()=>{setExtra(false);setIds(automaticPlanRecipients(plan).filter(selectable).map(m=>m.userId))}}/>}
+  {!!plan&&<OutingAction title={copy('groups.selectWithoutTickets')} tone="ghost" onPress={()=>{setExtra(false);setIds(automaticPlanRecipients(plan).filter(selectable).map(m=>m.userId))}}/>}
   {!plan&&people.isError&&<OutingAction title={copy('common.retry')} onPress={()=>void people.refetch()}/>}
-  {(warning||!plan)&&<View style={{gap:8}}>{warning&&<Text style={o.caption}>{copy('groups.extraHint')}</Text>}<OutingPressable testID="outing-extra-confirmation" accessibilityRole="checkbox" accessibilityState={{checked:extra}} onPress={()=>setExtra(!extra)} style={[o.row,{minHeight:44}]}>{extra&&<Check size={18} color={colors.accent}/>}<Text style={[o.caption,{flex:1}]}>{copy('groups.extra')}</Text></OutingPressable></View>}
+  {(warning||unknown)&&<View style={{gap:8}}><Text style={o.caption}>{copy(warning?'groups.extraHint':'groups.unknownTicketConfirm')}</Text><OutingPressable testID="outing-extra-confirmation" accessibilityRole="checkbox" aria-checked={extra} accessibilityState={{checked:extra}} onPress={()=>setExtra(!extra)} style={[o.row,{minHeight:44}]}>{extra&&<Check size={18} color={colors.accent}/>}<Text style={[o.caption,{flex:1}]}>{copy('groups.extra')}</Text></OutingPressable></View>}
   <DashboardDropdown label={copy('checkout.tickets')} value={selected?.id??''} options={types.map(t=>({value:t.id,label:t.name+' · '+formatRon(t.priceRon)}))} onChange={setTier} placeholder={copy('checkout.tickets')}/>
-  {(query.isError||error)&&<><Text accessibilityRole="alert" style={o.error}>{copy(error||'feedback.loadFailed')}</Text><OutingAction title={copy('common.retry')} onPress={()=>void query.refetch()}/></>}
+  {!!(query.isError||error)&&<><Text accessibilityRole="alert" style={o.error}>{copy(error||'feedback.loadFailed')}</Text><OutingAction title={copy('common.retry')} onPress={()=>void query.refetch()}/></>}
   {!query.isPending&&(!types.length||!!tier&&!selected)&&<Text style={o.caption}>{copy('checkout.selectionUnavailable')}</Text>}
   {total&&<Text style={o.heading}>{copy('checkout.total')} · {formatRon(total.total)}</Text>}
   <Text style={o.caption}>{copy('outings.v2.transferHint')}</Text>

@@ -16,10 +16,10 @@ const NativeGlassView = glass?.isLiquidGlassAvailable() && glass.isGlassEffectAP
 export const supportsLiquidGlass = NativeGlassView !== null;
 
 /** One interactive material around multiple controls; retain the capsule's layout. */
-export const GlassSurface = forwardRef<ViewInstance, GlassSurfaceProps>(function GlassSurface({ style, tintColor, interactive = true, ...props }, ref) {
+export const GlassSurface = forwardRef<ViewInstance, GlassSurfaceProps>(function GlassSurface({ style, tintColor, interactive = true, glassEffectStyle=liquidGlassAppearance.glassEffectStyle, ...props }, ref) {
   if (!NativeGlassView) return <View {...props} ref={ref} style={style} />;
   return <NativeGlassView {...props} ref={ref} style={[style, s.glass]}
-    {...liquidGlassAppearance} tintColor={tintColor ?? liquidGlassAppearance.tintColor} isInteractive={interactive} />;
+    {...liquidGlassAppearance} glassEffectStyle={glassEffectStyle} tintColor={tintColor ?? liquidGlassAppearance.tintColor} isInteractive={interactive} />;
 });
 
 const s = StyleSheet.create({

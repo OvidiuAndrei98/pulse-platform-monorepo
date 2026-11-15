@@ -79,10 +79,14 @@ SELECT
     ) AS lineup
 FROM events e
 WHERE (sqlc.arg(category)::VARCHAR = '' OR sqlc.arg(category) IS NULL OR e.category = ANY(string_to_array(sqlc.arg(category)::VARCHAR, ',')))
-  AND (sqlc.arg(city)::VARCHAR = '' OR sqlc.arg(city) IS NULL OR e.city = sqlc.arg(city))
+  AND (sqlc.arg(city)::VARCHAR = '' OR sqlc.arg(city) IS NULL OR
+       translate(lower(btrim(normalize(e.city,NFC))), 'ăâîșşțţ', 'aaisstt') = translate(lower(btrim(normalize(sqlc.arg(city)::text,NFC))), 'ăâîșşțţ', 'aaisstt'))
   AND (sqlc.arg(vibe)::VARCHAR = '' OR sqlc.arg(vibe) IS NULL OR e.vibe = ANY(string_to_array(sqlc.arg(vibe)::VARCHAR, ',')))
   AND (sqlc.narg(starts_after)::TIMESTAMPTZ IS NULL OR e.end_time > sqlc.narg(starts_after))
   AND (sqlc.narg(starts_before)::TIMESTAMPTZ IS NULL OR e.start_time < sqlc.narg(starts_before))
+  -- An outing night is occurrence-start eligibility, unlike the generic
+  -- Discover overlap interval. Filter before LIMIT/OFFSET, not after a page.
+  AND (sqlc.narg(occurrence_starts_after)::TIMESTAMPTZ IS NULL OR e.start_time >= sqlc.narg(occurrence_starts_after))
   -- Filtre geolocație cu nume clare
   AND (sqlc.narg(lat_min)::FLOAT IS NULL OR e.latitude BETWEEN sqlc.narg(lat_min) AND sqlc.narg(lat_max))
   AND (sqlc.narg(lon_min)::FLOAT IS NULL OR e.longitude BETWEEN sqlc.narg(lon_min) AND sqlc.narg(lon_max))

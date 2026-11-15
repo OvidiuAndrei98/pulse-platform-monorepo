@@ -131,6 +131,7 @@ CREATE TRIGGER retired_event_chat BEFORE INSERT OR UPDATE ON event_safety_messag
 
 -- +goose Down
 -- Never silently discard private conversations, invitations or attendance.
+LOCK TABLE friend_groups IN ACCESS EXCLUSIVE MODE;
 -- +goose StatementBegin
 DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM friend_groups) THEN

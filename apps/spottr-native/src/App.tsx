@@ -66,6 +66,9 @@ import { LegalScreen } from './screens/LegalScreen';
 import { OutingsScreen } from './outings/OutingsScreen';
 import {GroupsScreen,FriendGroupScreen} from './groups/GroupsScreen';
 import {GroupOutingScreen} from './groups/GroupOutingScreen';
+import {GroupInfoScreen} from './groups/GroupInfoScreen';
+import {GroupCollectionsScreen} from './groups/GroupCollectionsScreen';
+import {GroupEventPickerScreen,GroupNewOutingScreen} from './groups/GroupEventPickerScreen';
 import { EventNightScreen } from './outings/EventNightScreen';
 import { DashboardScreen, type DashboardScreenProps } from './dashboard/DashboardScreen';
 import { QuickScannerScreen } from './scanner/QuickScannerScreen';
@@ -114,7 +117,10 @@ const linking: LinkingOptions<RootParamList> = {
   prefixes: ["spottr-native://", WEB_URL, ...APP_LINK_PREFIXES],
   filter: (url) => !isStripeReturnURL(url) && !url.startsWith('spottr-native://auth/google/callback') && !(paymentBrowserActive() && url.startsWith(NATIVE_CHECKOUT_RETURN)) && !(organizerBrowserActive() && url.startsWith(NATIVE_ORGANIZER_RETURN)),
   getStateFromPath: (path, options) => {
-    const state = accountLinkOrigin(getStateFromPath(nativePath(path), options));
+    // React Navigation preserves the parsed route.path in browser history.
+    // Keep it absolute: a relative group URL is otherwise appended again on
+    // each state update and browser Back can no longer restore that route.
+    const state = accountLinkOrigin(getStateFromPath('/' + nativePath(path), options));
     return state ? { ...state, routes: state.routes.map(route => route.name === 'Event' ? { ...route, params: { ...route.params, presentation: 'page' } } : route) } : undefined;
   },
   config: {
@@ -136,6 +142,11 @@ const linking: LinkingOptions<RootParamList> = {
       Groups: {path:'groups',parse:{eventId:String,new:value=>value==='1'}},
       FriendGroup: 'groups/:id',
       GroupOuting: 'groups/:groupId/outings/:planId',
+      GroupInfo:'groups/:groupId/info',
+      GroupOutings:'groups/:groupId/outings',
+      GroupSharedEvents:'groups/:groupId/events',
+      GroupEventPicker:'groups/:groupId/events/select',
+      GroupNewOuting:'groups/:groupId/outings/new',
       ...(Platform.OS === 'ios' ? accountPagePaths : {}),
       PublicProfile: "users/:id",
       SafetyGroup: 'events/:eventId/group',
@@ -248,6 +259,11 @@ function SafetyRoute({ route, navigation }: NativeStackScreenProps<RootParamList
 function GroupsRoute({route}:NativeStackScreenProps<RootParamList,'Groups'>){return <GroupsScreen eventId={route.params?.eventId} newGroup={route.params?.new}/>}
 function FriendGroupRoute({route}:NativeStackScreenProps<RootParamList,'FriendGroup'>){return <FriendGroupScreen key={route.params.id} id={route.params.id}/>}
 function GroupOutingRoute({route}:NativeStackScreenProps<RootParamList,'GroupOuting'>){return <GroupOutingScreen key={route.params.planId} groupId={route.params.groupId} planId={route.params.planId}/>}
+function GroupInfoRoute({route}:NativeStackScreenProps<RootParamList,'GroupInfo'>){return <GroupInfoScreen groupId={route.params.groupId}/>}
+function GroupOutingsRoute({route}:NativeStackScreenProps<RootParamList,'GroupOutings'>){return <GroupCollectionsScreen groupId={route.params.groupId} kind="outings"/>}
+function GroupSharedEventsRoute({route}:NativeStackScreenProps<RootParamList,'GroupSharedEvents'>){return <GroupCollectionsScreen groupId={route.params.groupId} kind="shared"/>}
+function GroupEventPickerRoute({route}:NativeStackScreenProps<RootParamList,'GroupEventPicker'>){return <GroupEventPickerScreen {...route.params}/>}
+function GroupNewOutingRoute({route}:NativeStackScreenProps<RootParamList,'GroupNewOuting'>){return <GroupNewOutingScreen routeKey={route.key} {...route.params}/>}
 function OutingsRoute({route,navigation}:NativeStackScreenProps<RootParamList,'Outings'>){
   const ticket=route.params?.ticketId??route.params?.ticket;
   const legacy=ticket!==undefined||route.params?.tab==='transfers';
@@ -302,6 +318,11 @@ function EventFlow({ route }: { route: { params: RootParamList['Event'] } }) {
     <Purchase.Screen name="Groups" component={GroupsRoute}/>
     <Purchase.Screen name="FriendGroup" component={FriendGroupRoute}/>
     <Purchase.Screen name="GroupOuting" component={GroupOutingRoute}/>
+    <Purchase.Screen name="GroupInfo" component={GroupInfoRoute}/>
+    <Purchase.Screen name="GroupOutings" component={GroupOutingsRoute}/>
+    <Purchase.Screen name="GroupSharedEvents" component={GroupSharedEventsRoute}/>
+    <Purchase.Screen name="GroupEventPicker" component={GroupEventPickerRoute}/>
+    <Purchase.Screen name="GroupNewOuting" component={GroupNewOutingRoute}/>
     <Purchase.Screen name="TicketTransfers" component={TicketTransfersRoute}/>
     <Purchase.Screen name="EventNight" component={EventNightRoute}/>
     <Purchase.Screen name="Legal" component={LegalScreen}/>
@@ -365,6 +386,11 @@ const MainNavigationScreens = React.memo(function MainNavigationScreens() {
       <Root.Screen name="Groups" component={GroupsRoute} options={nativeBackOptions}/>
       <Root.Screen name="FriendGroup" component={FriendGroupRoute} options={nativeBackOptions}/>
       <Root.Screen name="GroupOuting" component={GroupOutingRoute} options={nativeBackOptions}/>
+      <Root.Screen name="GroupInfo" component={GroupInfoRoute} options={nativeBackOptions}/>
+      <Root.Screen name="GroupOutings" component={GroupOutingsRoute} options={nativeBackOptions}/>
+      <Root.Screen name="GroupSharedEvents" component={GroupSharedEventsRoute} options={nativeBackOptions}/>
+      <Root.Screen name="GroupEventPicker" component={GroupEventPickerRoute} options={nativeBackOptions}/>
+      <Root.Screen name="GroupNewOuting" component={GroupNewOutingRoute} options={nativeBackOptions}/>
       <Root.Screen name="Checkout" component={CheckoutScreen} options={{ ...nativeBackOptions, presentation: Platform.OS === 'web' ? 'transparentModal' : 'card' }}/>
       <Root.Screen name="TicketTransfers" component={TicketTransfersRoute}/>
       <Root.Screen name="EventNight" component={EventNightRoute}/>

@@ -8,6 +8,9 @@ export type FeedGroup = {
   eventTitle: string;
   eventBannerUrl?: string;
   eventStartTime: string;
+  eventEndTime?: string;
+  eventLocation?: string;
+  eventCity?: string;
   occurredAt: string;
   organizerName?: string;
   organizerUpdateId?: string;

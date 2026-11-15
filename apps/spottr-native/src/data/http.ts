@@ -6,6 +6,7 @@ export class ApiError extends Error {
     readonly status: number,
     readonly code: string,
     readonly diagnostic?: DiagnosticContext,
+    readonly data?: unknown,
   ) {
     super(code);
   }
@@ -110,6 +111,7 @@ export function createHttp(
               : "HTTP_ERROR",
           response.status >= 500 ? httpDiagnostic(path, options.method ?? 'GET', response.status,
             response.headers.get('X-Request-ID'), row.diagnosticCode) : undefined,
+          path.startsWith('/outings/') ? row : undefined,
         );
       }
       return data as T;

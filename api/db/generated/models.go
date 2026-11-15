@@ -507,16 +507,17 @@ type FriendGroupMembers struct {
 }
 
 type FriendGroupMessages struct {
-	ID        pgtype.UUID        `json:"id"`
-	GroupID   pgtype.UUID        `json:"group_id"`
-	SenderID  pgtype.UUID        `json:"sender_id"`
-	RequestID pgtype.UUID        `json:"request_id"`
-	Seq       int64              `json:"seq"`
-	Content   string             `json:"content"`
-	EventID   pgtype.UUID        `json:"event_id"`
-	OutingID  pgtype.UUID        `json:"outing_id"`
-	Kind      string             `json:"kind"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID            pgtype.UUID        `json:"id"`
+	GroupID       pgtype.UUID        `json:"group_id"`
+	SenderID      pgtype.UUID        `json:"sender_id"`
+	RequestID     pgtype.UUID        `json:"request_id"`
+	Seq           int64              `json:"seq"`
+	Content       string             `json:"content"`
+	EventID       pgtype.UUID        `json:"event_id"`
+	OutingID      pgtype.UUID        `json:"outing_id"`
+	Kind          string             `json:"kind"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	OutingContext []byte             `json:"outing_context"`
 }
 
 type FriendGroups struct {
@@ -808,6 +809,16 @@ type OutingPlanAvailability struct {
 	OutingDate pgtype.Date `json:"outing_date"`
 	UserID     pgtype.UUID `json:"user_id"`
 	Answer     string      `json:"answer"`
+}
+
+type OutingPlanContextHistory struct {
+	ID                 pgtype.UUID        `json:"id"`
+	PlanID             pgtype.UUID        `json:"plan_id"`
+	ActorID            pgtype.UUID        `json:"actor_id"`
+	FromRevision       int64              `json:"from_revision"`
+	RequestFingerprint string             `json:"request_fingerprint"`
+	Snapshot           []byte             `json:"snapshot"`
+	ChangedAt          pgtype.Timestamptz `json:"changed_at"`
 }
 
 type OutingPlanDates struct {

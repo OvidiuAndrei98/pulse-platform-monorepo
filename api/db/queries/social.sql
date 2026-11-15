@@ -102,7 +102,7 @@ WITH friend_ids AS (
            MAX(o.created_at) AS occurred_at,
            u.id AS actor_id, u.username AS actor_username, u.avatar_url AS actor_avatar_url,
            e.id AS event_id, e.title AS event_title, e.banner_url AS event_banner_url,
-           e.start_time AS event_start_time, ''::text AS organizer_name,
+           e.start_time AS event_start_time, e.end_time AS event_end_time, e.location_name AS event_location, e.city AS event_city, ''::text AS organizer_name,
            NULL::uuid AS organizer_update_id, ''::text AS organizer_update_image_url,
            ''::text AS organizer_update_caption
     FROM tickets t
@@ -122,7 +122,7 @@ WITH friend_ids AS (
            r.updated_at AS occurred_at,
            u.id AS actor_id, u.username AS actor_username, u.avatar_url AS actor_avatar_url,
            e.id AS event_id, e.title AS event_title, e.banner_url AS event_banner_url,
-           e.start_time AS event_start_time, ''::text AS organizer_name,
+           e.start_time AS event_start_time, e.end_time AS event_end_time, e.location_name AS event_location, e.city AS event_city, ''::text AS organizer_name,
            NULL::uuid AS organizer_update_id, ''::text AS organizer_update_image_url,
            ''::text AS organizer_update_caption
     FROM event_rsvps r
@@ -131,15 +131,6 @@ WITH friend_ids AS (
     JOIN users owner ON owner.id = e.organizer_id AND owner.is_active
     WHERE r.user_id IN (SELECT user_id FROM friend_ids)
       AND r.status = 'going'
-      AND NOT EXISTS (
-          SELECT 1
-          FROM tickets t
-          JOIN orders o ON o.id = t.order_id AND o.status = 'completed'
-              AND o.stripe_refund_status = 'none' AND o.stripe_amount_refunded_bani = 0 AND NOT o.stripe_refund_needs_attention
-              AND NOT EXISTS (SELECT 1 FROM order_refund_operations refund WHERE refund.order_id = o.id)
-          JOIN ticket_types tt ON tt.id = t.ticket_type_id
-          WHERE t.user_id = r.user_id AND tt.event_id = r.event_id
-      )
 
     UNION ALL
 
@@ -147,7 +138,7 @@ WITH friend_ids AS (
            e.created_at AS occurred_at,
            u.id AS actor_id, u.username AS actor_username, u.avatar_url AS actor_avatar_url,
            e.id AS event_id, e.title AS event_title, e.banner_url AS event_banner_url,
-           e.start_time AS event_start_time, op.company_name AS organizer_name,
+           e.start_time AS event_start_time, e.end_time AS event_end_time, e.location_name AS event_location, e.city AS event_city, op.company_name AS organizer_name,
            NULL::uuid AS organizer_update_id, ''::text AS organizer_update_image_url,
            ''::text AS organizer_update_caption
     FROM organizer_follows follows
@@ -162,7 +153,7 @@ WITH friend_ids AS (
            eu.created_at AS occurred_at,
            u.id AS actor_id, u.username AS actor_username, u.avatar_url AS actor_avatar_url,
            e.id AS event_id, e.title AS event_title, e.banner_url AS event_banner_url,
-           e.start_time AS event_start_time, op.company_name AS organizer_name,
+           e.start_time AS event_start_time, e.end_time AS event_end_time, e.location_name AS event_location, e.city AS event_city, op.company_name AS organizer_name,
            eu.id AS organizer_update_id, eu.image_url AS organizer_update_image_url,
            COALESCE(eu.caption, '')::text AS organizer_update_caption
     FROM organizer_follows follows

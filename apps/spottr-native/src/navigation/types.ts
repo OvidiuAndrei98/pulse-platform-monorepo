@@ -27,6 +27,11 @@ export type RootParamList = {
   Groups: {eventId?:string;new?:boolean}|undefined;
   FriendGroup: {id:string};
   GroupOuting: {groupId:string;planId:string};
+  GroupInfo: {groupId:string};
+  GroupOutings: {groupId:string};
+  GroupSharedEvents: {groupId:string};
+  GroupEventPicker: {groupId:string;planId?:string;selectionSourceKey?:string;date?:string;city?:string};
+  GroupNewOuting: {groupId:string;pickedEvent?:import('@packages/app-core/outings/model').PlanEvent};
   Tickets: undefined;
   Orders: undefined;
   SavedEvents: undefined;

@@ -6,10 +6,12 @@ export type AccentPressableProps = PressableProps & {
   fallback?: typeof Pressable | typeof MotionPressable;
   /** Explicit tint for an existing branded fill, such as Google's white button. */
   glassColor?: ColorValue;
+  /** Input accessory buttons can keep their material without an expanding halo. */
+  nativePressEffect?: boolean;
 };
 
 export const AccentPressableFallback = forwardRef<ViewInstance, AccentPressableProps>(function AccentPressableFallback(
-  { fallback: Control = MotionPressable, glassColor: _glassColor, ...props }, ref,
+  { fallback: Control = MotionPressable, glassColor: _glassColor, nativePressEffect: _nativePressEffect, ...props }, ref,
 ) {
   return <Control {...props} ref={ref}/>;
 });

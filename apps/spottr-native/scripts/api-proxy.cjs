@@ -18,7 +18,7 @@ function createApiProxy(apiUrl, { timeoutMs = 15000 } = {}) {
     [/^\/outings\/groups\/[0-9a-f-]{36}\/messages$/i, ['GET', 'POST']],
     [/^\/outings\/groups\/[0-9a-f-]{36}\/outings$/i, ['GET', 'POST']],
     [/^\/outings\/groups\/[0-9a-f-]{36}\/actions$/i, ['POST']],
-    [/^\/outings\/plans\/[0-9a-f-]{36}\/(?:attendance|remove-proposal)$/i, ['POST']],
+    [/^\/outings\/plans\/[0-9a-f-]{36}\/(?:attendance|remove-proposal|context)$/i, ['POST']],
     [/^\/outings\/(?:plans|transfers)$/, ['GET', 'POST']],
     [/^\/outings\/plans\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}(?:\/changes)?$/i, ['GET']],
     [/^\/outings\/plans\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\/(?:respond|proposals|vote|choose|ticket-status|availability|date|preferences|deadline|reopen|meeting|arrival)$/i, ['POST']],

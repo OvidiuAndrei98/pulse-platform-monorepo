@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 	"time"
-	_ "time/tzdata"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"pulse-api/internal/common"
 	"pulse-api/internal/router"
 )
 
@@ -88,22 +87,9 @@ type pendingPlanPayment struct {
 	SessionID string `json:"sessionId,omitempty"`
 }
 
-var planningZone = func() *time.Location {
-	zone, err := time.LoadLocation("Europe/Bucharest")
-	if err != nil {
-		panic("outings: embedded Europe/Bucharest timezone unavailable")
-	}
-	return zone
-}()
+var planningZone = common.BucharestZone
 
-func canonicalCity(value string) string {
-	for _, city := range []string{"Bucuresti", "Cluj-Napoca", "Timisoara", "Iasi", "Brasov", "Constanta", "Sibiu"} {
-		if strings.EqualFold(strings.TrimSpace(value), city) {
-			return city
-		}
-	}
-	return ""
-}
+func canonicalCity(value string) string { return common.CanonicalPlanningCity(value) }
 func validPlanningDate(value string, now time.Time) bool {
 	day, err := time.ParseInLocation("2006-01-02", value, planningZone)
 	if err != nil || day.Format("2006-01-02") != value {
@@ -211,8 +197,8 @@ func readPlan(ctx context.Context, q queryer, id, actor pgtype.UUID) (plan, erro
 	}
 	rows, err = q.Query(ctx, `SELECT e.id::text,e.title,e.location_name,e.start_time,
         e.status='published' AND e.end_time>CURRENT_TIMESTAMP
-          AND (p.city IS NULL OR lower(e.city)=lower(p.city))
-          AND (p.outing_date IS NULL OR ((e.start_time AT TIME ZONE 'Europe/Bucharest')-interval '6 hours')::date=p.outing_date),
+          AND (p.city IS NULL OR translate(lower(btrim(normalize(e.city,NFC))),'ăâîșşțţ','aaisstt')=translate(lower(btrim(normalize(p.city,NFC))),'ăâîșşțţ','aaisstt'))
+          AND ((p.group_id IS NULL AND p.outing_date IS NULL) OR (p.outing_date IS NOT NULL AND ((e.start_time AT TIME ZONE 'Europe/Bucharest')-interval '6 hours')::date=p.outing_date)),
         COALESCE(o.proposed_by::text,''),e.status::text,
         pricing.price,
         CASE WHEN e.status<>'published' OR e.end_time<=CURRENT_TIMESTAMP THEN 'unavailable'
@@ -312,7 +298,7 @@ func (h *Handler) getPlan(w http.ResponseWriter, r *http.Request, actor pgtype.U
 func eventFitsPlan(ctx context.Context, q queryer, event pgtype.UUID, day, city string) (bool, error) {
 	var ok bool
 	err := q.QueryRow(ctx, `SELECT status='published' AND end_time>CURRENT_TIMESTAMP
-        AND lower(city)=lower($3::text) AND ((start_time AT TIME ZONE 'Europe/Bucharest')-interval '6 hours')::date=$2::date
+        AND translate(lower(btrim(normalize(city,NFC))),'ăâîșşțţ','aaisstt')=translate(lower(btrim(normalize($3::text,NFC))),'ăâîșşțţ','aaisstt') AND ((start_time AT TIME ZONE 'Europe/Bucharest')-interval '6 hours')::date=$2::date
         FROM events WHERE id=$1`, event, day, city).Scan(&ok)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, nil
@@ -338,9 +324,11 @@ func (h *Handler) changePlan(w http.ResponseWriter, r *http.Request, actor pgtyp
 		return err
 	}
 	var req struct {
-		Status  string `json:"status,omitempty"`
-		EventID string `json:"eventId,omitempty"`
-		Answer  string `json:"answer,omitempty"`
+		Status   string `json:"status,omitempty"`
+		Revision int64  `json:"revision,omitempty"`
+		EventID  string `json:"eventId,omitempty"`
+		Answer   string `json:"answer,omitempty"`
+		Remove   bool   `json:"remove,omitempty"`
 	}
 	if err = body(r, &req); err != nil {
 		return err
@@ -356,12 +344,16 @@ func (h *Handler) changePlan(w http.ResponseWriter, r *http.Request, actor pgtyp
 	var owner, chosen pgtype.UUID
 	var status, day, city string
 	var deadline *time.Time
+	var revision int64
 	err = tx.QueryRow(r.Context(), `SELECT p.owner_id,p.chosen_event_id,m.status,COALESCE(p.outing_date::text,''),COALESCE(p.city,'')
-        ,p.decision_at
+        ,p.decision_at,p.revision
         FROM outing_plans p JOIN outing_plan_members m ON m.plan_id=p.id JOIN users u ON u.id=m.user_id AND u.is_active
-        WHERE p.id=$1 AND m.user_id=$2 AND p.expires_at>CURRENT_TIMESTAMP FOR UPDATE OF p,m`, id, actor).Scan(&owner, &chosen, &status, &day, &city, &deadline)
+        WHERE p.id=$1 AND m.user_id=$2 AND p.expires_at>CURRENT_TIMESTAMP FOR UPDATE OF p,m`, id, actor).Scan(&owner, &chosen, &status, &day, &city, &deadline, &revision)
 	if err != nil {
 		return err
+	}
+	if req.Revision > 0 && req.Revision != revision {
+		return conflict("PLAN_CHANGED")
 	}
 	if action == "respond" {
 		if req.Status != "accepted" && req.Status != "declined" {
@@ -445,6 +437,19 @@ func (h *Handler) changePlan(w http.ResponseWriter, r *http.Request, actor pgtyp
 		default:
 			if !exists {
 				return conflict("EVENT_UNAVAILABLE")
+			}
+			// A toggle-off removes only this member's preference for this event.
+			// It does not turn an unanswered preference into a negative answer,
+			// clear their other choices, or create an attendance response.
+			if req.Remove {
+				if req.Answer != "" {
+					return invalid("INVALID_REACTION")
+				}
+				if _, err = tx.Exec(r.Context(), `DELETE FROM outing_plan_reactions WHERE plan_id=$1 AND user_id=$2 AND event_id=$3`, id, actor, event); err != nil {
+					return err
+				}
+				_, err = tx.Exec(r.Context(), `DELETE FROM outing_plan_votes WHERE plan_id=$1 AND user_id=$2 AND event_id=$3`, id, actor, event)
+				break
 			}
 			if req.Answer != "" && !validPlanAnswer(req.Answer) {
 				return invalid("INVALID_REACTION")

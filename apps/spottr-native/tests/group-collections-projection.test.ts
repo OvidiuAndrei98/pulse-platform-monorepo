@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import test from 'node:test';
+const {hooks,modules,find}=require('../../pulse-app/scripts/helpers/qaHarness.cjs');
+
+test('a repeatedly shared event retains its newest sender/message while preserving newest-first event order',()=>{
+ const h=hooks(),symbols=(...names:string[])=>Object.fromEntries(names.map(name=>[name,name]));
+ const newest={id:'new',eventId:'same-event',seq:12,username:'Ana latest',event:{title:'Event latest'}},other={id:'other',eventId:'other-event',seq:11,username:'Mihai',event:{title:'Other event'}},old={id:'old',eventId:'same-event',seq:2,username:'Franco earlier',event:{title:'Event earlier'}};
+ const model={groups:[{id:'group',status:'accepted',outings:[]}],collection:{group:[newest,other,old]},collectionStatus:{group:'success'},collectionError:{},collectionMore:{},historyStatus:{},historyError:{},historyMore:{},store:{}};
+ const {GroupCollectionsScreen}=modules({react:h.react,'react-native':symbols('FlatList','View'),'@react-navigation/native':{useIsFocused:()=>false,useNavigation:()=>({navigate:()=>{}})},'lucide-react-native':symbols('ChevronRight','Plus'),'@packages/app-core/outings/presentation':{outingDate:()=>''},'./GroupPage':{...symbols('GroupAccess','GroupPage'),g:{}}, './GroupContent':{GroupAvatar:'GroupAvatar',EventPreview:'EventPreview',OutingSummary:'OutingSummary',ConversationRow:'ConversationRow',MessageMeta:'MessageMeta'},'./groupStyles':{groupStyles:{}},'@packages/app-core/social/groupPresentation':{conversationTitle:(group:any)=>group.name,relatedEventOuting:()=>undefined},'./useGroups':{useGroups:()=>model},'../usePreferences':{usePreferences:()=>({copy:(key:string)=>key,language:'en'})},'../outings/OutingPrimitives':symbols('OutingPressable'),'../ui/ActionButton':symbols('ActionButton'),'../ui/common':symbols('EventImage','Feedback','Loading'),'../ui/Text':symbols('Text'),'../ui/theme':{colors:{}},'../data/events':{formatDate:()=>''}}).load(path.resolve(__dirname,'../src/groups/GroupCollectionsScreen.tsx'));
+ const tree=h.render(()=>GroupCollectionsScreen({groupId:'group',kind:'shared'})),list=find(tree,(n:any)=>n.type==='FlatList');assert.equal(list.props.data.length,2);assert.equal(list.props.data[0],newest);assert.equal(list.props.data[0].seq,12);assert.equal(list.props.data[0].username,'Ana latest');assert.equal(list.props.data[1],other);assert.equal(list.props.initialNumToRender,12);h.unmount();
+});

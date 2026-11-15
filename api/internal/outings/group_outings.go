@@ -63,6 +63,7 @@ func (h *Handler) createGroupOuting(w http.ResponseWriter, r *http.Request, acto
 		return err
 	}
 	event := pgtype.UUID{}
+	knownOngoing := false
 	if req.EventID != "" {
 		if len(req.Dates) > 0 {
 			return invalid("INVALID_PLAN_CONTEXT")
@@ -71,7 +72,7 @@ func (h *Handler) createGroupOuting(w http.ResponseWriter, r *http.Request, acto
 		if err != nil {
 			return err
 		}
-		if err = tx.QueryRow(r.Context(), `SELECT ((start_time AT TIME ZONE 'Europe/Bucharest')-interval '6 hours')::date::text,city FROM events WHERE id=$1 AND status='published' AND end_time>CURRENT_TIMESTAMP`, event).Scan(&req.Date, &req.City); err != nil {
+		if err = tx.QueryRow(r.Context(), `SELECT ((start_time AT TIME ZONE 'Europe/Bucharest')-interval '6 hours')::date::text,city,start_time<=CURRENT_TIMESTAMP FROM events WHERE id=$1 AND status='published' AND end_time>CURRENT_TIMESTAMP`, event).Scan(&req.Date, &req.City, &knownOngoing); err != nil {
 			return invalid("EVENT_UNAVAILABLE")
 		}
 	}
@@ -89,7 +90,10 @@ func (h *Handler) createGroupOuting(w http.ResponseWriter, r *http.Request, acto
 	seen := map[string]bool{}
 	last := ""
 	for _, day := range dates {
-		if !validPlanningDate(day, time.Now()) || seen[day] {
+		// An explicit still-running occurrence retains its actual original night.
+		// Manual night searches remain future/current-night only and never gain
+		// unrelated multi-day events just because their intervals overlap.
+		if !validPlanningDate(day, time.Now()) && !knownOngoing || seen[day] {
 			return invalid("INVALID_PLAN_CONTEXT")
 		}
 		seen[day] = true
@@ -197,6 +201,15 @@ func (h *Handler) attendance(w http.ResponseWriter, r *http.Request, actor pgtyp
 	}
 	if round != req.DecisionRound {
 		return conflict("PLAN_CHANGED")
+	}
+	// A cancelled event may still have a future end time. Its conversation stays
+	// available, but it must not keep accepting attendance responses.
+	var available bool
+	if err = tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM events WHERE id=$1 AND status='published' AND end_time>CURRENT_TIMESTAMP)`, p.chosen).Scan(&available); err != nil {
+		return err
+	}
+	if !available {
+		return conflict("EVENT_UNAVAILABLE")
 	}
 	_, err = tx.Exec(r.Context(), `INSERT INTO outing_attendance(plan_id,user_id,decision_round,answer) VALUES($1,$2,$3,$4) ON CONFLICT(plan_id,user_id,decision_round) DO UPDATE SET answer=$4,responded_at=clock_timestamp()`, id, actor, round, req.Answer)
 	if err != nil {

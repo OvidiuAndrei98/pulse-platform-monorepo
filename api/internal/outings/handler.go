@@ -116,6 +116,18 @@ func (h *Handler) endpoint(scope string, write bool, f operation) http.HandlerFu
 			return
 		}
 		var known fault
+		var contextError contextConflict
+		if errors.As(err, &contextError) {
+			result := map[string]any{"error": contextError.Code}
+			if contextError.ExistingPlanID != "" {
+				result["existingPlanId"] = contextError.ExistingPlanID
+			}
+			if contextError.Impact != nil {
+				result["impact"] = contextError.Impact
+			}
+			router.RespondWithJSON(w, http.StatusConflict, result)
+			return
+		}
 		if errors.As(err, &known) {
 			router.RespondWithError(w, known.status, known.code)
 			return
@@ -151,6 +163,7 @@ func (h *Handler) Routes() http.Handler {
 	r.Post("/groups/{groupID}/outings", h.endpoint("group_outing", true, h.createGroupOuting))
 	r.Get("/groups/{groupID}/outings", h.endpoint("group_outings", false, h.groupOutings))
 	r.Post("/plans/{planID}/attendance", h.endpoint("attendance", true, h.attendance))
+	r.Post("/plans/{planID}/context", h.endpoint("context", true, h.editContext))
 	r.Post("/meeting-point/{eventID}", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		router.RespondWithError(w, 410, "EVENT_CHAT_RETIRED")

@@ -172,6 +172,9 @@ model SocialFeedItemResponse {
   eventTitle: string;
   eventBannerUrl?: string;
   eventStartTime: utcDateTime;
+  eventEndTime?: utcDateTime;
+  eventLocation?: string;
+  eventCity?: string;
   organizerName?: string;
   organizerUpdateId?: string;
   organizerUpdateImageUrl?: string;
@@ -1185,6 +1188,8 @@ interface EventOperations {
     @query city?: string,
     @query vibe?: string,
     @query startsAfter?: utcDateTime,
+    @doc("Selected outing night in Europe/Bucharest, using [06:00, next local 06:00), applied before pagination.")
+    @query nightDate?: string,
     @query startsBefore?: utcDateTime,
     @query isLive?: boolean,
     @query latMin?: decimal,

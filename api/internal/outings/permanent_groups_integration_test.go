@@ -432,7 +432,7 @@ func TestPermanentGroupAdministratorTransferAndMaterialEventChange(t *testing.T)
 	p := createOuting(t, f, g, f.users[0], map[string]any{"eventId": sid(f.event)})
 	attendanceAs(t, f, p, f.users[1], "yes")
 	want(t, f.call("POST", path+"/actions", map[string]string{"action": "leave"}, f.users[0]), 409)
-	want(t, f.call("POST", path+"/actions", map[string]string{"action": "rename", "name": "notadmin"}, f.users[1]), 404)
+	want(t, f.call("POST", path+"/actions", map[string]string{"action": "rename", "name": "notadmin"}, f.users[1]), 403)
 	before := readAs(t, f, p.ID, f.users[1])
 	mustExec(t, f.pool, `UPDATE events SET title=title||' edit' WHERE id=$1`, f.event)
 	if readAs(t, f, p.ID, f.users[1]).DecisionRound != before.DecisionRound {

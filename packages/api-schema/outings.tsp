@@ -24,14 +24,14 @@ model OutingPlan {
 model OutingPendingPayment { orderId:string; sessionId?:string; }
 model CreateOutingPlan { requestId: string; title: string; outingDate?: string; candidateDates?: string[]; decisionAt?: utcDateTime; city: string; eventIds?: string[]; friendIds: string[]; confirmEvent?: boolean; }
 model OutingResponse { status: "accepted" | "declined"; }
-model OutingEventChoice { eventId: string; }
-model OutingEventVote { eventId: string; answer?: OutingAnswer; }
-model OutingAvailability { date: string; answer: OutingAnswer; }
-model OutingDateChoice { date: string; }
+model OutingEventChoice { eventId: string; revision?:int64; }
+model OutingEventVote { eventId: string; answer?: OutingAnswer; remove?: boolean; revision?:int64; }
+model OutingAvailability { date: string; answer: OutingAnswer; revision?:int64; }
+model OutingDateChoice { date: string; revision?:int64; }
 model OutingPreferences { budgetRon?: float64; }
 model OutingTicketStatus { shareStatus: boolean; needsTicket: boolean; }
 model OutingPurchase { planId?: string; decisionRound: int32; recipientIds: string[]; extraConfirmed?:boolean; }
-model OutingDeadline { decisionAt: utcDateTime; }
+model OutingDeadline { decisionAt: utcDateTime; revision?:int64; }
 model OutingReopen { revision: int64; reason: "sold_out" | "cancelled" | "other"; }
 model OutingMeeting { place: string; at?: utcDateTime; }
 model OutingArrivalUpdate { status: OutingArrival; }

@@ -75,12 +75,14 @@ export function canCreatePlan(title:string,day:string,city:string,friends:readon
     friends.length>=1&&friends.length<=7&&new Set(friends).size===friends.length&&friends.every(isOutingId);
 }
 export function matchesPlanningContext(event:PlanEvent,context:{outingDate?:string;city?:string}) {
-  return !!context.outingDate&&event.city.toLowerCase()===context.city?.toLowerCase()&&planningToday(new Date(event.startTime))===context.outingDate;
+  return !!context.outingDate&&!!planningCityKey(context.city)&&planningCityKey(event.city)===planningCityKey(context.city)&&planningToday(new Date(event.startTime))===context.outingDate;
 }
+export function planningCityKey(value?:string){return (value??'').normalize('NFD').replace(/\p{Diacritic}/gu,'').trim().toLowerCase().replace(/\s+/g,' ')}
+export function canonicalPlanningCity(value?:string){const key=planningCityKey(value);return eventCities.find(city=>planningCityKey(city)===key)}
 export function eventPlanningContext(event: PlanEvent, now = new Date()) {
   if (!isOutingId(event.id) || !date(event.startTime) || !date(event.endTime) || Date.parse(event.endTime) <= now.getTime()) return undefined;
   const outingDate = planningToday(new Date(event.startTime));
-  const city = eventCities.find(city => city.toLowerCase() === event.city.trim().toLowerCase());
+  const city = canonicalPlanningCity(event.city);
   return city && validPlanningDate(outingDate, now) ? {outingDate, city} : undefined;
 }
 export function parsePlanSourceEvent(value: unknown): PlanEvent {

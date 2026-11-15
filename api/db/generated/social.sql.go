@@ -210,7 +210,7 @@ WITH friend_ids AS (
            MAX(o.created_at) AS occurred_at,
            u.id AS actor_id, u.username AS actor_username, u.avatar_url AS actor_avatar_url,
            e.id AS event_id, e.title AS event_title, e.banner_url AS event_banner_url,
-           e.start_time AS event_start_time, ''::text AS organizer_name,
+           e.start_time AS event_start_time, e.end_time AS event_end_time, e.location_name AS event_location, e.city AS event_city, ''::text AS organizer_name,
            NULL::uuid AS organizer_update_id, ''::text AS organizer_update_image_url,
            ''::text AS organizer_update_caption
     FROM tickets t
@@ -230,7 +230,7 @@ WITH friend_ids AS (
            r.updated_at AS occurred_at,
            u.id AS actor_id, u.username AS actor_username, u.avatar_url AS actor_avatar_url,
            e.id AS event_id, e.title AS event_title, e.banner_url AS event_banner_url,
-           e.start_time AS event_start_time, ''::text AS organizer_name,
+           e.start_time AS event_start_time, e.end_time AS event_end_time, e.location_name AS event_location, e.city AS event_city, ''::text AS organizer_name,
            NULL::uuid AS organizer_update_id, ''::text AS organizer_update_image_url,
            ''::text AS organizer_update_caption
     FROM event_rsvps r
@@ -239,15 +239,6 @@ WITH friend_ids AS (
     JOIN users owner ON owner.id = e.organizer_id AND owner.is_active
     WHERE r.user_id IN (SELECT user_id FROM friend_ids)
       AND r.status = 'going'
-      AND NOT EXISTS (
-          SELECT 1
-          FROM tickets t
-          JOIN orders o ON o.id = t.order_id AND o.status = 'completed'
-              AND o.stripe_refund_status = 'none' AND o.stripe_amount_refunded_bani = 0 AND NOT o.stripe_refund_needs_attention
-              AND NOT EXISTS (SELECT 1 FROM order_refund_operations refund WHERE refund.order_id = o.id)
-          JOIN ticket_types tt ON tt.id = t.ticket_type_id
-          WHERE t.user_id = r.user_id AND tt.event_id = r.event_id
-      )
 
     UNION ALL
 
@@ -255,7 +246,7 @@ WITH friend_ids AS (
            e.created_at AS occurred_at,
            u.id AS actor_id, u.username AS actor_username, u.avatar_url AS actor_avatar_url,
            e.id AS event_id, e.title AS event_title, e.banner_url AS event_banner_url,
-           e.start_time AS event_start_time, op.company_name AS organizer_name,
+           e.start_time AS event_start_time, e.end_time AS event_end_time, e.location_name AS event_location, e.city AS event_city, op.company_name AS organizer_name,
            NULL::uuid AS organizer_update_id, ''::text AS organizer_update_image_url,
            ''::text AS organizer_update_caption
     FROM organizer_follows follows
@@ -270,7 +261,7 @@ WITH friend_ids AS (
            eu.created_at AS occurred_at,
            u.id AS actor_id, u.username AS actor_username, u.avatar_url AS actor_avatar_url,
            e.id AS event_id, e.title AS event_title, e.banner_url AS event_banner_url,
-           e.start_time AS event_start_time, op.company_name AS organizer_name,
+           e.start_time AS event_start_time, e.end_time AS event_end_time, e.location_name AS event_location, e.city AS event_city, op.company_name AS organizer_name,
            eu.id AS organizer_update_id, eu.image_url AS organizer_update_image_url,
            COALESCE(eu.caption, '')::text AS organizer_update_caption
     FROM organizer_follows follows
@@ -281,7 +272,7 @@ WITH friend_ids AS (
     LEFT JOIN organizer_profiles op ON op.user_id = u.id
     WHERE follows.follower_id = $1
 )
-SELECT activity_type, occurred_at, actor_id, actor_username, actor_avatar_url, event_id, event_title, event_banner_url, event_start_time, organizer_name, organizer_update_id, organizer_update_image_url, organizer_update_caption FROM activities
+SELECT activity_type, occurred_at, actor_id, actor_username, actor_avatar_url, event_id, event_title, event_banner_url, event_start_time, event_end_time, event_location, event_city, organizer_name, organizer_update_id, organizer_update_image_url, organizer_update_caption FROM activities
 ORDER BY occurred_at DESC
 LIMIT 40
 `
@@ -296,6 +287,9 @@ type ListSocialFeedRow struct {
 	EventTitle              string             `json:"event_title"`
 	EventBannerUrl          pgtype.Text        `json:"event_banner_url"`
 	EventStartTime          pgtype.Timestamptz `json:"event_start_time"`
+	EventEndTime            pgtype.Timestamptz `json:"event_end_time"`
+	EventLocation           string             `json:"event_location"`
+	EventCity               string             `json:"event_city"`
 	OrganizerName           string             `json:"organizer_name"`
 	OrganizerUpdateID       pgtype.UUID        `json:"organizer_update_id"`
 	OrganizerUpdateImageUrl string             `json:"organizer_update_image_url"`
@@ -321,6 +315,9 @@ func (q *Queries) ListSocialFeed(ctx context.Context, userID pgtype.UUID) ([]Lis
 			&i.EventTitle,
 			&i.EventBannerUrl,
 			&i.EventStartTime,
+			&i.EventEndTime,
+			&i.EventLocation,
+			&i.EventCity,
 			&i.OrganizerName,
 			&i.OrganizerUpdateID,
 			&i.OrganizerUpdateImageUrl,

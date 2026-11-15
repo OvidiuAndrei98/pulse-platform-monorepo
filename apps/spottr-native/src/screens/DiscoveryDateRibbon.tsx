@@ -83,6 +83,7 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
   const track = useRef<ViewInstance>(null);
   const previewRef = useRef(preview), committed = useRef(selection), dragging = useRef(false), momentum = useRef(false), interacted = useRef(false);
   const programmatic = useRef(false);
+  const mounted = useRef(true);
   const wasExpanded = useRef(false);
   const fullWidth = useSharedValue(width), sourcePoint = useSharedValue(source);
   const latest = useRef({ filters, onChange, calendar, today, expanded });
@@ -126,7 +127,7 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
   const settle = () => {
     clearTimer();
     const current = latest.current;
-    if (!current.expanded || !interacted.current || dragging.current || momentum.current) return;
+    if (!mounted.current || programmatic.current || !current.expanded || !interacted.current || dragging.current || momentum.current) return;
     const day = previewRef.current < current.today ? current.today : previewRef.current;
     if (day !== previewRef.current) {
       programmatic.current = true; setDayPreview(day);
@@ -160,7 +161,7 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
     if (expanded) list.current?.scrollToOffset({ offset: Math.max(0, dateRibbonDayIndex(calendar, day)) * STEP, animated: false });
   }, [selection, today, calendar, expanded]);
   useEffect(() => { if (searching) { clearTimer(); setExpanded(false); } }, [searching]);
-  useEffect(() => () => { clearTimeout(timer.current); }, []);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; clearTimeout(timer.current); }; }, []);
   const geometry = useDerivedValue(() => {
     if (Platform.OS === 'ios') {
       const shape = searchMorphGeometry({

@@ -69,6 +69,7 @@ export class ApiError extends Error {
     public status: number,
     public title: string,
     public detail?: string,
+    public data?: unknown,
   ) {
     super(`[API Error ${status}] ${title}: ${detail ?? ""}`);
   }
@@ -208,6 +209,7 @@ export class ApiClient {
         response.status,
         title,
         detail,
+        errorData,
       );
     }
 

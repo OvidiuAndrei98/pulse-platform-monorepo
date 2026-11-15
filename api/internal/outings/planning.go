@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"pulse-api/internal/common"
 	"pulse-api/internal/router"
 )
 
@@ -32,8 +33,7 @@ func validPlanAnswer(answer string) bool {
 	return answer == "yes" || answer == "maybe" || answer == "no"
 }
 func nightBounds(day string) (time.Time, time.Time, error) {
-	start, err := time.ParseInLocation("2006-01-02 15:04", day+" 06:00", planningZone)
-	return start, start.AddDate(0, 0, 1), err
+	return common.NightBounds(day)
 }
 func validDecisionAt(at time.Time, lastDay string) bool {
 	_, end, err := nightBounds(lastDay)
@@ -88,6 +88,9 @@ func (h *Handler) planningMutation(w http.ResponseWriter, r *http.Request, actor
 		return err
 	}
 	owner := p.owner == actor
+	if action != "reopen" && req.Revision > 0 && req.Revision != p.revision {
+		return conflict("PLAN_CHANGED")
+	}
 	votingClosed := p.deadline != nil && !p.deadline.After(time.Now())
 	switch action {
 	case "availability":

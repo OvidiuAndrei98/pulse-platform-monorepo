@@ -1,0 +1,77 @@
+"use client";
+import {useEffect,useLayoutEffect,useRef,useState,type ReactNode} from 'react';
+import {useRouter} from 'next/navigation';
+import Link from 'next/link';
+import {ArrowLeft,Bell,BellOff,CalendarDays,ChevronRight,Image as ImageIcon,LogOut,MoreHorizontal,Pencil,Plus,UserPlus} from 'lucide-react';
+import {useTranslation} from 'react-i18next';
+import {GROUP_MEMBER_LIMIT,type FriendGroup} from '@packages/app-core/social/groups';
+import {outingDate} from '@packages/app-core/outings/presentation';
+import {ActionButton,ActionLink,IconButton} from '@/components/ui/ActionButton';
+import {Field,Input} from '@/components/ui/Field';
+import {ModalFrame,ModalHeader} from '@/components/ui/ModalFrame';
+import {StatusNotice} from '@/components/ui/StatusNotice';
+import {MemberAvatar} from '@/features/outings/OutingPrimitives';
+import {GroupAvatars,GroupMemberCaption} from './GroupRows';
+import {SharedEventCard,OutingSummary} from './GroupConversation';
+import {conversationTitle} from '@packages/app-core/social/groupPresentation';
+import {ActionMenu} from './ActionMenu';
+import {useGroups} from './useGroups';
+import s from './groups.module.css';
+
+type Model=ReturnType<typeof useGroups>;
+export const groupPath=(id:string)=>'/groups/'+id;
+export const pickerPath=(id:string,from='chat',planId?:string)=>groupPath(id)+'/events/select?'+new URLSearchParams({from,...(planId?{planId}:{})});
+const listScroll=new Map<string,number>();
+export function ScrollMemory({scope,ready}:{scope:string;ready:boolean}){
+ const restored=useRef('');useLayoutEffect(()=>{if(ready&&restored.current!==scope){restored.current=scope;window.scrollTo(0,listScroll.get(scope)??0)}},[scope,ready]);useLayoutEffect(()=>()=>{listScroll.set(scope,window.scrollY)},[scope]);return null;
+}
+export function GroupPageFrame({model,groupId,title,back,children,testId,action}:{model:Model;groupId:string;title:string;back:string;children:(group:FriendGroup)=>ReactNode;testId:string;action?:ReactNode}){
+ const {t}=useTranslation(),group=model.groups.find(g=>g.id===groupId);
+ return <main className={s.page} data-testid={testId}><header className={s.header}><ActionLink data-testid="group-page-back" scroll={false} className={s.circle} tone="secondary" href={back} aria-label={t('common.back')}><ArrowLeft size={20}/></ActionLink><h1>{title}</h1>{action}</header>
+ {!model.ready||model.loading&&!group?<StatusNotice kind="loading" title={t('common.loading')}/>:!model.user?<ActionLink href={'/login?returnTo='+encodeURIComponent(groupPath(groupId))}>{t('groups.sessionEnded')}</ActionLink>:!group||model.revoked.includes(groupId)?<StatusNotice kind="error" title={t(model.error??'groups.accessLost')} action={()=>void model.store.load(groupId)} actionLabel={t('common.retry')}/>:group.status!=='accepted'?<ActionLink href={groupPath(groupId)}>{t('groups.invited')}</ActionLink>:children(group)}
+ </main>;
+}
+type Member=FriendGroup['members'][number];
+type Dialog={kind:'rename'|'invite'|'leave'}|{kind:'remove'|'transfer';member:Member};
+export default function GroupInfo({groupId}:{groupId:string}){
+ const model=useGroups(groupId),{t}=useTranslation(),[dialog,setDialog]=useState<Dialog|null>(null),root=groupPath(groupId);
+ return <GroupPageFrame model={model} groupId={groupId} title={t('groups.info')} back={root} testId="group-info">{group=>{
+  const owner=group.ownerId===model.user?.properties.id;
+  return <><ScrollMemory scope={model.user?.properties.id+':'+root+':info:'+group.joinedAt} ready/><section className={s.infoIdentity}><GroupAvatars group={group}/><div className={s.grow}><h2 data-derived={!group.name.trim()} title={conversationTitle(group,model.user?.properties.id,true)}>{conversationTitle(group,model.user?.properties.id,true)}</h2><p className={s.muted}><GroupMemberCaption group={group}/></p></div>{owner&&<IconButton data-testid="group-rename" label={t('groups.renameTitle')} onClick={()=>setDialog({kind:'rename'})}><Pencil size={18}/></IconButton>}</section>
+  <section className={s.stack}><div className={s.sectionHead}><h2>{t('groups.members',{count:group.members.filter(m=>m.status==='accepted').length})}</h2>{owner&&<ActionButton data-testid="group-invite" tone="ghost" size="compact" disabled={group.members.length>=GROUP_MEMBER_LIMIT} onClick={()=>setDialog({kind:'invite'})}><UserPlus size={17}/>{t('groups.inviteFriends')}</ActionButton>}</div>
+  <div>{group.members.map(member=><div className={s.infoMember} data-testid={'group-member-'+member.userId} key={member.userId}><MemberAvatar name={member.username} uri={member.avatarUrl} userId={member.userId}/><div className={s.grow}><strong>{member.username}</strong><p className={s.muted}>{t(member.status==='pending'?'groups.pending':group.ownerId===member.userId?'groups.adminRole':'groups.memberRole')}</p></div>{owner&&member.userId!==group.ownerId&&<ActionMenu testId={'group-member-menu-'+member.userId} label={member.username} icon={<MoreHorizontal size={19}/>} items={[...(member.status==='accepted'?[{key:'transfer',label:t('groups.transfer'),onSelect:()=>setDialog({kind:'transfer',member})}]:[]),{key:'remove',testId:'group-remove-'+member.userId,label:t(member.status==='pending'?'groups.cancelInvitation':'groups.removeMember',{name:member.username}),onSelect:()=>setDialog({kind:'remove',member})}]}/>}</div>)}</div>
+  {owner&&group.members.length>=GROUP_MEMBER_LIMIT&&<p className={s.muted}>{t('groups.inviteLimit',{count:GROUP_MEMBER_LIMIT})}</p>}</section>
+  <section className={s.infoLinks}><Link data-testid="group-info-outings" scroll={false} href={root+'/outings?from=info'} className={s.infoLink}><CalendarDays size={20}/><span className={s.grow}>{t('groups.outings')}</span>{group.outings.length>0&&<span className={s.muted}>{group.outings.length}{(model.historyMore[groupId]??group.outingsHasMore)?'+':''}</span>}<ChevronRight size={18}/></Link><Link data-testid="group-info-events" scroll={false} href={root+'/events?from=info'} className={s.infoLink}><ImageIcon size={20}/><span className={s.grow}>{t('groups.sentEvents')}</span><ChevronRight size={18}/></Link><button data-testid="group-info-mute" aria-label={t(group.muted?'groups.unmute':'groups.mute')} disabled={model.busy} className={s.infoLink} onClick={()=>void model.store.action(groupId,{action:'mute',muted:!group.muted})}>{group.muted?<BellOff size={20}/>:<Bell size={20}/>}<span className={s.grow}>{t('groups.notifications')}</span><span className={s.muted}>{t(group.muted?'groups.notificationsMuted':'groups.notificationsOn')}</span></button></section>
+  {model.error&&<p className={s.error} role="alert">{t(model.error)}</p>}<p className={s.muted}>{t('groups.privacy')}</p><button data-testid="group-leave" className={`${s.infoLink} ${s.destructiveLink}`} onClick={()=>setDialog({kind:'leave'})}><LogOut size={20}/><span>{t('groups.leave')}</span></button>
+  {dialog&&<GroupActionDialog key={dialog.kind+('member'in dialog?dialog.member.userId:'')} group={group} model={model} dialog={dialog} onClose={()=>setDialog(null)}/>}</>;
+ }}</GroupPageFrame>;
+}
+function GroupActionDialog({group,model,dialog,onClose}:{group:FriendGroup;model:Model;dialog:Dialog;onClose:()=>void}){
+ const {t}=useTranslation(),router=useRouter(),[name,setName]=useState(group.name),[search,setSearch]=useState(''),[selected,setSelected]=useState<string[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState<string|null>(null),active=useRef(true),sending=useRef(false),input=useRef<HTMLInputElement>(null);
+ useEffect(()=>{active.current=true;return()=>{active.current=false}},[]);
+ useEffect(()=>{if(dialog.kind==='invite')void model.store.loadFriends()},[dialog.kind,model.store]);
+ const member='member'in dialog?dialog.member:undefined,pending=member?.status==='pending',owner=group.ownerId===model.user?.properties.id,eligible=model.friends.filter(f=>!group.members.some(m=>m.userId===f.id)),capacity=GROUP_MEMBER_LIMIT-group.members.length;
+ const title=t(dialog.kind==='rename'?'groups.renameTitle':dialog.kind==='invite'?'groups.inviteFriends':dialog.kind==='leave'?'groups.leave':dialog.kind==='transfer'?'groups.transfer':pending?'groups.cancelInvitation':'groups.removeMember',{name:member?.username});
+ const save=async()=>{if(sending.current)return;sending.current=true;setBusy(true);setError(null);try{let ok=false;
+  if(dialog.kind==='invite'){ok=true;for(const userId of selected){if(!await model.store.action(group.id,{action:'invite',userId})){ok=false;break}if(active.current)setSelected(ids=>ids.filter(id=>id!==userId))}}
+  else ok=!!await model.store.action(group.id,dialog.kind==='rename'?{action:'rename',name:name.trim()}:dialog.kind==='leave'?{action:'leave'}:{action:dialog.kind==='transfer'?'transfer-admin':'remove',userId:member!.userId});
+  if(!active.current)return;if(ok){onClose();if(dialog.kind==='leave')router.replace('/groups')}else setError(model.store.getSnapshot().error??'groups.failed');
+ }finally{sending.current=false;if(active.current)setBusy(false)}};
+ const forbidden=dialog.kind!=='leave'&&!owner;
+ return <ModalFrame open onClose={onClose} className={dialog.kind==='invite'?s.inviteDialog:s.shortDialog} testId={'group-dialog-'+dialog.kind} label={title} initialFocusRef={dialog.kind==='rename'?input:undefined}><ModalHeader title={title} onClose={onClose}/><div className={s.dialogScroll}>
+ {dialog.kind==='rename'?<Field label={t('groups.name')}><Input ref={input} data-testid="group-rename-name" value={name} maxLength={80} onFocus={e=>e.currentTarget.select()} onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&name.trim()&&name.trim()!==group.name)void save()}}/></Field>:dialog.kind==='invite'?<><Input data-testid="group-invite-search" type="search" aria-label={t('groups.inviteSearch')} placeholder={t('groups.inviteSearch')} value={search} onChange={e=>setSearch(e.target.value)}/>{model.friendsLoading&&!eligible.length?<StatusNotice kind="loading" title={t('common.loading')}/>:model.friendsError?<StatusNotice kind="error" title={t(model.friendsError)} action={()=>void model.store.loadFriends()} actionLabel={t('common.retry')}/>:eligible.filter(f=>f.username.toLowerCase().includes(search.toLowerCase())).map(friend=><label className={s.member} key={friend.id}><MemberAvatar name={friend.username} uri={friend.avatarUrl} userId={friend.id}/><span>{friend.username}</span><input data-testid={'group-invite-friend-'+friend.id} type="checkbox" checked={selected.includes(friend.id)} disabled={busy||!selected.includes(friend.id)&&selected.length>=capacity} onChange={()=>setSelected(ids=>ids.includes(friend.id)?ids.filter(id=>id!==friend.id):[...ids,friend.id])}/></label>)}{!model.friendsLoading&&!model.friendsError&&!eligible.filter(f=>f.username.toLowerCase().includes(search.toLowerCase())).length&&<p className={s.muted}>{t(search?'groups.inviteNoMatches':'groups.inviteEmpty')}</p>}</>:<p className={s.muted}>{t(dialog.kind==='leave'?'groups.leaveConfirm':dialog.kind==='transfer'?'groups.transferConfirm':pending?'groups.confirmCancelInvite':'groups.confirmRemove',{name:member?.username})}</p>}
+ {forbidden&&<p className={s.error}>{t('groups.actionForbidden')}</p>}{error&&<p className={s.error} role="alert">{t(error)}</p>}</div><footer className={s.dialogFooter}><ActionButton data-testid="group-dialog-cancel" tone="ghost" onClick={onClose}>{t('groups.cancel')}</ActionButton><ActionButton data-testid="group-dialog-save" tone={['leave','remove'].includes(dialog.kind)?'danger':'primary'} busy={busy} disabled={forbidden||dialog.kind==='rename'&&(!name.trim()||name.trim()===group.name)||dialog.kind==='invite'&&!selected.length} onClick={()=>void save()}>{t(dialog.kind==='rename'?'groups.save':dialog.kind==='invite'?'groups.inviteFriends':dialog.kind==='leave'?'groups.leave':dialog.kind==='transfer'?'groups.transfer':pending?'groups.cancelInvitation':'groups.remove')}</ActionButton></footer></ModalFrame>;
+}
+export function GroupContentList({groupId,kind,from='info'}:{groupId:string;kind:'outings'|'events';from?:string}){
+ const model=useGroups(groupId),{t,i18n}=useTranslation(),root=groupPath(groupId),status=kind==='events'?model.collectionStatus[groupId]:model.historyStatus[groupId],error=kind==='events'?model.collectionError[groupId]:model.historyError[groupId];
+ const load=(older=false)=>kind==='events'?model.store.collection(groupId,older):model.store.loadHistory(groupId,older),group=model.groups.find(g=>g.id===groupId);
+ useEffect(()=>{if(group?.status==='accepted')void load()},[kind,group?.status,groupId,model.store]);
+ const shared=[...new Map((model.collection[groupId]??[]).filter(m=>m.eventId).map(m=>[m.eventId,m])).values()];
+ const outings=[...(group?.outings??[])].sort((a,b)=>(a.outingDate??'9999').localeCompare(b.outingDate??'9999'));
+ const count=kind==='events'?shared.length:outings.length,more=kind==='events'?model.collectionMore[groupId]:model.historyMore[groupId];
+ return <GroupPageFrame model={model} groupId={groupId} title={t(kind==='events'?'groups.sentEvents':'groups.outings')} back={root+(from==='chat'?'':'/info')} testId={'group-'+kind+'-page'} action={kind==='outings'&&group?.status==='accepted'&&count>0?<ActionLink data-testid="group-new-night" className={s.circle} tone="secondary" href={root+'/outings/new?from=outings'} aria-label={t('groups.propose')}><Plus size={20}/></ActionLink>:undefined}>{group=><><ScrollMemory scope={model.user?.properties.id+':'+root+':'+kind+':'+group.joinedAt} ready={status==='success'}/>
+ {status==='error'&&!!count&&<StatusNotice kind="error" title={t(error??(kind==='events'?'groups.collectionLoadFailed':'groups.historyLoadFailed'))} action={()=>void load()} actionLabel={t('common.retry')}/>}
+ {status==='idle'||status==='loading'&&!count?<StatusNotice kind="loading" title={t('common.loading')}/>:status==='error'&&!count?<StatusNotice kind="error" title={t(error??(kind==='events'?'groups.collectionLoadFailed':'groups.historyLoadFailed'))} action={()=>void load()} actionLabel={t('common.retry')}/>:!count?<div className={s.empty} data-testid="group-content-empty"><h2>{t(kind==='events'?'groups.eventsEmpty':'groups.outingsEmpty')}</h2><p className={s.muted}>{t(kind==='events'?'groups.eventsEmptyHint':'groups.outingsEmptyHint')}</p><ActionLink data-testid="group-empty-action" href={kind==='events'?pickerPath(groupId,'events'):root+'/outings/new?from=outings'}>{t(kind==='events'?'groups.findEvent':'groups.propose')}</ActionLink></div>:kind==='events'?<div className={s.stack}>{shared.map(m=>m.event&&<div key={m.eventId}><p className={s.sharedCaption}>{m.username}</p><SharedEventCard event={m.event} group={group} model={model} compact/></div>)}</div>:<div className={s.stack}>{(['upcoming','history'] as const).map(section=>{const rows=outings.filter(p=>section==='history'?['completed','cancelled'].includes(p.lifecycle??''):!['completed','cancelled'].includes(p.lifecycle??''));if(section==='history')rows.reverse();return !!rows.length&&<section className={s.stack} key={section}><h2>{t('groups.'+section)}</h2><div>{rows.map(plan=><OutingSummary key={plan.id} plan={plan} groupId={groupId} actor={model.user?.properties.id} collection/>)}</div></section>})}</div>}
+ {more&&status!=='error'&&<ActionButton data-testid="group-content-more" tone="ghost" busy={status==='loading'} onClick={()=>void load(true)}>{t('groups.older')}</ActionButton>}
+ </>}</GroupPageFrame>;
+}

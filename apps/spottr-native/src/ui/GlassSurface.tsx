@@ -4,6 +4,6 @@ import type { GlassSurfaceProps } from './glassSurfaceTypes';
 
 export const supportsLiquidGlass = false;
 
-export const GlassSurface = forwardRef<ViewInstance, GlassSurfaceProps>(function GlassSurface({ tintColor: _tintColor, interactive: _interactive, ...props }, ref) {
+export const GlassSurface = forwardRef<ViewInstance, GlassSurfaceProps>(function GlassSurface({ tintColor: _tintColor, interactive: _interactive, glassEffectStyle:_effect, ...props }, ref) {
   return <View {...props} ref={ref} />;
 });
