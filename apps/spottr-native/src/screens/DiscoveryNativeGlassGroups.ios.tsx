@@ -63,7 +63,13 @@ export function DiscoveryNativeGlassGroups({ bounds, progress, geometry, backSca
     { translateX: controls.value.filter.x }, { translateY: controls.value.filter.y }, { scale: controls.value.filter.scale },
   ] }));
   const focusBorder = useAnimatedStyle(() => ({ borderColor: focused.value ? '#ffffff38' : '#ffffff1a' }));
-  const backEntrance = useAnimatedStyle(() => ({ transform: [{ scale: backScale.value }] }));
+  // A transparent SVG mask can hide the glyph while UIKit still composites
+  // the native glass circle above the returning switch. Hide its host too at
+  // zero visibility; the permanent outer slot keeps the morph's layout intact.
+  const backEntrance = useAnimatedStyle(() => ({
+    display: geometry.value.back > 0 ? 'flex' : 'none',
+    transform: [{ scale: backScale.value }],
+  }));
   const sourceSettle = useAnimatedStyle(() => ({ transform: [{ scale: Math.max(geometry.value.sourceScale, geometry.value.sourcePressScale) }] }));
   const fieldSettle = useAnimatedStyle(() => ({ transform: [
     { translateX: geometry.value.destinationOffsetX + bounds.value.destination.width * (geometry.value.destinationScaleX - 1) / 2 },

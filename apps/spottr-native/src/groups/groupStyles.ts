@@ -18,7 +18,7 @@ export const groupStyles=StyleSheet.create({
  line:{height:1,backgroundColor:colors.line},
  bubble:{maxWidth:'88%',alignSelf:'flex-start',backgroundColor:colors.raised,borderRadius:tokens.radius.overlay,borderTopLeftRadius:tokens.spacing.xs,paddingHorizontal:tokens.spacing.lg,paddingVertical:tokens.spacing.md,gap:tokens.spacing.xs},
  mine:{alignSelf:'flex-end',backgroundColor:'#25131b',borderTopLeftRadius:tokens.radius.overlay,borderTopRightRadius:tokens.spacing.xs},
- summary:{marginHorizontal:screenPadding,paddingVertical:tokens.spacing.sm,paddingHorizontal:tokens.spacing.md,minHeight:64,backgroundColor:colors.surface,borderRadius:tokens.radius.surface},
+ summary:{marginHorizontal:screenPadding,paddingVertical:0,paddingHorizontal:tokens.spacing.md,minHeight:52,backgroundColor:colors.surface,borderRadius:tokens.radius.surface},
  message:{paddingHorizontal:screenPadding,paddingTop:tokens.spacing.md,paddingBottom:tokens.spacing.xs,width:'100%',maxWidth:760,alignSelf:'center'},
  composer:{paddingTop:10,flexDirection:'row',gap:8,alignItems:'flex-end',width:'100%',maxWidth:760,alignSelf:'center'},
  field:{flex:1,minHeight:44,maxHeight:220,paddingVertical:11},empty:{gap:tokens.spacing.lg,paddingVertical:tokens.spacing.xxl},

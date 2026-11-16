@@ -37,6 +37,7 @@ type planMember struct {
 	ArrivalUpdatedAt   *time.Time `json:"arrivalUpdatedAt,omitempty"`
 }
 type planOption struct {
+	ReferenceMessageID string         `json:"referenceMessageId,omitempty"`
 	EventStatus        string         `json:"eventStatus,omitempty"`
 	EventID            string         `json:"eventId"`
 	Title              string         `json:"title"`
@@ -59,6 +60,7 @@ type plan struct {
 	AllConfirmedReady      bool                `json:"allConfirmedReady"`
 	GiftPurchasesAvailable *bool               `json:"giftPurchasesAvailable,omitempty"`
 	MyPendingPayment       *pendingPlanPayment `json:"myPendingPayment,omitempty"`
+	MyCheckoutReservation  *pendingPlanPayment `json:"myCheckoutReservation,omitempty"`
 	ID                     string              `json:"id"`
 	OwnerID                string              `json:"ownerId"`
 	Title                  string              `json:"title"`
@@ -206,21 +208,25 @@ func readPlan(ctx context.Context, q queryer, id, actor pgtype.UUID) (plan, erro
           WHEN pricing.on_sale THEN 'on_sale'
           WHEN pricing.upcoming THEN 'upcoming'
           WHEN pricing.stock THEN 'sales_ended'
-          WHEN pricing.total>0 THEN 'sold_out' ELSE 'unavailable' END
+          WHEN pricing.total>0 THEN 'sold_out' ELSE 'unavailable' END,
+        COALESCE(reference.id::text,'')
         FROM outing_plan_options o JOIN outing_plans p ON p.id=o.plan_id JOIN events e ON e.id=o.event_id
+        LEFT JOIN LATERAL(SELECT msg.id FROM friend_group_messages msg JOIN friend_group_members member ON member.group_id=msg.group_id AND member.user_id=$2 AND member.status='accepted'
+          WHERE msg.group_id=p.group_id AND msg.outing_id=p.id AND msg.event_id=o.event_id AND msg.seq>member.visible_after_seq
+          ORDER BY (msg.outing_context->>'referenceMessageId'=msg.id::text) DESC NULLS LAST,msg.seq LIMIT 1) reference ON TRUE
         CROSS JOIN LATERAL (SELECT min(tt.price_ron)::float8 price,count(*) total,
           COALESCE(bool_or(tt.capacity>tt.tickets_sold),FALSE) stock,
           COALESCE(bool_or(tt.capacity>tt.tickets_sold AND tt.start_sales<=CURRENT_TIMESTAMP AND tt.end_sales>CURRENT_TIMESTAMP),FALSE) on_sale,
           COALESCE(bool_or(tt.capacity>tt.tickets_sold AND tt.start_sales>CURRENT_TIMESTAMP AND tt.end_sales>tt.start_sales),FALSE) upcoming
           FROM ticket_types tt WHERE tt.event_id=e.id) pricing
-        WHERE o.plan_id=$1 ORDER BY o.position`, id)
+        WHERE o.plan_id=$1 ORDER BY o.position`, id, actor)
 	if err != nil {
 		return p, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var option planOption
-		if err = rows.Scan(&option.EventID, &option.Title, &option.Location, &option.StartTime, &option.Available, &option.ProposedBy, &option.EventStatus, &option.PriceRon, &option.TicketAvailability); err != nil {
+		if err = rows.Scan(&option.EventID, &option.Title, &option.Location, &option.StartTime, &option.Available, &option.ProposedBy, &option.EventStatus, &option.PriceRon, &option.TicketAvailability, &option.ReferenceMessageID); err != nil {
 			return p, err
 		}
 		p.Options = append(p.Options, option)
@@ -324,14 +330,18 @@ func (h *Handler) changePlan(w http.ResponseWriter, r *http.Request, actor pgtyp
 		return err
 	}
 	var req struct {
-		Status   string `json:"status,omitempty"`
-		Revision int64  `json:"revision,omitempty"`
-		EventID  string `json:"eventId,omitempty"`
-		Answer   string `json:"answer,omitempty"`
-		Remove   bool   `json:"remove,omitempty"`
+		Status          string `json:"status,omitempty"`
+		Revision        int64  `json:"revision,omitempty"`
+		EventID         string `json:"eventId,omitempty"`
+		Answer          string `json:"answer,omitempty"`
+		Remove          bool   `json:"remove,omitempty"`
+		SourceMessageID string `json:"sourceMessageId,omitempty"`
 	}
 	if err = body(r, &req); err != nil {
 		return err
+	}
+	if req.SourceMessageID != "" && action != "propose" {
+		return invalid("INVALID_MESSAGE")
 	}
 	tx, err := h.Pool.Begin(r.Context())
 	if err != nil {
@@ -407,6 +417,15 @@ func (h *Handler) changePlan(w http.ResponseWriter, r *http.Request, actor pgtyp
 				}
 				_, err = tx.Exec(r.Context(), `INSERT INTO outing_plan_options(plan_id,event_id,position,proposed_by)
  SELECT $1,$2,MIN(slot),$3 FROM generate_series(0,7) slot WHERE NOT EXISTS(SELECT 1 FROM outing_plan_options used WHERE used.plan_id=$1 AND used.position=slot)`, id, event, actor)
+			}
+			if err == nil {
+				var group pgtype.UUID
+				if err = tx.QueryRow(r.Context(), `SELECT group_id FROM outing_plans WHERE id=$1`, id).Scan(&group); err != nil {
+					return err
+				}
+				if group.Valid {
+					err = bindGroupEventReference(r.Context(), tx, group, id, event, actor, req.SourceMessageID)
+				}
 			}
 		case "remove_proposal":
 			if chosen == event {

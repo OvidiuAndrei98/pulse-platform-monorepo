@@ -770,6 +770,15 @@ model NativePaymentSheetPayload {
   paymentIntentClientSecret: string;
 }
 
+model RecoverCheckoutPayload { orderId:string; eventId:string; action?:"check"|"cancel"; }
+model RecoverCheckoutResponse {
+  status:"pending"|"completed"|"failed"|"refunded";
+  orderId:string;
+  paymentAttempted:boolean;
+  checkout?: CheckoutSessionResponse|NativePaymentSheetResponse;
+  recoveryReason?:"outing_changed"|"review_recipients";
+}
+
 model BookFreeTicketPayload {
   outing?:OutingPurchase;
   items: CheckoutTicketItemPayload[];
@@ -778,6 +787,16 @@ model BookFreeTicketPayload {
 model BookFreeTicketResponse {
   orderId: string;
   alreadyBooked: boolean;
+}
+
+@error
+model CheckoutConflictResponse {
+  @statusCode statusCode: 409;
+  error: string;
+  @doc("Bounded recovery guidance for OUTING_RECIPIENTS_CHANGED; absence supports older servers. Never means a payment can be retried automatically.")
+  reason?: "review_recipients" | "outing_changed" | "additional_ticket_confirmation" | "pending_access" | "existing_payment";
+  @doc("Only the authenticated purchaser's existing unclosed order, when reason is existing_payment. Never a friend's order or payment capability.")
+  orderId?: string;
 }
 
 model ReconcileCheckoutPayload {
@@ -1162,6 +1181,9 @@ interface ProfileOperations {
 
 @route("/checkout")
 interface CheckoutOperations {
+  @summary("Recupereaza doar checkout-ul propriu existent, dupa verificarea autentificarii si a starii Stripe; nu creeaza o plata noua")
+  @post @route("/recover")
+  recover(@body payload: RecoverCheckoutPayload): RecoverCheckoutResponse;
   @summary("Reconciliaza o sesiune Stripe platita cand webhookul Connect intarzie")
   @post
   @route("/reconcile")
@@ -1308,7 +1330,7 @@ interface EventOperations {
   ): {
     @statusCode statusCode: 201;
     @body checkout: CheckoutSessionResponse | NativePaymentSheetResponse;
-  };
+  } | CheckoutConflictResponse;
 
   @summary("Rezerva direct un bilet gratuit pentru utilizatorul autentificat")
   @post
@@ -1316,7 +1338,8 @@ interface EventOperations {
   bookFreeTicket(
     @path id: string,
     @body payload: BookFreeTicketPayload,
-  ): BookFreeTicketResponse;
+    @header("Idempotency-Key") idempotencyKey?: string,
+  ): BookFreeTicketResponse | CheckoutConflictResponse;
 
   @summary("Verifica un cod promo disponibil pentru eveniment")
   @post

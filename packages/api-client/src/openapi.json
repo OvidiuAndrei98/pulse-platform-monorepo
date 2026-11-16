@@ -619,6 +619,35 @@
         }
       }
     },
+    "/checkout/recover": {
+      "post": {
+        "operationId": "CheckoutOperations_recover",
+        "summary": "Recupereaza doar checkout-ul propriu existent, dupa verificarea autentificarii si a starii Stripe; nu creeaza o plata noua",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoverCheckoutResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoverCheckoutPayload"
+              }
+            }
+          }
+        }
+      }
+    },
     "/dashboard/events": {
       "post": {
         "operationId": "DashboardOperations_createEvent",
@@ -3231,6 +3260,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3240,6 +3277,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BookFreeTicketResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the current state of the server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutConflictResponse"
                 }
               }
             }
@@ -3293,6 +3340,16 @@
                       "$ref": "#/components/schemas/NativePaymentSheetResponse"
                     }
                   ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the current state of the server.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutConflictResponse"
                 }
               }
             }
@@ -3892,6 +3949,15 @@
               "enum": [
                 "events"
               ]
+            },
+            "explode": false
+          },
+          {
+            "name": "references",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
             },
             "explode": false
           }
@@ -6678,6 +6744,32 @@
           }
         }
       },
+      "CheckoutConflictResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "review_recipients",
+              "outing_changed",
+              "additional_ticket_confirmation",
+              "pending_access",
+              "existing_payment"
+            ],
+            "description": "Bounded recovery guidance for OUTING_RECIPIENTS_CHANGED; absence supports older servers. Never means a payment can be retried automatically."
+          },
+          "orderId": {
+            "type": "string",
+            "description": "Only the authenticated purchaser's existing unclosed order, when reason is existing_payment. Never a friend's order or payment capability."
+          }
+        }
+      },
       "CheckoutSessionResponse": {
         "type": "object",
         "required": [
@@ -7021,6 +7113,9 @@
             }
           },
           "eventId": {
+            "type": "string"
+          },
+          "sourceMessageId": {
             "type": "string"
           }
         }
@@ -8096,6 +8191,9 @@
           "outingId": {
             "type": "string"
           },
+          "referenceMessageId": {
+            "type": "string"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -8117,6 +8215,12 @@
         ],
         "properties": {
           "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FriendGroupMessage"
+            }
+          },
+          "references": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/FriendGroupMessage"
@@ -9194,7 +9298,8 @@
             "enum": [
               "yes",
               "maybe",
-              "no"
+              "no",
+              "unanswered"
             ]
           },
           "decisionRound": {
@@ -9361,6 +9466,9 @@
           "revision": {
             "type": "integer",
             "format": "int64"
+          },
+          "sourceMessageId": {
+            "type": "string"
           }
         }
       },
@@ -9525,6 +9633,9 @@
           "available": {
             "type": "boolean"
           },
+          "referenceMessageId": {
+            "type": "string"
+          },
           "proposedBy": {
             "type": "string"
           },
@@ -9618,6 +9729,14 @@
           },
           "myPendingPayment": {
             "$ref": "#/components/schemas/OutingPendingPayment"
+          },
+          "myCheckoutReservation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OutingPendingPayment"
+              }
+            ],
+            "description": "The authenticated buyer's own recoverable checkout before Pay; not a payment, transaction, invoice or ticket state."
           },
           "inviterName": {
             "type": "string"
@@ -10438,6 +10557,70 @@
           "paymentAttempted": {
             "type": "boolean",
             "description": "Whether Stripe has observed a submitted payment attempt. Opening the payment form alone is not an attempt."
+          }
+        }
+      },
+      "RecoverCheckoutPayload": {
+        "type": "object",
+        "required": [
+          "orderId",
+          "eventId"
+        ],
+        "properties": {
+          "orderId": {
+            "type": "string"
+          },
+          "eventId": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "check",
+              "cancel"
+            ]
+          }
+        }
+      },
+      "RecoverCheckoutResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "orderId",
+          "paymentAttempted"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "completed",
+              "failed",
+              "refunded"
+            ]
+          },
+          "orderId": {
+            "type": "string"
+          },
+          "paymentAttempted": {
+            "type": "boolean"
+          },
+          "checkout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckoutSessionResponse"
+              },
+              {
+                "$ref": "#/components/schemas/NativePaymentSheetResponse"
+              }
+            ]
+          },
+          "recoveryReason": {
+            "type": "string",
+            "enum": [
+              "outing_changed",
+              "review_recipients"
+            ]
           }
         }
       },

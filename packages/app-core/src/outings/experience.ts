@@ -20,6 +20,30 @@ export function recipientHasPendingAccess(member:OutingPlan['members'][number]) 
 export function automaticPlanRecipients(plan:OutingPlan) {
  return eligiblePlanRecipients(plan).filter(member=>member.attendance==='yes'&&member.ticketState==='none'&&member.hasTicket===false);
 }
+export type OutingCheckoutRecovery = {
+ kind:'review_selection'|'review_outing'|'review_extra'|'pending_access'|'existing_payment'|'gift_window_closed';
+ messageKey:string;
+ actionKey:string;
+ orderId?:string;
+};
+export function outingCheckoutRecovery(cause:unknown):OutingCheckoutRecovery|undefined {
+ if(!cause||typeof cause!=='object')return;
+ const error=cause as Record<string,unknown>;
+ const data=error.data&&typeof error.data==='object'?error.data as Record<string,unknown>:error;
+ const code=[data.error,data.code,error.code,error.title,error.detail].find(value=>value==='OUTING_RECIPIENTS_CHANGED'||value==='TICKET_GIFT_WINDOW_CLOSED');
+ if(code==='TICKET_GIFT_WINDOW_CLOSED')return {kind:'gift_window_closed',messageKey:'outings.v2.giftWindowClosed',actionKey:'outings.v2.reviewSelection'};
+ if(code!=='OUTING_RECIPIENTS_CHANGED')return;
+ const reason=data.reason;
+ if(reason==='outing_changed')return {kind:'review_outing',messageKey:'outings.v2.destinationChanged',actionKey:'groups.viewOuting'};
+ if(reason==='additional_ticket_confirmation')return {kind:'review_extra',messageKey:'outings.v2.extraNeedsConfirmation',actionKey:'outings.v2.reviewSelection'};
+ if(reason==='existing_payment'){
+  const orderId=typeof data.orderId==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.orderId)?data.orderId:undefined;
+  return orderId?{kind:'existing_payment',messageKey:'outings.v2.existingPayment',actionKey:'outings.v2.checkingPayment',orderId}
+   :{kind:'pending_access',messageKey:'outings.v2.pendingAccess',actionKey:'outings.v2.reviewSelection'};
+ }
+ if(reason==='pending_access')return {kind:'pending_access',messageKey:'outings.v2.pendingAccess',actionKey:'outings.v2.reviewSelection'};
+ return {kind:'review_selection',messageKey:'outings.v2.recipientChanged',actionKey:'outings.v2.reviewSelection'};
+}
 export function relevantOutingPlans(plans:readonly OutingPlan[],now=Date.now()) {
  const date=(p:OutingPlan)=>p.outingDate??p.candidateDates?.[0]?.date;
  const day=planningToday(new Date(now));
@@ -28,6 +52,10 @@ export function relevantOutingPlans(plans:readonly OutingPlan[],now=Date.now()) 
 }
 export const outingExperienceCopy={
  en:{
+  reviewSelection:'Review selection',destinationChanged:'The outing’s destination has changed. Open the outing and choose tickets for the current event.',
+  extraNeedsConfirmation:'Someone selected already has a ticket. Review the selection and confirm if you want an additional ticket.',
+  existingPayment:'An existing payment is still being checked for this selection. Check it before starting another purchase.',
+  pendingAccess:'Someone selected has a payment or ticket offer in progress. Review the recipients before continuing.',
   planWithFriends:'Plan with friends',proposeShort:'Propose',knownNoTicket:'No ticket for this event',limitedSeats:'Not enough tickets for this selection. Choose fewer people or another ticket type.',
   responseDetails:'Friends’ answers',notAnswered:'Not answered yet',proposalLimit:'All 8 proposal places are in use.',
   giftWindowClosed:'Tickets for friends are unavailable once entry codes are prepared or the event starts. You can still get your own ticket.',
@@ -45,6 +73,10 @@ export const outingExperienceCopy={
   about:'About this night',previous:'Earlier destination',outcome:'The plan does not reserve or buy tickets.',all:'See all',saving:'Saving…',noPhotos:'Event image unavailable',
  },
  ro:{
+  reviewSelection:'Verifică selecția',destinationChanged:'Destinația ieșirii s-a schimbat. Deschide ieșirea și alege bilete pentru evenimentul actual.',
+  extraNeedsConfirmation:'Cineva selectat are deja bilet. Verifică selecția și confirmă dacă dorești un bilet suplimentar.',
+  existingPayment:'O plată existentă este încă în verificare pentru această selecție. Verific-o înainte să începi o altă cumpărare.',
+  pendingAccess:'Cineva selectat are o plată sau un bilet oferit în curs. Verifică destinatarii înainte să continui.',
   planWithFriends:'Planifică cu prietenii',proposeShort:'Propune',knownNoTicket:'Fără bilet pentru acest eveniment',limitedSeats:'Nu mai sunt suficiente bilete pentru această selecție. Alege mai puține persoane sau alt tip de bilet.',
   responseDetails:'Răspunsurile prietenilor',notAnswered:'Încă nu a răspuns',proposalLimit:'Toate cele 8 locuri pentru propuneri sunt ocupate.',
   giftWindowClosed:'Biletele pentru prieteni nu mai sunt disponibile după pregătirea codurilor de acces sau începerea evenimentului. Îți poți lua în continuare propriul bilet.',

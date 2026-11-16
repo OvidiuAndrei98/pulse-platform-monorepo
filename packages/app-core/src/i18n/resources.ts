@@ -1476,6 +1476,8 @@ export const resources = {
         downloadPdf: "Download PDF",
       },
       checkout: {
+        reservationExpired:'This checkout has ended. You can choose your tickets again.',
+        resumeOnOriginalDevice:'Continue this checkout in the SPOTTR app where you started it, or check its status again.',
         free: "Free",
         bookFree: "Book free ticket",
         bookingFree: "Booking...",
@@ -3229,6 +3231,8 @@ export const resources = {
         downloadPdf: "Descarca PDF",
       },
       checkout: {
+        reservationExpired:'Acest checkout s-a încheiat. Poți alege din nou biletele.',
+        resumeOnOriginalDevice:'Continuă acest checkout în aplicația SPOTTR în care l-ai început sau verifică din nou starea lui.',
         free: "Gratuit",
         bookFree: "Rezerva biletul gratuit",
         bookingFree: "Se rezerva...",

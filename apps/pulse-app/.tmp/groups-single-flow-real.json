@@ -1,0 +1,761 @@
+{
+  "checks": [
+    "member accepts group and shares event through actual picker",
+    "source ID, original sender/time/content preserved; no duplicate chosen poster; no forced route change",
+    "second identity changes/withdraws/replies without poster duplication",
+    "real reopen, picker return, multi-event support and explicit destination; alternatives compact",
+    "member cannot change creator destination (real API authorization)",
+    "real free self/friend registration; friend ticket stays private until accepted",
+    "extra ticket only after explicit acknowledgement",
+    "friend explicitly accepts and sees own usable ticket entry",
+    "date change invalidates options; same event can have separate explicit reference in second outing"
+  ],
+  "requests": [
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/actions",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/events",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "POST",
+      "status": 201
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/actions",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/actions",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/outings",
+      "method": "POST",
+      "status": 201
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/actions",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/d8168dbd-e1be-4318-bddb-c6ba61d5dcc9/attendance",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/actions",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/d8168dbd-e1be-4318-bddb-c6ba61d5dcc9/attendance",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/d8168dbd-e1be-4318-bddb-c6ba61d5dcc9/attendance",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/d8168dbd-e1be-4318-bddb-c6ba61d5dcc9/attendance",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/transfers",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/d8168dbd-e1be-4318-bddb-c6ba61d5dcc9/reopen",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/events",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/d8168dbd-e1be-4318-bddb-c6ba61d5dcc9/proposals",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/transfers",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/actions",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/d8168dbd-e1be-4318-bddb-c6ba61d5dcc9/vote",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/d8168dbd-e1be-4318-bddb-c6ba61d5dcc9/vote",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/transfers",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/d8168dbd-e1be-4318-bddb-c6ba61d5dcc9/choose",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/d8168dbd-e1be-4318-bddb-c6ba61d5dcc9/attendance",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/transfers",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/events/fc1f24a4-f26e-44a8-8a9e-150120d145f7",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/events/fc1f24a4-f26e-44a8-8a9e-150120d145f7/tickets/book",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/transfers",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/transfers/28b6b9a6-c1f8-4fd3-9eb4-c4432af15fa0/respond",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/transfers",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/transfers",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/events",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/d8168dbd-e1be-4318-bddb-c6ba61d5dcc9/context",
+      "method": "POST",
+      "status": 409
+    },
+    {
+      "route": "/outings/plans/d8168dbd-e1be-4318-bddb-c6ba61d5dcc9/context",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/actions",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/transfers",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/events",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/d8168dbd-e1be-4318-bddb-c6ba61d5dcc9/context",
+      "method": "POST",
+      "status": 409
+    },
+    {
+      "route": "/outings/plans/d8168dbd-e1be-4318-bddb-c6ba61d5dcc9/context",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/actions",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/events",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "POST",
+      "status": 201
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/actions",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/outings",
+      "method": "POST",
+      "status": 201
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/dfb8d77e-c71a-4fe8-bc78-011197657d73/actions",
+      "method": "POST",
+      "status": 200
+    }
+  ],
+  "screenshots": [
+    "01-member-shared",
+    "02-canonical-in-place",
+    "03-owner-answered",
+    "04-member-response",
+    "05-two-comparisons",
+    "06-destination-and-alternative",
+    "07-self-friend-checkout",
+    "08-owner-wallet",
+    "09-extra-safeguard",
+    "10-member-pending",
+    "11-member-wallet-entry",
+    "12-incompatible-context",
+    "13-same-event-new-context"
+  ],
+  "startedAt": "2026-11-15T23:02:57.745Z",
+  "groupId": "dfb8d77e-c71a-4fe8-bc78-011197657d73",
+  "sourceId": "f22ab487-84db-4635-a406-25d1a413ac69",
+  "planId": "d8168dbd-e1be-4318-bddb-c6ba61d5dcc9",
+  "finishedAt": "2026-11-15T23:05:48.558Z",
+  "success": true
+}

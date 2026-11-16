@@ -1,0 +1,67 @@
+[
+  {
+    "mode": "zero",
+    "viewport": 707,
+    "content": 707,
+    "offset": 0,
+    "composerTop": 788,
+    "pageScroll": 0,
+    "mounted": 0
+  },
+  {
+    "mode": "one",
+    "viewport": 707,
+    "content": 707,
+    "offset": 0,
+    "composerTop": 788,
+    "lastBottom": 759,
+    "pageScroll": 0,
+    "mounted": 1
+  },
+  {
+    "mode": "five",
+    "viewport": 707,
+    "content": 707,
+    "offset": 0,
+    "composerTop": 788,
+    "lastBottom": 759,
+    "pageScroll": 0,
+    "mounted": 5
+  },
+  {
+    "reduced": {
+      "viewport": 293,
+      "content": 293,
+      "offset": 0,
+      "composerTop": 374,
+      "lastBottom": 345,
+      "pageScroll": 0,
+      "mounted": 1
+    }
+  },
+  {
+    "imageFallback": {
+      "before": 249.4375,
+      "after": 249.4375
+    }
+  },
+  {
+    "pinned": "Wed 18 NovemberBucuresti · No suggestions yet+1",
+    "visitDoesNotChangePinned": true
+  },
+  {
+    "menu": {
+      "width": 136,
+      "height": 58
+    },
+    "outsideClickNavigated": false
+  },
+  {
+    "enlarged": {
+      "width": 252,
+      "height": 377.359375,
+      "buttonsFit": true,
+      "overflow": false
+    }
+  }
+]

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {GroupsStore,groupReadinessLabel,parseGroups,parseMessages,type FriendGroup} from '../src/social/groups';
+import {GroupsStore,groupReadinessLabel,groupTicketReadiness,parseGroups,parseMessages,type FriendGroup} from '../src/social/groups';
 import type {OutingsRequest,OutingPlan} from '../src/outings/model';
 const id=(n:number)=>`11111111-1111-4111-8111-${String(n).padStart(12,'0')}`;
 const gid=id(1),actor=id(2);
@@ -67,6 +67,30 @@ const outing=(n:number,patch:Partial<OutingPlan>={}):OutingPlan=>({id:id(n),grou
 test('one confirmed guest gets a personal ready label rather than a whole-group claim',()=>{
  const p=outing(30,{allConfirmedReady:true,confirmedCount:1,members:[{userId:actor,username:'QA',status:'accepted',attendance:'yes'}]});
  assert.equal(groupReadinessLabel(p,actor),'groups.readyForYou');assert.equal(groupReadinessLabel(p,id(3)),'groups.readyForOne');assert.equal(groupReadinessLabel({...p,allConfirmedReady:false,confirmedCount:0},actor),'groups.summary');
+});
+
+test('ticket readiness never describes unknown or unavailable admission as zero tickets',()=>{
+ const yes={userId:actor,username:'QA',status:'accepted' as const,attendance:'yes' as const};
+ const p=outing(30,{chosenEventId:id(40),lifecycle:'event_selected',members:[{...yes,ticketState:'valid',hasTicket:true},{...yes,userId:id(3),ticketState:'unknown'}]});
+ const partial=groupTicketReadiness(p,actor);
+ assert.equal(partial.ready,1);assert.equal(partial.unknown,1);assert.equal(partial.complete,false);assert.equal(partial.summaryKey,'groups.readinessPartial');assert.equal(partial.allConfirmedReady,false);assert.equal(partial.ownTicketUsable,true);
+ const loading=groupTicketReadiness(p,actor,'loading'),failed=groupTicketReadiness(p,actor,'error');
+ assert.equal(loading.summaryKey,'groups.readinessChecking');assert.equal(failed.summaryKey,'groups.readinessUnavailable');assert.equal(failed.ownTicketUsable,true,'confirmed own QR remains accessible during a failed refresh');
+ assert.equal(groupTicketReadiness({...p,members:[yes]},actor).unknown,1,'missing legacy projection is not proof of no ticket');
+ const known=groupTicketReadiness({...p,members:[{...yes,ticketState:'none',hasTicket:false}]},actor);
+ assert.equal(known.complete,true);assert.equal(known.ready,0);assert.equal(known.summaryKey,'groups.summary');
+});
+
+test('readiness counts confirmed accepted people once without treating offers as ready',()=>{
+ const p=outing(30,{chosenEventId:id(40),lifecycle:'event_selected',members:[
+  {userId:actor,username:'QA',status:'accepted',attendance:'yes',ticketState:'used',hasTicket:true},
+  {userId:id(3),username:'QA2',status:'accepted',attendance:'yes',ticketState:'offered',hasTicket:false},
+  {userId:id(4),username:'QA3',status:'pending',attendance:'yes',ticketState:'valid',hasTicket:true},
+  {userId:id(5),username:'QA4',status:'accepted',attendance:'no',ticketState:'valid',hasTicket:true},
+ ]});
+ const state=groupTicketReadiness(p,actor);assert.equal(state.confirmed,2);assert.equal(state.ready,1);assert.equal(state.allConfirmedReady,false);
+ const all=groupTicketReadiness({...p,members:p.members.slice(0,1)},actor);assert.equal(all.allConfirmedReady,true);
+ assert.equal(groupTicketReadiness({...p,chosenEventId:undefined},actor).summaryKey,'groups.comingCount');
 });
 
 test('fresh group detail overrides hydrated outing fields without dropping older paginated outings',async()=>{

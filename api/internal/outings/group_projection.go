@@ -12,19 +12,26 @@ func loadPermanentPlanDetails(ctx context.Context, q queryer, id, actor pgtype.U
 		var gifts bool
 		var paymentID pgtype.UUID
 		var session *string
+		var attempted bool
 		err := q.QueryRow(ctx, `SELECT e.status='published' AND e.start_time>CURRENT_TIMESTAMP AND NOT e.ticket_transfers_locked AND e.external_ticket_url IS NULL,
-   payment.id,payment.stripe_checkout_session_id FROM events e LEFT JOIN LATERAL(
-    SELECT o.id,o.stripe_checkout_session_id FROM orders o JOIN checkout_payment_attempts attempt ON attempt.order_id=o.id
+   payment.id,payment.stripe_checkout_session_id,COALESCE(payment.attempted,FALSE) FROM events e LEFT JOIN LATERAL(
+    SELECT o.id,o.stripe_checkout_session_id,EXISTS(SELECT 1 FROM checkout_payment_attempts attempt WHERE attempt.order_id=o.id) attempted FROM orders o
     WHERE o.user_id=$2 AND o.event_id=e.id AND o.status IN ('pending','failed') AND NOT EXISTS(SELECT 1 FROM checkout_closed_payments c WHERE c.order_id=o.id)
-    ORDER BY o.created_at DESC LIMIT 1) payment ON TRUE WHERE e.id=$1::uuid`, p.ChosenEventID, actor).Scan(&gifts, &paymentID, &session)
+    AND (o.status='pending' OR o.stripe_payment_intent_id IS NOT NULL OR o.stripe_checkout_session_id IS NOT NULL)
+    ORDER BY o.created_at DESC LIMIT 1) payment ON TRUE WHERE e.id=$1::uuid`, p.ChosenEventID, actor).Scan(&gifts, &paymentID, &session, &attempted)
 		if err != nil {
 			return err
 		}
 		p.GiftPurchasesAvailable = &gifts
 		if paymentID.Valid {
-			p.MyPendingPayment = &pendingPlanPayment{OrderID: sid(paymentID)}
+			payment := &pendingPlanPayment{OrderID: sid(paymentID)}
 			if session != nil {
-				p.MyPendingPayment.SessionID = *session
+				payment.SessionID = *session
+			}
+			if attempted {
+				p.MyPendingPayment = payment
+			} else {
+				p.MyCheckoutReservation = payment
 			}
 		}
 	}

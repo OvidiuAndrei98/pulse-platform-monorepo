@@ -7,13 +7,15 @@ model OutingReaction { userId: string; answer: OutingAnswer; }
 model OutingDateOption { date: string; responses: OutingReaction[]; }
 model OutingPreviousEvent { eventId: string; title: string; changedAt: utcDateTime; }
 model OutingMember { userId: string; username: string; avatarUrl?: string; status: "pending" | "accepted" | "declined"; voteEventId?: string; hasTicket?: boolean; needsTicket?: boolean; ticketStatusShared?:boolean; hasPreviousTicket?: boolean; arrivalStatus?: OutingArrival; arrivalUpdatedAt?: utcDateTime; attendance?:"yes"|"maybe"|"no"|"unanswered";ticketState?:"unknown"|"none"|"processing"|"offered"|"valid"|"used"|"expired"; }
-model OutingOption { eventId: string; eventStatus?:string; title: string; location: string; imageUrl?: string; startTime: utcDateTime; available: boolean; proposedBy?: string; priceRon?: float64; totalPriceRon?: float64; budgetFits?: int32; reactions?: OutingReaction[]; ticketAvailability?: "on_sale" | "upcoming" | "sold_out" | "sales_ended" | "external" | "unavailable"; }
+model OutingOption { eventId: string; eventStatus?:string; title: string; location: string; imageUrl?: string; startTime: utcDateTime; available: boolean; referenceMessageId?:string; proposedBy?: string; priceRon?: float64; totalPriceRon?: float64; budgetFits?: int32; reactions?: OutingReaction[]; ticketAvailability?: "on_sale" | "upcoming" | "sold_out" | "sales_ended" | "external" | "unavailable"; }
 model OutingPlan {
   createdAt?:utcDateTime;
   groupId?:string; lifecycle?:"choosing_date"|"choosing_event"|"event_selected"|"completed"|"cancelled";
   confirmedCount?:int32;readyCount?:int32;allConfirmedReady?:boolean;
   giftPurchasesAvailable?: boolean;
   myPendingPayment?: OutingPendingPayment;
+  @doc("The authenticated buyer's own recoverable checkout before Pay; not a payment, transaction, invoice or ticket state.")
+  myCheckoutReservation?: OutingPendingPayment;
   inviterName?: string; inviterAvatar?: string; decisionRound?: int32;
   id: string; ownerId: string; title: string; status: "pending" | "accepted" | "declined";
   outingDate?: string; city?: string; chosenEventId?: string; expiresAt: utcDateTime; members: OutingMember[]; options: OutingOption[];
@@ -24,7 +26,7 @@ model OutingPlan {
 model OutingPendingPayment { orderId:string; sessionId?:string; }
 model CreateOutingPlan { requestId: string; title: string; outingDate?: string; candidateDates?: string[]; decisionAt?: utcDateTime; city: string; eventIds?: string[]; friendIds: string[]; confirmEvent?: boolean; }
 model OutingResponse { status: "accepted" | "declined"; }
-model OutingEventChoice { eventId: string; revision?:int64; }
+model OutingEventChoice { eventId: string; revision?:int64; sourceMessageId?:string; }
 model OutingEventVote { eventId: string; answer?: OutingAnswer; remove?: boolean; revision?:int64; }
 model OutingAvailability { date: string; answer: OutingAnswer; revision?:int64; }
 model OutingDateChoice { date: string; revision?:int64; }

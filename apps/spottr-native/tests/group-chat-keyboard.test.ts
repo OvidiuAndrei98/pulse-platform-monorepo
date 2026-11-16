@@ -80,6 +80,8 @@ function fixture(bottomInset: number) {
   const dock = app.GroupComposerDock({ bottomInset, children: React.createElement('Composer') });
   return {
     list, dock, geometry, appGeometry,
+    hiddenList: () => app.GroupChatScrollView.render({ bottomInset, active: false, onViewportInset: (value: number) => { viewportInset = value; } }, null),
+    hiddenDock: () => app.GroupComposerDock({ bottomInset, active: false, children: React.createElement('Composer') }),
     get viewportInset() { return viewportInset; },
     layout(height: number) { dock.props.onLayout({ nativeEvent: { layout: { height } } }); },
     frame(height: number, progress: number) {
@@ -128,6 +130,17 @@ test('native composer uses the installed sticky driver for opening, interactive 
         'Open keyboard must preserve the requested 16pt gap, including on Android with a 12pt closed inset');
     }
   }
+});
+
+test('covered chat freezes keyboard adjustment and ignores zero or hidden dock measurements', () => {
+  const f = fixture(34), reserved = f.list.props.extraContentPadding;
+  f.layout(122);f.layout(0);assert.equal(reserved.value,122,'Detaching a native route must not erase its composer reservation');
+  const hidden=f.hiddenDock();hidden.props.onLayout({nativeEvent:{layout:{height:0}}});hidden.props.onLayout({nativeEvent:{layout:{height:44}}});
+  assert.equal(reserved.value,122,'A covered route cannot replace its last real dock measurement');
+  const list=f.hiddenList();assert.equal(list.props.freeze,true);
+  list.props.onContentInsetChange({top:0,bottom:0,left:0,right:0});assert.equal(f.viewportInset,0);
+  f.list.props.onContentInsetChange({top:360,bottom:0,left:0,right:0});
+  list.props.onContentInsetChange({top:0,bottom:0,left:0,right:0});assert.equal(f.viewportInset,360,'Hidden inset callbacks must not overwrite the visible viewport');
 });
 
 test('multiline growth reserves the complete native dock without hiding the latest reachable message', () => {

@@ -4,6 +4,7 @@ import { planningCityKey } from '../outings/model';
 import { outingDate } from '../outings/presentation';
 import { validCalendarDay } from '../events/discoveryFilters';
 import type { FriendGroup, GroupMessage } from './groups';
+import { preferredGroupOuting } from './groups';
 import type { FeedGroup, SocialFeedItem } from './feedTypes';
 import { groupFeedItems } from './groupFeedItems';
 
@@ -97,7 +98,7 @@ export function decisionState(plan: OutingPlan, actorId?: string, context: Decis
   }
   const expired = Number.isFinite(Date.parse(plan.expiresAt)) && Date.parse(plan.expiresAt) <= now;
   const deadlinePassed = kind !== 'attendance' && !!plan.decisionAt && Date.parse(plan.decisionAt) <= now;
-  const invalidTarget = kind === 'preference' ? !option || !!plan.chosenEventId || option.eventStatus === 'cancelled'
+  const invalidTarget = kind === 'preference' ? !option || option.available === false || !!plan.chosenEventId || option.eventStatus === 'cancelled'
     : kind === 'availability' ? !date || !plan.candidateDates?.some(item => item.date === date) || !!plan.outingDate && plan.outingDate !== date : false;
   const closed = expired || deadlinePassed || invalidTarget || plan.lifecycle === 'completed' || plan.lifecycle === 'cancelled';
   const pending = (context.group?.members ?? plan.members).filter(member => member.status === 'pending').length;
@@ -122,8 +123,18 @@ export function decisionQuestion(plan: OutingPlan, language: Language, copy: Cop
 }
 
 export function relatedEventOuting(group: FriendGroup, eventId: string): OutingPlan | undefined {
-  return group.outings.find(plan => plan.lifecycle !== 'completed' && plan.lifecycle !== 'cancelled' && plan.chosenEventId === eventId)
-    ?? group.outings.find(plan => plan.lifecycle !== 'completed' && plan.lifecycle !== 'cancelled' && plan.options.some(option => option.eventId === eventId));
+  const eligible = group.outings.filter(plan => plan.lifecycle !== 'completed' && plan.lifecycle !== 'cancelled' && plan.options.some(option => option.eventId === eventId && option.available !== false));
+  return eligible.find(plan => plan.chosenEventId === eventId) ?? eligible[0];
+}
+
+/** Conversation identity comes from an explicit server association, not a matching poster. */
+export function isCanonicalGroupReference(message: GroupMessage): boolean {
+  return !!message.outingId && !!message.event && message.referenceMessageId === message.id;
+}
+
+export function referencedGroupOuting(message: GroupMessage, plans: readonly OutingPlan[]): OutingPlan | undefined {
+  if (!message.outingId || !message.event || !message.referenceMessageId) return undefined;
+  return plans.find(plan => plan.id === message.outingId && plan.options.some(option => option.eventId === message.event!.id));
 }
 
 export function isCurrentOutingMessage(message: GroupMessage, plan: OutingPlan | undefined): boolean {
@@ -134,6 +145,88 @@ export function isCurrentOutingMessage(message: GroupMessage, plan: OutingPlan |
     && context.outingDate === plan.outingDate
     && planningCityKey(context.city) === planningCityKey(plan.city)
     && [...context.candidateDates].sort().join('|') === [...(plan.candidateDates ?? [])].map(day => day.date).sort().join('|');
+}
+
+/** Describe only a provable adjacent snapshot delta. Missing history or a gap
+ * cannot identify which action this author performed. In particular, never
+ * infer attendance, purchases, proposal actions or a current plan's changes.
+ * `previous` must be an earlier stored message, not the live plan projection. */
+export function groupUpdateSummary(message: GroupMessage, previous: GroupMessage | undefined, _language: Language, copy: Copy): string {
+  const name = message.username.trim();
+  if (!name) return copy('groups.updateAnonymous');
+  const generic = () => copy('groups.updateGeneric', { name });
+  const current = message.outingContext, before = previous?.outingContext;
+  if (message.kind !== 'outing' || !message.outingId || !current || !before || !previous || previous.kind === 'text'
+    || previous.outingId !== message.outingId || previous.seq + 1 !== message.seq
+    || current.decisionRound < before.decisionRound || current.decisionRound > before.decisionRound + 1) return generic();
+  const dates = (value: typeof current) => [value.outingDate ?? '', [...value.candidateDates].sort().join('|')].join(':');
+  const fields: ('Date' | 'City' | 'Destination' | 'Title')[] = [];
+  if (dates(current) !== dates(before)) fields.push('Date');
+  if (planningCityKey(current.city) !== planningCityKey(before.city)) fields.push('City');
+  if (current.chosenEventId !== before.chosenEventId) fields.push('Destination');
+  if (current.title !== before.title) fields.push('Title');
+  if (!fields.length) return generic();
+  if (fields.length === 1) return copy('groups.update' + fields[0], { name });
+  // The separator is language-neutral and avoids introducing a dependency on
+  // Intl.ListFormat support in older mobile runtimes.
+  return copy('groups.updateMultiple', { name, fields: fields.map(field => copy('groups.updateField' + field)).join(' · ') });
+}
+
+export type GroupConversationRow =
+  | { kind: 'message'; id: string; message: GroupMessage }
+  | { kind: 'updates'; id: string; outingId: string; messages: GroupMessage[]; count: number; firstAt: string; lastAt: string };
+
+/** Collapse only contiguous, known historical snapshots, never the stored audit trail.
+ * Input ordering is preserved for both inverted native and chronological web lists.
+ * Do not assign a single author to the aggregate: every child retains its identity.
+ */
+export function groupConversationRows(messages: readonly GroupMessage[], plans: readonly OutingPlan[]): GroupConversationRow[] {
+  const planById = new Map(plans.map(plan => [plan.id, plan]));
+  const referenceUpdate = (message: GroupMessage) => !!message.outingId && (
+    !!message.referenceMessageId && message.referenceMessageId !== message.id ||
+    message.kind === 'outing' && !isCanonicalGroupReference(message) && !!planById.get(message.outingId)?.options.some(option => option.referenceMessageId));
+  const rows: GroupConversationRow[] = [];
+  let pending: GroupMessage[] = [];
+  const flush = () => {
+    if (pending.length < 2 && !pending.some(referenceUpdate)) {
+      for (const message of pending) rows.push({ kind: 'message', id: message.id, message });
+    } else {
+      const chronological = [...pending].sort((a, b) => a.seq - b.seq);
+      const first = chronological[0]!, last = chronological[chronological.length - 1]!;
+      rows.push({ kind: 'updates', id: 'outing-updates:' + first.id, outingId: first.outingId!, messages: pending, count: pending.length, firstAt: first.createdAt, lastAt: last.createdAt });
+    }
+    pending = [];
+  };
+  for (const message of messages) {
+    const plan = message.outingId ? planById.get(message.outingId) : undefined;
+    const historical = referenceUpdate(message) || message.kind === 'outing' && !isCanonicalGroupReference(message) && !!plan && !isCurrentOutingMessage(message, plan);
+    const previous = pending[pending.length - 1];
+    // A missing sequence may contain ordinary text that has not loaded yet.
+    // Never group across that unknown gap or across another outing/current card.
+    if (!historical || previous && (previous.outingId !== message.outingId || Math.abs(previous.seq - message.seq) !== 1)) flush();
+    if (historical) pending.push(message);
+    else rows.push({ kind: 'message', id: message.id, message });
+  }
+  flush();
+  return rows;
+}
+
+/** A compact summary for the nearest eligible outing; navigation does not change it. */
+export function pinnedOutingPresentation(plans: readonly OutingPlan[], language: Language, copy: Copy, now = Date.now()) {
+  const plan = preferredGroupOuting(plans, now);
+  if (!plan) return undefined;
+  const eligibleCount = plans.filter(item => item.status === 'accepted' && item.lifecycle !== 'completed' && item.lifecycle !== 'cancelled' && Date.parse(item.expiresAt) > now).length;
+  const event = plan.options.find(option => option.eventId === plan.chosenEventId);
+  if (plan.chosenEventId) return {
+    plan, event, eligibleCount,
+    title: event?.title ?? copy('groups.eventUnavailable'),
+    subtitle: [groupNightDate(plan.outingDate, language, now), plan.city].filter(Boolean).join(' · '),
+  };
+  return {
+    plan, event: undefined, eligibleCount,
+    title: plan.outingDate ? groupNightDate(plan.outingDate, language, now) : outingTitle(plan, language),
+    subtitle: [plan.city, copy(plan.options.length ? 'groups.destinationPending' : 'groups.noSuggestionsYet')].filter(Boolean).join(' · '),
+  };
 }
 
 export function friendsEventGroups(items: readonly SocialFeedItem[], now = Date.now()): FeedGroup[] {
@@ -149,4 +242,18 @@ export function friendsEventGroups(items: readonly SocialFeedItem[], now = Date.
       .map(item => [item.actorId, item])).values()];
     return { ...group, ticketActors: category('friend_ticket'), goingActors: category('friend_going') };
   }).sort((a, b) => Date.parse(a.eventStartTime) - Date.parse(b.eventStartTime) || a.eventId.localeCompare(b.eventId));
+}
+
+/** A collection entry represents an explicitly bound reference, not all uses
+ * of a party. Prefer its original source if a newer alias is also in the page.
+ * Raw conversation/audit messages remain untouched. */
+export function groupSharedEventReferences(messages:readonly GroupMessage[]):GroupMessage[]{
+ const entries=new Map<string,GroupMessage>();
+ for(const message of messages){
+  const key=message.outingId&&message.event&&message.referenceMessageId
+   ?JSON.stringify([message.outingId,message.event.id,message.referenceMessageId]):message.id;
+  const existing=entries.get(key);
+  if(!existing||isCanonicalGroupReference(message)&&!isCanonicalGroupReference(existing))entries.set(key,message);
+ }
+ return [...entries.values()];
 }

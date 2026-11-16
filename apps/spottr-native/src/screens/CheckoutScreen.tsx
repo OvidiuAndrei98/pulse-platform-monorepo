@@ -32,6 +32,7 @@ import { billingStyles } from '../checkout/BillingFields';
 import { formatRon } from '@packages/app-core/events/serviceFee';
 import { ActionButton as UIActionButton } from '../ui/ActionButton';
 import { initialTicketQuantities } from '@packages/app-core/checkout/ticketAvailability';
+import {CheckoutReservationActions} from '../checkout/CheckoutReservationActions';
 
 export function CheckoutScreen(props: Props) {
   const { user } = useAuth('account');
@@ -95,7 +96,8 @@ function CheckoutContent(props: Parameters<typeof useCheckoutController>[0]) {
     </FormScrollView>
     <KeyboardFooter><LinearGradient onLayout={event => setFooterHeight(event.nativeEvent.layout.height)} colors={['#0000001a', '#000000b3', '#000000']} style={[s.footer, { paddingBottom: Math.max(28, safe.bottom) }]}>
       {error && <Text testID="checkout-error" accessibilityRole="alert" accessibilityLiveRegion="polite" style={[billingStyles.error, { lineHeight: 18, marginBottom: 12 }]}>{copy(error)}</Text>}
-      <UIActionButton testID="checkout-next" accessibilityRole="button" disabled={blocked} onPress={() => void (step === 2 ? pay() : advance())} style={[s.cta, blocked && { opacity: 0.4 }]}>{busy ? <ActivityIndicator size="small" color="white" /> : step === 2 ? <Ticket size={16} color="white" /> : <ArrowRight size={16} color="white" />}<Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>{copy(busy ? 'checkout.preparingPayment' : step === 2 ? 'checkout.confirmAndPay' : step === 1 ? 'checkout.continueToSummary' : 'common.next', { total: formatRon(totals?.total ?? 0) })}</Text></UIActionButton>
+      {model.outingRecovery?<UIActionButton testID="checkout-outing-recovery" busy={busy} disabled={busy} onPress={model.recoverOuting} style={s.cta}><Text style={{color:'white',fontSize:14,fontWeight:'600'}}>{copy(model.outingRecovery.actionKey)}</Text></UIActionButton>:<UIActionButton testID="checkout-next" accessibilityRole="button" disabled={blocked} onPress={() => void (step === 2 ? pay() : advance())} style={[s.cta, blocked && { opacity: 0.4 }]}>{busy ? <ActivityIndicator size="small" color="white" /> : step === 2 ? <Ticket size={16} color="white" /> : <ArrowRight size={16} color="white" />}<Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>{copy(busy ? 'checkout.preparingPayment' : step === 2 ? 'checkout.confirmAndPay' : step === 1 ? 'checkout.continueToSummary' : 'common.next', { total: formatRon(totals?.total ?? 0) })}</Text></UIActionButton>}
+      <CheckoutReservationActions model={model.reservationActions} onClosed={model.reservationActions.onClosed}/>
     </LinearGradient></KeyboardFooter>
   </View>;
 }

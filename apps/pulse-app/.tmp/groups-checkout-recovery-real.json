@@ -1,0 +1,54 @@
+{
+  "success": true,
+  "checks": [
+    "real free order recovery returns completed",
+    "explicit cancel cannot refund/revoke an already completed order",
+    "different buyer cannot read or cancel order",
+    "event binding and unknown order fail closed",
+    "unauthenticated recovery denied"
+  ],
+  "calls": [
+    {
+      "route": "/events/5b599f5a-8046-4663-8384-ad31b30ca6a6/tickets/book",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "status": 200
+    },
+    {
+      "route": "/checkout/recover",
+      "status": 200
+    },
+    {
+      "route": "/checkout/recover",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "status": 200
+    },
+    {
+      "route": "/checkout/recover",
+      "status": 404
+    },
+    {
+      "route": "/checkout/recover",
+      "status": 404
+    },
+    {
+      "route": "/checkout/recover",
+      "status": 404
+    },
+    {
+      "route": "/checkout/recover",
+      "status": 404
+    },
+    {
+      "route": "/checkout/recover",
+      "status": 401
+    }
+  ],
+  "completedAt": "2026-11-15T23:24:55.936Z",
+  "boundary": "Actual isolated HTTP/Go/PostgreSQL; no Stripe provider or charged payment"
+}

@@ -12,6 +12,7 @@ import { isEventId } from '../src/data/events';
 import { confirmPayment, canRecheckPayment, canRestartCheckout } from '../src/checkout/confirmation';
 import { ApiError } from '../src/data/http';
 import { purchaseCompletion } from '../src/checkout/purchaseCompletion';
+import {parseRecoveredCheckout} from '../src/checkout/recoverCheckout';
 
 const account = '11111111-1111-4111-8111-111111111111';
 const otherAccount = '22222222-2222-4222-8222-222222222222';
@@ -67,7 +68,7 @@ async function fixture() {
   const auth = { ready: true, user: { id: account }, token: 'token-A' };
   const controller = { getToken: () => auth.token };
   const calls: any[] = [], requests: string[] = [], haptics: string[] = [], invalidations: string[] = [], subscriptions = new Set<(state: string) => void>();
-  let server: 'pending' | 'completed' | 'failed' | 'refunded' | 'missing' | 'offline' | 'malformed' = 'pending', navReady = true;
+  let server: 'pending' | 'completed' | 'failed' | 'refunded' | 'missing' | 'offline' | 'malformed' = 'pending', navReady = true,paymentAttempted=true;
   let now = Date.now(), gate: Promise<void> | undefined;
   const requestedOrders: string[] = [];
   let current: any = { name: 'Home' };
@@ -85,11 +86,12 @@ async function fixture() {
     'lucide-react-native': { AlertCircle: 'Alert', CheckCircle2: 'Success', Mail: 'Mail', Ticket: 'Ticket', UserRoundPlus: 'Account', ArrowLeft: 'Back', ArrowRight: 'Next', Clock3: 'Clock', RotateCcw: 'Retry', WifiOff: 'Offline' },
     '../auth/AuthProvider': { useAuth: () => ({ ...auth, controller }), accountApi: async (path: string, options: any) => {
       requests.push(path); requestedOrders.push(options?.body?.orderId ?? orderId);
+      if(path==='/checkout/recover'&&auth.user.id!==account)throw new ApiError(404,'NOT_FOUND');
       if (gate) await gate;
       if (server === 'offline') throw Error('offline');
       if (server === 'missing') throw new ApiError(404, 'NOT_FOUND');
       if (server === 'malformed') return { status: 'completed' };
-      return { orderId: options?.body?.orderId ?? orderId, status: server };
+      return { orderId: options?.body?.orderId ?? orderId, status: server, ...(path==='/checkout/recover'?{paymentAttempted}:{}) };
     } },
     '../usePreferences': { usePreferences: () => prefs },
     '../data/queries': { queryClient: { invalidateQueries({ queryKey }: { queryKey: string[] }) { invalidations.push(queryKey[0]!); } } },
@@ -103,7 +105,8 @@ async function fixture() {
     '../checkout/CheckoutSuccess': { CheckoutSuccessTicket: 'TicketSummary', PaymentSuccessCheck: 'SuccessCheck' },
     '../checkout/purchaseCompletion': { purchaseCompletion },
     './purchaseCompletion': { purchaseCompletion },
-    '../checkout/paymentBrowser': { canResumePaymentBrowser: () => false, forgetPaymentBrowser() {} },
+    '../checkout/paymentBrowser': { canResumePaymentBrowser: () => false, forgetPaymentBrowser() {},paymentReturnOrigin:()=>undefined },
+    '../checkout/recoverCheckout':{parseRecoveredCheckout},'../config':{WEB_URL:'https://spottr.ro'},
     '../checkout/confirmation': { canRecheckPayment, canRestartCheckout, confirmPayment: (read: any, active: any, _pause: any, attempts: 1 | 4) => confirmPayment(read, active, async () => {}, attempts) },
     '../ui/common': { Feedback: 'Feedback' },
     './paymentRecoveryStorage': {}, '../checkout/paymentRecoveryStorage': {},
@@ -116,7 +119,7 @@ async function fixture() {
   return { store, auth, deps, navigation, calls, requests, requestedOrders, subscriptions, haptics, invalidations,
     advance: (ms: number) => { now += ms; }, gate: (value: Promise<void> | undefined) => { gate = value; },
     appState: (state: string) => { deps['react-native'].AppState.currentState = state; subscriptions.forEach(fn => fn(state)); },
-    server: (value: typeof server) => { server = value; }, ready: (value: boolean) => { navReady = value; }, route: (value: any) => { current = value; } };
+    server: (value: typeof server) => { server = value; },attempted:(value:boolean)=>{paymentAttempted=value}, ready: (value: boolean) => { navReady = value; }, route: (value: any) => { current = value; } };
 }
 const tabs = () => ({ index: 0, routes: [{ name: 'Tabs' }] });
 
@@ -297,9 +300,21 @@ test('another account cannot verify the previous account order through a restore
   const f = await fixture(); f.auth.user.id = otherAccount; f.auth.token = 'token-B';
   const ui = mount('screens/CheckoutReturnScreen.tsx', 'CheckoutReturnScreen', { navigation: f.navigation, route: { params: { eventId, nativeOrderId: orderId } } }, f.deps);
   await ui.flush();
-  assert.ok(ui.text('checkoutResult.invalidHint')); assert.deepEqual(f.requests, []);
+  assert.ok(ui.text('checkoutResult.missingHint')); assert.deepEqual(f.requests, ['/checkout/recover']);
   assert.equal((await f.store.load(account)).length, 1);
   ui.unmount();
+});
+
+test('an authenticated return without the local capability reconciles the buyer order instead of reporting invalid',async()=>{
+ const f=await fixture();await f.store.remove(account,orderId);payments.clearNativePayments();f.server('completed');
+ const ui=mount('screens/CheckoutReturnScreen.tsx','CheckoutReturnScreen',{navigation:f.navigation,route:{params:{eventId,nativeOrderId:orderId}}},f.deps);await ui.flush();
+ assert.deepEqual(f.requests,['/checkout/recover']);assert.equal(purchaseCompletion.getSnapshot()?.orderId,orderId);assert.equal(f.calls[0][1],eventId);ui.unmount();
+});
+
+test('an unfinished checkout without a Pay submission returns quietly instead of claiming a pending payment',async()=>{
+ const f=await fixture();await f.store.remove(account,orderId);payments.clearNativePayments();f.attempted(false);
+ const ui=mount('screens/CheckoutReturnScreen.tsx','CheckoutReturnScreen',{navigation:f.navigation,route:{params:{eventId,nativeOrderId:orderId}}},f.deps);await ui.flush();
+ assert.ok(f.requests.length>0&&f.requests.every(route=>route==='/checkout/recover'));assert.equal(f.calls[0][1],eventId);assert.equal(purchaseCompletion.getSnapshot(),null);assert.equal(ui.text('checkoutResult.pendingTitle'),false);assert.deepEqual(f.haptics,[]);ui.unmount();
 });
 
 test('native Back retains pending recovery and the success handoff retains its receipt until dismissal', async () => {

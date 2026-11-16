@@ -32,3 +32,199 @@
 @media(max-width:340px){.decisionPoll .choices{grid-template-columns:1fr}.decisionPoll .choiceLabel{flex-basis:auto}.decisionPoll .choiceAvatars{margin-left:0}}
 .attendanceActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.attendanceActions>button{min-width:0;white-space:normal}.attendanceActions>button[aria-pressed=true]{border-color:var(--foreground)}.supportRow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.supportRow>button[aria-pressed=true]{color:var(--primary);border-color:var(--primary);background:color-mix(in srgb,var(--primary) 9%,var(--group-raised))}.supportRow .choiceAvatars{margin-left:0}.supportRow .choiceCount{margin-left:0}.proposal{padding:0 0 20px;border-radius:0;background:none;border-bottom:1px solid rgb(255 255 255/.08)}
 .contextCard .attendanceActions>button{padding-inline:10px}
+
+/* Chat rows use measured content height. Short conversations are packed against
+   the composer without adding a scrollable minimum-height spacer. */
+.messagesContent{min-height:100%;display:flex;flex-direction:column;justify-content:flex-end}
+.messagesContent>div{flex-shrink:0}
+.chatEmpty{margin:0;padding:12px 8px;color:var(--muted-foreground);font-size:14px;line-height:1.5;max-width:340px;align-self:center;text-align:center}
+.sharedEvent[data-compact=true]{padding:12px;border-radius:18px;gap:8px}
+.message[data-kind=outing] .messageBody,.message[data-kind=event] .messageBody{width:min(calc(100% - 40px),332px);max-width:332px}
+.message .previewMain{gap:12px;align-items:center}
+.message .previewPhoto,.contextCard .previewPhoto{width:72px;height:88px;border-radius:12px}
+.message .previewText strong,.contextCard .previewText strong{font-size:16px;line-height:1.3}
+.message .previewDate,.message .previewLocation,.contextCard .previewDate,.contextCard .previewLocation{font-size:13px;line-height:1.4}
+.sharedEventAction,.sharedEvent[data-compact=true] .sharedEventAction{padding:0 0 0 84px;justify-content:flex-start}
+.sharedEventAction button[class]{width:auto;gap:4px;justify-content:flex-start;font-size:13px;min-height:44px;padding:4px 0}
+.contextCard .contextLink{min-height:28px;border:0;padding:0;font-size:12px;line-height:1.5;color:var(--muted-foreground)}
+.contextCard .attendanceActions>button{min-height:44px;padding:8px 10px;font-size:14px}
+.contextCard .decisionPoll{gap:8px}
+.decisionPoll{padding:0;border:0;background:none;gap:12px}
+.historyMessage{display:flex;align-items:center;gap:8px;color:var(--muted-foreground);font-size:13px;line-height:1.5;padding:8px 0;text-decoration:none}
+.historyMessage svg{flex-shrink:0}
+.summary{min-height:56px;padding:10px 12px;gap:10px;border-radius:16px}
+.summary img{width:34px;height:36px;border-radius:8px}
+.summary .summaryDate{width:34px;gap:1px}
+.summary .summaryDate strong{font-size:20px}
+.summary .summaryDate>span{font-size:10px}
+.summary .compact{gap:2px}
+.summary .compact>strong,.summary .compact>.muted{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.summary .compact>strong{font-size:14px;line-height:18px}
+.summary .compact>.muted{font-size:12px;line-height:16px}
+.outingContext{flex-direction:row;align-items:center;gap:12px}
+.outingContext>p{flex:1;min-width:0;margin:0;font-size:14px;line-height:1.5;color:var(--muted-foreground)}
+.outingContext>button{flex-shrink:0}
+.participantHeading{display:flex;flex-direction:column;gap:6px}
+.participantHeading>p{margin:0}
+.proposal .previewAction{align-self:flex-start}
+.proposal .previewAction button{width:44px;min-width:44px;height:44px;padding:0}
+.proposal .eventPreview{gap:4px}
+.groupSheet[class]{--group-surface:#131315;--group-raised:#202023;width:min(520px,calc(100% - 32px));display:flex;flex-direction:column;max-height:calc(100dvh - 40px);overflow:hidden}
+.groupSheet .dialogScroll{gap:16px;max-height:none;padding:16px 20px;min-height:0}
+.groupSheet .dialogFooter{padding:14px 20px max(18px,env(safe-area-inset-bottom));flex-direction:column;align-items:stretch;gap:8px}
+.groupSheet .dialogFooter>button{width:100%;min-height:44px}
+.destinationChoice{display:flex;gap:12px;align-items:center;min-width:0;padding:12px 0;cursor:pointer}
+.destinationChoice>input{width:20px;height:20px;flex-shrink:0;accent-color:var(--primary)}
+.destinationChoice .eventPreview{flex:1}
+.destinationChoice .previewPhoto{width:56px;height:68px;border-radius:10px}
+.destinationChoice .previewText strong{font-size:15px}
+.pageFooter{position:fixed;z-index:20;left:50%;transform:translateX(-50%);bottom:0;width:min(100%,760px);display:flex;flex-direction:column;gap:8px;padding:12px 20px max(16px,env(safe-area-inset-bottom));background:#09090a;border-top:1px solid rgb(255 255 255/.07)}
+.pageFooter>button,.pageFooter>a{width:100%}
+.pageFooter p{margin:0}
+.detail{padding-bottom:12px}
+.privacyInfo>summary{cursor:pointer;list-style:none;min-height:44px;display:flex;align-items:center;gap:12px;font-size:14px;color:var(--muted-foreground)}
+.privacyInfo>p{margin:0 0 12px;font-size:13px;line-height:1.5;color:var(--muted-foreground)}
+.sheetTotal{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:15px}
+.sheetFee{margin:0;color:var(--muted-foreground);font-size:12px;line-height:1.45}
+.recipientsHeading{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.recipientsHeading>strong{font-size:15px;min-width:0;overflow-wrap:anywhere}
+.recipientsHeading>button{font-size:12px;max-width:55%;white-space:normal;text-align:right}
+.pickerSearch input[class]{border-radius:999px}
+.previewPhoto{position:relative}
+.previewPhoto img{position:absolute;inset:0;min-width:0;min-height:0;max-height:100%}
+@media(max-width:360px){.message .previewMain{gap:10px}.message .previewLocation{ -webkit-line-clamp:2}.groupSheet .dialogScroll,.groupSheet .dialogFooter{padding-inline:16px}.pageFooter{padding-inline:16px}.sharedEventAction,.sharedEvent[data-compact=true] .sharedEventAction{padding-left:82px}}
+
+/* A conversation owns its viewport. Only the message list and a long composer
+   scroll; a keyboard resize cannot create a second document scroll region. */
+.chat{position:fixed;inset:0;width:100%;height:100dvh;overflow:hidden;overscroll-behavior:none;box-sizing:border-box}
+.chat[data-keyboard-open=true] .composer{padding-bottom:12px}
+
+/* Shared photographic cards. The aspect ratio reserves space even before the
+   image arrives (or when it fails), so chat measurements stay stable. */
+.eventPreview[data-variant=media],.eventPreview[data-variant=cover]{position:relative;display:block}
+.eventPreview[data-variant=media] .previewMain,.eventPreview[data-variant=cover] .previewMain{display:flex;flex-direction:column;align-items:stretch;gap:0}
+.eventPreview[data-variant=media] .previewPhoto,.eventPreview[data-variant=cover] .previewPhoto{width:100%;height:auto;aspect-ratio:2.4;border-radius:0}
+.eventPreview[data-variant=cover] .previewPhoto{height:clamp(150px,30vw,180px);aspect-ratio:auto;border-radius:18px}
+.eventPreview[data-variant=media] .previewText{padding:10px 12px;gap:4px}
+.eventPreview[data-variant=cover] .previewText{padding:12px 0 0;gap:5px}
+.eventPreview[data-variant=media] .previewText strong,.eventPreview[data-variant=cover] .previewText strong{font-size:17px;line-height:1.3;font-weight:600}
+.eventPreview[data-variant=media] .previewLocation,.eventPreview[data-variant=cover] .previewLocation{font-size:13px;line-height:1.4;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.photoDate{position:absolute;inset:auto 0 0;padding:22px 12px 9px;background:linear-gradient(transparent,#000b);color:white;font-size:12px;line-height:1.4;font-weight:500;text-shadow:0 1px 4px #0009}
+.previewPhoto[data-image=false] .photoDate{background:none;text-shadow:none;color:var(--muted-foreground)}
+.sharedEvent:not([data-compact=true]),.contextCard{padding:0;overflow:hidden;border-radius:18px;background:var(--group-surface);gap:0}
+.sharedEvent:not([data-compact=true]) .sharedEventAction{padding:0 12px 8px}
+.sharedEvent:not([data-compact=true]) .sharedEventAction button[class]{min-height:44px;padding:6px 0;font-size:13px}
+.contextCard>.decisionPoll{padding:0 12px 12px;gap:0}
+.contextCard .attendanceActions>button{min-height:44px}
+.proposalHeading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;color:inherit;text-decoration:none}
+.proposalHeading>span{display:flex;flex-direction:column;gap:4px;min-width:0}
+.proposalHeading strong{font-size:15px;font-weight:600}
+.proposalHeading .muted{font-size:12px}
+.proposalHeading svg{flex-shrink:0}
+.contextEmpty{padding:0 12px 12px;color:var(--muted-foreground);font-size:13px;line-height:1.5}
+.contextCard>.contextLink{padding:4px 12px 10px;min-height:44px}
+.proposal,.proposal[data-embedded=true]{padding:0;overflow:hidden;border:0;border-radius:18px;background:var(--group-surface);gap:0}
+.proposal .eventPreference{padding:0 12px 12px}
+.proposal .eventPreview .previewAction{position:absolute;inset:8px 8px auto auto}
+.proposal .previewAction button[class]{background:#111e;color:white;border-color:#ffffff18}
+.proposal[data-embedded=true]{border-radius:0}
+.proposal[data-embedded=true]+.proposal[data-embedded=true]{padding-top:0;border-top:1px solid #ffffff0c}
+.historyUpdates{margin:8px 0;color:var(--muted-foreground);font-size:12px}
+.historyUpdates>summary{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px;list-style:none;cursor:pointer}
+.historyUpdates>summary::-webkit-details-marker{display:none}
+.historyUpdates[open]>summary svg{transform:rotate(90deg)}
+.historyUpdates>div{padding-block:4px 8px}
+.compactUpdate{display:flex;align-items:baseline;gap:8px;justify-content:center;margin:3px 0;padding:5px 8px;color:var(--muted-foreground);font-size:11px;line-height:1.45;text-decoration:none;list-style:none;overflow-wrap:anywhere}
+.compactUpdate>span{min-width:0}.compactUpdate>time{flex-shrink:0;color:#777780;font-size:10px}
+.auditDetails>summary{font-size:13px;color:var(--muted-foreground);cursor:pointer;min-height:44px;display:flex;align-items:center}
+.auditEntries{padding:0;margin:0;list-style:none}.auditEntries .compactUpdate{justify-content:flex-start;padding:0;margin:0}.auditEntry{padding:10px 0;border-bottom:1px solid #ffffff08}.auditSnapshot{margin:4px 0;font-size:12px;line-height:1.45;color:var(--muted-foreground);overflow-wrap:anywhere}.auditDate{font-size:10px;color:#777780}
+.menuScrim{position:fixed;inset:0;z-index:1999;background:transparent}
+.actionMenu[class]{background:#1c1c1e;border-radius:16px}
+.actionMenu .menuItem[data-destructive=true]{color:#ff7a8c}
+.summaryIcon{width:34px;flex-shrink:0;color:var(--muted-foreground)}
+.summaryCount{flex-shrink:0;color:var(--muted-foreground);font-size:12px;font-weight:500}
+.eventPreview[data-variant=media] .previewPhoto img{border-radius:0;aspect-ratio:auto}
+.sharedEvent .eventPreview[data-variant=media] .previewText{padding:10px 12px}
+.eventPreview[data-variant=chat]{display:block}
+.eventPreview[data-variant=chat] .previewMain{display:block}
+.chatPhoto{position:relative;isolation:isolate;display:flex;align-items:flex-end;min-height:156px;min-width:0;width:100%;background:var(--group-raised);overflow:hidden}
+.chatPhoto>img{position:absolute;inset:0;z-index:-1;display:block;width:100%;height:100%;object-fit:cover}
+.chatPhoto>svg{position:absolute;inset:20px 14px auto auto;color:var(--muted-foreground)}
+.chatPhotoCopy{display:flex;flex-direction:column;gap:5px;min-width:0;width:100%;padding:38px 13px 13px;background:linear-gradient(transparent,rgba(0,0,0,.35) 27%,rgba(0,0,0,.82));color:#fff;text-shadow:0 1px 4px #0006}
+.chatPhotoCopy strong{font-size:19px;line-height:1.18;font-weight:650;letter-spacing:-.3px;overflow-wrap:anywhere}
+.chatPhotoDate{font-size:12px;line-height:1.35;font-weight:500;color:#f0f0f3}
+.chatPhotoPlace{font-size:12px;line-height:1.4;color:#d1d1d7;overflow-wrap:anywhere}
+.chatPhoto[data-image=false] .chatPhotoCopy{background:none;text-shadow:none}
+.sharedEvent:not([data-compact=true]) .sharedEventAction{min-height:50px;padding:3px 12px;align-items:center}
+.sharedEvent:not([data-compact=true]) .sharedEventAction button[class]{justify-content:center}
+.attendanceBar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.attendanceBar>.attendanceActions{flex:1;min-width:166px;gap:6px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.attendanceChoice{display:flex;align-items:center;justify-content:center;gap:5px;min-height:44px;padding:7px 8px;border:1px solid transparent;border-radius:999px;background:var(--group-raised);color:var(--muted-foreground);font:inherit;font-size:13px;line-height:1.25;cursor:pointer}
+.attendanceChoice[aria-pressed=true]{color:var(--foreground);border-color:rgb(255 255 255/.3);background:rgb(255 255 255/.13)}
+.attendanceChoice:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.attendanceChoice:disabled{cursor:default;opacity:.6}
+.attendanceMark{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:14px;height:14px}
+.responseAction{display:flex;align-items:center;margin-left:auto}
+.responseAction>a{display:inline-flex;align-items:center;gap:6px;min-height:44px;color:var(--primary);font-size:13px;text-decoration:none}
+.responseAction>button{min-height:44px;padding:8px 11px;font-size:13px}
+.eventReference>.decisionPoll{padding:4px 10px;background:transparent;border-radius:0;gap:8px}
+.referenceChoices{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 12px;flex-wrap:wrap}
+.referenceChoices>.eventPreference{min-width:0;flex:1;padding:0}
+.referenceCompare{display:inline-flex;align-items:center;gap:3px;min-height:44px;font-size:12px;color:var(--muted-foreground);text-decoration:none}
+.referenceCaption{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;font-size:12px;color:var(--muted-foreground)}
+.referenceCaption>a{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;color:var(--muted-foreground)}
+.eventReference[data-compact=true]{padding:12px}
+.eventReference[data-compact=true] .previewPhoto{width:56px;height:64px;flex-basis:56px;border-radius:10px}
+.eventReference[data-compact=true] .previewMain{gap:10px}
+.eventReference[data-compact=true] .previewText strong{font-size:14px}
+.eventReference[data-compact=true] .previewDate,.eventReference[data-compact=true] .previewLocation{font-size:11px}
+.eventReference[data-compact=true] .sharedEventAction{padding:0}
+.proposal[data-comparison]{padding:12px}
+.proposal[data-comparison] .previewPhoto{width:68px;height:78px;flex-basis:68px;border-radius:12px}
+.proposal[data-comparison] .previewText strong{font-size:15px}
+.proposal[data-comparison] .previewDate,.proposal[data-comparison] .previewLocation{font-size:12px}
+.proposal[data-comparison] .eventPreview .previewAction{position:static;align-self:flex-start}
+.proposal[data-comparison] .previewAction button[class]{background:none;border:0}
+.proposal[data-comparison]>.eventPreference{padding:8px 0 0}
+.ticketContext .previewPhoto{width:56px;height:60px;flex-basis:56px;border-radius:10px}
+.ticketContext .previewMain{gap:12px}
+.ticketContext .previewText{gap:3px}
+.ticketContext .previewText strong{font-size:15px;line-height:1.25}
+.ticketContext .previewDate,.ticketContext .previewLocation{font-size:12px;line-height:1.35}
+.ticketContext .previewLocation{-webkit-line-clamp:1}
+.ticketSection{display:flex;flex-direction:column;gap:8px;min-width:0}
+.ticketSection h3{font-size:13px;font-weight:650;line-height:1.4;margin:0;color:var(--foreground)}
+.ticketTypeRow{display:flex;align-items:center;gap:10px;width:100%;min-height:54px;text-align:start;padding:10px 12px;border:0;border-radius:14px;background:var(--group-raised);color:var(--foreground);font:inherit}
+button.ticketTypeRow{cursor:pointer}
+.ticketTypeRow>span{flex:1;min-width:0}
+.ticketTypeRow>svg{flex-shrink:0;color:var(--muted-foreground)}
+.ticketTypeRow strong{display:block;font-size:14px;font-weight:650;line-height:1.35}
+.ticketTypeRow small{display:block;max-width:48%;font-size:12px;line-height:1.4;color:var(--muted-foreground);text-align:end}
+.ticketPeopleHeading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.ticketPeopleHeading>button{padding:0;min-height:28px;color:var(--muted-foreground);font-size:11px;text-align:end;white-space:normal;max-width:65%}
+.ticketPeople{display:flex;flex-direction:column;gap:2px}
+.ticketPerson{position:relative;display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 0;cursor:pointer;border-radius:10px}
+.ticketPerson>[data-testid=outing-member-photo]{width:34px;height:34px;flex:0 0 34px;font-size:12px}
+.ticketPersonText{min-width:0;flex:1}
+.ticketPersonText strong{font-size:14px;font-weight:600;line-height:1.4;display:block;overflow-wrap:anywhere}
+.ticketPersonText strong>span{color:var(--muted-foreground);font-weight:400}
+.ticketPersonText small{display:block;font-size:12px;line-height:1.4;color:var(--muted-foreground)}
+.ticketPerson>input{position:absolute;width:100%;height:100%;inset:0;opacity:0;margin:0;cursor:inherit}
+.ticketChoiceMark{display:flex;align-items:center;justify-content:center;width:20px;height:20px;flex:0 0 20px;border-radius:6px;border:1px solid rgb(255 255 255/.24);color:#fff}
+.ticketPerson>input:checked+.ticketChoiceMark{background:var(--primary);border-color:var(--primary)}
+.ticketPerson:focus-within{outline:2px solid var(--primary);outline-offset:3px}
+.ticketPerson[data-disabled=true]{cursor:default;opacity:.55}
+.ticketTotal{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:14px;line-height:1.4}
+.ticketTotal strong{font-size:22px;letter-spacing:-.4px}
+.ticketExtra{display:flex;flex-direction:column;gap:6px}
+.ticketExtraCheck{display:flex;align-items:center;gap:10px;min-height:44px;font-size:13px;cursor:pointer}
+.ticketExtraCheck input{accent-color:var(--primary);width:20px;height:20px;flex-shrink:0}
+.ticketTypes{display:flex;flex-direction:column;gap:8px}
+.ticketTypeOption{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:60px;padding:12px;border:1px solid transparent;border-radius:14px;background:var(--group-raised);color:var(--foreground);text-align:start;cursor:pointer;font:inherit}
+.ticketTypeOption[aria-checked=true]{border-color:var(--primary)}
+.ticketTypeOption>span:first-child{flex:1;min-width:0}
+.ticketTypeOption strong{font-size:15px;font-weight:650;display:block;line-height:1.35}
+.ticketTypeOption small{font-size:12px;line-height:1.45;color:var(--muted-foreground);display:block;margin-top:3px}
+.ticketTypePrice{display:flex;align-items:center;gap:10px;font-size:13px}
+.ticketTypeOption[aria-checked=true] .ticketChoiceMark{background:var(--primary);border-color:var(--primary)}
+.ticketTypeOption:focus-visible,.ticketTypeRow:focus-visible{outline:2px solid var(--primary);outline-offset:3px}

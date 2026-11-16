@@ -39,9 +39,15 @@ func TestGroupDirectDecisionsTwoAccountsAndHistoricalContexts(t *testing.T) {
 	if len(p.CandidateDates) != 1 || len(p.CandidateDates[0].Responses) != 1 || p.CandidateDates[0].Responses[0].UserID != sid(f.users[1]) {
 		t.Fatal("second actor's availability was not projected")
 	}
+	if messages, notifications, orders := activityCounts(); messages != messagesBefore || notifications != notificationsBefore || orders != ordersBefore {
+		t.Fatal("availability created messages, notifications or an order")
+	}
 	for _, event := range []string{sid(f.event), sid(f.otherEvent)} {
 		want(t, f.call("POST", path+"/proposals", map[string]any{"eventId": event}, f.users[0]), 200)
 	}
+	// Explicit proposals create their canonical reference once. Personal votes
+	// must not append another reference or activity on top of those messages.
+	messagesBefore, notificationsBefore, ordersBefore = activityCounts()
 	for _, vote := range []struct{ event, answer string }{{sid(f.event), "yes"}, {sid(f.otherEvent), "maybe"}} {
 		p = readAs(t, f, p.ID, f.users[1])
 		want(t, f.call("POST", path+"/vote", map[string]any{"eventId": vote.event, "answer": vote.answer, "revision": p.Revision}, f.users[1]), 200)
@@ -74,7 +80,7 @@ func TestGroupDirectDecisionsTwoAccountsAndHistoricalContexts(t *testing.T) {
 		t.Fatal("attendance mixed with the ticket or preference")
 	}
 	msgs, _ := messagesAs(t, reconnect, g, f.users[1], "")
-	if len(msgs) != 2 || msgs[0].OutingContext == nil || msgs[0].OutingContext.ChosenEventID != sid(f.event) || msgs[1].OutingContext.ChosenEventID != "" {
+	if len(msgs) != messagesBefore+1 || msgs[0].OutingContext == nil || msgs[0].OutingContext.ChosenEventID != sid(f.event) || msgs[len(msgs)-1].OutingContext.ChosenEventID != "" {
 		t.Fatal("choosing a destination relabelled an older question")
 	}
 	currentRound := p.DecisionRound
@@ -96,7 +102,7 @@ func TestGroupDirectDecisionsTwoAccountsAndHistoricalContexts(t *testing.T) {
 	}
 	want(t, f.call("POST", path+"/attendance", map[string]any{"answer": "yes", "decisionRound": currentRound}, f.users[1]), 409)
 	msgs, _ = messagesAs(t, reconnect, g, f.users[1], "")
-	if len(msgs) != 3 || msgs[0].OutingContext.OutingDate != nextDay || msgs[0].OutingContext.City != "Iasi" || msgs[2].OutingContext.OutingDate != initialContext.OutingDate || msgs[2].OutingContext.City != initialContext.City {
+	if len(msgs) != messagesBefore+2 || msgs[0].OutingContext.OutingDate != nextDay || msgs[0].OutingContext.City != "Iasi" || msgs[len(msgs)-1].OutingContext.OutingDate != initialContext.OutingDate || msgs[len(msgs)-1].OutingContext.City != initialContext.City {
 		t.Fatal("historical message context was rewritten")
 	}
 	if _, _, orders := activityCounts(); orders != ordersBefore {

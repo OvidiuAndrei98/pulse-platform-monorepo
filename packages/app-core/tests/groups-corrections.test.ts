@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {GroupsStore,findMatchingFriendGroup,groupCatalogKey,groupMembershipCounts,type FriendGroup} from '../src/social/groups';
+import {GroupsStore,GroupActionError,findMatchingFriendGroup,groupCatalogKey,groupMembershipCounts,type FriendGroup} from '../src/social/groups';
 import {canonicalPlanningCity,matchesPlanningContext,planningBoundary,planningCityKey,type OutingsRequest,type OutingPlan,type PlanEvent} from '../src/outings/model';
 import {shiftCalendarDay} from '../src/events/discoveryFilters';
 
@@ -152,4 +152,26 @@ test('choosing a night carries the current outing revision so an old context can
  const store=setup(async(path,method,body)=>{if(method==='POST'){sent=body;return{ok:true}}if(path.endsWith('/messages'))return{items:[],hasMore:false};return group([plan])});
  await store.load(gid);await store.planAction(gid,planId,'date',{date:'2026-11-20'});
  assert.equal(sent.revision,7);assert.equal(sent.date,'2026-11-20');
+});
+
+test('a stale response reads the reopened outing before retry and never auto-submits to the new round',async()=>{
+ const planId=id(70),old:OutingPlan={id:planId,groupId:gid,ownerId:actor,title:'Review night',status:'accepted',expiresAt:'2027-01-01T00:00:00Z',outingDate:'2026-11-20',city:'Bucuresti',revision:3,decisionRound:1,chosenEventId:id(71),members:[],options:[]};
+ const fresh={...old,revision:7,decisionRound:2,chosenEventId:undefined};const writes:any[]=[];let changed=false;
+ const store=setup(async(path,method,body)=>{
+  if(method==='POST'){writes.push(body);if(!changed){changed=true;throw{status:409,data:{error:'PLAN_CHANGED'}}}return{ok:true}}
+  if(path==='/outings/plans/'+planId)return fresh;if(path.endsWith('/messages'))return{items:[],hasMore:false};return group([changed?fresh:old]);
+ });
+ await store.load(gid);
+ await assert.rejects(store.planAction(gid,planId,'attendance',{answer:'yes',decisionRound:1},{feedback:'inline'}),(error:unknown)=>error instanceof GroupActionError&&error.key==='groups.responseContextChanged');
+ assert.equal(writes.length,1,'a stale answer must never be replayed for a different destination');assert.equal(store.getSnapshot().error,null,'feedback is local to the initiating control');
+ const current=store.getSnapshot().groups[0]!.outings[0]!;assert.equal(current.revision,7);assert.equal(current.decisionRound,2);assert.equal(current.chosenEventId,undefined);
+ await store.planAction(gid,planId,'vote',{eventId:id(72),answer:'yes'},{feedback:'inline'});
+ assert.equal(writes[1].revision,7,'a deliberate next preference uses the authoritative revision');
+});
+
+test('failed canonical refresh does not pretend a stale response was saved',async()=>{
+ const p:OutingPlan={id:id(70),groupId:gid,ownerId:actor,title:'Review',status:'accepted',expiresAt:'2027-01-01T00:00:00Z',revision:3,members:[],options:[]};let writes=0;
+ const store=setup(async(path,method)=>{if(method==='POST'){writes++;throw{status:409,code:'PLAN_CHANGED'}}if(path.startsWith('/outings/plans/'))throw{status:503};if(path.endsWith('/messages'))return{items:[],hasMore:false};return group([p])});
+ await store.load(gid);await assert.rejects(store.planAction(gid,p.id,'vote',{eventId:id(72),answer:'yes'},{feedback:'inline'}),(error:unknown)=>error instanceof GroupActionError&&error.key==='groups.responseRefreshFailed');
+ assert.equal(writes,1);assert.equal(store.getSnapshot().groups[0]!.outings[0]!.revision,3);assert.equal(store.getSnapshot().error,null);
 });

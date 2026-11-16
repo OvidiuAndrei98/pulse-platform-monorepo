@@ -69,13 +69,19 @@ func loadPlanDetails(ctx context.Context, q queryer, id, actor pgtype.UUID, p *p
 		}
 		p.GiftPurchasesAvailable = &gift
 		payment := pendingPlanPayment{}
-		err := q.QueryRow(ctx, `SELECT o.id::text,COALESCE(o.stripe_checkout_session_id,'') FROM orders o JOIN checkout_payment_attempts attempt ON attempt.order_id=o.id WHERE o.user_id=$1 AND o.event_id=$2::uuid
-       AND o.status IN ('pending','failed') AND NOT EXISTS(SELECT 1 FROM checkout_closed_payments c WHERE c.order_id=o.id) ORDER BY o.created_at DESC LIMIT 1`, actor, p.ChosenEventID).Scan(&payment.OrderID, &payment.SessionID)
+		var attempted bool
+		err := q.QueryRow(ctx, `SELECT o.id::text,COALESCE(o.stripe_checkout_session_id,''),EXISTS(SELECT 1 FROM checkout_payment_attempts attempt WHERE attempt.order_id=o.id) FROM orders o WHERE o.user_id=$1 AND o.event_id=$2::uuid
+       AND o.status IN ('pending','failed') AND NOT EXISTS(SELECT 1 FROM checkout_closed_payments c WHERE c.order_id=o.id)
+       AND (o.status='pending' OR o.stripe_payment_intent_id IS NOT NULL OR o.stripe_checkout_session_id IS NOT NULL) ORDER BY o.created_at DESC LIMIT 1`, actor, p.ChosenEventID).Scan(&payment.OrderID, &payment.SessionID, &attempted)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
 		if err == nil {
-			p.MyPendingPayment = &payment
+			if attempted {
+				p.MyPendingPayment = &payment
+			} else {
+				p.MyCheckoutReservation = &payment
+			}
 		}
 	}
 	var budget *int

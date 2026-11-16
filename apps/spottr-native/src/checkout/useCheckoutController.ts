@@ -31,14 +31,17 @@ import { checkoutFailure } from './errors';
 import { captureHandledFailure } from '../diagnostics/handled';
 import { checkoutRequestKey } from '@packages/app-core/checkout/requestKey';
 import { checkoutEmailError } from '@packages/app-core/checkout/validateEmail';
+import { outingCheckoutRecovery,type OutingCheckoutRecovery } from '@packages/app-core/outings/experience';
 import { emptyInvoiceDetails, getInvoiceFieldErrors, validateInvoiceDetails, type InvoiceDetails } from '@packages/app-core/checkout/invoiceDetails';
 
 import { Props } from "./useCheckoutController.contracts";
 import { initialTicketQuantities,retainAvailableTickets } from '@packages/app-core/checkout/ticketAvailability';
+import {useCheckoutReservation} from './useCheckoutReservation';
 
 export function useCheckoutController({ route, navigation }: Props) {
 
   const { eventId, ticketTypeId } = route.params;
+  const reservation=useCheckoutReservation(eventId);
   const setQuantitiesLocked:React.Dispatch<React.SetStateAction<Quantities>>=()=>{};
   const { user, controller, ready } = useAuth('account'), { copy, language } = usePreferences(), safe = useSafeAreaInsets();
   const query = useEvent(eventId), event = query.data, now = useEventClock(event), promo = usePromoCode(eventId);
@@ -49,6 +52,7 @@ export function useCheckoutController({ route, navigation }: Props) {
   const [saved, setSaved] = useState<InvoiceDetails | null>(null), [source, setSource] = useState<'new' | 'saved'>('new'), [remember, setRemember] = useState(false);
   const [billingLoading, setBillingLoading] = useState(!!user), [attempted, setAttempted] = useState(false), [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null), [returned, setReturned] = useState<{ sessionId?: string; nativeOrderId?: string } | null>(null);
+  const [outingRecovery,setOutingRecovery]=useState<OutingCheckoutRecovery>();
   const scroll = useRef<ScrollViewInstance>(null), alive = useRef(true), pending = useRef(false), billingEdited = useRef(false);
   const intent = useRef<{ payload: string; key: string } | null>(null);
   const nativePayment = useRef<PendingNativePayment | null>(null);
@@ -99,7 +103,7 @@ export function useCheckoutController({ route, navigation }: Props) {
   }, [user?.id]);
   const totals = event ? checkoutTotals(event, quantities, promo.applied?.discountPercent) : null;
   const available = !!event && validPaidSelection(event, quantities, user?.id, now);
-  const blocked = busy || billingLoading || query.isFetching || query.isError || !available || promo.validating || !!(promo.code && !promo.applied);
+  const blocked = busy || reservation.busy || !!outingRecovery || billingLoading || query.isFetching || query.isError || !available || promo.validating || !!(promo.code && !promo.applied);
   const fields = attempted ? getInvoiceFieldErrors(details) : {};
   const emailError = attempted ? checkoutEmailError(email) : null;
   const changeStep = (value: number) => { if (pending.current) return; Keyboard.dismiss(); if (value !== step) haptic("selection"); setStep(value); };
@@ -197,6 +201,8 @@ export function useCheckoutController({ route, navigation }: Props) {
         if (__DEV__) console.warn('[checkout] Payment preparation failed', error instanceof ApiError
           ? { status: error.status, code: error.code }
           : { name: error instanceof Error ? error.name : 'UnknownError', message: error instanceof Error ? error.message : 'Unknown failure' });
+        const recovery=outingCheckoutRecovery(error);
+        if(recovery){setOutingRecovery(recovery);setError(recovery.messageKey);return}
         if (error instanceof ApiError && error.status >= 400 && error.status < 500 && ![408, 425, 429].includes(error.status)) intent.current = null;
         const failure = checkoutFailure(error);
         setError(failure.messageKey);
@@ -213,13 +219,16 @@ export function useCheckoutController({ route, navigation }: Props) {
     billingEdited,
     billingLoading,
     blocked,
-    busy,
+    busy:busy||reservation.busy,
     changeStep,
     copy,
     details,
     email,
     emailError,
-    error,
+    error:reservation.error??error,
+    outingRecovery,
+    reservationActions:{...reservation,onClosed:()=>{setOutingRecovery(undefined);setError(null);intent.current=null;void query.refetch()}},
+    recoverOuting:()=>{if(outingRecovery?.kind==='existing_payment'&&outingRecovery.orderId)void withBusy(()=>reservation.resume(outingRecovery.orderId!));else navigation.goBack()},
     event,
     eventId,
     now,

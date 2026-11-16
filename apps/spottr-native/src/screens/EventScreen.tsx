@@ -47,7 +47,7 @@ import { OrganizerUpdates } from '../profiles/OrganizerUpdates';
 import { EventAttendees } from '../social/EventAttendees';
 import { PurchaseSuccessHost } from '../checkout/PurchaseSuccessSheet';
 import {ActionButton as UIActionButton} from '../ui/ActionButton';
-import {PlanTicketRecipients} from '../outings/PlanTicketRecipients';
+import {PlanTicketRecipients,type RecipientTaskDraft} from '../outings/PlanTicketRecipients';
 
 export function EventScreen({
   route,
@@ -64,6 +64,7 @@ export function EventScreen({
   const toast = useToast();
   const [storyOpen, setStoryOpen] = useState(false);
   const [friendPurchase,setFriendPurchase]=useState(false);
+  const friendRecipientDraft=useRef<RecipientTaskDraft|null>(null);
   const query = useEvent(route.params.id),
     event = query.data,
     now = useEventClock(event),
@@ -430,7 +431,7 @@ export function EventScreen({
     </AppSheet>
   ) : (
     content
-  )}<ToastHost bottom={92} />{storyOpen && event && <EventStory key={event.id} event={event} onClose={() => setStoryOpen(false)} />}{friendPurchase&&event&&user&&<PlanTicketRecipients eventId={event.id} friendsOnly actor={user.id} onClose={()=>setFriendPurchase(false)}/>}<PurchaseSuccessHost eventId={route.params.id} /></View>;
+  )}<ToastHost bottom={92} />{storyOpen && event && <EventStory key={event.id} event={event} onClose={() => setStoryOpen(false)} />}{friendPurchase&&event&&user&&<PlanTicketRecipients eventId={event.id} friendsOnly actor={user.id} draftRef={friendRecipientDraft} onClose={()=>setFriendPurchase(false)}/>}<PurchaseSuccessHost eventId={route.params.id} /></View>;
 }
 const s = StyleSheet.create({
   page: { borderTopLeftRadius:0,borderTopRightRadius:0,width:'100%',maxWidth:760,alignSelf:'center' },

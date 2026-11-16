@@ -100,6 +100,7 @@ type HandlersConfig struct {
 	ReconcileCheckout              http.HandlerFunc
 	ReconcilePaymentSheet          http.HandlerFunc
 	CancelPaymentSheet             http.HandlerFunc
+	RecoverCheckout                http.HandlerFunc
 	CreateStripeAccountLink        http.HandlerFunc
 	GetStripeAccountStatus         http.HandlerFunc
 	CreateStripeLoginLink          http.HandlerFunc
@@ -339,6 +340,9 @@ func SetupRouter(cfg HandlersConfig) http.Handler {
 			}
 
 			// --- USERS ---
+			if cfg.RecoverCheckout != nil {
+				r.With(identityLimit("checkout_recovery", 30, 10*time.Minute)).Post("/checkout/recover", cfg.RecoverCheckout)
+			}
 			r.Route("/users", func(r chi.Router) {
 				r.Get("/me", cfg.GetMe)
 				r.Put("/me", cfg.UpdateMe)

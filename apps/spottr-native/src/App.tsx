@@ -258,7 +258,7 @@ function SafetyRoute({ route, navigation }: NativeStackScreenProps<RootParamList
 }
 function GroupsRoute({route}:NativeStackScreenProps<RootParamList,'Groups'>){return <GroupsScreen eventId={route.params?.eventId} newGroup={route.params?.new}/>}
 function FriendGroupRoute({route}:NativeStackScreenProps<RootParamList,'FriendGroup'>){return <FriendGroupScreen key={route.params.id} id={route.params.id}/>}
-function GroupOutingRoute({route}:NativeStackScreenProps<RootParamList,'GroupOuting'>){return <GroupOutingScreen key={route.params.planId} groupId={route.params.groupId} planId={route.params.planId}/>}
+function GroupOutingRoute({route}:NativeStackScreenProps<RootParamList,'GroupOuting'>){return <GroupOutingScreen key={route.params.planId} groupId={route.params.groupId} planId={route.params.planId} historyMessageId={route.params.historyMessageId}/>}
 function GroupInfoRoute({route}:NativeStackScreenProps<RootParamList,'GroupInfo'>){return <GroupInfoScreen groupId={route.params.groupId}/>}
 function GroupOutingsRoute({route}:NativeStackScreenProps<RootParamList,'GroupOutings'>){return <GroupCollectionsScreen groupId={route.params.groupId} kind="outings"/>}
 function GroupSharedEventsRoute({route}:NativeStackScreenProps<RootParamList,'GroupSharedEvents'>){return <GroupCollectionsScreen groupId={route.params.groupId} kind="shared"/>}

@@ -347,6 +347,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/checkout/recover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recupereaza doar checkout-ul propriu existent, dupa verificarea autentificarii si a starii Stripe; nu creeaza o plata noua */
+        post: operations["CheckoutOperations_recover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/dashboard/events": {
         parameters: {
             query?: never;
@@ -2448,6 +2465,16 @@ export interface components {
             /** Format: date-time */
             checkInTime: string;
         };
+        CheckoutConflictResponse: {
+            error: string;
+            /**
+             * @description Bounded recovery guidance for OUTING_RECIPIENTS_CHANGED; absence supports older servers. Never means a payment can be retried automatically.
+             * @enum {string}
+             */
+            reason?: "review_recipients" | "outing_changed" | "additional_ticket_confirmation" | "pending_access" | "existing_payment";
+            /** @description Only the authenticated purchaser's existing unclosed order, when reason is existing_payment. Never a friend's order or payment capability. */
+            orderId?: string;
+        };
         CheckoutSessionResponse: {
             checkoutUrl: string;
             orderId: string;
@@ -2545,6 +2572,7 @@ export interface components {
             date?: string;
             dates?: string[];
             eventId?: string;
+            sourceMessageId?: string;
         };
         CreateInvitationPayload: {
             label: string;
@@ -2865,6 +2893,7 @@ export interface components {
             content: string;
             eventId?: string;
             outingId?: string;
+            referenceMessageId?: string;
             /** Format: date-time */
             createdAt: string;
             event?: components["schemas"]["SharedGroupEvent"];
@@ -2872,6 +2901,7 @@ export interface components {
         };
         GroupMessages: {
             items: components["schemas"]["FriendGroupMessage"][];
+            references?: components["schemas"]["FriendGroupMessage"][];
             hasMore: boolean;
             /** Format: int64 */
             revision: number;
@@ -3170,7 +3200,7 @@ export interface components {
         };
         OutingAttendance: {
             /** @enum {string} */
-            answer: "yes" | "maybe" | "no";
+            answer: "yes" | "maybe" | "no" | "unanswered";
             /** Format: int32 */
             decisionRound: number;
         };
@@ -3224,6 +3254,7 @@ export interface components {
             eventId: string;
             /** Format: int64 */
             revision?: number;
+            sourceMessageId?: string;
         };
         OutingEventVote: {
             eventId: string;
@@ -3270,6 +3301,7 @@ export interface components {
             /** Format: date-time */
             startTime: string;
             available: boolean;
+            referenceMessageId?: string;
             proposedBy?: string;
             /** Format: double */
             priceRon?: number;
@@ -3298,6 +3330,8 @@ export interface components {
             allConfirmedReady?: boolean;
             giftPurchasesAvailable?: boolean;
             myPendingPayment?: components["schemas"]["OutingPendingPayment"];
+            /** @description The authenticated buyer's own recoverable checkout before Pay; not a payment, transaction, invoice or ticket state. */
+            myCheckoutReservation?: components["schemas"]["OutingPendingPayment"];
             inviterName?: string;
             inviterAvatar?: string;
             /** Format: int32 */
@@ -3543,6 +3577,21 @@ export interface components {
             orderId: string;
             /** @description Whether Stripe has observed a submitted payment attempt. Opening the payment form alone is not an attempt. */
             paymentAttempted?: boolean;
+        };
+        RecoverCheckoutPayload: {
+            orderId: string;
+            eventId: string;
+            /** @enum {string} */
+            action?: "check" | "cancel";
+        };
+        RecoverCheckoutResponse: {
+            /** @enum {string} */
+            status: "pending" | "completed" | "failed" | "refunded";
+            orderId: string;
+            paymentAttempted: boolean;
+            checkout?: components["schemas"]["CheckoutSessionResponse"] | components["schemas"]["NativePaymentSheetResponse"];
+            /** @enum {string} */
+            recoveryReason?: "outing_changed" | "review_recipients";
         };
         RefundAttentionResponse: {
             orderId: string;
@@ -4595,6 +4644,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReconcileCheckoutResponse"];
+                };
+            };
+        };
+    };
+    CheckoutOperations_recover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoverCheckoutPayload"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoverCheckoutResponse"];
                 };
             };
         };
@@ -6533,7 +6606,9 @@ export interface operations {
     EventOperations_bookFreeTicket: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
             path: {
                 id: string;
             };
@@ -6552,6 +6627,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BookFreeTicketResponse"];
+                };
+            };
+            /** @description The request conflicts with the current state of the server. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutConflictResponse"];
                 };
             };
         };
@@ -6580,6 +6664,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CheckoutSessionResponse"] | components["schemas"]["NativePaymentSheetResponse"];
+                };
+            };
+            /** @description The request conflicts with the current state of the server. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutConflictResponse"];
                 };
             };
         };
@@ -7003,6 +7096,7 @@ export interface operations {
             query?: {
                 before?: number;
                 collection?: "events";
+                references?: string;
             };
             header?: never;
             path: {

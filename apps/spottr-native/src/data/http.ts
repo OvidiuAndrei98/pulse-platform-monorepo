@@ -111,7 +111,11 @@ export function createHttp(
               : "HTTP_ERROR",
           response.status >= 500 ? httpDiagnostic(path, options.method ?? 'GET', response.status,
             response.headers.get('X-Request-ID'), row.diagnosticCode) : undefined,
-          path.startsWith('/outings/') ? row : undefined,
+          path.startsWith('/outings/') ? row : /^\/events\/[0-9a-f-]{36}\/tickets\/(?:purchase|book)$/i.test(path)&&row.error==='OUTING_RECIPIENTS_CHANGED' ? {
+            error:'OUTING_RECIPIENTS_CHANGED',
+            ...(typeof row.reason==='string'&&['outing_changed','additional_ticket_confirmation','existing_payment','pending_access','review_recipients','recipient_unavailable'].includes(row.reason)?{reason:row.reason}:{}),
+            ...(row.reason==='existing_payment'&&typeof row.orderId==='string'&&/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(row.orderId)?{orderId:row.orderId}:{}),
+          } : undefined,
         );
       }
       return data as T;

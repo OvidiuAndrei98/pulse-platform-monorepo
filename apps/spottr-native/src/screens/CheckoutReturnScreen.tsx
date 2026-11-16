@@ -24,6 +24,9 @@ import { colors } from '../ui/theme';
 import type { RootParamList } from '../navigation/types';
 import { returnToEvent } from '../navigation/returnToEvent';
 import {ActionButton as UIActionButton} from '../ui/ActionButton';
+import {parseRecoveredCheckout} from '../checkout/recoverCheckout';
+import {WEB_URL} from '../config';
+import {paymentReturnOrigin} from '../checkout/paymentBrowser';
 
 type ReturnStatus = 'checking' | 'invalid' | 'cancelled' | PaymentResult;
 
@@ -53,13 +56,19 @@ export function CheckoutReturnScreen({ route, navigation }: NativeStackScreenPro
       if (nativeOrderId && Platform.OS !== 'web') await restoreNativePayments(user?.id ?? null, token);
       if (!isActive()) return;
       const native = nativeOrderId ? getNativePayment(nativeOrderId, eventId, token) : undefined;
-      if (nativeOrderId && !native) { setStatus('invalid'); return; }
+      if (nativeOrderId && !isEventId(nativeOrderId)) { setStatus('invalid'); return; }
       if (!native && sessionId === undefined && cancelled === '1') { setStatus('cancelled'); return; }
-      if (!native && !validCheckoutSession(sessionId)) { setStatus('invalid'); return; }
+      if (!native && !nativeOrderId && !validCheckoutSession(sessionId)) { setStatus('invalid'); return; }
       const attempts = initialCheck.current ? 4 : 1;
       initialCheck.current = false;
-      const result = await confirmPayment(() => native ? resolveNativePayment(native, accountApi) : accountApi('/checkout/reconcile', { method: 'POST', body: { eventId, sessionId }, token }), isActive, undefined, attempts);
+      let preparedOnly=false;
+      const result = await confirmPayment(async () => {
+        if(native)return resolveNativePayment(native,accountApi);
+        if(nativeOrderId){const recovered=parseRecoveredCheckout(await accountApi('/checkout/recover',{method:'POST',body:{eventId,orderId:nativeOrderId},token}),nativeOrderId,WEB_URL,paymentReturnOrigin());preparedOnly=recovered.status==='pending'&&!recovered.paymentAttempted;return recovered}
+        return accountApi('/checkout/reconcile',{method:'POST',body:{eventId,sessionId},token});
+      }, isActive, undefined, attempts);
       if (!isActive() || !result) return;
+      if(preparedOnly){returnToEvent(navigation,eventId);return}
       setOrderId(result.orderId ?? native?.session.orderId);
       if (['completed', 'failed', 'refunded'].includes(result.status)) {
         forgetPaymentBrowser(eventId, sessionId, token);

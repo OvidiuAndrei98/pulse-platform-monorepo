@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { drawerDesign } from '@packages/app-core/presentation/drawerDesign';
 import { SheetScrollProvider, sheetGestureHandlersHook, useSheetScrollSurface } from './SheetScrollBridge';
 
-type Props = React.PropsWithChildren<{ open: boolean; closing?: boolean; onClose: () => void; height?: number; embedded?: boolean; edgeToEdge?: boolean; horizontalContent?: boolean; label: string; testID?: string; footer?: React.ReactNode }>;
+type Props = React.PropsWithChildren<{ open: boolean; closing?: boolean; onClose: () => void; height?: number; embedded?: boolean; edgeToEdge?: boolean; horizontalContent?: boolean; contentSized?: boolean; label: string; testID?: string; footer?: React.ReactNode }>;
 const FooterContext = createContext<React.ReactNode>(null);
 // Stable component identity keeps the footer mounted when ticket/RSVP data changes.
 function SheetFooter(props: BottomSheetFooterProps) {
@@ -17,16 +17,16 @@ function SheetFooter(props: BottomSheetFooterProps) {
 }
 
 /** Same black surface, grabber, drag-to-dismiss and 90% event height as the web sheets. */
-export function AppSheet({ open, closing, onClose, height = 0.9, embedded = false, edgeToEdge = false, horizontalContent = false, label, testID, footer, children }: Props) {
+export function AppSheet({ open, closing, onClose, height = 0.9, embedded = false, edgeToEdge = false, horizontalContent = false, contentSized = false, label, testID, footer, children }: Props) {
   if (!open) return null;
-  const content = <SheetContent closing={closing} height={height} onClose={onClose} edgeToEdge={edgeToEdge} horizontalContent={horizontalContent} label={label} testID={testID} footer={footer}>{children}</SheetContent>;
+  const content = <SheetContent closing={closing} height={height} onClose={onClose} edgeToEdge={edgeToEdge} horizontalContent={horizontalContent} contentSized={contentSized} label={label} testID={testID} footer={footer}>{children}</SheetContent>;
   // A modal does not add a browser/navigation history entry. Native horizontal
   // Back stays a navigation gesture belonging to Search and Checkout.
   return embedded ? content : <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
     <GestureHandlerRootView style={s.root}>{content}</GestureHandlerRootView>
   </Modal>;
 }
-function SheetContent({ closing, height = 0.9, onClose, edgeToEdge, horizontalContent, label, testID, footer, children }: Omit<Props, 'open'>) {
+function SheetContent({ closing, height = 0.9, onClose, edgeToEdge, horizontalContent, contentSized, label, testID, footer, children }: Omit<Props, 'open'>) {
   const ref = useRef<BottomSheet>(null), viewport = useWindowDimensions(), safe = useSafeAreaInsets();
   useEffect(() => { if (closing) ref.current?.forceClose(); }, [closing]);
   const points = useMemo(() => [Math.max(180, Math.min(viewport.height - safe.top - 8, viewport.height * height))], [height, viewport.height, safe.top]);
@@ -39,11 +39,14 @@ function SheetContent({ closing, height = 0.9, onClose, edgeToEdge, horizontalCo
   // can restart the opening animation after the user has already grabbed it.
   const backdrop = useCallback((props: BottomSheetBackdropProps) => <BottomSheetBackdrop {...props} opacity={0.7} appearsOnIndex={0} disappearsOnIndex={-1} pressBehavior="close" />, []);
   return <FooterContext.Provider value={footer}><SheetScrollProvider><View style={s.root} testID={testID}>
+    {/* Measured short surfaces exclude Gorhom's over-drag padding, which can
+        lift a shrinking reversed body above its footer on web. */}
     <BottomSheet ref={ref} index={0} snapPoints={points} animateOnMount animationConfigs={animationConfigs} enableDynamicSizing={false} enablePanDownToClose
+      detached={contentSized} enableOverDrag={!contentSized}
       gestureEventsHandlersHook={sheetGestureHandlersHook}
       activeOffsetY={horizontalContent ? [-12, 12] : undefined}
       failOffsetX={horizontalContent ? [-18, 18] : undefined}
-      footerComponent={footer ? SheetFooter : undefined}
+      footerComponent={footer && !contentSized ? SheetFooter : undefined}
       enableContentPanningGesture keyboardBehavior="interactive" keyboardBlurBehavior="restore" enableBlurKeyboardOnGesture
       android_keyboardInputMode="adjustResize" onClose={onClose} backdropComponent={backdrop}
       backgroundStyle={s.surface} handleComponent={null}>
@@ -52,6 +55,10 @@ function SheetContent({ closing, height = 0.9, onClose, edgeToEdge, horizontalCo
           rubber-bands every drag back to zero. Exclude Gorhom's overdrag padding. */}
       <SheetGestureBoundary viewportHeight={points[0]!}>
         <View style={[s.body, !edgeToEdge && { marginTop: drawerDesign.handleAreaHeight }]}>{children}</View>
+        {/* Short task sheets move their footer with their bounded surface.
+            Gorhom's sticky footer intentionally cancels the sheet's travel,
+            which leaves checkout actions behind during a downward dismiss. */}
+        {contentSized&&footer?<View testID="sheet-attached-footer" style={{flexShrink:0}}>{footer}</View>:null}
         <SheetHandleOverlay label={label} onClose={() => ref.current?.close()} />
       </SheetGestureBoundary>
     </BottomSheet>

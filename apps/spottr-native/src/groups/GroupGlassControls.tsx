@@ -4,14 +4,15 @@ import {Search} from 'lucide-react-native';
 import {GlassSurface,supportsLiquidGlass} from '../ui/GlassSurface';
 import {GlassPressable} from '../ui/GlassPressable';
 import {MotionPressable} from '../ui/MotionPressable';
-import {FormInput,formStyles} from '../ui/FormInput';
-import {colors} from '../ui/theme';
+import {FormInput} from '../ui/FormInput';
+import {colors,tokens} from '../ui/theme';
 import {GlassInputSurface} from '../ui/GlassInputSurface';
 import {useReducedTransparencyPreference} from '../ui/useReducedTransparencyPreference';
+import type {GlassSurfaceProps} from '../ui/glassSurfaceTypes';
 
-export function GroupControlSurface({children,style,...props}:React.ComponentProps<typeof View>){
+export function GroupControlSurface({children,style,tintColor,glassEffectStyle,...props}:React.ComponentProps<typeof View>&Pick<GlassSurfaceProps,'tintColor'|'glassEffectStyle'>){
  const reduced=useReducedTransparencyPreference();
- return supportsLiquidGlass&&!reduced?<GlassSurface {...props} interactive={false} style={style}>{children}</GlassSurface>:<View {...props} style={style}>{children}</View>;
+ return supportsLiquidGlass&&!reduced?<GlassSurface {...props} interactive={false} style={style} tintColor={tintColor} glassEffectStyle={glassEffectStyle}>{children}</GlassSurface>:<View {...props} style={style}>{children}</View>;
 }
 export function GroupGlassButton({style,...props}:React.ComponentProps<typeof GlassPressable>){
  const reduced=useReducedTransparencyPreference();
@@ -24,4 +25,4 @@ export function GroupSearchField({value,onChangeText,label,inSheet=false,testID=
   <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={()=>input.current?.focus()} style={{width:44,height:44,alignItems:'center',justifyContent:'center'}}><Search size={18} color={colors.muted}/></Pressable><FormInput ref={input} testID={testID} variant="bare" focusOwner="container" inSheet={inSheet} value={value} onChangeText={onChangeText} placeholder={label} accessibilityLabel={label} onFocus={Platform.OS==='web'?()=>setFocused(true):undefined} onBlur={Platform.OS==='web'?()=>setFocused(false):undefined} autoCorrect={false} autoCapitalize="none" returnKeyType="search" maxLength={120} style={s.input}/>
  </GlassInputSurface>;
 }
-const s=StyleSheet.create({search:{minHeight:44,borderRadius:formStyles.event.borderRadius,borderWidth:1,borderColor:colors.inputBorder,backgroundColor:colors.surface,flexDirection:'row',alignItems:'center',paddingRight:12,gap:0},focus:{borderColor:colors.focus},input:{flex:1,minWidth:0,height:44,paddingVertical:10,fontSize:16,color:colors.text,backgroundColor:'transparent',borderWidth:0}});
+const s=StyleSheet.create({search:{minHeight:44,borderRadius:tokens.radius.pill,borderWidth:1,borderColor:colors.inputBorder,backgroundColor:colors.surface,flexDirection:'row',alignItems:'center',paddingRight:12,gap:0},focus:{borderColor:colors.focus},input:{flex:1,minWidth:0,height:44,paddingVertical:10,fontSize:16,color:colors.text,backgroundColor:'transparent',borderWidth:0,borderRadius:tokens.radius.pill}});

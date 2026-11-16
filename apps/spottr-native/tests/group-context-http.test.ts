@@ -47,3 +47,51 @@ test('non-outing error bodies stay excluded from the native error metadata',asyn
  const http=createHttp('https://review.invalid/api/v1',async()=>response({error:'INVALID_PAYMENT_RESPONSE',clientSecret:'synthetic-do-not-retain'},409));
  await assert.rejects(http('/events/'+id(20)+'/tickets/purchase',{method:'POST'}),error=>{assert.ok(error instanceof ApiError);assert.equal(error.data,undefined);return true});
 });
+
+test('purchase and free registration retain only bounded outing recovery metadata',async()=>{
+ for(const action of ['purchase','book']){
+  for(const reason of ['review_recipients','outing_changed','additional_ticket_confirmation','pending_access','recipient_unavailable']){
+   const http=createHttp('https://review.invalid/api/v1',async()=>response({error:'OUTING_RECIPIENTS_CHANGED',reason,orderId:id(90),clientSecret:'synthetic-secret',stripeAccount:'synthetic-account',email:'private@example.invalid',recipients:[actor]},409));
+   await assert.rejects(http(`/events/${id(20)}/tickets/${action}`,{method:'POST'}),error=>{
+    assert.ok(error instanceof ApiError);assert.equal(error.status,409);assert.equal(error.code,'OUTING_RECIPIENTS_CHANGED');
+    assert.deepEqual(error.data,{error:'OUTING_RECIPIENTS_CHANGED',reason},'No unrelated order, recipient or Stripe data may reach UI error metadata');return true;
+   });
+  }
+ }
+});
+
+test('only existing-payment recovery can preserve a syntactically valid order UUID',async()=>{
+ const validOrder='abcdef12-abcd-4abc-8abc-abcdef123456';
+ for(const action of ['purchase','book']){
+  for(const orderId of [validOrder,validOrder.toUpperCase(),'pi_test_secret','../orders/other','33333333-3333-4333-8333-000000000090?secret=1','',null,42,{id:id(90)}]){
+   const http=createHttp('https://review.invalid/api/v1',async()=>response({error:'OUTING_RECIPIENTS_CHANGED',reason:'existing_payment',orderId,clientSecret:'must-not-survive'},409));
+   await assert.rejects(http(`/events/${id(20)}/tickets/${action}`,{method:'POST'}),error=>{
+    assert.ok(error instanceof ApiError);
+    const expected:Record<string,unknown>={error:'OUTING_RECIPIENTS_CHANGED',reason:'existing_payment'};
+    if(orderId===validOrder||orderId===validOrder.toUpperCase())expected.orderId=orderId;
+    assert.deepEqual(error.data,expected);return true;
+   });
+  }
+ }
+});
+
+test('unrecognized recovery reasons cannot smuggle arbitrary values through payment errors',async()=>{
+ for(const reason of ['new_unrecognized_reason','existing_payment?secret=1',{kind:'existing_payment'},['existing_payment'],null,5]){
+  const http=createHttp('https://review.invalid/api/v1',async()=>response({error:'OUTING_RECIPIENTS_CHANGED',reason,orderId:id(90),clientSecret:'must-not-survive'},409));
+  await assert.rejects(http(`/events/${id(20)}/tickets/purchase`,{method:'POST'}),error=>{
+   assert.ok(error instanceof ApiError);assert.deepEqual(error.data,{error:'OUTING_RECIPIENTS_CHANGED'});return true;
+  });
+ }
+});
+
+test('payment recovery metadata remains scoped to the exact purchase or book endpoint and error',async()=>{
+ const payload={error:'OUTING_RECIPIENTS_CHANGED',reason:'existing_payment',orderId:id(90),clientSecret:'must-not-survive'};
+ const http=createHttp('https://review.invalid/api/v1',async()=>response(payload,409));
+ for(const path of [`/events/${id(20)}`,`/events/${id(20)}/tickets`,`/events/${id(20)}/tickets/purchase/extra`,`/events/${id(20)}/tickets/book/`,`/users/me/orders`,`/payments/status`,`/events/not-a-uuid/tickets/book`]){
+  await assert.rejects(http(path,{method:'POST'}),error=>{assert.ok(error instanceof ApiError);assert.equal(error.data,undefined,path);return true});
+ }
+ for(const code of ['INVALID_PAYMENT_RESPONSE','CARD_DECLINED','HTTP_ERROR']){
+  const other=createHttp('https://review.invalid/api/v1',async()=>response({...payload,error:code},409));
+  await assert.rejects(other(`/events/${id(20)}/tickets/purchase`,{method:'POST'}),error=>{assert.ok(error instanceof ApiError);assert.equal(error.data,undefined);return true});
+ }
+});

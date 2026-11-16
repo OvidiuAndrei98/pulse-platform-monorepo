@@ -1,0 +1,31 @@
+[
+  {
+    "identityPreserved": true,
+    "withdraw": true,
+    "errorKeepsSelection": true,
+    "retry": true,
+    "standaloneShareIndependent": true
+  },
+  {
+    "multiplePreferences": true,
+    "noImplicitDestination": true
+  },
+  {
+    "incompatibleNoVote": true
+  },
+  {
+    "narrow": {
+      "width": 252,
+      "height": 277.28125,
+      "overflow": false
+    }
+  },
+  {
+    "pastDateExplicitReplacement": true,
+    "discardPreservesStoredDate": true
+  },
+  {
+    "collectionPrefersCanonicalAuthorInEitherOrder": true,
+    "independentSharePreserved": true
+  }
+]

@@ -24,6 +24,7 @@ function validReactions(value:unknown):boolean {
   return Array.isArray(value)&&value.length<=8&&value.every(r=>record(r)&&isOutingId(r.userId)&&answers.includes(String(r.answer)))&&new Set(value.map(r=>r.userId)).size===value.length;
 }
 function validPlanningData(p:Record<string,unknown>) {
+  for(const key of ['myPendingPayment','myCheckoutReservation']){const payment=p[key];if(payment!==undefined&&(!record(payment)||!isOutingId(payment.orderId)||payment.sessionId!==undefined&&(typeof payment.sessionId!=='string'||!/^cs_[A-Za-z0-9_]+$/.test(payment.sessionId))))return false;}
   if(p.revision!==undefined&&(!Number.isSafeInteger(p.revision)||Number(p.revision)<1)||p.decisionAt!==undefined&&!date(p.decisionAt)||p.meetingAt!==undefined&&!date(p.meetingAt)||p.meetingPoint!==undefined&&(typeof p.meetingPoint!=='string'||p.meetingPoint.length>160))return false;
   if(p.myBudgetRon!==undefined&&(typeof p.myBudgetRon!=='number'||!Number.isFinite(p.myBudgetRon)||p.myBudgetRon<0)||p.budgetCount!==undefined&&(!Number.isInteger(p.budgetCount)||Number(p.budgetCount)<0||Number(p.budgetCount)>8))return false;
   if(p.candidateDates!==undefined&&(!Array.isArray(p.candidateDates)||p.candidateDates.length>3||!p.candidateDates.every(d=>record(d)&&validCalendarDay(d.date)&&validReactions(d.responses))))return false;
@@ -38,7 +39,7 @@ export function parsePlans(value: unknown): OutingPlan[] {
     if(!validPlanningData(p)||p.outingDate!==undefined&&!validCalendarDay(p.outingDate)||p.city!==undefined&&(typeof p.city!=='string'||p.city.length>80))return invalid();
     for (const m of p.members) if (!record(m) || !isOutingId(m.userId) || typeof m.username !== 'string' || !['pending', 'accepted'].includes(String(m.status)) || m.voteEventId !== undefined && !isOutingId(m.voteEventId) || m.hasTicket!==undefined&&typeof m.hasTicket!=='boolean' ||
       m.hasPreviousTicket!==undefined&&typeof m.hasPreviousTicket!=='boolean'||m.avatarUrl!==undefined&&typeof m.avatarUrl!=='string'||m.arrivalStatus!==undefined&&!['not_set','leaving_soon','on_way','arrived','not_coming'].includes(String(m.arrivalStatus))) return invalid();
-    for (const o of p.options) if (!record(o) || !isOutingId(o.eventId) || typeof o.title !== 'string' || typeof o.location !== 'string' || !date(o.startTime) || typeof o.available !== 'boolean' ||
+    for (const o of p.options) if (!record(o) || !isOutingId(o.eventId) || o.referenceMessageId!==undefined&&!isOutingId(o.referenceMessageId) || typeof o.title !== 'string' || typeof o.location !== 'string' || !date(o.startTime) || typeof o.available !== 'boolean' ||
       o.proposedBy!==undefined&&!isOutingId(o.proposedBy)||o.priceRon!==undefined&&(typeof o.priceRon!=='number'||!Number.isFinite(o.priceRon)||o.priceRon<0)||
       o.ticketAvailability!==undefined&&!['on_sale','upcoming','sold_out','sales_ended','external','unavailable'].includes(String(o.ticketAvailability))||o.reactions!==undefined&&!validReactions(o.reactions)||o.totalPriceRon!==undefined&&(typeof o.totalPriceRon!=='number'||!Number.isFinite(o.totalPriceRon)||o.totalPriceRon<0)) return invalid();
   }

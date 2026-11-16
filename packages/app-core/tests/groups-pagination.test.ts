@@ -39,3 +39,47 @@ test('an outing-history focus refresh keeps its loaded-tail cursor and known end
  await store.loadHistory(gid,false);assert.equal(store.getSnapshot().groups[0]!.outings.length,65);assert.equal(store.getSnapshot().historyMore[gid],false);
  await store.loadHistory(gid,true);assert.ok(paths.at(-1)!.endsWith('?before='+plans.at(-1)!.id));
 });
+
+test('refresh hydrates an explicitly referenced source older than fifty messages without losing its history gap',async()=>{
+ const source={...message(1),seq:1};
+ const planId=id(990),linked={...source,outingId:planId,referenceMessageId:source.id};
+ const plan:OutingPlan={id:planId,groupId:gid,ownerId:actor,title:'Night',status:'accepted',revision:1,expiresAt:'2027-01-01T00:00:00Z',members:[],options:[{eventId:source.eventId,title:'Night',location:'Venue',startTime:'2026-11-20T20:00:00Z',available:true,referenceMessageId:source.id}]};
+ let loaded=false;const requests:string[]=[];
+ const store=setup(async path=>{
+  if(path.includes('/messages')){
+   requests.push(path);const before=new URL('https://local'+path).searchParams.get('before');
+   if(before)return{items:[source],hasMore:false};
+   return loaded?{items:page(16,65),hasMore:true,references:[linked]}:{items:[source],hasMore:false};
+  }
+  return {...group,outings:loaded?[plan]:[]};
+ });
+ await store.load(gid);loaded=true;await store.load(gid);
+ const cached=store.getSnapshot().messages[gid]!.find(m=>m.id===source.id)!;
+ assert.equal(cached.outingId,planId);assert.equal(cached.referenceMessageId,source.id);
+ assert.ok(requests.at(-1)?.includes('references='+source.id));
+ await store.loadMessages(gid,true);
+ assert.equal(new URL('https://local'+requests.at(-1)).searchParams.get('before'),'48','The refreshed head boundary, not the old source, is the missing-page cursor');
+});
+
+test('a terminal history page clears Earlier messages after filling a targeted-reference gap',async()=>{
+ const all=Array.from({length:60},(_,i)=>({...message(60-i),seq:60-i}));
+ const source=all.at(-1)!;
+ const requests:string[]=[];
+ const store=setup(async path=>{
+  if(path.includes('/messages')){
+   requests.push(path);const before=Number(new URL('https://local'+path).searchParams.get('before')??Infinity);
+   const remaining=all.filter(m=>m.seq<before);
+   return{items:remaining.slice(0,50),hasMore:remaining.length>50,references:[source]};
+  }
+  return group;
+ });
+ await store.load(gid);
+ assert.equal(store.getSnapshot().messages[gid]!.length,51);
+ assert.equal(store.getSnapshot().more[gid],true);
+ await store.loadMessages(gid,true);
+ assert.equal(new URL('https://local'+requests.at(-1)).searchParams.get('before'),'11');
+ assert.deepEqual(store.getSnapshot().messages[gid]!.map(m=>m.seq),all.map(m=>m.seq));
+ assert.equal(store.getSnapshot().more[gid],false,'The exhausted ordinary page also closes targeted-reference gaps');
+ await store.loadMessages(gid);
+ assert.equal(store.getSnapshot().more[gid],false,'Refreshing the head must preserve the known beginning');
+});

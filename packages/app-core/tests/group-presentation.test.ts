@@ -75,6 +75,13 @@ test('ended, cancelled and deadline-expired decisions close; attendance keeps it
  assert.equal(decisionState(p({chosenEventId:id(30),decisionAt:'2026-11-15T10:00:00Z'}),id(2),{now}).canVote,true);
  assert.equal(decisionState(p(),id(2),{date:'2026-12-01',now}).canVote,false);
 });
+
+test('an unavailable retained proposal is not votable after the outing changes night',()=>{
+ const plan=p({outingDate:'2026-11-18',options:[{...option(30),available:false,reactions:[{userId:id(3),answer:'yes'}]},option(31)]});
+ assert.equal(decisionState(plan,id(3),{eventId:id(30),now}).canVote,false);
+ assert.equal(decisionState(plan,id(3),{eventId:id(31),now}).canVote,true);
+ assert.equal(plan.options[0]!.reactions![0]!.answer,'yes','Presentation must not destroy historical preferences');
+});
 test('outing messages retain their original context and never inherit a later question',()=>{
  const plan=p();const message:GroupMessage={id:id(90),requestId:id(91),senderId:id(2),username:'Ana',seq:1,kind:'outing',content:'',createdAt:'2026-11-15T12:00:00Z',outingId:plan.id,outingContext:{decisionRound:1,title:plan.title,city:'București',candidateDates:['2026-11-18']}};
  assert.equal(isCurrentOutingMessage(message,plan),true);

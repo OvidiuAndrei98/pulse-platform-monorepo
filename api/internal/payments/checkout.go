@@ -265,12 +265,7 @@ func (h *CheckoutHandler) HandleCreateCheckout(w http.ResponseWriter, r *http.Re
 	}
 	order, checkoutItems, eventTitle, eventIDString, organizerStripeAccount, organizerAbsorbsServiceFee, err := h.reserveOrder(r.Context(), eventID, userID, req.Email, reservationIPHash, items, totalTicketCount, req.PromoCode, billingDetails)
 	if err != nil {
-		var requestError *checkoutRequestError
-		if errors.As(err, &requestError) {
-			if requestError.status == http.StatusTooManyRequests {
-				w.Header().Set("Retry-After", "300")
-			}
-			router.RespondWithError(w, requestError.status, requestError.message)
+		if respondCheckoutRequestError(w, err) {
 			return
 		}
 		router.RespondWithError(w, http.StatusInternalServerError, "Comanda nu a putut fi pregatita")
@@ -475,9 +470,7 @@ func (h *CheckoutHandler) HandleBookFreeTicket(w http.ResponseWriter, r *http.Re
 
 	orderID, alreadyBooked, err := h.bookFreeTicket(r.Context(), eventID, userID, user.Email, requested)
 	if err != nil {
-		var requestError *checkoutRequestError
-		if errors.As(err, &requestError) {
-			router.RespondWithError(w, requestError.status, requestError.message)
+		if respondCheckoutRequestError(w, err) {
 			return
 		}
 		log.Printf("free ticket booking failed: event=%s user=%s err=%v", common.UUIDToString(eventID), common.UUIDToString(userID), err)

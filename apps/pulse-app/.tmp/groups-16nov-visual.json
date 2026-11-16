@@ -1,0 +1,55 @@
+[
+  {
+    "own": {
+      "width": 252,
+      "height": 260,
+      "photo": 156,
+      "titleBottom": 393.59375,
+      "photoBottom": 428.390625,
+      "overflow": false
+    },
+    "afterReentries": {
+      "width": 252,
+      "height": 260,
+      "photo": 156,
+      "titleBottom": 393.59375,
+      "photoBottom": 428.390625,
+      "overflow": false
+    }
+  },
+  {
+    "incomingLong": {
+      "width": 252,
+      "height": 287.609375,
+      "photo": 183.609375,
+      "titleBottom": 407.203125,
+      "photoBottom": 442,
+      "overflow": false
+    },
+    "afterReentries": {
+      "width": 252,
+      "height": 287.609375,
+      "photo": 183.609375,
+      "titleBottom": 407.203125,
+      "photoBottom": 442,
+      "overflow": false
+    },
+    "simulatedText200": {
+      "width": 252,
+      "height": 673.203125,
+      "photo": 519.203125,
+      "titleBottom": 692.40625,
+      "photoBottom": 777.59375,
+      "overflow": false
+    }
+  },
+  {
+    "pendingInvitationNotRecipient": true
+  },
+  {
+    "onlyConcreteCaption": [
+      "Ana QA changed the outing city.\n02:15"
+    ],
+    "rawHistoryInDetail": true
+  }
+]

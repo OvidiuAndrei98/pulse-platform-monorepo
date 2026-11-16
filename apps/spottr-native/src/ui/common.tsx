@@ -24,7 +24,7 @@ export function webListScrollProps(loadMore: () => void, threshold = 0.6) {
 }
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
-export function EventImage({ uri, style, onLoad, fadeIn = true }: { uri?: string; style?: React.ComponentProps<typeof Image>['style']; onLoad?: () => void; fadeIn?: boolean }) {
+export function EventImage({ uri, style, onLoad, fadeIn = true, fallback = 'party' }: { uri?: string; style?: React.ComponentProps<typeof Image>['style']; onLoad?: () => void; fadeIn?: boolean; fallback?:'party'|'neutral' }) {
   const [failedUri, setFailedUri] = useState<string | null>(null);
   const sourceUri = uri && uri !== failedUri ? uri : undefined;
   const reduceMotion = useReducedMotion(), animate = fadeIn && !reduceMotion;
@@ -32,6 +32,7 @@ export function EventImage({ uri, style, onLoad, fadeIn = true }: { uri?: string
   const motion = useAnimatedStyle(() => ({ opacity: opacity.value }));
   useLayoutEffect(() => { opacity.value = animate ? 0 : 1; }, [sourceUri, animate, opacity]);
   useEffect(() => () => cancelAnimation(opacity), [opacity]);
+  if(!sourceUri&&fallback==='neutral')return <View testID="event-artwork" style={[{backgroundColor:colors.raised},style as StyleProp<ViewStyle>]}/>;
   return <AnimatedImage testID="event-artwork" source={sourceUri ? { uri: sourceUri } : require('../../assets/party-event.webp')}
     style={[style, motion]} contentFit="cover" cachePolicy="memory-disk" draggable={false} recyclingKey={sourceUri || 'fallback'}
     onLoad={() => { opacity.value = withTiming(1, { duration: animate ? 220 : 0 }); onLoad?.(); }}

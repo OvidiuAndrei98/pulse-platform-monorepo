@@ -1,10 +1,9 @@
-import React,{memo,useCallback,useEffect,useLayoutEffect,useRef,useState} from 'react';
+import React,{memo,useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {ActivityIndicator,FlatList,Platform,Pressable,ScrollView,View,useWindowDimensions,type FlatListInstance,type ScrollViewProps} from 'react-native';
 import {useNavigation,useIsFocused} from '@react-navigation/native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {ArrowUp,BellOff,CalendarDays,Check,Images,Plus,UsersRound} from 'lucide-react-native';
-import {GROUP_MEMBER_LIMIT,findMatchingFriendGroup,groupMembershipCounts,preferredGroupOuting,type FriendGroup,type GroupMessage,type SharedEvent} from '@packages/app-core/social/groups';
-import {planningCityKey,planningToday,type OutingPlan} from '@packages/app-core/outings/model';
+import {GROUP_MEMBER_LIMIT,findMatchingFriendGroup,groupMembershipCounts,type FriendGroup,type GroupMessage,type GroupsStore} from '@packages/app-core/social/groups';
 import {useGroups} from './useGroups';
 import {Text} from '../ui/Text';
 import {ActionButton} from '../ui/ActionButton';
@@ -18,15 +17,19 @@ import {colors} from '../ui/theme';
 import {GroupMenu} from './GroupMenu';
 import {GroupBack} from './GroupBack';
 export {GroupBack} from './GroupBack';
-import {GroupOutingCard} from './GroupOutingCard';
-import {ConversationRow,GroupAvatar,EventPreview,OutingSummary,MessageMeta} from './GroupContent';
-import {conversationTitle,relatedEventOuting} from '@packages/app-core/social/groupPresentation';
+import {GroupEventReference} from './GroupEventReference';
+import {ConversationRow,GroupAvatar,OutingSummary,MessageMeta} from './GroupContent';
+import {conversationTitle,isCanonicalGroupReference,groupConversationRows,pinnedOutingPresentation} from '@packages/app-core/social/groupPresentation';
+import {GroupHistoryUpdates} from './GroupHistoryUpdates';
 import {groupStyles as s} from './groupStyles';
 export {groupStyles} from './groupStyles';
 import {GlassInputSurface} from '../ui/GlassInputSurface';
 import {GroupChatKeyboardProvider,GroupChatScrollView,GroupComposerDock} from './GroupChatKeyboard';
 import {AccentPressable} from '../ui/AccentPressable';
 import {distanceFromLatest} from './groupChatGeometry';
+import type {OutingPlan} from '@packages/app-core/outings/model';
+import {PlanTicketRecipients,type RecipientTaskDraft} from '../outings/PlanTicketRecipients';
+import {useCheckoutReservation} from '../checkout/useCheckoutReservation';
 
 export const GroupRow=ConversationRow;
 export function GroupsScreen({eventId,newGroup=false}:{eventId?:string;newGroup?:boolean}){
@@ -58,75 +61,81 @@ export function GroupsScreen({eventId,newGroup=false}:{eventId?:string;newGroup?
  </View>
 }
 
-const Message=memo(function Message({message,mine,showAuthor,onEvent,onOuting,onPropose,action,outing,group,actor,onRespond,onToggle,getError,busy}:{message:GroupMessage;mine:boolean;showAuthor:boolean;onEvent:(id:string)=>void;onOuting:(id:string)=>void;onPropose:(event:SharedEvent)=>void;action:string;outing?:OutingPlan;group:FriendGroup;actor?:string;onRespond:(p:OutingPlan,answer:'yes'|'no')=>Promise<unknown>;onToggle:(p:OutingPlan,eventId:string,selected:boolean)=>Promise<unknown>;getError:()=>string|null|undefined;busy:boolean}){
- const {copy,language}=usePreferences('copy'),time=new Date(message.createdAt).toLocaleTimeString(language,{hour:'2-digit',minute:'2-digit'});
+const Message=memo(function Message({message,mine,showAuthor,onEvent,onOuting,onTickets,group,actor,store,busy}:{message:GroupMessage;mine:boolean;showAuthor:boolean;onEvent:(id:string)=>void;onOuting:(id:string)=>void;onTickets:(plan:OutingPlan)=>void;group:FriendGroup;actor?:string;store:GroupsStore;busy:boolean}){
+ const {language}=usePreferences('copy'),time=new Date(message.createdAt).toLocaleTimeString(language,{hour:'2-digit',minute:'2-digit'});
  const meta=<MessageMeta testID={!mine?'group-received-time-'+message.id:undefined} time={time} mine={mine}/>;
  return <View testID={'group-message-'+message.id} style={s.message}>
-  {(showAuthor||message.kind==='outing')&&!mine&&<View style={[s.row,{gap:8,marginBottom:8}]}><MemberAvatar name={message.username} uri={message.avatarUrl} userId={message.senderId} size={24}/><Text style={[s.muted,{flex:1}]}>{message.username}</Text></View>}
-  {message.kind==='outing'&&message.outingId?<View style={{maxWidth:560,width:'100%',alignSelf:mine?'flex-end':'flex-start'}}><GroupOutingCard plan={outing} group={group} message={message} actor={actor} busy={busy} onRespond={onRespond} onToggle={onToggle} getError={getError} onOpen={()=>onOuting(message.outingId!)} onEvent={onEvent}/>{meta}</View>:message.kind==='event'?<View style={{width:'100%',maxWidth:400,alignSelf:mine?'flex-end':'flex-start'}}>
-   {message.event?<EventPreview variant="media" title={message.event.title} imageUrl={message.event.imageUrl} startTime={message.event.startTime} location={message.event.location} city={message.event.city} onPress={()=>onEvent(message.event!.id)}>
-    {!!message.content&&<Text style={[s.body,{marginBottom:8}]}>{message.content}</Text>}
-    {Date.parse(message.event.endTime)>Date.now()&&message.event.status==='published'?<View {...(Platform.OS==='web'?{dataSet:{eventId:message.event.id}}:{})} testID={'group-event-action-'+message.event.id}><ActionButton testID="group-create-outing" title={copy(action)} size="compact" tone="ghost" disabled={busy} onPress={()=>onPropose(message.event!)}/></View>:<Text style={s.muted}>{copy(message.event.status==='cancelled'?'groups.cancelled':'groups.completed')}</Text>}
-   </EventPreview>:<View style={s.bubble}><Text style={s.muted}>{copy('groups.eventUnavailable')}</Text></View>}{meta}
-  </View>:<><View testID={'group-bubble-'+message.id} style={[s.bubble,mine&&s.mine]}><Text style={s.body}>{message.content}</Text></View>{meta}</>}
+  {showAuthor&&!mine&&<View style={[s.row,{gap:8,marginBottom:8}]}><MemberAvatar name={message.username} uri={message.avatarUrl} userId={message.senderId} size={24}/><Text style={[s.muted,{flex:1}]}>{message.username}</Text></View>}
+  {message.kind==='event'||isCanonicalGroupReference(message)?<View style={{width:'100%',maxWidth:332,alignSelf:mine?'flex-end':'flex-start'}}>{!!message.content&&<View testID={'group-bubble-'+message.id} style={[s.bubble,mine&&s.mine]}><Text style={s.body}>{message.content}</Text></View>}<GroupEventReference message={message} group={group} actor={actor} busy={busy} store={store} onEvent={onEvent} onOuting={onOuting} onTickets={onTickets}/>{meta}</View>:<><View testID={'group-bubble-'+message.id} style={[s.bubble,mine&&s.mine]}><Text style={s.body}>{message.content}</Text></View>{meta}</>}
  </View>;
 });
 export function FriendGroupScreen({id}:{id:string}){
  const model=useGroups(id),{copy,language}=usePreferences(),navigation=useNavigation<any>(),safe=useSafeAreaInsets(),focused=useIsFocused();
  const group=model.groups.find(g=>g.id===id),messages=model.messages[id]??[],list=useRef<FlatListInstance>(null),nearBottom=useRef(true),read=useRef(0),[newMessages,setNewMessages]=useState(false);
- const [pinned,setPinned]=useState('');
+ const [ticketPlanId,setTicketPlanId]=useState<string>(),recipientDraft=useRef<RecipientTaskDraft|null>(null),ticketPlan=group?.outings.find(plan=>plan.id===ticketPlanId);
+ const reservation=useCheckoutReservation(ticketPlan?.chosenEventId??'');
+ const focusedRef=useRef(focused);focusedRef.current=focused;
+ const rows=useMemo(()=>groupConversationRows(messages,group?.outings??[]),[messages,group?.outings]);
+ const messagePositions=useMemo(()=>new Map(messages.map((message,index)=>[message.id,index])),[messages]);
  const [composerHeight,setComposerHeight]=useState(44);
+ const [overflow,setOverflow]=useState(false),metrics=useRef({viewport:0,content:0,inset:0}),initializedInset=useRef(false);
  const {width,height}=useWindowDimensions();
  const maxComposerHeight=Math.max(132,Math.min(220,Math.round(height*.27)));
  useEffect(()=>{setComposerHeight(value=>Math.min(value,maxComposerHeight))},[maxComposerHeight]);
  const composerInset=Math.max(12,safe.bottom);
- const viewportInset=useRef(0),followLatest=useRef(false),previousLatest=useRef(0);
+ const viewportInset=useRef(Platform.OS==='web'?0:54+composerInset),followLatest=useRef(false),previousLatest=useRef(0);
  const scope=id+':'+model.user?.id+':'+group?.joinedAt+':'+group?.visibleAfterSeq,currentScope=useRef(scope);currentScope.current=scope;
  // KeyboardChatScrollView reserves composer + keyboard space in contentInset.top.
  // The latest inverted position is -inset, not zero. Native MVCP's optional
  // autoscroll always targets zero and therefore fights this reservation.
- const scrollLatest=useCallback((animated=false)=>{list.current?.scrollToOffset({offset:Platform.OS==='web'?0:-Math.max(0,viewportInset.current),animated})},[]);
- const updateViewportInset=useCallback((top:number)=>{viewportInset.current=top;if(followLatest.current)scrollLatest()},[scrollLatest]);
- const finishLatestLayout=useCallback(()=>{if(followLatest.current){followLatest.current=false;scrollLatest()}},[scrollLatest]);
- const chatScroll=useCallback((props:ScrollViewProps)=><GroupChatScrollView {...props} bottomInset={composerInset} onViewportInset={updateViewportInset}/>,[composerInset,updateViewportInset]);
- useLayoutEffect(()=>{read.current=0;nearBottom.current=true;previousLatest.current=0;followLatest.current=false;setPinned('');setNewMessages(false);setComposerHeight(44)},[scope]);
+ const scrollLatest=useCallback((animated=false)=>{if(focusedRef.current)list.current?.scrollToOffset({offset:Platform.OS==='web'?0:-Math.max(0,viewportInset.current),animated})},[]);
+ const updateOverflow=useCallback(()=>{const m=metrics.current;if(m.viewport>0)setOverflow(old=>m.content+m.inset>m.viewport+(old?-1:1))},[]);
+ const updateViewportInset=useCallback((top:number)=>{if(!focusedRef.current)return;viewportInset.current=top;metrics.current.inset=top;updateOverflow();if(!initializedInset.current&&top>0){initializedInset.current=true;if(nearBottom.current)scrollLatest()}else if(followLatest.current)scrollLatest()},[scrollLatest,updateOverflow]);
+ const finishLatestLayout=useCallback(()=>{if(focusedRef.current&&followLatest.current){followLatest.current=false;scrollLatest()}},[scrollLatest]);
+ const chatScroll=useCallback((props:ScrollViewProps)=><GroupChatScrollView {...props} active={focused} bottomInset={composerInset} onViewportInset={updateViewportInset}/>,[focused,composerInset,updateViewportInset]);
+ useLayoutEffect(()=>{read.current=0;nearBottom.current=true;previousLatest.current=0;followLatest.current=false;initializedInset.current=false;setNewMessages(false);setComposerHeight(44)},[scope]);
  useLayoutEffect(()=>{
   const latest=messages[0];if(!latest||latest.seq<=previousLatest.current)return;
   previousLatest.current=latest.seq;
   // Preserve the visible history anchor for incoming messages. New inserts at
   // the end, and our own sends, follow once now and again after native layout.
-  if(nearBottom.current||latest.senderId===model.user?.id){followLatest.current=true;scrollLatest()}
+  if(nearBottom.current||latest.senderId===model.user?.id&&(!latest.referenceMessageId||latest.referenceMessageId===latest.id)){followLatest.current=true;scrollLatest()}
  },[scope,messages[0]?.seq,model.user?.id,scrollLatest]);
+ // A share can finish while its picker still covers this route. Keep that
+ // correction pending until the actual list is visible; returning to history
+ // without a new own message does not request any scroll.
+ useLayoutEffect(()=>{if(focused&&followLatest.current)scrollLatest()},[focused,scrollLatest]);
  const sendMessage=async()=>{
   const sentScope=currentScope.current,result=await model.store.send(id);
   if(result&&currentScope.current===sentScope){followLatest.current=true;scrollLatest();setNewMessages(false)}
  };
- const relevant=group?.outings.find(p=>p.id===pinned)??preferredGroupOuting(group?.outings??[]);
- useEffect(()=>{if(!pinned&&relevant)setPinned(relevant.id)},[relevant?.id,pinned]);
+ const pinned=pinnedOutingPresentation(group?.outings??[],language,copy),relevant=pinned?.plan;
  useEffect(()=>{if(!group||!focused||group.status!=='accepted')return;const received=messages[0]?.seq??0;if(messages[0]?.senderId===model.user?.id){setNewMessages(false);return}if(nearBottom.current&&received>read.current){read.current=received;void model.store.read(id,received)}else if(received>read.current)setNewMessages(true)},[group?.lastSeq,messages[0]?.seq,focused,id,model.store]);
  const activeNavigation=useRef(focused);activeNavigation.current=focused;
  useEffect(()=>{activeNavigation.current=focused;return()=>{activeNavigation.current=false}},[focused]);
- const openOuting=(planId:string)=>{if(!activeNavigation.current)return;setPinned(planId);navigation.navigate('GroupOuting',{groupId:id,planId})};
- const match=(event:SharedEvent)=>group?.outings.find(p=>!['completed','cancelled'].includes(p.lifecycle??'')&&p.outingDate===planningToday(new Date(event.startTime))&&planningCityKey(p.city)===planningCityKey(event.city));
- const propose=async(event:SharedEvent)=>{const associated=group&&relatedEventOuting(group,event.id);if(associated){openOuting(associated.id);return}const existing=match(event);if(existing){if(!existing.options.some(o=>o.eventId===event.id)&&await model.store.planAction(id,existing.id,'proposals',{eventId:event.id,revision:existing.revision})===undefined)return;openOuting(existing.id)}else{const plan=await model.store.createOuting(id,{eventId:event.id});if(plan){if(!plan.options.some(option=>option.eventId===event.id)&&!await model.store.planAction(id,plan.id,'proposals',{eventId:event.id,revision:plan.revision}))return;openOuting(plan.id)}}};
+ const openOuting=(planId:string,historyMessageId?:string)=>{if(!activeNavigation.current)return;navigation.navigate('GroupOuting',{groupId:id,planId,historyMessageId})};
+ const openTickets=(plan:OutingPlan)=>{const own=plan.members.find(member=>member.userId===model.user?.id);if(plan.myPendingPayment||plan.myCheckoutReservation||['valid','used','offered','processing'].includes(own?.ticketState??''))openOuting(plan.id);else setTicketPlanId(plan.id)};
  const back=()=>navigation.canGoBack()?navigation.goBack():navigation.navigate('Tabs',{screen:'Friends'});
  if(!model.ready||!group&&model.loading)return <View style={[s.root,{paddingTop:safe.top}]}><Loading/></View>;
  if(!group||model.revoked.includes(id))return <View style={[s.root,{paddingTop:safe.top}]}><View style={s.header}><GroupBack onPress={back}/><Text style={s.title}>{copy('groups.title')}</Text></View><Feedback title={copy(model.error??'groups.accessLost')} retry={()=>void model.store.load(id)}/></View>;
  return <GroupChatKeyboardProvider bottomInset={composerInset}><View testID="friend-group" style={[s.root,{paddingTop:safe.top}]}>
   <View style={s.header}><GroupBack onPress={back}/><OutingPressable accessibilityLabel={copy('groups.info')} style={[s.row,{flex:1,minWidth:0,gap:8}]} onPress={()=>navigation.navigate('GroupInfo',{groupId:id})}><GroupAvatar group={group} size={40}/><View style={{flex:1,minWidth:0,gap:2}}><Text accessibilityRole="header" numberOfLines={1} style={s.heading}>{conversationTitle(group,model.user?.id)}</Text><Text numberOfLines={1} style={s.caption}>{copy('groups.members',{count:groupMembershipCounts(group).accepted})}{groupMembershipCounts(group).pending>0?' · '+copy('groups.invitedCount',{count:groupMembershipCounts(group).pending}):''}</Text></View></OutingPressable><GroupMenu testID="group-menu" label={copy('groups.settings')} disabled={group.status!=='accepted'} items={[
    {id:'members',label:copy('groups.info'),icon:UsersRound,nativeImage:Platform.OS==='ios'?'person.2':undefined,onPress:()=>navigation.navigate('GroupInfo',{groupId:id}),testID:'group-menu-members'},
+   {id:'outings',label:copy('groups.outings'),icon:CalendarDays,nativeImage:Platform.OS==='ios'?'calendar':undefined,onPress:()=>navigation.navigate('GroupOutings',{groupId:id}),testID:'group-menu-outings'},
    {id:'mute',label:copy(group.muted?'groups.unmute':'groups.mute'),icon:BellOff,nativeImage:Platform.OS==='ios'?'bell.slash':undefined,disabled:model.busy,onPress:()=>void model.store.action(id,{action:'mute',muted:!group.muted})}
   ]}/></View>
   {group.status==='pending'?<ScrollView contentContainerStyle={s.page}><Text style={s.title}>{copy('groups.invited')}</Text><View style={s.row}>{group.members.map(m=><MemberAvatar key={m.userId} name={m.username} uri={m.avatarUrl} userId={m.userId}/>)}</View><Text style={s.muted}>{copy('groups.privacy')}</Text><ActionButton title={copy('groups.accept')} testID="group-accept" busy={model.busy} onPress={()=>void model.store.action(id,{action:'accept'})}/><ActionButton title={copy('groups.decline')} tone="ghost" onPress={()=>void model.store.action(id,{action:'decline'}).then(ok=>{if(ok)back()})}/></ScrollView>:<>
-   {relevant&&<View style={[s.summary,{width:Math.min(720,width-40),alignSelf:'center'}]}><OutingSummary plan={relevant} compact testID="group-summary" onPress={()=>openOuting(relevant.id)}/></View>}
-   <FlatList ref={list} testID="group-messages" data={messages} inverted renderScrollComponent={chatScroll} keyExtractor={m=>m.id} initialNumToRender={16} maxToRenderPerBatch={10} windowSize={7} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" maintainVisibleContentPosition={{minIndexForVisible:0}} contentContainerStyle={{paddingTop:14,paddingBottom:16,flexGrow:1}}
-    onContentSizeChange={finishLatestLayout} onScrollBeginDrag={()=>{followLatest.current=false}}
-    onScroll={e=>{nearBottom.current=distanceFromLatest(e.nativeEvent.contentOffset.y,Platform.OS==='web'?0:viewportInset.current)<70;if(nearBottom.current){setNewMessages(false);const received=messages[0]?.seq??0;if(received>read.current){read.current=received;void model.store.read(id,received)}}}} scrollEventThrottle={64}
-    ListEmptyComponent={<View style={[s.page,{transform:[{scaleY:-1}]}]}><Text style={s.muted}>{copy('groups.empty')}</Text><ActionButton title={copy('groups.share')} onPress={()=>navigation.navigate('GroupEventPicker',{groupId:id})}/></View>}
+   {relevant&&<View style={[s.summary,{width:Math.min(720,width-40),alignSelf:'center'}]}><OutingSummary plan={relevant} compact otherCount={Math.max(0,(pinned?.eligibleCount??1)-1)} testID="group-summary" onPress={()=>openOuting(relevant.id)}/></View>}
+   <FlatList ref={list} testID="group-messages" style={{flex:1,minHeight:0}} data={rows} inverted renderScrollComponent={chatScroll} keyExtractor={m=>m.id} initialNumToRender={16} maxToRenderPerBatch={10} windowSize={7} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" maintainVisibleContentPosition={{minIndexForVisible:0}} contentOffset={Platform.OS==='web'?undefined:{x:0,y:-(54+composerInset)}} contentContainerStyle={{paddingTop:8,paddingBottom:12}}
+    alwaysBounceVertical={false} bounces={overflow} overScrollMode={overflow?'auto':'never'}
+    onLayout={e=>{if(!focusedRef.current||e.nativeEvent.layout.height<=0)return;metrics.current.viewport=e.nativeEvent.layout.height;updateOverflow();if(followLatest.current)scrollLatest()}}
+    onContentSizeChange={(_width,content)=>{if(!focusedRef.current||_width<=0||content<=0)return;metrics.current.content=content;updateOverflow();finishLatestLayout()}} onScrollBeginDrag={()=>{if(focusedRef.current)followLatest.current=false}}
+    onScroll={e=>{if(!focusedRef.current)return;nearBottom.current=distanceFromLatest(e.nativeEvent.contentOffset.y,Platform.OS==='web'?0:viewportInset.current)<70;if(nearBottom.current){setNewMessages(false);const received=messages[0]?.seq??0;if(received>read.current){read.current=received;void model.store.read(id,received)}}}} scrollEventThrottle={64}
+    ListEmptyComponent={<View testID="group-chat-empty" style={{paddingHorizontal:20,paddingVertical:12,transform:[{scaleY:-1}]}}><Text style={s.muted}>{copy('groups.chatEmpty')}</Text></View>}
     ListFooterComponent={model.more[id]?<ActionButton title={copy('groups.older')} tone="ghost" onPress={()=>void model.store.loadMessages(id,true)}/>:undefined}
-    renderItem={({item,index})=>{const associated=item.event?relatedEventOuting(group,item.event.id):undefined,existing=item.event?match(item.event):undefined;return <Message message={item} mine={item.senderId===model.user?.id} showAuthor={messages[index+1]?.senderId!==item.senderId} onEvent={event=>navigation.navigate('Event',{id:event})} onOuting={openOuting} onPropose={event=>void propose(event)} action={associated?'groups.viewOuting':existing?.chosenEventId?'groups.alternative':'groups.proposeForOuting'} outing={group.outings.find(p=>p.id===item.outingId)} group={group} actor={model.user?.id} busy={model.busy} getError={()=>model.store.getSnapshot().error} onRespond={(plan,answer)=>model.store.planAction(id,plan.id,'attendance',{answer,decisionRound:plan.decisionRound},{feedback:'inline'})} onToggle={(plan,eventId,selected)=>model.store.planAction(id,plan.id,'vote',{eventId,...(selected?{answer:'yes'}:{remove:true}),revision:plan.revision},{feedback:'inline'})}/>}}/>
-   <GroupComposerDock bottomInset={composerInset}>
-   {newMessages&&<ActionButton testID="group-new-messages" title={copy('groups.newMessages')} size="compact" tone="secondary" onPress={()=>{scrollLatest(true);setNewMessages(false)}}/>}
+    renderItem={({item:row})=>{if(row.kind==='updates')return <GroupHistoryUpdates messages={row.messages} allMessages={messages}/>;const item=row.message,index=messagePositions.get(item.id)??0;if(item.kind==='outing'&&!isCanonicalGroupReference(item))return <GroupHistoryUpdates messages={[item]} allMessages={messages}/>;return <Message message={item} mine={item.senderId===model.user?.id} showAuthor={messages[index+1]?.senderId!==item.senderId} onEvent={event=>navigation.navigate('Event',{id:event})} onOuting={openOuting} onTickets={openTickets} group={group} actor={model.user?.id} busy={model.busy} store={model.store}/>}}/>
+   <GroupComposerDock active={focused} bottomInset={composerInset}>
+   {newMessages&&<View pointerEvents="box-none" style={{position:'absolute',bottom:'100%',left:0,right:0,alignItems:'center',paddingBottom:8}}><ActionButton testID="group-new-messages" title={copy('groups.newMessages')} size="compact" tone="secondary" onPress={()=>{scrollLatest(true);setNewMessages(false)}}/></View>}
    {(model.error||model.sendError)&&<View style={{paddingHorizontal:20}}><Text accessibilityRole="alert" style={[s.muted,{color:colors.danger}]}>{copy(model.sendError??model.error!)}</Text></View>}
    <View testID="group-composer-row" style={[s.composer,{paddingBottom:composerInset}]}><GroupMenu testID="group-add" label={copy('groups.plus')} icon={Plus} items={[
     {id:'event',label:copy('groups.share'),icon:Images,nativeImage:Platform.OS==='ios'?'photo':undefined,onPress:()=>navigation.navigate('GroupEventPicker',{groupId:id}),testID:'group-open-events'},
@@ -137,5 +146,6 @@ export function FriendGroupScreen({id}:{id:string}){
    </GlassInputSurface></View></GroupComposerDock>
   </>}
 
+  {ticketPlan&&model.user&&<PlanTicketRecipients plan={ticketPlan} actor={model.user.id} draftRef={recipientDraft} pendingInvitations={group.members.filter(member=>member.status==='pending').length} onClose={()=>setTicketPlanId(undefined)} onReviewSelection={()=>void model.store.loadPlan(id,ticketPlan.id)} onRecoverCheckout={orderId=>reservation.resume(orderId)}/>}
  </View></GroupChatKeyboardProvider>
 }

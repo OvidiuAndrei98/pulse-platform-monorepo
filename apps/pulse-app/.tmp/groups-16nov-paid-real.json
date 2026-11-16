@@ -1,0 +1,72 @@
+{
+  "checks": [
+    "Real UI builds paid checkout from the selected event, ticket type and own recipient, requiring explicit extra-ticket confirmation for the seeded ticket.",
+    "Actual local POST /tickets/purchase receives the same plan ID, decision round, type and quantity.",
+    "Provider deliberately unavailable: API returns 503, UI releases busy state and issues no new ticket; no live card payment was attempted."
+  ],
+  "requests": [
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/transfers",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/1ad6f952-32b0-4923-ba75-06f282975d17",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/1ad6f952-32b0-4923-ba75-06f282975d17/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/872eab21-0240-498d-a867-b53fa134f59e",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/872eab21-0240-498d-a867-b53fa134f59e",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/events/e7533fff-fe52-4977-9e48-2c8effdc326f",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/events/e7533fff-fe52-4977-9e48-2c8effdc326f/tickets/purchase",
+      "method": "POST",
+      "status": 503
+    }
+  ],
+  "payload": {
+    "items": [
+      {
+        "ticketTypeId": "af2b48e2-c581-464a-984c-fe4d8996ace6",
+        "quantity": 1
+      }
+    ],
+    "outing": {
+      "planId": "872eab21-0240-498d-a867-b53fa134f59e",
+      "decisionRound": 1,
+      "recipientIds": [
+        "fb898f99-711a-40ad-9630-b0e30dbbc962"
+      ],
+      "extraConfirmed": true
+    }
+  },
+  "errors": [],
+  "success": true
+}

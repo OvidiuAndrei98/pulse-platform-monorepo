@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { VirtualizedList, Platform, Pressable, StyleSheet, View, useWindowDimensions, type ViewProps, type ViewInstance, type VirtualizedListInstance } from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useDerivedValue, useReducedMotion, useSharedValue, withSpring, type SharedValue } from 'react-native-reanimated';
 import { CalendarDays, ChevronLeft, RotateCcw } from 'lucide-react-native';
@@ -45,12 +45,15 @@ const RibbonDay = React.memo(function RibbonDay({ label, selected, preview, toda
   </Pressable>;
 });
 
-export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress, source, expanded, calendarMotion, searching = false, center = null, minimumDay, maximumDay }: {
+export type DateRibbonSelectionHandle={finish:()=>string};
+export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress, source, expanded, calendarMotion, searching = false, center = null, minimumDay, maximumDay,onPreviewDay,selectionController }: {
   filters: EventFilters; onChange: (filters: EventFilters) => void;
   onOpenChange: (open: boolean) => void; progress: SharedValue<number>; source: { x: number; y: number }; expanded: boolean;
   calendarMotion: SharedValue<DiscoveryControlPose>; searching?: boolean; center?: readonly [number, number] | null;
   /** Planning may start before 06:00 on the previous nightlife date. Discover keeps its defaults. */
   minimumDay?: string; maximumDay?: string;
+  /** Forms display the day under the marker and can finish a gesture before navigation. */
+  onPreviewDay?:(day:string)=>void;selectionController?:React.Ref<DateRibbonSelectionHandle>;
 }) {
   const { copy, language } = usePreferences('copy'), reduced = useReducedMotion(), id = useId();
   const locale = language === 'ro' ? 'ro-RO' : 'en-GB', today = minimumDay ?? productToday();
@@ -86,8 +89,8 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
   const mounted = useRef(true);
   const wasExpanded = useRef(false);
   const fullWidth = useSharedValue(width), sourcePoint = useSharedValue(source);
-  const latest = useRef({ filters, onChange, calendar, today, expanded });
-  latest.current = { filters, onChange, calendar, today, expanded };
+  const latest = useRef({ filters, onChange, calendar, today, expanded,onPreviewDay });
+  latest.current = { filters, onChange, calendar, today, expanded,onPreviewDay };
   const formatters = useMemo(() => ({
     weekday: new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }),
     full: new Intl.DateTimeFormat(locale, { dateStyle: 'full', timeZone: 'UTC' }),
@@ -118,11 +121,15 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
     if (!expanded) return;
     const index = dateRibbonIndex(offset, calendar.count), day = dateRibbonDayAt(calendar, index);
     if (!day) return;
+    if(selectionController&&programmatic.current&&day!==committed.current)return;
     if (expanded && day !== previewRef.current && interacted.current && !programmatic.current) {
       if (!hasNativeDateRibbonHaptics) vibrate();
       playTick();
     }
     setDayPreview(day);
+    if(interacted.current&&!programmatic.current&&latest.current.onPreviewDay){
+      committed.current=day;latest.current.onPreviewDay(day);
+    }
   };
   const settle = () => {
     clearTimer();
@@ -137,6 +144,14 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
     committed.current = day;
     if (next !== current.filters) current.onChange(next);
   };
+  useImperativeHandle(selectionController,()=>({finish:()=>{
+    clearTimer();dragging.current=false;momentum.current=false;programmatic.current=true;
+    const current=latest.current,day=previewRef.current<current.today?current.today:previewRef.current;
+    setDayPreview(day);committed.current=day;
+    list.current?.scrollToOffset({offset:Math.max(0,dateRibbonDayIndex(current.calendar,day))*STEP,animated:false});
+    const next=withRibbonDay(current.filters,day,current.today);if(next!==current.filters)current.onChange(next);
+    return day;
+  }}),[]);
   useLayoutEffect(() => {
     interacted.current = false;
     if (expanded && !wasExpanded.current) {

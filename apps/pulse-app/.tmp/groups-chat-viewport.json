@@ -1,0 +1,517 @@
+[
+  {
+    "width": 1280,
+    "height": 800,
+    "mobile": false,
+    "before": {
+      "innerHeight": 800,
+      "visualHeight": 800,
+      "docHeight": 800,
+      "bodyHeight": 800,
+      "scrollY": 0,
+      "chat": {
+        "top": 0,
+        "bottom": 800,
+        "height": 800
+      },
+      "composerBottom": 788,
+      "messages": {
+        "height": 597,
+        "scrollHeight": 4539,
+        "scrollTop": 3942
+      },
+      "bodyPadding": "0px",
+      "ancestors": [
+        {
+          "tag": "MAIN",
+          "class": "groups-module__WIh6ya__chat",
+          "height": 800,
+          "scroll": 800,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "relative z-10",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "BODY",
+          "class": "relative min-h-screen overflow-x-hidden bg-[#000000] text-white",
+          "height": 800,
+          "scroll": 800,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "HTML",
+          "class": "inter_f008a7bc-module__7p42bW__variable geist_mono_8d43a2aa-module__8Li5zG__variable h-full antialiased",
+          "height": 800,
+          "scroll": 800,
+          "overflow": "hidden",
+          "padding": "0px"
+        }
+      ]
+    },
+    "after": {
+      "innerHeight": 800,
+      "visualHeight": 800,
+      "docHeight": 800,
+      "bodyHeight": 800,
+      "scrollY": 0,
+      "chat": {
+        "top": 0,
+        "bottom": 800,
+        "height": 800
+      },
+      "composerBottom": 788,
+      "messages": {
+        "height": 597,
+        "scrollHeight": 4539,
+        "scrollTop": 3942
+      },
+      "bodyPadding": "0px",
+      "ancestors": [
+        {
+          "tag": "MAIN",
+          "class": "groups-module__WIh6ya__chat",
+          "height": 800,
+          "scroll": 800,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "relative z-10",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "BODY",
+          "class": "relative min-h-screen overflow-x-hidden bg-[#000000] text-white",
+          "height": 800,
+          "scroll": 800,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "HTML",
+          "class": "inter_f008a7bc-module__7p42bW__variable geist_mono_8d43a2aa-module__8Li5zG__variable h-full antialiased",
+          "height": 800,
+          "scroll": 800,
+          "overflow": "hidden",
+          "padding": "0px"
+        }
+      ]
+    },
+    "released": {
+      "root": "",
+      "body": ""
+    }
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "mobile": true,
+    "before": {
+      "innerHeight": 844,
+      "visualHeight": 844,
+      "docHeight": 844,
+      "bodyHeight": 844,
+      "scrollY": 0,
+      "chat": {
+        "top": 0,
+        "bottom": 844,
+        "height": 844
+      },
+      "composerBottom": 832,
+      "messages": {
+        "height": 641,
+        "scrollHeight": 5874,
+        "scrollTop": 5233
+      },
+      "bodyPadding": "0px",
+      "ancestors": [
+        {
+          "tag": "MAIN",
+          "class": "groups-module__WIh6ya__chat",
+          "height": 844,
+          "scroll": 844,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "relative z-10",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "BODY",
+          "class": "relative min-h-screen overflow-x-hidden bg-[#000000] text-white",
+          "height": 844,
+          "scroll": 844,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "HTML",
+          "class": "inter_f008a7bc-module__7p42bW__variable geist_mono_8d43a2aa-module__8Li5zG__variable h-full antialiased",
+          "height": 844,
+          "scroll": 844,
+          "overflow": "hidden",
+          "padding": "0px"
+        }
+      ]
+    },
+    "after": {
+      "innerHeight": 844,
+      "visualHeight": 844,
+      "docHeight": 844,
+      "bodyHeight": 844,
+      "scrollY": 0,
+      "chat": {
+        "top": 0,
+        "bottom": 844,
+        "height": 844
+      },
+      "composerBottom": 832,
+      "messages": {
+        "height": 641,
+        "scrollHeight": 5874,
+        "scrollTop": 5233
+      },
+      "bodyPadding": "0px",
+      "ancestors": [
+        {
+          "tag": "MAIN",
+          "class": "groups-module__WIh6ya__chat",
+          "height": 844,
+          "scroll": 844,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "relative z-10",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "BODY",
+          "class": "relative min-h-screen overflow-x-hidden bg-[#000000] text-white",
+          "height": 844,
+          "scroll": 844,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "HTML",
+          "class": "inter_f008a7bc-module__7p42bW__variable geist_mono_8d43a2aa-module__8Li5zG__variable h-full antialiased",
+          "height": 844,
+          "scroll": 844,
+          "overflow": "hidden",
+          "padding": "0px"
+        }
+      ]
+    },
+    "keyboard": {
+      "innerHeight": 844,
+      "visualHeight": 564,
+      "docHeight": 844,
+      "bodyHeight": 844,
+      "scrollY": 0,
+      "chat": {
+        "top": 20,
+        "bottom": 584,
+        "height": 564
+      },
+      "composerBottom": 572,
+      "messages": {
+        "height": 361,
+        "scrollHeight": 5874,
+        "scrollTop": 5513
+      },
+      "bodyPadding": "0px",
+      "ancestors": [
+        {
+          "tag": "MAIN",
+          "class": "groups-module__WIh6ya__chat",
+          "height": 564,
+          "scroll": 564,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "relative z-10",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "BODY",
+          "class": "relative min-h-screen overflow-x-hidden bg-[#000000] text-white",
+          "height": 844,
+          "scroll": 844,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "HTML",
+          "class": "inter_f008a7bc-module__7p42bW__variable geist_mono_8d43a2aa-module__8Li5zG__variable h-full antialiased",
+          "height": 844,
+          "scroll": 844,
+          "overflow": "hidden",
+          "padding": "0px"
+        }
+      ]
+    },
+    "released": {
+      "root": "",
+      "body": ""
+    }
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "mobile": true,
+    "before": {
+      "innerHeight": 568,
+      "visualHeight": 568,
+      "docHeight": 568,
+      "bodyHeight": 568,
+      "scrollY": 0,
+      "chat": {
+        "top": 0,
+        "bottom": 568,
+        "height": 568
+      },
+      "composerBottom": 556,
+      "messages": {
+        "height": 365,
+        "scrollHeight": 5613,
+        "scrollTop": 5248
+      },
+      "bodyPadding": "0px",
+      "ancestors": [
+        {
+          "tag": "MAIN",
+          "class": "groups-module__WIh6ya__chat",
+          "height": 568,
+          "scroll": 568,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "relative z-10",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "BODY",
+          "class": "relative min-h-screen overflow-x-hidden bg-[#000000] text-white",
+          "height": 568,
+          "scroll": 568,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "HTML",
+          "class": "inter_f008a7bc-module__7p42bW__variable geist_mono_8d43a2aa-module__8Li5zG__variable h-full antialiased",
+          "height": 568,
+          "scroll": 568,
+          "overflow": "hidden",
+          "padding": "0px"
+        }
+      ]
+    },
+    "after": {
+      "innerHeight": 568,
+      "visualHeight": 568,
+      "docHeight": 568,
+      "bodyHeight": 568,
+      "scrollY": 0,
+      "chat": {
+        "top": 0,
+        "bottom": 568,
+        "height": 568
+      },
+      "composerBottom": 556,
+      "messages": {
+        "height": 365,
+        "scrollHeight": 5613,
+        "scrollTop": 5248
+      },
+      "bodyPadding": "0px",
+      "ancestors": [
+        {
+          "tag": "MAIN",
+          "class": "groups-module__WIh6ya__chat",
+          "height": 568,
+          "scroll": 568,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "relative z-10",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "BODY",
+          "class": "relative min-h-screen overflow-x-hidden bg-[#000000] text-white",
+          "height": 568,
+          "scroll": 568,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "HTML",
+          "class": "inter_f008a7bc-module__7p42bW__variable geist_mono_8d43a2aa-module__8Li5zG__variable h-full antialiased",
+          "height": 568,
+          "scroll": 568,
+          "overflow": "hidden",
+          "padding": "0px"
+        }
+      ]
+    },
+    "keyboard": {
+      "innerHeight": 568,
+      "visualHeight": 288,
+      "docHeight": 568,
+      "bodyHeight": 568,
+      "scrollY": 0,
+      "chat": {
+        "top": 20,
+        "bottom": 308,
+        "height": 288
+      },
+      "composerBottom": 296,
+      "messages": {
+        "height": 85,
+        "scrollHeight": 5613,
+        "scrollTop": 5528
+      },
+      "bodyPadding": "0px",
+      "ancestors": [
+        {
+          "tag": "MAIN",
+          "class": "groups-module__WIh6ya__chat",
+          "height": 288,
+          "scroll": 288,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "DIV",
+          "class": "relative z-10",
+          "height": 0,
+          "scroll": 0,
+          "overflow": "visible",
+          "padding": "0px"
+        },
+        {
+          "tag": "BODY",
+          "class": "relative min-h-screen overflow-x-hidden bg-[#000000] text-white",
+          "height": 568,
+          "scroll": 568,
+          "overflow": "hidden",
+          "padding": "0px"
+        },
+        {
+          "tag": "HTML",
+          "class": "inter_f008a7bc-module__7p42bW__variable geist_mono_8d43a2aa-module__8Li5zG__variable h-full antialiased",
+          "height": 568,
+          "scroll": 568,
+          "overflow": "hidden",
+          "padding": "0px"
+        }
+      ]
+    },
+    "released": {
+      "root": "",
+      "body": ""
+    }
+  }
+]

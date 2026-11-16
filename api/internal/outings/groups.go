@@ -53,19 +53,20 @@ type friendGroup struct {
 	OutingsHasMore  bool          `json:"outingsHasMore"`
 }
 type groupMessage struct {
-	ID            string                     `json:"id"`
-	RequestID     string                     `json:"requestId"`
-	Seq           int64                      `json:"seq"`
-	SenderID      string                     `json:"senderId"`
-	Username      string                     `json:"username"`
-	AvatarURL     string                     `json:"avatarUrl,omitempty"`
-	Kind          string                     `json:"kind"`
-	Content       string                     `json:"content"`
-	EventID       string                     `json:"eventId,omitempty"`
-	OutingID      string                     `json:"outingId,omitempty"`
-	CreatedAt     time.Time                  `json:"createdAt"`
-	Event         *sharedEvent               `json:"event,omitempty"`
-	OutingContext *groupOutingMessageContext `json:"outingContext,omitempty"`
+	ID                 string                     `json:"id"`
+	RequestID          string                     `json:"requestId"`
+	Seq                int64                      `json:"seq"`
+	SenderID           string                     `json:"senderId"`
+	Username           string                     `json:"username"`
+	AvatarURL          string                     `json:"avatarUrl,omitempty"`
+	Kind               string                     `json:"kind"`
+	Content            string                     `json:"content"`
+	EventID            string                     `json:"eventId,omitempty"`
+	OutingID           string                     `json:"outingId,omitempty"`
+	ReferenceMessageID string                     `json:"referenceMessageId,omitempty"`
+	CreatedAt          time.Time                  `json:"createdAt"`
+	Event              *sharedEvent               `json:"event,omitempty"`
+	OutingContext      *groupOutingMessageContext `json:"outingContext,omitempty"`
 }
 type groupOutingMessageContext struct {
 	DecisionRound  int32    `json:"decisionRound"`
@@ -566,46 +567,62 @@ func (h *Handler) messages(w http.ResponseWriter, r *http.Request, actor pgtype.
 		}
 	}
 	collection := r.URL.Query().Get("collection") == "events"
-	rows, err := tx.Query(r.Context(), `SELECT msg.id::text,msg.request_id::text,msg.seq,COALESCE(msg.sender_id::text,'00000000-0000-4000-8000-000000000000'),COALESCE(u.username,''),COALESCE(u.avatar_url,''),msg.kind,msg.content,COALESCE(msg.event_id::text,''),COALESCE(msg.outing_id::text,''),msg.created_at,msg.outing_context,
- e.id::text,COALESCE(e.title,''),COALESCE(e.banner_url,''),COALESCE(e.location_name,''),COALESCE(e.city,''),e.start_time,e.end_time,COALESCE(e.status::text,'')
- FROM friend_group_messages msg LEFT JOIN users u ON u.id=msg.sender_id LEFT JOIN events e ON e.id=msg.event_id JOIN friend_group_members member ON member.group_id=msg.group_id AND member.user_id=$2
- WHERE msg.group_id=$1 AND msg.seq>member.visible_after_seq AND ($3::bigint=0 OR msg.seq<$3) AND (NOT $4::boolean OR msg.kind='event')
- AND (NOT $4::boolean OR NOT EXISTS(SELECT 1 FROM friend_group_messages newer WHERE newer.group_id=msg.group_id AND newer.kind='event' AND newer.event_id=msg.event_id AND newer.seq>msg.seq AND newer.seq>member.visible_after_seq))
+	rows, err := tx.Query(r.Context(), groupMessageProjection+`
+ AND ($3::bigint=0 OR msg.seq<$3) AND (NOT $4::boolean OR msg.kind='event')
+ AND (NOT $4::boolean OR msg.outing_id IS NULL OR reference.id=msg.id)
  ORDER BY msg.seq DESC LIMIT 51`, id, actor, before, collection)
 	if err != nil {
 		return err
 	}
-	result := []groupMessage{}
-	for rows.Next() {
-		var m groupMessage
-		var event sharedEvent
-		var eventID *string
-		var start, end *time.Time
-		if err = rows.Scan(&m.ID, &m.RequestID, &m.Seq, &m.SenderID, &m.Username, &m.AvatarURL, &m.Kind, &m.Content, &m.EventID, &m.OutingID, &m.CreatedAt, &m.OutingContext,
-			&eventID, &event.Title, &event.ImageURL, &event.Location, &event.City, &start, &end, &event.Status); err != nil {
-			break
-		}
-		if eventID != nil && start != nil && end != nil {
-			event.ID, event.StartTime, event.EndTime = *eventID, *start, *end
-			m.Event = &event
-		}
-		result = append(result, m)
-	}
-	rows.Close()
+	result, err := scanGroupMessages(rows)
 	if err != nil {
 		return err
-	}
-	if rows.Err() != nil {
-		return rows.Err()
 	}
 	more := len(result) > 50
 	if more {
 		result = result[:50]
 	}
+	// Refresh cached references without changing pagination boundaries.
+	refs := []pgtype.UUID{}
+	seen := map[string]bool{}
+	for _, raw := range strings.Split(r.URL.Query().Get("references"), ",") {
+		if raw == "" {
+			continue
+		}
+		ref, e := uuid(raw)
+		if e != nil {
+			return e
+		}
+		if !seen[raw] {
+			refs = append(refs, ref)
+			seen[raw] = true
+		}
+		if len(refs) > 200 {
+			return invalid("INVALID_CURSOR")
+		}
+	}
+	for _, m := range result {
+		if m.ReferenceMessageID != "" && !seen[m.ReferenceMessageID] {
+			ref, _ := uuid(m.ReferenceMessageID)
+			refs = append(refs, ref)
+			seen[m.ReferenceMessageID] = true
+		}
+	}
+	references := []groupMessage{}
+	if len(refs) > 0 {
+		referenceRows, e := tx.Query(r.Context(), groupMessageProjection+` AND msg.id=ANY($3::uuid[]) ORDER BY msg.seq DESC LIMIT 250`, id, actor, refs)
+		if e != nil {
+			return e
+		}
+		references, e = scanGroupMessages(referenceRows)
+		if e != nil {
+			return e
+		}
+	}
 	if err = tx.Commit(r.Context()); err != nil {
 		return err
 	}
-	router.RespondWithJSON(w, 200, map[string]any{"items": result, "hasMore": more, "revision": g.Revision})
+	router.RespondWithJSON(w, 200, map[string]any{"items": result, "references": references, "hasMore": more, "revision": g.Revision})
 	return nil
 }
 func appendGroupMessage(ctx context.Context, q queryer, group, actor, key pgtype.UUID, kind, content string, event, outing pgtype.UUID) error {
@@ -616,6 +633,13 @@ func appendGroupMessage(ctx context.Context, q queryer, group, actor, key pgtype
 	_, err := q.Exec(ctx, `INSERT INTO friend_group_messages(group_id,sender_id,request_id,seq,kind,content,event_id,outing_id,outing_context) VALUES($1,$2,$3,$4,$5,$6,$7,$8,
  (SELECT jsonb_strip_nulls(jsonb_build_object('decisionRound',p.decision_round,'title',p.title,'city',p.city,'outingDate',p.outing_date::text,'chosenEventId',p.chosen_event_id::text,
  'candidateDates',COALESCE((SELECT jsonb_agg(d.outing_date::text ORDER BY d.outing_date) FROM outing_plan_dates d WHERE d.plan_id=p.id),'[]'::jsonb))) FROM outing_plans p WHERE p.id=$8))`, group, actor, key, seq, kind, content, event, outing)
+	if err == nil && event.Valid && outing.Valid {
+		canonical, e := canonicalGroupReference(ctx, q, group, outing, event)
+		if e != nil {
+			return e
+		}
+		_, err = q.Exec(ctx, `UPDATE friend_group_messages SET outing_context=outing_context||jsonb_build_object('referenceMessageId',$3::text) WHERE group_id=$1 AND request_id=$2`, group, key, sid(canonical))
+	}
 	return err
 }
 func (h *Handler) sendGroupMessage(w http.ResponseWriter, r *http.Request, actor pgtype.UUID) error {

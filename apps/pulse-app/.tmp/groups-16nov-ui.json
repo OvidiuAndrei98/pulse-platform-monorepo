@@ -1,0 +1,55 @@
+[
+  {
+    "directResponse": true,
+    "selectedWithdraw": true,
+    "stableGeometry": {
+      "height": 56.5,
+      "width": 310
+    },
+    "latestIntentSerial": true,
+    "failureKeepsServerSelection": true
+  },
+  {
+    "buyAfterNo": true,
+    "internalTypeView": true,
+    "oneDialog": true,
+    "recipientsRetained": true,
+    "reopenSelection": true,
+    "paidCheckoutCarriedWithoutPay": true
+  },
+  {
+    "singleTypeStatic": true,
+    "solo": {
+      "height": 531.953125,
+      "width": 358,
+      "overflow": false
+    },
+    "totalGeometry": {
+      "height": 531.953125,
+      "width": 358,
+      "overflow": false
+    },
+    "zeroDisabled": true
+  },
+  {
+    "manyEightSelected": true,
+    "pendingNotRecipient": true,
+    "containedFooter": {
+      "width": 288,
+      "height": 600,
+      "footerInside": true,
+      "bodyScroll": true,
+      "pageOverflow": false,
+      "row": 56
+    },
+    "noAbandonedFooter": true
+  },
+  {
+    "pendingBlocked": true,
+    "extraExplicit": true
+  },
+  {
+    "editorDismissDirect": true,
+    "unsavedDateNotWritten": true
+  }
+]

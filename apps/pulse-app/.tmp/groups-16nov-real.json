@@ -1,0 +1,231 @@
+{
+  "checks": [
+    "Real member share -> creator propose preserves original message ID, sender, timestamp and order; retry and new page load keep one reference.",
+    "Real direct yes -> no -> unanswered, no response modal; detail and chat read the same server response.",
+    "Second isolated browser identity sees the same source reference and saves an independent response.",
+    "Real API refuses a member choosing the creator destination.",
+    "Tickets opens directly after Not coming; selection survives X/reopen, chat anchor remains within 2px.",
+    "Actual free checkout creates one own ticket and one pending friend transfer; recipient QR is not exposed before acceptance.",
+    "Pending gift cannot be repurchased; own additional free ticket requires explicit extra confirmation and preserves existing ticket access.",
+    "Friend explicitly accepts through real API and receives own ticket; the same conversation reference remains after purchase/refetch."
+  ],
+  "requests": [
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/actions",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/events",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/messages",
+      "method": "POST",
+      "status": 201
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/actions",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/actions",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/actions",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/94e0e3c4-e553-45a2-bfe6-5b5e7fab93ce/attendance",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/transfers",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/94e0e3c4-e553-45a2-bfe6-5b5e7fab93ce",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/plans/94e0e3c4-e553-45a2-bfe6-5b5e7fab93ce",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/events/98afeb6d-78a9-4d1b-961d-f474f0bc0dbe",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/events/98afeb6d-78a9-4d1b-961d-f474f0bc0dbe/tickets/book",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/users/me/tickets",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/messages",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "route": "/outings/groups/ed517137-96a4-42f8-8c31-b2000c6d7d0c/actions",
+      "method": "POST",
+      "status": 200
+    }
+  ],
+  "screenshots": [
+    "01-member-shared",
+    "02-direct-withdraw",
+    "03-refetch-one-reference",
+    "04-second-account",
+    "05-no-response-still-buys",
+    "06-real-free-purchase",
+    "07-existing-and-pending",
+    "08-member-own-ticket",
+    "09-after-ticket-refetch"
+  ],
+  "startedAt": "2026-11-15T23:59:41.590Z",
+  "groupId": "ed517137-96a4-42f8-8c31-b2000c6d7d0c",
+  "sourceId": "b0862b30-8729-44d5-a3af-aa3c4c688f26",
+  "planId": "94e0e3c4-e553-45a2-bfe6-5b5e7fab93ce",
+  "success": true,
+  "finishedAt": "2026-11-16T00:00:17.796Z"
+}

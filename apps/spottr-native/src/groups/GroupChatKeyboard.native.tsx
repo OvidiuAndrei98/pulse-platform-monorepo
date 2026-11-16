@@ -11,15 +11,15 @@ export function GroupChatKeyboardProvider({children,bottomInset}:{children:React
  const height=useSharedValue(54+bottomInset);
  return <ComposerHeight.Provider value={height}>{children}</ComposerHeight.Provider>;
 }
-export const GroupChatScrollView=forwardRef<KeyboardChatScrollViewRef,GroupChatScrollProps>(function GroupChatScrollView({bottomInset,onViewportInset,...props},ref){
+export const GroupChatScrollView=forwardRef<KeyboardChatScrollViewRef,GroupChatScrollProps>(function GroupChatScrollView({bottomInset,onViewportInset,active=true,...props},ref){
  const height=useContext(ComposerHeight);
- return <KeyboardChatScrollView {...props} ref={ref} inverted keyboardLiftBehavior="whenAtEnd" extraContentPadding={height} offset={composerKeyboardOffset(bottomInset)} onContentInsetChange={insets=>onViewportInset?.(insets.top)} automaticallyAdjustContentInsets={false} automaticallyAdjustKeyboardInsets={false} contentInsetAdjustmentBehavior="never"/>;
+ return <KeyboardChatScrollView {...props} ref={ref} inverted freeze={!active} keyboardLiftBehavior="whenAtEnd" extraContentPadding={height} offset={composerKeyboardOffset(bottomInset)} onContentInsetChange={insets=>{if(active)onViewportInset?.(insets.top)}} automaticallyAdjustContentInsets={false} automaticallyAdjustKeyboardInsets={false} contentInsetAdjustmentBehavior="never"/>;
 });
 /** The complete row follows the same native keyboard progress, including drag. */
-export function GroupComposerDock({children,bottomInset}:{children:React.ReactNode;bottomInset:number}){
+export function GroupComposerDock({children,bottomInset,active=true}:{children:React.ReactNode;bottomInset:number;active?:boolean}){
  const height=useContext(ComposerHeight);
  const {progress}=useReanimatedKeyboardAnimation();
  // Width changes with the native keyboard progress; text and icons never scale.
  const inset=useAnimatedStyle(()=>({paddingHorizontal:composerHorizontalInset(progress.value)}));
- return <KeyboardStickyView style={{position:'absolute',bottom:0,left:0,right:0}} onLayout={event=>{if(height)height.value=event.nativeEvent.layout.height}} offset={{closed:0,opened:composerKeyboardOffset(bottomInset)}}><Animated.View style={inset}>{children}</Animated.View></KeyboardStickyView>;
+ return <KeyboardStickyView style={{position:'absolute',bottom:0,left:0,right:0}} onLayout={event=>{if(height&&active&&event.nativeEvent.layout.height>0)height.value=event.nativeEvent.layout.height}} offset={{closed:0,opened:composerKeyboardOffset(bottomInset)}}><Animated.View style={inset}>{children}</Animated.View></KeyboardStickyView>;
 }

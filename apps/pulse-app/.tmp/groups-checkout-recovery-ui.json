@@ -1,0 +1,10 @@
+[
+  "native capability remains on original device; no auto-cancel; explicit confirmation closes only existing unpaid checkout",
+  "existing valid QR stays accessible while recovering an extra-ticket checkout",
+  "network failure retains reservation; cancellation hidden until unpaid status verified; explicit retry",
+  "changed destination cannot resume or create another purchase",
+  "payment wins cancellation race: refresh actual ticket entry, no refund or new payment",
+  "submitted payment uses existing session reconciliation and verified success",
+  "unsafe URL and mismatched checkout order fail closed",
+  "hosted checkout resumes same provider URL in the current tab (navigation intercepted)"
+]

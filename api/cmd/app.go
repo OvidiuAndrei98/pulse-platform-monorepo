@@ -361,6 +361,7 @@ func (app *Application) BuildRouter() http.Handler {
 		ReconcileCheckout:              stripeCheckoutHandler.HandleReconcileCheckout,
 		ReconcilePaymentSheet:          stripeCheckoutHandler.HandleReconcilePaymentSheet,
 		CancelPaymentSheet:             stripeCheckoutHandler.HandleCancelPaymentSheet,
+		RecoverCheckout:                stripeCheckoutHandler.HandleRecoverCheckout,
 		CreateStripeAccountLink:        stripeConnectHandler.HandleCreateAccountLink,
 		GetStripeAccountStatus:         stripeConnectHandler.HandleGetAccountStatus,
 		CreateStripeLoginLink:          stripeConnectHandler.HandleCreateDashboardLoginLink,

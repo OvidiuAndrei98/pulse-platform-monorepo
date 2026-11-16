@@ -354,14 +354,31 @@ func TestPermanentGroupTicketProjectionUsesOnlyRealAttemptsAndAdmission(t *testi
 	order := rowID(t, f.pool, `INSERT INTO orders(user_id,event_id,email,total_amount,status) VALUES($1,$2,$3,50,'pending') RETURNING id`, f.users[0], f.event, f.emails[0])
 	t.Cleanup(func() { mustExec(t, f.pool, `DELETE FROM orders WHERE id=$1`, order) })
 	mustExec(t, f.pool, `INSERT INTO outing_ticket_recipients(order_id,ordinal,plan_id,decision_round,event_id,recipient_id,recipient_name) VALUES($1,0,$2::uuid,$3,$4,$5,'Recipient')`, order, p.ID, p.DecisionRound, f.event, f.users[1])
+	mustExec(t, f.pool, `UPDATE orders SET stripe_payment_intent_id='pi_recovery_projection' WHERE id=$1`, order)
+	prepared := readAs(t, f, p.ID, f.users[0])
+	if prepared.MyCheckoutReservation == nil || prepared.MyCheckoutReservation.OrderID != sid(order) || prepared.MyPendingPayment != nil {
+		t.Fatal("buyer cannot distinguish an unfinished checkout from a submitted payment")
+	}
+	private := readAs(t, f, p.ID, f.users[1])
+	if private.MyCheckoutReservation != nil || private.MyPendingPayment != nil {
+		t.Fatal("recipient received another buyer's private checkout reference")
+	}
 	if member(readAs(t, f, p.ID, f.users[0]), f.users[1]).TicketState != "none" {
 		t.Fatal("preparing a payment sheet became a public payment attempt")
 	}
 	mustExec(t, f.pool, `INSERT INTO checkout_payment_attempts(order_id) VALUES($1)`, order)
+	attempted := readAs(t, f, p.ID, f.users[0])
+	if attempted.MyPendingPayment == nil || attempted.MyCheckoutReservation != nil {
+		t.Fatal("submitted payment still presented as untouched checkout")
+	}
 	if member(readAs(t, f, p.ID, f.users[0]), f.users[1]).TicketState != "processing" {
 		t.Fatal("real payment attempt not reflected")
 	}
 	mustExec(t, f.pool, `INSERT INTO checkout_closed_payments(order_id) VALUES($1)`, order)
+	closed := readAs(t, f, p.ID, f.users[0])
+	if closed.MyPendingPayment != nil || closed.MyCheckoutReservation != nil {
+		t.Fatal("closed payment remains recoverable")
+	}
 	mustExec(t, f.pool, `UPDATE events SET external_ticket_url='https://tickets.example.invalid' WHERE id=$1`, f.otherEvent)
 	externalGroup := makeGroup(t, f, true)
 	external := createOuting(t, f, externalGroup, f.users[0], map[string]any{"eventId": sid(f.otherEvent)})
@@ -414,8 +431,8 @@ func TestPermanentGroupMessagesPaginationCollectionAndUnread(t *testing.T) {
 		t.Fatal("cursor unstable")
 	}
 	collection, _ := messagesAs(t, f, g, f.users[0], "?collection=events")
-	if len(collection) != 1 || collection[0].Seq != 57 {
-		t.Fatal("sharedcollectionnotdeduplicated")
+	if len(collection) != 2 || collection[0].Seq != 57 || collection[1].Seq != 1 {
+		t.Fatal("unbound shares were incorrectly deduplicated globally by event")
 	}
 	if groupAs(t, f, g, f.users[0]).Unread != 57 {
 		t.Fatal("unreadincorrect")

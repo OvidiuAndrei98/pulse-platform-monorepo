@@ -18,15 +18,19 @@ func (h *Handler) createGroupOuting(w http.ResponseWriter, r *http.Request, acto
 		return err
 	}
 	var req struct {
-		RequestID string   `json:"requestId"`
-		Title     string   `json:"title,omitempty"`
-		City      string   `json:"city,omitempty"`
-		Date      string   `json:"date,omitempty"`
-		Dates     []string `json:"dates,omitempty"`
-		EventID   string   `json:"eventId,omitempty"`
+		RequestID       string   `json:"requestId"`
+		Title           string   `json:"title,omitempty"`
+		City            string   `json:"city,omitempty"`
+		Date            string   `json:"date,omitempty"`
+		Dates           []string `json:"dates,omitempty"`
+		EventID         string   `json:"eventId,omitempty"`
+		SourceMessageID string   `json:"sourceMessageId,omitempty"`
 	}
 	if err = body(r, &req); err != nil {
 		return err
+	}
+	if req.SourceMessageID != "" && req.EventID == "" {
+		return invalid("INVALID_MESSAGE")
 	}
 	key, err := uuid(req.RequestID)
 	if err != nil {
@@ -111,9 +115,25 @@ func (h *Handler) createGroupOuting(w http.ResponseWriter, r *http.Request, acto
 			if existingCity != req.City {
 				return conflict("OUTING_EXISTS")
 			}
+			// Reusing a night is explicit. Bind only an already proposed occurrence;
+			// the client can deliberately propose a different one next.
+			if req.SourceMessageID != "" {
+				var proposed bool
+				if err = tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM outing_plan_options WHERE plan_id=$1 AND event_id=$2)`, id, event).Scan(&proposed); err != nil {
+					return err
+				}
+				if proposed {
+					if err = bindGroupEventReference(r.Context(), tx, group, id, event, actor, req.SourceMessageID); err != nil {
+						return err
+					}
+				}
+			}
 			p, e := readPlan(r.Context(), tx, id, actor)
 			if e != nil {
 				return e
+			}
+			if err = tx.Commit(r.Context()); err != nil {
+				return err
 			}
 			router.RespondWithJSON(w, 200, p)
 			return nil
@@ -151,6 +171,11 @@ func (h *Handler) createGroupOuting(w http.ResponseWriter, r *http.Request, acto
 			return err
 		}
 	}
+	if req.SourceMessageID != "" {
+		if err = bindGroupEventReference(r.Context(), tx, group, id, event, actor, req.SourceMessageID); err != nil {
+			return err
+		}
+	}
 	if err = appendGroupMessage(r.Context(), tx, group, actor, key, "outing", "", event, id); err != nil {
 		return err
 	}
@@ -180,7 +205,7 @@ func (h *Handler) attendance(w http.ResponseWriter, r *http.Request, actor pgtyp
 	if err = body(r, &req); err != nil {
 		return err
 	}
-	if !validPlanAnswer(req.Answer) {
+	if !validPlanAnswer(req.Answer) && req.Answer != "unanswered" {
 		return invalid("INVALID_REACTION")
 	}
 	tx, err := h.Pool.Begin(r.Context())
@@ -211,12 +236,27 @@ func (h *Handler) attendance(w http.ResponseWriter, r *http.Request, actor pgtyp
 	if !available {
 		return conflict("EVENT_UNAVAILABLE")
 	}
-	_, err = tx.Exec(r.Context(), `INSERT INTO outing_attendance(plan_id,user_id,decision_round,answer) VALUES($1,$2,$3,$4) ON CONFLICT(plan_id,user_id,decision_round) DO UPDATE SET answer=$4,responded_at=clock_timestamp()`, id, actor, round, req.Answer)
+	var changed bool
+	if req.Answer == "unanswered" {
+		result, e := tx.Exec(r.Context(), `DELETE FROM outing_attendance WHERE plan_id=$1 AND user_id=$2 AND decision_round=$3`, id, actor, round)
+		err = e
+		changed = result.RowsAffected() > 0
+	} else {
+		result, e := tx.Exec(r.Context(), `INSERT INTO outing_attendance(plan_id,user_id,decision_round,answer) VALUES($1,$2,$3,$4)
+ ON CONFLICT(plan_id,user_id,decision_round) DO UPDATE SET answer=EXCLUDED.answer,responded_at=clock_timestamp()
+ WHERE outing_attendance.answer IS DISTINCT FROM EXCLUDED.answer`, id, actor, round, req.Answer)
+		err = e
+		changed = result.RowsAffected() > 0
+	}
 	if err != nil {
 		return err
 	}
-	if _, err = tx.Exec(r.Context(), `UPDATE outing_plans SET revision=revision+1 WHERE id=$1`, id); err != nil {
-		return err
+	// Retrying an already saved answer must not manufacture a context revision
+	// or replace its original response time. A real change still invalidates reads.
+	if changed {
+		if _, err = tx.Exec(r.Context(), `UPDATE outing_plans SET revision=revision+1 WHERE id=$1`, id); err != nil {
+			return err
+		}
 	}
 	if err = tx.Commit(r.Context()); err != nil {
 		return err

@@ -17,7 +17,9 @@ import (
 	"pulse-api/internal/auth"
 	"pulse-api/internal/events"
 	"pulse-api/internal/interactions"
+	"pulse-api/internal/payments"
 	"pulse-api/internal/router"
+	"pulse-api/internal/tickets"
 )
 
 // Explicitly opt-in browser fixture. It serves real production group/event/feed
@@ -52,6 +54,29 @@ func TestFriendsBrowserFixtureServer(t *testing.T) {
 		}
 		mustExec(t, f.pool, `UPDATE events SET title=$2,description='Synthetic event for local Friends QA only.',banner_url=$3,start_time=$4,end_time=$5 WHERE id=$1`, event, name, media, start.Add(time.Duration(i)*time.Hour), start.Add(8*time.Hour))
 	}
+	mustExec(t, f.pool, `INSERT INTO organizer_profiles(user_id,cui,company_name,fiscal_address,is_verified,verification_status) VALUES($1,$2,'Local QA only','Local QA only',TRUE,'approved')`, f.users[2], "QA"+sid(f.users[2])[:12])
+	freeTier := rowID(t, f.pool, `INSERT INTO ticket_types(event_id,name,price_ron,capacity,start_sales,end_sales) VALUES($1,'Free registration',0,40,now()-interval '1 day',$2) RETURNING id`, f.otherEvent, start.Add(7*time.Hour))
+	t.Cleanup(func() {
+		mustExec(t, f.pool, `DELETE FROM notifications WHERE event_id=$1`, f.otherEvent)
+		mustExec(t, f.pool, `DELETE FROM orders WHERE event_id=$1`, f.otherEvent)
+		mustExec(t, f.pool, `DELETE FROM ticket_types WHERE id=$1`, freeTier)
+	})
+	// Browser suites need separate event ownership states, without editing each
+	// other's purchased tickets. These remain scoped to this isolated fixture.
+	makeExtraFreeEvent := func(name string) (pgtype.UUID, pgtype.UUID) {
+		event := rowID(t, f.pool, `INSERT INTO events(organizer_id,title,description,category,banner_url,location_address,location_name,city,vibe,latitude,longitude,start_time,end_time,status)
+ SELECT organizer_id,$2,description,category,banner_url,location_address,location_name,city,vibe,latitude,longitude,start_time,end_time,status FROM events WHERE id=$1 RETURNING id`, f.otherEvent, name)
+		tier := rowID(t, f.pool, `INSERT INTO ticket_types(event_id,name,price_ron,capacity,start_sales,end_sales) SELECT $1,'Free registration',0,40,start_sales,end_sales FROM ticket_types WHERE id=$2 RETURNING id`, event, freeTier)
+		t.Cleanup(func() {
+			mustExec(t, f.pool, `DELETE FROM notifications WHERE event_id=$1`, event)
+			mustExec(t, f.pool, `DELETE FROM outing_ticket_recipients WHERE event_id=$1`, event)
+			mustExec(t, f.pool, `DELETE FROM orders WHERE event_id=$1`, event)
+			mustExec(t, f.pool, `DELETE FROM events WHERE id=$1`, event)
+		})
+		return event, tier
+	}
+	nativeFreeEvent, nativeFreeTier := makeExtraFreeEvent("QA Native Separate free registration")
+	webFreeEvent, webFreeTier := makeExtraFreeEvent("QA Web Separate free registration")
 	g := makeGroup(t, f, true)
 	// Browser QA may create additional groups using these synthetic actors.
 	// Clean only those actors' fixture groups before seed's users/events cleanup.
@@ -84,6 +109,8 @@ func TestFriendsBrowserFixtureServer(t *testing.T) {
 	query := db.New(f.pool)
 	ev := events.NewHandler(query, f.pool)
 	social := interactions.NewHandler(query)
+	ticketHandler := tickets.NewHandler(query, f.pool, base)
+	checkout := payments.NewCheckoutHandler(query, f.pool, "", base, nil, nil, nil)
 	mux := chi.NewRouter()
 	done := make(chan struct{}, 1)
 	mux.Use(func(next http.Handler) http.Handler {
@@ -92,7 +119,7 @@ func TestFriendsBrowserFixtureServer(t *testing.T) {
 			if strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:") {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Vary", "Origin")
-				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID")
+				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID, Cache-Control, Idempotency-Key")
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 			}
 			if r.Method == "OPTIONS" {
@@ -131,6 +158,14 @@ func TestFriendsBrowserFixtureServer(t *testing.T) {
 		r.Get("/events/{id}", ev.HandleGetEventByID)
 		r.Get("/events/{id}/social", social.HandleGetEventSocial)
 		r.Get("/events/{id}/attendees", social.HandleGetEventAttendees)
+		r.Get("/events/{id}/tickets", ticketHandler.HandleGetTicketTypesForEvent)
+		r.Post("/events/{id}/tickets/book", checkout.HandleBookFreeTicket)
+		// Deliberately no Stripe credentials: this real handler returns its
+		// explicit configuration error before contacting any payment provider.
+		r.Post("/events/{id}/tickets/purchase", checkout.HandleCreateCheckout)
+		r.Post("/checkout/recover", checkout.HandleRecoverCheckout)
+		r.Get("/users/me/tickets", ticketHandler.HandleGetUserTickets)
+		r.Get("/users/me/orders", ticketHandler.HandleGetUserOrders)
 		r.Get("/friends", social.HandleGetFriends)
 		r.Get("/friends/requests", social.HandleGetFriendRequests)
 		r.Get("/feed", social.HandleGetSocialFeed)
@@ -139,10 +174,19 @@ func TestFriendsBrowserFixtureServer(t *testing.T) {
 	for i, token := range []string{"spottr-local-qa-creator", "spottr-local-qa-member", "spottr-local-qa-pending"} {
 		actors = append(actors, map[string]string{"id": sid(f.users[i]), "email": f.emails[i], "token": token, "username": names[i], "avatarUrl": media})
 	}
-	data, _ := json.MarshalIndent(map[string]any{"testOnly": true, "baseUrl": base, "groupId": g.ID, "planId": p.ID, "availabilityPlanId": flexible.ID, "night": day, "availabilityNights": []string{later, later2}, "eventIds": []string{sid(f.event), sid(f.otherEvent)}, "actors": actors}, "", "  ")
+	data, _ := json.MarshalIndent(map[string]any{"testOnly": true, "baseUrl": base, "groupId": g.ID, "planId": p.ID, "availabilityPlanId": flexible.ID, "night": day, "availabilityNights": []string{later, later2}, "eventIds": []string{sid(f.event), sid(f.otherEvent)}, "freeEventId": sid(f.otherEvent), "freeTicketTypeId": sid(freeTier), "nativeFreeEventId": sid(nativeFreeEvent), "nativeFreeTicketTypeId": sid(nativeFreeTier), "webFreeEventId": sid(webFreeEvent), "webFreeTicketTypeId": sid(webFreeTier), "actors": actors}, "", "  ")
 	path := filepath.Join("..", "..", ".tmp", "friends-browser-fixture.json")
 	if err = os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
+	}
+	for name, ids := range map[string][2]pgtype.UUID{"native": {nativeFreeEvent, nativeFreeTier}, "web": {webFreeEvent, webFreeTier}} {
+		extra, marshalErr := json.MarshalIndent(map[string]any{"testOnly": true, "sourceGroupId": g.ID, "eventId": sid(ids[0]), "ticketTypeId": sid(ids[1])}, "", "  ")
+		if marshalErr != nil {
+			t.Fatal(marshalErr)
+		}
+		if err = os.WriteFile(filepath.Join("..", "..", ".tmp", "friends-browser-"+name+"-extra.json"), extra, 0600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	server := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	go func() { _ = server.Serve(listener) }()

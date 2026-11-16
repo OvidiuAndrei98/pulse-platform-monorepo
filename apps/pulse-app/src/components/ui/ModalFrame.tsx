@@ -1,7 +1,7 @@
 "use client";
 import {useCallback,useEffect,useRef,useState,type ReactNode} from 'react';
 import {createPortal} from 'react-dom';
-import {X} from 'lucide-react';
+import {ArrowLeft,X} from 'lucide-react';
 import {useTranslation} from 'react-i18next';
 import {useBackLayer} from '@/lib/navigation/useBackLayer';
 import {useDrawerViewport} from './useDrawerViewport';
@@ -39,7 +39,7 @@ export function ModalFrame({open,onClose,label,children,placement='center',dismi
     onClick={event=>{if(event.target!==event.currentTarget||!canClose.current)return;const r=event.currentTarget.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closeRef.current();}}
     className={`ui-modal ui-modal--${placement} ${className}`}>{children}</dialog>,document.body);
 }
-export function ModalHeader({title,onClose,description,disabled=false}:{title:string;onClose:()=>void;description?:string;disabled?:boolean}){
+export function ModalHeader({title,onClose,description,disabled=false,onBack}:{title:string;onClose:()=>void;description?:string;disabled?:boolean;onBack?:()=>void}){
   const {t}=useTranslation();
-  return <header className="ui-modal-header" data-drawer-keyboard-header><div className="min-w-0 flex-1"><h2>{title}</h2>{description&&<p>{description}</p>}</div><IconButton label={t('common.close')} disabled={disabled} onClick={onClose}><X aria-hidden size={18}/></IconButton></header>;
+  return <header className="ui-modal-header" data-drawer-keyboard-header>{onBack&&<IconButton label={t('common.back')} disabled={disabled} onClick={onBack}><ArrowLeft aria-hidden size={18}/></IconButton>}<div className="min-w-0 flex-1"><h2>{title}</h2>{description&&<p>{description}</p>}</div><IconButton label={t('common.close')} disabled={disabled} onClick={onClose}><X aria-hidden size={18}/></IconButton></header>;
 }

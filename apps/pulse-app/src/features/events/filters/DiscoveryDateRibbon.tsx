@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { CalendarDays, ChevronLeft, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { animate, motion, useMotionValue, useReducedMotion, useTransform, type MotionValue } from 'framer-motion';
@@ -11,11 +11,13 @@ import { useDataProvider } from '@/core/DataProviderContext';
 import { useBackLayer } from '@/lib/navigation/useBackLayer';
 import s from './dateRibbon.module.css';
 
-export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress, sourceRef, expanded, hidden = false, center = null, minimumDay, maximumDay }: {
+export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress, sourceRef, expanded, hidden = false, center = null, minimumDay, maximumDay, commitOnPreview=false, commitSelectionRef }: {
   filters: EventFilters; onChange: (filters: EventFilters) => void; hidden?: boolean;
   onOpenChange: (open: boolean) => void; progress: MotionValue<number>; sourceRef: RefObject<HTMLElement | null>; expanded: boolean;
   center?: readonly [number, number] | null;
   minimumDay?: string; maximumDay?: string;
+  /** Editors share their visible draft immediately; Discover keeps settled filtering. */
+  commitOnPreview?: boolean; commitSelectionRef?: RefObject<(()=>string)|null>;
 }) {
   const { t, i18n } = useTranslation(), id = useId(), today = minimumDay??productToday(), lastDay=maximumDay??'2100-12-31', reduced = useReducedMotion();
   const windowFor=useMemo(()=>(day:string)=>dateRibbonWindow(day,today).filter(value=>value<=lastDay),[today,lastDay]);
@@ -79,6 +81,17 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
       if (window[0] !== current.days[0]) setDays(window);
     }
   };
+  useImperativeHandle(commitSelectionRef,()=>()=>{
+    clearTimer();const current=latest.current,node=scroll.current;
+    // A tapped day is already the working selection while its smooth scroll is
+    // still travelling. Sampling an intermediate frame here would save a neighbour.
+    const candidate=programmatic.current?committed.current??previewRef.current:!initializing.current&&node?current.days[dateRibbonIndex(node.scrollLeft,current.days.length)]:previewRef.current;
+    const day=candidate&&candidate>=current.today&&candidate<=lastDay?candidate:current.today;
+    programmatic.current=true;setDayPreview(day);committed.current=day;
+    node?.scrollTo({left:Math.max(0,current.days.indexOf(day))*STEP,behavior:'instant'});
+    const next=withRibbonDay(current.filters,day,current.today);if(next!==current.filters)current.onChange(next);
+    return day;
+  });
   useLayoutEffect(() => {
     if (expanded && !wasExpanded.current) {
       const day = selection && selection >= today ? selection : today;
@@ -163,7 +176,10 @@ export function DiscoveryDateRibbon({ filters, onChange, onOpenChange, progress,
                   const crossed = Math.abs(index - days.indexOf(previewRef.current));
                   for (let step = 0; step < crossed; step++) navigator.vibrate?.(5);
                 }
-                setDayPreview(day);
+                if(!commitOnPreview||!programmatic.current)setDayPreview(day);
+                if(commitOnPreview&&!initializing.current&&!programmatic.current&&day>=today&&day<=lastDay){
+                  committed.current=day;const next=withRibbonDay(latest.current.filters,day,today);if(next!==latest.current.filters)latest.current.onChange(next);
+                }
               }
               if (!initializing.current) { clearTimer(); timer.current = setTimeout(settle, 160); }
             }}>

@@ -1,6 +1,6 @@
 import type {components} from '@packages/api-client/schema';
 import {validCalendarDay} from '../events/discoveryFilters';
-import {canonicalPlanningCity,planningCityKey,isOutingId,parsePlans,type OutingsRequest,type OutingPlan,type PlanFriend,type PlanEvent} from '../outings/model';
+import {canonicalPlanningCity,planningCityKey,planningBoundary,isOutingId,parsePlans,type OutingsRequest,type OutingPlan,type PlanFriend,type PlanEvent} from '../outings/model';
 export type FriendGroup=components['schemas']['FriendGroup'];
 export type GroupMessage=components['schemas']['FriendGroupMessage'];
 export type SharedEvent=components['schemas']['SharedGroupEvent'];
@@ -22,6 +22,17 @@ export function findMatchingFriendGroup(groups:readonly FriendGroup[],actor:stri
 }
 export function groupCatalogKey(query='',context?:{date?:string;city?:string}){return JSON.stringify([query.trim(),context?.date??'',planningCityKey(context?.city)])}
 export function groupTicketLabel(state?:string){return ({unknown:'groups.ticket_unknown',none:'groups.ticket_none',processing:'groups.ticket_processing',offered:'groups.ticket_offered',valid:'groups.ticket_valid',used:'groups.ticket_used',expired:'groups.ticket_expired'} as Record<string,string>)[state??'unknown']??'groups.ticket_unknown'}
+export function groupTicketReadiness(plan:OutingPlan,actor?:string,load:'ready'|'loading'|'error'='ready'){
+ const accepted=plan.members.filter(m=>m.status==='accepted'),coming=accepted.filter(m=>m.attendance==='yes');
+ const usable=(m:OutingPlan['members'][number])=>m.ticketState==='valid'||m.ticketState==='used'||m.ticketState===undefined&&m.hasTicket===true;
+ const unknown=coming.filter(m=>m.ticketState==='unknown'||m.ticketState===undefined&&m.hasTicket!==true).length;
+ const ready=coming.filter(usable).length,confirmed=coming.length;
+ // Aggregate failure must not manufacture a zero or hide an independently known
+ // personal ticket. The count is complete only when every attendee is checked.
+ const complete=load==='ready'&&!!plan.chosenEventId&&unknown===0;
+ const summaryKey=load==='loading'?'groups.readinessChecking':load==='error'?'groups.readinessUnavailable':!plan.chosenEventId?'groups.comingCount':!complete?'groups.readinessPartial':'groups.summary';
+ return {confirmed,ready,unknown,complete,summaryKey,values:{confirmed,ready,count:confirmed},allConfirmedReady:complete&&confirmed>0&&ready===confirmed&&plan.lifecycle==='event_selected',ownTicketUsable:accepted.some(m=>m.userId===actor&&usable(m))};
+}
 export function groupReadinessLabel(plan:OutingPlan,actor?:string){
  if(!plan.allConfirmedReady)return 'groups.summary';
  if(plan.confirmedCount===1)return plan.members.some(m=>m.userId===actor&&m.status==='accepted'&&m.attendance==='yes')?'groups.readyForYou':'groups.readyForOne';
@@ -46,18 +57,27 @@ export function parseGroups(value:unknown):FriendGroup[]{
 }
 export function parseMessages(value:unknown){
  if(!object(value)||!Array.isArray(value.items)||value.items.length>50||typeof value.hasMore!=='boolean')bad();
- for(const m of value.items){if(!object(m)||!isOutingId(m.id)||!isOutingId(m.requestId)||!isOutingId(m.senderId)||!Number.isSafeInteger(m.seq)||typeof m.content!=='string'||!['text','event','outing'].includes(String(m.kind))||!Number.isFinite(Date.parse(String(m.createdAt))))bad();
+ if(value.references!==undefined&&(!Array.isArray(value.references)||value.references.length>250))bad();
+ for(const m of [...value.items,...(value.references as unknown[]??[])]){if(!object(m)||!isOutingId(m.id)||!isOutingId(m.requestId)||!isOutingId(m.senderId)||!Number.isSafeInteger(m.seq)||typeof m.content!=='string'||!['text','event','outing'].includes(String(m.kind))||!Number.isFinite(Date.parse(String(m.createdAt))))bad();
+  if(m.referenceMessageId!==undefined&&(!isOutingId(m.referenceMessageId)||!isOutingId(m.outingId)))bad();
   if(m.outingContext!==undefined){const c=m.outingContext;
-   if(m.kind!=='outing'||!isOutingId(m.outingId)||!object(c)||!Number.isSafeInteger(c.decisionRound)||Number(c.decisionRound)<1||typeof c.title!=='string'||typeof c.city!=='string'||!Array.isArray(c.candidateDates)||c.candidateDates.length>3||!c.candidateDates.every(validCalendarDay)||new Set(c.candidateDates).size!==c.candidateDates.length||c.outingDate!==undefined&&!validCalendarDay(c.outingDate)||c.chosenEventId!==undefined&&!isOutingId(c.chosenEventId))bad();
+   if(!['outing','event'].includes(String(m.kind))||!isOutingId(m.outingId)||!object(c)||!Number.isSafeInteger(c.decisionRound)||Number(c.decisionRound)<1||typeof c.title!=='string'||typeof c.city!=='string'||!Array.isArray(c.candidateDates)||c.candidateDates.length>3||!c.candidateDates.every(validCalendarDay)||new Set(c.candidateDates).size!==c.candidateDates.length||c.outingDate!==undefined&&!validCalendarDay(c.outingDate)||c.chosenEventId!==undefined&&!isOutingId(c.chosenEventId))bad();
   }
  }
  return value as components['schemas']['GroupMessages'];
 }
 export function preferredGroupOuting(plans:readonly OutingPlan[],now=Date.now()){
- return plans.filter(p=>p.lifecycle!=='completed'&&p.lifecycle!=='cancelled').slice().sort((a,b)=>{
-  const time=(p:OutingPlan)=>Date.parse(p.options.find(o=>o.eventId===p.chosenEventId)?.startTime??((p.outingDate??p.candidateDates?.[0]?.date)+'T06:00:00Z'))||Infinity;
-  const live=(p:OutingPlan)=>time(p)<=now&&Date.parse(p.expiresAt)>now;
-  return Number(live(b))-Number(live(a))||time(a)-time(b);
+ // Visiting an outing is not a pin operation. Keep the current/upcoming choice
+ // deterministic, based on the actual Bucharest night rather than a fixed UTC hour.
+ return plans.filter(p=>p.status==='accepted'&&p.lifecycle!=='completed'&&p.lifecycle!=='cancelled'&&Date.parse(p.expiresAt)>now).slice().sort((a,b)=>{
+  const time=(p:OutingPlan)=>{
+   const start=p.options.find(o=>o.eventId===p.chosenEventId)?.startTime;
+   const day=p.outingDate??p.candidateDates?.map(option=>option.date).sort()[0];
+   const value=start??(day&&validCalendarDay(day)?planningBoundary(day):undefined);
+   return value&&Number.isFinite(Date.parse(value))?Date.parse(value):Infinity;
+  };
+  const live=(p:OutingPlan)=>time(p)<=now;
+  return Number(live(b))-Number(live(a))||time(a)-time(b)||a.id.localeCompare(b.id);
  })[0];
 }
 function groupErrorCode(cause:unknown){const e=(cause??{}) as {code?:string;title?:string;data?:{code?:string;error?:string}};return e.code??e.data?.code??e.data?.error??e.title}
@@ -65,6 +85,8 @@ export function groupFailure(cause:unknown){
  const e=(cause??{}) as {status?:number};const code=groupErrorCode(cause);
  if(e.status===401)return 'groups.sessionEnded';if(code==='OUTING_EDIT_FORBIDDEN'||code==='OUTING_COMPLETED')return 'groups.'+code;
  if(code==='GROUP_ACCESS_LOST')return 'groups.accessLost';if(code==='GROUP_ADMIN_REQUIRED')return 'groups.groupOwnerOnly';
+ if(code==='PLAN_DECIDED'||code==='VOTING_CLOSED')return 'groups.decisionClosed';
+ if(code==='PLAN_NOT_DECIDED'||code==='DATE_DECIDED')return 'groups.responseContextChanged';
  if(code==='This endpoint is not available in the preview proxy.'||code==='Method not allowed for this preview endpoint.')return 'groups.operationUnavailable';
  const codes=['FRIEND_UNAVAILABLE','GROUP_FULL','TRANSFER_ADMIN_FIRST','REQUEST_REUSED','OUTING_EXISTS','EVENT_UNAVAILABLE','PLAN_CHANGED','INVALID_PLAN_CONTEXT','PROPOSAL_LIMIT','OUTING_COMPLETED','OUTING_EDIT_FORBIDDEN'];
  if(codes.includes(code??''))return 'groups.errors.'+code;
@@ -145,20 +167,33 @@ export class GroupsStore{
   }catch(e){const error=await this.resolveFailure(e,id,version);if(error)this.set({loading:false,error})}finally{this.reads.delete(scope);if(this.refreshAgain.delete(scope)&&this.active())void this.load(id)}
  }
  async loadMessages(id:string,older=false){
-  if(!this.active()||this.reads.has('messages:'+id))return;const group=this.state.groups.find(g=>g.id===id);if(group?.status!=='accepted')return;
-  this.reads.add('messages:'+id);const version=this.version,old=this.state.messages[id]??[],gap=older?this.gaps.get(id):undefined,before=older?gap??old.at(-1)?.seq:undefined;
-  try{const data=parseMessages(await this.call('/outings/groups/'+id+'/messages'+(before?'?before='+before:'')));if(!this.active()||version!==this.version)return;
+  if(!this.active())return;const scope='messages:'+id;
+  // A mutation can invalidate the poll already in flight. Keep its requested
+  // refresh instead of waiting for a later timer with a stale shared-event card.
+  if(this.reads.has(scope)){if(!older)this.refreshAgain.add(scope);return}
+  const group=this.state.groups.find(g=>g.id===id);if(group?.status!=='accepted')return;
+  this.reads.add(scope);const version=this.version,old=this.state.messages[id]??[],gap=older?this.gaps.get(id):undefined,before=older?gap??old.at(-1)?.seq:undefined;
+  const params=new URLSearchParams();if(before)params.set('before',String(before));
+  const referenceIds=[...new Set([...group.outings.flatMap(p=>p.options.map(o=>o.referenceMessageId).filter((v):v is string=>!!v)),...old.filter(m=>m.kind!=='text').map(m=>m.id)])].slice(0,200);
+  if(referenceIds.length)params.set('references',referenceIds.join(','));
+  try{const data=parseMessages(await this.call('/outings/groups/'+id+'/messages'+(params.size?'?'+params:'')));if(!this.active()||version!==this.version)return;
    // A membership change always invalidates local private history before merging.
    const boundary=this.state.groups.find(g=>g.id===id)?.visibleAfterSeq??0;
    const minimum=data.items.at(-1)?.seq;
-   if(!older&&!old.length)this.oldestMore.set(id,data.hasMore);
-   if(older&&!gap)this.oldestMore.set(id,data.hasMore);
-   if(!older&&old.length&&minimum!==undefined&&minimum>old[0]!.seq+1)this.gaps.set(id,minimum);
-   if(gap&&minimum!==undefined){const nextKnown=old.find(m=>m.seq<gap)?.seq??boundary;if(minimum>nextKnown+1)this.gaps.set(id,minimum);else this.gaps.delete(id)}
-   const messages=[...new Map([...(older?old:old.filter(m=>m.seq<(data.items.at(-1)?.seq??Infinity))),...data.items].filter(m=>m.seq>boundary).map(m=>[m.id,m])).values()].sort((a,b)=>b.seq-a.seq);
+   if(!data.hasMore){
+    // A terminal ordinary page reaches the membership-visible beginning,
+    // including when it was requested to fill a gap around a targeted reference.
+    this.oldestMore.set(id,false);this.gaps.delete(id);
+   }else{
+    if(!older&&!old.length||older&&!gap)this.oldestMore.set(id,true);
+    if(!older&&old.length&&minimum!==undefined&&minimum>old[0]!.seq+1)this.gaps.set(id,minimum);
+    if(gap&&minimum!==undefined){const nextKnown=old.find(m=>m.seq<gap)?.seq??boundary;if(minimum>nextKnown+1)this.gaps.set(id,minimum);else this.gaps.delete(id)}
+    if(minimum!==undefined&&!this.gaps.has(id)&&(data.references??[]).some(ref=>ref.seq<minimum-1&&!old.some(m=>m.id===ref.id)))this.gaps.set(id,minimum);
+   }
+   const messages=[...new Map([...(older?old:old.filter(m=>m.seq<(data.items.at(-1)?.seq??Infinity))),...data.items,...(data.references??[])].filter(m=>m.seq>boundary).map(m=>[m.id,m])).values()].sort((a,b)=>b.seq-a.seq);
    const more=this.gaps.has(id)||(this.oldestMore.get(id)??data.hasMore);
    this.set({messages:JSON.stringify(messages)===JSON.stringify(this.state.messages[id])?this.state.messages:{...this.state.messages,[id]:messages},more:this.state.more[id]===more?this.state.more:{...this.state.more,[id]:more}});
-  }catch(e){const error=await this.resolveFailure(e,id,version);if(error)this.set({error})}finally{this.reads.delete('messages:'+id)}
+  }catch(e){const error=await this.resolveFailure(e,id,version);if(error)this.set({error})}finally{this.reads.delete(scope);if(this.refreshAgain.delete(scope)&&this.active())void this.loadMessages(id)}
  }
  async collection(id:string,older=false){
   if(!this.active()||this.reads.has('collection:'+id)||this.state.groups.find(g=>g.id===id)?.status!=='accepted')return;this.reads.add('collection:'+id);const version=this.version,old=this.state.collection[id]??[],gap=older?this.collectionGaps.get(id)?.[0]:undefined,before=older?gap?.before??old.at(-1)?.seq:undefined;
@@ -238,7 +273,25 @@ export class GroupsStore{
  private async mutate<T>(path:string,payload:unknown,group?:string,options?:GroupActionOptions):Promise<T|undefined>{
   if(!this.active()||this.state.busy)return;const version=++this.version;this.set({busy:true,error:null});try{
    const value=await this.call<T>(path,'POST',payload);if(!this.active())return;await this.load(group);return value;
-  }catch(e){const error=await this.resolveFailure(e,group,version);if(error){if(options?.feedback==='inline')throw new GroupActionError(error);this.set({error})}return undefined}finally{this.set({busy:false})}
+  }catch(e){let error=await this.resolveFailure(e,group,version);
+   const conflict=['PLAN_CHANGED','PLAN_DECIDED','PLAN_NOT_DECIDED','DATE_DECIDED','VOTING_CLOSED'].includes(groupErrorCode(e)??'');
+   const planId=path.match(/^\/outings\/plans\/([^/]+)\//)?.[1];
+   // A rejected old round is not retried. Read the authoritative destination
+   // before allowing a deliberate new answer, even when an older poll is in flight.
+   if(error&&group&&planId&&conflict&&(e as {status?:number}).status===409){
+    try{
+     const fresh=parsePlans([await this.call('/outings/plans/'+planId)])[0]!;
+     if(!this.active()||version!==this.version)return;
+     if(fresh.id!==planId||fresh.groupId!==group)bad();
+     this.set({groups:this.state.groups.map(g=>g.id===group?{...g,outings:mergeOutings([fresh],g.outings)}:g)});
+     if(groupErrorCode(e)==='PLAN_CHANGED')error='groups.responseContextChanged';
+    }catch(refresh){
+     const failure=await this.resolveFailure(refresh,group,version);
+     if(!failure)return;
+     error=['groups.accessLost','groups.sessionEnded','groups.invitationPending'].includes(failure)?failure:'groups.responseRefreshFailed';
+    }
+   }
+   if(error){if(options?.feedback==='inline')throw new GroupActionError(error);this.set({error})}return undefined}finally{this.set({busy:false})}
  }
  async create(name:string,friendIds:string[],eventId?:string){const body={name:name.trim(),friendIds,...(eventId?{eventId}:{})};const result=await this.mutate<FriendGroup>('/outings/groups',{...body,requestId:this.key('group',body)});if(result){parseGroups([result]);this.ids.delete('group'+JSON.stringify(body));this.set({groups:orderGroups(this.state.groups.some(g=>g.id===result.id)?this.state.groups.map(g=>g.id===result.id?result:g):[result,...this.state.groups])})}return result}
  async action(id:string,payload:GroupAction){const result=await this.mutate('/outings/groups/'+id+'/actions',payload,['leave','decline'].includes(payload.action)?undefined:id);if(result&&['leave','decline'].includes(payload.action))this.revoke(id);return result}

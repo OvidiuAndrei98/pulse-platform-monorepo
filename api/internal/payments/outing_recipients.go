@@ -2,10 +2,12 @@ package payments
 
 import (
 	"context"
+	"errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"net/http"
 	"pulse-api/internal/common"
+	"pulse-api/internal/router"
 	"sort"
 )
 
@@ -18,8 +20,66 @@ type OutingRecipientsRequest struct {
 }
 type outingPurchaseKey struct{}
 
-func recipientConflict() error {
-	return &checkoutRequestError{http.StatusConflict, "OUTING_RECIPIENTS_CHANGED"}
+type checkoutSelectionError struct {
+	cause   *checkoutRequestError
+	reason  string
+	orderID string
+}
+
+func (e *checkoutSelectionError) Error() string { return e.cause.Error() }
+func (e *checkoutSelectionError) Unwrap() error { return e.cause }
+
+func recipientConflict(reason ...string) error {
+	cause := &checkoutRequestError{http.StatusConflict, "OUTING_RECIPIENTS_CHANGED"}
+	if len(reason) == 0 {
+		return cause
+	}
+	return &checkoutSelectionError{cause: cause, reason: reason[0]}
+}
+
+// Keep the existing public error code for older clients. The bounded reason
+// distinguishes recovery actions without exposing another member's order.
+func respondCheckoutRequestError(w http.ResponseWriter, err error) bool {
+	var known *checkoutRequestError
+	if !errors.As(err, &known) {
+		return false
+	}
+	if known.status == http.StatusTooManyRequests {
+		w.Header().Set("Retry-After", "300")
+	}
+	var selection *checkoutSelectionError
+	if errors.As(err, &selection) {
+		payload := map[string]string{"error": known.message, "reason": selection.reason}
+		if selection.orderID != "" {
+			payload["orderId"] = selection.orderID
+		}
+		router.RespondWithJSON(w, known.status, payload)
+	} else {
+		router.RespondWithError(w, known.status, known.message)
+	}
+	return true
+}
+
+func pendingRecipientConflict(ctx context.Context, q interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}, event, buyer pgtype.UUID, recipient string) error {
+	err := recipientConflict("pending_access").(*checkoutSelectionError)
+	// Only the purchaser can receive an order reference. A friend learns only
+	// that admission is pending, never the buyer's identity or payment details.
+	var order string
+	queryErr := q.QueryRow(ctx, `SELECT o.id::text FROM orders o WHERE o.user_id=$1 AND o.event_id=$2
+ AND o.status IN ('pending','failed') AND NOT EXISTS(SELECT 1 FROM checkout_closed_payments c WHERE c.order_id=o.id)
+ AND (o.user_id=$3::uuid AND (o.status='pending' OR o.stripe_payment_intent_id IS NOT NULL OR o.stripe_checkout_session_id IS NOT NULL)
+      OR EXISTS(SELECT 1 FROM outing_ticket_recipients a WHERE a.order_id=o.id AND a.recipient_id=$3::uuid))
+ ORDER BY o.created_at DESC LIMIT 1`, buyer, event, recipient).Scan(&order)
+	if queryErr != nil && !errors.Is(queryErr, pgx.ErrNoRows) {
+		return queryErr
+	}
+	if order != "" {
+		err.reason = "existing_payment"
+		err.orderID = order
+	}
+	return err
 }
 
 // Group mutations acquire the same parent lock before touching outings. Take
@@ -39,7 +99,7 @@ func lockPurchaseGroup(ctx context.Context, tx pgx.Tx, buyer pgtype.UUID) error 
  JOIN friend_group_members m ON m.group_id=g.id AND m.user_id=$2 AND m.status='accepted'
  WHERE p.id=$1 FOR SHARE OF g,m`, planID, buyer).Scan(&groupID)
 	if err == pgx.ErrNoRows {
-		return recipientConflict()
+		return recipientConflict("review_recipients")
 	}
 	return err
 }
@@ -91,7 +151,7 @@ func lockCheckoutRecipients(ctx context.Context, tx pgx.Tx, event, buyer pgtype.
     JOIN users buyer ON buyer.id=m.user_id AND buyer.is_active
     WHERE p.id=$1::uuid FOR SHARE OF p`, selection.PlanID, event, selection.DecisionRound, buyer).Scan(&valid)
 			if err == pgx.ErrNoRows || err == nil && !valid {
-				return nil, recipientConflict()
+				return nil, recipientConflict("outing_changed")
 			}
 			if err != nil {
 				return nil, err
@@ -128,36 +188,42 @@ func lockCheckoutRecipients(ctx context.Context, tx pgx.Tx, event, buyer pgtype.
 			return nil, err
 		}
 		if held {
-			return nil, recipientConflict()
+			return nil, pendingRecipientConflict(ctx, tx, event, buyer, common.UUIDToString(buyer))
 		}
 		return ids, nil
 	}
 	for _, id := range ids {
-		var allowed bool
+		var memberAllowed, hasAdmission, pendingOrder, pendingAssignment bool
 		err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users u WHERE u.id=$2::uuid AND u.is_active AND (
     CASE WHEN NULLIF($1::text,'') IS NOT NULL THEN EXISTS(SELECT 1 FROM outing_plans p
       JOIN outing_plan_members pm ON pm.plan_id=p.id AND pm.user_id=u.id AND pm.status='accepted'
       JOIN friend_group_members gm ON gm.group_id=p.group_id AND gm.user_id=u.id AND gm.status='accepted'
       WHERE p.id=NULLIF($1::text,'')::uuid)
     ELSE u.id=$4::uuid OR EXISTS(SELECT 1 FROM friendships f WHERE f.status='accepted' AND
-      ((f.user_id=$4::uuid AND f.friend_id=u.id) OR (f.friend_id=$4::uuid AND f.user_id=u.id))) END))
-   AND ($5::boolean OR NOT EXISTS(SELECT 1 FROM tickets t JOIN orders o ON o.id=t.order_id WHERE t.user_id=$2::uuid AND o.event_id=$3 AND o.status='completed'
+      ((f.user_id=$4::uuid AND f.friend_id=u.id) OR (f.friend_id=$4::uuid AND f.user_id=u.id))) END)),
+   EXISTS(SELECT 1 FROM tickets t JOIN orders o ON o.id=t.order_id WHERE t.user_id=$2::uuid AND o.event_id=$3 AND o.status='completed'
      AND o.stripe_refund_status='none' AND o.stripe_amount_refunded_bani=0
      AND NOT o.stripe_refund_needs_attention AND NOT EXISTS(SELECT 1 FROM order_refund_operations rf WHERE rf.order_id=o.id)
      AND NOT EXISTS(SELECT 1 FROM outing_ticket_recipients other JOIN ticket_transfers transfer ON transfer.ticket_id=other.ticket_id
-       WHERE other.ticket_id=t.id AND other.recipient_id<>t.user_id AND NOT t.offline_credential_exposed AND transfer.status='pending' AND transfer.expires_at>CURRENT_TIMESTAMP)))
-   AND NOT EXISTS(SELECT 1 FROM orders o WHERE o.user_id=$2::uuid AND o.event_id=$3 AND
+       WHERE other.ticket_id=t.id AND other.recipient_id<>t.user_id AND NOT t.offline_credential_exposed AND transfer.status='pending' AND transfer.expires_at>CURRENT_TIMESTAMP)),
+   EXISTS(SELECT 1 FROM orders o WHERE o.user_id=$2::uuid AND o.event_id=$3 AND
      o.status IN ('pending','failed') AND NOT EXISTS(SELECT 1 FROM checkout_closed_payments c WHERE c.order_id=o.id)
-     AND (o.status='pending' OR o.stripe_payment_intent_id IS NOT NULL OR o.stripe_checkout_session_id IS NOT NULL))
-   AND NOT EXISTS(SELECT 1 FROM outing_ticket_recipients a JOIN orders o ON o.id=a.order_id LEFT JOIN tickets assigned_ticket ON assigned_ticket.id=a.ticket_id LEFT JOIN ticket_transfers x ON x.ticket_id=a.ticket_id
+     AND (o.status='pending' OR o.stripe_payment_intent_id IS NOT NULL OR o.stripe_checkout_session_id IS NOT NULL)),
+   EXISTS(SELECT 1 FROM outing_ticket_recipients a JOIN orders o ON o.id=a.order_id LEFT JOIN tickets assigned_ticket ON assigned_ticket.id=a.ticket_id LEFT JOIN ticket_transfers x ON x.ticket_id=a.ticket_id
      WHERE a.recipient_id=$2::uuid AND a.event_id=$3 AND
        (o.status IN ('pending','failed') AND NOT EXISTS(SELECT 1 FROM checkout_closed_payments c WHERE c.order_id=o.id)
-         OR o.status='completed' AND NOT assigned_ticket.offline_credential_exposed AND x.status='pending' AND x.expires_at>CURRENT_TIMESTAMP))`, selection.PlanID, id, event, buyer, selection.ExtraConfirmed).Scan(&allowed)
+         OR o.status='completed' AND NOT assigned_ticket.offline_credential_exposed AND x.status='pending' AND x.expires_at>CURRENT_TIMESTAMP))`, selection.PlanID, id, event, buyer).Scan(&memberAllowed, &hasAdmission, &pendingOrder, &pendingAssignment)
 		if err != nil {
 			return nil, err
 		}
-		if !allowed {
-			return nil, recipientConflict()
+		if !memberAllowed {
+			return nil, recipientConflict("review_recipients")
+		}
+		if pendingOrder || pendingAssignment {
+			return nil, pendingRecipientConflict(ctx, tx, event, buyer, id)
+		}
+		if hasAdmission && !selection.ExtraConfirmed {
+			return nil, recipientConflict("additional_ticket_confirmation")
 		}
 	}
 	// Gifts must remain transferable. An offline scanner pack freezes credentials.

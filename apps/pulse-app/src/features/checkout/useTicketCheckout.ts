@@ -1,6 +1,7 @@
 "use client";
 import { checkoutTotals } from "@packages/app-core/checkout/totals";
 import { checkoutRequestKey } from "@packages/app-core/checkout/requestKey";
+import {outingCheckoutRecovery,type OutingCheckoutRecovery} from '@packages/app-core/outings/experience';
 
 import { revealDrawerField, useDrawerViewport } from "@/components/ui/useDrawerViewport";
 import { useBackLayer } from "@/lib/navigation/useBackLayer";
@@ -35,6 +36,7 @@ export function useTicketCheckout({
   onBusyChange,
   outing,
   recipientNames,
+  onOutingRecovery,
 }: {
   event: Event;
   quantities: Record<string, number>;
@@ -47,6 +49,7 @@ export function useTicketCheckout({
   onBusyChange?: (busy: boolean) => void;
   outing?: {planId?:string;decisionRound:number;recipientIds:string[];extraConfirmed?:boolean};
   recipientNames?: string[];
+  onOutingRecovery?: (recovery:OutingCheckoutRecovery)=>void;
 }) {
 
   const { t, i18n } = useTranslation();
@@ -438,6 +441,12 @@ export function useTicketCheckout({
       window.location.assign(checkout.checkoutUrl);
     } catch (error) {
       if (error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 425 && error.status !== 429) checkoutIntent.current = null;
+      const recovery=outing?outingCheckoutRecovery(error):undefined;
+      if(recovery&&onOutingRecovery){
+        resetCheckoutPending();
+        onOutingRecovery(recovery);
+        return;
+      }
       if (error instanceof ApiError && error.status === 409) {
         onQuantitiesChange({});
         setFurthestStep(0);

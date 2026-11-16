@@ -26,7 +26,7 @@ export type RootParamList = {
   Notifications: undefined;
   Groups: {eventId?:string;new?:boolean}|undefined;
   FriendGroup: {id:string};
-  GroupOuting: {groupId:string;planId:string};
+  GroupOuting: {groupId:string;planId:string;historyMessageId?:string};
   GroupInfo: {groupId:string};
   GroupOutings: {groupId:string};
   GroupSharedEvents: {groupId:string};

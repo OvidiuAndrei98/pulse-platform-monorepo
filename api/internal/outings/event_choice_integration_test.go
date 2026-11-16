@@ -151,3 +151,41 @@ func TestGroupFreeTicketsForSelfFriendAndExplicitExtra(t *testing.T) {
 		t.Fatal("gift acceptance confirmed attendance")
 	}
 }
+
+func TestGroupPreferenceAfterReopeningUsesCurrentRevisionAndKeepsOldAttendance(t *testing.T) {
+	f := seed(t)
+	g := makeGroup(t, f, true)
+	p := createOuting(t, f, g, f.users[0], map[string]any{"eventId": sid(f.event)})
+	path := "/plans/" + p.ID
+	want(t, f.call("POST", path+"/proposals", map[string]any{"eventId": sid(f.otherEvent)}, f.users[1]), 200)
+	attendanceAs(t, f, p, f.users[1], "yes")
+	chosen := readAs(t, f, p.ID, f.users[0])
+	want(t, f.call("POST", path+"/reopen", map[string]any{"revision": chosen.Revision, "reason": "other"}, f.users[1]), 404)
+	want(t, f.call("POST", path+"/reopen", map[string]any{"revision": chosen.Revision, "reason": "other"}, f.users[0]), 200)
+	// The stale UI is rejected, not silently retargeted to another decision round.
+	stale := f.call("POST", path+"/vote", map[string]any{"eventId": sid(f.otherEvent), "answer": "yes", "revision": chosen.Revision}, f.users[1])
+	want(t, stale, 409)
+	var conflict struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(stale.Body.Bytes(), &conflict); err != nil || conflict.Error != "PLAN_CHANGED" {
+		t.Fatalf("unexpected stale result: %s", stale.Body.String())
+	}
+	fresh := readAs(t, f, p.ID, f.users[1])
+	if fresh.ChosenEventID != "" || fresh.DecisionRound != chosen.DecisionRound+1 || member(fresh, f.users[1]).Attendance != "unanswered" {
+		t.Fatal("reopen copied attendance into a new round")
+	}
+	want(t, f.call("POST", path+"/vote", map[string]any{"eventId": sid(f.otherEvent), "answer": "yes", "revision": fresh.Revision}, f.users[1]), 200)
+	fresh = readAs(t, f, p.ID, f.users[0])
+	want(t, f.call("POST", path+"/choose", map[string]any{"eventId": sid(f.otherEvent), "revision": fresh.Revision}, f.users[0]), 200)
+	want(t, f.call("POST", path+"/attendance", map[string]any{"answer": "no", "decisionRound": chosen.DecisionRound}, f.users[1]), 409)
+	fresh = readAs(t, f, p.ID, f.users[1])
+	attendanceAs(t, f, fresh, f.users[1], "no")
+	var oldAnswer, newAnswer string
+	if err := f.pool.QueryRow(context.Background(), `SELECT (SELECT answer FROM outing_attendance WHERE plan_id=$1 AND user_id=$2 AND decision_round=$3),(SELECT answer FROM outing_attendance WHERE plan_id=$1 AND user_id=$2 AND decision_round=$4)`, p.ID, f.users[1], chosen.DecisionRound, fresh.DecisionRound).Scan(&oldAnswer, &newAnswer); err != nil {
+		t.Fatal(err)
+	}
+	if oldAnswer != "yes" || newAnswer != "no" {
+		t.Fatal("old attendance was rewritten or new answer was not persisted")
+	}
+}

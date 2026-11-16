@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import test from 'node:test';
+import {groupConversationRows,pinnedOutingPresentation,isCanonicalGroupReference} from '@packages/app-core/social/groupPresentation';
 const {find,hooks,modules,deferred,settle}=require('../../pulse-app/scripts/helpers/qaHarness.cjs');
 
 function fixture(platform='ios'){
  const h=hooks(),react={...h.react,memo:(component:unknown)=>component,useLayoutEffect:h.react.useEffect};
+ let focused=true;
  const uid='viewer',gid='group',commands:{offset:number;animated:boolean}[]=[],reads:number[]=[];
  const message=(seq:number,senderId='friend')=>({id:'message-'+seq,seq,senderId,username:senderId,kind:'text',content:'Message '+seq,createdAt:'2026-11-15T21:00:00Z'});
  const group={id:gid,name:'Friends',ownerId:uid,status:'accepted',joinedAt:'2026-11-15T20:00:00Z',visibleAfterSeq:0,lastSeq:1,members:[],outings:[]};
@@ -14,20 +16,22 @@ function fixture(platform='ios'){
  const symbols=(names:string[])=>Object.fromEntries(names.map(name=>[name,name]));
  const mocks:any={
   react,'react-native':{...symbols(['ActivityIndicator','FlatList','Pressable','ScrollView','View']),Platform:{OS:platform},StyleSheet:{create:(styles:unknown)=>styles},useWindowDimensions:()=>({width:390,height:844})},
-  '@react-navigation/native':{useNavigation:()=>({navigate(){},canGoBack:()=>true,goBack(){}}),useIsFocused:()=>true},
+  '@react-navigation/native':{useNavigation:()=>({navigate(){},canGoBack:()=>true,goBack(){}}),useIsFocused:()=>focused},
   'react-native-safe-area-context':{useSafeAreaInsets:()=>({top:60,bottom:34})},'lucide-react-native':symbols(['ArrowUp','BellOff','CalendarDays','Check','ChevronRight','Images','Plus','UsersRound']),
   '@packages/app-core/social/groups':{groupMembershipCounts:()=>({accepted:2,pending:0}),preferredGroupOuting:()=>undefined},
   '@packages/app-core/outings/model':{planningCityKey:(value:string)=>value,planningToday:()=>''},
-  '@packages/app-core/outings/presentation':{outingDate:()=>''}, './GroupContent':{GroupAvatar:'GroupAvatar',EventPreview:'EventPreview',OutingSummary:'OutingSummary',ConversationRow:'ConversationRow',MessageMeta:'MessageMeta'},'./groupStyles':{groupStyles:{}},'@packages/app-core/social/groupPresentation':{conversationTitle:(group:any)=>group.name,relatedEventOuting:()=>undefined},'./useGroups':{useGroups:()=>model},
+  '@packages/app-core/outings/presentation':{outingDate:()=>''}, './GroupContent':{GroupAvatar:'GroupAvatar',EventPreview:'EventPreview',OutingSummary:'OutingSummary',ConversationRow:'ConversationRow',MessageMeta:'MessageMeta'},'./GroupEventReference':{GroupEventReference:'GroupEventReference'},'./groupStyles':{groupStyles:{}},'@packages/app-core/social/groupPresentation':{conversationTitle:(group:any)=>group.name,groupConversationRows,pinnedOutingPresentation,isCanonicalGroupReference},'./useGroups':{useGroups:()=>model},
   '../usePreferences':{usePreferences:()=>({copy:(key:string)=>key,language:'en'})},'../data/events':{formatDate:()=>''},'../ui/theme':{colors:{}},
   '../ui/Text':symbols(['Text']),'../ui/ActionButton':symbols(['ActionButton']),'../ui/GlassPressable':symbols(['GlassPressable']),
   '../ui/FormInput':symbols(['FormInput']),'../ui/AppSheet':symbols(['AppSheet']),'../ui/AppSheetScrollView':symbols(['AppSheetScrollView']),
   '../ui/common':symbols(['EventImage','Feedback','Loading']),'../ui/KeyboardForms':symbols(['FormScrollView']),
   '../outings/OutingPrimitives':symbols(['MemberAvatar','OutingPressable']),'../ui/ActionIcon':symbols(['ActionIcon']),
   './GroupNightForm':symbols(['GroupNightForm']),'./GroupMenu':symbols(['GroupMenu']),'./GroupEventChooser':symbols(['EventChooser']),
-  './GroupOutingCard':symbols(['GroupOutingCard']),'../ui/GlassInputSurface':symbols(['GlassInputSurface']),
+  './GroupOutingCard':symbols(['GroupOutingCard']),'./GroupHistoryUpdates':symbols(['GroupHistoryUpdates']),'../ui/GlassInputSurface':symbols(['GlassInputSurface']),
   './GroupChatKeyboard':symbols(['GroupChatKeyboardProvider','GroupChatScrollView','GroupComposerDock']),
   '../ui/AccentPressable':symbols(['AccentPressable']),
+  '../outings/PlanTicketRecipients':symbols(['PlanTicketRecipients']),
+  '../checkout/useCheckoutReservation':{useCheckoutReservation:()=>({busy:false,error:null,open(){},resume(){},cancel(){}})},
  };
  const {FriendGroupScreen}=modules(mocks).load(path.resolve(__dirname,'../src/groups/GroupsScreen.tsx'));
  const render=()=>h.render(()=>FriendGroupScreen({id:gid}));
@@ -40,6 +44,7 @@ function fixture(platform='ios'){
  const layout=()=>list().props.onContentSizeChange(390,1400);
  inset(platform==='web'?0:360);layout();commands.length=0;reads.length=0;
  return {model,group,message,commands,reads,sent,list,inset,scroll,layout,byID,
+  setFocused(value:boolean){focused=value},
   render(){root=render();return root},get root(){return root},
   drag(offset:number){list().props.onScrollBeginDrag();scroll(offset)},
  };
@@ -103,4 +108,41 @@ test('failed sends, membership changes and user drags cancel deferred latest cor
 test('browser latest commands retain zero while native inset handling stays in the native adapter',()=>{
  const f=fixture('web');f.drag(200);f.model.messages.group=[f.message(2),...f.model.messages.group];f.group.lastSeq=2;f.render();const root=f.render();
  f.byID(root,'group-new-messages').props.onPress();assert.equal(f.commands.at(-1)?.offset,0);
+});
+
+test('sharing from the picker defers latest positioning until the covered conversation is visible again',()=>{
+ const f=fixture();f.scroll(-360);f.setFocused(false);f.render();f.commands.length=0;
+ f.model.messages.group=[f.message(2,'viewer'),...f.model.messages.group];f.group.lastSeq=2;f.render();f.layout();
+ assert.equal(f.commands.length,0,'A zero-sized covered route must not consume the own-share position correction');
+ f.setFocused(true);f.render();assert.equal(f.commands.at(-1)?.offset,-360,'Return applies the pending latest correction to the visible list');
+ f.layout();assert.equal(f.commands.at(-1)?.offset,-360);
+});
+
+test('returning from the picker without a new message leaves a history reader at the same anchor',()=>{
+ const f=fixture();f.drag(320);f.commands.length=0;f.setFocused(false);f.render();
+ f.list().props.onScroll({nativeEvent:{contentOffset:{y:0}}});f.layout();f.setFocused(true);f.render();f.layout();
+ assert.equal(f.commands.length,0,'A hidden native layout/scroll event is not user intent to return to latest');
+ f.model.messages.group=[f.message(2),...f.model.messages.group];f.group.lastSeq=2;f.render();f.layout();assert.equal(f.commands.length,0);
+});
+
+test('return viewport layout cannot consume the correction before the shared event cell is measured',()=>{
+ const f=fixture();f.setFocused(false);f.render();
+ f.model.messages.group=[f.message(2,'viewer'),...f.model.messages.group];f.group.lastSeq=2;f.render();
+ f.setFocused(true);f.render();
+ f.list().props.onLayout({nativeEvent:{layout:{width:390,height:652}}});
+ const beforeContent=f.commands.length;f.layout();
+ assert.equal(f.commands.length,beforeContent+1,'The returned viewport is not proof that the new shared card has its final native layout');
+ assert.equal(f.commands.at(-1)?.offset,-360);
+});
+
+test('own reference audit updates and cached source refreshes do not pull a history reader to latest',()=>{
+ const f=fixture();f.drag(320);f.commands.length=0;
+ const source={...f.message(0,'friend'),kind:'event',outingId:'outing',referenceMessageId:'message-0'};
+ f.model.messages.group=[f.message(1),source];f.render();f.layout();
+ assert.equal(f.commands.length,0,'Hydrating an older canonical source keeps the visible history anchor');
+ const update={...f.message(2,'viewer'),kind:'outing',outingId:'outing',referenceMessageId:source.id};
+ f.model.messages.group=[update,...f.model.messages.group];f.group.lastSeq=2;f.render();f.layout();
+ assert.equal(f.commands.length,0,'A decision audit is not a newly sent message requiring latest focus');
+ f.model.messages.group=f.model.messages.group.map((message:any)=>message.id===source.id?{...message,outingContext:{decisionRound:2}}:message);
+ f.render();f.layout();assert.equal(f.commands.length,0,'Refreshing the original message in place cannot change its list anchor');
 });

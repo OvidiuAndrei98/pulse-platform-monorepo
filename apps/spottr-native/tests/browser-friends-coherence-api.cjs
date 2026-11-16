@@ -11,7 +11,7 @@ assert.equal(fixture.testOnly,true);
 const results=[],routes=[];
 const api=async(actor,route,options={})=>{const response=await fetch(fixture.baseUrl+'/api/v1'+route,{...options,headers:{authorization:'Bearer '+fixture.actors[actor].token,'content-type':'application/json',...options.headers}});const data=await response.json();assert.ok(response.ok,route+' '+response.status+' '+JSON.stringify(data));return data};
 withBrowser(async({call,evaluate,until:poll,click,input,delay,capture,errors})=>{
- const until=(expression,timeout=60000)=>poll(expression,timeout);
+ const until=async(expression,timeout=60000)=>{try{return await poll(expression,timeout)}catch(error){await capture('friends-coherence-real-api-failure');fs.writeFileSync(path.resolve(__dirname,'../artifacts/friends-coherence-real-api-failure.json'),JSON.stringify({message:error.message,requests:await evaluate('window.__realGroups?.requests'),route:await evaluate('location.pathname')},null,2));throw error}};
  await call('Page.addScriptToEvaluateOnNewDocument',{source:`{
   const fixture=${JSON.stringify(fixture)},actor=Number(new URL(location.href).searchParams.get('qaActor')||0),person=fixture.actors[actor];
   const user={...person,role:'user',hasPassword:true,preferredLanguage:'en',createdAt:'2026-01-01T00:00:00Z'};delete user.token;
@@ -38,7 +38,7 @@ withBrowser(async({call,evaluate,until:poll,click,input,delay,capture,errors})=>
  const selected=key=>`${node(key)}?.getAttribute('aria-checked')==='true'`;
  const open=async(route,actor=0)=>{await call('Page.navigate',{url:origin+route+(route.includes('?')?'&':'?')+'qaActor='+actor});await until('window.__realGroups',60000)};
  const shot=async(name)=>{await delay(300);await capture('friends-coherence-real-api-'+name);const layout=await evaluate('({width:innerWidth,documentWidth:document.documentElement.scrollWidth,route:location.pathname})');assert.ok(layout.documentWidth<=layout.width+1,'No horizontal route overflow');routes.push({name,...layout})};
- const press=async(key)=>{await until(node(key),60000);await evaluate(`${node(key)}.scrollIntoView({block:'center'})`);let last='';for(let i=0;i<18;i++){const value=await evaluate(`(()=>{const n=${node(key)},r=n.getBoundingClientRect();return JSON.stringify({x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.width),h:Math.round(r.height),hit:n.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))})})()`),r=JSON.parse(value);if(value===last&&r.hit){const point={x:r.x+r.w/2,y:r.y+r.h/2,button:'left',clickCount:1};await call('Input.dispatchMouseEvent',{type:'mousePressed',...point});await call('Input.dispatchMouseEvent',{type:'mouseReleased',...point});return}last=value;await delay(75)}await shot('covered-'+key);throw Error('Covered control '+key)};
+ const press=async(key)=>{await until(node(key),60000);await evaluate(`${node(key)}.scrollIntoView({block:'center'})`);let last='';for(let i=0;i<18;i++){const value=await evaluate(`(()=>{const root=${node(key)},n=root.matches('[role=button],[role=radio],[role=checkbox],button')?root:root.querySelector('[role=button],button')||root,r=n.getBoundingClientRect();return JSON.stringify({x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.width),h:Math.round(r.height),hit:n.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))})})()`),r=JSON.parse(value);if(value===last&&r.hit){const point={x:r.x+r.w/2,y:r.y+r.h/2,button:'left',clickCount:1};await call('Input.dispatchMouseEvent',{type:'mousePressed',...point});await call('Input.dispatchMouseEvent',{type:'mouseReleased',...point});return}last=value;await delay(75)}await shot('covered-'+key);throw Error('Covered control '+key)};
  const check=label=>{results.push(label);console.log('PASS '+label)};
 
  await open('/groups');await until(node('groups-new'),60000);await press('groups-new');
@@ -73,7 +73,7 @@ withBrowser(async({call,evaluate,until:poll,click,input,delay,capture,errors})=>
  await press('group-chat-view-outing');await until(selected('group-attendance-yes'));await press('group-attendance-no');await until(selected('group-attendance-no'));assert.equal(await evaluate('!!'+node('group-edit-context')),false);await shot('member-detail');
  await open(detail,0);await until(selected('group-attendance-yes'));canonical=(await api(0,'/outings/groups/'+groupId)).outings.find(p=>p.id===planId);
  assert.equal(canonical.members.find(m=>m.userId===fixture.actors[1].id).attendance,'no');assert.equal(canonical.members.find(m=>m.userId===fixture.actors[0].id).attendance,'yes');
- assert.ok(await evaluate(`${node('group-attendance-poll')}.innerText.includes('1 coming')`));
+ assert.equal(canonical.members.filter(m=>m.status==='accepted'&&m.attendance==='yes').length,1);
  check('Two actual isolated API actors reconcile their own responses through chat/detail/reload; invited member excluded from eligibility');
 
  await open('/groups/'+groupId,2);await until(node('group-accept'));assert.equal(await evaluate('!!'+node('group-chat-response')),false);await shot('third-person-invited');
@@ -92,9 +92,29 @@ withBrowser(async({call,evaluate,until:poll,click,input,delay,capture,errors})=>
  assert.equal(await evaluate(selected(preference(1))),true);assert.deepEqual(await evaluate('[...document.querySelectorAll("[data-testid^=group-proposal-]")].map(n=>n.dataset.testid)'),order);await shot('current-comparison');
  await open('/groups/'+groupId,1);await until(node('group-chat-preference-'+fixture.eventIds[0]));await press('group-chat-preference-'+fixture.eventIds[0]);await until(selected('group-chat-preference-'+fixture.eventIds[0]));
  await press('group-chat-view-outing');await until(selected(preference(0)));assert.equal(await evaluate('!!'+node('group-choose-'+fixture.eventIds[0])),false);
- await open(detail);await until(node('group-choose-'+fixture.eventIds[1]));await press('group-choose-'+fixture.eventIds[1]);await press('group-confirm-choice');await until(node('group-attendance-yes'));
+ await open(detail);await until(node('group-choose-destination'));await press('group-choose-destination');await until(node('group-destination-sheet'));await press('group-choose-'+fixture.eventIds[1]);await press('group-confirm-choice');await until(node('group-attendance-yes'));
  current=await api(0,'/outings/plans/'+planId);assert.equal(current.chosenEventId,fixture.eventIds[1]);assert.equal(current.members.filter(m=>m.status==='accepted').every(m=>m.attendance==='unanswered'),true);await shot('current-comparison-chosen');
  check('Actual API supports multiple event preferences, deselection, stable order, chat/detail sync and creator choice without automatic attendance');
+
+
+ // Free registration exercises the same real recipient contract without Stripe.
+ assert.equal(current.chosenEventId,fixture.freeEventId);
+ await until('!'+node('group-destination-sheet'));
+ await press('group-buy');await until(node('group-recipient-sheet'));await until(node('outing-recipient-'+fixture.actors[1].id));
+ await press('outing-recipient-'+fixture.actors[1].id);await shot('free-self-and-friend-recipients');
+ await press('outing-recipients-continue');await until('!'+node('group-recipient-sheet'));
+ await until(`location.pathname.includes('tickets')`);await shot('free-purchaser-tickets');
+ const purchaserTickets=await api(0,'/users/me/tickets');const ownFree=(Array.isArray(purchaserTickets)?purchaserTickets:purchaserTickets.tickets??purchaserTickets.items??[]).filter(t=>t.eventId===fixture.freeEventId);
+ assert.ok(ownFree.length>0,'Actual free registration issues purchaser access');
+ await open(detail,1);await until(node('group-accept-ticket'));await shot('friend-pending-transfer');await press('group-accept-ticket');await until(node('group-my-ticket'));
+ const memberTickets=await api(1,'/users/me/tickets');const memberFree=(Array.isArray(memberTickets)?memberTickets:memberTickets.tickets??memberTickets.items??[]).filter(t=>t.eventId===fixture.freeEventId);assert.ok(memberFree.length>0);
+ await press('group-my-ticket');await until(node('ticket-preview'));await shot('friend-individual-qr');
+ check('Real free self/friend registration closes recipient sheet before navigation, delivers pending friend transfer, accepts it and opens that account QR');
+ await open(detail);await until(node('group-buy'));await press('group-buy');await until(node('outing-recipient-'+fixture.actors[0].id));await press('outing-recipient-'+fixture.actors[0].id);
+ await until(node('outing-extra-confirmation'));assert.equal(await evaluate(`${node('outing-recipients-continue')}.getAttribute('aria-disabled')`),'true');
+ await press('outing-extra-confirmation');await press('outing-recipients-continue');await until('!'+node('group-recipient-sheet'));
+ check('Existing ticket requires explicit extra-ticket confirmation before a second registration');
+ await open(detail);await until(node('group-edit-context'));
 
  const nextDay=new Date(Date.parse(fixture.night+'T12:00:00Z')+86400000).toISOString().slice(0,10);
  await press('group-edit-context');await until(node('group-save-context'));await press('ribbon-day-'+nextDay);await until(`${node('ribbon-day-'+nextDay)}?.getAttribute('aria-pressed')==='true'`);await press('group-save-context');await until(node('group-context-confirm'));await press('group-context-confirm');await until('!'+node('group-night-editor'));
@@ -103,7 +123,7 @@ withBrowser(async({call,evaluate,until:poll,click,input,delay,capture,errors})=>
  check('Actual authorized date editor persists one outing in the same group, clears incompatible destination/responses and synchronizes chat');
 
  for(const width of [320,390,1024]){await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<700});await shot('detail-width-'+width)}
- const network=await evaluate('window.__realGroups.requests');assert.ok(network.some(r=>r.route.startsWith('/outings/')&&r.status===200));assert.equal(network.filter(r=>/payment|checkout|tickets\/(book|purchase)/.test(r.route)).length,0);
+ const network=await evaluate('window.__realGroups.requests');assert.ok(network.some(r=>r.route.startsWith('/outings/')&&r.status===200));assert.equal(network.filter(r=>/tickets\/purchase/.test(r.route)).length,0);
  assert.deepEqual(errors.filter(e=>!e.includes('Failed to load resource')),[]);
- fs.writeFileSync(path.resolve(__dirname,'../artifacts/friends-coherence-real-api-results.json'),JSON.stringify({scope:'Actual RN Web navigation; local PostgreSQL production handlers; synthetic authentication actors and unrelated bootstrap only; no real payments/device claim',groupId,planId,results,routes},null,2));
+ fs.writeFileSync(path.resolve(__dirname,'../artifacts/friends-coherence-real-api-results.json'),JSON.stringify({scope:'Actual RN Web navigation; local PostgreSQL production handlers; synthetic authentication actors and unrelated bootstrap only; real local free registration/transfers; no paid Stripe/device claim',groupId,planId,results,routes},null,2));
 }).catch(error=>{console.error(error);process.exitCode=1});

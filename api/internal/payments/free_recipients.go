@@ -26,7 +26,12 @@ func (h *CheckoutHandler) handleFreeRecipients(w http.ResponseWriter, r *http.Re
 	}{event, req})
 	requestID, claimed, err := h.claimCheckoutRequest(r.Context(), key, "free:user:"+common.UUIDToString(buyer), payload)
 	if err != nil {
-		router.RespondWithError(w, 409, "OUTING_RECIPIENTS_CHANGED")
+		var invalid *checkoutRequestError
+		if errors.As(err, &invalid) {
+			respondCheckoutRequestError(w, recipientConflict("review_recipients"))
+		} else {
+			router.RespondWithError(w, 503, "Cererea nu a putut fi verificata")
+		}
 		return
 	}
 	if !claimed {
@@ -48,10 +53,7 @@ func (h *CheckoutHandler) handleFreeRecipients(w http.ResponseWriter, r *http.Re
 	ctx := context.WithValue(r.Context(), outingPurchaseKey{}, req.Outing)
 	order, err := h.bookFreeRecipients(ctx, event, buyer, email, requested, count, requestID)
 	if err != nil {
-		var known *checkoutRequestError
-		if errors.As(err, &known) {
-			router.RespondWithError(w, known.status, known.message)
-		} else {
+		if !respondCheckoutRequestError(w, err) {
 			router.RespondWithError(w, 503, "Biletul gratuit nu a putut fi rezervat")
 		}
 		return
@@ -70,7 +72,10 @@ func (h *CheckoutHandler) bookFreeRecipients(ctx context.Context, event, buyer p
 	}
 	q := h.queries.WithTx(tx)
 	if _, err = q.LockPublishedEventForCheckout(ctx, event); err != nil {
-		return pgtype.UUID{}, recipientConflict()
+		if errors.Is(err, pgx.ErrNoRows) {
+			return pgtype.UUID{}, recipientConflict()
+		}
+		return pgtype.UUID{}, err
 	}
 	e, err := q.GetEventForCheckout(ctx, event)
 	if err != nil {
